@@ -1,0 +1,603 @@
+/* ========================================
+   薄云GEO - Global Styles
+   Based on IBM Carbon Design System
+   Ant Design theme configured in main.tsx ConfigProvider
+   ======================================== */
+
+:root {
+  --color-primary: #0f62fe;
+  --color-on-primary: #ffffff;
+  --color-blue-60: #0043ce;
+  --color-blue-80: #002d9c;
+  --color-blue-hover: #0050e6;
+  --color-canvas: #ffffff;
+  --color-surface-1: #f4f4f4;
+  --color-surface-2: #e0e0e0;
+  --color-hairline: #e0e0e0;
+  --color-hairline-strong: #161616;
+  --color-inverse-canvas: #161616;
+  --color-inverse-surface-1: #262626;
+  --color-inverse-ink: #ffffff;
+  --color-inverse-ink-muted: #c6c6c6;
+  --color-ink: #161616;
+  --color-ink-muted: #525252;
+  --color-ink-subtle: #8c8c8c;
+  --color-success: #24a148;
+  --color-warning: #f1c21b;
+  --color-error: #da1e28;
+  --color-info: #0f62fe;
+  --font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  --spacing-xxs: 4px;
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+  --spacing-section: 96px;
+  --rounded-none: 0px;
+  --rounded-xs: 2px;
+  --rounded-sm: 4px;
+  --rounded-md: 6px;
+  --rounded-lg: 8px;
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+}
+
+/* Reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-family);
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0.16px;
+  color: var(--color-ink);
+  background-color: var(--color-canvas);
+  margin: 0;
+  height: 100%;
+}
+
+#root {
+  height: 100%;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--color-blue-60);
+}
+
+/* ========================================
+   Ant Design overrides for Carbon Design
+   ======================================== */
+
+.ant-btn,
+.ant-input,
+.ant-select-selector,
+.ant-card,
+.ant-modal-content,
+.ant-tag,
+.ant-pagination .ant-pagination-item,
+.ant-pagination .ant-pagination-prev .ant-pagination-item-link,
+.ant-pagination .ant-pagination-next .ant-pagination-item-link,
+.ant-alert,
+.ant-form-item-explain-error,
+.ant-menu,
+.ant-menu-submenu,
+.ant-menu-item,
+.ant-tooltip .ant-tooltip-inner {
+  border-radius: 0 !important;
+}
+
+.ant-typography {
+  letter-spacing: 0.16px;
+}
+
+.ant-btn-lg {
+  height: 48px !important;
+}
+
+.ant-card-hoverable:hover {
+  box-shadow: none !important;
+  background-color: var(--color-surface-1) !important;
+}
+
+.ant-menu-inline .ant-menu-item-selected {
+  border-left: 3px solid var(--color-primary) !important;
+}
+
+.ant-menu-item {
+  margin: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* ========================================
+   Layout
+   ======================================== */
+
+.full-page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: var(--color-surface-1);
+}
+
+.main-content {
+  background-color: var(--color-surface-1);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.mobile-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(22, 22, 22, 0.3);
+  z-index: 99;
+}
+
+.page-container {
+  padding: 6px;
+  background-color: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  flex: 1;
+}
+
+.page-breadcrumb {
+  display: flex;
+  justify-content: center;
+  padding-bottom: var(--spacing-lg);
+}
+
+.page-breadcrumb .ant-breadcrumb {
+  font-size: 20px;
+  margin: 0;
+}
+
+.page-breadcrumb .ant-breadcrumb-link,
+.page-breadcrumb .ant-breadcrumb-separator {
+  font-size: 20px;
+  color: var(--color-ink);
+}
+
+.page-subtitle {
+  font-size: 16px;
+  color: var(--color-ink-muted);
+  letter-spacing: 0.16px;
+}
+
+/* ========================================
+   Sidebar
+   ======================================== */
+
+.sidebar-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 var(--spacing-md);
+  border-bottom: 1px solid var(--color-hairline);
+  flex-shrink: 0;
+}
+
+.sidebar-header-collapsed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  padding: 0;
+  border-bottom: 1px solid var(--color-hairline);
+  flex-shrink: 0;
+}
+
+.sidebar-brand {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.16px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sidebar-menu-area {
+  flex: 1;
+  border-right: 0;
+  padding-top: var(--spacing-xs);
+}
+
+.sidebar-footer {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-top: 1px solid var(--color-hairline);
+  flex-shrink: 0;
+}
+
+.sidebar-footer-full-width {
+  width: 100%;
+}
+
+.sidebar-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-footer-name {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.16px;
+}
+
+.sidebar-footer-info {
+  font-size: 12px;
+  letter-spacing: 0.16px;
+}
+
+.sidebar-footer-collapsed {
+  padding: var(--spacing-xs) 0;
+  border-top: 1px solid var(--color-hairline);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xxs);
+}
+
+.sidebar-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 12px;
+  color: var(--color-ink-muted);
+}
+
+.sidebar-toggle-btn:hover {
+  color: var(--color-ink);
+}
+
+.sidebar-mobile-unfold {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 101;
+  width: 24px;
+  height: 24px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-ink-muted);
+}
+
+.sidebar-mobile-unfold:hover {
+  color: var(--color-ink);
+}
+
+/* ========================================
+   Login
+   ======================================== */
+
+.login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: var(--color-surface-1);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  padding: var(--spacing-xxl);
+  border: 1px solid var(--color-hairline);
+  background-color: var(--color-canvas);
+}
+
+/* ========================================
+   System Admin — Settings
+   ======================================== */
+
+.settings-collapse {
+  margin-bottom: var(--spacing-lg);
+}
+
+.settings-section-form {
+  max-width: 480px;
+}
+
+.settings-api-key-masked {
+  font-family: var(--font-family);
+  color: var(--color-ink-muted);
+  letter-spacing: 0.16px;
+}
+
+.settings-card-url {
+  font-size: 12px;
+  color: var(--color-ink-subtle);
+  letter-spacing: 0.16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: var(--spacing-md);
+}
+
+.item-card-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.item-card-edit-danger {
+  color: var(--color-error);
+}
+
+.company-add-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 100px;
+  border: 1px dashed var(--color-primary);
+  cursor: pointer;
+}
+
+.company-add-card:hover {
+  background-color: var(--color-surface-1) !important;
+}
+
+.company-add-icon {
+  font-size: 32px;
+  color: var(--color-primary);
+}
+
+.company-add-text {
+  color: var(--color-primary);
+  margin-top: var(--spacing-xs);
+}
+
+/* ========================================
+   Forms
+   ======================================== */
+
+.company-form {
+  max-width: 720px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0;
+  margin-bottom: var(--spacing-md);
+  color: var(--color-ink);
+}
+
+.form-alert {
+  margin-bottom: var(--spacing-md);
+}
+
+.form-alert-lg {
+  margin-bottom: var(--spacing-lg);
+}
+
+.page-alert {
+  margin: var(--spacing-lg);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-xs);
+}
+
+.form-actions-lg {
+  display: flex;
+  gap: var(--spacing-md);
+  justify-content: flex-end;
+  margin-top: var(--spacing-lg);
+}
+
+/* ========================================
+   Manage Pages (User/Skills)
+   ======================================== */
+
+.toolbar {
+  margin-bottom: var(--spacing-lg);
+}
+
+.toolbar .ant-select {
+  width: 100%;
+}
+
+/* ========================================
+   Item Cards (User/Skills)
+   ======================================== */
+
+.item-card-title {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.33;
+  margin: 0 !important;
+  color: var(--color-ink);
+}
+
+.item-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-md);
+}
+
+.item-card-edit {
+  font-size: 16px;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.2s, background 0.2s;
+  flex-shrink: 0;
+}
+
+.item-card-edit:hover {
+  color: var(--color-primary);
+  background: var(--color-surface-1);
+}
+
+.item-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.item-card-username {
+  font-size: 14px;
+  color: var(--color-ink-muted);
+  letter-spacing: 0.16px;
+}
+
+.item-card-desc {
+  font-size: 14px;
+  color: var(--color-ink-muted);
+  letter-spacing: 0.16px;
+  line-height: 1.5;
+  margin-bottom: var(--spacing-md);
+  word-break: break-word;
+}
+
+.item-card-pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--spacing-lg);
+}
+
+.knowledge-image-card {
+  position: relative;
+}
+
+.knowledge-image-thumb {
+  width: 100%;
+  height: 160px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--bg-secondary, #f5f5f5);
+}
+
+.knowledge-image-actions {
+  display: flex;
+  gap: 8px;
+  padding: 4px;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+.form-item-no-margin {
+  margin-bottom: 0;
+}
+
+/* Layout root */
+.app-layout-root {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Sider base */
+.app-sider {
+  background-color: var(--color-canvas);
+  border-right: 1px solid var(--color-hairline);
+  overflow: hidden;
+}
+
+.app-sider-mobile {
+  position: fixed;
+  z-index: 100;
+  height: 100vh;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.app-sider-mobile-collapsed {
+  border-right: none;
+  box-shadow: none;
+}
+
+/* Icon inline margin (Ant Design icon props) */
+.sidebar-icon-margin {
+  margin-right: 4px;
+}
+
+/* ========================================
+   Company/Project Switcher
+   ======================================== */
+
+.switcher-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.switcher-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.switcher-btn {
+  font-size: 12px !important;
+  color: var(--color-ink-muted) !important;
+}
+
+.switcher-btn:hover {
+  color: var(--color-primary) !important;
+}
+
+/* ========================================
+   Loading
+   ======================================== */
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing-xxl);
+}
+
+/* ========================================
+   Responsive
+   ======================================== */
+
+@media (max-width: 672px) {
+  .ant-layout-sider {
+    position: fixed;
+    z-index: 100;
+    height: 100vh;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .login-card {
+    max-width: 100%;
+    margin: var(--spacing-md);
+  }
+}

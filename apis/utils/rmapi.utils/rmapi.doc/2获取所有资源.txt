@@ -1,0 +1,238 @@
+-接口地址 https://rmapi.ruan.net/api/news_resource/data
+-请求方法 get
+
+输入参数
+```
+token=登录获取的token #例如eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8veGlubWVpYmFvX2FwaXMudGVzdC9hcGkvYXV0aC9hdXRoZW50aWNhdGUiLCJpYXQiOjE1NTYyNjk2MzAsImV4cCI6MTU1NjYyOTYzMCwibmJmIjoxNTU2MjY5NjMwLCJqdGkiOiJEUHp6VW1STG9KWkM0Qm5zIiwic3ViIjoxODA0NjMsInBydiI6IjQxZGY4ODM0ZjFiOThmNzBlZmE2MGFhZWRlZjQyMzQxMzcwMDY5MGMifQ.tjd09-hMW1I-ETEAJP10h0_bQHsR8-sX3unUgtkK1xg 
+```
+
+
+返回说明
+```
+{
+    "success": true,
+    "pagination": {
+        "current_page": 1,//当前页面
+        "last_page": 24,//最后一页
+        "per_page": 100,//每页数量
+        "total": 2398//资源总数
+    },
+    "data": [
+        {
+            "id": 1560,//资源id
+            "taxonomy": "新闻资讯",//分类
+            "title_limit": 36,//标题限制
+            "name": "搜狐网-媒体新闻",//资源名称
+            "price": 35,//你的价格
+            "in_level": 3,//入口级别。0没有。1首页入口。2频道首页。3栏目页面。
+            "url_type": [
+                "不带联系方式"
+            ],//链接类型，可以有多个。对象类型返回
+            "baidu": 0,//新闻源。0没有，1百度新闻源
+            "remark": "自媒体",//备注
+            "url": "https://www.sohu.com/a/232444706_247413",//链接地址
+            "case_url": "http://www.sohu.com/a/161155679_187955",//案例地址
+            "include_rate": 92.4,//收录率
+            "publish_rate": 81.69,//发稿率
+            "publish_type_name": null,
+            "price_market": 70,//市场价
+            "price_agenta": 28,//高级代理
+            "price_agentb": 31.5,//普通代理
+            "price_agentc": 35//会员价格
+        },
+        {
+            "id": 2760,
+            "taxonomy": "最新秒杀",
+            "title_limit": 0,
+            "name": "阜阳之声",
+            "price": 40,
+            "in_level": 3,
+            "url_type": [
+                "网址",
+                "超链接",
+                "微信QQ"
+            ],
+            "baidu": 0,
+            "remark": "",
+            "url": "http://www.fyzsw.net/fyauto/201710/48898024.html",
+            "case_url": "http://www.fyzsw.net/fynew/201707/44126030.html",
+            "include_rate": 50,
+            "publish_rate": 100,
+            "publish_type_name": null,
+            "price_market": 80,
+            "price_agenta": 32,
+            "price_agentb": 36,
+            "price_agentc": 40
+        },
+        {
+            "id": 2821,
+            "taxonomy": "最新秒杀",
+            "title_limit": 0,
+            "name": "合肥热线",
+            "price": 40,
+            "in_level": 3,
+            "url_type": [
+                "网址",
+                "超链接",
+                "微信QQ"
+            ],
+            "baidu": 0,
+            "remark": "标题不能带[加盟]字符",
+            "url": "http://www.hfrxws.cn/fdg/2018/047839908.html",
+            "case_url": "http://news.hefei.cc/2016/1107/026859071.shtml",
+            "include_rate": 30,
+            "publish_rate": 100,
+            "publish_type_name": null,
+            "price_market": 80,
+            "price_agenta": 32,
+            "price_agentb": 36,
+            "price_agentc": 40
+        },
+        {
+            "id": 3531,
+            "taxonomy": "最新秒杀",
+            "title_limit": 0,
+            "name": "中国丽江网",
+            "price": 40,
+            "in_level": 3,
+            "url_type": [
+                "网址",
+                "超链接",
+                "微信QQ"
+            ],
+            "baidu": 0,
+            "remark": "",
+            "url": "http://www.cnljw.com.cn/a/20180518/126807.html",
+            "case_url": "http://www.cnljw.com.cn/a/20180105/103317.html",
+            "include_rate": 30,
+            "publish_rate": 100,
+            "publish_type_name": null,
+            "price_market": 80,
+            "price_agenta": 32,
+            "price_agentb": 36,
+            "price_agentc": 40
+        },
+        {
+            "id": 3532,
+            "taxonomy": "最新秒杀",
+            "title_limit": 0,
+            "name": "云贵网",
+            "price": 40,
+            "in_level": 3,
+            "url_type": [
+                "网址",
+                "超链接",
+                "微信QQ"
+            ],
+            "baidu": 0,
+            "remark": "",
+            "url": "http://www.gwnzf.com/en/2018/058375910.html",
+            "case_url": "http://www.gwnzf.com/en/2017/126369421.html",
+            "include_rate": 30,
+            "publish_rate": 100,
+            "publish_type_name": null,
+            "price_market": 80,
+            "price_agenta": 32,
+            "price_agentb": 36,
+            "price_agentc": 40
+        },
+        {
+            "id": 3533,
+            "taxonomy": "最新秒杀",
+            "title_limit": 0,
+            "name": "云南之窗",
+            "price": 40,
+            "in_level": 3,
+            "url_type": [
+                "网址",
+                "超链接",
+                "微信QQ"
+            ],
+            "baidu": 0,
+            "remark": "",
+            "url": "http://www.ynzcws.cn/li/2018/058424018.html",
+            "case_url": "http://www.ynzcws.cn/li/2017/126385027.html",
+            "include_rate": 30,
+            "publish_rate": 100,
+            "publish_type_name": null,
+            "price_market": 80,
+            "price_agenta": 32,
+            "price_agentb": 36,
+            "price_agentc": 40
+        },
+        {
+            "id": 3534,
+            "taxonomy": "最新秒杀",
+            "title_limit": 0,
+            "name": "昆明网",
+            "price": 40,
+            "in_level": 3,
+            "url_type": [
+                "网址",
+                "超链接",
+                "微信QQ"
+            ],
+            "baidu": 0,
+            "remark": "",
+            "url": "http://www.cwpxp.com/qwj/20180521/96777.html",
+            "case_url": "http://www.cwpxp.com/qwj/20180104/70868.html",
+            "include_rate": 30,
+            "publish_rate": 100,
+            "publish_type_name": null,
+            "price_market": 80,
+            "price_agenta": 32,
+            "price_agentb": 36,
+            "price_agentc": 40
+        },
+        {
+            "id": 3535,
+            "taxonomy": "最新秒杀",
+            "title_limit": 0,
+            "name": "昆明在线",
+            "price": 40,
+            "in_level": 3,
+            "url_type": [
+                "网址",
+                "超链接",
+                "微信QQ"
+            ],
+            "baidu": 0,
+            "remark": "",
+            "url": "http://www.nswct.com/kmxw/96821.html",
+            "case_url": "http://www.nswct.com/kmxw/70617.html",
+            "include_rate": 30,
+            "publish_rate": 100,
+            "publish_type_name": null,
+            "price_market": 80,
+            "price_agenta": 32,
+            "price_agentb": 36,
+            "price_agentc": 40
+        },
+        {
+            "id": 3536,
+            "taxonomy": "最新秒杀",
+            "title_limit": 0,
+            "name": "云南信息港",
+            "price": 40,
+            "in_level": 3,
+            "url_type": [
+                "网址",
+                "超链接",
+                "微信QQ"
+            ],
+            "baidu": 0,
+            "remark": "",
+            "url": "http://www.ynrx.com.cn/qx/201804/17805003.html",
+            "case_url": "http://www.ynrx.com.cn/xwzx/201801/16248605.html",
+            "include_rate": 30,
+            "publish_rate": 100,
+            "publish_type_name": null,
+            "price_market": 80,
+            "price_agenta": 32,
+            "price_agentb": 36,
+            "price_agentc": 40
+        }
+    ],
+    "status": 200
+}
+```

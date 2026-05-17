@@ -1,0 +1,27 @@
+import app from './app';
+import config from './config';
+import { closePrisma } from './utils';
+
+const PORT = config.server.port;
+
+const server = app.listen(PORT, () => {
+  console.log(`[薄云GEO] Server running on port ${PORT}`);
+  console.log(`[薄云GEO] Environment: ${process.env.NODE_ENV || 'development'}`);
+  if (config.swagger.enabled) {
+    console.log(`[薄云GEO] Swagger docs: http://localhost:${PORT}/api-docs`);
+  }
+});
+
+process.on('SIGINT', async () => {
+  console.log('[薄云GEO] Shutting down...');
+  await closePrisma();
+  server.close(() => process.exit(0));
+});
+
+process.on('SIGTERM', async () => {
+  console.log('[薄云GEO] Shutting down...');
+  await closePrisma();
+  server.close(() => process.exit(0));
+});
+
+export default app;

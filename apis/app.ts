@@ -1,0 +1,152 @@
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import swaggerJSDoc from 'swagger-jsdoc';
+import swaggerUI from 'swagger-ui-express';
+import path from 'path';
+import config from './config';
+import { authMiddleware, rateLimitMiddleware, antiCrawlMiddleware, roleMiddleware } from './middleware';
+import * as authController from './controller/auth.controller';
+import * as companyController from './controller/company.controller';
+import * as skillsController from './controller/skills.controller';
+import * as userController from './controller/user.controller';
+import * as llmModelController from './controller/llm-model.controller';
+import * as systemConfigController from './controller/system-config.controller';
+import * as publishingPlatformController from './controller/publishing-platform.controller';
+import * as projectController from './controller/project.controller';
+import * as articleController from './controller/article.controller';
+import * as knowledgeController from './controller/knowledge.controller';
+import { uploadMiddleware, uploadFile } from './controller/upload.controller';
+
+const app = express();
+
+// Security middleware
+app.use(helmet());
+app.use(cors());
+app.use(express.json());
+
+// Static files
+app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
+
+// Anti-crawl & rate limiting
+app.use(antiCrawlMiddleware);
+app.use(rateLimitMiddleware);
+
+// Swagger setup
+const swaggerSpec = swaggerJSDoc({
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: '薄云GEO API',
+      version: '1.0.0',
+      description: '薄云GEO Enterprise Management Platform API',
+    },
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+    },
+  },
+  apis: ['./apis/controller/*.ts'],
+});
+
+if (config.swagger.enabled) {
+  app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
+  app.get('/api-docs.json', (_req, res) => res.json(swaggerSpec));
+}
+
+// Public routes (no auth required)
+app.post('/api/auth/login', authController.login);
+
+// Protected routes (auth required)
+app.get('/api/auth/verify', authMiddleware, authController.verify);
+app.post('/api/auth/logout', authMiddleware, authController.logout);
+app.put('/api/auth/selection', authMiddleware, authController.saveSelection);
+app.get('/api/auth/companies', authMiddleware, authController.getAccessibleCompanies);
+app.get('/api/auth/companies/:id', authMiddleware, authController.getCompanyDetail);
+app.get('/api/auth/projects', authMiddleware, authController.getAccessibleProjects);
+app.get('/api/auth/context', authMiddleware, authController.getContext);
+
+// Company routes (sysadmin only)
+app.get('/api/companies', authMiddleware, roleMiddleware('sysadmin'), companyController.listCompanies);
+app.get('/api/companies/:id', authMiddleware, roleMiddleware('sysadmin'), companyController.getCompany);
+app.post('/api/companies', authMiddleware, roleMiddleware('sysadmin'), companyController.createCompany);
+app.put('/api/companies/:id', authMiddleware, roleMiddleware('sysadmin'), companyController.updateCompany);
+
+// Skills routes (sysadmin + admin)
+app.get('/api/skills', authMiddleware, roleMiddleware('sysadmin', 'admin'), skillsController.listSkills);
+app.get('/api/skills/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), skillsController.getSkills);
+app.post('/api/skills', authMiddleware, roleMiddleware('sysadmin', 'admin'), skillsController.createSkills);
+app.put('/api/skills/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), skillsController.updateSkills);
+app.delete('/api/skills/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), skillsController.deleteSkills);
+
+// User routes (sysadmin only)
+app.get('/api/users', authMiddleware, roleMiddleware('sysadmin'), userController.listUsers);
+app.get('/api/users/:id', authMiddleware, roleMiddleware('sysadmin'), userController.getUser);
+app.post('/api/users', authMiddleware, roleMiddleware('sysadmin'), userController.createUser);
+app.put('/api/users/:id', authMiddleware, roleMiddleware('sysadmin'), userController.updateUser);
+app.delete('/api/users/:id', authMiddleware, roleMiddleware('sysadmin'), userController.deleteUser);
+
+// LLM Model routes (sysadmin only)
+app.get('/api/llm-models/enabled', authMiddleware, roleMiddleware('sysadmin', 'admin'), llmModelController.listEnabledLlmModels);
+app.get('/api/llm-models', authMiddleware, roleMiddleware('sysadmin'), llmModelController.listLlmModels);
+app.get('/api/llm-models/:id', authMiddleware, roleMiddleware('sysadmin'), llmModelController.getLlmModel);
+app.post('/api/llm-models', authMiddleware, roleMiddleware('sysadmin'), llmModelController.createLlmModel);
+app.put('/api/llm-models/:id', authMiddleware, roleMiddleware('sysadmin'), llmModelController.updateLlmModel);
+app.delete('/api/llm-models/:id', authMiddleware, roleMiddleware('sysadmin'), llmModelController.deleteLlmModel);
+
+// System Config routes (sysadmin only)
+app.get('/api/system-configs', authMiddleware, roleMiddleware('sysadmin'), systemConfigController.getSystemConfigs);
+app.put('/api/system-configs', authMiddleware, roleMiddleware('sysadmin'), systemConfigController.updateSystemConfigs);
+
+// Publishing Platform routes
+app.post('/api/publishing-platforms/sync', authMiddleware, roleMiddleware('sysadmin'), publishingPlatformController.syncPublishingPlatforms);
+app.get('/api/publishing-platforms', authMiddleware, roleMiddleware('sysadmin', 'admin'), publishingPlatformController.listPublishingPlatforms);
+
+// Project routes (sysadmin + admin)
+app.get('/api/projects', authMiddleware, roleMiddleware('sysadmin', 'admin'), projectController.listProjects);
+app.get('/api/projects/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), projectController.getProject);
+app.post('/api/projects', authMiddleware, roleMiddleware('sysadmin', 'admin'), projectController.createProject);
+app.put('/api/projects/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), projectController.updateProject);
+app.delete('/api/projects/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), projectController.deleteProject);
+
+// Article routes (sysadmin + admin)
+app.get('/api/projects/:projectId/articles', authMiddleware, roleMiddleware('sysadmin', 'admin'), articleController.listArticles);
+app.get('/api/projects/:projectId/articles/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), articleController.getArticle);
+app.post('/api/projects/:projectId/articles', authMiddleware, roleMiddleware('sysadmin', 'admin'), articleController.createArticle);
+app.put('/api/projects/:projectId/articles/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), articleController.updateArticle);
+app.delete('/api/projects/:projectId/articles/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), articleController.deleteArticle);
+app.put('/api/projects/:projectId/articles/:id/review', authMiddleware, roleMiddleware('sysadmin', 'admin'), articleController.reviewArticle);
+app.put('/api/projects/:projectId/articles/:id/content', authMiddleware, roleMiddleware('sysadmin', 'admin'), articleController.updateArticleContent);
+app.get('/api/projects/:projectId/articles/:id/versions', authMiddleware, roleMiddleware('sysadmin', 'admin'), articleController.listArticleVersions);
+
+// Upload route (sysadmin + admin)
+app.post('/api/upload', authMiddleware, roleMiddleware('sysadmin', 'admin'), uploadMiddleware, uploadFile);
+
+// Knowledge routes (sysadmin + admin)
+app.get('/api/projects/:projectId/knowledge/keywords', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listKeywords);
+app.get('/api/projects/:projectId/knowledge/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.getKeyword);
+app.post('/api/projects/:projectId/knowledge/keywords', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.createKeyword);
+app.put('/api/projects/:projectId/knowledge/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.updateKeyword);
+app.delete('/api/projects/:projectId/knowledge/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.deleteKeyword);
+app.get('/api/projects/:projectId/knowledge/portraits', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listPortraits);
+app.get('/api/projects/:projectId/knowledge/portraits/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.getPortrait);
+app.post('/api/projects/:projectId/knowledge/portraits', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.createPortrait);
+app.put('/api/projects/:projectId/knowledge/portraits/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.updatePortrait);
+app.delete('/api/projects/:projectId/knowledge/portraits/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.deletePortrait);
+app.get('/api/projects/:projectId/knowledge/images', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listImages);
+app.get('/api/projects/:projectId/knowledge/images/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.getImage);
+app.post('/api/projects/:projectId/knowledge/images', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.createImage);
+app.put('/api/projects/:projectId/knowledge/images/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.updateImage);
+app.delete('/api/projects/:projectId/knowledge/images/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.deleteImage);
+
+// Health check
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+export default app;

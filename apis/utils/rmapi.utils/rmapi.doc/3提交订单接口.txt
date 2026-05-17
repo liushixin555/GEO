@@ -1,0 +1,10 @@
+-接口地址 https://rmapi.ruan.net/api/news_order
+-请求方法 post
+
+输入参数
+```
+token=获取的token
+title=标题
+content=内容
+resource_id 媒体id
+```

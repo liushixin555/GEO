@@ -1,0 +1,263 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id            Int     @id @default(autoincrement())
+  shortName     String  @map("short_name") @db.VarChar(50)
+  fullName      String  @map("full_name") @db.VarChar(200)
+  address       String? @db.VarChar(500)
+  contactPerson String  @map("contact_person") @db.VarChar(100)
+  contactPhone  String  @map("contact_phone") @db.VarChar(20)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  users         User[]
+  skills        Skills[]
+  projects      Project[]
+  selectedByUsers User[] @relation("UserSelectedCompany")
+
+  @@map("companies")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique @db.VarChar(100)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  cnName       String   @map("cn_name") @db.VarChar(100)
+  role         Role     @default(view)
+  status       Boolean  @default(true)
+  companyId    Int?     @map("company_id")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  company      Company? @relation(fields: [companyId], references: [id])
+  selectedCompanyId  Int?     @map("selected_company_id")
+  selectedProjectId  Int?     @map("selected_project_id")
+  selectedCompany    Company? @relation("UserSelectedCompany", fields: [selectedCompanyId], references: [id])
+  selectedProject    Project? @relation("UserSelectedProject", fields: [selectedProjectId], references: [id])
+  operatedProjects ProjectOperator[] @relation("UserProjectOperator")
+  viewedProjects  ProjectViewer[] @relation("UserProjectViewer")
+  createdSkills        Skills[]              @relation("SkillsCreator")
+  createdArticles      Article[]             @relation("ArticleCreator")
+  articleVersions      ArticleVersion[]      @relation("ArticleVersionCreator")
+  createdKeywords      KnowledgeKeyword[]    @relation("KnowledgeKeywordCreator")
+  createdPortraits     KnowledgePortrait[]   @relation("KnowledgePortraitCreator")
+  createdImages        KnowledgeImage[]      @relation("KnowledgeImageCreator")
+
+  @@index([username])
+  @@index([companyId])
+  @@index([role])
+  @@map("users")
+}
+
+enum Role {
+  sysadmin
+  admin
+  view
+}
+
+enum ArticleStatus {
+  draft
+  generating
+  generate_failed
+  pending_review
+  publishing
+  publish_failed
+  published
+}
+
+model Skills {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(200)
+  category    String   @db.VarChar(100)
+  description String?  @db.VarChar(500)
+  status      Boolean  @default(true)
+  companyId   Int?     @map("company_id")
+  createdBy   Int?     @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  company     Company? @relation(fields: [companyId], references: [id])
+  creator     User?    @relation("SkillsCreator", fields: [createdBy], references: [id])
+
+  @@index([companyId])
+  @@index([category])
+  @@index([status])
+  @@map("skills")
+}
+
+model LlmModel {
+  id        Int      @id @default(autoincrement())
+  provider  String   @db.VarChar(100)
+  baseUrl   String   @map("base_url") @db.VarChar(500)
+  apiKey    String   @map("api_key") @db.VarChar(500)
+  modelName String   @map("model_name") @db.VarChar(200)
+  status    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  articles  Article[]
+
+  @@map("llm_models")
+}
+
+model PublishingPlatform {
+  id           Int      @id @default(autoincrement())
+  rmResourceId Int      @map("rm_resource_id")
+  name         String   @db.VarChar(200)
+  taxonomy     String   @db.VarChar(100)
+  price        Float    @default(0)
+  remark       String?  @db.VarChar(500)
+  includeRate  Float    @default(0) @map("include_rate")
+  publishRate  Float    @default(0) @map("publish_rate")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@index([rmResourceId])
+  @@index([taxonomy])
+  @@map("publishing_platforms")
+}
+
+model SystemConfig {
+  id          Int      @id @default(autoincrement())
+  configKey   String   @unique @map("config_key") @db.VarChar(100)
+  configValue String   @map("config_value") @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("system_configs")
+}
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  shortName   String   @map("short_name") @db.VarChar(50)
+  fullName    String   @map("full_name") @db.VarChar(200)
+  description String?  @db.VarChar(500)
+  companyId   Int      @map("company_id")
+  status      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  company     Company  @relation(fields: [companyId], references: [id])
+  operators   ProjectOperator[]
+  viewers     ProjectViewer[]
+  articles    Article[]
+  selectedByUsers User[] @relation("UserSelectedProject")
+  knowledgeKeywords  KnowledgeKeyword[]
+  knowledgePortraits KnowledgePortrait[]
+  knowledgeImages    KnowledgeImage[]
+
+  @@index([companyId])
+  @@index([status])
+  @@map("projects")
+}
+
+model ProjectOperator {
+  projectId Int @map("project_id")
+  userId    Int @map("user_id")
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User    @relation("UserProjectOperator", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@index([userId])
+  @@map("project_operators")
+}
+
+model ProjectViewer {
+  projectId Int @map("project_id")
+  userId    Int @map("user_id")
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User    @relation("UserProjectViewer", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@index([userId])
+  @@map("project_viewers")
+}
+
+model Article {
+  id          Int           @id @default(autoincrement())
+  projectId   Int           @map("project_id")
+  title       String        @db.VarChar(500)
+  keywords    Json?
+  portrait    String?
+  images      Json?
+  platforms   Json?
+  skills      Json?
+  llmModelId  Int?          @map("llm_model_id")
+  content     String?
+  version     Float         @default(1.0)
+  status      ArticleStatus @default(draft)
+  createdBy   Int?          @map("created_by")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator     User?         @relation("ArticleCreator", fields: [createdBy], references: [id])
+  llmModel    LlmModel?     @relation(fields: [llmModelId], references: [id], onDelete: SetNull)
+  versions    ArticleVersion[]
+
+  @@index([projectId])
+  @@index([status])
+  @@index([createdBy])
+  @@map("articles")
+}
+
+model ArticleVersion {
+  id        Int      @id @default(autoincrement())
+  articleId Int      @map("article_id")
+  version   Float
+  content   String
+  createdBy Int?     @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  creator   User?    @relation("ArticleVersionCreator", fields: [createdBy], references: [id])
+
+  @@index([articleId])
+  @@map("article_versions")
+}
+
+model KnowledgeKeyword {
+  id        Int      @id @default(autoincrement())
+  projectId Int      @map("project_id")
+  keyword   String   @db.VarChar(200)
+  createdBy Int?     @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator   User?    @relation("KnowledgeKeywordCreator", fields: [createdBy], references: [id])
+
+  @@index([projectId])
+  @@map("knowledge_keywords")
+}
+
+model KnowledgePortrait {
+  id        Int      @id @default(autoincrement())
+  projectId Int      @map("project_id")
+  title     String   @db.VarChar(200)
+  content   String?  @db.Text
+  createdBy Int?     @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator   User?    @relation("KnowledgePortraitCreator", fields: [createdBy], references: [id])
+
+  @@index([projectId])
+  @@map("knowledge_portraits")
+}
+
+model KnowledgeImage {
+  id          Int      @id @default(autoincrement())
+  projectId   Int      @map("project_id")
+  title       String   @db.VarChar(200)
+  description String?  @db.VarChar(500)
+  imageUrl    String   @map("image_url") @db.VarChar(500)
+  createdBy   Int?     @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator     User?    @relation("KnowledgeImageCreator", fields: [createdBy], references: [id])
+
+  @@index([projectId])
+  @@map("knowledge_images")
+}

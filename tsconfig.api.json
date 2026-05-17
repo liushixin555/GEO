@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist/apis",
+    "rootDir": ".",
+    "module": "commonjs",
+    "target": "ES2022"
+  },
+  "include": ["apis/**/*.ts", "prisma/**/*.ts"],
+  "exclude": ["node_modules", "dist", "pages", "tests"]
+}

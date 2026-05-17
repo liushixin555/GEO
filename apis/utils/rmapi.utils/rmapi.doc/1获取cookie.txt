@@ -1,0 +1,24 @@
+-接口地址 https://rmapi.ruan.net/api/auth/authenticate
+-请求方法 post
+输入参数
+```
+mobile=登录账号
+password=登录密码
+identity=advertiser
+captcha_token=advertiser
+captcha=advertiser
+api_key=3b98c40be00c15f9ec69131076646eb7
+```
+**注意：token接口只用获取一次，并且全局有效。其他接口，如果返回status=401之后，需要重新获取token**
+
+返回说明
+```
+{
+    "success": true,
+    "message": "验证成功",
+    "data": {
+        "token": "eyJ0eXAiOiJKV1QiLCJOi8veGlubWVpYmFvX2FwaXMudGVzdC9hcGkvYXV0aC9hdXRoZW50aWNhdGUiLCJpYXQiOjE1NTYyNjk2MzAsImV4cCI6MTU1NjYyOTYzMCwibmJmIjoxNTU2MjY5NjMwLCJqdGkiOiJEUHp6VW1STG9KWkM0Qm5zIiwic3ViIjoxODA0NjMsInBydiI6IjQxZGY4ODM0ZjFiOThmNzBlZmE2MGFhZWRlZjQyMzQxMzcwMDY5MGMifQ.tjd09-hMW1I-ETEAJP10h0_bQHsR8-sX3unUgtkK1xg"
+    },
+    "status": 200
+}
+```

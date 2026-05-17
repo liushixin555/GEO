@@ -1,0 +1,12 @@
+{
+  "server": {
+    "port": 8080
+  },
+  "swagger": {
+    "enabled": false
+  },
+  "rateLimit": {
+    "windowMs": 60000,
+    "max": 50
+  }
+}
