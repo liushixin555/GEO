@@ -319,31 +319,31 @@ const ArticleDetail: React.FC = () => {
                   const selected = imageList.includes(img.image_url);
                   return (
                     <div key={img.id}
+                      onClick={() => {
+                        if (!isSettingsEditable) return;
+                        if (selected) {
+                          setImageList(imageList.filter((u) => u !== img.image_url));
+                        } else {
+                          setImageList([...imageList, img.image_url]);
+                        }
+                      }}
                       style={{
-                        position: 'relative', width: 80, height: 80, border: `2px solid ${selected ? 'var(--interactive)' : 'var(--border-subtle)'}`,
+                        position: 'relative', width: 80, height: 80,
+                        border: `2px solid ${selected ? 'var(--interactive)' : 'var(--border-subtle)'}`,
                         borderRadius: 2, overflow: 'hidden',
+                        cursor: isSettingsEditable ? 'pointer' : 'default',
                       }}
                       title={img.title}
                     >
                       <Image src={img.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} />
-                      {isSettingsEditable && (
-                        <div
-                          onClick={() => {
-                            if (selected) {
-                              setImageList(imageList.filter((u) => u !== img.image_url));
-                            } else {
-                              setImageList([...imageList, img.image_url]);
-                            }
-                          }}
-                          style={{
-                            position: 'absolute', top: 2, right: 2, width: 20, height: 20, borderRadius: '50%',
-                            border: selected ? 'none' : '1.5px solid var(--text-secondary)',
-                            background: selected ? 'var(--interactive)' : 'rgba(255,255,255,0.85)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            cursor: 'pointer', zIndex: 1, transition: 'all 0.2s',
-                          }}
-                        >
-                          {selected && <CheckOutlined style={{ color: '#fff', fontSize: 11 }} />}
+                      {selected && (
+                        <div style={{
+                          position: 'absolute', inset: 0,
+                          background: 'rgba(0,0,0,0.25)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          pointerEvents: 'none',
+                        }}>
+                          <CheckOutlined style={{ color: '#fff', fontSize: 22 }} />
                         </div>
                       )}
                     </div>
@@ -365,21 +365,6 @@ const ArticleDetail: React.FC = () => {
         )}
         {isSettingsEditable && imageMode === 'url' && (
           <Input.Search placeholder="输入图片URL" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} onSearch={handleAddUrl} enterButton={<LinkOutlined />} />
-        )}
-        {imageList.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-            {imageList.map((url) => (
-              <div key={url} style={{ position: 'relative', width: 80, height: 80, border: '1px solid var(--border-subtle)', borderRadius: 2, overflow: 'hidden' }}>
-                <Image src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} />
-                {isSettingsEditable && (
-                  <Button type="text" size="small" danger icon={<DeleteOutlined />}
-                    style={{ position: 'absolute', top: 0, right: 0, background: 'rgba(255,255,255,0.8)', padding: '0 4px', minWidth: 'auto' }}
-                    onClick={() => setImageList(imageList.filter((u) => u !== url))}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
         )}
       </Form.Item>
       <Form.Item name="skills" label="选择技能">
