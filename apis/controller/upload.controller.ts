@@ -1,15 +1,24 @@
 import { Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import crypto from 'crypto';
 import { success, fail } from '../utils';
+
+const UPLOAD_DIR = path.resolve(process.cwd(), 'uploads');
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    cb(null, path.resolve(process.cwd(), 'uploads'));
+    if (!fs.existsSync(UPLOAD_DIR)) {
+      fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    }
+    cb(null, UPLOAD_DIR);
   },
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname);
