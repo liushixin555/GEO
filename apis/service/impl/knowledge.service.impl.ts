@@ -3,6 +3,18 @@ import { KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, CreateKeywordReque
 import { mapKeyword, mapPortrait, mapKnowledgeImage } from '../../map';
 import { IKeywordService, IPortraitService, IImageService } from '../knowledge.service';
 
+function mapRawKeyword(r: any): KnowledgeKeyword {
+  return {
+    id: r.id,
+    project_id: r.project_id,
+    keyword: r.keyword,
+    group_id: r.group_id ?? null,
+    created_by: r.created_by,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+  };
+}
+
 export class KeywordServiceImpl implements IKeywordService {
   async list(projectId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeKeyword[]; total: number }> {
     const prisma = getPrisma();
@@ -19,9 +31,9 @@ export class KeywordServiceImpl implements IKeywordService {
 
   async getById(id: number): Promise<KnowledgeKeyword> {
     const prisma = getPrisma();
-    const item = await prisma.knowledgeKeyword.findFirst({ where: { id } });
-    if (!item) throw new Error('关键词不存在');
-    return mapKeyword(item);
+    const rows: any[] = await prisma.$queryRaw`SELECT * FROM knowledge_keywords WHERE id = ${id}`;
+    if (!rows || rows.length === 0) throw new Error('关键词不存在');
+    return mapRawKeyword(rows[0]);
   }
 
   async create(projectId: number, request: CreateKeywordRequest, userId: number): Promise<KnowledgeKeyword> {
@@ -34,48 +46,29 @@ export class KeywordServiceImpl implements IKeywordService {
 
   async batchCreate(projectId: number, keywords: string[], userId: number, groupId: number): Promise<KnowledgeKeyword[]> {
     const prisma = getPrisma();
-    const items = await Promise.all(
-      keywords.map(keyword =>
-        prisma.knowledgeKeyword.create({
-          data: { projectId, keyword, groupId, createdBy: userId } as any,
-        })
-      )
-    );
-    return items.map(mapKeyword);
+    for (const keyword of keywords) {
+      await prisma.$executeRaw`INSERT INTO knowledge_keywords (project_id, keyword, group_id, created_by, created_at, updated_at) VALUES (${projectId}, ${keyword}, ${groupId}, ${userId}, NOW(), NOW())`;
+    }
+    const rows: any[] = await prisma.$queryRaw`SELECT * FROM knowledge_keywords WHERE group_id = ${groupId} ORDER BY id ASC`;
+    return rows.map(mapRawKeyword);
   }
 
   async listByGroup(groupId: number): Promise<KnowledgeKeyword[]> {
     const prisma = getPrisma();
-    const items = await prisma.knowledgeKeyword.findMany({
-      where: { groupId } as any,
-      orderBy: { id: 'asc' },
-    });
-    return items.map(mapKeyword);
+    const rows: any[] = await prisma.$queryRaw`SELECT * FROM knowledge_keywords WHERE group_id = ${groupId} ORDER BY id ASC`;
+    return rows.map(mapRawKeyword);
   }
 
   async syncGroup(groupId: number, projectId: number, keywords: string[], userId: number): Promise<KnowledgeKeyword[]> {
     const prisma = getPrisma();
-    // Delete existing keywords in the group that are NOT in the new list
-    await prisma.knowledgeKeyword.deleteMany({
-      where: { groupId, keyword: { notIn: keywords } } as any,
-    });
-    // Find existing keywords in the group
-    const existing = await prisma.knowledgeKeyword.findMany({ where: { groupId } as any });
-    const existingKeywords = new Set(existing.map((e: any) => e.keyword));
-    // Create only new keywords
-    const newKeywords = keywords.filter(k => !existingKeywords.has(k));
-    if (newKeywords.length > 0) {
-      await Promise.all(
-        newKeywords.map(keyword =>
-          prisma.knowledgeKeyword.create({
-            data: { projectId, keyword, groupId, createdBy: userId } as any,
-          })
-        )
-      );
+    // Delete all existing keywords in the group
+    await prisma.$executeRaw`DELETE FROM knowledge_keywords WHERE group_id = ${groupId}`;
+    // Re-create all selected keywords
+    for (const keyword of keywords) {
+      await prisma.$executeRaw`INSERT INTO knowledge_keywords (project_id, keyword, group_id, created_by, created_at, updated_at) VALUES (${projectId}, ${keyword}, ${groupId}, ${userId}, NOW(), NOW())`;
     }
-    // Return all keywords in the group
-    const all = await prisma.knowledgeKeyword.findMany({ where: { groupId } as any, orderBy: { id: 'asc' } });
-    return all.map(mapKeyword);
+    const rows: any[] = await prisma.$queryRaw`SELECT * FROM knowledge_keywords WHERE group_id = ${groupId} ORDER BY id ASC`;
+    return rows.map(mapRawKeyword);
   }
 
   async update(id: number, request: UpdateKeywordRequest): Promise<KnowledgeKeyword> {
