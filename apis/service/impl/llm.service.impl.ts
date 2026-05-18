@@ -17,18 +17,23 @@ export class LlmServiceImpl implements ILlmService {
 原始关键词：${keyword}`;
 
     const url = `${model.baseUrl.replace(/\/+$/, '')}/chat/completions`;
-    const response = await axios.post(url, {
-      model: model.modelName,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-      max_tokens: 1000,
-    }, {
-      headers: {
-        'Authorization': `Bearer ${model.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: 30000,
-    });
+    let response;
+    try {
+      response = await axios.post(url, {
+        model: model.modelName,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0,
+      }, {
+        headers: {
+          'Authorization': `Bearer ${model.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 300000,
+      });
+    } catch (err: any) {
+      const detail = err.response?.data?.error?.message || err.response?.data?.message || err.message;
+      throw new Error(`LLM调用失败(${err.response?.status || '未知'}): ${detail}`);
+    }
 
     const content = response.data?.choices?.[0]?.message?.content || '';
     const keywords = content
