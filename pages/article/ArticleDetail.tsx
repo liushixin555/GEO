@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Form, Input, Select, Button, Alert, Segmented, Upload, Image, Tabs, Typography, Spin, Tag, App, Popconfirm } from 'antd';
-import { ArrowLeftOutlined, InboxOutlined, LinkOutlined, DeleteOutlined, CheckOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, InboxOutlined, LinkOutlined, DeleteOutlined, CheckOutlined, EyeOutlined, EditOutlined } from '@ant-design/icons';
+import MDEditor from '@uiw/react-md-editor';
 import axios from 'axios';
 import { useAppContext } from '../context/AppContext';
 
@@ -67,6 +68,7 @@ const ArticleDetail: React.FC = () => {
   // Content state
   const [content, setContent] = useState('');
   const [contentSaving, setContentSaving] = useState(false);
+  const [contentMode, setContentMode] = useState<'preview' | 'edit'>('preview');
 
   // Tab
   const hasContent = article !== null && article.content !== null && article.content !== '';
@@ -390,23 +392,46 @@ const ArticleDetail: React.FC = () => {
   );
 
   const contentTab = (
-    <div>
+    <div data-color-mode="light">
       {article && (
         <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>版本 {(article.version ?? 1.0).toFixed(1)}</span>
-          {isContentEditable && (
-            <Button type="primary" onClick={handleSaveContent} loading={contentSaving}>保存正文</Button>
+          <span style={{ color: 'var(--color-ink-muted)', fontSize: 13 }}>版本 {(article.version ?? 1.0).toFixed(1)}</span>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {isContentEditable && (
+              <Segmented
+                size="small"
+                value={contentMode}
+                onChange={(val) => setContentMode(val as 'preview' | 'edit')}
+                options={[
+                  { icon: <EyeOutlined />, value: 'preview', label: '浏览' },
+                  { icon: <EditOutlined />, value: 'edit', label: '编辑' },
+                ]}
+              />
+            )}
+            {isContentEditable && contentMode === 'edit' && (
+              <Button type="primary" onClick={handleSaveContent} loading={contentSaving}>保存正文</Button>
+            )}
+          </div>
+        </div>
+      )}
+      {contentMode === 'edit' ? (
+        <MDEditor
+          value={content}
+          onChange={(val) => setContent(val || '')}
+          height={600}
+          preview="live"
+        />
+      ) : (
+        <div className="article-content-preview" style={{ minHeight: 300 }}>
+          {content ? (
+            <MDEditor.Markdown source={content} />
+          ) : (
+            <div style={{ padding: 48, textAlign: 'center', color: 'var(--color-ink-subtle)' }}>
+              暂无正文内容
+            </div>
           )}
         </div>
       )}
-      <Input.TextArea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        disabled={!isContentEditable}
-        autoSize={{ minRows: 20 }}
-        placeholder="文章正文（可在此编辑正文内容）"
-        style={{ fontSize: 15 }}
-      />
     </div>
   );
 
@@ -415,7 +440,7 @@ const ArticleDetail: React.FC = () => {
   ];
 
   if (!isNew && article && hasContent) {
-    tabItems.push({ key: 'content', label: `正文 (v${(article.version ?? 1.0).toFixed(1)})`, children: contentTab });
+    tabItems.push({ key: 'content', label: `正文 (v${(article.version ?? 1.0).toFixed(1)})`, children: contentTab, forceRender: true });
   }
 
   return (
