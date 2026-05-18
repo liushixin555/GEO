@@ -227,10 +227,23 @@ model KnowledgeKeyword {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   creator   User?    @relation("KnowledgeKeywordCreator", fields: [createdBy], references: [id])
+  expandedWords KeywordExpandedWord[]
 
   @@index([projectId])
-  @@index([groupId])
   @@map("knowledge_keywords")
+}
+
+model KeywordExpandedWord {
+  id        Int      @id @default(autoincrement())
+  keywordId Int      @map("keyword_id")
+  word      String   @db.VarChar(200)
+  selected  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  keyword   KnowledgeKeyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+
+  @@index([keywordId])
+  @@map("keyword_expanded_words")
 }
 
 model KnowledgePortrait {

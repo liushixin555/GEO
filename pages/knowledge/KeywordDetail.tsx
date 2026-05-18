@@ -7,6 +7,11 @@ import { useAppContext } from '../context/AppContext';
 
 const EXPAND_PAGE_SIZE = 10;
 
+interface ExpandedWordItem {
+  word: string;
+  selected: boolean;
+}
+
 const KeywordDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { projectId } = useAppContext();
@@ -16,19 +21,17 @@ const KeywordDetail: React.FC = () => {
   const isEditMode = isNew || searchParams.get('mode') === 'edit';
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-  const [data, setData] = useState<{ keyword: string; group_id: number | null; created_by: number | null } | null>(null);
+  const [data, setData] = useState<{ keyword: string; created_by: number | null; expanded_words?: { id: number; word: string; selected: boolean }[] } | null>(null);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [form] = Form.useForm();
   const keywordValue = Form.useWatch('keyword', form);
 
-  // Expansion state
-  const [expandedKeywords, setExpandedKeywords] = useState<string[]>([]);
-  const [selectedSet, setSelectedSet] = useState<Set<string>>(new Set());
+  // Expanded words state: list of { word, selected }
+  const [expandedWords, setExpandedWords] = useState<ExpandedWordItem[]>([]);
   const [expanding, setExpanding] = useState(false);
   const [expandPage, setExpandPage] = useState(1);
-  const [groupId, setGroupId] = useState<number | null>(null);
 
   const fetchData = useCallback(async () => {
     if (isNew || !projectId) return;
@@ -40,19 +43,10 @@ const KeywordDetail: React.FC = () => {
       });
       const kwData = res.data.data;
       setData(kwData);
-      setGroupId(kwData.group_id);
       form.setFieldValue('keyword', kwData.keyword);
-
-      // Load group keywords if group_id exists
-      if (kwData.group_id) {
-        const groupRes = await axios.get(`/api/projects/${projectId}/knowledge/keywords/group/${kwData.group_id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const groupKeywords: { keyword: string }[] = groupRes.data.data || [];
-        const kwList = groupKeywords.map(k => k.keyword);
-        setExpandedKeywords(kwList);
-        setSelectedSet(new Set(kwList)); // all saved keywords are checked
-        setExpandPage(1);
+      // Load expanded words from database
+      if (kwData.expanded_words && kwData.expanded_words.length > 0) {
+        setExpandedWords(kwData.expanded_words.map((w: any) => ({ word: w.word, selected: w.selected })));
       }
     } catch (err: any) {
       message.error(err.response?.data?.message || '加载失败');
@@ -78,10 +72,10 @@ const KeywordDetail: React.FC = () => {
         { headers: { Authorization: `Bearer ${token}` } },
       );
       const newKeywords: string[] = res.data.data || [];
-      // Append new words not already in the list
-      setExpandedKeywords(prev => {
-        const existing = new Set(prev);
-        const appended = [keyword.trim(), ...newKeywords].filter(k => !existing.has(k));
+      // Append new words not already in the list, default selected=false
+      setExpandedWords(prev => {
+        const existing = new Set(prev.map(w => w.word));
+        const appended = newKeywords.filter(k => !existing.has(k)).map(k => ({ word: k, selected: false }));
         return [...prev, ...appended];
       });
     } catch (err: any) {
@@ -89,24 +83,19 @@ const KeywordDetail: React.FC = () => {
     } finally { setExpanding(false); }
   };
 
-  const toggleSelect = (kw: string) => {
-    setSelectedSet(prev => {
-      const next = new Set(prev);
-      if (next.has(kw)) { next.delete(kw); } else { next.add(kw); }
-      return next;
-    });
+  const toggleSelect = (word: string) => {
+    setExpandedWords(prev => prev.map(w => w.word === word ? { ...w, selected: !w.selected } : w));
   };
 
-  const handleDeleteKeyword = (kw: string) => {
-    setExpandedKeywords(prev => prev.filter(k => k !== kw));
-    setSelectedSet(prev => { const n = new Set(prev); n.delete(kw); return n; });
+  const handleDeleteWord = (word: string) => {
+    setExpandedWords(prev => prev.filter(w => w.word !== word));
   };
 
-  // Save logic: add mode → batch create; edit mode → sync group
+  // Save: keyword → knowledge_keywords, expanded words → keyword_expanded_words
   const handleSave = async () => {
-    const selected = Array.from(selectedSet);
-    if (selected.length === 0) {
-      message.warning('请至少勾选一个关键词');
+    const keyword = form.getFieldValue('keyword');
+    if (!keyword?.trim()) {
+      message.warning('请输入关键词');
       return;
     }
     if (!projectId) return;
@@ -114,29 +103,20 @@ const KeywordDetail: React.FC = () => {
     setError('');
     try {
       const token = localStorage.getItem('token');
+      const payload = {
+        keyword: keyword.trim(),
+        expanded_words: expandedWords.map(w => ({ word: w.word, selected: w.selected })),
+      };
       if (isNew) {
-        const gid = groupId || Math.floor(Date.now() / 1000);
-        await axios.post(`/api/projects/${projectId}/knowledge/keywords/batch`,
-          { keywords: selected, group_id: gid },
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-        message.success(`成功添加${selected.length}个关键词`);
+        await axios.post(`/api/projects/${projectId}/knowledge/keywords`, payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        message.success('创建成功');
       } else {
-        if (groupId) {
-          // Edit mode with existing group: sync
-          await axios.post(`/api/projects/${projectId}/knowledge/keywords/sync`,
-            { group_id: groupId, keywords: selected },
-            { headers: { Authorization: `Bearer ${token}` } },
-          );
-        } else {
-          // Edit mode without group: batch create
-          const gid = Math.floor(Date.now() / 1000);
-          await axios.post(`/api/projects/${projectId}/knowledge/keywords/batch`,
-            { keywords: selected, group_id: gid },
-            { headers: { Authorization: `Bearer ${token}` } },
-          );
-        }
-        message.success('保存成功');
+        await axios.put(`/api/projects/${projectId}/knowledge/keywords/${id}`, payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        message.success('更新成功');
       }
       navigate('/knowledge');
     } catch (err: any) {
@@ -146,23 +126,23 @@ const KeywordDetail: React.FC = () => {
 
   if (loading) return <div className="page-container"><Spin /></div>;
 
-  const pagedKeywords = expandedKeywords.slice((expandPage - 1) * EXPAND_PAGE_SIZE, expandPage * EXPAND_PAGE_SIZE);
+  const pagedWords = expandedWords.slice((expandPage - 1) * EXPAND_PAGE_SIZE, expandPage * EXPAND_PAGE_SIZE);
 
   const columns = [
     {
-      title: '关键词',
-      dataIndex: 'keyword',
-      key: 'keyword',
+      title: '关联词',
+      dataIndex: 'word',
+      key: 'word',
     },
     {
       title: '选择',
       key: 'select',
       width: 80,
       align: 'center' as const,
-      render: (_: unknown, record: { keyword: string }) => (
+      render: (_: unknown, record: ExpandedWordItem) => (
         <Checkbox
-          checked={selectedSet.has(record.keyword)}
-          onChange={() => toggleSelect(record.keyword)}
+          checked={record.selected}
+          onChange={() => toggleSelect(record.word)}
           disabled={!canEdit}
         />
       ),
@@ -172,13 +152,13 @@ const KeywordDetail: React.FC = () => {
       key: 'action',
       width: 80,
       align: 'center' as const,
-      render: (_: unknown, record: { keyword: string }) => (
-        <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDeleteKeyword(record.keyword)} />
+      render: (_: unknown, record: ExpandedWordItem) => (
+        <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDeleteWord(record.word)} />
       ),
     }] : []),
   ];
 
-  const tableData = pagedKeywords.map(kw => ({ key: kw, keyword: kw }));
+  const tableData = pagedWords.map(w => ({ key: w.word, ...w }));
   const pageTitle = isNew ? '添加关键词' : (isEditMode ? '编辑关键词' : '关键词详情');
 
   return (
@@ -202,7 +182,7 @@ const KeywordDetail: React.FC = () => {
         </Form.Item>
       </Form>
 
-      {expandedKeywords.length > 0 && (
+      {expandedWords.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <Table
             columns={columns}
@@ -211,12 +191,12 @@ const KeywordDetail: React.FC = () => {
             size="small"
             bordered
           />
-          {expandedKeywords.length > EXPAND_PAGE_SIZE && (
+          {expandedWords.length > EXPAND_PAGE_SIZE && (
             <div style={{ marginTop: 12, textAlign: 'right' }}>
               <Pagination
                 current={expandPage}
                 pageSize={EXPAND_PAGE_SIZE}
-                total={expandedKeywords.length}
+                total={expandedWords.length}
                 showSizeChanger={false}
                 onChange={(p) => setExpandPage(p)}
               />
@@ -225,11 +205,20 @@ const KeywordDetail: React.FC = () => {
           {canEdit && (
             <div className="form-actions" style={{ marginTop: 16 }}>
               <Button onClick={() => navigate('/knowledge')}>取消</Button>
-              <Button type="primary" onClick={handleSave} loading={saving} disabled={selectedSet.size === 0}>
+              <Button type="primary" onClick={handleSave} loading={saving}>
                 保存
               </Button>
             </div>
           )}
+        </div>
+      )}
+
+      {expandedWords.length === 0 && canEdit && (
+        <div className="form-actions">
+          <Button onClick={() => navigate('/knowledge')}>取消</Button>
+          <Button type="primary" onClick={handleSave} loading={saving}>
+            保存
+          </Button>
         </div>
       )}
     </div>

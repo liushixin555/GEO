@@ -1,5 +1,5 @@
 import { getPrisma } from '../../utils';
-import { KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, CreateKeywordRequest, UpdateKeywordRequest, CreatePortraitRequest, UpdatePortraitRequest, CreateImageRequest, UpdateImageRequest } from '../../entity';
+import { KnowledgeKeyword, KeywordExpandedWord, KnowledgePortrait, KnowledgeImage, CreateKeywordRequest, UpdateKeywordRequest, CreatePortraitRequest, UpdatePortraitRequest, CreateImageRequest, UpdateImageRequest } from '../../entity';
 import { mapKeyword, mapPortrait, mapKnowledgeImage } from '../../map';
 import { IKeywordService, IPortraitService, IImageService } from '../knowledge.service';
 
@@ -10,6 +10,17 @@ function mapRawKeyword(r: any): KnowledgeKeyword {
     keyword: r.keyword,
     group_id: r.group_id ?? null,
     created_by: r.created_by,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+  };
+}
+
+function mapRawExpandedWord(r: any): KeywordExpandedWord {
+  return {
+    id: r.id,
+    keyword_id: r.keyword_id,
+    word: r.word,
+    selected: r.selected,
     created_at: r.created_at,
     updated_at: r.updated_at,
   };
@@ -33,7 +44,10 @@ export class KeywordServiceImpl implements IKeywordService {
     const prisma = getPrisma();
     const rows: any[] = await prisma.$queryRaw`SELECT * FROM knowledge_keywords WHERE id = ${id}`;
     if (!rows || rows.length === 0) throw new Error('关键词不存在');
-    return mapRawKeyword(rows[0]);
+    const keyword = mapRawKeyword(rows[0]);
+    // Load expanded words
+    keyword.expanded_words = await this.listExpandedWords(id);
+    return keyword;
   }
 
   async create(projectId: number, request: CreateKeywordRequest, userId: number): Promise<KnowledgeKeyword> {
@@ -41,34 +55,35 @@ export class KeywordServiceImpl implements IKeywordService {
     const item = await prisma.knowledgeKeyword.create({
       data: { projectId, keyword: request.keyword, createdBy: userId },
     });
-    return mapKeyword(item);
+    const keyword = mapKeyword(item);
+    // Save expanded words if provided
+    if (request.expanded_words && request.expanded_words.length > 0) {
+      keyword.expanded_words = await this.syncExpandedWords(keyword.id, projectId, request.expanded_words, userId);
+    }
+    return keyword;
   }
 
   async batchCreate(projectId: number, keywords: string[], userId: number, groupId: number): Promise<KnowledgeKeyword[]> {
+    // Legacy - not used anymore but kept for interface compatibility
     const prisma = getPrisma();
-    for (const keyword of keywords) {
-      await prisma.$executeRaw`INSERT INTO knowledge_keywords (project_id, keyword, group_id, created_by, created_at, updated_at) VALUES (${projectId}, ${keyword}, ${groupId}, ${userId}, NOW(), NOW())`;
-    }
-    const rows: any[] = await prisma.$queryRaw`SELECT * FROM knowledge_keywords WHERE group_id = ${groupId} ORDER BY id ASC`;
-    return rows.map(mapRawKeyword);
+    const items = await Promise.all(
+      keywords.map(keyword =>
+        prisma.knowledgeKeyword.create({
+          data: { projectId, keyword, createdBy: userId },
+        })
+      )
+    );
+    return items.map(mapKeyword);
   }
 
   async listByGroup(groupId: number): Promise<KnowledgeKeyword[]> {
-    const prisma = getPrisma();
-    const rows: any[] = await prisma.$queryRaw`SELECT * FROM knowledge_keywords WHERE group_id = ${groupId} ORDER BY id ASC`;
-    return rows.map(mapRawKeyword);
+    // Legacy - not used anymore
+    return [];
   }
 
   async syncGroup(groupId: number, projectId: number, keywords: string[], userId: number): Promise<KnowledgeKeyword[]> {
-    const prisma = getPrisma();
-    // Delete all existing keywords in the group
-    await prisma.$executeRaw`DELETE FROM knowledge_keywords WHERE group_id = ${groupId}`;
-    // Re-create all selected keywords
-    for (const keyword of keywords) {
-      await prisma.$executeRaw`INSERT INTO knowledge_keywords (project_id, keyword, group_id, created_by, created_at, updated_at) VALUES (${projectId}, ${keyword}, ${groupId}, ${userId}, NOW(), NOW())`;
-    }
-    const rows: any[] = await prisma.$queryRaw`SELECT * FROM knowledge_keywords WHERE group_id = ${groupId} ORDER BY id ASC`;
-    return rows.map(mapRawKeyword);
+    // Legacy - not used anymore
+    return [];
   }
 
   async update(id: number, request: UpdateKeywordRequest): Promise<KnowledgeKeyword> {
@@ -76,14 +91,41 @@ export class KeywordServiceImpl implements IKeywordService {
     const existing = await prisma.knowledgeKeyword.findFirst({ where: { id } });
     if (!existing) throw new Error('关键词不存在');
     const updated = await prisma.knowledgeKeyword.update({ where: { id }, data: { keyword: request.keyword } });
-    return mapKeyword(updated);
+    const keyword = mapKeyword(updated);
+    // Sync expanded words if provided
+    if (request.expanded_words !== undefined) {
+      keyword.expanded_words = await this.syncExpandedWords(id, existing.projectId, request.expanded_words, existing.createdBy ?? 0);
+    } else {
+      keyword.expanded_words = await this.listExpandedWords(id);
+    }
+    return keyword;
   }
 
   async delete(id: number): Promise<void> {
     const prisma = getPrisma();
     const existing = await prisma.knowledgeKeyword.findFirst({ where: { id } });
     if (!existing) throw new Error('关键词不存在');
+    // Cascade delete will remove expanded words
     await prisma.knowledgeKeyword.delete({ where: { id } });
+  }
+
+  // ===== Expanded Words (raw SQL) =====
+
+  async listExpandedWords(keywordId: number): Promise<KeywordExpandedWord[]> {
+    const prisma = getPrisma();
+    const rows: any[] = await prisma.$queryRaw`SELECT * FROM keyword_expanded_words WHERE keyword_id = ${keywordId} ORDER BY id ASC`;
+    return rows.map(mapRawExpandedWord);
+  }
+
+  async syncExpandedWords(keywordId: number, _projectId: number, words: { word: string; selected: boolean }[], _userId: number): Promise<KeywordExpandedWord[]> {
+    const prisma = getPrisma();
+    // Delete all existing expanded words for this keyword
+    await prisma.$executeRaw`DELETE FROM keyword_expanded_words WHERE keyword_id = ${keywordId}`;
+    // Re-insert all
+    for (const w of words) {
+      await prisma.$executeRaw`INSERT INTO keyword_expanded_words (keyword_id, word, selected, created_at, updated_at) VALUES (${keywordId}, ${w.word}, ${w.selected}, NOW(), NOW())`;
+    }
+    return this.listExpandedWords(keywordId);
   }
 }
 

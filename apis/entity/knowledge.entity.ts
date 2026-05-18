@@ -6,6 +6,16 @@ export interface KnowledgeKeyword {
   created_by: number | null;
   created_at: Date;
   updated_at: Date;
+  expanded_words?: KeywordExpandedWord[];
+}
+
+export interface KeywordExpandedWord {
+  id: number;
+  keyword_id: number;
+  word: string;
+  selected: boolean;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export interface KnowledgePortrait {
@@ -31,10 +41,12 @@ export interface KnowledgeImage {
 
 export interface CreateKeywordRequest {
   keyword: string;
+  expanded_words?: { word: string; selected: boolean }[];
 }
 
 export interface UpdateKeywordRequest {
   keyword: string;
+  expanded_words?: { word: string; selected: boolean }[];
 }
 
 export interface CreatePortraitRequest {
