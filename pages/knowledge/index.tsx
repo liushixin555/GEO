@@ -33,7 +33,12 @@ const KnowledgePage: React.FC = () => {
   const { projectId } = useAppContext();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('keywords');
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('knowledge_active_tab') || 'keywords');
+
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    sessionStorage.setItem('knowledge_active_tab', key);
+  };
 
   // Keywords state
   const [keywords, setKeywords] = useState<KeywordItem[]>([]);
@@ -304,7 +309,7 @@ const KnowledgePage: React.FC = () => {
   return (
     <div className="page-container">
       <div className="page-breadcrumb"><Breadcrumb items={[{ title: 'AI知识库' }]} /></div>
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
+      <Tabs activeKey={activeTab} onChange={handleTabChange} items={tabItems} />
     </div>
   );
 };
