@@ -21,6 +21,7 @@ const KeywordDetail: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [form] = Form.useForm();
+  const keywordValue = Form.useWatch('keyword', form);
 
   // Expansion state
   const [expandedKeywords, setExpandedKeywords] = useState<string[]>([]);
@@ -167,7 +168,7 @@ const KeywordDetail: React.FC = () => {
         </Form.Item>
         {isNew && canEdit && (
           <Form.Item>
-            <Button icon={<ThunderboltOutlined />} onClick={handleExpand} loading={expanding} disabled={!form.getFieldValue('keyword')}>
+            <Button icon={<ThunderboltOutlined />} onClick={handleExpand} loading={expanding} disabled={!keywordValue?.trim()}>
               智能扩词
             </Button>
           </Form.Item>
