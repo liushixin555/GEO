@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Form, Input, Select, Button, Alert, Segmented, Upload, Image, Tabs, Typography, Spin, Tag, message, Popconfirm } from 'antd';
-import { ArrowLeftOutlined, InboxOutlined, LinkOutlined, DeleteOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, InboxOutlined, LinkOutlined, DeleteOutlined, CheckOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useAppContext } from '../context/AppContext';
 
@@ -319,22 +319,33 @@ const ArticleDetail: React.FC = () => {
                   const selected = imageList.includes(img.image_url);
                   return (
                     <div key={img.id}
-                      onClick={() => {
-                        if (!isSettingsEditable) return;
-                        if (selected) {
-                          setImageList(imageList.filter((u) => u !== img.image_url));
-                        } else {
-                          setImageList([...imageList, img.image_url]);
-                        }
-                      }}
                       style={{
                         position: 'relative', width: 80, height: 80, border: `2px solid ${selected ? 'var(--interactive)' : 'var(--border-subtle)'}`,
-                        borderRadius: 2, overflow: 'hidden', cursor: isSettingsEditable ? 'pointer' : 'default',
-                        opacity: selected ? 1 : 0.7, transition: 'all 0.2s',
+                        borderRadius: 2, overflow: 'hidden',
                       }}
                       title={img.title}
                     >
                       <Image src={img.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} />
+                      {isSettingsEditable && (
+                        <div
+                          onClick={() => {
+                            if (selected) {
+                              setImageList(imageList.filter((u) => u !== img.image_url));
+                            } else {
+                              setImageList([...imageList, img.image_url]);
+                            }
+                          }}
+                          style={{
+                            position: 'absolute', top: 2, right: 2, width: 20, height: 20, borderRadius: '50%',
+                            border: selected ? 'none' : '1.5px solid var(--text-secondary)',
+                            background: selected ? 'var(--interactive)' : 'rgba(255,255,255,0.85)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', zIndex: 1, transition: 'all 0.2s',
+                          }}
+                        >
+                          {selected && <CheckOutlined style={{ color: '#fff', fontSize: 11 }} />}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
