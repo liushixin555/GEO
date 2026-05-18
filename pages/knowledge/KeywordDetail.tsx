@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Input, Button, Alert, Typography, Spin, message, Breadcrumb, Table, Pagination, Checkbox } from 'antd';
-import { ArrowLeftOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, ThunderboltOutlined, DeleteOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useAppContext } from '../context/AppContext';
 
@@ -28,6 +28,7 @@ const KeywordDetail: React.FC = () => {
   const [selectedSet, setSelectedSet] = useState<Set<string>>(new Set());
   const [expanding, setExpanding] = useState(false);
   const [expandPage, setExpandPage] = useState(1);
+  const autoExpanded = useRef(false);
 
   const fetchData = useCallback(async () => {
     if (isNew || !projectId) return;
@@ -48,21 +49,29 @@ const KeywordDetail: React.FC = () => {
 
   const canEdit = isEditMode && (user.role === 'sysadmin' || isNew || data?.created_by === user.id);
 
-  // Edit mode: save single keyword
-  const handleUpdateSave = async (values: { keyword: string }) => {
-    setSaving(true);
-    setError('');
-    try {
-      const token = localStorage.getItem('token');
-      await axios.put(`/api/projects/${projectId}/knowledge/keywords/${id}`, values, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      message.success('更新成功');
-      navigate('/knowledge');
-    } catch (err: any) {
-      setError(err.response?.data?.message || '保存失败');
-    } finally { setSaving(false); }
-  };
+  // Auto-expand for view/edit mode after data loads
+  useEffect(() => {
+    if (isNew || autoExpanded.current || !data?.keyword || !projectId) return;
+    autoExpanded.current = true;
+    const doExpand = async () => {
+      setExpanding(true);
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.post(`/api/projects/${projectId}/knowledge/keywords/expand`,
+          { keyword: data.keyword },
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        const keywords: string[] = res.data.data || [];
+        const all = [data.keyword, ...keywords.filter(k => k !== data.keyword)];
+        setExpandedKeywords(all);
+        setSelectedSet(new Set([data.keyword])); // pre-check the current keyword
+        setExpandPage(1);
+      } catch {
+        // silent fail for auto-expand
+      } finally { setExpanding(false); }
+    };
+    doExpand();
+  }, [data, isNew, projectId]);
 
   const handleExpand = async () => {
     const keyword = form.getFieldValue('keyword');
@@ -78,11 +87,14 @@ const KeywordDetail: React.FC = () => {
         { keyword: keyword.trim() },
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      const keywords: string[] = res.data.data || [];
-      // Prepend original keyword if not in results
-      const all = [keyword.trim(), ...keywords.filter(k => k !== keyword.trim())];
-      setExpandedKeywords(all);
-      setSelectedSet(new Set()); // default: none selected
+      const newKeywords: string[] = res.data.data || [];
+      // Append new words that don't already exist in the list
+      setExpandedKeywords(prev => {
+        const existing = new Set(prev);
+        const appended = newKeywords.filter(k => !existing.has(k));
+        return [...prev, ...appended];
+      });
+      // New words default unchecked
       setExpandPage(1);
     } catch (err: any) {
       message.error(err.response?.data?.message || '智能扩词失败');
@@ -97,8 +109,13 @@ const KeywordDetail: React.FC = () => {
     });
   };
 
-  // Add mode: batch save selected keywords
-  const handleBatchSave = async () => {
+  const handleDeleteKeyword = (kw: string) => {
+    setExpandedKeywords(prev => prev.filter(k => k !== kw));
+    setSelectedSet(prev => { const n = new Set(prev); n.delete(kw); return n; });
+  };
+
+  // Save: batch create all selected keywords
+  const handleSave = async () => {
     const selected = Array.from(selectedSet);
     if (selected.length === 0) {
       message.warning('请至少勾选一个关键词');
@@ -109,11 +126,20 @@ const KeywordDetail: React.FC = () => {
     setError('');
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`/api/projects/${projectId}/knowledge/keywords/batch`,
-        { keywords: selected },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      message.success(`成功添加${selected.length}个关键词`);
+      if (isNew) {
+        await axios.post(`/api/projects/${projectId}/knowledge/keywords/batch`,
+          { keywords: selected },
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        message.success(`成功添加${selected.length}个关键词`);
+      } else {
+        // Edit mode: batch create new keywords (the existing one is updated in place by being in the list)
+        await axios.post(`/api/projects/${projectId}/knowledge/keywords/batch`,
+          { keywords: selected },
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        message.success('保存成功');
+      }
       navigate('/knowledge');
     } catch (err: any) {
       setError(err.response?.data?.message || '保存失败');
@@ -124,7 +150,7 @@ const KeywordDetail: React.FC = () => {
 
   const pagedKeywords = expandedKeywords.slice((expandPage - 1) * EXPAND_PAGE_SIZE, expandPage * EXPAND_PAGE_SIZE);
 
-  const expandColumns = [
+  const columns = [
     {
       title: '关键词',
       dataIndex: 'keyword',
@@ -136,57 +162,44 @@ const KeywordDetail: React.FC = () => {
       width: 80,
       align: 'center' as const,
       render: (_: unknown, record: { keyword: string }) => (
-        <Checkbox checked={selectedSet.has(record.keyword)} onChange={() => toggleSelect(record.keyword)} />
+        <Checkbox
+          checked={selectedSet.has(record.keyword)}
+          onChange={() => toggleSelect(record.keyword)}
+          disabled={!canEdit}
+        />
       ),
     },
+    ...(canEdit ? [{
+      title: '操作',
+      key: 'action',
+      width: 80,
+      align: 'center' as const,
+      render: (_: unknown, record: { keyword: string }) => (
+        <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDeleteKeyword(record.keyword)} />
+      ),
+    }] : []),
   ];
 
-  const expandData = pagedKeywords.map(kw => ({ key: kw, keyword: kw }));
+  const tableData = pagedKeywords.map(kw => ({ key: kw, keyword: kw }));
 
-  // Edit mode layout
-  if (!isNew) {
-    return (
-      <div className="page-container">
-        <div className="page-breadcrumb">
-          <Breadcrumb items={[{ title: <a onClick={() => navigate('/knowledge')}>AI知识库</a> }, { title: '关键词详情' }]} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/knowledge')} />
-          <Typography.Title level={2} style={{ margin: 0 }}>关键词详情</Typography.Title>
-        </div>
-        <Form form={form} onFinish={handleUpdateSave} layout="vertical" style={{ maxWidth: 600 }}>
-          {error && <Alert type="error" message={error} className="form-alert" showIcon closable onClose={() => setError('')} />}
-          <Form.Item name="keyword" label="关键词" rules={[{ required: true, message: '关键词不能为空' }]}>
-            <Input placeholder="输入关键词" disabled={!canEdit} />
-          </Form.Item>
-          {canEdit && (
-            <div className="form-actions">
-              <Button onClick={() => navigate('/knowledge')}>取消</Button>
-              <Button type="primary" htmlType="submit" loading={saving}>保存</Button>
-            </div>
-          )}
-        </Form>
-      </div>
-    );
-  }
+  const pageTitle = isNew ? '添加关键词' : (isEditMode ? '编辑关键词' : '关键词详情');
 
-  // Add mode layout: keyword + expand button in one row, table below, save/cancel below table
   return (
     <div className="page-container">
       <div className="page-breadcrumb">
-        <Breadcrumb items={[{ title: <a onClick={() => navigate('/knowledge')}>AI知识库</a> }, { title: '添加关键词' }]} />
+        <Breadcrumb items={[{ title: <a onClick={() => navigate('/knowledge')}>AI知识库</a> }, { title: pageTitle }]} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/knowledge')} />
-        <Typography.Title level={2} style={{ margin: 0 }}>添加关键词</Typography.Title>
+        <Typography.Title level={2} style={{ margin: 0 }}>{pageTitle}</Typography.Title>
       </div>
       {error && <Alert type="error" message={error} className="form-alert" showIcon closable onClose={() => setError('')} style={{ marginBottom: 16 }} />}
       <Form form={form} layout="inline" style={{ marginBottom: 16 }}>
         <Form.Item name="keyword" label="关键词" rules={[{ required: true, message: '关键词不能为空' }]}>
-          <Input placeholder="输入关键词" style={{ width: 280 }} />
+          <Input placeholder="输入关键词" style={{ width: 280 }} disabled={!canEdit} />
         </Form.Item>
         <Form.Item>
-          <Button icon={<ThunderboltOutlined />} onClick={handleExpand} loading={expanding} disabled={!keywordValue?.trim()}>
+          <Button icon={<ThunderboltOutlined />} onClick={handleExpand} loading={expanding} disabled={!keywordValue?.trim() || !canEdit}>
             智能扩词
           </Button>
         </Form.Item>
@@ -195,8 +208,8 @@ const KeywordDetail: React.FC = () => {
       {expandedKeywords.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <Table
-            columns={expandColumns}
-            dataSource={expandData}
+            columns={columns}
+            dataSource={tableData}
             pagination={false}
             size="small"
             bordered
@@ -212,12 +225,14 @@ const KeywordDetail: React.FC = () => {
               />
             </div>
           )}
-          <div className="form-actions" style={{ marginTop: 16 }}>
-            <Button onClick={() => navigate('/knowledge')}>取消</Button>
-            <Button type="primary" onClick={handleBatchSave} loading={saving} disabled={selectedSet.size === 0}>
-              保存
-            </Button>
-          </div>
+          {canEdit && (
+            <div className="form-actions" style={{ marginTop: 16 }}>
+              <Button onClick={() => navigate('/knowledge')}>取消</Button>
+              <Button type="primary" onClick={handleSave} loading={saving} disabled={selectedSet.size === 0}>
+                保存
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
