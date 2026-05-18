@@ -113,6 +113,14 @@ tests/apis/  + tests/pages/  测试文件
 - **技能基于创建者权限（2026-05-17）**：新增 `created_by` 字段（Int?），admin 只能修改/删除自己创建的技能
 - **用户管理仅 sysadmin（2026-05-17）**：User API 从 sysadmin+admin 改为仅 sysadmin，admin 全部 403
 - **公司 API 路由隔离（2026-05-17）**：`/api/companies` 仅限公司管理页面（sysadmin-only），其他页面通过 `/api/auth/companies/:id` 获取公司用户
+- **关键词扩展词（2026-05-18）**：关键词与扩展词分离存储，严禁将扩展词保存为关键词
+  - `knowledge_keywords` 表：存储用户输入的主关键词（project_id, keyword, created_by）
+  - `keyword_expanded_words` 表：存储智能扩词结果（keyword_id FK, word, selected 布尔）
+  - 级联删除：删除关键词时自动删除其所有扩展词（`onDelete: Cascade`）
+  - 保存逻辑：`syncExpandedWords` 先 DELETE 全部再 INSERT 全部（全量替换策略）
+  - 读取逻辑：`getById` 先查主关键词，再 `$queryRaw` 查 `keyword_expanded_words` 并挂载到 `expanded_words` 字段
+  - API 请求体：`{ keyword: string, expanded_words?: [{word, selected}] }`
+  - API 响应体：`{ ...主键词字段, expanded_words: [{id, keyword_id, word, selected}] }`
 
 ## 配置项（均可通过 .env 或 config/ 配置）
 - 服务端口

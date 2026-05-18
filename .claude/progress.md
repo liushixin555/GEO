@@ -284,6 +284,9 @@
 - **node-cron 类型导入**：`import cron from 'node-cron'` 会导致 TS2503，必须用 `import * as cron from 'node-cron'`，`ScheduledTask` 从命名导出获取
 - **调度器测试 mock 顺序**：必须先 mock `node-cron`、`db.util`、`axios`，再 import 被测模块（jest.mock 提升）
 - **Prisma $transaction 传数组**：`prisma.$transaction([query1, query2])` 返回 Promise.all 结果数组，确保原子性
+- **ts-node 不热重载导致「功能不生效」**：改完代码后如果用户反馈还是旧行为，先 curl 直接测 API（区分前后端），再确认后端是否重启
+- **调试前端问题时先测 API**：`curl -s http://localhost:8080/api/health` 确认后端活着 → `curl` 登录拿 token → 直接调目标 API 看响应 → 如果 API 正确则问题在前端，如果 API 不正确则后端在运行旧代码
+- **关键词扩展词（keyword_expanded_words）已验证完整流程**：创建关键词+扩展词 → 读取返回 expanded_words → 更新同步扩展词 → 级联删除，API 和前端均已确认正常
 
 ## 本次变更（2026-05-18 文章生成调度器）
 - [x] **GEO文章异步生成调度器** — node-cron 定时任务，每5分钟处理 `generating` 状态文章
