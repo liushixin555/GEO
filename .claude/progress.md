@@ -184,6 +184,14 @@
   - 21 个测试用例全部通过
   - CSS 新增 `.knowledge-image-card` / `.knowledge-image-thumb` / `.knowledge-image-actions` 样式
 
+## 本次变更（2026-05-18）
+- [x] **文章表单集成AI知识库** — 关键词/画像/图片默认从知识库选择
+  - `ArticleDetail.tsx` 新增 `kbKeywords`/`kbPortraits`/`kbImages` 状态，组件挂载时从知识库 API 并行加载
+  - 关键词：`Select mode="tags"` 下拉选项来自知识库，同时保留手动输入能力
+  - 画像：默认模式改为「从知识库选择」（原为「手动输入」），value 使用画像内容（content），支持搜索过滤
+  - 图片：默认模式改为「从知识库选择」（原为「上传图片」），缩略图网格展示，勾选状态直接渲染在图片上（半透明蒙层 + 白色勾号），点击切换选中/取消
+  - 已删除下方重复的已选图片预览行，所有状态只在原图缩略图上体现
+
 ## 本次变更（2026-05-17 深夜4）
 - [x] **发布平台同步功能** — 软盟账号区增加「同步发布平台」按钮
   - 新增 `PublishingPlatform` Prisma 模型（rm_resource_id, name, taxonomy, price, remark, include_rate, publish_rate）
