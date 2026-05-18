@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import swaggerJSDoc from 'swagger-jsdoc';
@@ -18,15 +18,20 @@ import * as articleController from './controller/article.controller';
 import * as knowledgeController from './controller/knowledge.controller';
 import { uploadMiddleware, uploadFile } from './controller/upload.controller';
 
-const app = express();
+const app: Express = express();
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 app.use(cors());
 app.use(express.json());
 
-// Static files
-app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
+// Static files — allow cross-origin image loading
+app.use('/uploads', (req, res, next) => {
+  res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.resolve(process.cwd(), 'uploads')));
 
 // Anti-crawl & rate limiting
 app.use(antiCrawlMiddleware);
@@ -131,6 +136,8 @@ app.post('/api/upload', authMiddleware, roleMiddleware('sysadmin', 'admin'), upl
 app.get('/api/projects/:projectId/knowledge/keywords', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listKeywords);
 app.get('/api/projects/:projectId/knowledge/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.getKeyword);
 app.post('/api/projects/:projectId/knowledge/keywords', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.createKeyword);
+app.post('/api/projects/:projectId/knowledge/keywords/expand', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.expandKeywords);
+app.post('/api/projects/:projectId/knowledge/keywords/batch', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.batchCreateKeywords);
 app.put('/api/projects/:projectId/knowledge/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.updateKeyword);
 app.delete('/api/projects/:projectId/knowledge/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.deleteKeyword);
 app.get('/api/projects/:projectId/knowledge/portraits', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listPortraits);

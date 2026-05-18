@@ -1,12 +1,14 @@
 import { Request, Response } from 'express';
 import { KeywordServiceImpl, PortraitServiceImpl, ImageServiceImpl } from '../service/impl/knowledge.service.impl';
 import { ProjectServiceImpl } from '../service/impl/project.service.impl';
+import { LlmServiceImpl } from '../service/impl/llm.service.impl';
 import { success, fail, paginate } from '../utils';
 
 const keywordService = new KeywordServiceImpl();
 const portraitService = new PortraitServiceImpl();
 const imageService = new ImageServiceImpl();
 const projectService = new ProjectServiceImpl();
+const llmService = new LlmServiceImpl();
 
 async function checkProjectOperator(projectId: number, userId: number, role: string): Promise<void> {
   if (role === 'sysadmin') return;
@@ -140,6 +142,49 @@ export async function deleteKeyword(req: Request, res: Response): Promise<void> 
   }
 }
 
+export async function expandKeywords(req: Request, res: Response): Promise<void> {
+  try {
+    const projectId = parseInt(req.params.projectId as string, 10);
+    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
+
+    const { keyword } = req.body;
+    if (!keyword) { fail(res, 400, '关键词不能为空'); return; }
+
+    const { userId, role } = req.user!;
+    if (role === 'admin') {
+      try { await checkProjectOperator(projectId, userId, role); } catch { fail(res, 403, '无权操作该项目'); return; }
+    }
+
+    const keywords = await llmService.expandKeywords(keyword);
+    success(res, keywords);
+  } catch (err: any) {
+    fail(res, 500, err.message || '智能扩词失败');
+  }
+}
+
+export async function batchCreateKeywords(req: Request, res: Response): Promise<void> {
+  try {
+    const projectId = parseInt(req.params.projectId as string, 10);
+    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
+
+    const { keywords } = req.body;
+    if (!Array.isArray(keywords) || keywords.length === 0) {
+      fail(res, 400, '关键词列表不能为空');
+      return;
+    }
+
+    const { userId, role } = req.user!;
+    if (role === 'admin') {
+      try { await checkProjectOperator(projectId, userId, role); } catch { fail(res, 403, '无权操作该项目'); return; }
+    }
+
+    const items = await keywordService.batchCreate(projectId, keywords, userId);
+    res.status(201).json({ code: 0, message: `成功创建${items.length}个关键词`, data: items });
+  } catch (err: any) {
+    fail(res, 500, err.message || '批量创建关键词失败');
+  }
+}
+
 // ==================== Portraits ====================
 
 export async function listPortraits(req: Request, res: Response): Promise<void> {
@@ -190,8 +235,9 @@ export async function createPortrait(req: Request, res: Response): Promise<void>
     const projectId = parseInt(req.params.projectId as string, 10);
     if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
 
-    const { title } = req.body;
+    const { title, content } = req.body;
     if (!title) { fail(res, 400, '画像标题不能为空'); return; }
+    if (!content) { fail(res, 400, '画像内容不能为空'); return; }
 
     const { userId, role } = req.user!;
     if (role === 'admin') {

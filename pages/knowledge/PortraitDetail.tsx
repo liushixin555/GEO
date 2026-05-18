@@ -77,7 +77,7 @@ const PortraitDetail: React.FC = () => {
         <Form.Item name="title" label="画像标题" rules={[{ required: true, message: '标题不能为空' }]}>
           <Input placeholder="输入画像标题" disabled={!canEdit} />
         </Form.Item>
-        <Form.Item name="content" label="画像内容">
+        <Form.Item name="content" label="画像内容" rules={[{ required: true, message: '画像内容不能为空' }]}>
           <Input.TextArea placeholder="输入画像内容" autoSize={{ minRows: 20 }} disabled={!canEdit} />
         </Form.Item>
         {canEdit && (

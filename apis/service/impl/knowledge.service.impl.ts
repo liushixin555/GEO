@@ -32,6 +32,18 @@ export class KeywordServiceImpl implements IKeywordService {
     return mapKeyword(item);
   }
 
+  async batchCreate(projectId: number, keywords: string[], userId: number): Promise<KnowledgeKeyword[]> {
+    const prisma = getPrisma();
+    const items = await Promise.all(
+      keywords.map(keyword =>
+        prisma.knowledgeKeyword.create({
+          data: { projectId, keyword, createdBy: userId },
+        })
+      )
+    );
+    return items.map(mapKeyword);
+  }
+
   async update(id: number, request: UpdateKeywordRequest): Promise<KnowledgeKeyword> {
     const prisma = getPrisma();
     const existing = await prisma.knowledgeKeyword.findFirst({ where: { id } });

@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Form, Input, Button, Alert, Typography, Spin, message, Breadcrumb } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { Form, Input, Button, Alert, Typography, Spin, message, Breadcrumb, Table, Pagination } from 'antd';
+import { ArrowLeftOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useAppContext } from '../context/AppContext';
+
+const EXPAND_PAGE_SIZE = 10;
 
 const KeywordDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +21,13 @@ const KeywordDetail: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [form] = Form.useForm();
+
+  // Expansion state
+  const [expandedKeywords, setExpandedKeywords] = useState<string[]>([]);
+  const [selectedSet, setSelectedSet] = useState<Set<string>>(new Set());
+  const [expanding, setExpanding] = useState(false);
+  const [batchSaving, setBatchSaving] = useState(false);
+  const [expandPage, setExpandPage] = useState(1);
 
   const fetchData = useCallback(async () => {
     if (isNew || !projectId) return;
@@ -61,7 +70,86 @@ const KeywordDetail: React.FC = () => {
     } finally { setSaving(false); }
   };
 
+  const handleExpand = async () => {
+    const keyword = form.getFieldValue('keyword');
+    if (!keyword || !keyword.trim()) {
+      message.warning('请先输入关键词');
+      return;
+    }
+    if (!projectId) return;
+    setExpanding(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`/api/projects/${projectId}/knowledge/keywords/expand`,
+        { keyword: keyword.trim() },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const keywords: string[] = res.data.data || [];
+      setExpandedKeywords(keywords);
+      setSelectedSet(new Set(keywords));
+      setExpandPage(1);
+    } catch (err: any) {
+      message.error(err.response?.data?.message || '智能扩词失败');
+    } finally { setExpanding(false); }
+  };
+
+  const toggleSelect = (kw: string) => {
+    setSelectedSet(prev => {
+      const next = new Set(prev);
+      if (next.has(kw)) { next.delete(kw); } else { next.add(kw); }
+      return next;
+    });
+  };
+
+  const handleBatchSave = async () => {
+    const selected = Array.from(selectedSet);
+    if (selected.length === 0) {
+      message.warning('请至少选择一个关键词');
+      return;
+    }
+    if (!projectId) return;
+    setBatchSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`/api/projects/${projectId}/knowledge/keywords/batch`,
+        { keywords: selected },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      message.success(`成功添加${selected.length}个关键词`);
+      navigate('/knowledge');
+    } catch (err: any) {
+      message.error(err.response?.data?.message || '批量添加失败');
+    } finally { setBatchSaving(false); }
+  };
+
   if (loading) return <div className="page-container"><Spin /></div>;
+
+  const pagedKeywords = expandedKeywords.slice((expandPage - 1) * EXPAND_PAGE_SIZE, expandPage * EXPAND_PAGE_SIZE);
+
+  const expandColumns = [
+    {
+      title: '关键词',
+      dataIndex: 'keyword',
+      key: 'keyword',
+      render: (text: string) => <Typography.Text>{text}</Typography.Text>,
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 100,
+      render: (_: unknown, record: { keyword: string }) => (
+        <Button
+          size="small"
+          type={selectedSet.has(record.keyword) ? 'primary' : 'default'}
+          onClick={() => toggleSelect(record.keyword)}
+        >
+          {selectedSet.has(record.keyword) ? '已选择' : '选择'}
+        </Button>
+      ),
+    },
+  ];
+
+  const expandData = pagedKeywords.map(kw => ({ key: kw, keyword: kw }));
 
   return (
     <div className="page-container">
@@ -77,6 +165,13 @@ const KeywordDetail: React.FC = () => {
         <Form.Item name="keyword" label="关键词" rules={[{ required: true, message: '关键词不能为空' }]}>
           <Input placeholder="输入关键词" disabled={!canEdit} />
         </Form.Item>
+        {isNew && canEdit && (
+          <Form.Item>
+            <Button icon={<ThunderboltOutlined />} onClick={handleExpand} loading={expanding} disabled={!form.getFieldValue('keyword')}>
+              智能扩词
+            </Button>
+          </Form.Item>
+        )}
         {canEdit && (
           <div className="form-actions">
             <Button onClick={() => navigate('/knowledge')}>取消</Button>
@@ -84,6 +179,37 @@ const KeywordDetail: React.FC = () => {
           </div>
         )}
       </Form>
+
+      {isNew && expandedKeywords.length > 0 && (
+        <div style={{ marginTop: 24, maxWidth: 600 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Title level={4} style={{ margin: 0 }}>
+              扩词结果（已选 {selectedSet.size}/{expandedKeywords.length}）
+            </Typography.Title>
+            <Button type="primary" onClick={handleBatchSave} loading={batchSaving} disabled={selectedSet.size === 0}>
+              添加选中关键词
+            </Button>
+          </div>
+          <Table
+            columns={expandColumns}
+            dataSource={expandData}
+            pagination={false}
+            size="small"
+            bordered
+          />
+          {expandedKeywords.length > EXPAND_PAGE_SIZE && (
+            <div style={{ marginTop: 12, textAlign: 'right' }}>
+              <Pagination
+                current={expandPage}
+                pageSize={EXPAND_PAGE_SIZE}
+                total={expandedKeywords.length}
+                showSizeChanger={false}
+                onChange={(p) => setExpandPage(p)}
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

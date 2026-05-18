@@ -4,6 +4,7 @@ export interface IKeywordService {
   list(projectId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeKeyword[]; total: number }>;
   getById(id: number): Promise<KnowledgeKeyword>;
   create(projectId: number, request: CreateKeywordRequest, userId: number): Promise<KnowledgeKeyword>;
+  batchCreate(projectId: number, keywords: string[], userId: number): Promise<KnowledgeKeyword[]>;
   update(id: number, request: UpdateKeywordRequest): Promise<KnowledgeKeyword>;
   delete(id: number): Promise<void>;
 }
