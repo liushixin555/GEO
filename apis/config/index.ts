@@ -22,12 +22,18 @@ export interface RateLimitConfig {
   max: number;
 }
 
+export interface CronConfig {
+  articleGenerationInterval: string;
+  articleGenerationEnabled: boolean;
+}
+
 export interface AppConfig {
   server: { port: number };
   database: DatabaseConfig;
   jwt: JwtConfig;
   swagger: { enabled: boolean };
   rateLimit: RateLimitConfig;
+  cron: CronConfig;
 }
 
 const config: AppConfig = {
@@ -52,6 +58,10 @@ const config: AppConfig = {
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10),
     max: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
+  },
+  cron: {
+    articleGenerationInterval: process.env.CRON_ARTICLE_INTERVAL || '*/5 * * * *',
+    articleGenerationEnabled: process.env.CRON_ARTICLE_ENABLED !== 'false',
   },
 };
 

@@ -1,6 +1,7 @@
 import app from './app';
 import config from './config';
 import { closePrisma } from './utils';
+import { startArticleGenerationCron, stopArticleGenerationCron } from './scheduler/article-generation.scheduler';
 
 const PORT = config.server.port;
 
@@ -10,16 +11,19 @@ const server = app.listen(PORT, () => {
   if (config.swagger.enabled) {
     console.log(`[薄云GEO] Swagger docs: http://localhost:${PORT}/api-docs`);
   }
+  startArticleGenerationCron();
 });
 
 process.on('SIGINT', async () => {
   console.log('[薄云GEO] Shutting down...');
+  stopArticleGenerationCron();
   await closePrisma();
   server.close(() => process.exit(0));
 });
 
 process.on('SIGTERM', async () => {
   console.log('[薄云GEO] Shutting down...');
+  stopArticleGenerationCron();
   await closePrisma();
   server.close(() => process.exit(0));
 });

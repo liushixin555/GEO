@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { getPrisma } from '../../utils';
-import { ILlmService } from '../llm.service';
+import { ILlmService, ArticleGenerationParams } from '../llm.service';
 
 export class LlmServiceImpl implements ILlmService {
   async expandKeywords(keyword: string): Promise<string[]> {
@@ -42,5 +42,72 @@ export class LlmServiceImpl implements ILlmService {
       .filter((line: string) => line.length > 0 && line.length < 100);
 
     return keywords;
+  }
+
+  async generateArticle(params: ArticleGenerationParams): Promise<string> {
+    const prisma = getPrisma();
+    const model = await prisma.llmModel.findFirst({ where: { status: true }, orderBy: { id: 'asc' } });
+    if (!model) throw new Error('没有可用的LLM模型，请先在系统管理中配置');
+
+    const imageList = params.images.length > 0
+      ? params.images.map((img, i) => `  ${i + 1}. "${img.title}" (${img.description || '无描述'}) URL: ${img.imageUrl}`).join('\n')
+      : '无可用图片';
+
+    const systemPrompt = `你是一位资深的GEO（Generative Engine Optimization）内容专家，擅长创作既符合搜索引擎优化又具有深度价值的文章。
+
+要求：
+1. 使用 Markdown 格式输出完整文章
+2. 文章结构清晰，包含标题、引言、多个小节和总结
+3. 自然地在文章中插入可用图片资源，使用 Markdown 图片语法：![图片描述](图片URL)
+4. 每张图片最多使用一次，选择与上下文最匹配的图片
+5. 语言流畅自然，避免过度SEO化的痕迹
+6. 文章字数控制在1500-3000字`;
+
+    const userPrompt = `请根据以下信息撰写一篇文章：
+
+## 文章标题
+${params.title}
+
+## 目标关键词
+${params.keywords.join('、')}
+
+## 目标受众画像
+${params.portrait}
+
+## 可用图片资源
+${imageList}
+
+## 写作技能方向
+${params.skills || '无特殊要求'}
+
+请直接输出文章内容（Markdown格式），不需要额外说明。`;
+
+    const url = `${model.baseUrl.replace(/\/+$/, '')}/chat/completions`;
+    let response;
+    try {
+      response = await axios.post(url, {
+        model: model.modelName,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.7,
+      }, {
+        headers: {
+          'Authorization': `Bearer ${model.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 300000,
+      });
+    } catch (err: any) {
+      const detail = err.response?.data?.error?.message || err.response?.data?.message || err.message;
+      throw new Error(`LLM调用失败(${err.response?.status || '未知'}): ${detail}`);
+    }
+
+    const content = response.data?.choices?.[0]?.message?.content || '';
+    if (!content.trim()) {
+      throw new Error('LLM返回内容为空');
+    }
+    return content;
   }
 }
