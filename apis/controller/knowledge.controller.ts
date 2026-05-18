@@ -178,7 +178,7 @@ export async function batchCreateKeywords(req: Request, res: Response): Promise<
       try { await checkProjectOperator(projectId, userId, role); } catch { fail(res, 403, '无权操作该项目'); return; }
     }
 
-    const groupId = group_id || Date.now();
+    const groupId = group_id || Math.floor(Date.now() / 1000);
     const items = await keywordService.batchCreate(projectId, keywords, userId, groupId);
     res.status(201).json({ code: 0, message: `成功创建${items.length}个关键词`, data: items });
   } catch (err: any) {

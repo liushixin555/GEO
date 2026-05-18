@@ -115,7 +115,7 @@ const KeywordDetail: React.FC = () => {
     try {
       const token = localStorage.getItem('token');
       if (isNew) {
-        const gid = groupId || Date.now();
+        const gid = groupId || Math.floor(Date.now() / 1000);
         await axios.post(`/api/projects/${projectId}/knowledge/keywords/batch`,
           { keywords: selected, group_id: gid },
           { headers: { Authorization: `Bearer ${token}` } },
@@ -130,7 +130,7 @@ const KeywordDetail: React.FC = () => {
           );
         } else {
           // Edit mode without group: batch create
-          const gid = Date.now();
+          const gid = Math.floor(Date.now() / 1000);
           await axios.post(`/api/projects/${projectId}/knowledge/keywords/batch`,
             { keywords: selected, group_id: gid },
             { headers: { Authorization: `Bearer ${token}` } },
