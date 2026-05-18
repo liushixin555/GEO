@@ -3,7 +3,7 @@ FROM docker.1ms.run/library/node:24.15.0-slim
 WORKDIR /app
 
 # Install nginx
-RUN apk add --no-cache nginx
+RUN apt-get update && apt-get install -y --no-install-recommends nginx && rm -rf /var/lib/apt/lists/*
 
 # Copy production dependencies
 COPY package.json pnpm-lock.yaml ./
@@ -20,7 +20,7 @@ COPY dist/pages/ /usr/share/nginx/html/
 
 # Copy nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-RUN rm -f /etc/nginx/conf.d/default.conf.bak
+RUN rm -f /etc/nginx/sites-enabled/default
 
 # Copy entrypoint
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
