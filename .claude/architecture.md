@@ -120,3 +120,14 @@ tests/apis/  + tests/pages/  测试文件
 - JWT 密钥和过期时间
 - Swagger 在线文档开关（开发环境允许、生产环境不允许）
 - 限流熔断策略参数
+- 文章生成 cron 表达式（`CRON_ARTICLE_INTERVAL`，默认 `*/5 * * * *`）和开关（`CRON_ARTICLE_ENABLED`，默认 `true`）
+
+## 文章生成调度器（2026-05-18）
+- **模块**: `apis/scheduler/article-generation.scheduler.ts`
+- **依赖**: `node-cron`
+- **逻辑**: 每5分钟扫描 `status='generating'` 的最旧文章，调用 LLM 生成内容
+- **流程**: 获取文章 → 查知识库图片 → 构造 prompt → LLM 生成 → 事务保存内容+版本+状态改 `pending_review`
+- **失败处理**: 状态改 `generate_failed`
+- **防重叠**: `isRunning` 守卫（LLM 调用可能超5分钟）
+- **集成**: `server.ts` 的 `app.listen` 回调中启动，`SIGINT`/`SIGTERM` 中停止
+- **LLM服务**: `ILlmService.generateArticle(params)` 使用 system+user 双消息，temperature 0.7

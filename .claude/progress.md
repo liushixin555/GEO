@@ -281,6 +281,22 @@
 - **antd Upload 组件默认 inline-block**：与上方的 Segmented 切换栏会挤在同一行，必须用 `<div style={{ display: 'block', width: '100%' }}>` 包裹 Upload
 - **新增 GET 端点必须放在参数路由之前**：如 `/api/llm-models/enabled` 必须在 `/api/llm-models/:id` 之前注册，否则 `enabled` 被当作 `:id` 参数匹配
   - 两个独立 API 端点：`PUT .../articles/:id`（设置）和 `PUT .../articles/:id/content`（正文）
+- **node-cron 类型导入**：`import cron from 'node-cron'` 会导致 TS2503，必须用 `import * as cron from 'node-cron'`，`ScheduledTask` 从命名导出获取
+- **调度器测试 mock 顺序**：必须先 mock `node-cron`、`db.util`、`axios`，再 import 被测模块（jest.mock 提升）
+- **Prisma $transaction 传数组**：`prisma.$transaction([query1, query2])` 返回 Promise.all 结果数组，确保原子性
+
+## 本次变更（2026-05-18 文章生成调度器）
+- [x] **GEO文章异步生成调度器** — node-cron 定时任务，每5分钟处理 `generating` 状态文章
+  - 安装 `node-cron` + `@types/node-cron`
+  - 扩展 `ILlmService` 接口：新增 `ArticleGenerationParams` + `generateArticle()` 方法
+  - `LlmServiceImpl.generateArticle()`：system+user 双消息，temperature 0.7，自动插入知识库图片
+  - 新建 `apis/scheduler/article-generation.scheduler.ts`：start/stop/processNext
+  - 配置扩展：`AppConfig.cron`（articleGenerationInterval + articleGenerationEnabled），支持 `CRON_ARTICLE_INTERVAL` / `CRON_ARTICLE_ENABLED` 环境变量
+  - 集成到 `server.ts`：启动时 startCron，SIGINT/SIGTERM 时 stopCron
+  - 核心逻辑：findFirst generating 文章 → 查知识库图片 → LLM 生成 → $transaction 保存版本+内容+状态
+  - 防重叠守卫：`isRunning` 布尔值防止 LLM 调用超 5 分钟时任务叠加
+  - 失败处理：状态改 `generate_failed`，日志记录错误详情
+  - 6 个测试全部通过：cron 启停、无文章跳过、生成成功、无 LLM 模型失败、API 错误失败
 
 ## 测试模式
 - 后端测试：直接设环境变量（`process.env.JWT_SECRET='test-secret'`），不用 jest.mock
