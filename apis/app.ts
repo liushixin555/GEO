@@ -138,6 +138,8 @@ app.get('/api/projects/:projectId/knowledge/keywords/:id', authMiddleware, roleM
 app.post('/api/projects/:projectId/knowledge/keywords', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.createKeyword);
 app.post('/api/projects/:projectId/knowledge/keywords/expand', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.expandKeywords);
 app.post('/api/projects/:projectId/knowledge/keywords/batch', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.batchCreateKeywords);
+app.post('/api/projects/:projectId/knowledge/keywords/sync', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.syncKeywordGroup);
+app.get('/api/projects/:projectId/knowledge/keywords/group/:groupId', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.getKeywordGroup);
 app.put('/api/projects/:projectId/knowledge/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.updateKeyword);
 app.delete('/api/projects/:projectId/knowledge/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.deleteKeyword);
 app.get('/api/projects/:projectId/knowledge/portraits', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listPortraits);

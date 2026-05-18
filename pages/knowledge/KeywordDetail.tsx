@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Input, Button, Alert, Typography, Spin, message, Breadcrumb, Table, Pagination, Checkbox } from 'antd';
 import { ArrowLeftOutlined, ThunderboltOutlined, DeleteOutlined } from '@ant-design/icons';
@@ -16,7 +16,7 @@ const KeywordDetail: React.FC = () => {
   const isEditMode = isNew || searchParams.get('mode') === 'edit';
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-  const [data, setData] = useState<{ keyword: string; created_by: number | null } | null>(null);
+  const [data, setData] = useState<{ keyword: string; group_id: number | null; created_by: number | null } | null>(null);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -28,7 +28,7 @@ const KeywordDetail: React.FC = () => {
   const [selectedSet, setSelectedSet] = useState<Set<string>>(new Set());
   const [expanding, setExpanding] = useState(false);
   const [expandPage, setExpandPage] = useState(1);
-  const autoExpanded = useRef(false);
+  const [groupId, setGroupId] = useState<number | null>(null);
 
   const fetchData = useCallback(async () => {
     if (isNew || !projectId) return;
@@ -38,8 +38,22 @@ const KeywordDetail: React.FC = () => {
       const res = await axios.get(`/api/projects/${projectId}/knowledge/keywords/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setData(res.data.data);
-      form.setFieldValue('keyword', res.data.data.keyword);
+      const kwData = res.data.data;
+      setData(kwData);
+      setGroupId(kwData.group_id);
+      form.setFieldValue('keyword', kwData.keyword);
+
+      // Load group keywords if group_id exists
+      if (kwData.group_id) {
+        const groupRes = await axios.get(`/api/projects/${projectId}/knowledge/keywords/group/${kwData.group_id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const groupKeywords: { keyword: string }[] = groupRes.data.data || [];
+        const kwList = groupKeywords.map(k => k.keyword);
+        setExpandedKeywords(kwList);
+        setSelectedSet(new Set(kwList)); // all saved keywords are checked
+        setExpandPage(1);
+      }
     } catch (err: any) {
       message.error(err.response?.data?.message || '加载失败');
     } finally { setLoading(false); }
@@ -48,30 +62,6 @@ const KeywordDetail: React.FC = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const canEdit = isEditMode && (user.role === 'sysadmin' || isNew || data?.created_by === user.id);
-
-  // Auto-expand for view/edit mode after data loads
-  useEffect(() => {
-    if (isNew || autoExpanded.current || !data?.keyword || !projectId) return;
-    autoExpanded.current = true;
-    const doExpand = async () => {
-      setExpanding(true);
-      try {
-        const token = localStorage.getItem('token');
-        const res = await axios.post(`/api/projects/${projectId}/knowledge/keywords/expand`,
-          { keyword: data.keyword },
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-        const keywords: string[] = res.data.data || [];
-        const all = [data.keyword, ...keywords.filter(k => k !== data.keyword)];
-        setExpandedKeywords(all);
-        setSelectedSet(new Set([data.keyword])); // pre-check the current keyword
-        setExpandPage(1);
-      } catch {
-        // silent fail for auto-expand
-      } finally { setExpanding(false); }
-    };
-    doExpand();
-  }, [data, isNew, projectId]);
 
   const handleExpand = async () => {
     const keyword = form.getFieldValue('keyword');
@@ -88,14 +78,12 @@ const KeywordDetail: React.FC = () => {
         { headers: { Authorization: `Bearer ${token}` } },
       );
       const newKeywords: string[] = res.data.data || [];
-      // Append new words that don't already exist in the list
+      // Append new words not already in the list
       setExpandedKeywords(prev => {
         const existing = new Set(prev);
-        const appended = newKeywords.filter(k => !existing.has(k));
+        const appended = [keyword.trim(), ...newKeywords].filter(k => !existing.has(k));
         return [...prev, ...appended];
       });
-      // New words default unchecked
-      setExpandPage(1);
     } catch (err: any) {
       message.error(err.response?.data?.message || '智能扩词失败');
     } finally { setExpanding(false); }
@@ -114,7 +102,7 @@ const KeywordDetail: React.FC = () => {
     setSelectedSet(prev => { const n = new Set(prev); n.delete(kw); return n; });
   };
 
-  // Save: batch create all selected keywords
+  // Save logic: add mode → batch create; edit mode → sync group
   const handleSave = async () => {
     const selected = Array.from(selectedSet);
     if (selected.length === 0) {
@@ -127,17 +115,27 @@ const KeywordDetail: React.FC = () => {
     try {
       const token = localStorage.getItem('token');
       if (isNew) {
+        const gid = groupId || Date.now();
         await axios.post(`/api/projects/${projectId}/knowledge/keywords/batch`,
-          { keywords: selected },
+          { keywords: selected, group_id: gid },
           { headers: { Authorization: `Bearer ${token}` } },
         );
         message.success(`成功添加${selected.length}个关键词`);
       } else {
-        // Edit mode: batch create new keywords (the existing one is updated in place by being in the list)
-        await axios.post(`/api/projects/${projectId}/knowledge/keywords/batch`,
-          { keywords: selected },
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
+        if (groupId) {
+          // Edit mode with existing group: sync
+          await axios.post(`/api/projects/${projectId}/knowledge/keywords/sync`,
+            { group_id: groupId, keywords: selected },
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+        } else {
+          // Edit mode without group: batch create
+          const gid = Date.now();
+          await axios.post(`/api/projects/${projectId}/knowledge/keywords/batch`,
+            { keywords: selected, group_id: gid },
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+        }
         message.success('保存成功');
       }
       navigate('/knowledge');
@@ -181,7 +179,6 @@ const KeywordDetail: React.FC = () => {
   ];
 
   const tableData = pagedKeywords.map(kw => ({ key: kw, keyword: kw }));
-
   const pageTitle = isNew ? '添加关键词' : (isEditMode ? '编辑关键词' : '关键词详情');
 
   return (

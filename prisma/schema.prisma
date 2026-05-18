@@ -221,6 +221,7 @@ model KnowledgeKeyword {
   id        Int      @id @default(autoincrement())
   projectId Int      @map("project_id")
   keyword   String   @db.VarChar(200)
+  groupId   Int?     @map("group_id")
   createdBy Int?     @map("created_by")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
@@ -228,6 +229,7 @@ model KnowledgeKeyword {
   creator   User?    @relation("KnowledgeKeywordCreator", fields: [createdBy], references: [id])
 
   @@index([projectId])
+  @@index([groupId])
   @@map("knowledge_keywords")
 }
 

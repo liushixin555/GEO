@@ -32,16 +32,50 @@ export class KeywordServiceImpl implements IKeywordService {
     return mapKeyword(item);
   }
 
-  async batchCreate(projectId: number, keywords: string[], userId: number): Promise<KnowledgeKeyword[]> {
+  async batchCreate(projectId: number, keywords: string[], userId: number, groupId: number): Promise<KnowledgeKeyword[]> {
     const prisma = getPrisma();
     const items = await Promise.all(
       keywords.map(keyword =>
         prisma.knowledgeKeyword.create({
-          data: { projectId, keyword, createdBy: userId },
+          data: { projectId, keyword, groupId, createdBy: userId } as any,
         })
       )
     );
     return items.map(mapKeyword);
+  }
+
+  async listByGroup(groupId: number): Promise<KnowledgeKeyword[]> {
+    const prisma = getPrisma();
+    const items = await prisma.knowledgeKeyword.findMany({
+      where: { groupId } as any,
+      orderBy: { id: 'asc' },
+    });
+    return items.map(mapKeyword);
+  }
+
+  async syncGroup(groupId: number, projectId: number, keywords: string[], userId: number): Promise<KnowledgeKeyword[]> {
+    const prisma = getPrisma();
+    // Delete existing keywords in the group that are NOT in the new list
+    await prisma.knowledgeKeyword.deleteMany({
+      where: { groupId, keyword: { notIn: keywords } } as any,
+    });
+    // Find existing keywords in the group
+    const existing = await prisma.knowledgeKeyword.findMany({ where: { groupId } as any });
+    const existingKeywords = new Set(existing.map((e: any) => e.keyword));
+    // Create only new keywords
+    const newKeywords = keywords.filter(k => !existingKeywords.has(k));
+    if (newKeywords.length > 0) {
+      await Promise.all(
+        newKeywords.map(keyword =>
+          prisma.knowledgeKeyword.create({
+            data: { projectId, keyword, groupId, createdBy: userId } as any,
+          })
+        )
+      );
+    }
+    // Return all keywords in the group
+    const all = await prisma.knowledgeKeyword.findMany({ where: { groupId } as any, orderBy: { id: 'asc' } });
+    return all.map(mapKeyword);
   }
 
   async update(id: number, request: UpdateKeywordRequest): Promise<KnowledgeKeyword> {

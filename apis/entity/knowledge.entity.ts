@@ -2,6 +2,7 @@ export interface KnowledgeKeyword {
   id: number;
   project_id: number;
   keyword: string;
+  group_id: number | null;
   created_by: number | null;
   created_at: Date;
   updated_at: Date;
