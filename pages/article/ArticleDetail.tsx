@@ -46,16 +46,22 @@ const ArticleDetail: React.FC = () => {
 
   // Settings form state
   const [form] = Form.useForm();
-  const [portraitMode, setPortraitMode] = useState<'input' | 'select'>('input');
+  const [portraitMode, setPortraitMode] = useState<'input' | 'select'>('select');
   const [imageList, setImageList] = useState<string[]>([]);
   const [urlInput, setUrlInput] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [imageMode, setImageMode] = useState<'upload' | 'url' | 'kb'>('upload');
+  const [imageMode, setImageMode] = useState<'upload' | 'url' | 'kb'>('kb');
 
   // Skills & LLM Model options
   const [skillsOptions, setSkillsOptions] = useState<{ label: string; value: number }[]>([]);
   const [llmModelsOptions, setLlmModelsOptions] = useState<{ label: string; value: number }[]>([]);
   const [platformOptions, setPlatformOptions] = useState<{ label: string; value: string }[]>([]);
+
+  // Knowledge base options
+  const [kbKeywords, setKbKeywords] = useState<{ label: string; value: string }[]>([]);
+  const [kbPortraits, setKbPortraits] = useState<{ label: string; value: string }[]>([]);
+  const [kbImages, setKbImages] = useState<{ id: number; title: string; image_url: string }[]>([]);
+  const [kbLoading, setKbLoading] = useState(false);
 
   // Content state
   const [content, setContent] = useState('');
@@ -119,6 +125,36 @@ const ArticleDetail: React.FC = () => {
     };
     fetchOptions();
   }, []);
+
+  // Load knowledge base options
+  useEffect(() => {
+    if (!projectId) return;
+    const fetchKnowledge = async () => {
+      setKbLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        const [kwRes, ptRes, imgRes] = await Promise.all([
+          axios.get(`/api/projects/${projectId}/knowledge/keywords`, {
+            headers: { Authorization: `Bearer ${token}` }, params: { pageSize: 999 },
+          }),
+          axios.get(`/api/projects/${projectId}/knowledge/portraits`, {
+            headers: { Authorization: `Bearer ${token}` }, params: { pageSize: 999 },
+          }),
+          axios.get(`/api/projects/${projectId}/knowledge/images`, {
+            headers: { Authorization: `Bearer ${token}` }, params: { pageSize: 999 },
+          }),
+        ]);
+        setKbKeywords((kwRes.data.data?.list || []).map((k: any) => ({ label: k.keyword, value: k.keyword })));
+        setKbPortraits((ptRes.data.data?.list || []).map((p: any) => ({ label: p.title, value: p.content || p.title })));
+        setKbImages((imgRes.data.data?.list || []).map((i: any) => ({ id: i.id, title: i.title, image_url: i.image_url })));
+      } catch {
+        // Silently fail — knowledge base options are optional
+      } finally {
+        setKbLoading(false);
+      }
+    };
+    fetchKnowledge();
+  }, [projectId]);
 
   const canEditSettings = () => {
     if (!article) return false;
@@ -238,24 +274,24 @@ const ArticleDetail: React.FC = () => {
         <Input placeholder="输入文章标题" disabled={!isSettingsEditable} />
       </Form.Item>
       <Form.Item name="keywords" label="关键词" rules={[{ required: true, message: '关键词不能为空' }]}>
-        <Select mode="tags" placeholder="输入关键词后按回车" disabled={!isSettingsEditable} />
+        <Select mode="tags" placeholder="从知识库选择或输入关键词" options={kbKeywords} disabled={!isSettingsEditable} loading={kbLoading} notFoundContent={kbLoading ? '加载中...' : '暂无知识库关键词，可直接输入'} />
       </Form.Item>
       <Form.Item label="画像">
         <Segmented
           size="small"
           style={{ marginBottom: 8 }}
           disabled={!isSettingsEditable}
-          options={[{ label: '手动输入', value: 'input' }, { label: '从知识库选择', value: 'select' }]}
+          options={[{ label: '从知识库选择', value: 'select' }, { label: '手动输入', value: 'input' }]}
           value={portraitMode}
           onChange={(val) => { setPortraitMode(val as 'input' | 'select'); form.setFieldValue('portrait', undefined); }}
         />
-        {portraitMode === 'input' ? (
+        {portraitMode === 'select' ? (
           <Form.Item name="portrait" noStyle>
-            <Input.TextArea placeholder="输入画像描述" autoSize={{ minRows: 2, maxRows: 6 }} disabled={!isSettingsEditable} />
+            <Select allowClear showSearch placeholder="从AI知识库选择画像" options={kbPortraits} disabled={!isSettingsEditable} loading={kbLoading} notFoundContent={kbLoading ? '加载中...' : '知识库暂无画像，请先在知识库中添加'} optionFilterProp="label" />
           </Form.Item>
         ) : (
           <Form.Item name="portrait" noStyle>
-            <Select allowClear showSearch placeholder="从AI知识库选择画像（知识库开发中）" options={[]} disabled />
+            <Input.TextArea placeholder="输入画像描述" autoSize={{ minRows: 2, maxRows: 6 }} disabled={!isSettingsEditable} />
           </Form.Item>
         )}
       </Form.Item>
@@ -264,11 +300,48 @@ const ArticleDetail: React.FC = () => {
           <Segmented
             size="small"
             disabled={!isSettingsEditable}
-            options={[{ label: '上传图片', value: 'upload' }, { label: '输入URL', value: 'url' }, { label: '从知识库选择', value: 'kb' }]}
+            options={[{ label: '从知识库选择', value: 'kb' }, { label: '上传图片', value: 'upload' }, { label: '输入URL', value: 'url' }]}
             value={imageMode}
             onChange={(val) => setImageMode(val as 'upload' | 'url' | 'kb')}
           />
         </div>
+        {imageMode === 'kb' && (
+          <div style={{ marginTop: 8 }}>
+            {kbImages.length === 0 ? (
+              <Spin spinning={kbLoading}>
+                <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  {kbLoading ? '加载中...' : '知识库暂无图片，请先在知识库中添加'}
+                </div>
+              </Spin>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {kbImages.map((img) => {
+                  const selected = imageList.includes(img.image_url);
+                  return (
+                    <div key={img.id}
+                      onClick={() => {
+                        if (!isSettingsEditable) return;
+                        if (selected) {
+                          setImageList(imageList.filter((u) => u !== img.image_url));
+                        } else {
+                          setImageList([...imageList, img.image_url]);
+                        }
+                      }}
+                      style={{
+                        position: 'relative', width: 80, height: 80, border: `2px solid ${selected ? 'var(--interactive)' : 'var(--border-subtle)'}`,
+                        borderRadius: 2, overflow: 'hidden', cursor: isSettingsEditable ? 'pointer' : 'default',
+                        opacity: selected ? 1 : 0.7, transition: 'all 0.2s',
+                      }}
+                      title={img.title}
+                    >
+                      <Image src={img.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
         {isSettingsEditable && imageMode === 'upload' && (
           <div style={{ display: 'block', width: '100%' }}>
           <Upload accept="image/*" showUploadList={false} beforeUpload={(file) => { handleUpload(file); return false; }} disabled={uploading}>
@@ -281,9 +354,6 @@ const ArticleDetail: React.FC = () => {
         )}
         {isSettingsEditable && imageMode === 'url' && (
           <Input.Search placeholder="输入图片URL" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} onSearch={handleAddUrl} enterButton={<LinkOutlined />} />
-        )}
-        {imageMode === 'kb' && (
-          <Select placeholder="从AI知识库选择图片（知识库开发中）" options={[]} disabled style={{ width: '100%' }} />
         )}
         {imageList.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
