@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Form, Input, Select, Button, Alert, Segmented, Upload, Image, Tabs, Typography, Spin, Tag, message, Popconfirm } from 'antd';
+import { Form, Input, Select, Button, Alert, Segmented, Upload, Image, Tabs, Typography, Spin, Tag, App, Popconfirm } from 'antd';
 import { ArrowLeftOutlined, InboxOutlined, LinkOutlined, DeleteOutlined, CheckOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useAppContext } from '../context/AppContext';
@@ -37,6 +37,7 @@ const ArticleDetail: React.FC = () => {
   const { projectId } = useAppContext();
   const navigate = useNavigate();
   const isNew = id === 'new';
+  const { message } = App.useApp();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   const [article, setArticle] = useState<ArticleData | null>(null);

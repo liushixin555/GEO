@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Form, Input, Button, Alert, Typography, Spin, message, Breadcrumb, Table, Pagination, Checkbox } from 'antd';
+import { Form, Input, Button, Alert, Typography, Spin, App, Breadcrumb, Table, Pagination, Checkbox } from 'antd';
 import { ArrowLeftOutlined, ThunderboltOutlined, DeleteOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useAppContext } from '../context/AppContext';
@@ -16,6 +16,7 @@ const KeywordDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { projectId } = useAppContext();
   const navigate = useNavigate();
+  const { message } = App.useApp();
   const isNew = id === 'add';
   const [searchParams] = useSearchParams();
   const isEditMode = isNew || searchParams.get('mode') === 'edit';

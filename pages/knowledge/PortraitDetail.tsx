@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Form, Input, Button, Alert, Typography, Spin, message, Breadcrumb } from 'antd';
+import { Form, Input, Button, Alert, Typography, Spin, App, Breadcrumb } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useAppContext } from '../context/AppContext';
@@ -12,6 +12,7 @@ const PortraitDetail: React.FC = () => {
   const isNew = id === 'add';
   const [searchParams] = useSearchParams();
   const isEditMode = isNew || searchParams.get('mode') === 'edit';
+  const { message } = App.useApp();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   const [data, setData] = useState<{ title: string; content: string | null; created_by: number | null } | null>(null);

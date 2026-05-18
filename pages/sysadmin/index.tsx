@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Collapse, Row, Col, Card, Button, Form, Input, Typography, Spin, Alert, Switch, Popconfirm, message, Breadcrumb } from 'antd';
+import { Collapse, Row, Col, Card, Button, Form, Input, Typography, Spin, Alert, Switch, Popconfirm, App, Breadcrumb } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import LlmModelForm from './LlmModelForm';
@@ -19,6 +19,7 @@ const SystemAdminPage: React.FC = () => {
   const [error, setError] = useState('');
   const [showModelForm, setShowModelForm] = useState(false);
   const [editModel, setEditModel] = useState<LlmModelItem | null>(null);
+  const { message } = App.useApp();
 
   // Account configs
   const [yishangshuForm] = Form.useForm();

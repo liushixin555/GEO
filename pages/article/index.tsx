@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Input, Select, Tag, Typography, Spin, Pagination, Empty, Popconfirm, message, Breadcrumb } from 'antd';
+import { Row, Col, Card, Input, Select, Tag, Typography, Spin, Pagination, Empty, Popconfirm, App, Breadcrumb } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useAppContext } from '../context/AppContext';
@@ -29,6 +29,7 @@ const ArticlePage: React.FC = () => {
   const { projectId } = useAppContext();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const navigate = useNavigate();
+  const { message } = App.useApp();
 
   const [data, setData] = useState<ArticleItem[]>([]);
   const [total, setTotal] = useState(0);

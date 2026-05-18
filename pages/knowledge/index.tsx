@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Tabs, Row, Col, Card, Input, Typography, Spin, Pagination, Empty, Popconfirm, message, Breadcrumb, Image } from 'antd';
+import { Tabs, Row, Col, Card, Input, Typography, Spin, Pagination, Empty, Popconfirm, App, Breadcrumb, Image } from 'antd';
 import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useAppContext } from '../context/AppContext';
@@ -33,6 +33,7 @@ const KnowledgePage: React.FC = () => {
   const { projectId } = useAppContext();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const navigate = useNavigate();
+  const { message } = App.useApp();
   const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('knowledge_active_tab') || 'keywords');
 
   const handleTabChange = (key: string) => {

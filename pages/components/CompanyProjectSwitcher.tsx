@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Modal, Select, Typography, Space, message } from 'antd';
+import { Button, Modal, Select, Typography, Space, App } from 'antd';
 import { SwapOutlined, HomeOutlined, ProjectOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useAppContext } from '../context/AppContext';
@@ -11,6 +11,7 @@ interface SelectionItem {
 
 const CompanyProjectSwitcher: React.FC = () => {
   const { companyId, companyName, projectId, projectName, setContext } = useAppContext();
+  const { message } = App.useApp();
   const [modalOpen, setModalOpen] = useState(false);
   const [companies, setCompanies] = useState<SelectionItem[]>([]);
   const [projects, setProjects] = useState<SelectionItem[]>([]);
