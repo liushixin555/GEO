@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Input, Button, Alert, Typography, Spin, Upload, Image, message, Breadcrumb } from 'antd';
 import { ArrowLeftOutlined, InboxOutlined } from '@ant-design/icons';
 import axios from 'axios';
@@ -10,6 +10,8 @@ const ImageDetail: React.FC = () => {
   const { projectId } = useAppContext();
   const navigate = useNavigate();
   const isNew = id === 'add';
+  const [searchParams] = useSearchParams();
+  const isEditMode = isNew || searchParams.get('mode') === 'edit';
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   const [data, setData] = useState<{ title: string; description: string | null; image_url: string; created_by: number | null } | null>(null);
@@ -38,7 +40,7 @@ const ImageDetail: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const canEdit = isNew || user.role === 'sysadmin' || data?.created_by === user.id;
+  const canEdit = isEditMode && (user.role === 'sysadmin' || isNew || data?.created_by === user.id);
 
   const handleUpload = async (file: File) => {
     setUploading(true);

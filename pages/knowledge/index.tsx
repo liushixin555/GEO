@@ -175,7 +175,7 @@ const KnowledgePage: React.FC = () => {
                   {canModify(item.created_by) && (
                     <div className="item-card-actions">
                       <EyeOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/keyword/${item.id}`); }} />
-                      <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/keyword/${item.id}`); }} />
+                      <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/keyword/${item.id}?mode=edit`); }} />
                       <Popconfirm title="确定删除此关键词？" onConfirm={(e) => { e?.stopPropagation(); handleDeleteKeyword(item); }} okText="删除" cancelText="取消">
                         <DeleteOutlined className="item-card-edit-danger" onClick={(e) => e.stopPropagation()} />
                       </Popconfirm>
@@ -221,7 +221,7 @@ const KnowledgePage: React.FC = () => {
                   {canModify(item.created_by) && (
                     <div className="item-card-actions">
                       <EyeOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/portrait/${item.id}`); }} />
-                      <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/portrait/${item.id}`); }} />
+                      <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/portrait/${item.id}?mode=edit`); }} />
                       <Popconfirm title="确定删除此画像？" onConfirm={(e) => { e?.stopPropagation(); handleDeletePortrait(item); }} okText="删除" cancelText="取消">
                         <DeleteOutlined className="item-card-edit-danger" onClick={(e) => e.stopPropagation()} />
                       </Popconfirm>
@@ -277,7 +277,7 @@ const KnowledgePage: React.FC = () => {
                 </div>
                 {canModify(item.created_by) && (
                   <div className="knowledge-image-actions">
-                    <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/image/${item.id}`); }} />
+                    <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/image/${item.id}?mode=edit`); }} />
                     <Popconfirm title="确定删除此图片？" onConfirm={(e) => { e?.stopPropagation(); handleDeleteImage(item); }} okText="删除" cancelText="取消">
                       <DeleteOutlined className="item-card-edit-danger" onClick={(e) => e.stopPropagation()} />
                     </Popconfirm>
