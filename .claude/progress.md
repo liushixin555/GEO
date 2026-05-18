@@ -287,6 +287,14 @@
 - **ts-node 不热重载导致「功能不生效」**：改完代码后如果用户反馈还是旧行为，先 curl 直接测 API（区分前后端），再确认后端是否重启
 - **调试前端问题时先测 API**：`curl -s http://localhost:8080/api/health` 确认后端活着 → `curl` 登录拿 token → 直接调目标 API 看响应 → 如果 API 正确则问题在前端，如果 API 不正确则后端在运行旧代码
 - **关键词扩展词（keyword_expanded_words）已验证完整流程**：创建关键词+扩展词 → 读取返回 expanded_words → 更新同步扩展词 → 级联删除，API 和前端均已确认正常
+- **antd message/notification/modal 静态方法无法消费主题上下文**：v5+ 必须通过 `<App>` 组件 + `App.useApp()` hook 获取实例，禁止 `import { message } from 'antd'` 后直接调用静态方法
+
+## 本次变更（2026-05-18 antd message 上下文修复）
+- [x] **修复 antd message 静态方法无法消费主题上下文的警告** — `Static function can not consume context like dynamic theme. Please use 'App' component instead.`
+  - `main.tsx`：在 `<ConfigProvider>` 内部、`<BrowserRouter>` 外层新增 antd `<App>` 组件包裹（别名 `<AntApp>`）
+  - 8 个组件文件：`import { message }` 改为 `import { App }`，组件内部新增 `const { message } = App.useApp()`
+  - 涉及文件：KeywordDetail、PortraitDetail、ImageDetail、knowledge/index、sysadmin/index、article/index、ArticleDetail、CompanyProjectSwitcher
+  - **规则**：antd v5+ 中禁止使用 `message.success()` 等静态方法，必须通过 `App.useApp()` hook 获取 message 实例
 
 ## 本次变更（2026-05-18 文章生成调度器）
 - [x] **GEO文章异步生成调度器** — node-cron 定时任务，每5分钟处理 `generating` 状态文章

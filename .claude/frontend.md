@@ -35,6 +35,8 @@
 ## 组件规范
 - 必须使用 antd（Ant Design）组件构建 UI，禁止用原生 HTML 替代（Button, Input, Form, Card, Menu, Layout, Modal, Select, Switch, Tag, Popconfirm, Typography, Space, Pagination, Spin 等）
 - **禁止使用 antd Table 组件**，数据列表统一使用 Row + Col + Card 网格布局（见 `.claude/feedback_no-tables.md`）
+- **禁止使用 antd 静态方法**（`message.success()`、`notification.open()` 等），必须通过 `App.useApp()` hook 获取实例：`const { message } = App.useApp()`
+  - `main.tsx` 已用 antd `<App>` 组件（别名 `<AntApp>`）包裹在 `<ConfigProvider>` 内、`<BrowserRouter>` 外
 - antd Space 组件用 `orientation` 替代已废弃的 `direction`
 - antd Modal 组件用 `destroyOnHidden` 替代已废弃的 `destroyOnClose`
 - 字体：IBM Plex Sans，通过 `@fontsource/ibm-plex-sans` 本地打包，不使用 Google Fonts CDN
