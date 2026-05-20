@@ -19,6 +19,7 @@ interface SkillFormProps {
 
 const SkillForm: React.FC<SkillFormProps> = ({ item, isSysadmin, onClose, onSaved }) => {
   const isEdit = !!item;
+  const isDisabled = isEdit && !item!.status;
   const [form] = Form.useForm();
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -70,20 +71,21 @@ const SkillForm: React.FC<SkillFormProps> = ({ item, isSysadmin, onClose, onSave
       footer={null}
       destroyOnHidden
     >
+      {isDisabled && <Alert type="warning" message="该技能已被禁用，无法编辑" showIcon style={{ marginBottom: 16 }} />}
       {error && <Alert type="error" message={error} className="form-alert" showIcon />}
       <Form form={form} onFinish={handleSubmit} layout="vertical">
         <Form.Item name="name" label="技能名称" rules={[{ required: true, message: '技能名称不能为空' }]}>
-          <Input />
+          <Input disabled={isDisabled} />
         </Form.Item>
         <Form.Item name="category" label="类别" rules={[{ required: true, message: '类别不能为空' }]}>
-          <Input />
+          <Input disabled={isDisabled} />
         </Form.Item>
         <Form.Item name="description" label="描述">
-          <Input />
+          <Input disabled={isDisabled} />
         </Form.Item>
         <div className="form-actions">
           <Button onClick={onClose}>取消</Button>
-          <Button type="primary" htmlType="submit" loading={saving}>保存</Button>
+          {!isDisabled && <Button type="primary" htmlType="submit" loading={saving}>保存</Button>}
         </div>
       </Form>
     </Modal>

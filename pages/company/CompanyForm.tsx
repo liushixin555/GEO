@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Form, Input, Button, Breadcrumb, Alert, Row, Col, Divider, Spin, Select } from 'antd';
+import { Form, Input, Button, Breadcrumb, Alert, Row, Col, Divider, Spin, Select, Tag } from 'antd';
 import axios from 'axios';
 
 interface FormData {
@@ -18,6 +18,7 @@ interface UserOption {
   username: string;
   cn_name: string;
   role: string;
+  status: boolean;
 }
 
 const CompanyForm: React.FC = () => {
@@ -28,6 +29,7 @@ const CompanyForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(isEdit);
   const [users, setUsers] = useState<UserOption[]>([]);
+  const [companyDisabled, setCompanyDisabled] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -42,7 +44,7 @@ const CompanyForm: React.FC = () => {
         const token = localStorage.getItem('token');
         const res = await axios.get('/api/users', {
           headers: { Authorization: `Bearer ${token}` },
-          params: { page: 1, pageSize: 999 },
+          params: { page: 1, pageSize: 999, status: 'true' },
         });
         setUsers(res.data.data.list);
       } catch {
@@ -60,6 +62,7 @@ const CompanyForm: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = response.data.data;
+      setCompanyDisabled(!data.status);
       form.setFieldsValue({
         short_name: data.short_name || '',
         full_name: data.full_name || '',
@@ -112,23 +115,24 @@ const CompanyForm: React.FC = () => {
   return (
     <div className="page-container">
       <div className="page-breadcrumb"><Breadcrumb items={[{ title: '公司管理' }, { title: isEdit ? '修改公司' : '添加公司' }]} /></div>
+      {companyDisabled && <Alert type="warning" message="该公司已被禁用，无法编辑" showIcon style={{ marginBottom: 16 }} />}
       {serverError && <Alert type="error" message={serverError} className="form-alert-lg" showIcon />}
       {fetching && <div className="loading-container"><Spin size="large" /></div>}
       <Form form={form} onFinish={handleSubmit} layout="vertical" className="company-form" style={fetching ? { display: 'none' } : undefined}>
         <Form.Item name="short_name" label="公司名短名" rules={[{ required: true, message: '公司名短名不能为空' }]}>
-          <Input placeholder="请输入公司名短名" />
+          <Input placeholder="请输入公司名短名" disabled={companyDisabled} />
         </Form.Item>
         <Form.Item name="full_name" label="公司名全名" rules={[{ required: true, message: '公司名全名不能为空' }]}>
-          <Input placeholder="请输入公司名全名" />
+          <Input placeholder="请输入公司名全名" disabled={companyDisabled} />
         </Form.Item>
         <Form.Item name="address" label="公司地址">
-          <Input placeholder="请输入公司地址（选填）" />
+          <Input placeholder="请输入公司地址（选填）" disabled={companyDisabled} />
         </Form.Item>
         <Form.Item name="contact_person" label="公司接口人" rules={[{ required: true, message: '接口人不能为空' }]}>
-          <Input placeholder="请输入接口人姓名" />
+          <Input placeholder="请输入接口人姓名" disabled={companyDisabled} />
         </Form.Item>
         <Form.Item name="contact_phone" label="接口人电话" rules={[{ required: true, message: '接口人电话不能为空' }]}>
-          <Input placeholder="请输入接口人电话" />
+          <Input placeholder="请输入接口人电话" disabled={companyDisabled} />
         </Form.Item>
         <Form.Item name="operator_ids" label="运营者" rules={[{ required: true, message: '运营者不能为空' }]}>
           <Select
@@ -137,8 +141,9 @@ const CompanyForm: React.FC = () => {
             allowClear
             showSearch
             optionFilterProp="label"
+            disabled={companyDisabled}
           >
-            {users.filter(u => u.role === 'admin').map(u => (
+            {users.filter(u => u.role === 'admin' && u.status !== false).map(u => (
               <Select.Option key={u.id} value={u.id} label={`${u.cn_name}（${u.username}）`}>
                 {u.cn_name}（{u.username}）
               </Select.Option>
@@ -152,8 +157,9 @@ const CompanyForm: React.FC = () => {
             allowClear
             showSearch
             optionFilterProp="label"
+            disabled={companyDisabled}
           >
-            {users.filter(u => u.role === 'view').map(u => (
+            {users.filter(u => u.role === 'view' && u.status !== false).map(u => (
               <Select.Option key={u.id} value={u.id} label={`${u.cn_name}（${u.username}）`}>
                 {u.cn_name}（{u.username}）
               </Select.Option>
@@ -162,9 +168,11 @@ const CompanyForm: React.FC = () => {
         </Form.Item>
         <div className="form-actions-lg">
           <Button onClick={() => navigate('/company')}>取消</Button>
-          <Button type="primary" htmlType="submit" loading={loading}>
-            {isEdit ? '保存修改' : '创建公司'}
-          </Button>
+          {!companyDisabled && (
+            <Button type="primary" htmlType="submit" loading={loading}>
+              {isEdit ? '保存修改' : '创建公司'}
+            </Button>
+          )}
         </div>
       </Form>
     </div>

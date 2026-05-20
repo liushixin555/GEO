@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Form, Input, Select, Button, Alert, Segmented, Upload, Image, Tabs, Typography, Spin, Tag, App, Popconfirm } from 'antd';
+import { Form, Input, Select, Button, Alert, Segmented, Upload, Image, Tabs, Typography, Spin, Tag, App, Popconfirm, Table, Modal } from 'antd';
 import { ArrowLeftOutlined, InboxOutlined, LinkOutlined, DeleteOutlined, CheckOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import MDEditor from '@uiw/react-md-editor';
 import axios from 'axios';
@@ -60,6 +60,13 @@ const ArticleDetail: React.FC = () => {
   const [skillsOptions, setSkillsOptions] = useState<{ label: string; value: number }[]>([]);
   const [llmModelsOptions, setLlmModelsOptions] = useState<{ label: string; value: number }[]>([]);
   const [platformOptions, setPlatformOptions] = useState<{ label: string; value: string }[]>([]);
+  const [platformModalOpen, setPlatformModalOpen] = useState(false);
+  const [platformList, setPlatformList] = useState<any[]>([]);
+  const [platformTotal, setPlatformTotal] = useState(0);
+  const [platformPage, setPlatformPage] = useState(1);
+  const [platformSearch, setPlatformSearch] = useState('');
+  const [platformLoading, setPlatformLoading] = useState(false);
+  const [selectedPlatformKeys, setSelectedPlatformKeys] = useState<string[]>([]);
 
   // Knowledge base options
   const [kbKeywords, setKbKeywords] = useState<{ label: string; value: string }[]>([]);
@@ -120,15 +127,13 @@ const ArticleDetail: React.FC = () => {
     const fetchOptions = async () => {
       try {
         const token = localStorage.getItem('token');
-        const [skillsRes, llmRes, platformRes] = await Promise.all([
+        const [skillsRes, llmRes] = await Promise.all([
           axios.get('/api/skills?status=true&pageSize=999', { headers: { Authorization: `Bearer ${token}` } }),
           axios.get('/api/llm-models/enabled', { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get('/api/publishing-platforms', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: [] } })),
         ]);
         setSkillsOptions((skillsRes.data.data?.list || skillsRes.data.data || []).map((s: any) => ({ label: s.name, value: s.id })));
         const models = llmRes.data.data || [];
         setLlmModelsOptions(models.map((m: any) => ({ label: `${m.provider} - ${m.model_name}`, value: m.id })));
-        setPlatformOptions((platformRes.data.data || []).map((p: any) => ({ label: p.name, value: p.name })));
         // Default select first LLM model for new articles
         if (isNew && models.length > 0 && !form.getFieldValue('llm_model_id')) {
           form.setFieldValue('llm_model_id', models[0].id);
@@ -139,6 +144,51 @@ const ArticleDetail: React.FC = () => {
     };
     fetchOptions();
   }, []);
+
+  // Fetch paginated platform list for modal
+  const fetchPlatformList = useCallback(async (page = 1, search = '') => {
+    setPlatformLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const params: any = { page, pageSize: 10 };
+      if (search) params.search = search;
+      const res = await axios.get('/api/publishing-platforms', {
+        headers: { Authorization: `Bearer ${token}` },
+        params,
+      });
+      const data = res.data.data;
+      // Support both paginated and non-paginated response
+      if (data?.list) {
+        setPlatformList(data.list);
+        setPlatformTotal(data.total);
+      } else if (Array.isArray(data)) {
+        setPlatformList(data);
+        setPlatformTotal(data.length);
+      }
+      setPlatformPage(page);
+    } catch {
+      setPlatformList([]);
+      setPlatformTotal(0);
+    } finally {
+      setPlatformLoading(false);
+    }
+  }, []);
+
+  // Open platform selection modal
+  const openPlatformModal = useCallback(() => {
+    const currentPlatforms: string[] = form.getFieldValue('platforms') || [];
+    setSelectedPlatformKeys(currentPlatforms);
+    setPlatformSearch('');
+    fetchPlatformList(1, '');
+    setPlatformModalOpen(true);
+  }, [form, fetchPlatformList]);
+
+  // Confirm platform selection
+  const confirmPlatformSelection = useCallback(() => {
+    form.setFieldValue('platforms', selectedPlatformKeys);
+    setPlatformOptions(selectedPlatformKeys.map((name) => ({ label: name, value: name })));
+    setPlatformModalOpen(false);
+  }, [form, selectedPlatformKeys]);
 
   // Load knowledge base options
   useEffect(() => {
@@ -477,8 +527,74 @@ const ArticleDetail: React.FC = () => {
         <Select placeholder="选择大模型" options={llmModelsOptions} disabled={!isSettingsEditable} allowClear />
       </Form.Item>
       <Form.Item name="platforms" label="发布平台" rules={[{ required: true, message: '发布平台不能为空' }]}>
-        <Select mode="multiple" placeholder="选择发布平台" options={platformOptions} disabled={!isSettingsEditable} allowClear showSearch optionFilterProp="label" />
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, minHeight: 32, padding: '4px 11px', border: '1px solid var(--border-subtle)', borderRadius: 2, cursor: isSettingsEditable ? 'pointer' : 'default' }} onClick={() => { if (isSettingsEditable) openPlatformModal(); }}>
+          {(() => {
+            const platforms: string[] = form.getFieldValue('platforms') || [];
+            if (platforms.length === 0) {
+              return <span style={{ color: 'var(--text-secondary)' }}>点击选择发布平台</span>;
+            }
+            return platforms.map((name) => (
+              <Tag key={name} closable={isSettingsEditable} onClose={(e) => {
+                e.stopPropagation();
+                const current: string[] = form.getFieldValue('platforms') || [];
+                form.setFieldValue('platforms', current.filter((p) => p !== name));
+                setPlatformOptions(current.filter((p) => p !== name).map((p) => ({ label: p, value: p })));
+              }}>{name}</Tag>
+            ));
+          })()}
+        </div>
       </Form.Item>
+      {platformModalOpen && (
+        <Modal
+          title="选择发布平台"
+          open={platformModalOpen}
+          onOk={confirmPlatformSelection}
+          onCancel={() => setPlatformModalOpen(false)}
+          width={700}
+          okText="确认选择"
+          cancelText="取消"
+        >
+          <div style={{ marginBottom: 12 }}>
+            <Input.Search
+              placeholder="搜索平台名称或分类"
+              value={platformSearch}
+              onChange={(e) => setPlatformSearch(e.target.value)}
+              onSearch={(val) => fetchPlatformList(1, val)}
+              allowClear
+              style={{ width: '100%' }}
+            />
+          </div>
+          <Table
+            rowKey="name"
+            dataSource={platformList}
+            loading={platformLoading}
+            rowSelection={{
+              selectedRowKeys: selectedPlatformKeys,
+              onChange: (keys) => setSelectedPlatformKeys(keys as string[]),
+            }}
+            columns={[
+              { title: '平台名称', dataIndex: 'name', width: 200 },
+              { title: '分类', dataIndex: 'taxonomy', width: 120 },
+              { title: '价格', dataIndex: 'price', width: 80, render: (v: number) => v != null ? `¥${v}` : '-' },
+              { title: '收录率', dataIndex: 'include_rate', width: 80, render: (v: number) => v != null ? `${(v * 100).toFixed(0)}%` : '-' },
+              { title: '发布率', dataIndex: 'publish_rate', width: 80, render: (v: number) => v != null ? `${(v * 100).toFixed(0)}%` : '-' },
+            ]}
+            pagination={{
+              current: platformPage,
+              pageSize: 10,
+              total: platformTotal,
+              showSizeChanger: false,
+              showTotal: (total) => `共 ${total} 个平台`,
+              onChange: (page) => fetchPlatformList(page, platformSearch),
+            }}
+            size="small"
+            scroll={{ y: 400 }}
+          />
+          <div style={{ marginTop: 8, color: 'var(--text-secondary)' }}>
+            已选择 {selectedPlatformKeys.length} 个平台
+          </div>
+        </Modal>
+      )}
       {isSettingsEditable && (
         <div className="form-actions">
           <Button onClick={() => navigate('/article')}>取消</Button>

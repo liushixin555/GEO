@@ -8,6 +8,7 @@ interface LlmModelItem {
   base_url: string;
   api_key: string;
   model_name: string;
+  status: boolean;
 }
 
 interface LlmModelFormProps {
@@ -18,6 +19,7 @@ interface LlmModelFormProps {
 
 const LlmModelForm: React.FC<LlmModelFormProps> = ({ item, onClose, onSaved }) => {
   const isEdit = !!item;
+  const isDisabled = isEdit && !item!.status;
   const [form] = Form.useForm();
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -71,23 +73,24 @@ const LlmModelForm: React.FC<LlmModelFormProps> = ({ item, onClose, onSaved }) =
       footer={null}
       destroyOnHidden
     >
+      {isDisabled && <Alert type="warning" message="该模型已被禁用，无法编辑" showIcon style={{ marginBottom: 16 }} />}
       {error && <Alert type="error" message={error} className="form-alert" showIcon />}
       <Form form={form} onFinish={handleSubmit} layout="vertical">
         <Form.Item name="provider" label="供应商" rules={[{ required: true, message: '供应商不能为空' }]}>
-          <Input placeholder="如 OpenAI、Anthropic、DeepSeek" />
+          <Input placeholder="如 OpenAI、Anthropic、DeepSeek" disabled={isDisabled} />
         </Form.Item>
         <Form.Item name="base_url" label="Base URL" rules={[{ required: true, message: 'Base URL不能为空' }]}>
-          <Input placeholder="https://api.openai.com/v1" />
+          <Input placeholder="https://api.openai.com/v1" disabled={isDisabled} />
         </Form.Item>
         <Form.Item name="api_key" label="API Key" rules={[{ required: true, message: 'API Key不能为空' }]}>
-          <Input.Password placeholder="请输入API Key" />
+          <Input.Password placeholder="请输入API Key" disabled={isDisabled} />
         </Form.Item>
         <Form.Item name="model_name" label="模型名称" rules={[{ required: true, message: '模型名称不能为空' }]}>
-          <Input placeholder="如 gpt-4o、claude-3-sonnet" />
+          <Input placeholder="如 gpt-4o、claude-3-sonnet" disabled={isDisabled} />
         </Form.Item>
         <div className="form-actions">
           <Button onClick={onClose}>取消</Button>
-          <Button type="primary" htmlType="submit" loading={saving}>保存</Button>
+          {!isDisabled && <Button type="primary" htmlType="submit" loading={saving}>保存</Button>}
         </div>
       </Form>
     </Modal>

@@ -5,4 +5,5 @@ export interface ICompanyService {
   getById(id: number): Promise<CompanyDetail>;
   create(request: CreateCompanyRequest): Promise<Company>;
   update(id: number, request: UpdateCompanyRequest): Promise<Company>;
+  toggleStatus(id: number, status: boolean): Promise<Company>;
 }

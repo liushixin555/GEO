@@ -14,6 +14,7 @@ model Company {
   address       String? @db.VarChar(500)
   contactPerson String  @map("contact_person") @db.VarChar(100)
   contactPhone  String  @map("contact_phone") @db.VarChar(20)
+  status        Boolean @default(true)
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
   users         User[]

@@ -19,6 +19,7 @@ interface UserFormProps {
 
 const UserForm: React.FC<UserFormProps> = ({ item, isSysadmin, onClose, onSaved }) => {
   const isEdit = !!item;
+  const isDisabled = isEdit && !item!.status;
   const [form] = Form.useForm();
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -74,16 +75,17 @@ const UserForm: React.FC<UserFormProps> = ({ item, isSysadmin, onClose, onSaved 
       footer={null}
       destroyOnHidden
     >
+      {isDisabled && <Alert type="warning" message="该用户已被禁用，无法编辑" showIcon style={{ marginBottom: 16 }} />}
       {error && <Alert type="error" message={error} className="form-alert" showIcon />}
       <Form form={form} onFinish={handleSubmit} layout="vertical" initialValues={{ role: 'view' }}>
         <Form.Item name="username" label="用户名" rules={[{ required: true, message: '用户名不能为空' }]}>
           <Input disabled={isEdit} />
         </Form.Item>
         <Form.Item name="password" label={isEdit ? '密码（留空则不修改）' : '密码'} rules={isEdit ? [] : [{ required: true, message: '密码不能为空' }]}>
-          <Input.Password placeholder={isEdit ? '留空则不修改' : ''} />
+          <Input.Password placeholder={isEdit ? '留空则不修改' : ''} disabled={isDisabled} />
         </Form.Item>
         <Form.Item name="cn_name" label="姓名" rules={[{ required: true, message: '姓名不能为空' }]}>
-          <Input />
+          <Input disabled={isDisabled} />
         </Form.Item>
         <Form.Item name="role" label="角色" rules={[{ required: true, message: '请选择角色' }]}>
           <Select disabled={isEdit && item?.role === 'sysadmin'}>
@@ -94,7 +96,7 @@ const UserForm: React.FC<UserFormProps> = ({ item, isSysadmin, onClose, onSaved 
         </Form.Item>
         <div className="form-actions">
           <Button onClick={onClose}>取消</Button>
-          <Button type="primary" htmlType="submit" loading={saving}>保存</Button>
+          {!isDisabled && <Button type="primary" htmlType="submit" loading={saving}>保存</Button>}
         </div>
       </Form>
     </Modal>

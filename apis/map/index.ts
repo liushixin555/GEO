@@ -8,6 +8,7 @@ export function mapCompany(prismaCompany: any): Company {
     address: prismaCompany.address,
     contact_person: prismaCompany.contactPerson,
     contact_phone: prismaCompany.contactPhone,
+    status: prismaCompany.status,
     created_at: prismaCompany.createdAt,
     updated_at: prismaCompany.updatedAt,
   };

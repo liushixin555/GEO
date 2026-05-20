@@ -17,7 +17,7 @@ export class ArticleServiceImpl implements IArticleService {
     }
 
     if (role === 'admin' && userId) {
-      where.project = { operators: { some: { userId } } };
+      where.project = { operators: { some: { userId } }, company: { status: true }, status: true };
     }
 
     const [items, total] = await Promise.all([

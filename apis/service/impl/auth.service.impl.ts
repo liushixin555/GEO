@@ -117,19 +117,21 @@ export class AuthServiceImpl implements IAuthService {
 
     if (role === 'sysadmin') {
       const all = await prisma.company.findMany({
+        where: { status: true },
         select: { id: true, shortName: true },
         orderBy: { id: 'asc' },
       });
       return all.map(c => ({ id: c.id, short_name: c.shortName }));
     }
 
-    // admin/view: only their own company
+    // admin/view: only their own enabled company
     if (companyId) {
       const c = await prisma.company.findUnique({
         where: { id: companyId },
-        select: { id: true, shortName: true },
+        select: { id: true, shortName: true, status: true },
       });
-      return c ? [{ id: c.id, short_name: c.shortName }] : [];
+      if (!c || !c.status) return [];
+      return [{ id: c.id, short_name: c.shortName }];
     }
     return [];
   }
@@ -138,9 +140,18 @@ export class AuthServiceImpl implements IAuthService {
     if (!companyId) return [];
     const prisma = getPrisma();
 
+    // Check if company is enabled (admin/view should not see disabled company projects)
+    if (role !== 'sysadmin') {
+      const company = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { status: true },
+      });
+      if (!company || !company.status) return [];
+    }
+
     if (role === 'sysadmin') {
       const projects = await prisma.project.findMany({
-        where: { companyId },
+        where: { companyId, company: { status: true }, status: true },
         select: { id: true, shortName: true },
         orderBy: { id: 'asc' },
       });
@@ -149,7 +160,7 @@ export class AuthServiceImpl implements IAuthService {
 
     if (role === 'admin') {
       const operators = await prisma.projectOperator.findMany({
-        where: { userId, project: { companyId } },
+        where: { userId, project: { companyId, company: { status: true }, status: true } },
         include: { project: { select: { id: true, shortName: true } } },
         orderBy: { projectId: 'asc' },
       });
@@ -158,7 +169,7 @@ export class AuthServiceImpl implements IAuthService {
 
     // view: only projects they are viewers of
     const viewers = await prisma.projectViewer.findMany({
-      where: { userId, project: { companyId } },
+      where: { userId, project: { companyId, company: { status: true }, status: true } },
       include: { project: { select: { id: true, shortName: true } } },
       orderBy: { projectId: 'asc' },
     });
@@ -168,7 +179,7 @@ export class AuthServiceImpl implements IAuthService {
   async getCompanyUsers(companyId: number): Promise<{ operators: { id: number; cn_name: string; username: string }[]; viewers: { id: number; cn_name: string; username: string }[] }> {
     const prisma = getPrisma();
     const users = await prisma.user.findMany({
-      where: { companyId, role: { in: ['admin', 'view'] } },
+      where: { companyId, status: true, role: { in: ['admin', 'view'] } },
       select: { id: true, role: true, cnName: true, username: true },
     });
     return {

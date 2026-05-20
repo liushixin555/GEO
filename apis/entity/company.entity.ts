@@ -5,6 +5,7 @@ export interface Company {
   address: string | null;
   contact_person: string;
   contact_phone: string;
+  status: boolean;
   created_at: Date;
   updated_at: Date;
 }

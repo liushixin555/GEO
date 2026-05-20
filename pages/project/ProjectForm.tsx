@@ -36,6 +36,7 @@ interface ProjectFormProps {
 
 const ProjectForm: React.FC<ProjectFormProps> = ({ item, companies, onClose, onSaved }) => {
   const isEdit = !!item;
+  const isDisabled = isEdit && !item!.status;
   const [form] = Form.useForm();
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -118,16 +119,17 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ item, companies, onClose, onS
       footer={null}
       destroyOnHidden
     >
+      {isDisabled && <Alert type="warning" message="该项目已被禁用，无法编辑" showIcon style={{ marginBottom: 16 }} />}
       {error && <Alert type="error" message={error} className="form-alert" showIcon />}
       <Form form={form} onFinish={handleSubmit} layout="vertical">
         <Form.Item name="short_name" label="项目短名" rules={[{ required: true, message: '项目短名不能为空' }]}>
-          <Input />
+          <Input disabled={isDisabled} />
         </Form.Item>
         <Form.Item name="full_name" label="项目全名" rules={[{ required: true, message: '项目全名不能为空' }]}>
-          <Input />
+          <Input disabled={isDisabled} />
         </Form.Item>
         <Form.Item name="description" label="项目描述">
-          <Input />
+          <Input disabled={isDisabled} />
         </Form.Item>
         <Form.Item name="company_id" label="所属公司" rules={[{ required: true, message: '所属公司不能为空' }]}>
           <Select
@@ -146,6 +148,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ item, companies, onClose, onS
             allowClear
             showSearch
             optionFilterProp="label"
+            disabled={isDisabled}
             options={operators.map(o => ({ value: o.id, label: `${o.cn_name}（${o.username}）` }))}
           />
         </Form.Item>
@@ -156,12 +159,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ item, companies, onClose, onS
             allowClear
             showSearch
             optionFilterProp="label"
+            disabled={isDisabled}
             options={viewers.map(v => ({ value: v.id, label: `${v.cn_name}（${v.username}）` }))}
           />
         </Form.Item>
         <div className="form-actions">
           <Button onClick={onClose}>取消</Button>
-          <Button type="primary" htmlType="submit" loading={saving}>保存</Button>
+          {!isDisabled && <Button type="primary" htmlType="submit" loading={saving}>保存</Button>}
         </div>
       </Form>
     </Modal>

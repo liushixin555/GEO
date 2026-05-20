@@ -81,6 +81,7 @@ app.get('/api/companies', authMiddleware, roleMiddleware('sysadmin'), companyCon
 app.get('/api/companies/:id', authMiddleware, roleMiddleware('sysadmin'), companyController.getCompany);
 app.post('/api/companies', authMiddleware, roleMiddleware('sysadmin'), companyController.createCompany);
 app.put('/api/companies/:id', authMiddleware, roleMiddleware('sysadmin'), companyController.updateCompany);
+app.put('/api/companies/:id/status', authMiddleware, roleMiddleware('sysadmin'), companyController.toggleCompanyStatus);
 
 // Skills routes (sysadmin + admin)
 app.get('/api/skills', authMiddleware, roleMiddleware('sysadmin', 'admin'), skillsController.listSkills);

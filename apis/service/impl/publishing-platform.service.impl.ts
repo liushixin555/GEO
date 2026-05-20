@@ -61,4 +61,28 @@ export class PublishingPlatformServiceImpl implements IPublishingPlatformService
     const items = await prisma.publishingPlatform.findMany({ orderBy: [{ taxonomy: 'asc' }, { name: 'asc' }] });
     return items.map(mapPublishingPlatform);
   }
+
+  async list(page: number, pageSize: number, search?: string, taxonomy?: string): Promise<{ list: PublishingPlatform[]; total: number }> {
+    const prisma = getPrisma();
+    const where: any = {};
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { taxonomy: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+    if (taxonomy) {
+      where.taxonomy = taxonomy;
+    }
+    const [items, total] = await Promise.all([
+      prisma.publishingPlatform.findMany({
+        where,
+        orderBy: [{ taxonomy: 'asc' }, { name: 'asc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.publishingPlatform.count({ where }),
+    ]);
+    return { list: items.map(mapPublishingPlatform), total };
+  }
 }

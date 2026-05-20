@@ -18,7 +18,7 @@ export class CompanyServiceImpl implements ICompanyService {
     }
 
     const users = await prisma.user.findMany({
-      where: { companyId: id, role: { in: ['admin', 'view'] } },
+      where: { companyId: id, status: true, role: { in: ['admin', 'view'] } },
       select: { id: true, role: true, cnName: true, username: true },
     });
 
@@ -111,5 +111,17 @@ export class CompanyServiceImpl implements ICompanyService {
 
       return mapCompany(company);
     });
+  }
+
+  async toggleStatus(id: number, status: boolean): Promise<Company> {
+    const prisma = getPrisma();
+    const existing = await prisma.company.findUnique({ where: { id } });
+    if (!existing) throw new Error('公司不存在');
+
+    const company = await prisma.company.update({
+      where: { id },
+      data: { status },
+    });
+    return mapCompany(company);
   }
 }

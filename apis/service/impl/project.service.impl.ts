@@ -23,9 +23,10 @@ export class ProjectServiceImpl implements IProjectService {
     if (company_id) where.companyId = company_id;
     if (status !== undefined) where.status = status;
 
-    // Admin can only see projects where they are an operator
+    // Admin can only see projects where they are an operator AND company is enabled
     if (role === 'admin' && userId) {
       where.operators = { some: { userId } };
+      where.company = { status: true };
     }
 
     const [items, total] = await Promise.all([

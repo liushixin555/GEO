@@ -210,3 +210,28 @@ export async function updateCompany(req: Request, res: Response): Promise<void> 
     }
   }
 }
+
+export async function toggleCompanyStatus(req: Request, res: Response): Promise<void> {
+  try {
+    const id = parseInt(req.params.id as string, 10);
+    if (isNaN(id)) {
+      fail(res, 400, '无效的公司ID');
+      return;
+    }
+
+    const { status } = req.body;
+    if (typeof status !== 'boolean') {
+      fail(res, 400, 'status参数无效');
+      return;
+    }
+
+    const company = await companyService.toggleStatus(id, status);
+    success(res, company, status ? '公司已启用' : '公司已禁用');
+  } catch (err: any) {
+    if (err.message === '公司不存在') {
+      fail(res, 404, err.message);
+    } else {
+      fail(res, 500, err.message || '操作失败');
+    }
+  }
+}

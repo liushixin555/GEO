@@ -5,4 +5,6 @@ export interface IPublishingPlatformService {
   syncFromRm(username: string, password: string): Promise<number>;
   /** 获取所有发布平台 */
   listAll(): Promise<PublishingPlatform[]>;
+  /** 分页查询发布平台 */
+  list(page: number, pageSize: number, search?: string, taxonomy?: string): Promise<{ list: PublishingPlatform[]; total: number }>;
 }
