@@ -64,7 +64,7 @@ sudo docker rm by 2>/dev/null || true
 DOCKER_ENV=$(mktemp)
 sed 's/=\s*"\(.*\)"\s*$/=\1/' "$SCRIPT_DIR/.env" > "$DOCKER_ENV"
 
-# 运行新的容器（使用主机网络以访问主机 PostgreSQL）
+# 运行新的容器（通过 host.docker.internal 访问主机 PostgreSQL）
 echo "正在启动应用容器..."
 sudo docker run -d --name by -p 12380:80 \
   --env-file "$DOCKER_ENV" \

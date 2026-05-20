@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Form, Input, Select, Button, Alert, Segmented, Upload, Image, Tabs, Typography, Spin, Tag, App, Popconfirm } from 'antd';
-import { ArrowLeftOutlined, InboxOutlined, LinkOutlined, DeleteOutlined, CheckOutlined, EyeOutlined, EditOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, InboxOutlined, LinkOutlined, DeleteOutlined, CheckOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import MDEditor from '@uiw/react-md-editor';
 import axios from 'axios';
 import { useAppContext } from '../context/AppContext';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   draft: { label: '草稿', color: 'default' },
+  manual_writing: { label: '手工编写中', color: 'processing' },
   generating: { label: '生成中', color: 'processing' },
   generate_failed: { label: '生成失败', color: 'error' },
   pending_review: { label: '待审核', color: 'warning' },
@@ -16,7 +17,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   published: { label: '已发布', color: 'success' },
 };
 
-const EDITABLE_STATUSES = ['draft', 'generate_failed', 'publish_failed'];
+const EDITABLE_STATUSES = ['draft', 'manual_writing', 'generate_failed', 'publish_failed'];
 
 interface ArticleData {
   id: number;
@@ -37,6 +38,7 @@ const ArticleDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { projectId } = useAppContext();
   const navigate = useNavigate();
+  const location = useLocation();
   const isNew = id === 'new';
   const { message } = App.useApp();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -69,10 +71,9 @@ const ArticleDetail: React.FC = () => {
   const [content, setContent] = useState('');
   const [contentSaving, setContentSaving] = useState(false);
   const [contentMode, setContentMode] = useState<'preview' | 'edit'>('preview');
+  const [activeTab, setActiveTab] = useState('settings');
 
   // Tab
-  const hasContent = article !== null && article.content !== null && article.content !== '';
-
   const fetchArticle = useCallback(async () => {
     if (isNew || !projectId) return;
     setLoading(true);
@@ -103,6 +104,16 @@ const ArticleDetail: React.FC = () => {
   useEffect(() => {
     fetchArticle();
   }, [fetchArticle]);
+
+  // Handle navigation state for manual write mode
+  useEffect(() => {
+    if (location.state?.openContentEdit && !isNew) {
+      setActiveTab('content');
+      setContentMode('edit');
+      // Clear state to prevent re-triggering
+      window.history.replaceState({}, '');
+    }
+  }, [location.state, isNew]);
 
   // Load skills and LLM model options
   useEffect(() => {
@@ -161,18 +172,18 @@ const ArticleDetail: React.FC = () => {
 
   const canEditSettings = () => {
     if (!article) return false;
-    if (!EDITABLE_STATUSES.includes(article.status)) return false;
+    // 只有草稿状态可以编辑设置
+    if (!['draft'].includes(article.status)) return false;
     return user.role === 'sysadmin' || article.created_by === user.id;
   };
 
   const canEditContent = () => {
     if (!article) return false;
-    const allowed = [...EDITABLE_STATUSES, 'pending_review'];
-    if (!allowed.includes(article.status)) return false;
+    if (!EDITABLE_STATUSES.includes(article.status)) return false;
     return user.role === 'sysadmin' || article.created_by === user.id;
   };
 
-  const handleSaveSettings = async (values: any, submitForGeneration = false) => {
+  const handleSaveSettings = async (values: any, submitForGeneration = false, manualWrite = false) => {
     setSaving(true);
     setError('');
     try {
@@ -187,23 +198,39 @@ const ArticleDetail: React.FC = () => {
         llm_model_id: values.llm_model_id || undefined,
       };
 
+      if (submitForGeneration) {
+        payload.status = 'generating';
+      } else if (manualWrite) {
+        payload.status = 'manual_writing';
+      }
+
       if (isNew) {
-        if (submitForGeneration) {
-          payload.status = 'generating';
-        }
         const res = await axios.post(`/api/projects/${projectId}/articles`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        message.success(submitForGeneration ? '已提交，AI生成中' : '草稿已保存');
-        navigate(`/article/${res.data.data.id}`, { replace: true });
-      } else {
         if (submitForGeneration) {
-          payload.status = 'generating';
+          message.success('已提交，AI生成中');
+          navigate(`/article/${res.data.data.id}`, { replace: true });
+        } else if (manualWrite) {
+          message.success('已创建，请编写正文');
+          navigate(`/article/${res.data.data.id}`, { replace: true, state: { openContentEdit: true } });
+        } else {
+          message.success('草稿已保存');
+          navigate(`/article/${res.data.data.id}`, { replace: true });
         }
+      } else {
         await axios.put(`/api/projects/${projectId}/articles/${id}`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        message.success(submitForGeneration ? '已提交，AI生成中' : '保存成功');
+        if (submitForGeneration) {
+          message.success('已提交，AI生成中');
+        } else if (manualWrite) {
+          message.success('请编写正文');
+          setActiveTab('content');
+          setContentMode('edit');
+        } else {
+          message.success('保存成功');
+        }
         fetchArticle();
       }
     } catch (err: any) {
@@ -227,6 +254,48 @@ const ArticleDetail: React.FC = () => {
       message.error(err.response?.data?.message || '保存正文失败');
     } finally {
       setContentSaving(false);
+    }
+  };
+
+  const handleReview = async (approved: boolean) => {
+    if (!article || !projectId) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`/api/projects/${projectId}/articles/${id}/review`, { approved }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      message.success(approved ? '审核通过，自动发布中' : '审核不通过，已退回草稿');
+      fetchArticle();
+    } catch (err: any) {
+      message.error(err.response?.data?.message || '审核操作失败');
+    }
+  };
+
+  const handleRegenerate = async () => {
+    if (!article || !projectId) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`/api/projects/${projectId}/articles/${id}/regenerate`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      message.success('已重新提交AI生成');
+      fetchArticle();
+    } catch (err: any) {
+      message.error(err.response?.data?.message || '重新生成失败');
+    }
+  };
+
+  const handleSubmitForReview = async () => {
+    if (!article || !projectId) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`/api/projects/${projectId}/articles/${id}/submit-review`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      message.success('已提交审核');
+      fetchArticle();
+    } catch (err: any) {
+      message.error(err.response?.data?.message || '提交审核失败');
     }
   };
 
@@ -299,75 +368,106 @@ const ArticleDetail: React.FC = () => {
         )}
       </Form.Item>
       <Form.Item label="插图">
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-          <Segmented
-            size="small"
-            disabled={!isSettingsEditable}
-            options={[{ label: '从知识库选择', value: 'kb' }, { label: '上传图片', value: 'upload' }, { label: '输入URL', value: 'url' }]}
-            value={imageMode}
-            onChange={(val) => setImageMode(val as 'upload' | 'url' | 'kb')}
-          />
-        </div>
-        {imageMode === 'kb' && (
-          <div style={{ marginTop: 8 }}>
-            {kbImages.length === 0 ? (
-              <Spin spinning={kbLoading}>
-                <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                  {kbLoading ? '加载中...' : '知识库暂无图片，请先在知识库中添加'}
+        {!isSettingsEditable ? (
+          // 非编辑模式：只显示已选中的图片
+          imageList.length === 0 ? (
+            <span style={{ color: 'var(--text-secondary)' }}>暂无插图</span>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {imageList.map((url, idx) => (
+                <div key={idx} style={{ width: 80, height: 80, borderRadius: 2, overflow: 'hidden' }}>
+                  <Image src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={true} />
                 </div>
-              </Spin>
-            ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {kbImages.map((img) => {
-                  const selected = imageList.includes(img.image_url);
-                  return (
-                    <div key={img.id}
-                      onClick={() => {
-                        if (!isSettingsEditable) return;
-                        if (selected) {
-                          setImageList(imageList.filter((u) => u !== img.image_url));
-                        } else {
-                          setImageList([...imageList, img.image_url]);
-                        }
-                      }}
-                      style={{
-                        position: 'relative', width: 80, height: 80,
-                        border: `2px solid ${selected ? 'var(--interactive)' : 'var(--border-subtle)'}`,
-                        borderRadius: 2, overflow: 'hidden',
-                        cursor: isSettingsEditable ? 'pointer' : 'default',
-                      }}
-                      title={img.title}
-                    >
-                      <Image src={img.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} />
-                      {selected && (
-                        <div style={{
-                          position: 'absolute', inset: 0,
-                          background: 'rgba(0,0,0,0.25)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          pointerEvents: 'none',
-                        }}>
-                          <CheckOutlined style={{ color: '#fff', fontSize: 22 }} />
-                        </div>
-                      )}
+              ))}
+            </div>
+          )
+        ) : (
+          <>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+              <Segmented
+                size="small"
+                options={[{ label: '从知识库选择', value: 'kb' }, { label: '上传图片', value: 'upload' }, { label: '输入URL', value: 'url' }]}
+                value={imageMode}
+                onChange={(val) => setImageMode(val as 'upload' | 'url' | 'kb')}
+              />
+            </div>
+            {imageMode === 'kb' && (
+              <div style={{ marginTop: 8 }}>
+                {kbImages.length === 0 ? (
+                  <Spin spinning={kbLoading}>
+                    <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                      {kbLoading ? '加载中...' : '知识库暂无图片，请先在知识库中添加'}
                     </div>
-                  );
-                })}
+                  </Spin>
+                ) : (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {kbImages.map((img) => {
+                      const selected = imageList.includes(img.image_url);
+                      return (
+                        <div key={img.id}
+                          onClick={() => {
+                            if (!isSettingsEditable) return;
+                            if (selected) {
+                              setImageList(imageList.filter((u) => u !== img.image_url));
+                            } else {
+                              setImageList([...imageList, img.image_url]);
+                            }
+                          }}
+                          style={{
+                            position: 'relative', width: 80, height: 80,
+                            border: `2px solid ${selected ? 'var(--interactive)' : 'var(--border-subtle)'}`,
+                            borderRadius: 2, overflow: 'hidden',
+                            cursor: isSettingsEditable ? 'pointer' : 'default',
+                          }}
+                          title={img.title}
+                        >
+                          <Image src={img.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} />
+                          {selected && (
+                            <div style={{
+                              position: 'absolute', inset: 0,
+                              background: 'rgba(0,0,0,0.25)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              pointerEvents: 'none',
+                            }}>
+                              <CheckOutlined style={{ color: '#fff', fontSize: 22 }} />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
-        {isSettingsEditable && imageMode === 'upload' && (
-          <div style={{ display: 'block', width: '100%' }}>
-          <Upload accept="image/*" showUploadList={false} beforeUpload={(file) => { handleUpload(file); return false; }} disabled={uploading}>
-            <div style={{ border: '1px dashed var(--border-subtle)', borderRadius: 2, padding: '16px 0', textAlign: 'center', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <InboxOutlined style={{ fontSize: 24 }} />
-              <span style={{ marginTop: 8 }}>{uploading ? '上传中...' : '点击上传图片'}</span>
-            </div>
-          </Upload>
-          </div>
-        )}
-        {isSettingsEditable && imageMode === 'url' && (
-          <Input.Search placeholder="输入图片URL" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} onSearch={handleAddUrl} enterButton={<LinkOutlined />} />
+            {imageMode === 'upload' && (
+              <div style={{ display: 'block', width: '100%' }}>
+              <Upload accept="image/*" showUploadList={false} beforeUpload={(file) => { handleUpload(file); return false; }} disabled={uploading}>
+                <div style={{ border: '1px dashed var(--border-subtle)', borderRadius: 2, padding: '16px 0', textAlign: 'center', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <InboxOutlined style={{ fontSize: 24 }} />
+                  <span style={{ marginTop: 8 }}>{uploading ? '上传中...' : '点击上传图片'}</span>
+                </div>
+              </Upload>
+              </div>
+            )}
+            {imageMode === 'url' && (
+              <Input.Search placeholder="输入图片URL" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} onSearch={handleAddUrl} enterButton={<LinkOutlined />} />
+            )}
+            {imageList.length > 0 && (
+              <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {imageList.map((url, idx) => (
+                  <div key={idx} style={{ position: 'relative', width: 80, height: 80, borderRadius: 2, overflow: 'hidden', border: '2px solid var(--interactive)' }}>
+                    <Image src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={true} />
+                    <div
+                      onClick={() => setImageList(imageList.filter((_, i) => i !== idx))}
+                      style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, background: 'rgba(0,0,0,0.5)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                    >
+                      <DeleteOutlined style={{ color: '#fff', fontSize: 10 }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </Form.Item>
       <Form.Item name="skills" label="选择技能">
@@ -383,9 +483,12 @@ const ArticleDetail: React.FC = () => {
         <div className="form-actions">
           <Button onClick={() => navigate('/article')}>取消</Button>
           <Button htmlType="submit" loading={saving}>存草稿</Button>
+          <Button loading={saving} onClick={() => {
+            form.validateFields().then((values) => handleSaveSettings(values, false, true));
+          }}>手工编写</Button>
           <Button type="primary" loading={saving} onClick={() => {
             form.validateFields().then((values) => handleSaveSettings(values, true));
-          }}>提交</Button>
+          }}>提交给AI</Button>
         </div>
       )}
     </Form>
@@ -409,10 +512,38 @@ const ArticleDetail: React.FC = () => {
               />
             )}
             {isContentEditable && contentMode === 'edit' && (
-              <Button type="primary" onClick={handleSaveContent} loading={contentSaving}>保存正文</Button>
+              <>
+                <Button onClick={handleSaveContent} loading={contentSaving}>保存正文</Button>
+                {article.status === 'manual_writing' && (
+                  <Popconfirm title="确认提交审核？" description="提交后将进入审核流程" onConfirm={handleSubmitForReview} okText="确认" cancelText="取消">
+                    <Button type="primary">提交审核</Button>
+                  </Popconfirm>
+                )}
+              </>
             )}
           </div>
         </div>
+      )}
+      {article && article.status === 'pending_review' && (
+        <Alert
+          type="warning"
+          message="该文章待审核"
+          showIcon
+          style={{ marginBottom: 12 }}
+          action={
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Popconfirm title="确认审核通过？" description="通过后将自动进入发布流程" onConfirm={() => handleReview(true)} okText="确认" cancelText="取消">
+                <Button size="small" type="primary" icon={<CheckCircleOutlined />}>审核通过</Button>
+              </Popconfirm>
+              <Popconfirm title="确认审核不通过？" description="不通过后将退回为草稿" onConfirm={() => handleReview(false)} okText="确认" cancelText="取消">
+                <Button size="small" danger icon={<CloseCircleOutlined />}>审核不通过</Button>
+              </Popconfirm>
+              <Popconfirm title="确认重新生成？" description="将清空正文并重新提交AI生成" onConfirm={() => handleRegenerate()} okText="确认" cancelText="取消">
+                <Button size="small" icon={<ReloadOutlined />}>重新生成</Button>
+              </Popconfirm>
+            </div>
+          }
+        />
       )}
       {contentMode === 'edit' ? (
         <MDEditor
@@ -439,7 +570,7 @@ const ArticleDetail: React.FC = () => {
     { key: 'settings', label: '文章设置', children: settingsTab, forceRender: true },
   ];
 
-  if (!isNew && article && hasContent) {
+  if (!isNew && article) {
     tabItems.push({ key: 'content', label: `正文 (v${(article.version ?? 1.0).toFixed(1)})`, children: contentTab, forceRender: true });
   }
 
@@ -454,7 +585,7 @@ const ArticleDetail: React.FC = () => {
           <Tag color={statusCfg.color}>{statusCfg.label}</Tag>
         )}
       </div>
-      <Tabs items={tabItems} />
+      <Tabs items={tabItems} activeKey={activeTab} onChange={setActiveTab} />
     </div>
   );
 };

@@ -288,6 +288,9 @@
 - **调试前端问题时先测 API**：`curl -s http://localhost:8080/api/health` 确认后端活着 → `curl` 登录拿 token → 直接调目标 API 看响应 → 如果 API 正确则问题在前端，如果 API 不正确则后端在运行旧代码
 - **关键词扩展词（keyword_expanded_words）已验证完整流程**：创建关键词+扩展词 → 读取返回 expanded_words → 更新同步扩展词 → 级联删除，API 和前端均已确认正常
 - **antd message/notification/modal 静态方法无法消费主题上下文**：v5+ 必须通过 `<App>` 组件 + `App.useApp()` hook 获取实例，禁止 `import { message } from 'antd'` 后直接调用静态方法
+- **文章列表页也需要更新 STATUS_CONFIG**：ArticleDetail 和 article/index.tsx 各有独立的 STATUS_CONFIG，新增状态时两处都要加
+- **设置编辑与正文编辑权限分离**：`SETTINGS_EDITABLE_STATUSES`（仅 draft）和 `CONTENT_EDITABLE_STATUSES`（draft/manual_writing/generate_failed/publish_failed）分别控制
+- **Docker 内无法执行 prisma migrate**：容器内没有 migrations 目录，需在宿主机用 psql 直连数据库执行 ALTER TYPE
 
 ## 本次变更（2026-05-18 antd message 上下文修复）
 - [x] **修复 antd message 静态方法无法消费主题上下文的警告** — `Static function can not consume context like dynamic theme. Please use 'App' component instead.`
@@ -308,6 +311,26 @@
   - 防重叠守卫：`isRunning` 布尔值防止 LLM 调用超 5 分钟时任务叠加
   - 失败处理：状态改 `generate_failed`，日志记录错误详情
   - 6 个测试全部通过：cron 启停、无文章跳过、生成成功、无 LLM 模型失败、API 错误失败
+
+## 本次变更（2026-05-20 文章状态与权限优化）
+- [x] **新增 manual_writing（手工编写中）状态** — 与 AI 生成中（generating）处于同等阶段
+  - Prisma ArticleStatus 枚举新增 `manual_writing`
+  - 数据库通过 `ALTER TYPE "ArticleStatus" ADD VALUE 'manual_writing'` 添加
+  - 前端 STATUS_CONFIG（ArticleDetail + article/index.tsx）两处均更新：`manual_writing: { label: '手工编写中', color: 'processing' }`
+- [x] **手工编写按钮设置 manual_writing 状态** — 点击"手工编写"时 status='manual_writing'，不再是 draft
+  - 创建文章时 status 允许 'draft' / 'manual_writing' / 'generating'
+  - 创建后自动跳转正文编辑页（state: openContentEdit）
+- [x] **手工编写中正文区双按钮** — "保存正文" + "提交审核"（Popconfirm 确认）
+  - 新增后端 `PUT /api/projects/:projectId/articles/:id/submit-review` 接口
+  - 仅 manual_writing 状态可提交审核，转入 pending_review
+- [x] **设置编辑权限收紧** — 仅 draft 状态显示底部4个操作按钮，其他状态设置页只读
+  - 后端 `SETTINGS_EDITABLE_STATUSES = ['draft']`
+  - 前端 `canEditSettings()` 仅 draft 返回 true
+- [x] **正文编辑权限** — draft/manual_writing/generate_failed/publish_failed 可编辑
+  - 后端 `CONTENT_EDITABLE_STATUSES` 替代旧的 `EDITABLE_STATUSES`
+  - pending_review 状态不可编辑正文（前后端同步）
+- [x] **插图浏览优化** — 非编辑模式只显示已选中的图片，不显示知识库全部图片
+  - 编辑模式：保留知识库选择网格 + 底部已选图片列表（每张有删除按钮）
 
 ## 测试模式
 - 后端测试：直接设环境变量（`process.env.JWT_SECRET='test-secret'`），不用 jest.mock

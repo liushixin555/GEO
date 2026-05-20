@@ -18,8 +18,8 @@ RUN corepack enable \
 COPY prisma/schema.prisma prisma/schema.prisma
 RUN prisma generate
 
-# Copy build output
-COPY dist/apis/ dist/apis/
+# Copy build output (tsconfig rootDir=. causes nested apis/ dir)
+COPY dist/apis/apis/ dist/apis/
 
 # Create uploads directory
 RUN mkdir -p uploads

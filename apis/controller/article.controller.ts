@@ -6,7 +6,8 @@ import { success, fail, paginate } from '../utils';
 const articleService = new ArticleServiceImpl();
 const projectService = new ProjectServiceImpl();
 
-const EDITABLE_STATUSES = ['draft', 'generate_failed', 'publish_failed'];
+const SETTINGS_EDITABLE_STATUSES = ['draft'];
+const CONTENT_EDITABLE_STATUSES = ['draft', 'manual_writing', 'generate_failed', 'publish_failed'];
 
 async function checkProjectOperator(projectId: number, userId: number, role: string): Promise<void> {
   if (role === 'sysadmin') return;
@@ -87,7 +88,7 @@ export async function createArticle(req: Request, res: Response): Promise<void> 
 
     const { title, status } = req.body;
     if (!title) { fail(res, 400, '文章标题不能为空'); return; }
-    if (status && !['draft', 'generating'].includes(status)) {
+    if (status && !['draft', 'manual_writing', 'generating'].includes(status)) {
       fail(res, 400, '无效的初始状态');
       return;
     }
@@ -142,8 +143,8 @@ export async function updateArticle(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Only editable in certain statuses
-    if (!EDITABLE_STATUSES.includes(existing.status)) {
+    // Only editable settings in draft status
+    if (!SETTINGS_EDITABLE_STATUSES.includes(existing.status)) {
       fail(res, 400, '当前文章状态不可编辑');
       return;
     }
@@ -200,9 +201,8 @@ export async function updateArticleContent(req: Request, res: Response): Promise
       return;
     }
 
-    // Content can be edited in: editable statuses + pending_review
-    const contentEditableStatuses = [...EDITABLE_STATUSES, 'pending_review'];
-    if (!contentEditableStatuses.includes(existing.status)) {
+    // Content can be edited in content-editable statuses only
+    if (!CONTENT_EDITABLE_STATUSES.includes(existing.status)) {
       fail(res, 400, '当前文章状态不可编辑正文');
       return;
     }
@@ -303,6 +303,89 @@ export async function reviewArticle(req: Request, res: Response): Promise<void> 
       fail(res, 400, err.message);
     } else {
       fail(res, 500, err.message || '审核操作失败');
+    }
+  }
+}
+
+export async function regenerateArticle(req: Request, res: Response): Promise<void> {
+  try {
+    const projectId = parseInt(req.params.projectId as string, 10);
+    const id = parseInt(req.params.id as string, 10);
+    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
+    if (isNaN(id)) { fail(res, 400, '无效的文章ID'); return; }
+
+    const { userId, role } = req.user!;
+    const existing = await articleService.getById(id, userId, role);
+
+    if (existing.project_id !== projectId) {
+      fail(res, 404, '文章不存在');
+      return;
+    }
+
+    // Admin must be operator of the project
+    if (role === 'admin') {
+      try {
+        await checkProjectOperator(projectId, userId, role);
+      } catch {
+        fail(res, 403, '无权操作该项目');
+        return;
+      }
+    }
+
+    const item = await articleService.regenerate(id, userId, role);
+    success(res, item, '已重新提交AI生成');
+  } catch (err: any) {
+    if (err.message === '文章不存在') {
+      fail(res, 404, err.message);
+    } else if (err.message === '文章当前状态不支持重新生成') {
+      fail(res, 400, err.message);
+    } else {
+      fail(res, 500, err.message || '重新生成操作失败');
+    }
+  }
+}
+
+export async function submitForReview(req: Request, res: Response): Promise<void> {
+  try {
+    const projectId = parseInt(req.params.projectId as string, 10);
+    const id = parseInt(req.params.id as string, 10);
+    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
+    if (isNaN(id)) { fail(res, 400, '无效的文章ID'); return; }
+
+    const { userId, role } = req.user!;
+    const existing = await articleService.getById(id, userId, role);
+
+    if (existing.project_id !== projectId) {
+      fail(res, 404, '文章不存在');
+      return;
+    }
+
+    if (role === 'admin') {
+      try {
+        await checkProjectOperator(projectId, userId, role);
+      } catch {
+        fail(res, 403, '无权操作该项目');
+        return;
+      }
+    }
+
+    if (role !== 'sysadmin' && existing.created_by !== userId) {
+      fail(res, 403, '只能操作自己创建的文章');
+      return;
+    }
+
+    if (existing.status !== 'manual_writing') {
+      fail(res, 400, '只有手工编写中的文章可以提交审核');
+      return;
+    }
+
+    const item = await articleService.update(id, { status: 'pending_review' }, userId, role);
+    success(res, item, '已提交审核');
+  } catch (err: any) {
+    if (err.message === '文章不存在') {
+      fail(res, 404, err.message);
+    } else {
+      fail(res, 500, err.message || '提交审核失败');
     }
   }
 }

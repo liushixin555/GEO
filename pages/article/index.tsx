@@ -17,6 +17,7 @@ interface ArticleItem {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   draft: { label: '草稿', color: 'default' },
+  manual_writing: { label: '手工编写中', color: 'processing' },
   generating: { label: '生成中', color: 'processing' },
   generate_failed: { label: '生成失败', color: 'error' },
   pending_review: { label: '待审核', color: 'warning' },

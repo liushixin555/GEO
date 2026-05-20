@@ -7,5 +7,6 @@ export interface IArticleService {
   update(id: number, request: UpdateArticleRequest, userId?: number, role?: string): Promise<Article>;
   delete(id: number, userId?: number, role?: string): Promise<void>;
   review(id: number, approved: boolean, userId?: number, role?: string): Promise<Article>;
+  regenerate(id: number, userId?: number, role?: string): Promise<Article>;
   listVersions(articleId: number): Promise<ArticleVersion[]>;
 }

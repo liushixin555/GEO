@@ -100,13 +100,17 @@ tests/apis/  + tests/pages/  测试文件
 - **GEO文章管理（2026-05-17）**：新增 Article 模型
   - `articles` 表：id, project_id, title, keywords(Json), portrait(Text), images(Json), platforms(Json), skills(Json, 技能ID), llm_model_id(Int?, FK→llm_models, ON DELETE SET NULL), content(Text?), version(Float, 默认1.0), status(ArticleStatus枚举), created_by
   - `article_versions` 表：id, article_id, version(Float), content(Text), created_by, created_at
-  - 7个状态：draft → generating → generate_failed / pending_review → publishing → publish_failed / published
-  - API: GET/POST/PUT/DELETE `/api/projects/:projectId/articles` + PUT `.../review`
-  - 正文专用 API: PUT `.../content`（待审核状态创建者仍可编辑）、GET `.../versions`（版本历史）
+  - 7个状态：draft → manual_writing / generating → generate_failed / pending_review → publishing → publish_failed / published
+  - API: GET/POST/PUT/DELETE `/api/projects/:projectId/articles` + PUT `.../review` + PUT `.../submit-review`
+  - 正文专用 API: PUT `.../content`（仅 draft/manual_writing/generate_failed/publish_failed 可编辑）、GET `.../versions`（版本历史）
+  - 提交审核 API: PUT `.../submit-review`（仅 manual_writing → pending_review）
   - 正文版本管理：每次保存自动递增版本号（1.0 → 2.0），历史存入 article_versions
   - admin 需为项目运营者，编辑/删除限创建者或 sysadmin
   - 前端：独立路由页面 `/article/:id`（非Modal），Tab 切换「文章设置」和「正文」
   - 非编辑状态时字段 disabled 只读
+  - **设置编辑权限**：仅 draft 状态可编辑设置（`SETTINGS_EDITABLE_STATUSES`）
+  - **正文编辑权限**：draft / manual_writing / generate_failed / publish_failed 可编辑正文（`CONTENT_EDITABLE_STATUSES`）
+  - **pending_review 状态不可编辑正文**：审核状态下正文只读
   - Prisma JSON 字段设空须用 `Prisma.JsonNull` 而非 `null`（TypeScript 类型兼容）
   - 文件上传：`POST /api/upload`（multer），图片存 `uploads/` 目录，静态服务 `/uploads/`
   - 前端插图：三模式切换（上传/URL/知识库），上传后自动添加到列表并显示缩略图

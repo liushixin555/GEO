@@ -127,6 +127,23 @@ export class ArticleServiceImpl implements IArticleService {
     return mapArticle(updated);
   }
 
+  async regenerate(id: number, userId?: number, role?: string): Promise<Article> {
+    const prisma = getPrisma();
+
+    const existing = await prisma.article.findFirst({ where: { id } });
+    if (!existing) throw new Error('文章不存在');
+
+    if (existing.status !== 'pending_review') {
+      throw new Error('文章当前状态不支持重新生成');
+    }
+
+    const updated = await prisma.article.update({
+      where: { id },
+      data: { status: 'generating' },
+    });
+    return mapArticle(updated);
+  }
+
   async listVersions(articleId: number): Promise<ArticleVersion[]> {
     const prisma = getPrisma();
     const versions = await prisma.articleVersion.findMany({

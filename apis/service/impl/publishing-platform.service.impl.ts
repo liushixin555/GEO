@@ -9,16 +9,30 @@ export class PublishingPlatformServiceImpl implements IPublishingPlatformService
     // 1. Authenticate with RM API
     const token = await getRmToken({ mobile: username, password });
 
-    // 2. Fetch all resources
-    const resources = await getAllRmResources(token);
+    // 2. Fetch all resources and deduplicate by id
+    const rawResources = await getAllRmResources(token);
+    const seen = new Set<number>();
+    const resources = rawResources.filter((r) => {
+      if (seen.has(r.id)) return false;
+      seen.add(r.id);
+      return true;
+    });
 
-    // 3. Full replace in a transaction
+    // 3. Full replace in a transaction using upsert
     const prisma = getPrisma();
     await prisma.$transaction(async (tx) => {
-      await tx.publishingPlatform.deleteMany();
-      if (resources.length > 0) {
-        await tx.publishingPlatform.createMany({
-          data: resources.map((r) => ({
+      const remoteIds = resources.map((r) => r.id);
+
+      // Delete records no longer in remote data
+      await tx.publishingPlatform.deleteMany({
+        where: { rmResourceId: { notIn: remoteIds } },
+      });
+
+      // Upsert each resource
+      for (const r of resources) {
+        await tx.publishingPlatform.upsert({
+          where: { rmResourceId: r.id },
+          create: {
             rmResourceId: r.id,
             name: r.name,
             taxonomy: r.taxonomy,
@@ -26,7 +40,15 @@ export class PublishingPlatformServiceImpl implements IPublishingPlatformService
             remark: r.remark || null,
             includeRate: r.include_rate ?? 0,
             publishRate: r.publish_rate ?? 0,
-          })),
+          },
+          update: {
+            name: r.name,
+            taxonomy: r.taxonomy,
+            price: r.price,
+            remark: r.remark || null,
+            includeRate: r.include_rate ?? 0,
+            publishRate: r.publish_rate ?? 0,
+          },
         });
       }
     });

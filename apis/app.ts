@@ -126,7 +126,9 @@ app.post('/api/projects/:projectId/articles', authMiddleware, roleMiddleware('sy
 app.put('/api/projects/:projectId/articles/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), articleController.updateArticle);
 app.delete('/api/projects/:projectId/articles/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), articleController.deleteArticle);
 app.put('/api/projects/:projectId/articles/:id/review', authMiddleware, roleMiddleware('sysadmin', 'admin'), articleController.reviewArticle);
+app.put('/api/projects/:projectId/articles/:id/regenerate', authMiddleware, roleMiddleware('sysadmin', 'admin'), articleController.regenerateArticle);
 app.put('/api/projects/:projectId/articles/:id/content', authMiddleware, roleMiddleware('sysadmin', 'admin'), articleController.updateArticleContent);
+app.put('/api/projects/:projectId/articles/:id/submit-review', authMiddleware, roleMiddleware('sysadmin', 'admin'), articleController.submitForReview);
 app.get('/api/projects/:projectId/articles/:id/versions', authMiddleware, roleMiddleware('sysadmin', 'admin'), articleController.listArticleVersions);
 
 // Upload route (sysadmin + admin)

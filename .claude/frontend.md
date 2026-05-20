@@ -81,10 +81,14 @@
   - 顶部：返回箭头 + 标题 + 状态 Tag
   - Tabs 标签页切换：「文章设置」和「正文」（有正文时才显示正文Tab）
   - 文章设置 Tab：表单字段，非编辑状态时 disabled
-  - **两个保存按钮**：「存草稿」（默认按钮）+「提交」（主按钮，进入AI生成中）
-  - 正文 Tab：TextArea 编辑 + 版本号显示 + 保存按钮
-  - 可编辑状态：draft/generate_failed/publish_failed（创建者/sysadmin）
-  - 正文额外允许：pending_review 状态创建者可编辑（通过专用 PUT .../content API）
+  - **四个操作按钮（仅 draft 状态显示）**：「取消」「存草稿」「手工编写」「提交给AI」
+  - 正文 Tab：MDEditor 编辑 + 版本号显示 + 保存按钮
+  - **手工编写中(manual_writing)状态正文区**：「保存正文」+「提交审核」两个按钮
+  - **可编辑性判断**：
+    - `canEditSettings()`: status === 'draft' && (sysadmin || created_by === userId)
+    - `canEditContent()`: EDITABLE_STATUSES.includes(status) && (sysadmin || created_by === userId)
+    - EDITABLE_STATUSES = ['draft', 'manual_writing', 'generate_failed', 'publish_failed']
+  - **pending_review 状态不可编辑**：审核状态时正文和设置均为只读
 - **可编辑性判断**：
   - `canEditSettings()`: EDITABLE_STATUSES.includes(status) && (sysadmin || created_by === userId)
   - `canEditContent()`: [...EDITABLE_STATUSES, 'pending_review'].includes(status) && (sysadmin || created_by === userId)

@@ -62,6 +62,7 @@ enum Role {
 
 enum ArticleStatus {
   draft
+  manual_writing
   generating
   generate_failed
   pending_review
@@ -106,7 +107,7 @@ model LlmModel {
 
 model PublishingPlatform {
   id           Int      @id @default(autoincrement())
-  rmResourceId Int      @map("rm_resource_id")
+  rmResourceId Int      @unique @map("rm_resource_id")
   name         String   @db.VarChar(200)
   taxonomy     String   @db.VarChar(100)
   price        Float    @default(0)
