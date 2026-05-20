@@ -66,11 +66,9 @@ sed 's/=\s*"\(.*\)"\s*$/=\1/' "$SCRIPT_DIR/.env" > "$DOCKER_ENV"
 
 # 运行新的容器（使用主机网络以访问主机 PostgreSQL）
 echo "正在启动应用容器..."
-sudo docker run -d --name by --network host \
+sudo docker run -d --name by -p 12380:80 \
   --env-file "$DOCKER_ENV" \
   -v ~/docker_data/by/app/public:/app/public \
   -v ~/docker_data/by/app/uploads:/app/uploads by:latest
 
 rm -f "$DOCKER_ENV"
-
-echo "部署完成！应用运行在 http://localhost:3000"
