@@ -13,6 +13,6 @@ IMAGE_TAG="${DOCKER_TAG:-latest}"
 FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
 
 echo "==> Step 2: docker build -> ${FULL_IMAGE}"
-docker build -t "${FULL_IMAGE}" .
+sudo docker build -t "${FULL_IMAGE}" .
 
 echo "==> All done: ${FULL_IMAGE}"
