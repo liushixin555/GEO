@@ -86,8 +86,7 @@ export async function createArticle(req: Request, res: Response): Promise<void> 
     const projectId = parseInt(req.params.projectId as string, 10);
     if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
 
-    const { title, status } = req.body;
-    if (!title) { fail(res, 400, '文章标题不能为空'); return; }
+    const { status } = req.body;
     if (status && !['draft', 'manual_writing', 'generating'].includes(status)) {
       fail(res, 400, '无效的初始状态');
       return;

@@ -46,7 +46,7 @@ export class ArticleServiceImpl implements IArticleService {
     const item = await prisma.article.create({
       data: {
         projectId,
-        title: request.title,
+        title: request.title || '',
         keywords: request.keywords || Prisma.JsonNull,
         portrait: request.portrait || null,
         images: request.images || Prisma.JsonNull,

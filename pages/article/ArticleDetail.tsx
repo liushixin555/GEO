@@ -67,6 +67,8 @@ const ArticleDetail: React.FC = () => {
   const [platformSearch, setPlatformSearch] = useState('');
   const [platformLoading, setPlatformLoading] = useState(false);
   const [selectedPlatformKeys, setSelectedPlatformKeys] = useState<string[]>([]);
+  const [platformSortBy, setPlatformSortBy] = useState<string>('');
+  const [platformSortOrder, setPlatformSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Knowledge base options
   const [kbKeywords, setKbKeywords] = useState<{ label: string; value: string }[]>([]);
@@ -92,7 +94,6 @@ const ArticleDetail: React.FC = () => {
       const data = res.data.data;
       setArticle(data);
       form.setFieldsValue({
-        title: data.title,
         keywords: data.keywords || [],
         portrait: data.portrait || '',
         platforms: data.platforms || [],
@@ -146,12 +147,13 @@ const ArticleDetail: React.FC = () => {
   }, []);
 
   // Fetch paginated platform list for modal
-  const fetchPlatformList = useCallback(async (page = 1, search = '') => {
+  const fetchPlatformList = useCallback(async (page = 1, search = '', sortBy = '', sortOrder: 'asc' | 'desc' = 'asc') => {
     setPlatformLoading(true);
     try {
       const token = localStorage.getItem('token');
       const params: any = { page, pageSize: 10 };
       if (search) params.search = search;
+      if (sortBy) { params.sortBy = sortBy; params.sortOrder = sortOrder; }
       const res = await axios.get('/api/publishing-platforms', {
         headers: { Authorization: `Bearer ${token}` },
         params,
@@ -179,7 +181,9 @@ const ArticleDetail: React.FC = () => {
     const currentPlatforms: string[] = form.getFieldValue('platforms') || [];
     setSelectedPlatformKeys(currentPlatforms);
     setPlatformSearch('');
-    fetchPlatformList(1, '');
+    setPlatformSortBy('');
+    setPlatformSortOrder('asc');
+    fetchPlatformList(1, '', '', 'asc');
     setPlatformModalOpen(true);
   }, [form, fetchPlatformList]);
 
@@ -239,7 +243,6 @@ const ArticleDetail: React.FC = () => {
     try {
       const token = localStorage.getItem('token');
       const payload: any = {
-        title: values.title?.trim(),
         keywords: values.keywords?.length ? values.keywords : undefined,
         portrait: values.portrait?.trim() || undefined,
         images: imageList.length ? imageList : undefined,
@@ -392,9 +395,6 @@ const ArticleDetail: React.FC = () => {
   const settingsTab = (
     <Form form={form} onFinish={(values) => handleSaveSettings(values, false)} layout="vertical">
       {error && <Alert type="error" message={error} className="form-alert" showIcon closable onClose={() => setError('')} />}
-      <Form.Item name="title" label="标题" rules={[{ required: true, message: '标题不能为空' }]}>
-        <Input placeholder="输入文章标题" disabled={!isSettingsEditable} />
-      </Form.Item>
       <Form.Item name="keywords" label="关键词" rules={[{ required: true, message: '关键词不能为空' }]}>
         <Select mode="tags" placeholder="从知识库选择或输入关键词" options={kbKeywords} disabled={!isSettingsEditable} loading={kbLoading} notFoundContent={kbLoading ? '加载中...' : '暂无知识库关键词，可直接输入'} />
       </Form.Item>
@@ -559,7 +559,7 @@ const ArticleDetail: React.FC = () => {
               placeholder="搜索平台名称或分类"
               value={platformSearch}
               onChange={(e) => setPlatformSearch(e.target.value)}
-              onSearch={(val) => fetchPlatformList(1, val)}
+              onSearch={(val) => fetchPlatformList(1, val, platformSortBy, platformSortOrder)}
               allowClear
               style={{ width: '100%' }}
             />
@@ -573,19 +573,26 @@ const ArticleDetail: React.FC = () => {
               onChange: (keys) => setSelectedPlatformKeys(keys as string[]),
             }}
             columns={[
-              { title: '平台名称', dataIndex: 'name', width: 200 },
-              { title: '分类', dataIndex: 'taxonomy', width: 120 },
-              { title: '价格', dataIndex: 'price', width: 80, render: (v: number) => v != null ? `¥${v}` : '-' },
-              { title: '收录率', dataIndex: 'include_rate', width: 80, render: (v: number) => v != null ? `${(v * 100).toFixed(0)}%` : '-' },
-              { title: '发布率', dataIndex: 'publish_rate', width: 80, render: (v: number) => v != null ? `${(v * 100).toFixed(0)}%` : '-' },
+              { title: '平台名称', dataIndex: 'name', width: 200, sorter: true, sortOrder: platformSortBy === 'name' ? (platformSortOrder === 'desc' ? 'descend' : 'ascend') : null },
+              { title: '分类', dataIndex: 'taxonomy', width: 120, sorter: true, sortOrder: platformSortBy === 'taxonomy' ? (platformSortOrder === 'desc' ? 'descend' : 'ascend') : null },
+              { title: '价格', dataIndex: 'price', width: 80, sorter: true, sortOrder: platformSortBy === 'price' ? (platformSortOrder === 'desc' ? 'descend' : 'ascend') : null, render: (v: number) => v != null ? `¥${v}` : '-' },
+              { title: '收录率', dataIndex: 'include_rate', width: 80, sorter: true, sortOrder: platformSortBy === 'include_rate' ? (platformSortOrder === 'desc' ? 'descend' : 'ascend') : null, render: (v: number) => v != null ? `${v}%` : '-' },
+              { title: '发布率', dataIndex: 'publish_rate', width: 80, sorter: true, sortOrder: platformSortBy === 'publish_rate' ? (platformSortOrder === 'desc' ? 'descend' : 'ascend') : null, render: (v: number) => v != null ? `${v}%` : '-' },
             ]}
+            onChange={(_pagination, _filters, sorter) => {
+              const s = (Array.isArray(sorter) ? sorter[0] : sorter) as { field?: string; order?: string | null };
+              const sortBy = s.order ? (s.field || '') : '';
+              const sortOrder = s.order === 'descend' ? 'desc' : 'asc';
+              setPlatformSortBy(sortBy);
+              setPlatformSortOrder(sortOrder);
+              fetchPlatformList(1, platformSearch, sortBy, sortOrder);
+            }}
             pagination={{
               current: platformPage,
               pageSize: 10,
               total: platformTotal,
               showSizeChanger: false,
               showTotal: (total) => `共 ${total} 个平台`,
-              onChange: (page) => fetchPlatformList(page, platformSearch),
             }}
             size="small"
             scroll={{ y: 400 }}

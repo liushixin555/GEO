@@ -18,40 +18,49 @@ export class PublishingPlatformServiceImpl implements IPublishingPlatformService
       return true;
     });
 
-    // 3. Full replace in a transaction using upsert
+    // 3. Full replace: delete stale records, then upsert in batches
     const prisma = getPrisma();
-    await prisma.$transaction(async (tx) => {
-      const remoteIds = resources.map((r) => r.id);
+    const remoteIdSet = new Set(resources.map((r) => r.id));
 
-      // Delete records no longer in remote data
-      await tx.publishingPlatform.deleteMany({
-        where: { rmResourceId: { notIn: remoteIds } },
+    // Delete records no longer in remote data (batch to avoid PG bind variable limit)
+    const existing = await prisma.publishingPlatform.findMany({ select: { rmResourceId: true } });
+    const toDelete = existing.map((e) => e.rmResourceId).filter((id) => !remoteIdSet.has(id));
+    const DELETE_BATCH = 30000;
+    for (let i = 0; i < toDelete.length; i += DELETE_BATCH) {
+      await prisma.publishingPlatform.deleteMany({
+        where: { rmResourceId: { in: toDelete.slice(i, i + DELETE_BATCH) } },
       });
+    }
 
-      // Upsert each resource
-      for (const r of resources) {
-        await tx.publishingPlatform.upsert({
-          where: { rmResourceId: r.id },
-          create: {
-            rmResourceId: r.id,
-            name: r.name,
-            taxonomy: r.taxonomy,
-            price: r.price,
-            remark: r.remark || null,
-            includeRate: r.include_rate ?? 0,
-            publishRate: r.publish_rate ?? 0,
-          },
-          update: {
-            name: r.name,
-            taxonomy: r.taxonomy,
-            price: r.price,
-            remark: r.remark || null,
-            includeRate: r.include_rate ?? 0,
-            publishRate: r.publish_rate ?? 0,
-          },
-        });
-      }
-    });
+    // Upsert resources in small batches to avoid transaction timeout
+    const UPSERT_BATCH = 500;
+    for (let i = 0; i < resources.length; i += UPSERT_BATCH) {
+      const batch = resources.slice(i, i + UPSERT_BATCH);
+      await prisma.$transaction(
+        batch.map((r) =>
+          prisma.publishingPlatform.upsert({
+            where: { rmResourceId: r.id },
+            create: {
+              rmResourceId: r.id,
+              name: r.name,
+              taxonomy: r.taxonomy,
+              price: r.price,
+              remark: r.remark || null,
+              includeRate: r.include_rate ?? 0,
+              publishRate: r.publish_rate ?? 0,
+            },
+            update: {
+              name: r.name,
+              taxonomy: r.taxonomy,
+              price: r.price,
+              remark: r.remark || null,
+              includeRate: r.include_rate ?? 0,
+              publishRate: r.publish_rate ?? 0,
+            },
+          }),
+        ),
+      );
+    }
 
     return resources.length;
   }
@@ -62,7 +71,7 @@ export class PublishingPlatformServiceImpl implements IPublishingPlatformService
     return items.map(mapPublishingPlatform);
   }
 
-  async list(page: number, pageSize: number, search?: string, taxonomy?: string): Promise<{ list: PublishingPlatform[]; total: number }> {
+  async list(page: number, pageSize: number, search?: string, taxonomy?: string, sortBy?: string, sortOrder?: string): Promise<{ list: PublishingPlatform[]; total: number }> {
     const prisma = getPrisma();
     const where: any = {};
     if (search) {
@@ -74,10 +83,24 @@ export class PublishingPlatformServiceImpl implements IPublishingPlatformService
     if (taxonomy) {
       where.taxonomy = taxonomy;
     }
+
+    // Map frontend field names to Prisma field names
+    const sortFieldMap: Record<string, string> = {
+      name: 'name',
+      taxonomy: 'taxonomy',
+      price: 'price',
+      include_rate: 'includeRate',
+      publish_rate: 'publishRate',
+    };
+    const order = (sortOrder === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc';
+    const orderBy = sortBy && sortFieldMap[sortBy]
+      ? [{ [sortFieldMap[sortBy]]: order }] as any
+      : [{ taxonomy: 'asc' }, { name: 'asc' }];
+
     const [items, total] = await Promise.all([
       prisma.publishingPlatform.findMany({
         where,
-        orderBy: [{ taxonomy: 'asc' }, { name: 'asc' }],
+        orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

@@ -31,6 +31,8 @@ export async function listPublishingPlatforms(req: Request, res: Response): Prom
     const pageSize = parseInt(req.query.pageSize as string) || 10;
     const search = req.query.search as string | undefined;
     const taxonomy = req.query.taxonomy as string | undefined;
+    const sortBy = req.query.sortBy as string | undefined;
+    const sortOrder = req.query.sortOrder as string | undefined;
 
     // If no pagination params and no search, return all for backward compatibility
     if (!req.query.page && !req.query.pageSize && !search && !taxonomy) {
@@ -39,7 +41,7 @@ export async function listPublishingPlatforms(req: Request, res: Response): Prom
       return;
     }
 
-    const { list, total } = await publishingPlatformService.list(page, pageSize, search, taxonomy);
+    const { list, total } = await publishingPlatformService.list(page, pageSize, search, taxonomy, sortBy, sortOrder);
     paginate(res, list, total, page, pageSize);
   } catch (err: any) {
     fail(res, 500, err.message || '获取发布平台失败');

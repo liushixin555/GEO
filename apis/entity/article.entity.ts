@@ -26,7 +26,7 @@ export interface ArticleVersion {
 }
 
 export interface CreateArticleRequest {
-  title: string;
+  title?: string;
   keywords?: string[];
   portrait?: string;
   images?: string[];
