@@ -199,4 +199,27 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
 
     await prisma.knowledgeBase.delete({ where: { id } });
   }
+
+  async getAccessibleBaseIds(projectId: number): Promise<number[]> {
+    const prisma = getPrisma();
+
+    const project = await prisma.project.findFirst({ where: { id: projectId } });
+    if (!project) throw new Error('项目不存在');
+
+    const orConditions: any[] = [
+      { scope: 'platform', status: true },
+      { scope: 'project', projectId, status: true },
+    ];
+
+    if (project.companyId) {
+      orConditions.push({ scope: 'company', companyId: project.companyId, status: true });
+    }
+
+    const bases = await prisma.knowledgeBase.findMany({
+      where: { OR: orConditions },
+      select: { id: true },
+    });
+
+    return bases.map((b) => b.id);
+  }
 }

@@ -133,6 +133,11 @@ app.put('/api/projects/:projectId/articles/:id/content', authMiddleware, roleMid
 app.put('/api/projects/:projectId/articles/:id/submit-review', authMiddleware, roleMiddleware('sysadmin', 'admin'), articleController.submitForReview);
 app.get('/api/projects/:projectId/articles/:id/versions', authMiddleware, roleMiddleware('sysadmin', 'admin'), articleController.listArticleVersions);
 
+// Project Knowledge aggregation routes (sysadmin + admin)
+app.get('/api/projects/:projectId/knowledge/keywords', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listProjectKeywords);
+app.get('/api/projects/:projectId/knowledge/portraits', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listProjectPortraits);
+app.get('/api/projects/:projectId/knowledge/images', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listProjectImages);
+
 // Upload route (sysadmin + admin)
 app.post('/api/upload', authMiddleware, roleMiddleware('sysadmin', 'admin'), uploadMiddleware, uploadFile);
 

@@ -2,6 +2,7 @@ import { KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, CreateKeywordReque
 
 export interface IKeywordService {
   list(baseId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeKeyword[]; total: number }>;
+  listByProject(projectId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeKeyword[]; total: number }>;
   getById(id: number): Promise<KnowledgeKeyword>;
   create(baseId: number, request: CreateKeywordRequest, userId: number): Promise<KnowledgeKeyword>;
   batchCreate(baseId: number, keywords: string[], userId: number, groupId: number): Promise<KnowledgeKeyword[]>;
@@ -13,6 +14,7 @@ export interface IKeywordService {
 
 export interface IPortraitService {
   list(baseId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgePortrait[]; total: number }>;
+  listByProject(projectId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgePortrait[]; total: number }>;
   getById(id: number): Promise<KnowledgePortrait>;
   create(baseId: number, request: CreatePortraitRequest, userId: number): Promise<KnowledgePortrait>;
   update(id: number, request: UpdatePortraitRequest): Promise<KnowledgePortrait>;
@@ -21,6 +23,7 @@ export interface IPortraitService {
 
 export interface IImageService {
   list(baseId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeImage[]; total: number }>;
+  listByProject(projectId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeImage[]; total: number }>;
   getById(id: number): Promise<KnowledgeImage>;
   create(baseId: number, request: CreateImageRequest, userId: number): Promise<KnowledgeImage>;
   update(id: number, request: UpdateImageRequest): Promise<KnowledgeImage>;

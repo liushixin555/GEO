@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { KeywordServiceImpl, PortraitServiceImpl, ImageServiceImpl } from '../service/impl/knowledge.service.impl';
 import { KnowledgeBaseServiceImpl } from '../service/impl/knowledge-base.service.impl';
+import { ProjectServiceImpl } from '../service/impl/project.service.impl';
 import { LlmServiceImpl } from '../service/impl/llm.service.impl';
 import { success, fail, paginate } from '../utils';
 
@@ -8,7 +9,16 @@ const keywordService = new KeywordServiceImpl();
 const portraitService = new PortraitServiceImpl();
 const imageService = new ImageServiceImpl();
 const knowledgeBaseService = new KnowledgeBaseServiceImpl();
+const projectService = new ProjectServiceImpl();
 const llmService = new LlmServiceImpl();
+
+async function checkProjectOperator(projectId: number, userId: number, role: string): Promise<void> {
+  if (role === 'sysadmin') return;
+  const project = await projectService.getById(projectId, userId, role);
+  if (!project.operator_ids.includes(userId)) {
+    throw new Error('无权操作该项目');
+  }
+}
 
 async function checkBaseAccess(baseId: number, userId: number, role: string): Promise<void> {
   const base = await knowledgeBaseService.getById(baseId);
@@ -355,5 +365,64 @@ export async function deleteImage(req: Request, res: Response): Promise<void> {
     success(res, null, '删除图片成功');
   } catch (err: any) {
     if (err.message === '图片不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '删除图片失败'); }
+  }
+}
+
+// ==================== Project-scoped aggregation ====================
+
+export async function listProjectKeywords(req: Request, res: Response): Promise<void> {
+  try {
+    const projectId = parseInt(req.params.projectId as string, 10);
+    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const search = req.query.search as string | undefined;
+
+    const { userId, role } = req.user!;
+    await checkProjectOperator(projectId, userId, role);
+
+    const { list, total } = await keywordService.listByProject(projectId, page, pageSize, search);
+    paginate(res, list, total, page, pageSize);
+  } catch (err: any) {
+    if (err.message === '无权操作该项目') { fail(res, 403, err.message); } else { fail(res, 500, err.message || '获取关键词列表失败'); }
+  }
+}
+
+export async function listProjectPortraits(req: Request, res: Response): Promise<void> {
+  try {
+    const projectId = parseInt(req.params.projectId as string, 10);
+    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const search = req.query.search as string | undefined;
+
+    const { userId, role } = req.user!;
+    await checkProjectOperator(projectId, userId, role);
+
+    const { list, total } = await portraitService.listByProject(projectId, page, pageSize, search);
+    paginate(res, list, total, page, pageSize);
+  } catch (err: any) {
+    if (err.message === '无权操作该项目') { fail(res, 403, err.message); } else { fail(res, 500, err.message || '获取画像列表失败'); }
+  }
+}
+
+export async function listProjectImages(req: Request, res: Response): Promise<void> {
+  try {
+    const projectId = parseInt(req.params.projectId as string, 10);
+    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const search = req.query.search as string | undefined;
+
+    const { userId, role } = req.user!;
+    await checkProjectOperator(projectId, userId, role);
+
+    const { list, total } = await imageService.listByProject(projectId, page, pageSize, search);
+    paginate(res, list, total, page, pageSize);
+  } catch (err: any) {
+    if (err.message === '无权操作该项目') { fail(res, 403, err.message); } else { fail(res, 500, err.message || '获取图片列表失败'); }
   }
 }

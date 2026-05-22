@@ -2,6 +2,7 @@ import { getPrisma } from '../../utils';
 import { KnowledgeKeyword, KeywordExpandedWord, KnowledgePortrait, KnowledgeImage, CreateKeywordRequest, UpdateKeywordRequest, CreatePortraitRequest, UpdatePortraitRequest, CreateImageRequest, UpdateImageRequest } from '../../entity';
 import { mapKeyword, mapPortrait, mapKnowledgeImage } from '../../map';
 import { IKeywordService, IPortraitService, IImageService } from '../knowledge.service';
+import { KnowledgeBaseServiceImpl } from './knowledge-base.service.impl';
 
 function mapRawKeyword(r: any): KnowledgeKeyword {
   return {
@@ -27,9 +28,27 @@ function mapRawExpandedWord(r: any): KeywordExpandedWord {
 }
 
 export class KeywordServiceImpl implements IKeywordService {
+  private kbService = new KnowledgeBaseServiceImpl();
+
   async list(baseId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeKeyword[]; total: number }> {
     const prisma = getPrisma();
     const where: any = { baseId };
+    if (search) {
+      where.keyword = { contains: search, mode: 'insensitive' };
+    }
+    const [items, total] = await Promise.all([
+      prisma.knowledgeKeyword.findMany({ where, orderBy: { id: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.knowledgeKeyword.count({ where }),
+    ]);
+    return { list: items.map(mapKeyword), total };
+  }
+
+  async listByProject(projectId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeKeyword[]; total: number }> {
+    const prisma = getPrisma();
+    const baseIds = await this.kbService.getAccessibleBaseIds(projectId);
+    if (baseIds.length === 0) return { list: [], total: 0 };
+
+    const where: any = { baseId: { in: baseIds } };
     if (search) {
       where.keyword = { contains: search, mode: 'insensitive' };
     }
@@ -119,9 +138,27 @@ export class KeywordServiceImpl implements IKeywordService {
 }
 
 export class PortraitServiceImpl implements IPortraitService {
+  private kbService = new KnowledgeBaseServiceImpl();
+
   async list(baseId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgePortrait[]; total: number }> {
     const prisma = getPrisma();
     const where: any = { baseId };
+    if (search) {
+      where.title = { contains: search, mode: 'insensitive' };
+    }
+    const [items, total] = await Promise.all([
+      prisma.knowledgePortrait.findMany({ where, orderBy: { id: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.knowledgePortrait.count({ where }),
+    ]);
+    return { list: items.map(mapPortrait), total };
+  }
+
+  async listByProject(projectId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgePortrait[]; total: number }> {
+    const prisma = getPrisma();
+    const baseIds = await this.kbService.getAccessibleBaseIds(projectId);
+    if (baseIds.length === 0) return { list: [], total: 0 };
+
+    const where: any = { baseId: { in: baseIds } };
     if (search) {
       where.title = { contains: search, mode: 'insensitive' };
     }
@@ -167,9 +204,27 @@ export class PortraitServiceImpl implements IPortraitService {
 }
 
 export class ImageServiceImpl implements IImageService {
+  private kbService = new KnowledgeBaseServiceImpl();
+
   async list(baseId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeImage[]; total: number }> {
     const prisma = getPrisma();
     const where: any = { baseId };
+    if (search) {
+      where.title = { contains: search, mode: 'insensitive' };
+    }
+    const [items, total] = await Promise.all([
+      prisma.knowledgeImage.findMany({ where, orderBy: { id: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.knowledgeImage.count({ where }),
+    ]);
+    return { list: items.map(mapKnowledgeImage), total };
+  }
+
+  async listByProject(projectId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeImage[]; total: number }> {
+    const prisma = getPrisma();
+    const baseIds = await this.kbService.getAccessibleBaseIds(projectId);
+    if (baseIds.length === 0) return { list: [], total: 0 };
+
+    const where: any = { baseId: { in: baseIds } };
     if (search) {
       where.title = { contains: search, mode: 'insensitive' };
     }

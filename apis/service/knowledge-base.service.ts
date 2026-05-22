@@ -6,4 +6,5 @@ export interface IKnowledgeBaseService {
   create(request: CreateKnowledgeBaseRequest, userId: number): Promise<KnowledgeBase>;
   update(id: number, request: UpdateKnowledgeBaseRequest, userId: number, role: string): Promise<KnowledgeBase>;
   delete(id: number, userId: number, role: string): Promise<void>;
+  getAccessibleBaseIds(projectId: number): Promise<number[]>;
 }
