@@ -1,9 +1,10 @@
 # 开发规范
 
-## 两条铁律（不可违反）
+## 铁律（不可违反）
 1. **所有页面样式必须遵循 DESIGN.md** — 以 IBM Carbon Design System 为权威参考（颜色、字体、间距、圆角、组件规范）
 2. **必须使用 Ant Design (antd) 组件** — Button、Input、Form、Card、Menu、Layout、Table、Modal、Select、Switch、Tag、Popconfirm、Typography、Space 等，凡 antd 有的组件必须使用，禁止用原生 HTML 元素替代
 3. **禁止在 TSX 文件中写 inline style (`style={{}}`)** — 所有 CSS 样式必须写入 `pages/styles/global.css`，用 className 引用
+4. **Git commit 消息必须使用中文** — 格式：`<类型>: <中文描述>`，例如 `feat: 添加知识库模块`，禁止使用英文 commit 消息
 
 ## 记忆规范
 - **所有 `.claude/` 下的文件必须用中文编写** — 包括 MEMORY.md、rules.md、architecture.md、frontend.md、progress.md 等，禁止使用英文内容

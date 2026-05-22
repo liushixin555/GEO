@@ -75,4 +75,5 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 - **JWT expires in 2 hours**; token + user stored in localStorage on frontend
 - **Config-driven**: port, DB URL, JWT secret/expiry, Swagger toggle, rate-limit params all via `.env` or `config/`
 - **Memory**: 每次任务结束后，将价值信息（架构变更、新增功能、技术决策、踩坑经验）持久化保存到本项目 `.claude/` 目录下的对应文件（rules.md / architecture.md / frontend.md / progress.md），禁止保存到用户目录 `~/.claude/projects/`
+- **Git commit 必须使用中文**: 所有 commit 消息的描述部分必须使用中文，格式：`<类型>: <中文描述>`，例如 `feat: 添加知识库模块`，禁止使用英文
 - **Git**: 每次任务结束后，执行 `git add` + `git commit` + `git push`，将所有变更提交并推送到远程仓库

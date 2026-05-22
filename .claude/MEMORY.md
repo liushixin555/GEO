@@ -4,7 +4,7 @@
 
 > 以下文件由 MEMORY.md 索引，按主题拆分
 
-- [rules.md](./rules.md) — 铁律与开发规范
+- [rules.md](./rules.md) — 铁律与开发规范（含中文 commit 铁律）
 - **[permissions.md](./permissions.md) — 权限系统完整规范（铁律级别，必须严格遵守）**
 - [architecture.md](./architecture.md) — 技术架构、目录结构、关键文件
 - [frontend.md](./frontend.md) — 前端布局规则、SPA 路由、组件约定
