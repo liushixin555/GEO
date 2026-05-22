@@ -80,16 +80,22 @@ export class KeywordServiceImpl implements IKeywordService {
     return keyword;
   }
 
-  async batchCreate(baseId: number, keywords: string[], userId: number, groupId: number): Promise<KnowledgeKeyword[]> {
+  async batchCreate(baseId: number, keywords: string[], userId: number): Promise<{ created: number; duplicates: number }> {
     const prisma = getPrisma();
-    const items = await Promise.all(
-      keywords.map(keyword =>
-        prisma.knowledgeKeyword.create({
-          data: { baseId, keyword, createdBy: userId },
-        })
-      )
-    );
-    return items.map(mapKeyword);
+    // Check existing keywords to avoid duplicates
+    const existing = await prisma.knowledgeKeyword.findMany({
+      where: { baseId, keyword: { in: keywords } },
+      select: { keyword: true },
+    });
+    const existingSet = new Set(existing.map((e: any) => e.keyword));
+    const newKeywords = keywords.filter(k => !existingSet.has(k));
+
+    if (newKeywords.length > 0) {
+      await prisma.knowledgeKeyword.createMany({
+        data: newKeywords.map(keyword => ({ baseId, keyword, createdBy: userId })),
+      });
+    }
+    return { created: newKeywords.length, duplicates: existingSet.size };
   }
 
   async listByGroup(groupId: number): Promise<KnowledgeKeyword[]> {

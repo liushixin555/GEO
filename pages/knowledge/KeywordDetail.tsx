@@ -113,35 +113,50 @@ const KeywordDetail: React.FC = () => {
   };
 
   const handleSave = async () => {
-    const keyword = form.getFieldValue('keyword');
-    if (!keyword?.trim()) {
-      message.warning('请输入关键词');
-      return;
-    }
     if (!baseId) return;
-    setSaving(true);
-    setError('');
-    try {
-      const token = localStorage.getItem('token');
-      const payload = {
-        keyword: keyword.trim(),
-        expanded_words: expandedWords.map(w => ({ word: w.word, selected: w.selected })),
-      };
-      if (isNew) {
-        await axios.post(`/api/knowledge-bases/${baseId}/keywords`, payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        message.success('创建成功');
-      } else {
+
+    if (isNew) {
+      const selectedWords = expandedWords.filter(w => w.selected).map(w => w.word);
+      if (selectedWords.length === 0) {
+        message.warning('请至少选择一个关联词');
+        return;
+      }
+      setSaving(true);
+      setError('');
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.post(`/api/knowledge-bases/${baseId}/keywords/batch`,
+          { keywords: selectedWords },
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        message.success(res.data.message || `成功创建 ${selectedWords.length} 个关键词`);
+        navigate(`/knowledge/${baseId}`);
+      } catch (err: any) {
+        setError(err.response?.data?.message || '保存失败');
+      } finally { setSaving(false); }
+    } else {
+      const keyword = form.getFieldValue('keyword');
+      if (!keyword?.trim()) {
+        message.warning('请输入关键词');
+        return;
+      }
+      setSaving(true);
+      setError('');
+      try {
+        const token = localStorage.getItem('token');
+        const payload = {
+          keyword: keyword.trim(),
+          expanded_words: expandedWords.map(w => ({ word: w.word, selected: w.selected })),
+        };
         await axios.put(`/api/knowledge-bases/${baseId}/keywords/${id}`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         message.success('更新成功');
-      }
-      navigate(`/knowledge/${baseId}`);
-    } catch (err: any) {
-      setError(err.response?.data?.message || '保存失败');
-    } finally { setSaving(false); }
+        navigate(`/knowledge/${baseId}`);
+      } catch (err: any) {
+        setError(err.response?.data?.message || '保存失败');
+      } finally { setSaving(false); }
+    }
   };
 
   if (loading) return <div className="page-container"><Spin /></div>;
@@ -229,15 +244,20 @@ const KeywordDetail: React.FC = () => {
           {canEdit && (
             <div className="form-actions" style={{ marginTop: 16 }}>
               <Button onClick={() => navigate(`/knowledge/${baseId}`)}>取消</Button>
-              <Button type="primary" onClick={handleSave} loading={saving}>
-                保存
+              <Button
+                type="primary"
+                onClick={handleSave}
+                loading={saving}
+                disabled={isNew && expandedWords.filter(w => w.selected).length === 0}
+              >
+                保存{isNew && expandedWords.some(w => w.selected) ? ` (${expandedWords.filter(w => w.selected).length}个)` : ''}
               </Button>
             </div>
           )}
         </div>
       )}
 
-      {expandedWords.length === 0 && canEdit && (
+      {!isNew && expandedWords.length === 0 && canEdit && (
         <div className="form-actions">
           <Button onClick={() => navigate(`/knowledge/${baseId}`)}>取消</Button>
           <Button type="primary" onClick={handleSave} loading={saving}>

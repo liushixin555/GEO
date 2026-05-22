@@ -203,8 +203,6 @@ const KnowledgeBaseDetail: React.FC = () => {
                   <Typography.Title level={3} className="item-card-title" ellipsis={{ tooltip: item.keyword }}>{item.keyword}</Typography.Title>
                   {canModify(item.created_by) && (
                     <div className="item-card-actions">
-                      <EyeOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/keyword/${item.id}`); }} />
-                      <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/keyword/${item.id}?mode=edit`); }} />
                       <Popconfirm title="确定删除此关键词？" onConfirm={(e) => { e?.stopPropagation(); handleDeleteKeyword(item); }} okText="删除" cancelText="取消">
                         <DeleteOutlined className="item-card-edit-danger" onClick={(e) => e.stopPropagation()} />
                       </Popconfirm>

@@ -141,6 +141,27 @@ export async function deleteKeyword(req: Request, res: Response): Promise<void> 
   }
 }
 
+export async function batchCreateKeywords(req: Request, res: Response): Promise<void> {
+  try {
+    const baseId = parseInt(req.params.baseId as string, 10);
+    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+
+    const { keywords } = req.body;
+    if (!Array.isArray(keywords) || keywords.length === 0) {
+      fail(res, 400, '关键词列表不能为空');
+      return;
+    }
+
+    const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
+
+    const result = await keywordService.batchCreate(baseId, keywords, userId);
+    success(res, result, `成功创建 ${result.created} 个关键词${result.duplicates > 0 ? `，${result.duplicates} 个已存在被跳过` : ''}`);
+  } catch (err: any) {
+    fail(res, 500, err.message || '批量创建关键词失败');
+  }
+}
+
 export async function expandKeywords(req: Request, res: Response): Promise<void> {
   try {
     const baseId = parseInt(req.params.baseId as string, 10);

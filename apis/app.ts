@@ -152,6 +152,7 @@ app.delete('/api/knowledge-bases/:id', authMiddleware, roleMiddleware('sysadmin'
 app.get('/api/knowledge-bases/:baseId/keywords', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listKeywords);
 app.get('/api/knowledge-bases/:baseId/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.getKeyword);
 app.post('/api/knowledge-bases/:baseId/keywords', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.createKeyword);
+app.post('/api/knowledge-bases/:baseId/keywords/batch', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.batchCreateKeywords);
 app.post('/api/knowledge-bases/:baseId/keywords/expand', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.expandKeywords);
 app.put('/api/knowledge-bases/:baseId/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.updateKeyword);
 app.delete('/api/knowledge-bases/:baseId/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.deleteKeyword);
