@@ -75,6 +75,13 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
     skills: skillsName,
   });
 
+  // Extract title from first non-empty line of content
+  let title = article.title;
+  if (!title) {
+    const firstLine = content.split('\n').map((l: string) => l.replace(/^#+\s*/, '').trim()).find((l: string) => l.length > 0);
+    if (firstLine) title = firstLine;
+  }
+
   // Save generated content and update status
   const newVersion = Math.floor(article.version) + 1.0;
 
@@ -90,6 +97,7 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
     prisma.article.update({
       where: { id: article.id },
       data: {
+        title,
         content,
         version: newVersion,
         status: 'pending_review',
