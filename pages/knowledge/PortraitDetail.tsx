@@ -15,6 +15,7 @@ const PortraitDetail: React.FC = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   const [data, setData] = useState<{ title: string; content: string | null; created_by: number | null } | null>(null);
+  const [baseName, setBaseName] = useState('');
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -34,6 +35,19 @@ const PortraitDetail: React.FC = () => {
       message.error(err.response?.data?.message || '加载失败');
     } finally { setLoading(false); }
   }, [id, baseId, isNew]);
+
+  useEffect(() => {
+    const fetchBaseName = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get(`/api/knowledge-bases/${baseId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setBaseName(res.data.data.name);
+      } catch { /* ignore */ }
+    };
+    if (baseId) fetchBaseName();
+  }, [baseId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -78,7 +92,7 @@ const PortraitDetail: React.FC = () => {
       <div className="page-breadcrumb">
         <Breadcrumb items={[
           { title: <a onClick={() => navigate('/knowledge')}>AI知识库</a> },
-          { title: <a onClick={() => navigate(`/knowledge/${baseId}`)}>知识库</a> },
+          { title: <a onClick={() => navigate(`/knowledge/${baseId}`)}>{baseName || '...'}</a> },
           { title: isNew ? '添加画像' : '画像详情' },
         ]} />
       </div>

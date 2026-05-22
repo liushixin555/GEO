@@ -28,6 +28,7 @@ const KeywordDetail: React.FC = () => {
   const [form] = Form.useForm();
   const keywordValue = Form.useWatch('keyword', form);
 
+  const [baseName, setBaseName] = useState('');
   const [expandedWords, setExpandedWords] = useState<ExpandedWordItem[]>([]);
   const [expanding, setExpanding] = useState(false);
   const [expandPage, setExpandPage] = useState(1);
@@ -50,6 +51,19 @@ const KeywordDetail: React.FC = () => {
       message.error(err.response?.data?.message || '加载失败');
     } finally { setLoading(false); }
   }, [id, baseId, isNew]);
+
+  useEffect(() => {
+    const fetchBaseName = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get(`/api/knowledge-bases/${baseId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setBaseName(res.data.data.name);
+      } catch { /* ignore */ }
+    };
+    if (baseId) fetchBaseName();
+  }, [baseId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -172,7 +186,7 @@ const KeywordDetail: React.FC = () => {
       <div className="page-breadcrumb">
         <Breadcrumb items={[
           { title: <a onClick={() => navigate('/knowledge')}>AI知识库</a> },
-          { title: <a onClick={() => navigate(`/knowledge/${baseId}`)}>知识库</a> },
+          { title: <a onClick={() => navigate(`/knowledge/${baseId}`)}>{baseName || '...'}</a> },
           { title: pageTitle },
         ]} />
       </div>
