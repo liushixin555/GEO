@@ -3,6 +3,7 @@ export interface Article {
   project_id: number;
   title: string;
   article_type: string | null;
+  write_mode: string | null;
   keywords: string | null;
   portrait: string | null;
   images: string[] | null;
@@ -29,6 +30,7 @@ export interface ArticleVersion {
 export interface CreateArticleRequest {
   title?: string;
   article_type?: string;
+  write_mode?: string;
   keywords?: string;
   portrait?: string;
   images?: string[];
@@ -41,6 +43,7 @@ export interface CreateArticleRequest {
 export interface UpdateArticleRequest {
   title?: string;
   article_type?: string;
+  write_mode?: string;
   keywords?: string;
   portrait?: string;
   images?: string[];

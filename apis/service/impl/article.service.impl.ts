@@ -48,6 +48,7 @@ export class ArticleServiceImpl implements IArticleService {
         projectId,
         title: request.title || '',
         articleType: request.article_type || null,
+        writeMode: request.write_mode || null,
         keywords: request.keywords || null,
         portrait: request.portrait || null,
         images: request.images || Prisma.JsonNull,
@@ -70,6 +71,7 @@ export class ArticleServiceImpl implements IArticleService {
     const data: any = {};
     if (request.title !== undefined) data.title = request.title;
     if (request.article_type !== undefined) data.articleType = request.article_type || null;
+    if (request.write_mode !== undefined) data.writeMode = request.write_mode || null;
     if (request.keywords !== undefined) data.keywords = request.keywords || null;
     if (request.portrait !== undefined) data.portrait = request.portrait || null;
     if (request.images !== undefined) data.images = request.images || Prisma.JsonNull;

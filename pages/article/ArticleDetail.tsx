@@ -23,6 +23,7 @@ interface ArticleData {
   id: number;
   title: string;
   article_type: string | null;
+  write_mode: string | null;
   keywords: string | null;
   portrait: string | null;
   images: string[] | null;
@@ -101,6 +102,8 @@ const ArticleDetail: React.FC = () => {
           const formValues = form.getFieldsValue();
           if (!formValues.keywords || !formValues.llm_model_id || !formValues.platforms?.length) return;
           const payload: any = {
+            article_type: formValues.article_type || undefined,
+            write_mode: formValues.write_mode || undefined,
             keywords: formValues.keywords,
             portrait: formValues.portrait?.trim() || undefined,
             images: imageList.length ? imageList : undefined,
@@ -143,6 +146,7 @@ const ArticleDetail: React.FC = () => {
       setTimeout(() => {
         form.setFieldsValue({
           article_type: data.article_type || undefined,
+          write_mode: data.write_mode || undefined,
           keywords: data.keywords || '',
           portrait: data.portrait || '',
           platforms: data.platforms || [],
@@ -190,6 +194,9 @@ const ArticleDetail: React.FC = () => {
         // Default select first LLM model for new articles
         if (isNew && models.length > 0 && !form.getFieldValue('llm_model_id')) {
           form.setFieldValue('llm_model_id', models[0].id);
+        }
+        if (isNew && !form.getFieldValue('write_mode')) {
+          form.setFieldValue('write_mode', 'ai');
         }
       } catch {
         // Silently fail — options are optional
@@ -296,6 +303,7 @@ const ArticleDetail: React.FC = () => {
       const token = localStorage.getItem('token');
       const payload: any = {
         article_type: values.article_type || undefined,
+        write_mode: values.write_mode || undefined,
         keywords: values.keywords?.trim() ? values.keywords.trim() : undefined,
         portrait: values.portrait?.trim() || undefined,
         images: imageList.length ? imageList : undefined,
@@ -451,9 +459,8 @@ const ArticleDetail: React.FC = () => {
   const settingsTab = (
     <Form form={form} onFinish={(values) => handleSaveSettings(values, writeMode === 'ai')} layout="vertical">
       {error && <Alert type="error" message={error} className="form-alert" showIcon closable onClose={() => setError('')} />}
-      <Form.Item label="编写方式">
+      <Form.Item name="write_mode" label="编写方式" rules={[{ required: true, message: '请选择编写方式' }]}>
         <Radio.Group
-          value={writeMode}
           onChange={(e) => setWriteMode(e.target.value)}
           disabled={!isSettingsEditable}
           optionType="button"

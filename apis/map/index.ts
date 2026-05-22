@@ -91,6 +91,7 @@ export function mapArticle(prismaArticle: any): Article {
     project_id: prismaArticle.projectId,
     title: prismaArticle.title,
     article_type: prismaArticle.articleType ?? null,
+    write_mode: prismaArticle.writeMode ?? null,
     keywords: prismaArticle.keywords,
     portrait: prismaArticle.portrait,
     images: prismaArticle.images,

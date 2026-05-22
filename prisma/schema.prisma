@@ -213,6 +213,7 @@ model Article {
   projectId   Int           @map("project_id")
   title       String        @db.VarChar(500)
   articleType String?       @map("article_type") @db.VarChar(50)
+  writeMode   String?       @map("write_mode") @db.VarChar(20)
   keywords    String?       @db.VarChar(500)
   portrait    String?
   images      Json?
