@@ -38,8 +38,8 @@ interface ImageItem {
 }
 
 const KnowledgeBaseDetail: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const baseId = parseInt(id || '0', 10);
+  const { baseId: baseIdStr } = useParams<{ baseId: string }>();
+  const baseId = parseInt(baseIdStr || '0', 10);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const navigate = useNavigate();
   const { message } = App.useApp();
