@@ -766,7 +766,7 @@ const ArticleDetail: React.FC = () => {
             <MDEditor.Markdown source={content} />
           ) : (
             <div style={{ padding: 48, textAlign: 'center', color: 'var(--color-ink-subtle)' }}>
-              暂无正文内容
+              正文内容生成中，请稍侯...
             </div>
           )}
         </div>
