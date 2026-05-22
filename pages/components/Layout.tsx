@@ -12,7 +12,7 @@ import ProjectPage from '../project';
 import ArticlePage from '../article';
 import ArticleDetail from '../article/ArticleDetail';
 import KnowledgePage from '../knowledge';
-import PublishingSchedulePage from '../score';
+import PublishingSchedulePage from '../publish';
 import KnowledgeBaseDetail from '../knowledge/KnowledgeBaseDetail';
 import KeywordDetail from '../knowledge/KeywordDetail';
 import PortraitDetail from '../knowledge/PortraitDetail';
@@ -177,7 +177,7 @@ const Layout: React.FC = () => {
             <Route path="/knowledge/:baseId/image/:id" element={<ImageDetail />} />
             <Route path="/article" element={<ArticlePage />} />
             <Route path="/article/:id" element={<ArticleDetail />} />
-            <Route path="/score" element={<PublishingSchedulePage />} />
+            <Route path="/publish" element={<PublishingSchedulePage />} />
             <Route path="/tools" element={<PlaceholderPage title="常用工具" />} />
             <Route path="/project" element={<ProjectPage />} />
             <Route path="/users" element={<UserPage />} />
@@ -186,7 +186,7 @@ const Layout: React.FC = () => {
             <Route path="/company/add" element={<CompanyForm />} />
             <Route path="/company/edit/:id" element={<CompanyForm />} />
             <Route path="/sysadmin" element={<SystemAdminPage />} />
-            <Route path="*" element={<Navigate to="/score" replace />} />
+            <Route path="*" element={<Navigate to="/publish" replace />} />
           </Routes>
         </Content>
       </AntLayout>

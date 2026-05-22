@@ -37,7 +37,7 @@ interface MenuItemDef {
 const menuItems: MenuItemDef[] = [
   { label: 'AI知识库', path: '/knowledge', roles: ['sysadmin', 'admin'], icon: <BookOutlined /> },
   { label: '文章管理', path: '/article', roles: ['sysadmin', 'admin'], icon: <FileTextOutlined /> },
-  { label: '发布管理', path: '/score', roles: ['sysadmin', 'admin', 'view'], icon: <TrophyOutlined /> },
+  { label: '发布管理', path: '/publish', roles: ['sysadmin', 'admin', 'view'], icon: <TrophyOutlined /> },
   { label: '常用工具', path: '/tools', roles: ['sysadmin', 'admin'], icon: <ToolOutlined /> },
   { label: '项目管理', path: '/project', roles: ['sysadmin', 'admin'], icon: <ProjectOutlined /> },
   { label: '技能管理', path: '/skills', roles: ['sysadmin', 'admin'], icon: <ThunderboltOutlined /> },

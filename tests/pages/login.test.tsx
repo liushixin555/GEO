@@ -27,7 +27,7 @@ const renderWithRouter = (initialPath = '/login') => {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/score" element={<div data-testid="score">GEO Score Page</div>} />
+        <Route path="/publish" element={<div data-testid="score">GEO Score Page</div>} />
       </Routes>
     </BrowserRouter>
   );

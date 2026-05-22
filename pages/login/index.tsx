@@ -12,7 +12,7 @@ const LoginPage: React.FC = () => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      navigate('/score', { replace: true });
+      navigate('/publish', { replace: true });
     }
   }, [navigate]);
 
@@ -29,7 +29,7 @@ const LoginPage: React.FC = () => {
       // If no project selected (sysadmin/admin with empty company), go to project page
       const redirectTo = !user.selected_project
         ? '/project'
-        : (localStorage.getItem('redirect_after_login') || '/score');
+        : (localStorage.getItem('redirect_after_login') || '/publish');
       localStorage.removeItem('redirect_after_login');
       navigate(redirectTo);
     } catch (err: any) {

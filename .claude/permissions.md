@@ -119,7 +119,7 @@ TypeScript 类型定义位置：`apis/entity/user.entity.ts` → `type UserRole 
 |------|------|:--------:|:-----:|:----:|
 | AI知识库 | `/knowledge` | ✅ | ✅ | ❌ |
 | 文章管理 | `/article` | ✅ | ✅ | ❌ |
-| 发布管理 | `/score` | ✅ | ✅ | ✅ |
+| 发布管理 | `/publish` | ✅ | ✅ | ✅ |
 | 常用工具 | `/tools` | ✅ | ✅ | ❌ |
 | 项目管理 | `/project` | ✅ | ✅ | ❌ |
 | 用户管理 | `/users` | ✅ | ❌ | ❌ |

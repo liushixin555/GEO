@@ -129,6 +129,6 @@
 |----|------|------|----------|------|
 | TODO-001 | AI知识库页面 | `/knowledge` | 待定 | ⏳ 待开发 |
 | TODO-002 | GEO文章页面 | `/article` | 待定 | ⏳ 待开发 |
-| TODO-003 | GEO成绩页面（默认页） | `/score` | 待定 | ⏳ 待开发 |
+| TODO-003 | GEO成绩页面（默认页） | `/publish` | 待定 | ⏳ 待开发 |
 | TODO-004 | 常用工具页面 | `/tools` | 待定 | ⏳ 待开发 |
 | TODO-005 | 系统管理页面 | `/sysadmin` | /api/llm-models, /api/system-configs | ⏳ 待开发 |

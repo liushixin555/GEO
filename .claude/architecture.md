@@ -44,7 +44,7 @@ tests/apis/  + tests/pages/  测试文件
 5. 令牌 2 小时过期（可配置）
 6. `POST /api/auth/logout` → 服务端登出
 7. 前端 Layout 保存当前 URL 到 `redirect_after_login`，登录后跳回
-8. 已登录时登录页自动跳转 `/score`
+8. 已登录时登录页自动跳转 `/publish`
 9. **登录返回选中公司和项目**：LoginResponse.user 包含 `selected_company` + `selected_project`（而非 companies 数组）
 10. **登录选择逻辑**：根据角色确定可访问公司/项目 → 检查已保存选择是否有效 → 无效则自动选第一个 → 持久化到 User 记录
 11. **权限边界**：无公司→403(LoginSelectionError)、view无项目→403、admin无项目→selected_project=null（跳转/project）
@@ -56,7 +56,7 @@ tests/apis/  + tests/pages/  测试文件
 | `/knowledge` | AI知识库 | sysadmin, admin |
 | `/article` | 文章管理列表 | sysadmin, admin |
 | `/article/:id` | 文章详情/编辑/新建 | sysadmin, admin |
-| `/score` | 发布管理（默认页） | sysadmin, admin, view |
+| `/publish` | 发布管理（默认页） | sysadmin, admin, view |
 | `/tools` | 常用工具 | sysadmin, admin |
 | `/project` | 项目管理 | sysadmin, admin |
 | `/skills` | 技能管理 | sysadmin, admin |
