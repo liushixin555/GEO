@@ -54,7 +54,6 @@ root.render(
             borderRadius: 0,
             itemBorderRadius: 0,
             activeBarBorderWidth: 3,
-            activeBarColor: '#0f62fe',
           },
           Tag: {
             borderRadiusSM: 0,
