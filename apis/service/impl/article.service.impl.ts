@@ -89,6 +89,12 @@ export class ArticleServiceImpl implements IArticleService {
       data.version = newVersion;
       data.content = request.content;
 
+      // For AI-generated articles, extract first non-empty line as title
+      if (existing.writeMode !== 'manual' && !existing.title) {
+        const firstLine = request.content.split('\n').map(l => l.replace(/^#+\s*/, '').trim()).find(l => l.length > 0);
+        if (firstLine) data.title = firstLine;
+      }
+
       // Save current content as a version snapshot before updating
       await prisma.articleVersion.create({
         data: {
