@@ -146,7 +146,7 @@ export async function batchCreateKeywords(req: Request, res: Response): Promise<
     const baseId = parseInt(req.params.baseId as string, 10);
     if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
 
-    const { keywords } = req.body;
+    const { keywords, seed_word } = req.body;
     if (!Array.isArray(keywords) || keywords.length === 0) {
       fail(res, 400, '关键词列表不能为空');
       return;
@@ -155,7 +155,7 @@ export async function batchCreateKeywords(req: Request, res: Response): Promise<
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
-    const result = await keywordService.batchCreate(baseId, keywords, userId);
+    const result = await keywordService.batchCreate(baseId, keywords, userId, seed_word);
     success(res, result, `成功创建 ${result.created} 个关键词${result.duplicates > 0 ? `，${result.duplicates} 个已存在被跳过` : ''}`);
   } catch (err: any) {
     fail(res, 500, err.message || '批量创建关键词失败');

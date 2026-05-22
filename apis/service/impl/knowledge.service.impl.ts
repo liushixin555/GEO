@@ -9,6 +9,7 @@ function mapRawKeyword(r: any): KnowledgeKeyword {
     id: r.id,
     base_id: r.base_id,
     keyword: r.keyword,
+    seed_word: r.seed_word ?? null,
     group_id: r.group_id ?? null,
     created_by: r.created_by,
     created_at: r.created_at,
@@ -80,7 +81,7 @@ export class KeywordServiceImpl implements IKeywordService {
     return keyword;
   }
 
-  async batchCreate(baseId: number, keywords: string[], userId: number): Promise<{ created: number; duplicates: number }> {
+  async batchCreate(baseId: number, keywords: string[], userId: number, seedWord?: string): Promise<{ created: number; duplicates: number }> {
     const prisma = getPrisma();
     // Check existing keywords to avoid duplicates
     const existing = await prisma.knowledgeKeyword.findMany({
@@ -92,7 +93,7 @@ export class KeywordServiceImpl implements IKeywordService {
 
     if (newKeywords.length > 0) {
       await prisma.knowledgeKeyword.createMany({
-        data: newKeywords.map(keyword => ({ baseId, keyword, createdBy: userId })),
+        data: newKeywords.map(keyword => ({ baseId, keyword, seedWord: seedWord || null, createdBy: userId })),
       });
     }
     return { created: newKeywords.length, duplicates: existingSet.size };

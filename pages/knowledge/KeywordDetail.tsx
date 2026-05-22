@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Input, Button, Alert, Typography, Spin, App, Breadcrumb, Table, Pagination, Checkbox } from 'antd';
-import { ArrowLeftOutlined, ThunderboltOutlined, DeleteOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
 const EXPAND_PAGE_SIZE = 10;
@@ -82,7 +82,7 @@ const KeywordDetail: React.FC = () => {
   const handleExpand = async () => {
     const keyword = form.getFieldValue('keyword');
     if (!keyword?.trim()) {
-      message.warning('请先输入关键词');
+      message.warning('请先输入种子词');
       return;
     }
     if (!baseId) return;
@@ -108,25 +108,22 @@ const KeywordDetail: React.FC = () => {
     setExpandedWords(prev => prev.map(w => w.word === word ? { ...w, selected: !w.selected } : w));
   };
 
-  const handleDeleteWord = (word: string) => {
-    setExpandedWords(prev => prev.filter(w => w.word !== word));
-  };
-
   const handleSave = async () => {
     if (!baseId) return;
 
     if (isNew) {
       const selectedWords = expandedWords.filter(w => w.selected).map(w => w.word);
       if (selectedWords.length === 0) {
-        message.warning('请至少选择一个关联词');
+        message.warning('请至少选择一个关键词');
         return;
       }
+      const seedWord = form.getFieldValue('keyword')?.trim() || '';
       setSaving(true);
       setError('');
       try {
         const token = localStorage.getItem('token');
         const res = await axios.post(`/api/knowledge-bases/${baseId}/keywords/batch`,
-          { keywords: selectedWords },
+          { keywords: selectedWords, seed_word: seedWord },
           { headers: { Authorization: `Bearer ${token}` } },
         );
         message.success(res.data.message || `成功创建 ${selectedWords.length} 个关键词`);
@@ -165,7 +162,7 @@ const KeywordDetail: React.FC = () => {
 
   const columns = [
     {
-      title: '关联词',
+      title: '关键词',
       dataIndex: 'word',
       key: 'word',
     },
@@ -182,15 +179,6 @@ const KeywordDetail: React.FC = () => {
         />
       ),
     },
-    ...(canEdit ? [{
-      title: '操作',
-      key: 'action',
-      width: 80,
-      align: 'center' as const,
-      render: (_: unknown, record: ExpandedWordItem) => (
-        <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDeleteWord(record.word)} />
-      ),
-    }] : []),
   ];
 
   const tableData = pagedWords.map(w => ({ key: w.word, ...w }));
@@ -211,8 +199,8 @@ const KeywordDetail: React.FC = () => {
       </div>
       {error && <Alert type="error" message={error} className="form-alert" showIcon closable onClose={() => setError('')} style={{ marginBottom: 16 }} />}
       <Form form={form} layout="inline" style={{ marginBottom: 16 }}>
-        <Form.Item name="keyword" label="关键词" rules={[{ required: true, message: '关键词不能为空' }]}>
-          <Input placeholder="输入关键词" style={{ width: 280 }} disabled={!canEdit} />
+        <Form.Item name="keyword" label="种子词" rules={[{ required: true, message: '种子词不能为空' }]}>
+          <Input placeholder="输入种子词" style={{ width: 280 }} disabled={!canEdit} />
         </Form.Item>
         <Form.Item>
           <Button icon={<ThunderboltOutlined />} onClick={handleExpand} loading={expanding} disabled={!keywordValue?.trim() || !canEdit}>

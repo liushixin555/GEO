@@ -136,6 +136,7 @@ export function mapKeyword(prismaKeyword: any): KnowledgeKeyword {
     id: prismaKeyword.id,
     base_id: prismaKeyword.baseId,
     keyword: prismaKeyword.keyword,
+    seed_word: prismaKeyword.seedWord ?? null,
     group_id: prismaKeyword.groupId ?? null,
     created_by: prismaKeyword.createdBy ?? null,
     created_at: prismaKeyword.createdAt,

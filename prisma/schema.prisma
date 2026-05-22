@@ -253,6 +253,7 @@ model KnowledgeKeyword {
   id        Int             @id @default(autoincrement())
   baseId    Int             @map("base_id")
   keyword   String          @db.VarChar(200)
+  seedWord  String?         @map("seed_word") @db.VarChar(200)
   groupId   Int?            @map("group_id")
   createdBy Int?            @map("created_by")
   createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz()

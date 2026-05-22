@@ -5,7 +5,7 @@ export interface IKeywordService {
   listByProject(projectId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeKeyword[]; total: number }>;
   getById(id: number): Promise<KnowledgeKeyword>;
   create(baseId: number, request: CreateKeywordRequest, userId: number): Promise<KnowledgeKeyword>;
-  batchCreate(baseId: number, keywords: string[], userId: number): Promise<{ created: number; duplicates: number }>;
+  batchCreate(baseId: number, keywords: string[], userId: number, seedWord?: string): Promise<{ created: number; duplicates: number }>;
   listByGroup(groupId: number): Promise<KnowledgeKeyword[]>;
   syncGroup(groupId: number, baseId: number, keywords: string[], userId: number): Promise<KnowledgeKeyword[]>;
   update(id: number, request: UpdateKeywordRequest): Promise<KnowledgeKeyword>;
