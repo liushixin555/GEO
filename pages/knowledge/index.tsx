@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Input, Select, Switch, Typography, Spin, Pagination, Popconfirm, App, Breadcrumb, Tag } from 'antd';
-import { EditOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Input, Select, Typography, Spin, Pagination, App, Breadcrumb, Tag } from 'antd';
+import { EditOutlined, PlusOutlined, StopOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import KnowledgeBaseForm from './KnowledgeBaseForm';
 
@@ -83,19 +83,6 @@ const KnowledgePage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (item: KnowledgeBaseItem) => {
-    try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/api/knowledge-bases/${item.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      message.success('删除成功');
-      fetchData();
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '删除失败');
-    }
-  };
-
   const canModify = (item: KnowledgeBaseItem) => {
     return user.role === 'sysadmin' || item.created_by === user.id;
   };
@@ -157,9 +144,11 @@ const KnowledgePage: React.FC = () => {
                   {canModify(item) && (
                     <div className="item-card-actions">
                       <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); setEditItem(item); setShowForm(true); }} />
-                      <Popconfirm title="确定删除此知识库？" onConfirm={(e) => { e?.stopPropagation(); handleDelete(item); }} okText="删除" cancelText="取消">
-                        <DeleteOutlined className="item-card-edit-danger" onClick={(e) => e.stopPropagation()} />
-                      </Popconfirm>
+                      {item.status ? (
+                        <StopOutlined className="item-card-edit-danger" title="禁用" onClick={(e) => { e.stopPropagation(); handleToggleStatus(item); }} />
+                      ) : (
+                        <CheckCircleOutlined className="item-card-edit" style={{ color: '#52c41a' }} title="启用" onClick={(e) => { e.stopPropagation(); handleToggleStatus(item); }} />
+                      )}
                     </div>
                   )}
                 </div>
@@ -177,8 +166,8 @@ const KnowledgePage: React.FC = () => {
                   <span className="item-card-username">关键词 {item.keyword_count} | 画像 {item.portrait_count} | 图片 {item.image_count}</span>
                 </div>
                 <div className="item-card-row">
-                  <Switch size="small" checked={item.status} onChange={() => handleToggleStatus(item)} checkedChildren="启用" unCheckedChildren="禁用" />
-                  {item.creator_name && <span className="item-card-username" style={{ marginLeft: 8 }}>{item.creator_name}</span>}
+                  <Tag color={item.status ? 'green' : 'red'}>{item.status ? '启用' : '禁用'}</Tag>
+                  {item.creator_name && <span className="item-card-username">{item.creator_name}</span>}
                 </div>
               </Card>
             </Col>
