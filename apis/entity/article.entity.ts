@@ -2,6 +2,7 @@ export interface Article {
   id: number;
   project_id: number;
   title: string;
+  article_type: string | null;
   keywords: string | null;
   portrait: string | null;
   images: string[] | null;
@@ -27,6 +28,7 @@ export interface ArticleVersion {
 
 export interface CreateArticleRequest {
   title?: string;
+  article_type?: string;
   keywords?: string;
   portrait?: string;
   images?: string[];
@@ -38,6 +40,7 @@ export interface CreateArticleRequest {
 
 export interface UpdateArticleRequest {
   title?: string;
+  article_type?: string;
   keywords?: string;
   portrait?: string;
   images?: string[];

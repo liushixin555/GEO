@@ -22,6 +22,7 @@ const EDITABLE_STATUSES = ['draft', 'manual_writing', 'generate_failed', 'publis
 interface ArticleData {
   id: number;
   title: string;
+  article_type: string | null;
   keywords: string | null;
   portrait: string | null;
   images: string[] | null;
@@ -139,6 +140,7 @@ const ArticleDetail: React.FC = () => {
       const data = res.data.data;
       setArticle(data);
       form.setFieldsValue({
+        article_type: data.article_type || undefined,
         keywords: data.keywords || '',
         portrait: data.portrait || '',
         platforms: data.platforms || [],
@@ -290,6 +292,7 @@ const ArticleDetail: React.FC = () => {
     try {
       const token = localStorage.getItem('token');
       const payload: any = {
+        article_type: values.article_type || undefined,
         keywords: values.keywords?.trim() ? values.keywords.trim() : undefined,
         portrait: values.portrait?.trim() || undefined,
         images: imageList.length ? imageList : undefined,
@@ -454,6 +457,18 @@ const ArticleDetail: React.FC = () => {
           buttonStyle="solid"
           options={[{ label: '手工编写', value: 'manual' }, { label: 'AI生成', value: 'ai' }]}
         />
+      </Form.Item>
+      <Form.Item name="article_type" label="文章类型" rules={[{ required: true, message: '请选择文章类型' }]}>
+        <Select placeholder="请选择文章类型" disabled={!isSettingsEditable} options={[
+          { label: '榜单排名', value: '榜单排名' },
+          { label: '方法论讲解', value: '方法论讲解' },
+          { label: '案例分析', value: '案例分析' },
+          { label: '行业洞察', value: '行业洞察' },
+          { label: '对比测评', value: '对比测评' },
+          { label: '客户证言', value: '客户证言' },
+          { label: 'FAQ问答', value: 'FAQ问答' },
+          { label: '实操指南', value: '实操指南' },
+        ]} />
       </Form.Item>
       <Form.Item name="keywords" label="关键词" rules={[{ required: true, message: '关键词不能为空' }]}>
         <Select showSearch placeholder="从知识库选择关键词" options={kbKeywords} disabled={!isSettingsEditable} loading={kbLoading} notFoundContent={kbLoading ? '加载中...' : '暂无知识库关键词'} />

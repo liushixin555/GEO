@@ -90,6 +90,7 @@ export function mapArticle(prismaArticle: any): Article {
     id: prismaArticle.id,
     project_id: prismaArticle.projectId,
     title: prismaArticle.title,
+    article_type: prismaArticle.articleType ?? null,
     keywords: prismaArticle.keywords,
     portrait: prismaArticle.portrait,
     images: prismaArticle.images,
