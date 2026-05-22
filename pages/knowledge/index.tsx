@@ -41,7 +41,6 @@ const KnowledgePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [filterScope, setFilterScope] = useState<string | undefined>(undefined);
-  const [filterStatus, setFilterStatus] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<KnowledgeBaseItem | null>(null);
 
@@ -52,7 +51,6 @@ const KnowledgePage: React.FC = () => {
       const params: any = { page, pageSize };
       if (search) params.search = search;
       if (filterScope) params.scope = filterScope;
-      if (filterStatus !== '') params.status = filterStatus;
 
       const res = await axios.get('/api/knowledge-bases', {
         headers: { Authorization: `Bearer ${token}` },
@@ -65,23 +63,11 @@ const KnowledgePage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, search, filterScope, filterStatus]);
+  }, [page, pageSize, search, filterScope]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  const handleToggleStatus = async (item: KnowledgeBaseItem) => {
-    try {
-      const token = localStorage.getItem('token');
-      await axios.put(`/api/knowledge-bases/${item.id}`, { status: !item.status }, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      fetchData();
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '操作失败');
-    }
-  };
 
   const canModify = (item: KnowledgeBaseItem) => {
     return user.role === 'sysadmin' || item.created_by === user.id;
@@ -117,19 +103,6 @@ const KnowledgePage: React.FC = () => {
             ]}
           />
         </Col>
-        <Col xs={24} sm={8}>
-          <Select
-            value={filterStatus || undefined}
-            onChange={(val) => { setFilterStatus(val || ''); setPage(1); }}
-            allowClear
-            placeholder="全部状态"
-            style={{ width: '100%' }}
-            options={[
-              { value: 'true', label: '启用' },
-              { value: 'false', label: '禁用' },
-            ]}
-          />
-        </Col>
       </Row>
 
       <Spin spinning={loading}>
@@ -144,11 +117,6 @@ const KnowledgePage: React.FC = () => {
                   {canModify(item) && (
                     <div className="item-card-actions">
                       <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); setEditItem(item); setShowForm(true); }} />
-                      {item.status ? (
-                        <StopOutlined className="item-card-edit-danger" title="禁用" onClick={(e) => { e.stopPropagation(); handleToggleStatus(item); }} />
-                      ) : (
-                        <CheckCircleOutlined className="item-card-edit" style={{ color: '#52c41a' }} title="启用" onClick={(e) => { e.stopPropagation(); handleToggleStatus(item); }} />
-                      )}
                     </div>
                   )}
                 </div>
@@ -166,7 +134,6 @@ const KnowledgePage: React.FC = () => {
                   <span className="item-card-username">关键词 {item.keyword_count} | 画像 {item.portrait_count} | 图片 {item.image_count}</span>
                 </div>
                 <div className="item-card-row">
-                  <Tag color={item.status ? 'green' : 'red'}>{item.status ? '启用' : '禁用'}</Tag>
                   {item.creator_name && <span className="item-card-username">{item.creator_name}</span>}
                 </div>
               </Card>
