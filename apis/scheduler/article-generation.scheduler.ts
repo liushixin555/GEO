@@ -85,7 +85,7 @@ export async function processNextGeneratingArticle(): Promise<void> {
 
     const content = await llmService.generateArticle({
       title: article.title,
-      keywords: (article.keywords as string[]) || [],
+      keywords: article.keywords || '',
       portrait: article.portrait || '通用读者',
       images: imageResources,
       skills: skillsName,

@@ -22,7 +22,7 @@ const EDITABLE_STATUSES = ['draft', 'manual_writing', 'generate_failed', 'publis
 interface ArticleData {
   id: number;
   title: string;
-  keywords: string[] | null;
+  keywords: string | null;
   portrait: string | null;
   images: string[] | null;
   platforms: string[] | null;
@@ -94,7 +94,7 @@ const ArticleDetail: React.FC = () => {
       const data = res.data.data;
       setArticle(data);
       form.setFieldsValue({
-        keywords: data.keywords || [],
+        keywords: data.keywords || '',
         portrait: data.portrait || '',
         platforms: data.platforms || [],
         skills: data.skills ?? undefined,
@@ -243,7 +243,7 @@ const ArticleDetail: React.FC = () => {
     try {
       const token = localStorage.getItem('token');
       const payload: any = {
-        keywords: values.keywords?.length ? values.keywords : undefined,
+        keywords: values.keywords?.trim() ? values.keywords.trim() : undefined,
         portrait: values.portrait?.trim() || undefined,
         images: imageList.length ? imageList : undefined,
         platforms: values.platforms?.length ? values.platforms : undefined,
@@ -396,7 +396,7 @@ const ArticleDetail: React.FC = () => {
     <Form form={form} onFinish={(values) => handleSaveSettings(values, false)} layout="vertical">
       {error && <Alert type="error" message={error} className="form-alert" showIcon closable onClose={() => setError('')} />}
       <Form.Item name="keywords" label="关键词" rules={[{ required: true, message: '关键词不能为空' }]}>
-        <Select mode="tags" placeholder="从知识库选择或输入关键词" options={kbKeywords} disabled={!isSettingsEditable} loading={kbLoading} notFoundContent={kbLoading ? '加载中...' : '暂无知识库关键词，可直接输入'} />
+        <Select showSearch placeholder="从知识库选择关键词" options={kbKeywords} disabled={!isSettingsEditable} loading={kbLoading} notFoundContent={kbLoading ? '加载中...' : '暂无知识库关键词'} />
       </Form.Item>
       <Form.Item label="画像">
         <Segmented

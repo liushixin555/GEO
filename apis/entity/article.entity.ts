@@ -2,7 +2,7 @@ export interface Article {
   id: number;
   project_id: number;
   title: string;
-  keywords: string[] | null;
+  keywords: string | null;
   portrait: string | null;
   images: string[] | null;
   platforms: string[] | null;
@@ -27,7 +27,7 @@ export interface ArticleVersion {
 
 export interface CreateArticleRequest {
   title?: string;
-  keywords?: string[];
+  keywords?: string;
   portrait?: string;
   images?: string[];
   platforms?: string[];
@@ -38,7 +38,7 @@ export interface CreateArticleRequest {
 
 export interface UpdateArticleRequest {
   title?: string;
-  keywords?: string[];
+  keywords?: string;
   portrait?: string;
   images?: string[];
   platforms?: string[];

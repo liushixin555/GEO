@@ -69,7 +69,7 @@ export class LlmServiceImpl implements ILlmService {
 ${params.title}
 
 ## 目标关键词
-${params.keywords.join('、')}
+${params.keywords}
 
 ## 目标受众画像
 ${params.portrait}

@@ -47,7 +47,7 @@ export class ArticleServiceImpl implements IArticleService {
       data: {
         projectId,
         title: request.title || '',
-        keywords: request.keywords || Prisma.JsonNull,
+        keywords: request.keywords || null,
         portrait: request.portrait || null,
         images: request.images || Prisma.JsonNull,
         platforms: request.platforms || Prisma.JsonNull,
@@ -68,7 +68,7 @@ export class ArticleServiceImpl implements IArticleService {
 
     const data: any = {};
     if (request.title !== undefined) data.title = request.title;
-    if (request.keywords !== undefined) data.keywords = request.keywords || Prisma.JsonNull;
+    if (request.keywords !== undefined) data.keywords = request.keywords || null;
     if (request.portrait !== undefined) data.portrait = request.portrait || null;
     if (request.images !== undefined) data.images = request.images || Prisma.JsonNull;
     if (request.platforms !== undefined) data.platforms = request.platforms || Prisma.JsonNull;

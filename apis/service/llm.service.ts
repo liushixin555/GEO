@@ -1,6 +1,6 @@
 export interface ArticleGenerationParams {
   title: string;
-  keywords: string[];
+  keywords: string;
   portrait: string;
   images: { title: string; description: string; imageUrl: string }[];
   skills: string;

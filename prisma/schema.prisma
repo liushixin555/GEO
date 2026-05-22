@@ -212,7 +212,7 @@ model Article {
   id          Int           @id @default(autoincrement())
   projectId   Int           @map("project_id")
   title       String        @db.VarChar(500)
-  keywords    Json?
+  keywords    String?       @db.VarChar(500)
   portrait    String?
   images      Json?
   platforms   Json?
