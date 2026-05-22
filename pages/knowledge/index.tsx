@@ -41,6 +41,7 @@ const KnowledgePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [filterScope, setFilterScope] = useState<string | undefined>(undefined);
+  const [filterStatus, setFilterStatus] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<KnowledgeBaseItem | null>(null);
 
