@@ -145,6 +145,7 @@ const ArticleDetail: React.FC = () => {
       // Defer setFieldsValue to ensure Form is mounted
       setTimeout(() => {
         form.setFieldsValue({
+          title: data.title || '',
           article_type: data.article_type || undefined,
           write_mode: data.write_mode || undefined,
           keywords: data.keywords || '',
@@ -303,6 +304,7 @@ const ArticleDetail: React.FC = () => {
     try {
       const token = localStorage.getItem('token');
       const payload: any = {
+        title: values.title?.trim() || undefined,
         article_type: values.article_type || undefined,
         write_mode: values.write_mode || undefined,
         keywords: values.keywords?.trim() ? values.keywords.trim() : undefined,
@@ -469,6 +471,11 @@ const ArticleDetail: React.FC = () => {
           options={[{ label: '手工编写', value: 'manual' }, { label: 'AI生成', value: 'ai' }]}
         />
       </Form.Item>
+      {writeMode === 'manual' && (
+      <Form.Item name="title" label="标题" rules={[{ required: true, message: '标题不能为空' }]}>
+        <Input placeholder="请输入文章标题" disabled={!isSettingsEditable} />
+      </Form.Item>
+      )}
       <Form.Item name="article_type" label="文章类型" rules={[{ required: true, message: '请选择文章类型' }]}>
         <Select placeholder="请选择文章类型" disabled={!isSettingsEditable} options={[
           { label: '榜单排名', value: '榜单排名' },
@@ -711,14 +718,12 @@ const ArticleDetail: React.FC = () => {
               />
             )}
             {isContentEditable && contentMode === 'edit' && (
-              <>
-                <Button onClick={handleSaveContent} loading={contentSaving}>保存正文</Button>
-                {article.status === 'manual_writing' && (
-                  <Popconfirm title="确认提交审核？" description="提交后将进入审核流程" onConfirm={handleSubmitForReview} okText="确认" cancelText="取消">
-                    <Button type="primary">提交审核</Button>
-                  </Popconfirm>
-                )}
-              </>
+              <Button size="small" onClick={handleSaveContent} loading={contentSaving}>保存正文</Button>
+            )}
+            {article.status === 'manual_writing' && (
+              <Popconfirm title="确认提交审核？" description="提交后将进入审核流程" onConfirm={handleSubmitForReview} okText="确认" cancelText="取消">
+                <Button size="small" type="primary">提交审核</Button>
+              </Popconfirm>
             )}
           </div>
         </div>
@@ -736,9 +741,6 @@ const ArticleDetail: React.FC = () => {
               </Popconfirm>
               <Popconfirm title="确认审核不通过？" description="不通过后将退回为草稿" onConfirm={() => handleReview(false)} okText="确认" cancelText="取消">
                 <Button size="small" danger icon={<CloseCircleOutlined />}>审核不通过</Button>
-              </Popconfirm>
-              <Popconfirm title="确认重新生成？" description="将清空正文并重新提交AI生成" onConfirm={() => handleRegenerate()} okText="确认" cancelText="取消">
-                <Button size="small" icon={<ReloadOutlined />}>重新生成</Button>
               </Popconfirm>
             </div>
           }
@@ -769,7 +771,11 @@ const ArticleDetail: React.FC = () => {
     { key: 'settings', label: '文章设置', children: settingsTab, forceRender: true },
   ];
 
-  if (isNew || article) {
+  if (isNew && writeMode === 'manual') {
+    collapseItems.push({ key: 'content', label: '文章正文', children: contentTab, forceRender: true });
+  }
+
+  if (!isNew && article) {
     collapseItems.push({ key: 'content', label: '文章正文', children: contentTab, forceRender: true });
   }
 
@@ -793,19 +799,20 @@ const ArticleDetail: React.FC = () => {
       />
       {isSettingsEditable && (
         <div className="form-actions">
-          <Button onClick={() => navigate('/article')}>取消</Button>
+          {(isNew || article?.status === 'draft') && (
           <Button loading={saving} onClick={() => {
-            form.validateFields().then((values) => handleSaveSettings(values, false, writeMode === 'manual'));
+            form.validateFields().then((values) => handleSaveSettings(values, false, writeMode === 'manual')).catch((info) => { if (info.errorFields?.length) message.error(info.errorFields[0].errors[0]); });
           }}>存草稿</Button>
-          {article?.write_mode !== 'manual' && (
+          )}
+          {(isNew || article?.status === 'draft') && writeMode !== 'manual' && (
             <Button type="primary" loading={saving} onClick={() => {
-              form.validateFields().then((values) => handleSaveSettings(values, true));
+              form.validateFields().then((values) => handleSaveSettings(values, true)).catch((info) => { if (info.errorFields?.length) message.error(info.errorFields[0].errors[0]); });
             }}>提交给AI</Button>
           )}
-          {article?.write_mode === 'manual' && (
+          {(isNew || article?.status === 'draft') && writeMode === 'manual' && (
             <Button type="primary" loading={saving} onClick={() => {
-              form.validateFields().then((values) => handleSaveSettings(values, false, true));
-            }}>提交审核</Button>
+              form.validateFields().then((values) => handleSaveSettings(values, false, true)).catch((info) => { if (info.errorFields?.length) message.error(info.errorFields[0].errors[0]); });
+            }}>提交</Button>
           )}
         </div>
       )}
