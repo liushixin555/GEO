@@ -139,14 +139,17 @@ const ArticleDetail: React.FC = () => {
       });
       const data = res.data.data;
       setArticle(data);
-      form.setFieldsValue({
-        article_type: data.article_type || undefined,
-        keywords: data.keywords || '',
-        portrait: data.portrait || '',
-        platforms: data.platforms || [],
-        skills: data.skills ?? undefined,
-        llm_model_id: data.llm_model_id ?? undefined,
-      });
+      // Defer setFieldsValue to ensure Form is mounted
+      setTimeout(() => {
+        form.setFieldsValue({
+          article_type: data.article_type || undefined,
+          keywords: data.keywords || '',
+          portrait: data.portrait || '',
+          platforms: data.platforms || [],
+          skills: data.skills ?? undefined,
+          llm_model_id: data.llm_model_id ?? undefined,
+        });
+      }, 0);
       setImageList(data.images || []);
       setContent(data.content || '');
     } catch (err: any) {
