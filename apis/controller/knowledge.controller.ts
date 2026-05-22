@@ -71,11 +71,12 @@ export async function createKeyword(req: Request, res: Response): Promise<void> 
     if (!keyword) { fail(res, 400, '关键词不能为空'); return; }
 
     const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
 
     const item = await keywordService.create(baseId, req.body, userId);
     res.status(201).json({ code: 0, message: '创建关键词成功', data: item });
   } catch (err: any) {
-    fail(res, 500, err.message || '创建关键词失败');
+    if (err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '创建关键词失败'); }
   }
 }
 
@@ -193,12 +194,13 @@ export async function createPortrait(req: Request, res: Response): Promise<void>
     if (!title) { fail(res, 400, '画像标题不能为空'); return; }
     if (!content) { fail(res, 400, '画像内容不能为空'); return; }
 
-    const { userId } = req.user!;
+    const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
 
     const item = await portraitService.create(baseId, req.body, userId);
     res.status(201).json({ code: 0, message: '创建画像成功', data: item });
   } catch (err: any) {
-    fail(res, 500, err.message || '创建画像失败');
+    if (err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '创建画像失败'); }
   }
 }
 
@@ -298,12 +300,13 @@ export async function createImage(req: Request, res: Response): Promise<void> {
     if (!title) { fail(res, 400, '图片标题不能为空'); return; }
     if (!image_url) { fail(res, 400, '图片地址不能为空'); return; }
 
-    const { userId } = req.user!;
+    const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
 
     const item = await imageService.create(baseId, req.body, userId);
     res.status(201).json({ code: 0, message: '创建图片成功', data: item });
   } catch (err: any) {
-    fail(res, 500, err.message || '创建图片失败');
+    if (err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '创建图片失败'); }
   }
 }
 
