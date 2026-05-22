@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Form, Input, Select, Button, Alert, Segmented, Upload, Image, Collapse, Typography, Spin, Tag, App, Popconfirm, Table, Modal } from 'antd';
 import { ArrowLeftOutlined, InboxOutlined, LinkOutlined, DeleteOutlined, CheckOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -80,6 +80,51 @@ const ArticleDetail: React.FC = () => {
   const [content, setContent] = useState('');
   const [contentSaving, setContentSaving] = useState(false);
   const [contentMode, setContentMode] = useState<'preview' | 'edit'>(isNew ? 'edit' : 'preview');
+  const contentRef = useRef(content);
+  contentRef.current = content;
+  const articleRef = useRef(article);
+  articleRef.current = article;
+
+  // Auto-save content every 5 minutes
+  useEffect(() => {
+    const TIMER = 5 * 60 * 1000;
+    const timer = setInterval(async () => {
+      const currentContent = contentRef.current.trim();
+      if (!currentContent) return;
+      // Only auto-save in edit mode
+      try {
+        const token = localStorage.getItem('token');
+        if (isNew) {
+          // New article: auto-create draft if form has required fields
+          const formValues = form.getFieldsValue();
+          if (!formValues.keywords || !formValues.llm_model_id || !formValues.platforms?.length) return;
+          const payload: any = {
+            keywords: formValues.keywords,
+            portrait: formValues.portrait?.trim() || undefined,
+            images: imageList.length ? imageList : undefined,
+            platforms: formValues.platforms,
+            skills: formValues.skills || undefined,
+            llm_model_id: formValues.llm_model_id,
+            content: currentContent,
+          };
+          const res = await axios.post(`/api/projects/${projectId}/articles`, payload, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          message.success('自动保存成功');
+          navigate(`/article/${res.data.data.id}`, { replace: true });
+        } else if (articleRef.current) {
+          // Existing article: only update content
+          await axios.put(`/api/projects/${projectId}/articles/${id}/content`, { content: currentContent }, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          message.success('正文已自动保存');
+        }
+      } catch {
+        // Silent fail for auto-save
+      }
+    }, TIMER);
+    return () => clearInterval(timer);
+  }, [isNew, id, projectId]);
 
   // Tab
   const fetchArticle = useCallback(async () => {
