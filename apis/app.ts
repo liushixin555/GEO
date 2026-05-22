@@ -17,6 +17,7 @@ import * as projectController from './controller/project.controller';
 import * as articleController from './controller/article.controller';
 import * as knowledgeController from './controller/knowledge.controller';
 import * as knowledgeBaseController from './controller/knowledge-base.controller';
+import * as publishingScheduleController from './controller/publishing-schedule.controller';
 import { uploadMiddleware, uploadFile } from './controller/upload.controller';
 
 const app: Express = express();
@@ -140,6 +141,10 @@ app.get('/api/projects/:projectId/knowledge/images', authMiddleware, roleMiddlew
 
 // Upload route (sysadmin + admin)
 app.post('/api/upload', authMiddleware, roleMiddleware('sysadmin', 'admin'), uploadMiddleware, uploadFile);
+
+// Publishing Schedule routes (sysadmin + admin + view)
+app.get('/api/publishing-schedule', authMiddleware, roleMiddleware('sysadmin', 'admin', 'view'), publishingScheduleController.listPublishingSchedule);
+app.put('/api/publishing-schedule/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), publishingScheduleController.updatePublishingSchedule);
 
 // Knowledge Base routes (sysadmin + admin)
 app.get('/api/knowledge-bases', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeBaseController.listKnowledgeBases);
