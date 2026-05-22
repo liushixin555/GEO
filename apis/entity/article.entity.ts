@@ -13,6 +13,7 @@ export interface Article {
   content: string | null;
   version: number;
   status: string;
+  scheduled_publish_at: Date | null;
   created_by: number | null;
   created_at: Date;
   updated_at: Date;
@@ -52,6 +53,7 @@ export interface UpdateArticleRequest {
   llm_model_id?: number;
   content?: string;
   status?: string;
+  scheduled_publish_at?: string | null;
 }
 
 export interface ReviewArticleRequest {

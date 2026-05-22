@@ -101,6 +101,7 @@ export function mapArticle(prismaArticle: any): Article {
     content: prismaArticle.content,
     version: prismaArticle.version,
     status: prismaArticle.status,
+    scheduled_publish_at: prismaArticle.scheduledPublishAt ?? null,
     created_by: prismaArticle.createdBy ?? null,
     created_at: prismaArticle.createdAt,
     updated_at: prismaArticle.updatedAt,

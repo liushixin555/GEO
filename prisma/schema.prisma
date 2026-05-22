@@ -222,8 +222,9 @@ model Article {
   llmModelId  Int?          @map("llm_model_id")
   content     String?
   version     Float         @default(1.0)
-  status      ArticleStatus @default(draft)
-  createdBy   Int?          @map("created_by")
+  status              ArticleStatus @default(draft)
+  scheduledPublishAt  DateTime?     @map("scheduled_publish_at") @db.Timestamptz()
+  createdBy           Int?          @map("created_by")
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
   project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)

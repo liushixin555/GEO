@@ -79,6 +79,9 @@ export class ArticleServiceImpl implements IArticleService {
     if (request.skills !== undefined) data.skills = request.skills || Prisma.JsonNull;
     if (request.llm_model_id !== undefined) data.llmModelId = request.llm_model_id || null;
     if (request.status !== undefined) data.status = request.status;
+    if (request.scheduled_publish_at !== undefined) {
+      data.scheduledPublishAt = request.scheduled_publish_at ? new Date(request.scheduled_publish_at) : null;
+    }
 
     // Content versioning: if content is being updated, bump version and save history
     if (request.content !== undefined && request.content !== existing.content) {
