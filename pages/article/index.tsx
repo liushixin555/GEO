@@ -9,7 +9,7 @@ interface ArticleItem {
   id: number;
   project_id: number;
   title: string;
-  keywords: string[] | null;
+  keywords: string | null;
   status: string;
   created_by: number | null;
   created_at: string;
@@ -139,12 +139,9 @@ const ArticlePage: React.FC = () => {
                   <div className="item-card-row">
                     <Tag color={statusCfg.color}>{statusCfg.label}</Tag>
                   </div>
-                  {item.keywords && item.keywords.length > 0 && (
+                  {item.keywords && (
                     <div className="item-card-row" style={{ flexWrap: 'wrap', gap: 4 }}>
-                      {item.keywords.slice(0, 3).map((kw, i) => (
-                        <Tag key={i}>{kw}</Tag>
-                      ))}
-                      {item.keywords.length > 3 && <Tag>+{item.keywords.length - 3}</Tag>}
+                      <Tag>{item.keywords}</Tag>
                     </div>
                   )}
                   <div className="item-card-row">
