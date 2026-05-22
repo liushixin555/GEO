@@ -10,7 +10,7 @@ export class ArticleServiceImpl implements IArticleService {
 
     const where: any = { projectId };
     if (search) {
-      where.title = { contains: search, mode: 'insensitive' };
+      where.keywords = { contains: search, mode: 'insensitive' };
     }
     if (status) {
       where.status = status;
