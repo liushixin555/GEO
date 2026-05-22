@@ -605,18 +605,6 @@ const ArticleDetail: React.FC = () => {
           </div>
         </Modal>
       )}
-      {isSettingsEditable && (
-        <div className="form-actions">
-          <Button onClick={() => navigate('/article')}>取消</Button>
-          <Button htmlType="submit" loading={saving}>存草稿</Button>
-          <Button loading={saving} onClick={() => {
-            form.validateFields().then((values) => handleSaveSettings(values, false, true));
-          }}>手工编写</Button>
-          <Button type="primary" loading={saving} onClick={() => {
-            form.validateFields().then((values) => handleSaveSettings(values, true));
-          }}>提交给AI</Button>
-        </div>
-      )}
     </Form>
   );
 
@@ -697,7 +685,7 @@ const ArticleDetail: React.FC = () => {
   ];
 
   if (isNew || article) {
-    collapseItems.push({ key: 'content', label: isNew ? '正文' : `正文 (v${(article.version ?? 1.0).toFixed(1)})`, children: contentTab, forceRender: true });
+    collapseItems.push({ key: 'content', label: isNew ? '正文' : `正文 (v${(article!.version ?? 1.0).toFixed(1)})`, children: contentTab, forceRender: true });
   }
 
   const defaultActiveKeys = isNew ? ['settings', 'content'] : ['content'];
@@ -718,6 +706,17 @@ const ArticleDetail: React.FC = () => {
         items={collapseItems}
         style={{ marginBottom: 16 }}
       />
+      {isSettingsEditable && (
+        <div className="form-actions">
+          <Button onClick={() => navigate('/article')}>取消</Button>
+          <Button loading={saving} onClick={() => {
+            form.validateFields().then((values) => handleSaveSettings(values, false));
+          }}>存草稿</Button>
+          <Button type="primary" loading={saving} onClick={() => {
+            form.validateFields().then((values) => handleSaveSettings(values, true));
+          }}>提交给AI</Button>
+        </div>
+      )}
     </div>
   );
 };
