@@ -1,9 +1,9 @@
 # 前端约定
 
 ## 侧边栏菜单（按角色排列，从上到下，带 icon）
-**sysadmin**：AI知识库(Book)、GEO文章(FileText)、GEO成绩(Trophy)、常用工具(Tool)、项目管理(Project)、技能管理(Thunderbolt)、用户管理(Team)、公司管理(Home)、系统管理(Setting)
-**admin**：AI知识库(Book)、GEO文章(FileText)、GEO成绩(Trophy)、常用工具(Tool)、项目管理(Project)、技能管理(Thunderbolt)
-**view**：GEO成绩(Trophy)
+**sysadmin**：AI知识库(Book)、文章管理(FileText)、发布管理(Trophy)、常用工具(Tool)、项目管理(Project)、技能管理(Thunderbolt)、用户管理(Team)、公司管理(Home)、系统管理(Setting)
+**admin**：AI知识库(Book)、文章管理(FileText)、发布管理(Trophy)、常用工具(Tool)、项目管理(Project)、技能管理(Thunderbolt)
+**view**：发布管理(Trophy)
 
 ## 侧边栏 footer 信息区
 - 展开态：用户名+登出 | `CompanyProjectSwitcher` 组件（公司名+切换按钮 / 项目名）
@@ -105,7 +105,7 @@
 - 面包屑结构：
   - 列表页：单级 `[当前页面名]`
   - 表单页（添加/编辑）：两级 `[父页面名, 操作名]`（如 公司管理 > 添加公司）
-- 登录页标题也使用 Breadcrumb（`[薄云GEO]`），不使用 Typography.Title
+- 登录页标题也使用 Breadcrumb（`[薄云商机倍增服务]`），不使用 Typography.Title
 
 ## 布局防溢出规范（重要）
 - `.app-layout-root` 使用 `height: 100vh; overflow: hidden`（不用 `min-height`）

@@ -1,4 +1,4 @@
-import { Company, User, Skills, LlmModel, SystemConfig, Project, Article, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage } from '../entity';
+import { Company, User, Skills, LlmModel, SystemConfig, Project, Article, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeBase } from '../entity';
 
 export function mapCompany(prismaCompany: any): Company {
   return {
@@ -134,7 +134,7 @@ export function mapPublishingPlatform(prismaPlatform: any): PublishingPlatform {
 export function mapKeyword(prismaKeyword: any): KnowledgeKeyword {
   return {
     id: prismaKeyword.id,
-    project_id: prismaKeyword.projectId,
+    base_id: prismaKeyword.baseId,
     keyword: prismaKeyword.keyword,
     group_id: prismaKeyword.groupId ?? null,
     created_by: prismaKeyword.createdBy ?? null,
@@ -146,7 +146,7 @@ export function mapKeyword(prismaKeyword: any): KnowledgeKeyword {
 export function mapPortrait(prismaPortrait: any): KnowledgePortrait {
   return {
     id: prismaPortrait.id,
-    project_id: prismaPortrait.projectId,
+    base_id: prismaPortrait.baseId,
     title: prismaPortrait.title,
     content: prismaPortrait.content,
     created_by: prismaPortrait.createdBy ?? null,
@@ -158,7 +158,7 @@ export function mapPortrait(prismaPortrait: any): KnowledgePortrait {
 export function mapKnowledgeImage(prismaImage: any): KnowledgeImage {
   return {
     id: prismaImage.id,
-    project_id: prismaImage.projectId,
+    base_id: prismaImage.baseId,
     title: prismaImage.title,
     description: prismaImage.description,
     image_url: prismaImage.imageUrl,

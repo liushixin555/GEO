@@ -11,7 +11,7 @@
 
 ## 权限铁律（不可违反）
 - **新增任何 API 必须遵守权限规范** — 详见 [permissions.md](./permissions.md)
-- **三个角色的权限边界必须严格维护**：sysadmin（全量）、admin（被授权的项目）、view（只读 GEO 成绩）
+- **三个角色的权限边界必须严格维护**：sysadmin（全量）、admin（被授权的项目）、view（只读发布管理）
 - **admin 跨公司操作必须返回 403** — Controller 层强制注入 companyId
 - **sysadmin 用户不可被修改角色或删除** — Service 层硬保护
 - **所有受保护 API 必须三层校验**：authMiddleware → roleMiddleware → 数据隔离
@@ -33,7 +33,7 @@
 - 每次文件修改后 git commit + push
 - 每次任务结束后，将价值信息持久化保存到本项目 `.claude/` 目录下的对应文件，禁止保存到用户目录 `~/.claude/projects/`
 - 所有页面必须响应式（移动端窄屏 + PC）
-- 三个角色：sysadmin（全量+系统管理）、admin（公司运营）、view（仅GEO成绩）
+- 三个角色：sysadmin（全量+系统管理）、admin（公司运营）、view（仅发布管理）
 - 所有 API（除 `POST /api/auth/login`）要求：JWT 鉴权 + 反爬虫 + 限流
 - 限流熔断策略在配置文件中配置
 - 重复使用的代码必须封装为 components

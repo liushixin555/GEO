@@ -3,11 +3,9 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Input, Button, Alert, Typography, Spin, App, Breadcrumb } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import axios from 'axios';
-import { useAppContext } from '../context/AppContext';
 
 const PortraitDetail: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const { projectId } = useAppContext();
+  const { baseId, id } = useParams<{ baseId: string; id: string }>();
   const navigate = useNavigate();
   const isNew = id === 'add';
   const [searchParams] = useSearchParams();
@@ -22,11 +20,11 @@ const PortraitDetail: React.FC = () => {
   const [form] = Form.useForm();
 
   const fetchData = useCallback(async () => {
-    if (isNew || !projectId) return;
+    if (isNew || !baseId) return;
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`/api/projects/${projectId}/knowledge/portraits/${id}`, {
+      const res = await axios.get(`/api/knowledge-bases/${baseId}/portraits/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setData(res.data.data);
@@ -34,7 +32,7 @@ const PortraitDetail: React.FC = () => {
     } catch (err: any) {
       message.error(err.response?.data?.message || '加载失败');
     } finally { setLoading(false); }
-  }, [id, projectId, isNew]);
+  }, [id, baseId, isNew]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -46,17 +44,17 @@ const PortraitDetail: React.FC = () => {
     try {
       const token = localStorage.getItem('token');
       if (isNew) {
-        await axios.post(`/api/projects/${projectId}/knowledge/portraits`, values, {
+        await axios.post(`/api/knowledge-bases/${baseId}/portraits`, values, {
           headers: { Authorization: `Bearer ${token}` },
         });
         message.success('创建成功');
       } else {
-        await axios.put(`/api/projects/${projectId}/knowledge/portraits/${id}`, values, {
+        await axios.put(`/api/knowledge-bases/${baseId}/portraits/${id}`, values, {
           headers: { Authorization: `Bearer ${token}` },
         });
         message.success('更新成功');
       }
-      navigate('/knowledge');
+      navigate(`/knowledge/${baseId}`);
     } catch (err: any) {
       setError(err.response?.data?.message || '保存失败');
     } finally { setSaving(false); }
@@ -67,10 +65,14 @@ const PortraitDetail: React.FC = () => {
   return (
     <div className="page-container">
       <div className="page-breadcrumb">
-        <Breadcrumb items={[{ title: <a onClick={() => navigate('/knowledge')}>AI知识库</a> }, { title: isNew ? '添加画像' : '画像详情' }]} />
+        <Breadcrumb items={[
+          { title: <a onClick={() => navigate('/knowledge')}>AI知识库</a> },
+          { title: <a onClick={() => navigate(`/knowledge/${baseId}`)}>知识库</a> },
+          { title: isNew ? '添加画像' : '画像详情' },
+        ]} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/knowledge')} />
+        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(`/knowledge/${baseId}`)} />
         <Typography.Title level={2} style={{ margin: 0 }}>{isNew ? '添加画像' : '画像详情'}</Typography.Title>
       </div>
       <Form form={form} onFinish={handleSave} layout="vertical" style={{ maxWidth: 800 }}>
@@ -83,7 +85,7 @@ const PortraitDetail: React.FC = () => {
         </Form.Item>
         {canEdit && (
           <div className="form-actions">
-            <Button onClick={() => navigate('/knowledge')}>取消</Button>
+            <Button onClick={() => navigate(`/knowledge/${baseId}`)}>取消</Button>
             <Button type="primary" htmlType="submit" loading={saving}>保存</Button>
           </div>
         )}

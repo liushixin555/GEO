@@ -3,7 +3,6 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Input, Button, Alert, Typography, Spin, App, Breadcrumb, Table, Pagination, Checkbox } from 'antd';
 import { ArrowLeftOutlined, ThunderboltOutlined, DeleteOutlined } from '@ant-design/icons';
 import axios from 'axios';
-import { useAppContext } from '../context/AppContext';
 
 const EXPAND_PAGE_SIZE = 10;
 
@@ -13,8 +12,7 @@ interface ExpandedWordItem {
 }
 
 const KeywordDetail: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const { projectId } = useAppContext();
+  const { baseId, id } = useParams<{ baseId: string; id: string }>();
   const navigate = useNavigate();
   const { message } = App.useApp();
   const isNew = id === 'add';
@@ -29,30 +27,28 @@ const KeywordDetail: React.FC = () => {
   const [form] = Form.useForm();
   const keywordValue = Form.useWatch('keyword', form);
 
-  // Expanded words state: list of { word, selected }
   const [expandedWords, setExpandedWords] = useState<ExpandedWordItem[]>([]);
   const [expanding, setExpanding] = useState(false);
   const [expandPage, setExpandPage] = useState(1);
 
   const fetchData = useCallback(async () => {
-    if (isNew || !projectId) return;
+    if (isNew || !baseId) return;
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`/api/projects/${projectId}/knowledge/keywords/${id}`, {
+      const res = await axios.get(`/api/knowledge-bases/${baseId}/keywords/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const kwData = res.data.data;
       setData(kwData);
       form.setFieldValue('keyword', kwData.keyword);
-      // Load expanded words from database
       if (kwData.expanded_words && kwData.expanded_words.length > 0) {
         setExpandedWords(kwData.expanded_words.map((w: any) => ({ word: w.word, selected: w.selected })));
       }
     } catch (err: any) {
       message.error(err.response?.data?.message || '加载失败');
     } finally { setLoading(false); }
-  }, [id, projectId, isNew]);
+  }, [id, baseId, isNew]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -64,16 +60,15 @@ const KeywordDetail: React.FC = () => {
       message.warning('请先输入关键词');
       return;
     }
-    if (!projectId) return;
+    if (!baseId) return;
     setExpanding(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`/api/projects/${projectId}/knowledge/keywords/expand`,
+      const res = await axios.post(`/api/knowledge-bases/${baseId}/keywords/expand`,
         { keyword: keyword.trim() },
         { headers: { Authorization: `Bearer ${token}` } },
       );
       const newKeywords: string[] = res.data.data || [];
-      // Append new words not already in the list, default selected=false
       setExpandedWords(prev => {
         const existing = new Set(prev.map(w => w.word));
         const appended = newKeywords.filter(k => !existing.has(k)).map(k => ({ word: k, selected: false }));
@@ -92,14 +87,13 @@ const KeywordDetail: React.FC = () => {
     setExpandedWords(prev => prev.filter(w => w.word !== word));
   };
 
-  // Save: keyword → knowledge_keywords, expanded words → keyword_expanded_words
   const handleSave = async () => {
     const keyword = form.getFieldValue('keyword');
     if (!keyword?.trim()) {
       message.warning('请输入关键词');
       return;
     }
-    if (!projectId) return;
+    if (!baseId) return;
     setSaving(true);
     setError('');
     try {
@@ -109,17 +103,17 @@ const KeywordDetail: React.FC = () => {
         expanded_words: expandedWords.map(w => ({ word: w.word, selected: w.selected })),
       };
       if (isNew) {
-        await axios.post(`/api/projects/${projectId}/knowledge/keywords`, payload, {
+        await axios.post(`/api/knowledge-bases/${baseId}/keywords`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         message.success('创建成功');
       } else {
-        await axios.put(`/api/projects/${projectId}/knowledge/keywords/${id}`, payload, {
+        await axios.put(`/api/knowledge-bases/${baseId}/keywords/${id}`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         message.success('更新成功');
       }
-      navigate('/knowledge');
+      navigate(`/knowledge/${baseId}`);
     } catch (err: any) {
       setError(err.response?.data?.message || '保存失败');
     } finally { setSaving(false); }
@@ -165,10 +159,14 @@ const KeywordDetail: React.FC = () => {
   return (
     <div className="page-container">
       <div className="page-breadcrumb">
-        <Breadcrumb items={[{ title: <a onClick={() => navigate('/knowledge')}>AI知识库</a> }, { title: pageTitle }]} />
+        <Breadcrumb items={[
+          { title: <a onClick={() => navigate('/knowledge')}>AI知识库</a> },
+          { title: <a onClick={() => navigate(`/knowledge/${baseId}`)}>知识库</a> },
+          { title: pageTitle },
+        ]} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/knowledge')} />
+        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(`/knowledge/${baseId}`)} />
         <Typography.Title level={2} style={{ margin: 0 }}>{pageTitle}</Typography.Title>
       </div>
       {error && <Alert type="error" message={error} className="form-alert" showIcon closable onClose={() => setError('')} style={{ marginBottom: 16 }} />}
@@ -205,7 +203,7 @@ const KeywordDetail: React.FC = () => {
           )}
           {canEdit && (
             <div className="form-actions" style={{ marginTop: 16 }}>
-              <Button onClick={() => navigate('/knowledge')}>取消</Button>
+              <Button onClick={() => navigate(`/knowledge/${baseId}`)}>取消</Button>
               <Button type="primary" onClick={handleSave} loading={saving}>
                 保存
               </Button>
@@ -216,7 +214,7 @@ const KeywordDetail: React.FC = () => {
 
       {expandedWords.length === 0 && canEdit && (
         <div className="form-actions">
-          <Button onClick={() => navigate('/knowledge')}>取消</Button>
+          <Button onClick={() => navigate(`/knowledge/${baseId}`)}>取消</Button>
           <Button type="primary" onClick={handleSave} loading={saving}>
             保存
           </Button>

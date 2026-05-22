@@ -54,9 +54,9 @@ tests/apis/  + tests/pages/  测试文件
 | 路径 | 名称 | 允许角色 |
 |------|------|----------|
 | `/knowledge` | AI知识库 | sysadmin, admin |
-| `/article` | GEO文章列表 | sysadmin, admin |
+| `/article` | 文章管理列表 | sysadmin, admin |
 | `/article/:id` | 文章详情/编辑/新建 | sysadmin, admin |
-| `/score` | GEO成绩（默认页） | sysadmin, admin, view |
+| `/score` | 发布管理（默认页） | sysadmin, admin, view |
 | `/tools` | 常用工具 | sysadmin, admin |
 | `/project` | 项目管理 | sysadmin, admin |
 | `/skills` | 技能管理 | sysadmin, admin |
@@ -97,7 +97,7 @@ tests/apis/  + tests/pages/  测试文件
   - **admin 按运营者身份鉴权**：admin 只能操作自己被指定为运营者的项目（operator_ids.includes(userId)），而非基于公司
   - admin 创建项目时仍强制 company_id = 自己的公司
 - **技能不再绑定单一公司**：company_id 改为可选字段（Int?），与用户一致
-- **GEO文章管理（2026-05-17）**：新增 Article 模型
+- **文章管理（2026-05-17）**：新增 Article 模型
   - `articles` 表：id, project_id, title, keywords(Json), portrait(Text), images(Json), platforms(Json), skills(Json, 技能ID), llm_model_id(Int?, FK→llm_models, ON DELETE SET NULL), content(Text?), version(Float, 默认1.0), status(ArticleStatus枚举), created_by
   - `article_versions` 表：id, article_id, version(Float), content(Text), created_by, created_at
   - 7个状态：draft → manual_writing / generating → generate_failed / pending_review → publishing → publish_failed / published

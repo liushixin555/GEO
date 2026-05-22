@@ -25,7 +25,7 @@
   - `CompanyForm.tsx`: 公司表单（新建/编辑），路由 `/company/add`、`/company/edit/:id`
   - 侧边栏新增"公司管理"菜单项，sysadmin 角色
 - [x] **侧边栏菜单 abbr → icon** — 折叠态从单字缩写改为 Ant Design 图标
-  - 知识库(Book)、GEO文章(FileText)、GEO成绩(Trophy)、工具(Tool)、项目(Project)、技能(Thunderbolt)、用户(Team)、公司(Bank)、系统(Setting)
+  - 知识库(Book)、文章管理(FileText)、发布管理(Trophy)、工具(Tool)、项目(Project)、技能(Thunderbolt)、用户(Team)、公司(Bank)、系统(Setting)
   - `MenuItemDef` 接口 `abbr: string` → `icon: ReactNode`，antd `inlineCollapsed` 自动只显示 icon
   - `element-react` 从未实际使用，所有 UI 是原生 HTML + 自定义 CSS
   - 安装 `antd@6.4.1` + `@ant-design/icons@6.2.3`，卸载 `element-react`
@@ -135,7 +135,7 @@
   - 新增 18 个 auth.service 测试用例，总计 110 个后端测试全部通过
 
 ## 本次变更（2026-05-17 晚间）
-- [x] **GEO文章管理 (dev014)** — 完整 CRUD + 7状态生命周期 + 权限隔离
+- [x] **文章管理 (dev014)** — 完整 CRUD + 7状态生命周期 + 权限隔离
   - 新增 `ArticleStatus` 枚举：draft / generating / generate_failed / pending_review / publishing / publish_failed / published
   - 新增 `Article` 模型（Prisma），关联 Project（级联删除）和 User（创建者）
   - 字段：title(必填), keywords(Json/字符串数组), portrait(Text), images(Json), platforms(Json), status, created_by
@@ -300,7 +300,7 @@
   - **规则**：antd v5+ 中禁止使用 `message.success()` 等静态方法，必须通过 `App.useApp()` hook 获取 message 实例
 
 ## 本次变更（2026-05-18 文章生成调度器）
-- [x] **GEO文章异步生成调度器** — node-cron 定时任务，每5分钟处理 `generating` 状态文章
+- [x] **文章异步生成调度器** — node-cron 定时任务，每5分钟处理 `generating` 状态文章
   - 安装 `node-cron` + `@types/node-cron`
   - 扩展 `ILlmService` 接口：新增 `ArticleGenerationParams` + `generateArticle()` 方法
   - `LlmServiceImpl.generateArticle()`：system+user 双消息，temperature 0.7，自动插入知识库图片

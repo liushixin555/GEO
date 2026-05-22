@@ -11,7 +11,7 @@
 |------|----------|----------|
 | 系统管理员 | `sysadmin` | 全系统无限制访问，包括系统管理和公司管理 |
 | 运营者 | `admin` | 管理被授权的项目 |
-| 查看者 | `view` | 只读访问 GEO 成绩，仅查看被分配的项目 |
+| 查看者 | `view` | 只读访问发布管理，仅查看被分配的项目 |
 
 角色枚举定义位置：`prisma/schema.prisma` → `enum Role { sysadmin, admin, view }`
 TypeScript 类型定义位置：`apis/entity/user.entity.ts` → `type UserRole = 'sysadmin' | 'admin' | 'view'`
@@ -118,8 +118,8 @@ TypeScript 类型定义位置：`apis/entity/user.entity.ts` → `type UserRole 
 | 菜单 | 路由 | sysadmin | admin | view |
 |------|------|:--------:|:-----:|:----:|
 | AI知识库 | `/knowledge` | ✅ | ✅ | ❌ |
-| GEO文章 | `/article` | ✅ | ✅ | ❌ |
-| GEO成绩 | `/score` | ✅ | ✅ | ✅ |
+| 文章管理 | `/article` | ✅ | ✅ | ❌ |
+| 发布管理 | `/score` | ✅ | ✅ | ✅ |
 | 常用工具 | `/tools` | ✅ | ✅ | ❌ |
 | 项目管理 | `/project` | ✅ | ✅ | ❌ |
 | 用户管理 | `/users` | ✅ | ❌ | ❌ |

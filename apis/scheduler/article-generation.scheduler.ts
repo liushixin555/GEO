@@ -57,9 +57,14 @@ export async function processNextGeneratingArticle(): Promise<void> {
 
     console.log(`[文章生成] 开始处理文章 #${article.id}: ${article.title}`);
 
-    // Get project knowledge images
+    // Get project knowledge images via knowledge bases
+    const knowledgeBases = await prisma.knowledgeBase.findMany({
+      where: { projectId: article.projectId, status: true },
+      select: { id: true },
+    });
+    const baseIds = knowledgeBases.map(kb => kb.id);
     const images = await prisma.knowledgeImage.findMany({
-      where: { projectId: article.projectId },
+      where: { baseId: { in: baseIds } },
     });
 
     // Get skills name if skills field is set

@@ -16,6 +16,7 @@ import * as publishingPlatformController from './controller/publishing-platform.
 import * as projectController from './controller/project.controller';
 import * as articleController from './controller/article.controller';
 import * as knowledgeController from './controller/knowledge.controller';
+import * as knowledgeBaseController from './controller/knowledge-base.controller';
 import { uploadMiddleware, uploadFile } from './controller/upload.controller';
 
 const app: Express = express();
@@ -135,23 +136,30 @@ app.get('/api/projects/:projectId/articles/:id/versions', authMiddleware, roleMi
 // Upload route (sysadmin + admin)
 app.post('/api/upload', authMiddleware, roleMiddleware('sysadmin', 'admin'), uploadMiddleware, uploadFile);
 
-// Knowledge routes (sysadmin + admin)
-app.get('/api/projects/:projectId/knowledge/keywords', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listKeywords);
-app.get('/api/projects/:projectId/knowledge/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.getKeyword);
-app.post('/api/projects/:projectId/knowledge/keywords', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.createKeyword);
-app.post('/api/projects/:projectId/knowledge/keywords/expand', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.expandKeywords);
-app.put('/api/projects/:projectId/knowledge/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.updateKeyword);
-app.delete('/api/projects/:projectId/knowledge/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.deleteKeyword);
-app.get('/api/projects/:projectId/knowledge/portraits', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listPortraits);
-app.get('/api/projects/:projectId/knowledge/portraits/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.getPortrait);
-app.post('/api/projects/:projectId/knowledge/portraits', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.createPortrait);
-app.put('/api/projects/:projectId/knowledge/portraits/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.updatePortrait);
-app.delete('/api/projects/:projectId/knowledge/portraits/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.deletePortrait);
-app.get('/api/projects/:projectId/knowledge/images', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listImages);
-app.get('/api/projects/:projectId/knowledge/images/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.getImage);
-app.post('/api/projects/:projectId/knowledge/images', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.createImage);
-app.put('/api/projects/:projectId/knowledge/images/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.updateImage);
-app.delete('/api/projects/:projectId/knowledge/images/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.deleteImage);
+// Knowledge Base routes (sysadmin + admin)
+app.get('/api/knowledge-bases', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeBaseController.listKnowledgeBases);
+app.get('/api/knowledge-bases/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeBaseController.getKnowledgeBase);
+app.post('/api/knowledge-bases', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeBaseController.createKnowledgeBase);
+app.put('/api/knowledge-bases/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeBaseController.updateKnowledgeBase);
+app.delete('/api/knowledge-bases/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeBaseController.deleteKnowledgeBase);
+
+// Knowledge Item routes (sysadmin + admin) - scoped to knowledge base
+app.get('/api/knowledge-bases/:baseId/keywords', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listKeywords);
+app.get('/api/knowledge-bases/:baseId/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.getKeyword);
+app.post('/api/knowledge-bases/:baseId/keywords', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.createKeyword);
+app.post('/api/knowledge-bases/:baseId/keywords/expand', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.expandKeywords);
+app.put('/api/knowledge-bases/:baseId/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.updateKeyword);
+app.delete('/api/knowledge-bases/:baseId/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.deleteKeyword);
+app.get('/api/knowledge-bases/:baseId/portraits', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listPortraits);
+app.get('/api/knowledge-bases/:baseId/portraits/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.getPortrait);
+app.post('/api/knowledge-bases/:baseId/portraits', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.createPortrait);
+app.put('/api/knowledge-bases/:baseId/portraits/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.updatePortrait);
+app.delete('/api/knowledge-bases/:baseId/portraits/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.deletePortrait);
+app.get('/api/knowledge-bases/:baseId/images', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listImages);
+app.get('/api/knowledge-bases/:baseId/images/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.getImage);
+app.post('/api/knowledge-bases/:baseId/images', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.createImage);
+app.put('/api/knowledge-bases/:baseId/images/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.updateImage);
+app.delete('/api/knowledge-bases/:baseId/images/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.deleteImage);
 
 // Health check
 app.get('/api/health', (_req, res) => {

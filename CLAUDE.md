@@ -68,7 +68,8 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 ## Key Conventions
 
 - **TDD**: write tests first, then code; run tests after every change
-- **Three roles**: sysadmin (full access + 系统管理), admin (company operations), view (GEO成绩 only)
+- **Three roles**: sysadmin (full access + 系统管理), admin (company operations), view (发布管理 only)
+- **禁止使用GEO字眼**: 项目中禁止使用GEO字眼，薄云GEO应称为薄云商机倍增服务，GEO文章应称为文章管理，GEO成绩应称为发布管理
 - **All API routes** (except `POST /api/auth/login`) require JWT auth + anti-crawl + rate-limit headers
 - **Backend tests**: set env vars directly (`process.env.JWT_SECRET='test-secret'`) instead of jest.mock; add `.set('User-Agent', 'test-agent/1.0')` to supertest calls
 - **JWT expires in 2 hours**; token + user stored in localStorage on frontend

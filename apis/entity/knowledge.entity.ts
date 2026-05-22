@@ -1,6 +1,6 @@
 export interface KnowledgeKeyword {
   id: number;
-  project_id: number;
+  base_id: number;
   keyword: string;
   group_id: number | null;
   created_by: number | null;
@@ -20,7 +20,7 @@ export interface KeywordExpandedWord {
 
 export interface KnowledgePortrait {
   id: number;
-  project_id: number;
+  base_id: number;
   title: string;
   content: string | null;
   created_by: number | null;
@@ -30,7 +30,7 @@ export interface KnowledgePortrait {
 
 export interface KnowledgeImage {
   id: number;
-  project_id: number;
+  base_id: number;
   title: string;
   description: string | null;
   image_url: string;

@@ -12,6 +12,7 @@ import ProjectPage from '../project';
 import ArticlePage from '../article';
 import ArticleDetail from '../article/ArticleDetail';
 import KnowledgePage from '../knowledge';
+import KnowledgeBaseDetail from '../knowledge/KnowledgeBaseDetail';
 import KeywordDetail from '../knowledge/KeywordDetail';
 import PortraitDetail from '../knowledge/PortraitDetail';
 import ImageDetail from '../knowledge/ImageDetail';
@@ -169,9 +170,10 @@ const Layout: React.FC = () => {
         <Content className="main-content">
           <Routes>
             <Route path="/knowledge" element={<KnowledgePage />} />
-            <Route path="/knowledge/keyword/:id" element={<KeywordDetail />} />
-            <Route path="/knowledge/portrait/:id" element={<PortraitDetail />} />
-            <Route path="/knowledge/image/:id" element={<ImageDetail />} />
+            <Route path="/knowledge/:baseId" element={<KnowledgeBaseDetail />} />
+            <Route path="/knowledge/:baseId/keyword/:id" element={<KeywordDetail />} />
+            <Route path="/knowledge/:baseId/portrait/:id" element={<PortraitDetail />} />
+            <Route path="/knowledge/:baseId/image/:id" element={<ImageDetail />} />
             <Route path="/article" element={<ArticlePage />} />
             <Route path="/article/:id" element={<ArticleDetail />} />
             <Route path="/score" element={<PlaceholderPage title="发布管理" />} />

@@ -6,7 +6,7 @@ import { IKeywordService, IPortraitService, IImageService } from '../knowledge.s
 function mapRawKeyword(r: any): KnowledgeKeyword {
   return {
     id: r.id,
-    project_id: r.project_id,
+    base_id: r.base_id,
     keyword: r.keyword,
     group_id: r.group_id ?? null,
     created_by: r.created_by,
@@ -27,9 +27,9 @@ function mapRawExpandedWord(r: any): KeywordExpandedWord {
 }
 
 export class KeywordServiceImpl implements IKeywordService {
-  async list(projectId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeKeyword[]; total: number }> {
+  async list(baseId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeKeyword[]; total: number }> {
     const prisma = getPrisma();
-    const where: any = { projectId };
+    const where: any = { baseId };
     if (search) {
       where.keyword = { contains: search, mode: 'insensitive' };
     }
@@ -45,31 +45,28 @@ export class KeywordServiceImpl implements IKeywordService {
     const rows: any[] = await prisma.$queryRaw`SELECT * FROM knowledge_keywords WHERE id = ${id}`;
     if (!rows || rows.length === 0) throw new Error('关键词不存在');
     const keyword = mapRawKeyword(rows[0]);
-    // Load expanded words
     keyword.expanded_words = await this.listExpandedWords(id);
     return keyword;
   }
 
-  async create(projectId: number, request: CreateKeywordRequest, userId: number): Promise<KnowledgeKeyword> {
+  async create(baseId: number, request: CreateKeywordRequest, userId: number): Promise<KnowledgeKeyword> {
     const prisma = getPrisma();
     const item = await prisma.knowledgeKeyword.create({
-      data: { projectId, keyword: request.keyword, createdBy: userId },
+      data: { baseId, keyword: request.keyword, createdBy: userId },
     });
     const keyword = mapKeyword(item);
-    // Save expanded words if provided
     if (request.expanded_words && request.expanded_words.length > 0) {
-      keyword.expanded_words = await this.syncExpandedWords(keyword.id, projectId, request.expanded_words, userId);
+      keyword.expanded_words = await this.syncExpandedWords(keyword.id, baseId, request.expanded_words, userId);
     }
     return keyword;
   }
 
-  async batchCreate(projectId: number, keywords: string[], userId: number, groupId: number): Promise<KnowledgeKeyword[]> {
-    // Legacy - not used anymore but kept for interface compatibility
+  async batchCreate(baseId: number, keywords: string[], userId: number, groupId: number): Promise<KnowledgeKeyword[]> {
     const prisma = getPrisma();
     const items = await Promise.all(
       keywords.map(keyword =>
         prisma.knowledgeKeyword.create({
-          data: { projectId, keyword, createdBy: userId },
+          data: { baseId, keyword, createdBy: userId },
         })
       )
     );
@@ -77,12 +74,10 @@ export class KeywordServiceImpl implements IKeywordService {
   }
 
   async listByGroup(groupId: number): Promise<KnowledgeKeyword[]> {
-    // Legacy - not used anymore
     return [];
   }
 
-  async syncGroup(groupId: number, projectId: number, keywords: string[], userId: number): Promise<KnowledgeKeyword[]> {
-    // Legacy - not used anymore
+  async syncGroup(groupId: number, baseId: number, keywords: string[], userId: number): Promise<KnowledgeKeyword[]> {
     return [];
   }
 
@@ -92,9 +87,8 @@ export class KeywordServiceImpl implements IKeywordService {
     if (!existing) throw new Error('关键词不存在');
     const updated = await prisma.knowledgeKeyword.update({ where: { id }, data: { keyword: request.keyword } });
     const keyword = mapKeyword(updated);
-    // Sync expanded words if provided
     if (request.expanded_words !== undefined) {
-      keyword.expanded_words = await this.syncExpandedWords(id, existing.projectId, request.expanded_words, existing.createdBy ?? 0);
+      keyword.expanded_words = await this.syncExpandedWords(id, existing.baseId, request.expanded_words, existing.createdBy ?? 0);
     } else {
       keyword.expanded_words = await this.listExpandedWords(id);
     }
@@ -105,11 +99,8 @@ export class KeywordServiceImpl implements IKeywordService {
     const prisma = getPrisma();
     const existing = await prisma.knowledgeKeyword.findFirst({ where: { id } });
     if (!existing) throw new Error('关键词不存在');
-    // Cascade delete will remove expanded words
     await prisma.knowledgeKeyword.delete({ where: { id } });
   }
-
-  // ===== Expanded Words (raw SQL) =====
 
   async listExpandedWords(keywordId: number): Promise<KeywordExpandedWord[]> {
     const prisma = getPrisma();
@@ -117,11 +108,9 @@ export class KeywordServiceImpl implements IKeywordService {
     return rows.map(mapRawExpandedWord);
   }
 
-  async syncExpandedWords(keywordId: number, _projectId: number, words: { word: string; selected: boolean }[], _userId: number): Promise<KeywordExpandedWord[]> {
+  async syncExpandedWords(keywordId: number, _baseId: number, words: { word: string; selected: boolean }[], _userId: number): Promise<KeywordExpandedWord[]> {
     const prisma = getPrisma();
-    // Delete all existing expanded words for this keyword
     await prisma.$executeRaw`DELETE FROM keyword_expanded_words WHERE keyword_id = ${keywordId}`;
-    // Re-insert all
     for (const w of words) {
       await prisma.$executeRaw`INSERT INTO keyword_expanded_words (keyword_id, word, selected, created_at, updated_at) VALUES (${keywordId}, ${w.word}, ${w.selected}, NOW(), NOW())`;
     }
@@ -130,9 +119,9 @@ export class KeywordServiceImpl implements IKeywordService {
 }
 
 export class PortraitServiceImpl implements IPortraitService {
-  async list(projectId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgePortrait[]; total: number }> {
+  async list(baseId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgePortrait[]; total: number }> {
     const prisma = getPrisma();
-    const where: any = { projectId };
+    const where: any = { baseId };
     if (search) {
       where.title = { contains: search, mode: 'insensitive' };
     }
@@ -150,10 +139,10 @@ export class PortraitServiceImpl implements IPortraitService {
     return mapPortrait(item);
   }
 
-  async create(projectId: number, request: CreatePortraitRequest, userId: number): Promise<KnowledgePortrait> {
+  async create(baseId: number, request: CreatePortraitRequest, userId: number): Promise<KnowledgePortrait> {
     const prisma = getPrisma();
     const item = await prisma.knowledgePortrait.create({
-      data: { projectId, title: request.title, content: request.content || null, createdBy: userId },
+      data: { baseId, title: request.title, content: request.content || null, createdBy: userId },
     });
     return mapPortrait(item);
   }
@@ -178,9 +167,9 @@ export class PortraitServiceImpl implements IPortraitService {
 }
 
 export class ImageServiceImpl implements IImageService {
-  async list(projectId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeImage[]; total: number }> {
+  async list(baseId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeImage[]; total: number }> {
     const prisma = getPrisma();
-    const where: any = { projectId };
+    const where: any = { baseId };
     if (search) {
       where.title = { contains: search, mode: 'insensitive' };
     }
@@ -198,10 +187,10 @@ export class ImageServiceImpl implements IImageService {
     return mapKnowledgeImage(item);
   }
 
-  async create(projectId: number, request: CreateImageRequest, userId: number): Promise<KnowledgeImage> {
+  async create(baseId: number, request: CreateImageRequest, userId: number): Promise<KnowledgeImage> {
     const prisma = getPrisma();
     const item = await prisma.knowledgeImage.create({
-      data: { projectId, title: request.title, description: request.description || null, imageUrl: request.image_url, createdBy: userId },
+      data: { baseId, title: request.title, description: request.description || null, imageUrl: request.image_url, createdBy: userId },
     });
     return mapKnowledgeImage(item);
   }
