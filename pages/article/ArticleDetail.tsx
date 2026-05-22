@@ -259,6 +259,7 @@ const ArticleDetail: React.FC = () => {
       }
 
       if (isNew) {
+        if (content.trim()) payload.content = content;
         const res = await axios.post(`/api/projects/${projectId}/articles`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
