@@ -56,18 +56,28 @@ const KnowledgeBaseForm: React.FC<KnowledgeBaseFormProps> = ({ item, onClose, on
         company_id: item.company_id,
         project_id: item.project_id,
       });
+      if (item.company_id) fetchProjects(item.company_id);
     }
   }, [item]);
 
   const fetchAccessibleData = async () => {
     try {
       const token = localStorage.getItem('token');
-      const [companiesRes, projectsRes] = await Promise.all([
-        axios.get('/api/auth/companies', { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get('/api/auth/projects', { headers: { Authorization: `Bearer ${token}` } }),
-      ]);
+      const companiesRes = await axios.get('/api/auth/companies', { headers: { Authorization: `Bearer ${token}` } });
       setCompanies(companiesRes.data.data.map((c: any) => ({ id: c.id, short_name: c.short_name })));
-      setProjects(projectsRes.data.data.map((p: any) => ({ id: p.id, short_name: p.short_name, company_id: p.company_id })));
+    } catch {
+      // ignore
+    }
+  };
+
+  const fetchProjects = async (companyId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get('/api/auth/projects', {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { company_id: companyId },
+      });
+      setProjects(res.data.data.map((p: any) => ({ id: p.id, short_name: p.short_name, company_id: companyId })));
     } catch {
       // ignore
     }
@@ -78,8 +88,10 @@ const KnowledgeBaseForm: React.FC<KnowledgeBaseFormProps> = ({ item, onClose, on
     form.setFieldsValue({ company_id: undefined, project_id: undefined });
   };
 
-  const handleCompanyChange = () => {
+  const handleCompanyChange = (companyId: number) => {
     form.setFieldsValue({ project_id: undefined });
+    setProjects([]);
+    if (companyId) fetchProjects(companyId);
   };
 
   const handleSubmit = async (values: any) => {
@@ -118,11 +130,7 @@ const KnowledgeBaseForm: React.FC<KnowledgeBaseFormProps> = ({ item, onClose, on
     }
   };
 
-  const filteredProjects = selectedScope === 'project'
-    ? (form.getFieldValue('company_id')
-      ? projects.filter(p => p.company_id === form.getFieldValue('company_id'))
-      : projects)
-    : [];
+  const filteredProjects = selectedScope === 'project' ? projects : [];
 
   return (
     <Modal
