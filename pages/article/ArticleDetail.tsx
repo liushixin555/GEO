@@ -170,6 +170,13 @@ const ArticleDetail: React.FC = () => {
     fetchArticle();
   }, [fetchArticle]);
 
+  // Reset contentMode when transitioning from /article/new to /article/:id
+  useEffect(() => {
+    if (!isNew && !location.state?.openContentEdit) {
+      setContentMode('preview');
+    }
+  }, [isNew]);
+
   // Handle navigation state for manual write mode
   useEffect(() => {
     if (location.state?.openContentEdit && !isNew) {
