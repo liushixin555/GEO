@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Tabs, Row, Col, Card, Input, Typography, Spin, Pagination, Empty, Popconfirm, App, Breadcrumb, Image, Tag } from 'antd';
+import { Tabs, Row, Col, Card, Input, Typography, Spin, Pagination, Empty, Popconfirm, App, Breadcrumb, Image, Tag, Alert, Button } from 'antd';
 import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
@@ -46,6 +46,16 @@ const KnowledgeBaseDetail: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('kb_active_tab') || 'keywords');
   const [baseName, setBaseName] = useState('');
   const [baseScope, setBaseScope] = useState<string>('');
+
+  // Invalid baseId guard
+  if (!baseId || isNaN(baseId) || baseId <= 0) {
+    return (
+      <div className="page-container">
+        <Alert type="error" message="无效的知识库ID" showIcon
+          action={<Button onClick={() => navigate('/knowledge')}>返回列表</Button>} />
+      </div>
+    );
+  }
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);

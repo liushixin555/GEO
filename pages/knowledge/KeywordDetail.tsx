@@ -12,9 +12,10 @@ interface ExpandedWordItem {
 }
 
 const KeywordDetail: React.FC = () => {
-  const { baseId, id } = useParams<{ baseId: string; id: string }>();
+  const { baseId: baseIdStr, id } = useParams<{ baseId: string; id: string }>();
   const navigate = useNavigate();
   const { message } = App.useApp();
+  const baseId = parseInt(baseIdStr || '', 10);
   const isNew = id === 'add';
   const [searchParams] = useSearchParams();
   const isEditMode = isNew || searchParams.get('mode') === 'edit';
@@ -32,7 +33,7 @@ const KeywordDetail: React.FC = () => {
   const [expandPage, setExpandPage] = useState(1);
 
   const fetchData = useCallback(async () => {
-    if (isNew || !baseId) return;
+    if (isNew || !baseId || isNaN(baseId)) return;
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
@@ -51,6 +52,16 @@ const KeywordDetail: React.FC = () => {
   }, [id, baseId, isNew]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Invalid baseId guard
+  if (!baseId || isNaN(baseId) || baseId <= 0) {
+    return (
+      <div className="page-container">
+        <Alert type="error" message="无效的知识库ID" showIcon
+          action={<Button onClick={() => navigate('/knowledge')}>返回列表</Button>} />
+      </div>
+    );
+  }
 
   const canEdit = isEditMode && (user.role === 'sysadmin' || isNew || data?.created_by === user.id);
 
