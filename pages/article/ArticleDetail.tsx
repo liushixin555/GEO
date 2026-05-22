@@ -446,13 +446,18 @@ const ArticleDetail: React.FC = () => {
     <Form form={form} onFinish={(values) => handleSaveSettings(values, writeMode === 'ai')} layout="vertical">
       {error && <Alert type="error" message={error} className="form-alert" showIcon closable onClose={() => setError('')} />}
       <Form.Item label="编写方式">
-        <Segmented
-          block
-          disabled={!isSettingsEditable}
-          options={[{ label: '手工编写', value: 'manual' }, { label: 'AI生成', value: 'ai' }]}
-          value={writeMode}
-          onChange={(val) => setWriteMode(val as 'manual' | 'ai')}
-        />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button
+            disabled={!isSettingsEditable}
+            type={writeMode === 'manual' ? 'primary' : 'default'}
+            onClick={() => setWriteMode('manual')}
+          >手工编写</Button>
+          <Button
+            disabled={!isSettingsEditable}
+            type={writeMode === 'ai' ? 'primary' : 'default'}
+            onClick={() => setWriteMode('ai')}
+          >AI生成</Button>
+        </div>
       </Form.Item>
       <Form.Item name="keywords" label="关键词" rules={[{ required: true, message: '关键词不能为空' }]}>
         <Select showSearch placeholder="从知识库选择关键词" options={kbKeywords} disabled={!isSettingsEditable} loading={kbLoading} notFoundContent={kbLoading ? '加载中...' : '暂无知识库关键词'} />
