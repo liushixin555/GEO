@@ -66,7 +66,7 @@ const CompanyPage: React.FC = () => {
   }
 
   if (error) {
-    return <Alert type="error" message={error} className="page-alert" />;
+    return <Alert type="error" title={error} className="page-alert" />;
   }
 
   return (

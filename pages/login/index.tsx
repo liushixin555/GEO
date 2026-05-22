@@ -44,7 +44,7 @@ const LoginPage: React.FC = () => {
     <div className="login-page">
       <div className="login-card">
         <div className="page-breadcrumb"><Breadcrumb items={[{ title: '薄云商机倍增服务' }]} /></div>
-        {error && <Alert type="error" message={error} className="form-alert" showIcon />}
+        {error && <Alert type="error" title={error} className="form-alert" showIcon />}
         <Form onFinish={handleSubmit} layout="vertical">
           <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
             <Input prefix={<UserOutlined />} placeholder="请输入用户名" autoComplete="username" size="large" />

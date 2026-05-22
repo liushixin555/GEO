@@ -51,7 +51,7 @@ const KnowledgeBaseDetail: React.FC = () => {
   if (!baseId || isNaN(baseId) || baseId <= 0) {
     return (
       <div className="page-container">
-        <Alert type="error" message="无效的知识库ID" showIcon
+        <Alert type="error" title="无效的知识库ID" showIcon
           action={<Button onClick={() => navigate('/knowledge')}>返回列表</Button>} />
       </div>
     );

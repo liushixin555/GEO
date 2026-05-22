@@ -115,8 +115,8 @@ const CompanyForm: React.FC = () => {
   return (
     <div className="page-container">
       <div className="page-breadcrumb"><Breadcrumb items={[{ title: '公司管理' }, { title: isEdit ? '修改公司' : '添加公司' }]} /></div>
-      {companyDisabled && <Alert type="warning" message="该公司已被禁用，无法编辑" showIcon style={{ marginBottom: 16 }} />}
-      {serverError && <Alert type="error" message={serverError} className="form-alert-lg" showIcon />}
+      {companyDisabled && <Alert type="warning" title="该公司已被禁用，无法编辑" showIcon style={{ marginBottom: 16 }} />}
+      {serverError && <Alert type="error" title={serverError} className="form-alert-lg" showIcon />}
       {fetching && <div className="loading-container"><Spin size="large" /></div>}
       <Form form={form} onFinish={handleSubmit} layout="vertical" className="company-form" style={fetching ? { display: 'none' } : undefined}>
         <Form.Item name="short_name" label="公司名短名" rules={[{ required: true, message: '公司名短名不能为空' }]}>

@@ -75,8 +75,8 @@ const UserForm: React.FC<UserFormProps> = ({ item, isSysadmin, onClose, onSaved 
       footer={null}
       destroyOnHidden
     >
-      {isDisabled && <Alert type="warning" message="该用户已被禁用，无法编辑" showIcon style={{ marginBottom: 16 }} />}
-      {error && <Alert type="error" message={error} className="form-alert" showIcon />}
+      {isDisabled && <Alert type="warning" title="该用户已被禁用，无法编辑" showIcon style={{ marginBottom: 16 }} />}
+      {error && <Alert type="error" title={error} className="form-alert" showIcon />}
       <Form form={form} onFinish={handleSubmit} layout="vertical" initialValues={{ role: 'view' }}>
         <Form.Item name="username" label="用户名" rules={[{ required: true, message: '用户名不能为空' }]}>
           <Input disabled={isEdit} />

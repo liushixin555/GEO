@@ -461,7 +461,7 @@ const ArticleDetail: React.FC = () => {
 
   const settingsTab = (
     <Form form={form} onFinish={(values) => handleSaveSettings(values, writeMode === 'ai')} layout="vertical">
-      {error && <Alert type="error" message={error} className="form-alert" showIcon closable onClose={() => setError('')} />}
+      {error && <Alert type="error" title={error} className="form-alert" showIcon closable onClose={() => setError('')} />}
       <Form.Item name="write_mode" label="编写方式" rules={[{ required: true, message: '请选择编写方式' }]}>
         <Radio.Group
           onChange={(e) => setWriteMode(e.target.value)}
@@ -731,7 +731,7 @@ const ArticleDetail: React.FC = () => {
       {article && article.status === 'pending_review' && (
         <Alert
           type="warning"
-          message="该文章待审核"
+          title="该文章待审核"
           showIcon
           style={{ marginBottom: 12 }}
           action={

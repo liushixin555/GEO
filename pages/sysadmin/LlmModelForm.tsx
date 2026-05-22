@@ -73,8 +73,8 @@ const LlmModelForm: React.FC<LlmModelFormProps> = ({ item, onClose, onSaved }) =
       footer={null}
       destroyOnHidden
     >
-      {isDisabled && <Alert type="warning" message="该模型已被禁用，无法编辑" showIcon style={{ marginBottom: 16 }} />}
-      {error && <Alert type="error" message={error} className="form-alert" showIcon />}
+      {isDisabled && <Alert type="warning" title="该模型已被禁用，无法编辑" showIcon style={{ marginBottom: 16 }} />}
+      {error && <Alert type="error" title={error} className="form-alert" showIcon />}
       <Form form={form} onFinish={handleSubmit} layout="vertical">
         <Form.Item name="provider" label="供应商" rules={[{ required: true, message: '供应商不能为空' }]}>
           <Input placeholder="如 OpenAI、Anthropic、DeepSeek" disabled={isDisabled} />

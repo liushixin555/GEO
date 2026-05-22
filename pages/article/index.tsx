@@ -127,8 +127,8 @@ const ArticlePage: React.FC = () => {
                   onClick={() => navigate(`/article/${item.id}`)}
                 >
                   <div className="item-card-header">
-                    <Typography.Title level={3} className="item-card-title" ellipsis={{ tooltip: item.keywords }}>
-                      {item.id}.{item.keywords}
+                    <Typography.Title level={3} className="item-card-title" ellipsis={{ tooltip: item.title || item.keywords }}>
+                      {item.id}.{item.title || item.keywords}
                     </Typography.Title>
                     {canDelete(item) && (
                       <Popconfirm title="确定删除此文章？" onConfirm={(e) => { e?.stopPropagation(); handleDelete(item); }} okText="删除" cancelText="取消">

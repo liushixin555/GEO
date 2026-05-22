@@ -140,7 +140,7 @@ const KnowledgeBaseForm: React.FC<KnowledgeBaseFormProps> = ({ item, onClose, on
       footer={null}
       destroyOnHidden
     >
-      {error && <Alert type="error" message={error} className="form-alert" showIcon />}
+      {error && <Alert type="error" title={error} className="form-alert" showIcon />}
       <Form form={form} onFinish={handleSubmit} layout="vertical">
         <Form.Item name="name" label="知识库名称" rules={[{ required: true, message: '知识库名称不能为空' }]}>
           <Input />

@@ -58,7 +58,7 @@ const ImageDetail: React.FC = () => {
   if (!baseId || isNaN(baseId) || baseId <= 0) {
     return (
       <div className="page-container">
-        <Alert type="error" message="无效的知识库ID" showIcon
+        <Alert type="error" title="无效的知识库ID" showIcon
           action={<Button onClick={() => navigate('/knowledge')}>返回列表</Button>} />
       </div>
     );
@@ -122,7 +122,7 @@ const ImageDetail: React.FC = () => {
         <Typography.Title level={2} style={{ margin: 0 }}>{isNew ? '添加图片' : '图片详情'}</Typography.Title>
       </div>
       <Form form={form} onFinish={handleSave} layout="vertical" style={{ maxWidth: 600 }}>
-        {error && <Alert type="error" message={error} className="form-alert" showIcon closable onClose={() => setError('')} />}
+        {error && <Alert type="error" title={error} className="form-alert" showIcon closable onClose={() => setError('')} />}
         <Form.Item name="title" label="图片标题" rules={[{ required: true, message: '标题不能为空' }]}>
           <Input placeholder="输入图片标题" disabled={!canEdit} />
         </Form.Item>

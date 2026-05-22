@@ -71,8 +71,8 @@ const SkillForm: React.FC<SkillFormProps> = ({ item, isSysadmin, onClose, onSave
       footer={null}
       destroyOnHidden
     >
-      {isDisabled && <Alert type="warning" message="该技能已被禁用，无法编辑" showIcon style={{ marginBottom: 16 }} />}
-      {error && <Alert type="error" message={error} className="form-alert" showIcon />}
+      {isDisabled && <Alert type="warning" title="该技能已被禁用，无法编辑" showIcon style={{ marginBottom: 16 }} />}
+      {error && <Alert type="error" title={error} className="form-alert" showIcon />}
       <Form form={form} onFinish={handleSubmit} layout="vertical">
         <Form.Item name="name" label="技能名称" rules={[{ required: true, message: '技能名称不能为空' }]}>
           <Input disabled={isDisabled} />

@@ -119,8 +119,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ item, companies, onClose, onS
       footer={null}
       destroyOnHidden
     >
-      {isDisabled && <Alert type="warning" message="该项目已被禁用，无法编辑" showIcon style={{ marginBottom: 16 }} />}
-      {error && <Alert type="error" message={error} className="form-alert" showIcon />}
+      {isDisabled && <Alert type="warning" title="该项目已被禁用，无法编辑" showIcon style={{ marginBottom: 16 }} />}
+      {error && <Alert type="error" title={error} className="form-alert" showIcon />}
       <Form form={form} onFinish={handleSubmit} layout="vertical">
         <Form.Item name="short_name" label="项目短名" rules={[{ required: true, message: '项目短名不能为空' }]}>
           <Input disabled={isDisabled} />

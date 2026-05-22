@@ -71,7 +71,7 @@ const KeywordDetail: React.FC = () => {
   if (!baseId || isNaN(baseId) || baseId <= 0) {
     return (
       <div className="page-container">
-        <Alert type="error" message="无效的知识库ID" showIcon
+        <Alert type="error" title="无效的知识库ID" showIcon
           action={<Button onClick={() => navigate('/knowledge')}>返回列表</Button>} />
       </div>
     );
@@ -197,7 +197,7 @@ const KeywordDetail: React.FC = () => {
         <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(`/knowledge/${baseId}`)} />
         <Typography.Title level={2} style={{ margin: 0 }}>{pageTitle}</Typography.Title>
       </div>
-      {error && <Alert type="error" message={error} className="form-alert" showIcon closable onClose={() => setError('')} style={{ marginBottom: 16 }} />}
+      {error && <Alert type="error" title={error} className="form-alert" showIcon closable onClose={() => setError('')} style={{ marginBottom: 16 }} />}
       <Form form={form} layout="inline" style={{ marginBottom: 16 }}>
         <Form.Item name="keyword" label="种子词" rules={[{ required: true, message: '种子词不能为空' }]}>
           <Input placeholder="输入种子词" style={{ width: 280 }} disabled={!canEdit} />
