@@ -127,8 +127,8 @@ const ArticlePage: React.FC = () => {
                   onClick={() => navigate(`/article/${item.id}`)}
                 >
                   <div className="item-card-header">
-                    <Typography.Title level={3} className="item-card-title" ellipsis={{ tooltip: item.title }}>
-                      {item.title}
+                    <Typography.Title level={3} className="item-card-title" ellipsis={{ tooltip: item.keywords }}>
+                      {item.id}.{item.keywords}
                     </Typography.Title>
                     {canDelete(item) && (
                       <Popconfirm title="确定删除此文章？" onConfirm={(e) => { e?.stopPropagation(); handleDelete(item); }} okText="删除" cancelText="取消">
@@ -139,11 +139,6 @@ const ArticlePage: React.FC = () => {
                   <div className="item-card-row">
                     <Tag color={statusCfg.color}>{statusCfg.label}</Tag>
                   </div>
-                  {item.keywords && (
-                    <div className="item-card-row" style={{ flexWrap: 'wrap', gap: 4 }}>
-                      <Tag>{item.keywords}</Tag>
-                    </div>
-                  )}
                   <div className="item-card-row">
                     <span className="item-card-username">{new Date(item.created_at).toLocaleDateString()}</span>
                   </div>
