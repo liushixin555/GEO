@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Form, Input, Select, Button, Alert, Segmented, Upload, Image, Tabs, Typography, Spin, Tag, App, Popconfirm, Table, Modal } from 'antd';
+import { Form, Input, Select, Button, Alert, Segmented, Upload, Image, Collapse, Typography, Spin, Tag, App, Popconfirm, Table, Modal } from 'antd';
 import { ArrowLeftOutlined, InboxOutlined, LinkOutlined, DeleteOutlined, CheckOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import MDEditor from '@uiw/react-md-editor';
 import axios from 'axios';
@@ -80,7 +80,6 @@ const ArticleDetail: React.FC = () => {
   const [content, setContent] = useState('');
   const [contentSaving, setContentSaving] = useState(false);
   const [contentMode, setContentMode] = useState<'preview' | 'edit'>('preview');
-  const [activeTab, setActiveTab] = useState('settings');
 
   // Tab
   const fetchArticle = useCallback(async () => {
@@ -116,9 +115,11 @@ const ArticleDetail: React.FC = () => {
   // Handle navigation state for manual write mode
   useEffect(() => {
     if (location.state?.openContentEdit && !isNew) {
-      setActiveTab('content');
       setContentMode('edit');
-      // Clear state to prevent re-triggering
+      // Scroll to content section
+      setTimeout(() => {
+        document.getElementById('article-content-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
       window.history.replaceState({}, '');
     }
   }, [location.state, isNew]);
@@ -279,8 +280,10 @@ const ArticleDetail: React.FC = () => {
           message.success('已提交，AI生成中');
         } else if (manualWrite) {
           message.success('请编写正文');
-          setActiveTab('content');
           setContentMode('edit');
+          setTimeout(() => {
+            document.getElementById('article-content-section')?.scrollIntoView({ behavior: 'smooth' });
+          }, 100);
         } else {
           message.success('保存成功');
         }
@@ -618,7 +621,7 @@ const ArticleDetail: React.FC = () => {
   );
 
   const contentTab = (
-    <div data-color-mode="light">
+    <div id="article-content-section" data-color-mode="light">
       {article && (
         <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ color: 'var(--color-ink-muted)', fontSize: 13 }}>版本 {(article.version ?? 1.0).toFixed(1)}</span>
@@ -689,13 +692,15 @@ const ArticleDetail: React.FC = () => {
     </div>
   );
 
-  const tabItems = [
+  const collapseItems = [
     { key: 'settings', label: '文章设置', children: settingsTab, forceRender: true },
   ];
 
   if (!isNew && article) {
-    tabItems.push({ key: 'content', label: `正文 (v${(article.version ?? 1.0).toFixed(1)})`, children: contentTab, forceRender: true });
+    collapseItems.push({ key: 'content', label: `正文 (v${(article.version ?? 1.0).toFixed(1)})`, children: contentTab, forceRender: true });
   }
+
+  const defaultActiveKeys = isNew ? ['settings'] : ['content'];
 
   return (
     <div className="page-container">
@@ -708,7 +713,11 @@ const ArticleDetail: React.FC = () => {
           <Tag color={statusCfg.color}>{statusCfg.label}</Tag>
         )}
       </div>
-      <Tabs items={tabItems} activeKey={activeTab} onChange={setActiveTab} />
+      <Collapse
+        defaultActiveKey={defaultActiveKeys}
+        items={collapseItems}
+        style={{ marginBottom: 16 }}
+      />
     </div>
   );
 };
