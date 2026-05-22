@@ -99,7 +99,7 @@ const ArticlePage: React.FC = () => {
       <Row gutter={[16, 12]} className="toolbar">
         <Col xs={24} sm={12}>
           <Input.Search
-            placeholder="搜索文章标题..."
+            placeholder="搜索文章关联的关键词..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             allowClear
