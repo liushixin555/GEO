@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Form, Input, Select, Button, Alert, Upload, Image, Collapse, Typography, Spin, Tag, App, Popconfirm, Table, Modal, Radio } from 'antd';
+import { Form, Input, Select, Button, Alert, Segmented, Upload, Image, Collapse, Typography, Spin, Tag, App, Popconfirm, Table, Modal, Radio } from 'antd';
 import { ArrowLeftOutlined, InboxOutlined, LinkOutlined, DeleteOutlined, CheckOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import MDEditor from '@uiw/react-md-editor';
 import axios from 'axios';
