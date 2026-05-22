@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Form, Input, Select, Button, Alert, Segmented, Upload, Image, Collapse, Typography, Spin, Tag, App, Popconfirm, Table, Modal } from 'antd';
+import { Form, Input, Select, Button, Alert, Upload, Image, Collapse, Typography, Spin, Tag, App, Popconfirm, Table, Modal, Radio } from 'antd';
 import { ArrowLeftOutlined, InboxOutlined, LinkOutlined, DeleteOutlined, CheckOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import MDEditor from '@uiw/react-md-editor';
 import axios from 'axios';
@@ -446,18 +446,14 @@ const ArticleDetail: React.FC = () => {
     <Form form={form} onFinish={(values) => handleSaveSettings(values, writeMode === 'ai')} layout="vertical">
       {error && <Alert type="error" message={error} className="form-alert" showIcon closable onClose={() => setError('')} />}
       <Form.Item label="编写方式">
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Button
-            disabled={!isSettingsEditable}
-            type={writeMode === 'manual' ? 'primary' : 'default'}
-            onClick={() => setWriteMode('manual')}
-          >手工编写</Button>
-          <Button
-            disabled={!isSettingsEditable}
-            type={writeMode === 'ai' ? 'primary' : 'default'}
-            onClick={() => setWriteMode('ai')}
-          >AI生成</Button>
-        </div>
+        <Radio.Group
+          value={writeMode}
+          onChange={(e) => setWriteMode(e.target.value)}
+          disabled={!isSettingsEditable}
+          optionType="button"
+          buttonStyle="solid"
+          options={[{ label: '手工编写', value: 'manual' }, { label: 'AI生成', value: 'ai' }]}
+        />
       </Form.Item>
       <Form.Item name="keywords" label="关键词" rules={[{ required: true, message: '关键词不能为空' }]}>
         <Select showSearch placeholder="从知识库选择关键词" options={kbKeywords} disabled={!isSettingsEditable} loading={kbLoading} notFoundContent={kbLoading ? '加载中...' : '暂无知识库关键词'} />
