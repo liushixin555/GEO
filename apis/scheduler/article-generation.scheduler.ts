@@ -122,16 +122,14 @@ export async function processNextGeneratingArticle(): Promise<void> {
 
     console.log(`[文章生成] 本批次取到 ${articles.length} 篇待生成文章`);
 
-    // Process all articles in parallel
-    const results = await Promise.allSettled(
-      articles.map((article: any) => processSingleArticle(prisma, article))
-    );
-
-    // Mark failed articles
-    for (let i = 0; i < results.length; i++) {
-      if (results[i].status === 'rejected') {
-        const article = articles[i];
-        console.error(`[文章生成] 文章 #${article.id} 处理失败: ${(results[i] as PromiseRejectedResult).reason?.message || '未知错误'}`);
+    // Process articles sequentially
+    let successCount = 0;
+    for (const article of articles) {
+      try {
+        await processSingleArticle(prisma, article);
+        successCount++;
+      } catch (err: any) {
+        console.error(`[文章生成] 文章 #${article.id} 处理失败: ${err.message}`);
         try {
           await prisma.article.update({
             where: { id: article.id },
@@ -144,7 +142,7 @@ export async function processNextGeneratingArticle(): Promise<void> {
       }
     }
 
-    console.log(`[文章生成] 本批次处理完成，成功 ${results.filter(r => r.status === 'fulfilled').length}/${articles.length}`);
+    console.log(`[文章生成] 本批次处理完成，成功 ${successCount}/${articles.length}`);
   } catch (err: any) {
     console.error(`[文章生成] 批次处理失败: ${err.message}`);
   } finally {
