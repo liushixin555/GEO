@@ -50,6 +50,7 @@ const ArticleDetail: React.FC = () => {
 
   // Settings form state
   const [form] = Form.useForm();
+  const [writeMode, setWriteMode] = useState<'manual' | 'ai'>('ai');
   const [portraitMode, setPortraitMode] = useState<'input' | 'select'>('select');
   const [imageList, setImageList] = useState<string[]>([]);
   const [urlInput, setUrlInput] = useState('');
@@ -442,11 +443,21 @@ const ArticleDetail: React.FC = () => {
   }
 
   const settingsTab = (
-    <Form form={form} onFinish={(values) => handleSaveSettings(values, false)} layout="vertical">
+    <Form form={form} onFinish={(values) => handleSaveSettings(values, writeMode === 'ai')} layout="vertical">
       {error && <Alert type="error" message={error} className="form-alert" showIcon closable onClose={() => setError('')} />}
+      <Form.Item label="编写方式">
+        <Segmented
+          block
+          disabled={!isSettingsEditable}
+          options={[{ label: '手工编写', value: 'manual' }, { label: 'AI生成', value: 'ai' }]}
+          value={writeMode}
+          onChange={(val) => setWriteMode(val as 'manual' | 'ai')}
+        />
+      </Form.Item>
       <Form.Item name="keywords" label="关键词" rules={[{ required: true, message: '关键词不能为空' }]}>
         <Select showSearch placeholder="从知识库选择关键词" options={kbKeywords} disabled={!isSettingsEditable} loading={kbLoading} notFoundContent={kbLoading ? '加载中...' : '暂无知识库关键词'} />
       </Form.Item>
+      {writeMode === 'ai' && (<>
       <Form.Item label="画像">
         <Segmented
           size="small"
@@ -575,6 +586,7 @@ const ArticleDetail: React.FC = () => {
       <Form.Item name="llm_model_id" label="选择大模型" rules={[{ required: true, message: '请选择大模型' }]}>
         <Select placeholder="选择大模型" options={llmModelsOptions} disabled={!isSettingsEditable} allowClear />
       </Form.Item>
+      </>)}
       <Form.Item name="platforms" label="发布平台" rules={[{ required: true, message: '发布平台不能为空' }]}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, minHeight: 32, padding: '4px 11px', border: '1px solid var(--border-subtle)', borderRadius: 2, cursor: isSettingsEditable ? 'pointer' : 'default' }} onClick={() => { if (isSettingsEditable) openPlatformModal(); }}>
           {(() => {
@@ -731,7 +743,7 @@ const ArticleDetail: React.FC = () => {
   ];
 
   if (isNew || article) {
-    collapseItems.push({ key: 'content', label: isNew ? '正文' : `正文 (v${(article!.version ?? 1.0).toFixed(1)})`, children: contentTab, forceRender: true });
+    collapseItems.push({ key: 'content', label: '文章正文', children: contentTab, forceRender: true });
   }
 
   const defaultActiveKeys = isNew ? ['settings', 'content'] : ['content'];
@@ -756,11 +768,18 @@ const ArticleDetail: React.FC = () => {
         <div className="form-actions">
           <Button onClick={() => navigate('/article')}>取消</Button>
           <Button loading={saving} onClick={() => {
-            form.validateFields().then((values) => handleSaveSettings(values, false));
+            form.validateFields().then((values) => handleSaveSettings(values, false, writeMode === 'manual'));
           }}>存草稿</Button>
-          <Button type="primary" loading={saving} onClick={() => {
-            form.validateFields().then((values) => handleSaveSettings(values, true));
-          }}>提交给AI</Button>
+          {writeMode === 'ai' && (
+            <Button type="primary" loading={saving} onClick={() => {
+              form.validateFields().then((values) => handleSaveSettings(values, true));
+            }}>提交给AI</Button>
+          )}
+          {writeMode === 'manual' && (
+            <Button type="primary" loading={saving} onClick={() => {
+              form.validateFields().then((values) => handleSaveSettings(values, false, true));
+            }}>提交审核</Button>
+          )}
         </div>
       )}
     </div>
