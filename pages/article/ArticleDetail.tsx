@@ -79,7 +79,7 @@ const ArticleDetail: React.FC = () => {
   // Content state
   const [content, setContent] = useState('');
   const [contentSaving, setContentSaving] = useState(false);
-  const [contentMode, setContentMode] = useState<'preview' | 'edit'>('preview');
+  const [contentMode, setContentMode] = useState<'preview' | 'edit'>(isNew ? 'edit' : 'preview');
 
   // Tab
   const fetchArticle = useCallback(async () => {
@@ -696,11 +696,11 @@ const ArticleDetail: React.FC = () => {
     { key: 'settings', label: '文章设置', children: settingsTab, forceRender: true },
   ];
 
-  if (!isNew && article) {
-    collapseItems.push({ key: 'content', label: `正文 (v${(article.version ?? 1.0).toFixed(1)})`, children: contentTab, forceRender: true });
+  if (isNew || article) {
+    collapseItems.push({ key: 'content', label: isNew ? '正文' : `正文 (v${(article.version ?? 1.0).toFixed(1)})`, children: contentTab, forceRender: true });
   }
 
-  const defaultActiveKeys = isNew ? ['settings'] : ['content'];
+  const defaultActiveKeys = isNew ? ['settings', 'content'] : ['content'];
 
   return (
     <div className="page-container">
