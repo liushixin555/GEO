@@ -6,23 +6,23 @@ import { startArticleGenerationCron, stopArticleGenerationCron } from './schedul
 const PORT = config.server.port;
 
 const server = app.listen(PORT, () => {
-  console.log(`[薄云GEO] Server running on port ${PORT}`);
-  console.log(`[薄云GEO] Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`[薄云商机倍增服务] Server running on port ${PORT}`);
+  console.log(`[薄云商机倍增服务] Environment: ${process.env.NODE_ENV || 'development'}`);
   if (config.swagger.enabled) {
-    console.log(`[薄云GEO] Swagger docs: http://localhost:${PORT}/api-docs`);
+    console.log(`[薄云商机倍增服务] Swagger docs: http://localhost:${PORT}/api-docs`);
   }
   startArticleGenerationCron();
 });
 
 process.on('SIGINT', async () => {
-  console.log('[薄云GEO] Shutting down...');
+  console.log('[薄云商机倍增服务] Shutting down...');
   stopArticleGenerationCron();
   await closePrisma();
   server.close(() => process.exit(0));
 });
 
 process.on('SIGTERM', async () => {
-  console.log('[薄云GEO] Shutting down...');
+  console.log('[薄云商机倍增服务] Shutting down...');
   stopArticleGenerationCron();
   await closePrisma();
   server.close(() => process.exit(0));

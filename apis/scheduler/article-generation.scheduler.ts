@@ -11,13 +11,13 @@ let isRunning = false;
 
 export function startArticleGenerationCron(): void {
   if (!config.cron.articleGenerationEnabled) {
-    console.log('[GEO文章生成] 定时任务已禁用');
+    console.log('[文章生成] 定时任务已禁用');
     return;
   }
 
   const expression = config.cron.articleGenerationInterval;
   if (!cron.validate(expression)) {
-    console.error(`[GEO文章生成] 无效的cron表达式: ${expression}`);
+    console.error(`[文章生成] 无效的cron表达式: ${expression}`);
     return;
   }
 
@@ -25,20 +25,20 @@ export function startArticleGenerationCron(): void {
     processNextGeneratingArticle();
   });
 
-  console.log(`[GEO文章生成] 定时任务已启动 (${expression})`);
+  console.log(`[文章生成] 定时任务已启动 (${expression})`);
 }
 
 export function stopArticleGenerationCron(): void {
   if (task) {
     task.stop();
     task = null;
-    console.log('[GEO文章生成] 定时任务已停止');
+    console.log('[文章生成] 定时任务已停止');
   }
 }
 
 export async function processNextGeneratingArticle(): Promise<void> {
   if (isRunning) {
-    console.log('[GEO文章生成] 上一批次仍在执行，跳过本次调度');
+    console.log('[文章生成] 上一批次仍在执行，跳过本次调度');
     return;
   }
 
@@ -55,7 +55,7 @@ export async function processNextGeneratingArticle(): Promise<void> {
       return;
     }
 
-    console.log(`[GEO文章生成] 开始处理文章 #${article.id}: ${article.title}`);
+    console.log(`[文章生成] 开始处理文章 #${article.id}: ${article.title}`);
 
     // Get project knowledge images
     const images = await prisma.knowledgeImage.findMany({
@@ -108,9 +108,9 @@ export async function processNextGeneratingArticle(): Promise<void> {
       }),
     ]);
 
-    console.log(`[GEO文章生成] 文章 #${article.id} 生成完成，状态已更新为 pending_review`);
+    console.log(`[文章生成] 文章 #${article.id} 生成完成，状态已更新为 pending_review`);
   } catch (err: any) {
-    console.error(`[GEO文章生成] 处理失败: ${err.message}`);
+    console.error(`[文章生成] 处理失败: ${err.message}`);
 
     // Mark failed article
     try {
@@ -123,10 +123,10 @@ export async function processNextGeneratingArticle(): Promise<void> {
           where: { id: failedArticle.id },
           data: { status: 'generate_failed' },
         });
-        console.log(`[GEO文章生成] 文章 #${failedArticle.id} 已标记为 generate_failed`);
+        console.log(`[文章生成] 文章 #${failedArticle.id} 已标记为 generate_failed`);
       }
     } catch (updateErr: any) {
-      console.error(`[GEO文章生成] 更新失败状态时出错: ${updateErr.message}`);
+      console.error(`[文章生成] 更新失败状态时出错: ${updateErr.message}`);
     }
   } finally {
     isRunning = false;

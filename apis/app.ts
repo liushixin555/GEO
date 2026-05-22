@@ -42,9 +42,9 @@ const swaggerSpec = swaggerJSDoc({
   definition: {
     openapi: '3.0.0',
     info: {
-      title: '薄云GEO API',
+      title: '薄云商机倍增服务 API',
       version: '1.0.0',
-      description: '薄云GEO Enterprise Management Platform API',
+      description: '薄云商机倍增服务 Enterprise Management Platform API',
     },
     components: {
       securitySchemes: {

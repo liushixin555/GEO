@@ -174,7 +174,7 @@ const Layout: React.FC = () => {
             <Route path="/knowledge/image/:id" element={<ImageDetail />} />
             <Route path="/article" element={<ArticlePage />} />
             <Route path="/article/:id" element={<ArticleDetail />} />
-            <Route path="/score" element={<PlaceholderPage title="GEO成绩" />} />
+            <Route path="/score" element={<PlaceholderPage title="发布管理" />} />
             <Route path="/tools" element={<PlaceholderPage title="常用工具" />} />
             <Route path="/project" element={<ProjectPage />} />
             <Route path="/users" element={<UserPage />} />

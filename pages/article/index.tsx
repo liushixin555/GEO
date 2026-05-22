@@ -87,7 +87,7 @@ const ArticlePage: React.FC = () => {
   if (!projectId) {
     return (
       <div className="page-container">
-        <div className="page-breadcrumb"><Breadcrumb items={[{ title: 'GEO文章' }]} /></div>
+        <div className="page-breadcrumb"><Breadcrumb items={[{ title: '文章管理' }]} /></div>
         <Empty description="请先在左下角选择一个项目" />
       </div>
     );
@@ -95,7 +95,7 @@ const ArticlePage: React.FC = () => {
 
   return (
     <div className="page-container">
-      <div className="page-breadcrumb"><Breadcrumb items={[{ title: 'GEO文章' }]} /></div>
+      <div className="page-breadcrumb"><Breadcrumb items={[{ title: '文章管理' }]} /></div>
       <Row gutter={[16, 12]} className="toolbar">
         <Col xs={24} sm={12}>
           <Input.Search

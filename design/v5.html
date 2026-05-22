@@ -1,0 +1,1943 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GEO 自动化运营系统 - 管理员/运营工作台原型</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --panel-soft: #f8fafb;
+      --line: #dce3e8;
+      --line-strong: #c9d3dc;
+      --text: #18232e;
+      --muted: #637080;
+      --muted-2: #8a96a3;
+      --teal: #0f8f8c;
+      --teal-soft: #e4f5f3;
+      --blue: #2d6cdf;
+      --blue-soft: #e8f0ff;
+      --amber: #b87508;
+      --amber-soft: #fff3d8;
+      --red: #c83d3d;
+      --red-soft: #ffe9e7;
+      --green: #21845b;
+      --green-soft: #e5f5ed;
+      --purple: #6f4cc2;
+      --purple-soft: #f0ebff;
+      --shadow: 0 10px 24px rgba(24, 35, 46, 0.08);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: #14222d;
+      color: #d9e4ec;
+      padding: 18px 14px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 14px;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background:
+        linear-gradient(135deg, #46c6b9 0 48%, transparent 48%),
+        linear-gradient(135deg, transparent 52%, #f2b84b 52% 100%),
+        #2d6cdf;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+      flex: 0 0 auto;
+    }
+
+    .brand-title {
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.25;
+    }
+
+    .brand-sub {
+      color: #9fb1c1;
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .nav-group {
+      margin-top: 14px;
+    }
+
+    .nav-label {
+      color: #8297a8;
+      font-size: 12px;
+      padding: 10px 10px 6px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 38px;
+      border: 0;
+      border-radius: 8px;
+      color: #d9e4ec;
+      background: transparent;
+      padding: 9px 10px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .nav-item:hover,
+    .nav-item.active {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .nav-icon {
+      width: 18px;
+      height: 18px;
+      display: inline-grid;
+      place-items: center;
+      color: #8ed6d0;
+      flex: 0 0 auto;
+    }
+
+    .main {
+      min-width: 0;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: rgba(244, 246, 248, 0.92);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--line);
+      padding: 14px 22px;
+    }
+
+    .topbar-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .title h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.25;
+    }
+
+    .title p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .field,
+    .textarea,
+    .search {
+      height: 36px;
+      border: 1px solid var(--line-strong);
+      background: var(--panel);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 0 10px;
+      min-width: 140px;
+    }
+
+    .textarea {
+      width: 100%;
+      min-height: 92px;
+      height: auto;
+      resize: vertical;
+      padding: 10px;
+      line-height: 1.6;
+    }
+
+    .search {
+      min-width: 238px;
+    }
+
+    .btn {
+      height: 36px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--text);
+      padding: 0 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn.primary {
+      background: var(--teal);
+      border-color: var(--teal);
+      color: #fff;
+    }
+
+    .btn.ghost {
+      background: transparent;
+    }
+
+    .content {
+      padding: 20px 22px 32px;
+    }
+
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    .page-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .page-head h2 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.25;
+    }
+
+    .page-head p {
+      margin: 5px 0 0;
+      color: var(--muted);
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .three-col {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+
+    .empty-hint {
+      color: var(--muted);
+      background: var(--panel-soft);
+      border: 1px dashed var(--line-strong);
+      border-radius: 8px;
+      padding: 18px;
+      line-height: 1.7;
+    }
+
+    details.compact-log {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      padding: 10px 12px;
+    }
+
+    details.compact-log summary {
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    details.compact-log .timeline {
+      margin-top: 12px;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(20, 34, 45, 0.45);
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      width: min(680px, 100%);
+      background: var(--panel);
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      box-shadow: 0 24px 60px rgba(24, 35, 46, 0.24);
+      overflow: hidden;
+    }
+
+    .modal-body {
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .form-row label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .file-drop {
+      border: 1px dashed var(--line-strong);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      padding: 16px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .editor-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .editor {
+      min-height: 360px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 18px;
+      line-height: 1.8;
+    }
+
+    .monitor-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .benchmark-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .benchmark-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      padding: 14px;
+    }
+
+    .benchmark-card strong {
+      display: block;
+      font-size: 24px;
+      margin: 8px 0;
+    }
+
+    .progress-line {
+      height: 10px;
+      border-radius: 999px;
+      background: #e7edf2;
+      overflow: hidden;
+    }
+
+    .progress-line span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--blue);
+    }
+
+    .radar-wrap {
+      min-height: 340px;
+      display: grid;
+      place-items: center;
+      background: var(--panel-soft);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .action-matrix {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .action-tile {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      min-height: 96px;
+      padding: 12px;
+      display: grid;
+      align-content: center;
+      justify-items: center;
+      text-align: center;
+      gap: 8px;
+      font-weight: 700;
+    }
+
+    .daily-trend {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 12px;
+      align-items: end;
+      min-height: 260px;
+      padding: 14px 6px 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-soft);
+    }
+
+    .trend-day {
+      display: grid;
+      gap: 8px;
+      justify-items: center;
+      align-items: end;
+    }
+
+    .trend-bars {
+      height: 188px;
+      display: flex;
+      align-items: end;
+      gap: 6px;
+    }
+
+    .trend-bar {
+      width: 14px;
+      min-height: 10px;
+      border-radius: 6px 6px 0 0;
+      background: var(--teal);
+    }
+
+    .trend-bar.top3 {
+      background: var(--blue);
+    }
+
+    .trend-label {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .kpi {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      min-width: 0;
+    }
+
+    .kpi-label {
+      color: var(--muted);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .kpi-value {
+      font-size: 24px;
+      font-weight: 750;
+      margin-top: 8px;
+    }
+
+    .delta {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .delta.up {
+      color: var(--green);
+    }
+
+    .delta.down {
+      color: var(--red);
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: minmax(310px, 0.9fr) minmax(420px, 1.35fr) minmax(310px, 0.85fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .section + .section {
+      margin-top: 16px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .section-body {
+      padding: 14px 16px 16px;
+    }
+
+    .tabs,
+    .segmented {
+      display: inline-flex;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--panel-soft);
+    }
+
+    .tab,
+    .seg {
+      border: 0;
+      padding: 7px 10px;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      min-height: 32px;
+    }
+
+    .tab.active,
+    .seg.active {
+      background: var(--panel);
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .task-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .task {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: var(--panel-soft);
+    }
+
+    .task-top,
+    .task-meta,
+    .row-between {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .task-title {
+      font-weight: 700;
+      min-width: 0;
+    }
+
+    .task-title small {
+      color: var(--muted);
+      font-weight: 400;
+      display: block;
+      margin-top: 3px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .task-meta {
+      justify-content: flex-start;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .tag.red {
+      color: var(--red);
+      background: var(--red-soft);
+    }
+
+    .tag.amber {
+      color: var(--amber);
+      background: var(--amber-soft);
+    }
+
+    .tag.green {
+      color: var(--green);
+      background: var(--green-soft);
+    }
+
+    .tag.blue {
+      color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .tag.teal {
+      color: var(--teal);
+      background: var(--teal-soft);
+    }
+
+    .tag.purple {
+      color: var(--purple);
+      background: var(--purple-soft);
+    }
+
+    .health {
+      display: grid;
+      grid-template-columns: 94px 1fr;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .donut {
+      width: 94px;
+      height: 94px;
+      border-radius: 50%;
+      background: conic-gradient(var(--green) 0 54%, var(--amber) 54% 78%, var(--red) 78% 91%, #a8b4bf 91% 100%);
+      position: relative;
+    }
+
+    .donut::after {
+      content: "";
+      position: absolute;
+      inset: 14px;
+      border-radius: 50%;
+      background: var(--panel);
+    }
+
+    .donut-value {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      z-index: 1;
+    }
+
+    .legend {
+      display: grid;
+      gap: 8px;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 8px;
+    }
+
+    .dot.green { background: var(--green); }
+    .dot.amber { background: var(--amber); }
+    .dot.red { background: var(--red); }
+    .dot.gray { background: #a8b4bf; }
+
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .step {
+      border: 1px solid var(--line);
+      background: var(--panel-soft);
+      border-radius: 8px;
+      padding: 10px;
+      min-height: 78px;
+    }
+
+    .step-label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .step-value {
+      font-size: 20px;
+      font-weight: 750;
+      margin-top: 8px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 720px;
+    }
+
+    th,
+    td {
+      padding: 11px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      vertical-align: middle;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--panel-soft);
+    }
+
+    td {
+      font-size: 13px;
+    }
+
+    .keyword {
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .subtext {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 3px;
+    }
+
+    .bar {
+      height: 8px;
+      border-radius: 999px;
+      background: #e7edf2;
+      overflow: hidden;
+      min-width: 78px;
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--teal);
+    }
+
+    .mini-chart {
+      height: 142px;
+      display: grid;
+      align-items: end;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 8px;
+      padding: 8px 2px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .mini-chart div {
+      border-radius: 6px 6px 0 0;
+      background: linear-gradient(180deg, #4bbcb2, #2d6cdf);
+      min-height: 18px;
+    }
+
+    .trend-panel {
+      min-height: 220px;
+    }
+
+    .trend-svg {
+      width: 100%;
+      height: 190px;
+      display: block;
+      background:
+        linear-gradient(var(--line) 1px, transparent 1px) 0 25% / 100% 25%,
+        var(--panel-soft);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .metric-pair {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .metric-box {
+      background: var(--panel-soft);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .metric-box strong {
+      display: block;
+      font-size: 22px;
+      margin-top: 6px;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 13px;
+    }
+
+    .event {
+      display: grid;
+      grid-template-columns: 26px 1fr;
+      gap: 10px;
+    }
+
+    .event-icon {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--blue-soft);
+      color: var(--blue);
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .event-title {
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .event-time {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 3px;
+    }
+
+    .drawer-preview {
+      border-left: 4px solid var(--teal);
+      background: var(--panel-soft);
+      padding: 12px;
+      border-radius: 8px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .inline-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .icon {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    @media (max-width: 1240px) {
+      .kpi-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .dashboard-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .right-col {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      .right-col .section + .section {
+        margin-top: 0;
+      }
+    }
+
+    @media (max-width: 880px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+      }
+
+      .nav-group {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .nav-label {
+        grid-column: 1 / -1;
+      }
+
+      .topbar-row,
+      .dashboard-grid,
+      .right-col,
+      .two-col,
+      .three-col,
+      .form-grid,
+      .editor-layout,
+      .monitor-grid,
+      .benchmark-grid,
+      .action-matrix {
+        grid-template-columns: 1fr;
+        display: grid;
+      }
+
+      .top-actions {
+        justify-content: stretch;
+      }
+
+      .field,
+      .search,
+      .btn {
+        width: 100%;
+      }
+
+      .kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .pipeline {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 560px) {
+      .content,
+      .topbar {
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .health {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <div>
+          <div class="brand-title">GEO 运营系统</div>
+          <div class="brand-sub">管理员 / 运营工作台</div>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-label">运营</div>
+        <button class="nav-item active" data-page="overview"><span class="nav-icon">◎</span>总览</button>
+        <button class="nav-item" data-page="tasks"><span class="nav-icon">✓</span>今日待办</button>
+        <button class="nav-item" data-page="projects"><span class="nav-icon">▦</span>客户项目</button>
+        <button class="nav-item" data-page="project-overview"><span class="nav-icon">◉</span>项目概览</button>
+        <button class="nav-item" data-page="keywords"><span class="nav-icon">⌕</span>关键词运营</button>
+        <button class="nav-item" data-page="content"><span class="nav-icon">✎</span>内容生成</button>
+        <button class="nav-item" data-page="publish"><span class="nav-icon">↗</span>发布管理</button>
+        <button class="nav-item" data-page="monitor"><span class="nav-icon">◷</span>每日检测</button>
+        <button class="nav-item" data-page="reports"><span class="nav-icon">▣</span>复盘报告</button>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-label">管理</div>
+        <button class="nav-item" data-page="assets"><span class="nav-icon">◫</span>资产库</button>
+        <button class="nav-item" data-page="settings"><span class="nav-icon">⚙</span>系统管理</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-row">
+          <div class="title">
+            <h1>运营总览</h1>
+            <p>2026-05-14 · 当前视角：全部客户项目</p>
+          </div>
+        </div>
+      </header>
+
+      <div class="content">
+        <section class="page active" id="page-overview" data-title="运营总览" data-subtitle="2026-05-14 · 当前视角：全部客户项目">
+        <section class="kpi-grid" aria-label="核心指标">
+          <div class="kpi">
+            <div class="kpi-label">客户项目 <span class="tag green">运营中</span></div>
+            <div class="kpi-value">42</div>
+            <div class="delta up">+3 本周新增</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">今日待办 <span class="tag amber">需确认</span></div>
+            <div class="kpi-value">28</div>
+            <div class="delta down">9 项高优先级</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">低效关键词 <span class="tag red">待迭代</span></div>
+            <div class="kpi-value">136</div>
+            <div class="delta down">较昨日 +18</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">TOP3 占比 <span class="tag teal">检测</span></div>
+            <div class="kpi-value">31.8%</div>
+            <div class="delta up">较上周 +4.2%</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">风险预警 <span class="tag red">处理</span></div>
+            <div class="kpi-value">7</div>
+            <div class="delta">2 项已升级</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">待发布内容 <span class="tag blue">排期</span></div>
+            <div class="kpi-value">19</div>
+            <div class="delta">5 项等待发布确认</div>
+          </div>
+        </section>
+
+        <section class="dashboard-grid">
+          <div class="left-col">
+            <div class="section">
+              <div class="section-head">
+                <h2 class="section-title">今日待办</h2>
+                <div class="segmented" aria-label="待办筛选">
+                  <button class="seg active">全部</button>
+                  <button class="seg">高优先</button>
+                </div>
+              </div>
+              <div class="section-body">
+                <div class="task-list">
+                  <div class="task">
+                    <div class="task-top">
+                      <div class="task-title">
+                        待迭代关键词确认
+                        <small>薄云咨询 · 18 个关键词优化效果较差</small>
+                      </div>
+                      <span class="tag red">P0</span>
+                    </div>
+                    <div class="task-meta">
+                      <span>每日检测回流</span>
+                      <span>负责人：林然</span>
+                      <span>09:20</span>
+                    </div>
+                    <div class="inline-actions">
+                      <button class="btn primary">确认关键词</button>
+                      <button class="btn">查看原因</button>
+                    </div>
+                  </div>
+
+                  <div class="task">
+                    <div class="task-top">
+                      <div class="task-title">
+                        发布前确认
+                        <small>某教育客户 · 5 篇内容待选择渠道与时间</small>
+                      </div>
+                      <span class="tag amber">P1</span>
+                    </div>
+                    <div class="task-meta">
+                      <span>发布管理</span>
+                      <span>负责人：周宁</span>
+                      <span>10:05</span>
+                    </div>
+                    <div class="inline-actions">
+                      <button class="btn primary">确认发布</button>
+                      <button class="btn">调整排期</button>
+                    </div>
+                  </div>
+
+                  <div class="task">
+                    <div class="task-top">
+                      <div class="task-title">
+                        风险内容处理
+                        <small>AI 回答出现负面倾向，需确认是否升级</small>
+                      </div>
+                      <span class="tag red">P0</span>
+                    </div>
+                    <div class="task-meta">
+                      <span>每日检测</span>
+                      <span>负责人：韩悦</span>
+                      <span>10:42</span>
+                    </div>
+                    <div class="inline-actions">
+                      <button class="btn primary">处理预警</button>
+                      <button class="btn">查看截图</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="center-col">
+            <div class="section">
+              <div class="section-head">
+                <h2 class="section-title">项目每日检测结果</h2>
+                <div class="tabs" aria-label="平台筛选">
+                  <button class="tab active">全部平台</button>
+                  <button class="tab">DeepSeek</button>
+                  <button class="tab">豆包</button>
+                  <button class="tab">Kimi</button>
+                </div>
+              </div>
+              <div class="section-body">
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>项目</th>
+                        <th>关键词数</th>
+                        <th>综合露出率</th>
+                        <th>综合 TOP3 推率</th>
+                        <th>低效关键词</th>
+                        <th>风险</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>
+                          <div class="keyword">薄云咨询</div>
+                          <div class="subtext">GEO 服务品牌</div>
+                        </td>
+                        <td>126</td>
+                        <td><div class="bar"><span style="width: 64%"></span></div><div class="subtext">64%</div></td>
+                        <td><div class="bar"><span style="width: 31%"></span></div><div class="subtext">31%</div></td>
+                        <td><span class="tag red">18 个</span></td>
+                        <td><span class="tag red">2 项</span></td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <div class="keyword">某科技客户</div>
+                          <div class="subtext">知识库产品</div>
+                        </td>
+                        <td>88</td>
+                        <td><div class="bar"><span style="width: 78%"></span></div><div class="subtext">78%</div></td>
+                        <td><div class="bar"><span style="width: 42%"></span></div><div class="subtext">42%</div></td>
+                        <td><span class="tag amber">7 个</span></td>
+                        <td><span class="tag green">0 项</span></td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <div class="keyword">某教育客户</div>
+                          <div class="subtext">职业教育平台</div>
+                        </td>
+                        <td>102</td>
+                        <td><div class="bar"><span style="width: 51%"></span></div><div class="subtext">51%</div></td>
+                        <td><div class="bar"><span style="width: 24%"></span></div><div class="subtext">24%</div></td>
+                        <td><span class="tag red">24 个</span></td>
+                        <td><span class="tag red">3 项</span></td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <div class="keyword">某咨询客户</div>
+                          <div class="subtext">咨询服务</div>
+                        </td>
+                        <td>74</td>
+                        <td><div class="bar"><span style="width: 69%"></span></div><div class="subtext">69%</div></td>
+                        <td><div class="bar"><span style="width: 35%"></span></div><div class="subtext">35%</div></td>
+                        <td><span class="tag amber">9 个</span></td>
+                        <td><span class="tag amber">1 项</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-head">
+                <h2 class="section-title">迭代工作流</h2>
+                <span class="tag teal">每日检测回流</span>
+              </div>
+              <div class="section-body">
+                <div class="pipeline">
+                  <div class="step">
+                    <div class="step-label">低效关键词</div>
+                    <div class="step-value">136</div>
+                    <div class="subtext">检测后识别</div>
+                  </div>
+                  <div class="step">
+                    <div class="step-label">待人工确认</div>
+                    <div class="step-value">48</div>
+                    <div class="subtext">进入今日待办</div>
+                  </div>
+                  <div class="step">
+                    <div class="step-label">内容生成中</div>
+                    <div class="step-value">22</div>
+                    <div class="subtext">返回 REQ-04</div>
+                  </div>
+                  <div class="step">
+                    <div class="step-label">待发布</div>
+                    <div class="step-value">19</div>
+                    <div class="subtext">渠道确认</div>
+                  </div>
+                  <div class="step">
+                    <div class="step-label">再检测</div>
+                    <div class="step-value">31</div>
+                    <div class="subtext">效果追踪</div>
+                  </div>
+                </div>
+                <div class="drawer-preview" style="margin-top: 14px;">
+                  当前选中任务：系统已从今日检测中筛出 18 个表现较差关键词，建议运营用户确认其中 7 个进入下一轮内容生成，并同步调整发布渠道。
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="right-col">
+            <div class="section">
+              <div class="section-head">
+                <h2 class="section-title">风险预警</h2>
+                <span class="tag red">7 项</span>
+              </div>
+              <div class="section-body">
+                <div class="timeline">
+                  <div class="event">
+                    <div class="event-icon">!</div>
+                    <div>
+                      <div class="event-title">竞品压制：AI 搜索品牌曝光</div>
+                      <div class="event-time">薄云咨询 · 豆包 · 12 分钟前</div>
+                    </div>
+                  </div>
+                  <div class="event">
+                    <div class="event-icon">!</div>
+                    <div>
+                      <div class="event-title">负面倾向：服务价格相关问答</div>
+                      <div class="event-time">某咨询客户 · Kimi · 34 分钟前</div>
+                    </div>
+                  </div>
+                  <div class="event">
+                    <div class="event-icon">i</div>
+                    <div>
+                      <div class="event-title">无露出：高热度长尾词</div>
+                      <div class="event-time">某教育客户 · DeepSeek · 1 小时前</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-head">
+                <h2 class="section-title">接口与发布</h2>
+                <span class="tag blue">运行中</span>
+              </div>
+              <div class="section-body">
+                <div class="legend">
+                  <div class="legend-row"><span><span class="dot green"></span>五大 AI 检测接口</span><strong>正常</strong></div>
+                  <div class="legend-row"><span><span class="dot amber"></span>第三方发布测试</span><strong>2 失败</strong></div>
+                  <div class="legend-row"><span><span class="dot green"></span>云端截图存储</span><strong>正常</strong></div>
+                  <div class="legend-row"><span><span class="dot gray"></span>热搜指数 API</span><strong>待接入</strong></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        </section>
+
+        <section class="page" id="page-tasks" data-title="今日待办" data-subtitle="所有需要人工确认的任务队列">
+          <div class="page-head">
+            <div>
+              <h2>今日待办</h2>
+              <p>按优先级处理关键词确认、内容审核、发布确认、风险预警和报告开放。</p>
+            </div>
+            <button class="btn primary">批量处理</button>
+          </div>
+          <div class="two-col">
+            <div class="section">
+              <div class="section-head">
+                <h2 class="section-title">任务队列</h2>
+                <div class="tabs"><button class="tab active">全部</button><button class="tab">P0</button><button class="tab">待我处理</button></div>
+              </div>
+              <div class="section-body table-wrap">
+                <table>
+                  <thead><tr><th>任务</th><th>客户</th><th>来源</th><th>优先级</th><th>负责人</th><th>动作</th></tr></thead>
+                  <tbody>
+                    <tr><td><div class="keyword">确认待迭代关键词</div><div class="subtext">18 个低效词等待返回内容生成</div></td><td>薄云咨询</td><td>每日检测</td><td><span class="tag red">P0</span></td><td>林然</td><td><button class="btn primary">处理</button></td></tr>
+                    <tr><td><div class="keyword">内容审核</div><div class="subtext">GEO 优化服务商选择指南</div></td><td>薄云咨询</td><td>内容迭代</td><td><span class="tag amber">P1</span></td><td>周宁</td><td><button class="btn">查看</button></td></tr>
+                    <tr><td><div class="keyword">报告开放确认</div><div class="subtext">5 月第二周运营周报</div></td><td>某科技客户</td><td>复盘报告</td><td><span class="tag blue">P2</span></td><td>韩悦</td><td><button class="btn">确认</button></td></tr>
+                    <tr><td><div class="keyword">风险内容处理</div><div class="subtext">价格类问答出现负面倾向</div></td><td>某咨询客户</td><td>风险预警</td><td><span class="tag red">P0</span></td><td>林然</td><td><button class="btn primary">处理</button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-head"><h2 class="section-title">处理抽屉预览</h2><span class="tag teal">待确认</span></div>
+              <div class="section-body">
+                <div class="drawer-preview">选中“确认待迭代关键词”后，这里展示检测原因、原始问答、截图证据、系统建议和确认按钮。运营用户确认后，任务会进入 REQ-04 内容生成。</div>
+                <div class="inline-actions"><button class="btn primary">确认进入内容生成</button><button class="btn">暂不处理</button><button class="btn">查看证据</button></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-projects" data-title="客户项目" data-subtitle="客户项目、负责人、综合露出率和综合 TOP3 推率">
+          <div class="page-head">
+            <div><h2>客户项目</h2><p>管理员查看全部项目，运营用户只看自己负责的客户。新项目统一从这里导入。</p></div>
+            <button class="btn primary" id="openProjectModal">新建项目</button>
+          </div>
+          <div class="section">
+            <div class="section-head"><h2 class="section-title">项目列表</h2><div class="tabs"><button class="tab active">全部</button><button class="tab">运营中</button><button class="tab">高风险</button><button class="tab">停户</button></div></div>
+            <div class="section-body table-wrap">
+              <table>
+                <thead><tr><th>客户</th><th>行业</th><th>负责人</th><th>综合露出率</th><th>综合 TOP3 推率</th><th>待办</th><th>风险</th><th>最近检测</th><th>状态</th></tr></thead>
+                <tbody>
+                  <tr><td><div class="keyword">薄云咨询</div><div class="subtext">GEO 服务品牌</div></td><td>咨询服务</td><td>林然</td><td><div class="bar"><span style="width:64%"></span></div><div class="subtext">64%</div></td><td><div class="bar"><span style="width:31%"></span></div><div class="subtext">31%</div></td><td>8</td><td>2</td><td>今日 09:20</td><td><span class="tag green">运营中</span></td></tr>
+                  <tr><td><div class="keyword">某科技客户</div><div class="subtext">知识库产品</div></td><td>SaaS</td><td>韩悦</td><td><div class="bar"><span style="width:78%"></span></div><div class="subtext">78%</div></td><td><div class="bar"><span style="width:42%"></span></div><div class="subtext">42%</div></td><td>3</td><td>0</td><td>今日 08:55</td><td><span class="tag green">运营中</span></td></tr>
+                  <tr><td><div class="keyword">某教育客户</div><div class="subtext">职业教育平台</div></td><td>教育</td><td>周宁</td><td><div class="bar"><span style="width:51%"></span></div><div class="subtext">51%</div></td><td><div class="bar"><span style="width:24%"></span></div><div class="subtext">24%</div></td><td>9</td><td>3</td><td>今日 10:12</td><td><span class="tag green">运营中</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-project-overview" data-title="项目概览" data-subtitle="单项目运营情况、关键词检测、趋势与迭代闭环">
+          <div class="page-head">
+            <div>
+              <h2>项目概览</h2>
+              <p>按项目查看运营情况，关键词级检测和趋势分析都集中在这里。</p>
+            </div>
+            <div class="top-actions">
+              <select class="field" aria-label="切换项目">
+                <option>薄云咨询</option>
+                <option>某科技客户</option>
+                <option>某教育客户</option>
+                <option>某咨询客户</option>
+              </select>
+              <select class="field" aria-label="项目状态">
+                <option>项目状态：运营中</option>
+                <option>暂停</option>
+                <option>终止</option>
+              </select>
+            </div>
+          </div>
+
+          <section class="kpi-grid" aria-label="单项目指标">
+            <div class="kpi"><div class="kpi-label">今日待办 <span class="tag amber">需确认</span></div><div class="kpi-value">8</div><div class="delta">3 项来自每日检测</div></div>
+            <div class="kpi"><div class="kpi-label">低效关键词 <span class="tag red">待迭代</span></div><div class="kpi-value">18</div><div class="delta down">较昨日 +5</div></div>
+            <div class="kpi"><div class="kpi-label">综合露出率 <span class="tag teal">项目</span></div><div class="kpi-value">64%</div><div class="delta up">近 7 天 +6%</div></div>
+            <div class="kpi"><div class="kpi-label">综合 TOP3 推率 <span class="tag blue">项目</span></div><div class="kpi-value">31%</div><div class="delta up">近 7 天 +3%</div></div>
+            <div class="kpi"><div class="kpi-label">风险预计 <span class="tag red">预警</span></div><div class="kpi-value">2</div><div class="delta">1 项需升级确认</div></div>
+            <div class="kpi"><div class="kpi-label">待发布内容 <span class="tag blue">排期</span></div><div class="kpi-value">5</div><div class="delta">2 项等待渠道确认</div></div>
+          </section>
+
+          <div class="two-col" style="margin-bottom:16px;">
+            <div class="section">
+              <div class="section-head">
+                <h2 class="section-title">项目资料列表</h2>
+                <button class="btn primary">上传资料</button>
+              </div>
+              <div class="section-body table-wrap">
+                <table>
+                  <thead><tr><th>资料文件</th><th>来源</th><th>类型</th><th>更新时间</th><th>状态</th></tr></thead>
+                  <tbody>
+                    <tr><td><div class="keyword">薄云咨询品牌资料.pdf</div><div class="subtext">运营上传</div></td><td>上传</td><td>品牌资料</td><td>05/14 09:12</td><td><span class="tag green">已入库</span></td></tr>
+                    <tr><td><div class="keyword">GEO 服务 FAQ.md</div><div class="subtext">平台生成后人工确认</div></td><td>平台生成</td><td>FAQ</td><td>05/13 18:30</td><td><span class="tag green">已确认</span></td></tr>
+                    <tr><td><div class="keyword">禁用表达与品牌口径.xlsx</div><div class="subtext">运营上传</div></td><td>上传</td><td>品牌口径</td><td>05/12 16:45</td><td><span class="tag amber">待复核</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-head">
+                <h2 class="section-title">项目管理</h2>
+                <span class="tag green">运营中</span>
+              </div>
+              <div class="section-body">
+                <div class="drawer-preview">项目状态调整放在这里，日常不打扰主流程。仅管理员或项目负责人可手动暂停/终止项目，并需留下操作原因。</div>
+                <div class="inline-actions"><button class="btn">暂停项目</button><button class="btn">终止项目</button></div>
+                <details class="compact-log" style="margin-top:14px;">
+                  <summary>历史人工操作记录 · 6 条</summary>
+                  <div class="timeline">
+                    <div class="event"><div class="event-icon">✓</div><div><div class="event-title">林然确认 7 个关键词进入内容迭代</div><div class="event-time">05/14 09:42</div></div></div>
+                    <div class="event"><div class="event-icon">✓</div><div><div class="event-title">周宁调整 2 篇内容发布时间</div><div class="event-time">05/13 17:20</div></div></div>
+                    <div class="event"><div class="event-icon">i</div><div><div class="event-title">管理员更新客户只读权限</div><div class="event-time">05/12 14:08</div></div></div>
+                  </div>
+                </details>
+              </div>
+            </div>
+          </div>
+
+          <div class="two-col">
+            <div class="section">
+              <div class="section-head">
+                <h2 class="section-title">每日检测结果</h2>
+                <div class="tabs"><button class="tab active">全部关键词</button><button class="tab">低效</button><button class="tab">风险</button></div>
+              </div>
+              <div class="section-body table-wrap">
+                <table>
+                  <thead><tr><th>关键词</th><th>分类</th><th>露出率</th><th>TOP3 推率</th><th>风险</th></tr></thead>
+                  <tbody>
+                    <tr><td><div class="keyword">GEO 优化公司怎么选</div><div class="subtext">潜在客户决策词</div></td><td>商业决策</td><td><div class="bar"><span style="width:18%"></span></div><div class="subtext">18%</div></td><td><div class="bar"><span style="width:0%"></span></div><div class="subtext">0%</div></td><td><span class="tag red">高</span></td></tr>
+                    <tr><td><div class="keyword">AI 搜索品牌曝光</div><div class="subtext">行业认知词</div></td><td>行业认知</td><td><div class="bar"><span style="width:46%"></span></div><div class="subtext">46%</div></td><td><div class="bar"><span style="width:12%"></span></div><div class="subtext">12%</div></td><td><span class="tag amber">中</span></td></tr>
+                    <tr><td><div class="keyword">生成式搜索优化</div><div class="subtext">概念解释词</div></td><td>概念科普</td><td><div class="bar"><span style="width:71%"></span></div><div class="subtext">71%</div></td><td><div class="bar"><span style="width:34%"></span></div><div class="subtext">34%</div></td><td><span class="tag green">低</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="section trend-panel">
+              <div class="section-head">
+                <h2 class="section-title">检测趋势</h2>
+                <button class="btn ghost">近 14 天</button>
+              </div>
+              <div class="section-body">
+                <svg class="trend-svg" viewBox="0 0 520 190" role="img" aria-label="按天展示露出率与TOP3 推率趋势">
+                  <polyline points="24,132 62,124 100,118 138,122 176,106 214,98 252,92 290,84 328,80 366,76 404,70 442,66 480,60" fill="none" stroke="#0f8f8c" stroke-width="4" />
+                  <polyline points="24,158 62,154 100,148 138,150 176,140 214,132 252,128 290,122 328,116 366,112 404,106 442,102 480,96" fill="none" stroke="#2d6cdf" stroke-width="4" />
+                  <g fill="#637080" font-size="12">
+                    <text x="24" y="180">05/01</text>
+                    <text x="224" y="180">05/07</text>
+                    <text x="430" y="180">05/14</text>
+                  </g>
+                </svg>
+                <div class="row-between" style="margin-top: 12px;">
+                  <span class="tag teal">露出率 64%</span>
+                  <span class="tag blue">TOP3 推率 31%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-grid" style="margin-top:16px;">
+            <div class="section">
+              <div class="section-head"><h2 class="section-title">今日待办</h2><span class="tag amber">8 项</span></div>
+              <div class="section-body"><div class="task-list"><div class="task"><div class="task-title">待迭代关键词确认<small>18 个低效关键词，建议先处理 7 个</small></div><div class="inline-actions"><button class="btn primary">确认关键词</button><button class="btn">查看原因</button></div></div><div class="task"><div class="task-title">发布前确认<small>5 篇内容等待渠道和时间确认</small></div><div class="inline-actions"><button class="btn primary">确认发布</button><button class="btn">调整排期</button></div></div></div></div>
+            </div>
+            <div class="section">
+              <div class="section-head"><h2 class="section-title">迭代工作流</h2><span class="tag teal">回到 REQ-04</span></div>
+              <div class="section-body"><div class="pipeline"><div class="step"><div class="step-label">低效词</div><div class="step-value">18</div></div><div class="step"><div class="step-label">待确认</div><div class="step-value">7</div></div><div class="step"><div class="step-label">内容生成</div><div class="step-value">4</div></div><div class="step"><div class="step-label">待发布</div><div class="step-value">5</div></div><div class="step"><div class="step-label">再检测</div><div class="step-value">12</div></div></div></div>
+            </div>
+            <div class="section">
+              <div class="section-head"><h2 class="section-title">风险预警</h2><span class="tag red">2 项</span></div>
+              <div class="section-body"><div class="timeline"><div class="event"><div class="event-icon">!</div><div><div class="event-title">竞品压制：GEO 优化公司怎么选</div><div class="event-time">DeepSeek · 今日 09:20</div></div></div><div class="event"><div class="event-icon">!</div><div><div class="event-title">品牌未露出：AI 搜索品牌曝光</div><div class="event-time">豆包 · 今日 09:35</div></div></div></div></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-keywords" data-title="关键词挖掘" data-subtitle="上传资料、分析业务、提取关键词、诊断提问偏好并确认优化关键词">
+          <div class="page-head">
+            <div><h2>关键词挖掘</h2><p>流程：上传客户资料 → 分析客户业务 → 提取业务关键词 → 诊断用户常问关键词 → 输出高频关键词清单 → 人工确认优化关键词。</p></div>
+            <select class="field" aria-label="切换关键词项目">
+              <option>薄云咨询</option>
+              <option>某科技客户</option>
+              <option>某教育客户</option>
+            </select>
+          </div>
+
+          <div class="pipeline" style="margin-bottom:16px;">
+            <div class="step"><div class="step-label">1 上传资料</div><div class="step-value">12</div><div class="subtext">项目强绑定</div></div>
+            <div class="step"><div class="step-label">2 分析业务</div><div class="step-value">完成</div><div class="subtext">可人工补充</div></div>
+            <div class="step"><div class="step-label">3 提取关键词</div><div class="step-value">86</div><div class="subtext">业务关键词</div></div>
+            <div class="step"><div class="step-label">4 诊断提问</div><div class="step-value">42</div><div class="subtext">用户常问</div></div>
+            <div class="step"><div class="step-label">5 确认优化</div><div class="step-value">18</div><div class="subtext">同步内容生成</div></div>
+          </div>
+
+          <div class="two-col">
+            <div class="section">
+              <div class="section-head">
+                <h2 class="section-title">客户资料清单</h2>
+                <button class="btn primary">上传资料</button>
+              </div>
+              <div class="section-body table-wrap">
+                <table>
+                  <thead><tr><th>资料</th><th>来源</th><th>绑定项目</th><th>状态</th><th>动作</th></tr></thead>
+                  <tbody>
+                    <tr><td><div class="keyword">品牌介绍与服务清单.pdf</div><div class="subtext">运营上传</div></td><td>上传</td><td>薄云咨询</td><td><span class="tag green">已分析</span></td><td><button class="btn">查看</button></td></tr>
+                    <tr><td><div class="keyword">官网抓取资料.md</div><div class="subtext">平台生成</div></td><td>平台生成</td><td>薄云咨询</td><td><span class="tag blue">可用</span></td><td><button class="btn">查看</button></td></tr>
+                    <tr><td><div class="keyword">客户案例汇总.docx</div><div class="subtext">运营上传</div></td><td>上传</td><td>薄云咨询</td><td><span class="tag amber">待分析</span></td><td><button class="btn">分析</button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-head">
+                <h2 class="section-title">客户业务输入</h2>
+                <span class="tag teal">可人工补充</span>
+              </div>
+              <div class="section-body">
+                <textarea class="textarea" aria-label="业务输入">薄云咨询提供 GEO 自动化运营、AI 搜索品牌曝光监测、内容生成和数据报表服务，目标客户是希望提升 AI 平台推荐与引用表现的 B2B 企业。</textarea>
+                <div class="inline-actions"><button class="btn primary">分析客户业务</button><button class="btn">保存业务描述</button></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="two-col" style="margin-top:16px;">
+            <div class="section">
+              <div class="section-head">
+                <h2 class="section-title">业务关键词提取</h2>
+                <span class="tag blue">86 个</span>
+              </div>
+              <div class="section-body">
+                <div class="task-list">
+                  <div class="task"><div class="keyword">GEO 自动化运营</div><div class="task-meta"><span>核心业务</span><span>来自资料</span><span>待诊断</span></div></div>
+                  <div class="task"><div class="keyword">AI 搜索品牌曝光</div><div class="task-meta"><span>客户痛点</span><span>人工补充</span><span>待诊断</span></div></div>
+                  <div class="task"><div class="keyword">AI 平台推荐排名</div><div class="task-meta"><span>效果指标</span><span>系统提取</span><span>待诊断</span></div></div>
+                </div>
+                <div class="inline-actions"><button class="btn primary">提取业务关键词</button><button class="btn">批量编辑</button></div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-head">
+                <h2 class="section-title">关键词诊断输入</h2>
+                <span class="tag purple">手动可加词</span>
+              </div>
+              <div class="section-body">
+                <textarea class="textarea" aria-label="诊断关键词">GEO 优化公司怎么选
+AI 搜索品牌曝光怎么做
+企业如何提升 AI 回答推荐率
+生成式搜索优化服务商</textarea>
+                <div class="drawer-preview" style="margin-top:12px;">诊断目标：判断这些关键词是否是客户的用户或潜在客户喜欢提问的问题，并输出高频关键词清单。</div>
+                <div class="inline-actions"><button class="btn primary">发起关键词诊断</button><button class="btn">导入提取结果</button></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section" style="margin-top:16px;">
+            <div class="section-head">
+              <h2 class="section-title">关键词方案</h2>
+              <span class="tag green">确认后同步到内容生成</span>
+            </div>
+            <div class="section-body table-wrap">
+              <table>
+                <thead><tr><th>关键词</th><th>提问偏好</th><th>频次判断</th><th>业务相关性</th><th>建议</th><th>确认</th></tr></thead>
+                <tbody>
+                  <tr><td><div class="keyword">GEO 优化公司怎么选</div></td><td>强</td><td><span class="tag red">高频</span></td><td>高</td><td><span class="tag green">开展优化</span></td><td><button class="btn primary">确认</button></td></tr>
+                  <tr><td><div class="keyword">AI 搜索品牌曝光怎么做</div></td><td>强</td><td><span class="tag red">高频</span></td><td>高</td><td><span class="tag green">开展优化</span></td><td><button class="btn primary">确认</button></td></tr>
+                  <tr><td><div class="keyword">生成式搜索是什么</div></td><td>中</td><td><span class="tag amber">中频</span></td><td>中</td><td><span class="tag amber">观察</span></td><td><button class="btn">暂不做</button></td></tr>
+                </tbody>
+              </table>
+              <div class="inline-actions"><button class="btn primary">确认方案并同步内容生成</button><button class="btn">手动添加关键词</button><button class="btn">导出关键词方案</button></div>
+            </div>
+          </div>
+
+          <div class="section" style="margin-top:16px;">
+            <div class="section-head">
+              <h2 class="section-title">项目关键词库</h2>
+              <div class="top-actions">
+                <select class="field" aria-label="关键词库项目">
+                  <option>薄云咨询</option>
+                  <option>某科技客户</option>
+                  <option>某教育客户</option>
+                </select>
+                <button class="btn primary">手动添加关键词</button>
+              </div>
+            </div>
+            <div class="section-body table-wrap">
+              <table>
+                <thead><tr><th>关键词</th><th>项目</th><th>来源</th><th>状态</th><th>同步状态</th></tr></thead>
+                <tbody>
+                  <tr><td><div class="keyword">GEO 优化公司怎么选</div></td><td>薄云咨询</td><td>关键词方案</td><td><span class="tag green">确认优化</span></td><td><span class="tag blue">已同步内容生成</span></td></tr>
+                  <tr><td><div class="keyword">AI 搜索品牌曝光怎么做</div></td><td>薄云咨询</td><td>手动添加</td><td><span class="tag amber">待诊断</span></td><td><span class="tag amber">未同步</span></td></tr>
+                  <tr><td><div class="keyword">企业知识库搭建方案</div></td><td>某科技客户</td><td>系统提取</td><td><span class="tag green">确认优化</span></td><td><span class="tag blue">已同步内容生成</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-content" data-title="内容生成" data-subtitle="人工审批建议生成方案，启动内容生成任务并在线编辑文章">
+          <div class="page-head">
+            <div><h2>内容生成</h2><p>承接关键词运营结果和每日检测回流的生成需求，审批后进入内容生成与在线编辑。</p></div>
+          </div>
+          <div class="section">
+            <div class="section-head"><h2 class="section-title">建议生成方案清单</h2><div class="tabs"><button class="tab active">全部</button><button class="tab">关键词运营</button><button class="tab">检测回流</button><button class="tab">已生成</button></div></div>
+            <div class="section-body table-wrap">
+              <table><thead><tr><th>关键词</th><th>项目</th><th>文章类型</th><th>发布平台</th><th>建议形成时间</th><th>来源</th><th>草稿</th><th>审批</th></tr></thead><tbody>
+                <tr><td><div class="keyword">GEO 优化公司怎么选</div></td><td>薄云咨询</td><td>选型指南</td><td>软盟 / 官网</td><td>05/15 10:24</td><td><span class="tag red">检测回流</span></td><td><button class="btn">查看草稿</button></td><td><button class="btn primary">审批并生成</button></td></tr>
+                <tr><td><div class="keyword">AI 搜索品牌曝光怎么做</div></td><td>薄云咨询</td><td>解决方案</td><td>行业媒体</td><td>05/15 09:18</td><td><span class="tag teal">关键词运营</span></td><td><button class="btn">查看草稿</button></td><td><button class="btn primary">审批并生成</button></td></tr>
+                <tr><td><div class="keyword">企业知识库搭建方案</div></td><td>某科技客户</td><td>方法论文章</td><td>官网</td><td>05/14 17:42</td><td><span class="tag teal">关键词运营</span></td><td><button class="btn">查看草稿</button></td><td><button class="btn primary">审批并生成</button></td></tr>
+              </tbody></table>
+            </div>
+          </div>
+
+          <div class="section" style="margin-top:16px;">
+            <div class="section-head">
+              <h2 class="section-title">文章在线编辑</h2>
+              <div class="top-actions"><button class="btn">手动上传成品文章</button><button class="btn primary">保存草稿</button></div>
+            </div>
+            <div class="section-body editor-layout">
+              <article class="editor" contenteditable="true">
+                <h3>GEO 优化公司怎么选：企业决策者的评估清单</h3>
+                <p>当企业开始关注 AI 搜索中的品牌曝光时，选择 GEO 优化服务商需要同时评估诊断能力、内容生成能力、检测频率和迭代机制。</p>
+                <p>建议优先关注服务商是否能围绕关键词表现建立每日检测闭环，并在发现低效关键词后及时返回内容生成流程。</p>
+                <h4>一、看是否具备项目级检测能力</h4>
+                <p>项目级检测应覆盖综合露出率、综合 TOP3 推率、风险预警和低效关键词清单。</p>
+              </article>
+              <aside>
+                <div class="drawer-preview">关联关键词：GEO 优化公司怎么选<br>项目：薄云咨询<br>文章类型：选型指南<br>发布平台：软盟 / 官网</div>
+                <div class="section" style="margin-top:12px; box-shadow:none;">
+                  <div class="section-head"><h2 class="section-title">参考资料</h2></div>
+                  <div class="section-body">
+                    <div class="legend">
+                      <div class="legend-row"><span>品牌资料</span><strong>已引用</strong></div>
+                      <div class="legend-row"><span>内容参考文库</span><strong>3 篇</strong></div>
+                      <div class="legend-row"><span>禁用表达</span><strong>已检查</strong></div>
+                    </div>
+                  </div>
+                </div>
+              </aside>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-publish" data-title="发布管理" data-subtitle="发布任务、计划时间、平台和发布状态管理">
+          <div class="page-head"><div><h2>发布管理</h2><p>发布前可编辑发布时间、平台、内容类型和任务状态。</p></div><button class="btn primary" id="openPublishModal">新建发布计划</button></div>
+          <div class="two-col">
+            <div class="section"><div class="section-head"><h2 class="section-title">发布任务清单</h2><span class="tag amber">19 待发布</span></div><div class="section-body table-wrap"><table><thead><tr><th>内容标题</th><th>关键词</th><th>项目</th><th>发布平台</th><th>内容类型</th><th>计划发布时间</th><th>发布状态</th><th>操作</th></tr></thead><tbody><tr><td>GEO 服务商选择指南</td><td>GEO 优化公司怎么选</td><td>薄云咨询</td><td>第三方媒体</td><td>实操指南</td><td>今天 16:00</td><td><span class="tag blue">待定时发布</span></td><td><button class="btn">编辑计划</button></td></tr><tr><td>AI 搜索品牌曝光方案</td><td>AI 搜索品牌曝光怎么做</td><td>薄云咨询</td><td>官网</td><td>方法论讲解</td><td></td><td><span class="tag amber">待计划</span></td><td><button class="btn">编辑计划</button></td></tr><tr><td>企业知识库搭建案例</td><td>企业知识库搭建方案</td><td>某科技客户</td><td>自媒体</td><td>案例分析</td><td>明天 10:00</td><td><span class="tag green">已发布</span></td><td><button class="btn">编辑计划</button></td></tr><tr><td>GEO 服务 FAQ 问答</td><td>GEO 服务费用</td><td>薄云咨询</td><td>第三方媒体</td><td>FAQ问答</td><td>今天 18:30</td><td><span class="tag red">发布失败</span></td><td><button class="btn">编辑计划</button></td></tr></tbody></table></div></div>
+            <div class="section"><div class="section-head"><h2 class="section-title">接口状态</h2><span class="tag blue">API</span></div><div class="section-body"><div class="legend"><div class="legend-row"><span><span class="dot amber"></span>第三方发布测试</span><strong>2 失败</strong></div><div class="legend-row"><span><span class="dot green"></span>发布回执</span><strong>正常</strong></div><div class="legend-row"><span><span class="dot green"></span>截图留存</span><strong>正常</strong></div></div></div></div>
+          </div>
+        </section>
+
+        <section class="page" id="page-monitor" data-title="每日检测" data-subtitle="按单个项目查看每日 GEO 监测结果">
+          <div class="page-head">
+            <div><h2>每日检测</h2><p>这是单项目检测页面，可切换项目查看今日监测结果、关键词明细、信源和已形成报告。</p></div>
+            <div class="top-actions">
+              <select class="field" aria-label="检测项目"><option>薄云咨询</option><option>某科技客户</option><option>某教育客户</option></select>
+              <button class="btn primary">生成待迭代清单</button>
+            </div>
+          </div>
+
+          <section class="kpi-grid" aria-label="检测总览">
+            <div class="kpi"><div class="kpi-label">核心关键词数 <span class="tag blue">监测池</span></div><div class="kpi-value">135</div><div class="delta">较昨日 +6</div></div>
+            <div class="kpi"><div class="kpi-label">问答检测总量 <span class="tag teal">今日</span></div><div class="kpi-value">12,480</div><div class="delta">五大平台合计</div></div>
+            <div class="kpi"><div class="kpi-label">品牌露出总量 <span class="tag green">出现</span></div><div class="kpi-value">8,109</div><div class="delta up">全平台露出率 64.97%</div></div>
+            <div class="kpi"><div class="kpi-label">TOP3 总量 <span class="tag purple">TOP3</span></div><div class="kpi-value">5,214</div><div class="delta up">TOP3 推率 41.78%</div></div>
+            <div class="kpi"><div class="kpi-label">舆情统计 <span class="tag red">负面</span></div><div class="kpi-value">2</div><div class="delta down">今日新增负面内容</div></div>
+            <div class="kpi"><div class="kpi-label">低效关键词 <span class="tag red">待迭代</span></div><div class="kpi-value">18</div><div class="delta down">需进入内容生成</div></div>
+          </section>
+
+          <div class="monitor-grid">
+            <div class="section">
+              <div class="section-head"><h2 class="section-title">推送趋势</h2><div class="top-actions"><select class="field"><option>近 7 天</option><option>近 14 天</option><option>近 30 天</option></select><button class="btn primary">生成图表</button></div></div>
+              <div class="section-body">
+                <div class="daily-trend" aria-label="按日展示露出率与 TOP3 推率趋势">
+                  <div class="trend-day"><div class="trend-bars"><div class="trend-bar" style="height:52%"></div><div class="trend-bar top3" style="height:30%"></div></div><div class="trend-label">05/09</div></div>
+                  <div class="trend-day"><div class="trend-bars"><div class="trend-bar" style="height:56%"></div><div class="trend-bar top3" style="height:32%"></div></div><div class="trend-label">05/10</div></div>
+                  <div class="trend-day"><div class="trend-bars"><div class="trend-bar" style="height:59%"></div><div class="trend-bar top3" style="height:35%"></div></div><div class="trend-label">05/11</div></div>
+                  <div class="trend-day"><div class="trend-bars"><div class="trend-bar" style="height:61%"></div><div class="trend-bar top3" style="height:37%"></div></div><div class="trend-label">05/12</div></div>
+                  <div class="trend-day"><div class="trend-bars"><div class="trend-bar" style="height:63%"></div><div class="trend-bar top3" style="height:40%"></div></div><div class="trend-label">05/13</div></div>
+                  <div class="trend-day"><div class="trend-bars"><div class="trend-bar" style="height:62%"></div><div class="trend-bar top3" style="height:38%"></div></div><div class="trend-label">05/14</div></div>
+                  <div class="trend-day"><div class="trend-bars"><div class="trend-bar" style="height:65%"></div><div class="trend-bar top3" style="height:42%"></div></div><div class="trend-label">05/15</div></div>
+                </div>
+                <div class="row-between" style="margin-top:12px;"><span class="tag teal">露出率</span><span class="tag blue">TOP3 推率</span></div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-head"><h2 class="section-title">核心指标表现</h2><span class="tag green">全平台与分平台</span></div>
+              <div class="section-body">
+                <div class="benchmark-grid">
+                  <div class="benchmark-card"><div class="subtext">所有关键词全平台露出率</div><strong>64.97%</strong><div class="progress-line"><span style="width:65%"></span></div></div>
+                  <div class="benchmark-card"><div class="subtext">所有关键词全平台 TOP3 推率</div><strong>41.78%</strong><div class="progress-line"><span style="width:42%"></span></div></div>
+                  <div class="benchmark-card"><div class="subtext">DeepSeek 露出率 / TOP3 推率</div><strong>72% / 47%</strong><div class="progress-line"><span style="width:72%; background:var(--teal)"></span></div></div>
+                  <div class="benchmark-card"><div class="subtext">豆包露出率 / TOP3 推率</div><strong>61% / 39%</strong><div class="progress-line"><span style="width:61%; background:var(--amber)"></span></div></div>
+                  <div class="benchmark-card"><div class="subtext">Kimi 露出率 / TOP3 推率</div><strong>58% / 34%</strong><div class="progress-line"><span style="width:58%"></span></div></div>
+                  <div class="benchmark-card"><div class="subtext">元宝露出率 / TOP3 推率</div><strong>69% / 45%</strong><div class="progress-line"><span style="width:69%; background:var(--green)"></span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section" style="margin-top:16px;"><div class="section-head"><h2 class="section-title">关键词检测明细</h2><div class="tabs"><button class="tab active">全部</button><button class="tab">需迭代</button><button class="tab">负面风险</button></div></div><div class="section-body table-wrap"><table><thead><tr><th>关键词</th><th>综合露出率</th><th>DeepSeek露出率</th><th>豆包露出率</th><th>Kimi露出率</th><th>元宝露出率</th><th>千问露出率</th><th>综合 TOP3 推率</th><th>DeepSeek TOP3</th><th>豆包 TOP3</th><th>Kimi TOP3</th><th>元宝 TOP3</th><th>千问 TOP3</th><th>是否需迭代优化</th></tr></thead><tbody><tr><td><div class="keyword">GEO 优化公司怎么选</div></td><td>18%</td><td>20%</td><td>12%</td><td>22%</td><td>18%</td><td>16%</td><td>0%</td><td>0%</td><td>0%</td><td>0%</td><td>0%</td><td>0%</td><td><span class="tag red">需要</span></td></tr><tr><td><div class="keyword">AI 搜索品牌曝光怎么做</div></td><td>46%</td><td>52%</td><td>44%</td><td>42%</td><td>49%</td><td>43%</td><td>12%</td><td>18%</td><td>8%</td><td>10%</td><td>14%</td><td>10%</td><td><span class="tag amber">观察</span></td></tr><tr><td><div class="keyword">企业知识库搭建方案</div></td><td>71%</td><td>78%</td><td>66%</td><td>69%</td><td>74%</td><td>68%</td><td>34%</td><td>41%</td><td>29%</td><td>32%</td><td>37%</td><td>31%</td><td><span class="tag green">不需要</span></td></tr></tbody></table></div></div>
+
+          <div class="two-col" style="margin-top:16px;">
+            <div class="section">
+              <div class="section-head"><h2 class="section-title">今日检测结果引用信源列表</h2><span class="tag green">1,719 次提及</span></div>
+              <div class="section-body table-wrap"><table><thead><tr><th>信源标题</th><th>信源网址</th><th>被提及次数</th></tr></thead><tbody><tr><td>薄云咨询 GEO 服务介绍</td><td>https://example.com/geo-service</td><td>286</td></tr><tr><td>AI 搜索优化行业观察</td><td>https://media.example.com/ai-search</td><td>143</td></tr><tr><td>生成式搜索优化方法论</td><td>https://example.com/geo-guide</td><td>98</td></tr></tbody></table></div>
+            </div>
+            <div class="section">
+              <div class="section-head"><h2 class="section-title">分析报告生成</h2><span class="tag teal">生成入口</span></div>
+              <div class="section-body"><div class="action-matrix"><button class="action-tile">每日监测报告生成</button><button class="action-tile">信源分析</button><button class="action-tile">竞品分析</button><button class="action-tile">舆情分析</button><button class="action-tile">关键词数据分析</button></div></div>
+            </div>
+          </div>
+
+          <div class="section" style="margin-top:16px;"><div class="section-head"><h2 class="section-title">已形成报告</h2><span class="tag blue">可下载</span></div><div class="section-body table-wrap"><table><thead><tr><th>报告分类</th><th>报告形成时间</th><th>下载</th></tr></thead><tbody><tr><td>每日监测报告</td><td>2026-05-15 09:30</td><td><button class="btn primary">下载</button></td></tr><tr><td>信源分析</td><td>2026-05-15 09:42</td><td><button class="btn">下载</button></td></tr><tr><td>竞品分析</td><td>2026-05-15 09:55</td><td><button class="btn">下载</button></td></tr><tr><td>舆情分析</td><td>2026-05-15 10:08</td><td><button class="btn">下载</button></td></tr><tr><td>关键词数据分析</td><td>2026-05-15 10:16</td><td><button class="btn">下载</button></td></tr></tbody></table></div></div>
+        </section>
+
+        <section class="page" id="page-reports" data-title="复盘报告" data-subtitle="周报、月报、阶段复盘与客户开放确认">
+          <div class="page-head"><div><h2>复盘报告</h2><p>报告复核后可开放给客户只读用户查看。</p></div><button class="btn primary">生成报告</button></div>
+          <div class="three-col"><div class="section"><div class="section-head"><h2 class="section-title">草稿</h2><span class="tag blue">6</span></div><div class="section-body empty-hint">系统根据检测趋势、发布记录和迭代动作生成报告草稿。</div></div><div class="section"><div class="section-head"><h2 class="section-title">待复核</h2><span class="tag amber">4</span></div><div class="section-body empty-hint">运营用户确认结论、数据口径和截图证据。</div></div><div class="section"><div class="section-head"><h2 class="section-title">已开放</h2><span class="tag green">12</span></div><div class="section-body empty-hint">客户只读用户可查看的日报、周报、月报和阶段复盘。</div></div></div>
+        </section>
+
+        <section class="page" id="page-assets" data-title="资产库" data-subtitle="客户资料、内容参考文库、关键词、生成内容、截图证据和报告沉淀">
+          <div class="page-head"><div><h2>资产库</h2><p>按资产类型查看清单；客户资料、关键词、生成内容、截图证据和报告支持全部/按项目分类。</p></div><button class="btn primary">上传资产</button></div>
+          <div class="section"><div class="section-head"><h2 class="section-title">资产类型</h2></div><div class="section-body"><div class="pipeline"><div class="step"><div class="step-label">客户资料</div><div class="step-value">128</div></div><div class="step"><div class="step-label">内容参考文库</div><div class="step-value">74</div></div><div class="step"><div class="step-label">关键词</div><div class="step-value">362</div></div><div class="step"><div class="step-label">生成内容</div><div class="step-value">214</div></div><div class="step"><div class="step-label">截图证据</div><div class="step-value">1,482</div></div></div></div></div>
+          <div class="section" style="margin-top:16px;">
+            <div class="section-head">
+              <h2 class="section-title">分类资产清单</h2>
+              <div class="top-actions">
+                <select class="field" aria-label="资产分类">
+                  <option>客户资料</option>
+                  <option>内容参考文库</option>
+                  <option>关键词</option>
+                  <option>生成内容</option>
+                  <option>截图证据</option>
+                  <option>报告</option>
+                </select>
+                <select class="field" aria-label="项目分类">
+                  <option>全部</option>
+                  <option>按项目：薄云咨询</option>
+                  <option>按项目：某科技客户</option>
+                  <option>按项目：某教育客户</option>
+                </select>
+              </div>
+            </div>
+            <div class="section-body table-wrap">
+              <table>
+                <thead><tr><th>资产名称</th><th>分类</th><th>项目</th><th>来源</th><th>更新时间</th><th>状态</th></tr></thead>
+                <tbody>
+                  <tr><td><div class="keyword">品牌介绍与服务清单.pdf</div></td><td>客户资料</td><td>薄云咨询</td><td>上传</td><td>05/15 09:10</td><td><span class="tag green">已入库</span></td></tr>
+                  <tr><td><div class="keyword">B2B 服务选型文章结构库</div></td><td>内容参考文库</td><td>通用</td><td>运营沉淀</td><td>05/14 18:20</td><td><span class="tag blue">可复用</span></td></tr>
+                  <tr><td><div class="keyword">GEO 优化公司怎么选</div></td><td>关键词</td><td>薄云咨询</td><td>关键词方案</td><td>05/15 10:24</td><td><span class="tag green">已确认</span></td></tr>
+                  <tr><td><div class="keyword">GEO 优化公司怎么选：评估清单</div></td><td>生成内容</td><td>薄云咨询</td><td>内容生成</td><td>05/15 11:02</td><td><span class="tag amber">待审核</span></td></tr>
+                  <tr><td><div class="keyword">DeepSeek 检测截图 05/15</div></td><td>截图证据</td><td>薄云咨询</td><td>每日检测</td><td>05/15 09:35</td><td><span class="tag green">已留存</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-settings" data-title="系统管理" data-subtitle="账号、权限、客户授权、接口和服务状态">
+          <div class="page-head"><div><h2>系统管理</h2><p>仅超级管理员可见，用于全局配置与权限管理。</p></div><button class="btn primary">新增用户</button></div>
+          <div class="two-col"><div class="section"><div class="section-head"><h2 class="section-title">账号与权限</h2></div><div class="section-body table-wrap"><table><thead><tr><th>账号</th><th>角色</th><th>客户范围</th><th>状态</th></tr></thead><tbody><tr><td>admin@geo</td><td>唯一超级管理员</td><td>全部</td><td><span class="tag green">启用</span></td></tr><tr><td>linran@geo</td><td>运营用户</td><td>12 个客户</td><td><span class="tag green">启用</span></td></tr><tr><td>client-a@demo</td><td>只读用户</td><td>薄云咨询</td><td><span class="tag green">启用</span></td></tr></tbody></table></div></div><div class="section"><div class="section-head"><h2 class="section-title">系统配置</h2></div><div class="section-body"><div class="legend"><div class="legend-row"><span>PostgreSQL</span><strong>正常</strong></div><div class="legend-row"><span>独立域名</span><strong>待配置</strong></div><div class="legend-row"><span>云端存储</span><strong>正常</strong></div><div class="legend-row"><span>热搜指数 API</span><strong>待接入</strong></div></div></div></div></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="projectModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="projectModalTitle">
+      <div class="section-head">
+        <h2 class="section-title" id="projectModalTitle">新建项目登记</h2>
+        <button class="btn" id="closeProjectModal">关闭</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-row">
+            <label>客户名称 *</label>
+            <input class="field" style="width:100%;" placeholder="请输入客户名称" />
+          </div>
+          <div class="form-row">
+            <label>客户联系方式 *</label>
+            <input class="field" style="width:100%;" placeholder="手机号 / 邮箱 / 微信" />
+          </div>
+          <div class="form-row">
+            <label>项目负责人 *</label>
+            <select class="field" style="width:100%;">
+              <option>林然</option>
+              <option>周宁</option>
+              <option>韩悦</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>所在行业</label>
+            <input class="field" style="width:100%;" placeholder="可选填写" />
+          </div>
+        </div>
+        <div class="form-row">
+          <label>客户现有资料</label>
+          <div class="file-drop">可选上传：品牌资料、官网材料、FAQ、案例、历史稿件等。资料会自动绑定到该项目。</div>
+        </div>
+        <div class="inline-actions">
+          <button class="btn primary">创建项目</button>
+          <button class="btn" id="cancelProjectModal">取消</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="publishModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="publishModalTitle">
+      <div class="section-head">
+        <h2 class="section-title" id="publishModalTitle">手动导入发布计划</h2>
+        <button class="btn" id="closePublishModal">关闭</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-row">
+            <label>项目 *</label>
+            <select class="field" style="width:100%;"><option>薄云咨询</option><option>某科技客户</option><option>某教育客户</option></select>
+          </div>
+          <div class="form-row">
+            <label>发布平台 *</label>
+            <select class="field" style="width:100%;"><option>第三方媒体</option><option>官网</option><option>自媒体</option></select>
+          </div>
+          <div class="form-row">
+            <label>内容类型 *</label>
+            <select class="field" style="width:100%;"><option>榜单排名</option><option>方法论讲解</option><option>案例分析</option><option>行业洞察</option><option>对比测评</option><option>客户证言</option><option>FAQ问答</option><option>实操指南</option></select>
+          </div>
+          <div class="form-row">
+            <label>计划发布时间</label>
+            <input class="field" style="width:100%;" placeholder="如：2026-05-16 10:00；待计划可留空" />
+          </div>
+        </div>
+        <div class="form-row">
+          <label>待发布内容勾选清单 *</label>
+          <div class="task-list">
+            <label class="task"><input type="checkbox" checked /> GEO 服务商选择指南 <span class="subtext">关键词：GEO 优化公司怎么选</span></label>
+            <label class="task"><input type="checkbox" /> AI 搜索品牌曝光方案 <span class="subtext">关键词：AI 搜索品牌曝光怎么做</span></label>
+            <label class="task"><input type="checkbox" /> 企业知识库搭建案例 <span class="subtext">关键词：企业知识库搭建方案</span></label>
+          </div>
+        </div>
+        <div class="inline-actions">
+          <button class="btn primary">导入发布计划</button>
+          <button class="btn" id="cancelPublishModal">取消</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const navItems = document.querySelectorAll(".nav-item[data-page]");
+    const pages = document.querySelectorAll(".page");
+    const title = document.querySelector(".title h1");
+    const subtitle = document.querySelector(".title p");
+
+    navItems.forEach((item) => {
+      item.addEventListener("click", () => {
+        const target = item.dataset.page;
+        navItems.forEach((nav) => nav.classList.toggle("active", nav === item));
+        pages.forEach((page) => {
+          const active = page.id === `page-${target}`;
+          page.classList.toggle("active", active);
+          if (active) {
+            title.textContent = page.dataset.title || item.textContent.trim();
+            subtitle.textContent = page.dataset.subtitle || "";
+          }
+        });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    });
+
+    const projectModal = document.getElementById("projectModal");
+    const openProjectModal = document.getElementById("openProjectModal");
+    const closeProjectModal = document.getElementById("closeProjectModal");
+    const cancelProjectModal = document.getElementById("cancelProjectModal");
+    const publishModal = document.getElementById("publishModal");
+    const openPublishModal = document.getElementById("openPublishModal");
+    const closePublishModal = document.getElementById("closePublishModal");
+    const cancelPublishModal = document.getElementById("cancelPublishModal");
+
+    function setProjectModal(open) {
+      projectModal.classList.toggle("open", open);
+      projectModal.setAttribute("aria-hidden", open ? "false" : "true");
+    }
+
+    openProjectModal?.addEventListener("click", () => setProjectModal(true));
+    closeProjectModal?.addEventListener("click", () => setProjectModal(false));
+    cancelProjectModal?.addEventListener("click", () => setProjectModal(false));
+    projectModal?.addEventListener("click", (event) => {
+      if (event.target === projectModal) setProjectModal(false);
+    });
+
+    function setPublishModal(open) {
+      publishModal.classList.toggle("open", open);
+      publishModal.setAttribute("aria-hidden", open ? "false" : "true");
+    }
+
+    openPublishModal?.addEventListener("click", () => setPublishModal(true));
+    closePublishModal?.addEventListener("click", () => setPublishModal(false));
+    cancelPublishModal?.addEventListener("click", () => setPublishModal(false));
+    publishModal?.addEventListener("click", (event) => {
+      if (event.target === publishModal) setPublishModal(false);
+    });
+  </script>
+</body>
+</html>

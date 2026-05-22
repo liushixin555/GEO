@@ -42,7 +42,7 @@ describe('LoginPage', () => {
   it('should render login form with title', () => {
     renderWithRouter();
 
-    expect(screen.getByText('薄云GEO')).toBeInTheDocument();
+    expect(screen.getByText('薄云商机倍增服务')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('请输入用户名')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('请输入密码')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /登录/i })).toBeInTheDocument();

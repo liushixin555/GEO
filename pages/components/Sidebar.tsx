@@ -36,8 +36,8 @@ interface MenuItemDef {
 
 const menuItems: MenuItemDef[] = [
   { label: 'AI知识库', path: '/knowledge', roles: ['sysadmin', 'admin'], icon: <BookOutlined /> },
-  { label: 'GEO文章', path: '/article', roles: ['sysadmin', 'admin'], icon: <FileTextOutlined /> },
-  { label: 'GEO成绩', path: '/score', roles: ['sysadmin', 'admin', 'view'], icon: <TrophyOutlined /> },
+  { label: '文章管理', path: '/article', roles: ['sysadmin', 'admin'], icon: <FileTextOutlined /> },
+  { label: '发布管理', path: '/score', roles: ['sysadmin', 'admin', 'view'], icon: <TrophyOutlined /> },
   { label: '常用工具', path: '/tools', roles: ['sysadmin', 'admin'], icon: <ToolOutlined /> },
   { label: '项目管理', path: '/project', roles: ['sysadmin', 'admin'], icon: <ProjectOutlined /> },
   { label: '技能管理', path: '/skills', roles: ['sysadmin', 'admin'], icon: <ThunderboltOutlined /> },
@@ -80,7 +80,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     <div className="sidebar-container">
       <div className={collapsed ? 'sidebar-header-collapsed' : 'sidebar-header'}>
         {showFull && (
-          <Typography.Text strong className="sidebar-brand">薄云GEO</Typography.Text>
+          <Typography.Text strong className="sidebar-brand">薄云商机倍增服务</Typography.Text>
         )}
         <Button
           type="text"
