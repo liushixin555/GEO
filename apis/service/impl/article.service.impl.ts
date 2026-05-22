@@ -123,7 +123,7 @@ export class ArticleServiceImpl implements IArticleService {
       throw new Error('文章当前状态不支持审核操作');
     }
 
-    const newStatus = approved ? 'publishing' : 'draft';
+    const newStatus = approved ? 'publishing' : (existing.writeMode === 'manual' ? 'manual_writing' : 'draft');
     const updated = await prisma.article.update({
       where: { id },
       data: { status: newStatus },

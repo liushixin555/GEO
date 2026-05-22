@@ -153,6 +153,8 @@ const ArticleDetail: React.FC = () => {
           skills: data.skills ?? undefined,
           llm_model_id: data.llm_model_id ?? undefined,
         });
+        // Sync writeMode state from server data
+        if (data.write_mode) setWriteMode(data.write_mode as 'manual' | 'ai');
       }, 0);
       setImageList(data.images || []);
       setContent(data.content || '');
@@ -285,8 +287,7 @@ const ArticleDetail: React.FC = () => {
 
   const canEditSettings = () => {
     if (!article) return false;
-    // 只有草稿状态可以编辑设置
-    if (!['draft'].includes(article.status)) return false;
+    if (!['draft', 'manual_writing'].includes(article.status)) return false;
     return user.role === 'sysadmin' || article.created_by === user.id;
   };
 
@@ -796,12 +797,12 @@ const ArticleDetail: React.FC = () => {
           <Button loading={saving} onClick={() => {
             form.validateFields().then((values) => handleSaveSettings(values, false, writeMode === 'manual'));
           }}>存草稿</Button>
-          {writeMode === 'ai' && (
+          {article?.write_mode !== 'manual' && (
             <Button type="primary" loading={saving} onClick={() => {
               form.validateFields().then((values) => handleSaveSettings(values, true));
             }}>提交给AI</Button>
           )}
-          {writeMode === 'manual' && (
+          {article?.write_mode === 'manual' && (
             <Button type="primary" loading={saving} onClick={() => {
               form.validateFields().then((values) => handleSaveSettings(values, false, true));
             }}>提交审核</Button>
