@@ -51,7 +51,7 @@ elif [ "$SEED_COUNT" = "0" ]; then
 else
   echo "数据库已初始化（Enterprise 记录数: $SEED_COUNT），跳过 seed"
 fi
-
+pnpm build
 # docker build
 echo "正在构建 Docker 镜像..."
 sudo docker build -t by:latest .
