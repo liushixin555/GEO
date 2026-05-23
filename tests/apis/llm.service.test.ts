@@ -247,6 +247,67 @@ describe('LlmServiceImpl', () => {
         orderBy: { id: 'asc' },
       });
     });
+
+    it('应正确处理Windows风格的\\r\\n换行符', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(defaultModel);
+      const llmContent = '关键词1\r\n关键词2\r\n关键词3';
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent(llmContent)));
+
+      const result = await service.expandKeywords('测试');
+
+      expect(result).toEqual(['关键词1', '关键词2', '关键词3']);
+    });
+
+    it('应正确处理混合换行符（\\r\\n和\\n混用）', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(defaultModel);
+      const llmContent = '关键词1\n关键词2\r\n关键词3';
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent(llmContent)));
+
+      const result = await service.expandKeywords('测试');
+
+      expect(result).toEqual(['关键词1', '关键词2', '关键词3']);
+    });
+
+    it('编号前缀去除后为空的行应被过滤', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(defaultModel);
+      const llmContent = '1. \n有效关键词\n2.\n另一个有效词';
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent(llmContent)));
+
+      const result = await service.expandKeywords('测试');
+
+      expect(result).toEqual(['有效关键词', '另一个有效词']);
+    });
+
+    it('应处理两位数编号前缀', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(defaultModel);
+      const llmContent = '10. 长尾关键词A\n11. 长尾关键词B\n12. 长尾关键词C';
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent(llmContent)));
+
+      const result = await service.expandKeywords('测试');
+
+      expect(result).toEqual(['长尾关键词A', '长尾关键词B', '长尾关键词C']);
+    });
+
+    it('应保留不以数字开头的行（如带破折号的列表项）', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(defaultModel);
+      const llmContent = '- 破折号关键词\n正常关键词\n* 星号关键词';
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent(llmContent)));
+
+      const result = await service.expandKeywords('测试');
+
+      expect(result).toEqual(['- 破折号关键词', '正常关键词', '* 星号关键词']);
+    });
+
+    it('应处理恰好99个字符的关键词（刚好在限制内）', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(defaultModel);
+      const keyword99 = 'a'.repeat(99);
+      const llmContent = `${keyword99}\n有效词`;
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent(llmContent)));
+
+      const result = await service.expandKeywords('测试');
+
+      expect(result).toEqual([keyword99, '有效词']);
+    });
   });
 
   // ──────────────────────────────────────
@@ -406,6 +467,50 @@ describe('LlmServiceImpl', () => {
         where: { status: true, deletedAt: null },
         orderBy: { id: 'asc' },
       });
+    });
+
+    it('应正确处理Windows风格的\\r\\n换行符', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(defaultModel);
+      const llmContent = '机器学习\r\n深度学习\r\n自然语言处理';
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent(llmContent)));
+
+      const result = await service.mineKeywordsFromContent('内容');
+
+      expect(result).toEqual(['机器学习', '深度学习', '自然语言处理']);
+    });
+
+    it('应明确过滤长度为1的关键词（与expandKeywords不同）', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(defaultModel);
+      const llmContent = '好\n机器学习\nAI\n深度学习';
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent(llmContent)));
+
+      const result = await service.mineKeywordsFromContent('内容');
+
+      // '好'(1) 和 'AI'(2) - 注意 filter 是 >1，所以只有 '好' 被过滤
+      expect(result).toEqual(['机器学习', 'AI', '深度学习']);
+    });
+
+    it('应处理两位数编号前缀', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(defaultModel);
+      const llmContent = '10. 人工智能\n11. 区块链\n12. 物联网';
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent(llmContent)));
+
+      const result = await service.mineKeywordsFromContent('内容');
+
+      expect(result).toEqual(['人工智能', '区块链', '物联网']);
+    });
+
+    it('应正确处理超长内容输入', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(defaultModel);
+      const longContent = '这是一段很长的文章内容。'.repeat(500);
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('关键词1\n关键词2')));
+
+      const result = await service.mineKeywordsFromContent(longContent);
+
+      // 验证内容被传递到prompt中
+      const userContent = (mockedAxios.post.mock.calls[0] as [string, any, any])[1].messages[0].content;
+      expect(userContent).toContain(longContent);
+      expect(result).toEqual(['关键词1', '关键词2']);
     });
   });
 
@@ -604,6 +709,97 @@ describe('LlmServiceImpl', () => {
         where: { status: true, deletedAt: null },
         orderBy: { id: 'asc' },
       });
+    });
+
+    it('LLM返回null内容时应抛出"LLM返回内容为空"错误', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(defaultModel);
+      mockedAxios.post.mockResolvedValue(
+        makeAxiosResponse({ choices: [{ message: { content: null } }] })
+      );
+
+      await expect(service.generateArticle(defaultParams)).rejects.toThrow(
+        'LLM返回内容为空'
+      );
+    });
+
+    it('LLM返回undefined内容时应抛出"LLM返回内容为空"错误', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(defaultModel);
+      mockedAxios.post.mockResolvedValue(
+        makeAxiosResponse({ choices: [{ message: {} }] })
+      );
+
+      await expect(service.generateArticle(defaultParams)).rejects.toThrow(
+        'LLM返回内容为空'
+      );
+    });
+
+    it('LLM返回空choices数组时应抛出"LLM返回内容为空"错误', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(defaultModel);
+      mockedAxios.post.mockResolvedValue(
+        makeAxiosResponse({ choices: [] })
+      );
+
+      await expect(service.generateArticle(defaultParams)).rejects.toThrow(
+        'LLM返回内容为空'
+      );
+    });
+
+    it('应正确在prompt中包含标题和目标受众', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(defaultModel);
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('文章')));
+
+      const params: ArticleGenerationParams = {
+        title: '深度学习入门指南',
+        keywords: '神经网络, 反向传播',
+        portrait: 'AI初学者',
+        images: [],
+        skills: '通俗易懂',
+      };
+
+      await service.generateArticle(params);
+
+      const userContent = (mockedAxios.post.mock.calls[0] as [string, any, any])[1].messages[1].content;
+      expect(userContent).toContain('深度学习入门指南');
+      expect(userContent).toContain('神经网络, 反向传播');
+      expect(userContent).toContain('AI初学者');
+      expect(userContent).toContain('通俗易懂');
+    });
+
+    it('应正确格式化多张图片信息到prompt中', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(defaultModel);
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('文章')));
+
+      const params: ArticleGenerationParams = {
+        ...defaultParams,
+        images: [
+          { title: '架构图', description: '系统架构示意', imageUrl: 'https://a.com/arch.png' },
+          { title: '流程图', description: '业务流程示意', imageUrl: 'https://b.com/flow.png' },
+          { title: '截图', description: '界面截图展示', imageUrl: 'https://c.com/screen.jpg' },
+        ],
+      };
+
+      await service.generateArticle(params);
+
+      const userContent = (mockedAxios.post.mock.calls[0] as [string, any, any])[1].messages[1].content;
+      expect(userContent).toContain('1. "架构图"');
+      expect(userContent).toContain('系统架构示意');
+      expect(userContent).toContain('2. "流程图"');
+      expect(userContent).toContain('3. "截图"');
+      expect(userContent).toContain('https://a.com/arch.png');
+      expect(userContent).toContain('https://b.com/flow.png');
+      expect(userContent).toContain('https://c.com/screen.jpg');
+    });
+
+    it('system prompt应包含GEO和Markdown相关指导', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(defaultModel);
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('文章')));
+
+      await service.generateArticle(defaultParams);
+
+      const systemContent = (mockedAxios.post.mock.calls[0] as [string, any, any])[1].messages[0].content;
+      expect(systemContent).toContain('GEO');
+      expect(systemContent).toContain('Markdown');
+      expect(systemContent).toContain('1500-3000字');
     });
   });
 });
