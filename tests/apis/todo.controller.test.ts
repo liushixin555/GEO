@@ -1111,11 +1111,32 @@ describe('Todo Controller', () => {
       expect(response.status).toBe(401);
     });
 
-    it('should return 400 when missing params', async () => {
+    it('should return 400 when missing objectType', async () => {
+      const response = await agent
+        .get('/api/todos/object-options?projectId=1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('should return active articles when action is omitted', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([
+        { id: 1, title: '文章A' },
+      ]);
+      getPrisma.mockReturnValue({
+        article: { findMany: mockFindMany },
+      });
+
       const response = await agent
         .get('/api/todos/object-options?projectId=1&objectType=article')
         .set('Authorization', `Bearer ${sysadminToken()}`);
-      expect(response.status).toBe(400);
+
+      expect(response.status).toBe(200);
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ deletedAt: null }),
+        })
+      );
     });
 
     it('should return active articles for delete action', async () => {

@@ -163,7 +163,7 @@ export async function getObjectOptions(req: Request, res: Response): Promise<voi
     const objectType = req.query.objectType as string;
     const action = req.query.action as string;
 
-    if (!projectId || !objectType || !action) {
+    if (!projectId || !objectType) {
       fail(res, 400, '缺少必要参数');
       return;
     }
