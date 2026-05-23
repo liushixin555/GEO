@@ -106,6 +106,42 @@ describe('apis/utils/response.util.ts', () => {
       });
     });
 
+    it('should handle undefined data', () => {
+      const res = mockResponse();
+      created(res, undefined);
+
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith({
+        code: 0,
+        message: '创建成功',
+        data: undefined,
+      });
+    });
+
+    it('should handle array data', () => {
+      const res = mockResponse();
+      created(res, [1, 2, 3]);
+
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith({
+        code: 0,
+        message: '创建成功',
+        data: [1, 2, 3],
+      });
+    });
+
+    it('should handle empty string message', () => {
+      const res = mockResponse();
+      created(res, { id: 1 }, '');
+
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith({
+        code: 0,
+        message: '',
+        data: { id: 1 },
+      });
+    });
+
     it('should return the result of res.json', () => {
       const res = mockResponse();
       const result = created(res, 'data');
@@ -200,6 +236,39 @@ describe('apis/utils/response.util.ts', () => {
       expect(res.json).toHaveBeenCalledWith({
         code: 422,
         message: '验证失败',
+      });
+    });
+
+    it('should return status 400 for negative code', () => {
+      const res = mockResponse();
+      fail(res, -1, '负数错误码');
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        code: -1,
+        message: '负数错误码',
+      });
+    });
+
+    it('should return status 503 for code 503', () => {
+      const res = mockResponse();
+      fail(res, 503, '服务不可用');
+
+      expect(res.status).toHaveBeenCalledWith(503);
+      expect(res.json).toHaveBeenCalledWith({
+        code: 503,
+        message: '服务不可用',
+      });
+    });
+
+    it('should handle empty string message', () => {
+      const res = mockResponse();
+      fail(res, 400, '');
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        code: 400,
+        message: '',
       });
     });
 
@@ -315,6 +384,37 @@ describe('apis/utils/response.util.ts', () => {
         data: {
           list: ['a', 'b', 'c'],
           total: 3,
+          page: 1,
+          pageSize: 10,
+        },
+      });
+    });
+
+    it('should handle single item list with total 1', () => {
+      const res = mockResponse();
+      paginate(res, [{ id: 1 }], 1, 1, 10);
+
+      expect(res.json).toHaveBeenCalledWith({
+        code: 0,
+        data: {
+          list: [{ id: 1 }],
+          total: 1,
+          page: 1,
+          pageSize: 10,
+        },
+      });
+    });
+
+    it('should handle nested object data', () => {
+      const res = mockResponse();
+      const items = [{ user: { name: 'Alice', age: 30 } }];
+      paginate(res, items, 1, 1, 10);
+
+      expect(res.json).toHaveBeenCalledWith({
+        code: 0,
+        data: {
+          list: items,
+          total: 1,
           page: 1,
           pageSize: 10,
         },
