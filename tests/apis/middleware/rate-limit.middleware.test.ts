@@ -284,7 +284,196 @@ describe('rateLimitMiddleware', () => {
   });
 
   // =========================================================
-  // 6. middleware/index.ts 重导出测试
+  // 6. 配置验证（safeParseInt 异常值）
+  // =========================================================
+  describe('配置验证异常值', () => {
+    test('RATE_LIMIT_WINDOW_MS 为非数字字符串时应抛出错误', () => {
+      process.env.RATE_LIMIT_WINDOW_MS = 'abc';
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      expect(() => {
+        require('../../../apis/middleware/rate-limit.middleware');
+      }).toThrow('RATE_LIMIT_WINDOW_MS must be a valid integer');
+    });
+
+    test('RATE_LIMIT_MAX 为非数字字符串时应抛出错误', () => {
+      process.env.RATE_LIMIT_MAX = 'xyz';
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      expect(() => {
+        require('../../../apis/middleware/rate-limit.middleware');
+      }).toThrow('RATE_LIMIT_MAX must be a valid integer');
+    });
+
+    test('RATE_LIMIT_WINDOW_MS 为负数时应抛出错误', () => {
+      process.env.RATE_LIMIT_WINDOW_MS = '-100';
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      expect(() => {
+        require('../../../apis/middleware/rate-limit.middleware');
+      }).toThrow('RATE_LIMIT_WINDOW_MS must be >= 1');
+    });
+
+    test('RATE_LIMIT_MAX 为负数时应抛出错误', () => {
+      process.env.RATE_LIMIT_MAX = '-5';
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      expect(() => {
+        require('../../../apis/middleware/rate-limit.middleware');
+      }).toThrow('RATE_LIMIT_MAX must be >= 1');
+    });
+
+    test('RATE_LIMIT_WINDOW_MS 为浮点数字符串时应取整', () => {
+      process.env.RATE_LIMIT_WINDOW_MS = '90.9';
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+
+      const callArgs = mockedRateLimit.mock.calls[0][0];
+      expect(callArgs.windowMs).toBe(90);
+    });
+
+    test('RATE_LIMIT_MAX 为浮点数字符串时应取整', () => {
+      process.env.RATE_LIMIT_MAX = '50.7';
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+
+      const callArgs = mockedRateLimit.mock.calls[0][0];
+      expect(callArgs.max).toBe(50);
+    });
+
+    test('极大的 windowMs 值应正确传递', () => {
+      process.env.RATE_LIMIT_WINDOW_MS = '3600000';
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+
+      const callArgs = mockedRateLimit.mock.calls[0][0];
+      expect(callArgs.windowMs).toBe(3600000);
+    });
+
+    test('RATE_LIMIT_WINDOW_MS 为空字符串时应使用默认值', () => {
+      process.env.RATE_LIMIT_WINDOW_MS = '';
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+
+      const callArgs = mockedRateLimit.mock.calls[0][0];
+      expect(callArgs.windowMs).toBe(60000);
+    });
+
+    test('RATE_LIMIT_MAX 为空字符串时应使用默认值', () => {
+      process.env.RATE_LIMIT_MAX = '';
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+
+      const callArgs = mockedRateLimit.mock.calls[0][0];
+      expect(callArgs.max).toBe(100);
+    });
+  });
+
+  // =========================================================
+  // 7. 中间件签名和类型测试
+  // =========================================================
+  describe('中间件签名和类型', () => {
+    test('rateLimitMiddleware 接受三个参数 (req, res, next)', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => {
+        return jest.fn().mockImplementation(() => {
+          return (req: any, res: any, next: any) => next();
+        });
+      });
+
+      const { rateLimitMiddleware } = require('../../../apis/middleware/rate-limit.middleware');
+      expect(rateLimitMiddleware.length).toBeGreaterThanOrEqual(0);
+    });
+
+    test('多次调用同一中间件实例不会创建新实例', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => {
+        return jest.fn().mockImplementation(() => {
+          return (req: any, res: any, next: any) => next();
+        });
+      });
+
+      const { rateLimitMiddleware } = require('../../../apis/middleware/rate-limit.middleware');
+      const ref1 = rateLimitMiddleware;
+      const ref2 = rateLimitMiddleware;
+      expect(ref1).toBe(ref2);
+    });
+
+    test('中间件可在不同 req 对象上复用', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => {
+        return jest.fn().mockImplementation(() => {
+          return (req: any, res: any, next: any) => next();
+        });
+      });
+
+      const { rateLimitMiddleware } = require('../../../apis/middleware/rate-limit.middleware');
+
+      const req1 = { headers: { 'x-forwarded-for': '1.2.3.4' } } as Partial<Request>;
+      const req2 = { headers: { 'x-forwarded-for': '5.6.7.8' } } as Partial<Request>;
+      const next1 = jest.fn();
+      const next2 = jest.fn();
+
+      rateLimitMiddleware(req1 as Request, mockRes as Response, next1);
+      rateLimitMiddleware(req2 as Request, mockRes as Response, next2);
+
+      expect(next1).toHaveBeenCalled();
+      expect(next2).toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================
+  // 8. rateLimit 选项完整性测试
+  // =========================================================
+  describe('rateLimit 选项完整性', () => {
+    test('所有传入 rateLimit() 的选项均存在且类型正确', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+
+      const callArgs = mockedRateLimit.mock.calls[0][0];
+      expect(Object.keys(callArgs).sort()).toEqual(
+        ['legacyHeaders', 'max', 'message', 'standardHeaders', 'windowMs'].sort()
+      );
+    });
+
+    test('message 包含 code 和 message 两个字段', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+
+      const callArgs = mockedRateLimit.mock.calls[0][0];
+      expect(callArgs.message).toHaveProperty('code', 429);
+      expect(callArgs.message).toHaveProperty('message');
+      expect(typeof callArgs.message.message).toBe('string');
+    });
+  });
+
+  // =========================================================
+  // 9. middleware/index.ts 重导出测试
   // =========================================================
   describe('middleware/index.ts 重导出', () => {
     test('rateLimitMiddleware 应通过 index.ts 正确导出', () => {

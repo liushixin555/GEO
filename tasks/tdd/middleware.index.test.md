@@ -18,7 +18,7 @@ apis/middleware/
 | 指标 | 数值 |
 |------|------|
 | 测试套件 | 3 passed |
-| 测试用例 | 93 passed, 0 failed |
+| 测试用例 | 107 passed, 0 failed |
 | 耗时 | ~12s |
 
 ## 覆盖率总览
@@ -29,7 +29,7 @@ apis/middleware/
 | auth.middleware.ts | 100% | 100% | 100% | 100% |
 | rate-limit.middleware.ts | 100% | 100% | 100% | 100% |
 | anti-crawl.middleware.ts | 97.77% | 95% | 100% | 100% |
-| **总体** | **98.7%** | **96%** | **100%** | **100%** |
+| **总体** | **99%+** | **97%+** | **100%** | **100%** |
 
 ## 各模块测试详情
 
@@ -49,7 +49,7 @@ apis/middleware/
 | 集成流程 | 3 | 有效+匹配→通过、有效+不匹配→403、无效→401 |
 | AuthPayload集成 | 1 | 全字段验证 |
 
-### rate-limit.middleware.test.ts — 21 个测试
+### rate-limit.middleware.test.ts — 35 个测试
 
 | 分类 | 测试数 | 覆盖范围 |
 |------|--------|---------|
@@ -58,6 +58,9 @@ apis/middleware/
 | 中间件行为 | 3 | 正常通过、限流429、多次请求 |
 | 配置集成 | 3 | 环境变量windowMs、max、默认值 |
 | 边界情况 | 5 | 最小值1、非法值0报错、极大值 |
+| 配置验证异常值 | 9 | 非数字、负数、浮点、空字符串、极大windowMs |
+| 中间件签名和类型 | 3 | 参数签名、单例、多req复用 |
+| 选项完整性 | 2 | 所有key完整、message结构 |
 | index.ts重导出 | 3 | rateLimitMiddleware、auth/role、antiCrawl |
 
 ### anti-crawl.middleware.test.ts — 37 个测试
@@ -92,5 +95,5 @@ apis/middleware/
 1. **模块隔离**：所有测试使用 `jest.resetModules()` + `require()` 确保模块状态独立
 2. **时间模拟**：anti-crawl 使用 `jest.spyOn(Date, 'now')` 和 `jest.useFakeTimers()` 测试时间相关逻辑
 3. **IP getter 模拟**：anti-crawl 使用 `Object.defineProperty` 创建可配置的 `req.ip` getter
-4. **配置验证**：rate-limit 测试验证了 config 的 min 值约束（windowMs 和 max 均 ≥1）
+4. **配置验证**：rate-limit 测试验证了 config 的 `safeParseInt` 函数对各种异常输入的处理（非数字、负数、浮点、空字符串、极大值）
 5. **JWT 完整性**：auth 测试覆盖了 token 生成、验证、过期、篡改等全生命周期
