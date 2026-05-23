@@ -36,6 +36,7 @@ interface TodoItem {
   status: string;
   created_by_id: number;
   created_by_name: string;
+  due_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -331,11 +332,11 @@ const TodoPage: React.FC = () => {
       },
     },
     {
-      title: '创建时间',
-      dataIndex: 'created_at',
-      key: 'created_at',
+      title: '期望完成',
+      dataIndex: 'due_at',
+      key: 'due_at',
       width: 100,
-      render: (val: string) => formatDate(val),
+      render: (val: string | null) => val ? formatDate(val) : '-',
     },
     {
       title: '操作',
@@ -420,7 +421,7 @@ const TodoPage: React.FC = () => {
                   </Flex>
                   <Flex gap="middle" wrap style={{ whiteSpace: 'nowrap', fontSize: 13 }}>
                     <Typography.Text type="secondary">项目: {item.project_name || '-'}</Typography.Text>
-                    <Typography.Text type="secondary">创建: {formatDate(item.created_at)}</Typography.Text>
+                    <Typography.Text type="secondary">期望完成: {item.due_at ? formatDate(item.due_at) : '-'}</Typography.Text>
                   </Flex>
                 </Flex>
                 <div className="article-card-footer">
