@@ -169,5 +169,74 @@ describe('apis/utils/rmapi.utils/order.util.ts', () => {
       expect(result.data).toEqual(complexData);
       expect(result.status).toBe(201);
     });
+
+    it('should handle response with null data', async () => {
+      const { submitRmOrder } = require('../../../../apis/utils/rmapi.utils/order.util');
+
+      mockedAxios.post.mockResolvedValueOnce({
+        data: { success: true, message: 'ok', data: null, status: 200 },
+      });
+
+      const result = await submitRmOrder({
+        token: 'tok',
+        title: 't',
+        content: 'c',
+        resource_id: 1,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBeNull();
+    });
+
+    it('should handle empty string fields', async () => {
+      const { submitRmOrder } = require('../../../../apis/utils/rmapi.utils/order.util');
+
+      mockedAxios.post.mockResolvedValueOnce({
+        data: { success: true, message: 'ok', data: null, status: 200 },
+      });
+
+      await submitRmOrder({
+        token: '',
+        title: '',
+        content: '',
+        resource_id: 0,
+      });
+
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        'https://rmapi.ruan.net/api/news_order',
+        { token: '', title: '', content: '', resource_id: 0 },
+      );
+    });
+
+    it('should propagate non-Error rejections', async () => {
+      const { submitRmOrder } = require('../../../../apis/utils/rmapi.utils/order.util');
+
+      mockedAxios.post.mockRejectedValueOnce('unknown rejection');
+
+      await expect(
+        submitRmOrder({ token: 'tok', title: 't', content: 'c', resource_id: 1 }),
+      ).rejects.toBe('unknown rejection');
+    });
+
+    it('should return res.data exactly as received', async () => {
+      const { submitRmOrder } = require('../../../../apis/utils/rmapi.utils/order.util');
+
+      const responseData = {
+        success: false,
+        message: '参数错误',
+        data: { errors: ['token 无效'] },
+        status: 422,
+      };
+      mockedAxios.post.mockResolvedValueOnce({ data: responseData });
+
+      const result = await submitRmOrder({
+        token: 'bad-token',
+        title: 't',
+        content: 'c',
+        resource_id: 999,
+      });
+
+      expect(result).toBe(responseData);
+    });
   });
 });
