@@ -153,6 +153,9 @@ app.post('/api/knowledge-bases', authMiddleware, roleMiddleware('sysadmin', 'adm
 app.put('/api/knowledge-bases/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeBaseController.updateKnowledgeBase);
 app.delete('/api/knowledge-bases/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeBaseController.deleteKnowledgeBase);
 
+// Knowledge Inventory (sysadmin + admin)
+app.get('/api/knowledge-inventory', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listInventory);
+
 // Knowledge Item routes (sysadmin + admin) - scoped to knowledge base
 app.get('/api/knowledge-bases/:baseId/keywords', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listKeywords);
 app.get('/api/knowledge-bases/:baseId/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.getKeyword);

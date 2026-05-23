@@ -4,6 +4,7 @@ import { KnowledgeBaseServiceImpl } from '../service/impl/knowledge-base.service
 import { ProjectServiceImpl } from '../service/impl/project.service.impl';
 import { LlmServiceImpl } from '../service/impl/llm.service.impl';
 import { success, fail, paginate } from '../utils';
+import { getPrisma } from '../utils';
 
 const keywordService = new KeywordServiceImpl();
 const portraitService = new PortraitServiceImpl();
@@ -445,5 +446,134 @@ export async function listProjectImages(req: Request, res: Response): Promise<vo
     paginate(res, list, total, page, pageSize);
   } catch (err: any) {
     if (err.message === '无权操作该项目') { fail(res, 403, err.message); } else { fail(res, 500, err.message || '获取图片列表失败'); }
+  }
+}
+
+// ==================== Knowledge Inventory ====================
+
+export async function listInventory(req: Request, res: Response): Promise<void> {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const category = req.query.category as string | undefined;
+    const search = req.query.search as string | undefined;
+
+    const { userId, role } = req.user!;
+
+    // Get all accessible knowledge bases
+    const { list: bases } = await knowledgeBaseService.list(1, 10000, undefined, undefined, undefined, userId, role);
+    const baseIds = bases.map(b => b.id);
+    const baseMap = new Map(bases.map(b => [b.id, b]));
+
+    if (baseIds.length === 0) {
+      res.json({ code: 0, data: { stats: { keyword: 0, portrait: 0, image: 0, total: 0 }, list: [], total: 0 } });
+      return;
+    }
+
+    const prisma = getPrisma();
+    const baseFilter = { baseId: { in: baseIds } };
+
+    // Count by type
+    const [keywordCount, portraitCount, imageCount] = await Promise.all([
+      prisma.knowledgeKeyword.count({ where: baseFilter }),
+      prisma.knowledgePortrait.count({ where: baseFilter }),
+      prisma.knowledgeImage.count({ where: baseFilter }),
+    ]);
+
+    // Build merged items list
+    const items: Array<{
+      id: string;
+      name: string;
+      category: string;
+      categoryKey: string;
+      baseId: number;
+      baseName: string;
+      scope: string;
+      projectName: string;
+      updatedAt: Date;
+    }> = [];
+
+    const getScopeLabel = (base: typeof bases[0]) => {
+      if (base.project_name) return base.project_name;
+      if (base.company_name) return base.company_name;
+      return '平台';
+    };
+
+    if (!category || category === 'keyword') {
+      const kwWhere: any = { ...baseFilter };
+      if (search) kwWhere.keyword = { contains: search, mode: 'insensitive' };
+      const keywords = await prisma.knowledgeKeyword.findMany({ where: kwWhere, orderBy: { updatedAt: 'desc' } });
+      for (const k of keywords) {
+        const base = baseMap.get(k.baseId);
+        items.push({
+          id: `keyword-${k.id}`,
+          name: k.keyword,
+          category: '关键词',
+          categoryKey: 'keyword',
+          baseId: k.baseId,
+          baseName: base?.name || '-',
+          scope: base?.scope || 'platform',
+          projectName: base ? getScopeLabel(base) : '-',
+          updatedAt: k.updatedAt,
+        });
+      }
+    }
+
+    if (!category || category === 'portrait') {
+      const ptWhere: any = { ...baseFilter };
+      if (search) ptWhere.title = { contains: search, mode: 'insensitive' };
+      const portraits = await prisma.knowledgePortrait.findMany({ where: ptWhere, orderBy: { updatedAt: 'desc' } });
+      for (const p of portraits) {
+        const base = baseMap.get(p.baseId);
+        items.push({
+          id: `portrait-${p.id}`,
+          name: p.title,
+          category: '画像',
+          categoryKey: 'portrait',
+          baseId: p.baseId,
+          baseName: base?.name || '-',
+          scope: base?.scope || 'platform',
+          projectName: base ? getScopeLabel(base) : '-',
+          updatedAt: p.updatedAt,
+        });
+      }
+    }
+
+    if (!category || category === 'image') {
+      const imgWhere: any = { ...baseFilter };
+      if (search) imgWhere.title = { contains: search, mode: 'insensitive' };
+      const images = await prisma.knowledgeImage.findMany({ where: imgWhere, orderBy: { updatedAt: 'desc' } });
+      for (const i of images) {
+        const base = baseMap.get(i.baseId);
+        items.push({
+          id: `image-${i.id}`,
+          name: i.title,
+          category: '图片',
+          categoryKey: 'image',
+          baseId: i.baseId,
+          baseName: base?.name || '-',
+          scope: base?.scope || 'platform',
+          projectName: base ? getScopeLabel(base) : '-',
+          updatedAt: i.updatedAt,
+        });
+      }
+    }
+
+    // Sort by updatedAt desc
+    items.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+    const total = items.length;
+    const pagedItems = items.slice((page - 1) * pageSize, page * pageSize);
+
+    res.json({
+      code: 0,
+      data: {
+        stats: { keyword: keywordCount, portrait: portraitCount, image: imageCount, total: keywordCount + portraitCount + imageCount },
+        list: pagedItems,
+        total,
+      },
+    });
+  } catch (err: any) {
+    fail(res, 500, err.message || '获取知识清单失败');
   }
 }

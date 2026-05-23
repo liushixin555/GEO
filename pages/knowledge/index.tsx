@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Input, Select, Tag, Spin, Pagination, App, Breadcrumb, Button, Descriptions, Table } from 'antd';
+import { Row, Col, Card, Input, Select, Tag, Spin, Pagination, App, Breadcrumb, Button, Descriptions, Table, Statistic, Typography } from 'antd';
 import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import axios from 'axios';
 import KnowledgeBaseForm from './KnowledgeBaseForm';
+
+/* ==================== Knowledge Base ==================== */
 
 interface KnowledgeBaseItem {
   id: number;
@@ -25,10 +27,39 @@ interface KnowledgeBaseItem {
   updated_at: string;
 }
 
+/* ==================== Knowledge Inventory ==================== */
+
+interface InventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  categoryKey: string;
+  baseId: number;
+  baseName: string;
+  scope: string;
+  projectName: string;
+  updatedAt: string;
+}
+
+interface InventoryStats {
+  keyword: number;
+  portrait: number;
+  image: number;
+  total: number;
+}
+
+/* ==================== Constants ==================== */
+
 const scopeLabels: Record<string, { text: string; color: string }> = {
   platform: { text: '平台公共', color: 'blue' },
   company: { text: '公司公共', color: 'green' },
   project: { text: '项目私有', color: 'orange' },
+};
+
+const categoryColors: Record<string, string> = {
+  keyword: '#0f62fe',
+  portrait: '#24a148',
+  image: '#f1c21b',
 };
 
 function formatDate(value: string): string {
@@ -39,10 +70,23 @@ function formatDate(value: string): string {
   return `${y}-${m}-${day}`;
 }
 
+function formatDateTime(value: string): string {
+  const d = new Date(value);
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${m}/${day} ${h}:${min}`;
+}
+
+/* ==================== Page Component ==================== */
+
 const KnowledgePage: React.FC = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const navigate = useNavigate();
   const { message } = App.useApp();
+
+  /* --- Knowledge Base state --- */
   const [data, setData] = useState<KnowledgeBaseItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -53,6 +97,17 @@ const KnowledgePage: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<KnowledgeBaseItem | null>(null);
 
+  /* --- Knowledge Inventory state --- */
+  const [invData, setInvData] = useState<InventoryItem[]>([]);
+  const [invTotal, setInvTotal] = useState(0);
+  const [invPage, setInvPage] = useState(1);
+  const [invPageSize] = useState(10);
+  const [invLoading, setInvLoading] = useState(false);
+  const [invStats, setInvStats] = useState<InventoryStats>({ keyword: 0, portrait: 0, image: 0, total: 0 });
+  const [invCategory, setInvCategory] = useState<string | undefined>(undefined);
+  const [invSearch, setInvSearch] = useState('');
+
+  /* --- Knowledge Base fetch --- */
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -74,10 +129,33 @@ const KnowledgePage: React.FC = () => {
     }
   }, [page, pageSize, search, filterScope]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  /* --- Knowledge Inventory fetch --- */
+  const fetchInventory = useCallback(async () => {
+    setInvLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const params: Record<string, unknown> = { page: invPage, pageSize: invPageSize };
+      if (invCategory) params.category = invCategory;
+      if (invSearch) params.search = invSearch;
 
+      const res = await axios.get('/api/knowledge-inventory', {
+        headers: { Authorization: `Bearer ${token}` },
+        params,
+      });
+      setInvData(res.data.data.list);
+      setInvTotal(res.data.data.total);
+      setInvStats(res.data.data.stats);
+    } catch {
+      // ignore
+    } finally {
+      setInvLoading(false);
+    }
+  }, [invPage, invPageSize, invCategory, invSearch]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchInventory(); }, [fetchInventory]);
+
+  /* --- Knowledge Base helpers --- */
   const canModify = (item: KnowledgeBaseItem) => {
     return user.role === 'sysadmin' || item.created_by === user.id;
   };
@@ -86,6 +164,7 @@ const KnowledgePage: React.FC = () => {
     navigate(`/knowledge/${item.id}`);
   };
 
+  /* --- Knowledge Base table columns --- */
   const tableColumns: ColumnsType<KnowledgeBaseItem> = [
     {
       title: '名称',
@@ -93,9 +172,7 @@ const KnowledgePage: React.FC = () => {
       key: 'name',
       ellipsis: { showTitle: true },
       render: (text: string, record: KnowledgeBaseItem) => (
-        <a onClick={() => navigate(`/knowledge/${record.id}`)} style={{ color: 'var(--color-primary, #0f62fe)' }}>
-          {text}
-        </a>
+        <a onClick={() => navigate(`/knowledge/${record.id}`)} style={{ color: 'var(--color-primary, #0f62fe)' }}>{text}</a>
       ),
     },
     {
@@ -141,22 +218,53 @@ const KnowledgePage: React.FC = () => {
       key: 'action',
       width: 100,
       render: (_: unknown, record: KnowledgeBaseItem) => (
-        <Button
-          type="link"
-          size="small"
-          icon={<EditOutlined />}
-          disabled={!canModify(record)}
-          onClick={() => { setEditItem(record); setShowForm(true); }}
-        >
-          编辑
-        </Button>
+        <Button type="link" size="small" icon={<EditOutlined />} disabled={!canModify(record)} onClick={() => { setEditItem(record); setShowForm(true); }}>编辑</Button>
       ),
+    },
+  ];
+
+  /* --- Inventory table columns --- */
+  const invTableColumns: ColumnsType<InventoryItem> = [
+    {
+      title: '资产名称',
+      dataIndex: 'name',
+      key: 'name',
+      ellipsis: { showTitle: true },
+    },
+    {
+      title: '分类',
+      dataIndex: 'categoryKey',
+      key: 'categoryKey',
+      width: 100,
+      render: (key: string) => <Tag color={categoryColors[key]}>{key === 'keyword' ? '关键词' : key === 'portrait' ? '画像' : '图片'}</Tag>,
+    },
+    {
+      title: '所属知识库',
+      dataIndex: 'baseName',
+      key: 'baseName',
+      width: 160,
+    },
+    {
+      title: '项目',
+      dataIndex: 'projectName',
+      key: 'projectName',
+      width: 120,
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'updatedAt',
+      key: 'updatedAt',
+      width: 120,
+      render: (val: string) => formatDateTime(val),
     },
   ];
 
   return (
     <div className="page-container">
       <div className="page-breadcrumb"><Breadcrumb items={[{ title: 'AI知识库' }]} /></div>
+
+      {/* ==================== 知识库板块 ==================== */}
+      <Typography.Title level={4} style={{ marginBottom: 16, fontWeight: 400 }}>知识库</Typography.Title>
       <Row gutter={[16, 12]} className="toolbar">
         <Col xs={24} sm={8}>
           <Input.Search
@@ -186,12 +294,9 @@ const KnowledgePage: React.FC = () => {
       </Row>
 
       <Spin spinning={loading}>
-        {/* 卡片视图：<1280px */}
         <div className="knowledge-cards">
           {data.length === 0 && (
-            <Card>
-              <div className="knowledge-cards-empty">暂无数据</div>
-            </Card>
+            <Card><div className="knowledge-cards-empty">暂无数据</div></Card>
           )}
           {data.map((item) => {
             const scopeCfg = scopeLabels[item.scope];
@@ -213,14 +318,7 @@ const KnowledgePage: React.FC = () => {
                 </Descriptions>
                 {canModify(item) && (
                   <div className="knowledge-card-footer">
-                    <Button
-                      type="link"
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={(e) => { e.stopPropagation(); setEditItem(item); setShowForm(true); }}
-                    >
-                      编辑
-                    </Button>
+                    <Button type="link" size="small" icon={<EditOutlined />} onClick={(e) => { e.stopPropagation(); setEditItem(item); setShowForm(true); }}>编辑</Button>
                   </div>
                 )}
               </Card>
@@ -228,7 +326,6 @@ const KnowledgePage: React.FC = () => {
           })}
         </div>
 
-        {/* 表格视图：>=1280px */}
         <div className="knowledge-table-wrapper">
           <Table
             columns={tableColumns}
@@ -243,13 +340,7 @@ const KnowledgePage: React.FC = () => {
 
       {total > pageSize && (
         <div className="item-card-pagination">
-          <Pagination
-            current={page}
-            pageSize={pageSize}
-            total={total}
-            showSizeChanger={false}
-            onChange={(p) => setPage(p)}
-          />
+          <Pagination current={page} pageSize={pageSize} total={total} showSizeChanger={false} onChange={(p) => setPage(p)} />
         </div>
       )}
 
@@ -260,6 +351,100 @@ const KnowledgePage: React.FC = () => {
           onSaved={fetchData}
         />
       )}
+
+      {/* ==================== 知识清单板块 ==================== */}
+      <div className="knowledge-inventory-section">
+        <Typography.Title level={4} style={{ marginBottom: 16, fontWeight: 400 }}>知识清单</Typography.Title>
+
+        {/* 统计卡片 */}
+        <Row gutter={[16, 16]} className="knowledge-stat-cards">
+          <Col xs={12} sm={6}>
+            <Card className="stat-card" styles={{ body: { padding: '16px 24px' } }}>
+              <Statistic title="全部" value={invStats.total} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card className="stat-card" styles={{ body: { padding: '16px 24px' } }}>
+              <Statistic title="关键词" value={invStats.keyword} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card className="stat-card" styles={{ body: { padding: '16px 24px' } }}>
+              <Statistic title="画像" value={invStats.portrait} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card className="stat-card" styles={{ body: { padding: '16px 24px' } }}>
+              <Statistic title="图片" value={invStats.image} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
+            </Card>
+          </Col>
+        </Row>
+
+        {/* 筛选器 */}
+        <Row gutter={[16, 12]} className="toolbar" style={{ marginTop: 16 }}>
+          <Col xs={24} sm={8}>
+            <Input.Search
+              placeholder="搜索资产名称..."
+              value={invSearch}
+              onChange={(e) => { setInvSearch(e.target.value); setInvPage(1); }}
+              allowClear
+            />
+          </Col>
+          <Col xs={24} sm={8}>
+            <Select
+              value={invCategory}
+              onChange={(val) => { setInvCategory(val); setInvPage(1); }}
+              allowClear
+              placeholder="全部分类"
+              style={{ width: '100%' }}
+              options={[
+                { value: 'keyword', label: '关键词' },
+                { value: 'portrait', label: '画像' },
+                { value: 'image', label: '图片' },
+              ]}
+            />
+          </Col>
+        </Row>
+
+        {/* 清单表格/卡片 */}
+        <Spin spinning={invLoading}>
+          <div className="inventory-cards">
+            {invData.length === 0 && (
+              <Card><div className="knowledge-cards-empty">暂无数据</div></Card>
+            )}
+            {invData.map((item) => (
+              <Card key={item.id} size="small" hoverable style={{ cursor: 'default' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Typography.Text strong ellipsis style={{ flex: 1, marginRight: 8 }}>{item.name}</Typography.Text>
+                  <Tag color={categoryColors[item.categoryKey]}>{item.category}</Tag>
+                </div>
+                <Descriptions column={2} size="small" colon={false}>
+                  <Descriptions.Item label="所属知识库">{item.baseName}</Descriptions.Item>
+                  <Descriptions.Item label="项目">{item.projectName}</Descriptions.Item>
+                  <Descriptions.Item label="更新时间">{formatDateTime(item.updatedAt)}</Descriptions.Item>
+                </Descriptions>
+              </Card>
+            ))}
+          </div>
+
+          <div className="inventory-table-wrapper">
+            <Table
+              columns={invTableColumns}
+              dataSource={invData}
+              rowKey="id"
+              size="middle"
+              pagination={false}
+              locale={{ emptyText: '暂无数据' }}
+            />
+          </div>
+        </Spin>
+
+        {invTotal > invPageSize && (
+          <div className="item-card-pagination">
+            <Pagination current={invPage} pageSize={invPageSize} total={invTotal} showSizeChanger={false} onChange={(p) => setInvPage(p)} />
+          </div>
+        )}
+      </div>
     </div>
   );
 };
