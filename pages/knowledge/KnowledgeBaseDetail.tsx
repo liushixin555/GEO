@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Tabs, Row, Col, Card, Input, Typography, Spin, Pagination, Empty, Popconfirm, App, Breadcrumb, Image, Tag, Alert, Button, Flex } from 'antd';
+import { Tabs, Row, Col, Card, Input, Typography, Spin, Pagination, Popconfirm, App, Breadcrumb, Image, Tag, Alert, Button, Table } from 'antd';
 import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ArrowLeftOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FilePptOutlined, FileMarkdownOutlined, FileTextOutlined, FileOutlined, DownloadOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import axios from 'axios';
 import { formatDate } from '../utils/date';
 
@@ -255,42 +256,230 @@ const KnowledgeBaseDetail: React.FC = () => {
     } catch (err: any) { message.error(err.response?.data?.message || '删除失败'); }
   };
 
+  // ==================== Table column definitions ====================
+
+  const docTableColumns: ColumnsType<DocumentItem> = [
+    {
+      title: '标题',
+      dataIndex: 'title',
+      key: 'title',
+      ellipsis: { showTitle: true },
+      render: (text: string, record: DocumentItem) => (
+        <a onClick={() => navigate(`/knowledge/${baseId}/document/${record.id}`)} style={{ color: 'var(--color-primary, #0f62fe)' }}>{text}</a>
+      ),
+    },
+    {
+      title: '文件名',
+      dataIndex: 'file_name',
+      key: 'file_name',
+      ellipsis: { showTitle: true },
+    },
+    {
+      title: '类型',
+      dataIndex: 'file_type',
+      key: 'file_type',
+      width: 80,
+      render: (text: string) => <Tag>{text.toUpperCase()}</Tag>,
+    },
+    {
+      title: '大小',
+      dataIndex: 'file_size',
+      key: 'file_size',
+      width: 100,
+      render: (val: number) => formatFileSize(val),
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 120,
+      render: (val: string) => formatDate(val),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 160,
+      render: (_: unknown, record: DocumentItem) => (
+        <span>
+          <Button type="link" size="small" icon={<DownloadOutlined />} href={record.file_url} target="_blank">下载</Button>
+          {canModify(record.created_by) && (
+            <>
+              <Button type="link" size="small" onClick={() => navigate(`/knowledge/${baseId}/document/${record.id}?mode=edit`)}>编辑</Button>
+              <Popconfirm title="确定删除此文档？" onConfirm={() => handleDeleteDocument(record)} okText="删除" cancelText="取消">
+                <Button type="link" size="small" danger>删除</Button>
+              </Popconfirm>
+            </>
+          )}
+        </span>
+      ),
+    },
+  ];
+
+  const ptTableColumns: ColumnsType<PortraitItem> = [
+    {
+      title: '标题',
+      dataIndex: 'title',
+      key: 'title',
+      ellipsis: { showTitle: true },
+      render: (text: string, record: PortraitItem) => (
+        <a onClick={() => navigate(`/knowledge/${baseId}/portrait/${record.id}`)} style={{ color: 'var(--color-primary, #0f62fe)' }}>{text}</a>
+      ),
+    },
+    {
+      title: '内容',
+      dataIndex: 'content',
+      key: 'content',
+      ellipsis: { showTitle: true },
+      render: (text: string | null) => text || '-',
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 120,
+      render: (val: string) => formatDate(val),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 160,
+      render: (_: unknown, record: PortraitItem) => (
+        <span>
+          <Button type="link" size="small" onClick={() => navigate(`/knowledge/${baseId}/portrait/${record.id}`)}>查看</Button>
+          {canModify(record.created_by) && (
+            <>
+              <Button type="link" size="small" onClick={() => navigate(`/knowledge/${baseId}/portrait/${record.id}?mode=edit`)}>编辑</Button>
+              <Popconfirm title="确定删除此画像？" onConfirm={() => handleDeletePortrait(record)} okText="删除" cancelText="取消">
+                <Button type="link" size="small" danger>删除</Button>
+              </Popconfirm>
+            </>
+          )}
+        </span>
+      ),
+    },
+  ];
+
+  const imgTableColumns: ColumnsType<ImageItem> = [
+    {
+      title: '标题',
+      dataIndex: 'title',
+      key: 'title',
+      ellipsis: { showTitle: true },
+      render: (text: string, record: ImageItem) => (
+        <a onClick={() => navigate(`/knowledge/${baseId}/image/${record.id}`)} style={{ color: 'var(--color-primary, #0f62fe)' }}>{text}</a>
+      ),
+    },
+    {
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: { showTitle: true },
+      render: (text: string | null) => text || '-',
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 120,
+      render: (val: string) => formatDate(val),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 120,
+      render: (_: unknown, record: ImageItem) => (
+        <span>
+          {canModify(record.created_by) && (
+            <>
+              <Button type="link" size="small" onClick={() => navigate(`/knowledge/${baseId}/image/${record.id}?mode=edit`)}>编辑</Button>
+              <Popconfirm title="确定删除此图片？" onConfirm={() => handleDeleteImage(record)} okText="删除" cancelText="取消">
+                <Button type="link" size="small" danger>删除</Button>
+              </Popconfirm>
+            </>
+          )}
+        </span>
+      ),
+    },
+  ];
+
+  const kwTableColumns: ColumnsType<KeywordItem> = [
+    {
+      title: '关键词',
+      dataIndex: 'keyword',
+      key: 'keyword',
+      ellipsis: { showTitle: true },
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 120,
+      render: (val: string) => formatDate(val),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 80,
+      render: (_: unknown, record: KeywordItem) => (
+        <span>
+          {canModify(record.created_by) && (
+            <Popconfirm title="确定删除此关键词？" onConfirm={() => handleDeleteKeyword(record)} okText="删除" cancelText="取消">
+              <Button type="link" size="small" danger>删除</Button>
+            </Popconfirm>
+          )}
+        </span>
+      ),
+    },
+  ];
+
+  // ==================== Tab content ====================
+
   const keywordTab = (
     <div>
       <Row gutter={[16, 12]} className="toolbar">
         <Col xs={24} sm={12}>
           <Input.Search placeholder="搜索关键词..." value={kwSearch} onChange={(e) => { setKwSearch(e.target.value); setKwPage(1); }} allowClear />
         </Col>
+        <Col xs={24} sm={12} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate(`/knowledge/${baseId}/keyword/add`)}>添加关键词</Button>
+        </Col>
       </Row>
       <Spin spinning={kwLoading}>
-        <Row gutter={[16, 16]}>
-          {keywords.map((item) => (
-            <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
-              <Card styles={{ body: { padding: 24 } }} style={{ height: '100%' }}
-              >
-                <div className="item-card-header">
-                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.keyword}>{item.keyword}</span>
-                  {canModify(item.created_by) && (
-                    <div className="item-card-actions">
-                      <Popconfirm title="确定删除此关键词？" onConfirm={() => handleDeleteKeyword(item)} okText="删除" cancelText="取消">
-                        <DeleteOutlined className="item-card-edit-danger" />
-                      </Popconfirm>
-                    </div>
-                  )}
-                </div>
-                <div className="item-card-row">
-                  <span className="item-card-username">{formatDate(item.created_at)}</span>
-                </div>
-              </Card>
-            </Col>
-          ))}
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <Card hoverable onClick={() => navigate(`/knowledge/${baseId}/keyword/add`)} className="company-add-card">
-              <PlusOutlined className="company-add-icon" />
-              <Typography.Text className="company-add-text">添加关键词</Typography.Text>
-            </Card>
-          </Col>
-        </Row>
+        {/* 卡片视图：<1280px */}
+        <div className="kb-tab-cards">
+          <Row gutter={[16, 16]}>
+            {keywords.map((item) => (
+              <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
+                <Card styles={{ body: { padding: 24 } }} style={{ height: '100%' }}>
+                  <div className="item-card-header">
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.keyword}>{item.keyword}</span>
+                    {canModify(item.created_by) && (
+                      <div className="item-card-actions">
+                        <Popconfirm title="确定删除此关键词？" onConfirm={() => handleDeleteKeyword(item)} okText="删除" cancelText="取消">
+                          <DeleteOutlined className="item-card-edit-danger" />
+                        </Popconfirm>
+                      </div>
+                    )}
+                  </div>
+                  <div className="item-card-row">
+                    <span className="item-card-username">{formatDate(item.created_at)}</span>
+                  </div>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </div>
+        {/* 表格视图：>=1280px */}
+        <div className="kb-tab-table-wrapper">
+          <Table
+            columns={kwTableColumns}
+            dataSource={keywords}
+            rowKey="id"
+            size="middle"
+            pagination={false}
+            locale={{ emptyText: '暂无数据' }}
+          />
+        </div>
       </Spin>
       {kwTotal > pageSize && (
         <div className="item-card-pagination"><Pagination current={kwPage} pageSize={pageSize} total={kwTotal} showSizeChanger={false} onChange={(p) => setKwPage(p)} /></div>
@@ -304,44 +493,55 @@ const KnowledgeBaseDetail: React.FC = () => {
         <Col xs={24} sm={12}>
           <Input.Search placeholder="搜索画像标题..." value={ptSearch} onChange={(e) => { setPtSearch(e.target.value); setPtPage(1); }} allowClear />
         </Col>
+        <Col xs={24} sm={12} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate(`/knowledge/${baseId}/portrait/add`)}>添加画像</Button>
+        </Col>
       </Row>
       <Spin spinning={ptLoading}>
-        <Row gutter={[16, 16]}>
-          {portraits.map((item) => (
-            <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
-              <Card hoverable styles={{ body: { padding: 24 } }} style={{ height: '100%' }}
-                onClick={() => navigate(`/knowledge/${baseId}/portrait/${item.id}`)}
-              >
-                <div className="item-card-header">
-                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.title}>{item.title}</span>
-                  {canModify(item.created_by) && (
-                    <div className="item-card-actions">
-                      <EyeOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/portrait/${item.id}`); }} />
-                      <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/portrait/${item.id}?mode=edit`); }} />
-                      <Popconfirm title="确定删除此画像？" onConfirm={(e) => { e?.stopPropagation(); handleDeletePortrait(item); }} okText="删除" cancelText="取消">
-                        <DeleteOutlined className="item-card-edit-danger" onClick={(e) => e.stopPropagation()} />
-                      </Popconfirm>
+        {/* 卡片视图：<1280px */}
+        <div className="kb-tab-cards">
+          <Row gutter={[16, 16]}>
+            {portraits.map((item) => (
+              <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
+                <Card hoverable styles={{ body: { padding: 24 } }} style={{ height: '100%' }}
+                  onClick={() => navigate(`/knowledge/${baseId}/portrait/${item.id}`)}
+                >
+                  <div className="item-card-header">
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.title}>{item.title}</span>
+                    {canModify(item.created_by) && (
+                      <div className="item-card-actions">
+                        <EyeOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/portrait/${item.id}`); }} />
+                        <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/portrait/${item.id}?mode=edit`); }} />
+                        <Popconfirm title="确定删除此画像？" onConfirm={(e) => { e?.stopPropagation(); handleDeletePortrait(item); }} okText="删除" cancelText="取消">
+                          <DeleteOutlined className="item-card-edit-danger" onClick={(e) => e.stopPropagation()} />
+                        </Popconfirm>
+                      </div>
+                    )}
+                  </div>
+                  {item.content && (
+                    <div className="item-card-row">
+                      <Typography.Paragraph className="item-card-desc" ellipsis={{ rows: 2 }}>{item.content}</Typography.Paragraph>
                     </div>
                   )}
-                </div>
-                {item.content && (
                   <div className="item-card-row">
-                    <Typography.Paragraph className="item-card-desc" ellipsis={{ rows: 2 }}>{item.content}</Typography.Paragraph>
+                    <span className="item-card-username">{formatDate(item.created_at)}</span>
                   </div>
-                )}
-                <div className="item-card-row">
-                  <span className="item-card-username">{formatDate(item.created_at)}</span>
-                </div>
-              </Card>
-            </Col>
-          ))}
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <Card hoverable onClick={() => navigate(`/knowledge/${baseId}/portrait/add`)} className="company-add-card">
-              <PlusOutlined className="company-add-icon" />
-              <Typography.Text className="company-add-text">添加画像</Typography.Text>
-            </Card>
-          </Col>
-        </Row>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </div>
+        {/* 表格视图：>=1280px */}
+        <div className="kb-tab-table-wrapper">
+          <Table
+            columns={ptTableColumns}
+            dataSource={portraits}
+            rowKey="id"
+            size="middle"
+            pagination={false}
+            locale={{ emptyText: '暂无数据' }}
+          />
+        </div>
       </Spin>
       {ptTotal > pageSize && (
         <div className="item-card-pagination"><Pagination current={ptPage} pageSize={pageSize} total={ptTotal} showSizeChanger={false} onChange={(p) => setPtPage(p)} /></div>
@@ -355,40 +555,51 @@ const KnowledgeBaseDetail: React.FC = () => {
         <Col xs={24} sm={12}>
           <Input.Search placeholder="搜索图片标题..." value={imgSearch} onChange={(e) => { setImgSearch(e.target.value); setImgPage(1); }} allowClear />
         </Col>
+        <Col xs={24} sm={12} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate(`/knowledge/${baseId}/image/add`)}>添加图片</Button>
+        </Col>
       </Row>
       <Spin spinning={imgLoading}>
-        <Row gutter={[16, 16]}>
-          {images.map((item) => (
-            <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
-              <Card hoverable styles={{ body: { padding: 12 } }} style={{ height: '100%' }}
-                className="knowledge-image-card"
-                onClick={() => navigate(`/knowledge/${baseId}/image/${item.id}`)}
-              >
-                <div className="knowledge-image-thumb">
-                  <Image src={item.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} />
-                </div>
-                <div style={{ padding: '8px 4px 4px' }}>
-                  <Typography.Text strong ellipsis style={{ display: 'block' }}>{item.title}</Typography.Text>
-                  {item.description && <Typography.Text type="secondary" style={{ fontSize: 12 }} ellipsis>{item.description}</Typography.Text>}
-                </div>
-                {canModify(item.created_by) && (
-                  <div className="knowledge-image-actions">
-                    <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/image/${item.id}?mode=edit`); }} />
-                    <Popconfirm title="确定删除此图片？" onConfirm={(e) => { e?.stopPropagation(); handleDeleteImage(item); }} okText="删除" cancelText="取消">
-                      <DeleteOutlined className="item-card-edit-danger" onClick={(e) => e.stopPropagation()} />
-                    </Popconfirm>
+        {/* 卡片视图：<1280px */}
+        <div className="kb-tab-cards">
+          <Row gutter={[16, 16]}>
+            {images.map((item) => (
+              <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
+                <Card hoverable styles={{ body: { padding: 12 } }} style={{ height: '100%' }}
+                  className="knowledge-image-card"
+                  onClick={() => navigate(`/knowledge/${baseId}/image/${item.id}`)}
+                >
+                  <div className="knowledge-image-thumb">
+                    <Image src={item.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} />
                   </div>
-                )}
-              </Card>
-            </Col>
-          ))}
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <Card hoverable onClick={() => navigate(`/knowledge/${baseId}/image/add`)} className="company-add-card">
-              <PlusOutlined className="company-add-icon" />
-              <Typography.Text className="company-add-text">添加图片</Typography.Text>
-            </Card>
-          </Col>
-        </Row>
+                  <div style={{ padding: '8px 4px 4px' }}>
+                    <Typography.Text strong ellipsis style={{ display: 'block' }}>{item.title}</Typography.Text>
+                    {item.description && <Typography.Text type="secondary" style={{ fontSize: 12 }} ellipsis>{item.description}</Typography.Text>}
+                  </div>
+                  {canModify(item.created_by) && (
+                    <div className="knowledge-image-actions">
+                      <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/image/${item.id}?mode=edit`); }} />
+                      <Popconfirm title="确定删除此图片？" onConfirm={(e) => { e?.stopPropagation(); handleDeleteImage(item); }} okText="删除" cancelText="取消">
+                        <DeleteOutlined className="item-card-edit-danger" onClick={(e) => e.stopPropagation()} />
+                      </Popconfirm>
+                    </div>
+                  )}
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </div>
+        {/* 表格视图：>=1280px */}
+        <div className="kb-tab-table-wrapper">
+          <Table
+            columns={imgTableColumns}
+            dataSource={images}
+            rowKey="id"
+            size="middle"
+            pagination={false}
+            locale={{ emptyText: '暂无数据' }}
+          />
+        </div>
       </Spin>
       {imgTotal > pageSize && (
         <div className="item-card-pagination"><Pagination current={imgPage} pageSize={pageSize} total={imgTotal} showSizeChanger={false} onChange={(p) => setImgPage(p)} /></div>
@@ -402,45 +613,56 @@ const KnowledgeBaseDetail: React.FC = () => {
         <Col xs={24} sm={12}>
           <Input.Search placeholder="搜索文档标题或文件名..." value={docSearch} onChange={(e) => { setDocSearch(e.target.value); setDocPage(1); }} allowClear />
         </Col>
+        <Col xs={24} sm={12} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate(`/knowledge/${baseId}/document/add`)}>添加文档</Button>
+        </Col>
       </Row>
       <Spin spinning={docLoading}>
-        <Row gutter={[16, 16]}>
-          {documents.map((item) => (
-            <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
-              <Card hoverable styles={{ body: { padding: 16 } }} style={{ height: '100%' }}
-                onClick={() => navigate(`/knowledge/${baseId}/document/${item.id}`)}
-              >
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                  <div style={{ flexShrink: 0 }}>
-                    {FILE_TYPE_ICONS[item.file_type] || <FileOutlined style={{ fontSize: 24 }} />}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <Typography.Text strong ellipsis style={{ display: 'block' }}>{item.title}</Typography.Text>
-                    <Typography.Text type="secondary" style={{ fontSize: 12 }} ellipsis>{item.file_name}</Typography.Text>
-                    <div style={{ marginTop: 4 }}>
-                      <Typography.Text type="secondary" style={{ fontSize: 11 }}>{formatFileSize(item.file_size)} · {formatDate(item.created_at)}</Typography.Text>
+        {/* 卡片视图：<1280px */}
+        <div className="kb-tab-cards">
+          <Row gutter={[16, 16]}>
+            {documents.map((item) => (
+              <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
+                <Card hoverable styles={{ body: { padding: 16 } }} style={{ height: '100%' }}
+                  onClick={() => navigate(`/knowledge/${baseId}/document/${item.id}`)}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    <div style={{ flexShrink: 0 }}>
+                      {FILE_TYPE_ICONS[item.file_type] || <FileOutlined style={{ fontSize: 24 }} />}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <Typography.Text strong ellipsis style={{ display: 'block' }}>{item.title}</Typography.Text>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }} ellipsis>{item.file_name}</Typography.Text>
+                      <div style={{ marginTop: 4 }}>
+                        <Typography.Text type="secondary" style={{ fontSize: 11 }}>{formatFileSize(item.file_size)} · {formatDate(item.created_at)}</Typography.Text>
+                      </div>
                     </div>
                   </div>
-                </div>
-                {canModify(item.created_by) && (
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8, borderTop: '1px solid var(--border-subtle)', paddingTop: 8 }}>
-                    <Button type="text" size="small" icon={<DownloadOutlined />} href={item.file_url} target="_blank" onClick={(e) => e.stopPropagation()} />
-                    <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/document/${item.id}?mode=edit`); }} />
-                    <Popconfirm title="确定删除此文档？" onConfirm={(e) => { e?.stopPropagation(); handleDeleteDocument(item); }} okText="删除" cancelText="取消">
-                      <DeleteOutlined className="item-card-edit-danger" onClick={(e) => e.stopPropagation()} />
-                    </Popconfirm>
-                  </div>
-                )}
-              </Card>
-            </Col>
-          ))}
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <Card hoverable onClick={() => navigate(`/knowledge/${baseId}/document/add`)} className="company-add-card">
-              <PlusOutlined className="company-add-icon" />
-              <Typography.Text className="company-add-text">添加文档</Typography.Text>
-            </Card>
-          </Col>
-        </Row>
+                  {canModify(item.created_by) && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8, borderTop: '1px solid var(--border-subtle)', paddingTop: 8 }}>
+                      <Button type="text" size="small" icon={<DownloadOutlined />} href={item.file_url} target="_blank" onClick={(e) => e.stopPropagation()} />
+                      <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/document/${item.id}?mode=edit`); }} />
+                      <Popconfirm title="确定删除此文档？" onConfirm={(e) => { e?.stopPropagation(); handleDeleteDocument(item); }} okText="删除" cancelText="取消">
+                        <DeleteOutlined className="item-card-edit-danger" onClick={(e) => e.stopPropagation()} />
+                      </Popconfirm>
+                    </div>
+                  )}
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </div>
+        {/* 表格视图：>=1280px */}
+        <div className="kb-tab-table-wrapper">
+          <Table
+            columns={docTableColumns}
+            dataSource={documents}
+            rowKey="id"
+            size="middle"
+            pagination={false}
+            locale={{ emptyText: '暂无数据' }}
+          />
+        </div>
       </Spin>
       {docTotal > pageSize && (
         <div className="item-card-pagination"><Pagination current={docPage} pageSize={pageSize} total={docTotal} showSizeChanger={false} onChange={(p) => setDocPage(p)} /></div>

@@ -515,6 +515,20 @@ a:hover {
   top: 8px;
   right: 8px;
 }
+
+/* Knowledge base detail tab: responsive card/table switch */
+.kb-tab-table-wrapper {
+  display: none;
+}
+
+@media (min-width: 1280px) {
+  .kb-tab-cards {
+    display: none;
+  }
+  .kb-tab-table-wrapper {
+    display: block;
+  }
+}
 .form-item-no-margin {
   margin-bottom: 0;
 }
