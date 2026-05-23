@@ -5,6 +5,7 @@ import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import axios from 'axios';
 import { useAppContext } from '../context/AppContext';
+import { formatDate } from '../utils/date';
 
 interface ArticleItem {
   id: number;
@@ -26,14 +27,6 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   publish_failed: { label: '发布失败', color: 'error' },
   published: { label: '已发布', color: 'success' },
 };
-
-function formatDate(value: string): string {
-  const d = new Date(value);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
 
 const ArticlePage: React.FC = () => {
   const { projectId } = useAppContext();

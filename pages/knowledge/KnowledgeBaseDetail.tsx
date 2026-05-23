@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Tabs, Row, Col, Card, Input, Typography, Spin, Pagination, Empty, Popconfirm, App, Breadcrumb, Image, Tag, Alert, Button } from 'antd';
 import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import axios from 'axios';
+import { formatDate } from '../utils/date';
 
 const scopeLabels: Record<string, { text: string; color: string }> = {
   platform: { text: '平台公共', color: 'blue' },
@@ -210,7 +211,7 @@ const KnowledgeBaseDetail: React.FC = () => {
                   )}
                 </div>
                 <div className="item-card-row">
-                  <span className="item-card-username">{new Date(item.created_at).toLocaleDateString()}</span>
+                  <span className="item-card-username">{formatDate(item.created_at)}</span>
                 </div>
               </Card>
             </Col>
@@ -261,7 +262,7 @@ const KnowledgeBaseDetail: React.FC = () => {
                   </div>
                 )}
                 <div className="item-card-row">
-                  <span className="item-card-username">{new Date(item.created_at).toLocaleDateString()}</span>
+                  <span className="item-card-username">{formatDate(item.created_at)}</span>
                 </div>
               </Card>
             </Col>

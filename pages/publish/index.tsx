@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Row, Col, Input, Select, Tag, Typography, Spin, Pagination, Button, Modal, DatePicker, Breadcrumb, App, Card, Descriptions } from 'antd';
 import dayjs from 'dayjs';
 import axios from 'axios';
+import { formatDateTime } from '../utils/date';
 
 const { Title } = Typography;
 
@@ -34,17 +35,6 @@ function getDerivedStatus(item: ScheduleItem): { label: string; color: string } 
       : { label: '待计划', color: 'orange' };
   }
   return { label: item.status, color: 'default' };
-}
-
-function formatDate(value: string | null): string {
-  if (!value) return '-';
-  const d = new Date(value);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const h = String(d.getHours()).padStart(2, '0');
-  const min = String(d.getMinutes()).padStart(2, '0');
-  return `${y}-${m}-${day} ${h}:${min}`;
 }
 
 const PublishingSchedulePage: React.FC = () => {
@@ -206,7 +196,7 @@ const PublishingSchedulePage: React.FC = () => {
                   <Descriptions.Item label="发布平台">{item.platforms?.join(', ') || '-'}</Descriptions.Item>
                   <Descriptions.Item label="内容类型">{item.article_type || '-'}</Descriptions.Item>
                   <Descriptions.Item label="作者">{item.created_by_name || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="计划发布时间">{formatDate(item.scheduled_publish_at)}</Descriptions.Item>
+                  <Descriptions.Item label="计划发布时间">{formatDateTime(item.scheduled_publish_at)}</Descriptions.Item>
                 </Descriptions>
                 {item.status === 'publishing' && (
                   <div className="publishing-card-footer">
@@ -258,7 +248,7 @@ const PublishingSchedulePage: React.FC = () => {
                     <td className="col-platforms">{item.platforms?.join(', ') || '-'}</td>
                     <td className="col-type">{item.article_type || '-'}</td>
                     <td className="col-author">{item.created_by_name || '-'}</td>
-                    <td className="col-schedule">{formatDate(item.scheduled_publish_at)}</td>
+                    <td className="col-schedule">{formatDateTime(item.scheduled_publish_at)}</td>
                     <td className="col-status"><Tag color={statusCfg.color}>{statusCfg.label}</Tag></td>
                     <td className="col-action">
                       {item.status === 'publishing' && (

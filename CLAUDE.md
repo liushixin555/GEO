@@ -83,6 +83,7 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 ### 开发铁律（编码时必须遵守）
 1. **前端必须使用 Ant Design (antd) 组件** — 禁止使用原生 HTML 元素替代 antd 提供的组件（Button、Input、Form、Card、Menu、Layout、Table、Modal 等）
 2. **前端必须遵守 DESIGN.md** — 所有页面样式必须遵循 DESIGN.md 定义的 IBM Carbon Design System 规范（颜色、字体、间距、形状、组件）
+3. **时间必须格式化为中国时区** — 所有页面显示时间必须使用 `pages/utils/date.ts` 中的 `formatDate` / `formatDateTime`（强制 Asia/Shanghai UTC+8），禁止使用 `new Date().getFullYear()` 等本地时区方法
 
 ### 任务结束铁律（每次任务结束后必须执行）
 1. **更新任务描述** — 参考 `tasks/dev001.登录功能.md` 格式，更新本次任务对应的 tasks/ 文档（功能说明、业务规则、验收标准等）

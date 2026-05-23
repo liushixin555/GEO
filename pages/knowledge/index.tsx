@@ -5,6 +5,7 @@ import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import axios from 'axios';
 import KnowledgeBaseForm from './KnowledgeBaseForm';
+import { formatDate, formatDateTime } from '../utils/date';
 
 /* ==================== Knowledge Base ==================== */
 
@@ -62,19 +63,6 @@ const categoryColors: Record<string, string> = {
   portrait: '#24a148',
   image: '#f1c21b',
 };
-
-function formatDate(value: string): string {
-  const d = new Date(value);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function formatDateTime(value: string): string {
-  const d = new Date(value);
-  return d.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
-}
 
 /* ==================== Page Component ==================== */
 
