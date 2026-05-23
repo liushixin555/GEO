@@ -121,7 +121,7 @@ const SkillPage: React.FC = () => {
             allowClear
           />
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={6}>
           <Select
             value={filterCategory || undefined}
             onChange={(val) => { setFilterCategory(val || ''); setPage(1); }}
@@ -130,7 +130,7 @@ const SkillPage: React.FC = () => {
             options={[]}
           />
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={6}>
           <Select
             value={filterStatus || undefined}
             onChange={(val) => { setFilterStatus(val || ''); setPage(1); }}
@@ -141,6 +141,9 @@ const SkillPage: React.FC = () => {
               { value: 'false', label: '禁用' },
             ]}
           />
+        </Col>
+        <Col xs={24} sm={4} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditItem(null); setShowForm(true); }}>添加技能</Button>
         </Col>
       </Row>
 
@@ -205,14 +208,6 @@ const SkillPage: React.FC = () => {
         />
       )}
 
-      <Button
-        type="primary"
-        icon={<PlusOutlined />}
-        onClick={() => { setEditItem(null); setShowForm(true); }}
-        style={{ position: 'fixed', bottom: 24, right: 24 }}
-      >
-        添加技能
-      </Button>
     </div>
   );
 };
