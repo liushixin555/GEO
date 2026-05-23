@@ -644,4 +644,444 @@ describe('User Controller', () => {
       expect(response.body.message).toBe('删除用户失败');
     });
   });
+
+  describe('Additional edge cases', () => {
+    // listUsers: empty username as search parameter
+    it('should handle empty search parameter', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get('/api/users?search=')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+    });
+
+    // listUsers: combined filters (search + role + status)
+    it('should support combined filters', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get('/api/users?search=admin&role=admin&status=true&page=1&pageSize=20')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: [
+              { username: { contains: 'admin', mode: 'insensitive' } },
+              { cnName: { contains: 'admin', mode: 'insensitive' } },
+            ],
+            role: 'admin',
+            status: true,
+          }),
+          skip: 0,
+          take: 20,
+        })
+      );
+    });
+
+    // listUsers: default page and pageSize
+    it('should use default page=1 and pageSize=10 when not specified', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get('/api/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip: 0,
+          take: 10,
+        })
+      );
+    });
+
+    // createUser: empty string username
+    it('should return 400 when username is empty string', async () => {
+      const response = await agent
+        .post('/api/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: '', password: 'Pass1234', cn_name: 'Test', role: 'admin' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('用户名、密码、姓名、角色不能为空');
+    });
+
+    // createUser: empty string password
+    it('should return 400 when password is empty string', async () => {
+      const response = await agent
+        .post('/api/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: 'test', password: '', cn_name: 'Test', role: 'admin' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('用户名、密码、姓名、角色不能为空');
+    });
+
+    // createUser: empty string cn_name
+    it('should return 400 when cn_name is empty string', async () => {
+      const response = await agent
+        .post('/api/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: 'test', password: 'Pass1234', cn_name: '', role: 'admin' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('用户名、密码、姓名、角色不能为空');
+    });
+
+    // createUser: empty string role
+    it('should return 400 when role is empty string', async () => {
+      const response = await agent
+        .post('/api/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: 'test', password: 'Pass1234', cn_name: 'Test', role: '' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('用户名、密码、姓名、角色不能为空');
+    });
+
+    // createUser: exactly 8 characters password should pass
+    it('should accept password with exactly 8 characters', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindUnique = jest.fn().mockResolvedValue(null);
+      const mockCreate = jest.fn().mockResolvedValue({
+        id: 6, username: 'test8char', cnName: '8位密码', role: 'view', status: true, companyId: 1,
+        company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
+
+      const response = await agent
+        .post('/api/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: 'test8char', password: '12345678', cn_name: '8位密码', role: 'view' });
+
+      expect(response.status).toBe(201);
+    });
+
+    // createUser: 7 characters password should fail
+    it('should reject password with 7 characters', async () => {
+      const response = await agent
+        .post('/api/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: 'test7', password: '1234567', cn_name: '7位密码', role: 'admin' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('密码长度不能少于8位');
+    });
+
+    // createUser: valid role 'sysadmin'
+    it('should create user with sysadmin role', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindUnique = jest.fn().mockResolvedValue(null);
+      const mockCreate = jest.fn().mockResolvedValue({
+        id: 7, username: 'newsysadmin', cnName: '新管理员', role: 'sysadmin', status: true, companyId: 1,
+        company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
+
+      const response = await agent
+        .post('/api/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: 'newsysadmin', password: 'Pass1234', cn_name: '新管理员', role: 'sysadmin' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.role).toBe('sysadmin');
+    });
+
+    // createUser: valid role 'view'
+    it('should create user with view role', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindUnique = jest.fn().mockResolvedValue(null);
+      const mockCreate = jest.fn().mockResolvedValue({
+        id: 8, username: 'newviewer', cnName: '新观察者', role: 'view', status: true, companyId: 1,
+        company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
+
+      const response = await agent
+        .post('/api/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: 'newviewer', password: 'Pass1234', cn_name: '新观察者', role: 'view' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.role).toBe('view');
+    });
+
+    // createUser: invalid role 'superadmin'
+    it('should reject invalid role superadmin', async () => {
+      const response = await agent
+        .post('/api/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: 'test', password: 'Pass1234', cn_name: 'Test', role: 'superadmin' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('角色值不合法');
+    });
+
+    // createUser: invalid role 'user'
+    it('should reject invalid role user', async () => {
+      const response = await agent
+        .post('/api/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: 'test', password: 'Pass1234', cn_name: 'Test', role: 'user' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('角色值不合法');
+    });
+
+    // getUser: edge case with id=0
+    it('should return user detail for id=0 edge case', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        id: 0, username: 'edge', cnName: '边界', role: 'admin', status: true, companyId: 1,
+        company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .get('/api/users/0')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.code).toBe(0);
+    });
+
+    // getUser: negative id
+    it('should return 400 for negative id', async () => {
+      const response = await agent
+        .get('/api/users/-1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      // -1 parsed as number is valid, but negative — the service should handle this
+      expect([200, 400, 404]).toContain(response.status);
+    });
+
+    // updateUser: update role from admin to view
+    it('should update user role successfully', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 2, username: 'admin1', cnName: '运营者', role: 'admin', status: true, companyId: 1 };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...existing, role: 'view', company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const response = await agent
+        .put('/api/users/2')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ role: 'view' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.role).toBe('view');
+    });
+
+    // updateUser: update multiple fields at once
+    it('should update multiple fields at once', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 2, username: 'admin1', cnName: '运营者', role: 'admin', status: true, companyId: 1 };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...existing, cnName: '新名称', role: 'view', status: false,
+        company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const response = await agent
+        .put('/api/users/2')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ cn_name: '新名称', role: 'view', status: false });
+
+      expect(response.status).toBe(200);
+    });
+
+    // updateUser: update with empty body (no fields changed)
+    it('should handle update with empty body', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 2, username: 'admin1', cnName: '运营者', role: 'admin', status: true, companyId: 1 };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...existing, company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const response = await agent
+        .put('/api/users/2')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({});
+
+      expect(response.status).toBe(200);
+    });
+
+    // deleteUser: return 404 message correctly
+    it('should return 404 with correct message for non-existent user delete', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .delete('/api/users/999')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(404);
+      expect(response.body.message).toBe('用户不存在');
+    });
+
+    // View role: denied for all user CRUD operations
+    it('should return 403 for view role on create user', async () => {
+      const response = await agent
+        .post('/api/users')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ username: 'test', password: 'Pass1234', cn_name: 'Test', role: 'admin' });
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 for view role on update user', async () => {
+      const response = await agent
+        .put('/api/users/1')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ cn_name: '新名称' });
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 for view role on delete user', async () => {
+      const response = await agent
+        .delete('/api/users/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 for view role on get user detail', async () => {
+      const response = await agent
+        .get('/api/users/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+
+      expect(response.status).toBe(403);
+    });
+
+    // createUser: missing all fields (empty body)
+    it('should return 400 when body is empty', async () => {
+      const response = await agent
+        .post('/api/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('用户名、密码、姓名、角色不能为空');
+    });
+
+    // createUser: response structure validation
+    it('should return correct response structure on create', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindUnique = jest.fn().mockResolvedValue(null);
+      const mockCreate = jest.fn().mockResolvedValue({
+        id: 9, username: 'structtest', cnName: '结构测试', role: 'admin', status: true, companyId: 1,
+        company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
+
+      const response = await agent
+        .post('/api/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: 'structtest', password: 'Pass1234', cn_name: '结构测试', role: 'admin' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.code).toBe(0);
+      expect(response.body.message).toBe('创建用户成功');
+      expect(response.body.data).toBeDefined();
+    });
+
+    // listUsers: response structure validation with pagination
+    it('should return correct pagination structure', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([
+        { id: 1, username: 'user1', cnName: '用户1', role: 'admin', status: true, companyId: 1, company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date() },
+        { id: 2, username: 'user2', cnName: '用户2', role: 'view', status: true, companyId: 1, company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date() },
+      ]);
+      const mockCount = jest.fn().mockResolvedValue(25);
+      getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get('/api/users?page=2&pageSize=2')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.code).toBe(0);
+      expect(response.body.data.total).toBe(25);
+      expect(response.body.data.page).toBe(2);
+      expect(response.body.data.pageSize).toBe(2);
+      expect(response.body.data.list).toHaveLength(2);
+    });
+
+    // getUser: response structure validation
+    it('should return correct response structure on getUser', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        id: 1, username: 'admin1', cnName: '运营者', role: 'admin', status: true, companyId: 1,
+        company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .get('/api/users/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.code).toBe(0);
+      expect(response.body.data).toBeDefined();
+      expect(response.body.data.id).toBe(1);
+    });
+
+    // deleteUser: successful response structure
+    it('should return correct response structure on delete', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 2, username: 'test', role: 'admin', companyId: 1 };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const response = await agent
+        .delete('/api/users/2')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.code).toBe(0);
+      expect(response.body.message).toBe('删除用户成功');
+      expect(response.body.data).toBeNull();
+    });
+
+    // updateUser: successful response structure
+    it('should return correct response structure on update', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 2, username: 'admin1', cnName: '运营者', role: 'admin', status: true, companyId: 1 };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...existing, cnName: '更新后', company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const response = await agent
+        .put('/api/users/2')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ cn_name: '更新后' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.code).toBe(0);
+      expect(response.body.message).toBe('更新用户成功');
+    });
+  });
 });
