@@ -91,12 +91,27 @@ export class PublishingScheduleServiceImpl implements IPublishingScheduleService
   async updateSchedule(id: number, scheduledPublishAt: string | null, userId?: number, role?: string): Promise<any> {
     const prisma = getPrisma();
 
-    const existing = await prisma.article.findFirst({ where: { id } });
+    const existing = await prisma.article.findFirst({
+      where: { id },
+      include: {
+        project: {
+          include: {
+            operators: true,
+          },
+        },
+      },
+    });
     if (!existing) throw new Error('文章不存在');
 
     // Only allow updating publishing status
     if (existing.status !== 'publishing') {
       throw new Error('当前文章状态不可编辑发布计划');
+    }
+
+    // Permission check — admin can only update articles in their own projects
+    if (role !== 'sysadmin' && userId) {
+      const hasAccess = existing.project?.operators?.some(op => op.userId === userId);
+      if (!hasAccess) throw new Error('无权操作此文章');
     }
 
     const data: any = {

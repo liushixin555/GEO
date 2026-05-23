@@ -283,7 +283,7 @@ describe('PublishingSchedule Controller', () => {
         .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的文章ID');
+      expect(response.body.message).toBe('无效的ID');
     });
 
     it('should return 400 when scheduled_publish_at is not a string (number)', async () => {
@@ -408,7 +408,7 @@ describe('PublishingSchedule Controller', () => {
       expect(response.body.message).toBe('当前文章状态不可编辑发布计划');
     });
 
-    it('should return 500 when service throws generic error with message', async () => {
+    it('should return 500 with fixed message for generic service errors', async () => {
       mockUpdateSchedule.mockRejectedValue(new Error('内部服务错误'));
 
       const response = await agent
@@ -417,7 +417,7 @@ describe('PublishingSchedule Controller', () => {
         .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('内部服务错误');
+      expect(response.body.message).toBe('更新发布计划失败');
     });
 
     it('should return 500 with default message when service error has no message', async () => {
@@ -533,7 +533,7 @@ describe('PublishingSchedule Controller', () => {
       );
     });
 
-    it('should use pageSize=10 when pageSize is negative', async () => {
+    it('should clamp negative pageSize to 1', async () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
@@ -541,9 +541,9 @@ describe('PublishingSchedule Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
-      // parseInt('-5') = -5, -5 || 10 = -5 (negative is truthy)
+      // Math.min(100, Math.max(1, -5)) = 1
       expect(mockList).toHaveBeenCalledWith(
-        expect.objectContaining({ pageSize: -5 })
+        expect.objectContaining({ pageSize: 1 })
       );
     });
 
@@ -632,6 +632,67 @@ describe('PublishingSchedule Controller', () => {
       expect(response.body.data.page).toBe(2);
       expect(response.body.data.pageSize).toBe(10);
       expect(response.body.data.total).toBe(15);
+    });
+
+    it('should return 403 when admin has no access to the article', async () => {
+      mockUpdateSchedule.mockRejectedValue(new Error('无权操作此文章'));
+
+      const response = await agent
+        .put('/api/publishing-schedule/1')
+        .set('Authorization', `Bearer ${adminToken()}`)
+        .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
+
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('无权操作此文章');
+    });
+
+    it('should return 400 when scheduled_publish_at is invalid date string', async () => {
+      const response = await agent
+        .put('/api/publishing-schedule/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ scheduled_publish_at: 'not-a-date' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('scheduled_publish_at日期格式无效');
+    });
+
+    it('should filter out invalid status parameter', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/publishing-schedule?status=invalid_status')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(
+        expect.objectContaining({ status: undefined })
+      );
+    });
+
+    it('should filter out non-numeric projectId', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/publishing-schedule?projectId=abc')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(
+        expect.objectContaining({ projectId: undefined })
+      );
+    });
+
+    it('should clamp pageSize to max 100', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/publishing-schedule?pageSize=999999')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(
+        expect.objectContaining({ pageSize: 100 })
+      );
     });
   });
 });

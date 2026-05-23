@@ -35,6 +35,7 @@ function makeArticle(overrides: Record<string, any> = {}) {
       id: 10,
       shortName: '项目A',
       company: { shortName: '公司A' },
+      operators: [{ userId: 1 }, { userId: 2 }],
     },
     creator: { id: 1, cnName: '张三' },
     ...overrides,
@@ -515,7 +516,16 @@ describe('PublishingScheduleServiceImpl', () => {
 
       const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z');
 
-      expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(mockFindFirst).toHaveBeenCalledWith({
+        where: { id: 1 },
+        include: {
+          project: {
+            include: {
+              operators: true,
+            },
+          },
+        },
+      });
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { scheduledPublishAt: new Date('2025-08-01T10:00:00Z') },
@@ -689,6 +699,66 @@ describe('PublishingScheduleServiceImpl', () => {
 
       await expect(service.updateSchedule(1, '2025-08-01')).rejects.toThrow();
       expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('should allow admin user with access to update', async () => {
+      const existing = makeArticle({ status: 'publishing' });
+      const updated = makeUpdatedArticle();
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      // userId=2 is in operators list
+      const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', 2, 'admin');
+      expect(result.id).toBe(1);
+      expect(mockUpdate).toHaveBeenCalled();
+    });
+
+    it('should reject admin user without access (horizontal privilege escalation)', async () => {
+      const existing = makeArticle({
+        status: 'publishing',
+        project: {
+          id: 10,
+          shortName: '项目A',
+          company: { shortName: '公司A' },
+          operators: [{ userId: 1 }],
+        },
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn();
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      // userId=99 is NOT in operators list
+      await expect(service.updateSchedule(1, '2025-08-01T10:00:00Z', 99, 'admin'))
+        .rejects.toThrow('无权操作此文章');
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('should allow sysadmin to update any article regardless of operators', async () => {
+      const existing = makeArticle({
+        status: 'publishing',
+        project: {
+          id: 10,
+          shortName: '项目A',
+          company: { shortName: '公司A' },
+          operators: [],
+        },
+      });
+      const updated = makeUpdatedArticle();
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      // sysadmin bypasses operator check
+      const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', 999, 'sysadmin');
+      expect(result.id).toBe(1);
+      expect(mockUpdate).toHaveBeenCalled();
     });
   });
 });
