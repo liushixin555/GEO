@@ -480,9 +480,9 @@ const KnowledgeBaseDetail: React.FC = () => {
           <Input.Search placeholder="搜索关键词..." value={kwSearch} onChange={(e) => { setKwSearch(e.target.value); setKwPage(1); }} allowClear />
         </Col>
         <Col xs={24} sm={12} style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <Button icon={<SearchOutlined />} onClick={() => navigate(`/knowledge/${baseId}/keyword-mine`)}>关键词挖掘</Button>
+          <Button type="primary" icon={<SearchOutlined />} onClick={() => navigate(`/knowledge/${baseId}/keyword-mine`)}>关键词挖掘</Button>
           <Button type="primary" icon={<ThunderboltOutlined />} onClick={() => navigate(`/knowledge/${baseId}/keyword/add`)}>智能扩词</Button>
-          <Button icon={<FormOutlined />} onClick={() => setManualInputVisible(true)}>手工输入</Button>
+          <Button type="primary" icon={<FormOutlined />} onClick={() => setManualInputVisible(true)}>手工输入</Button>
         </Col>
       </Row>
       <Spin spinning={kwLoading}>
