@@ -101,7 +101,17 @@ export class AuthServiceImpl implements IAuthService {
     }
   }
 
-  async saveSelection(userId: number, request: SaveSelectionRequest): Promise<void> {
+  async saveSelection(userId: number, role: string, userCompanyId: number | null | undefined, request: SaveSelectionRequest): Promise<void> {
+    const accessibleCompanies = await this.getAccessibleCompanies(userId, role, userCompanyId);
+    if (!accessibleCompanies.some(c => c.id === request.company_id)) {
+      throw new Error('无权选择该公司');
+    }
+    if (request.project_id) {
+      const accessibleProjects = await this.getAccessibleProjects(userId, role, request.company_id);
+      if (!accessibleProjects.some(p => p.id === request.project_id)) {
+        throw new Error('无权选择该项目');
+      }
+    }
     const prisma = getPrisma();
     await prisma.user.update({
       where: { id: userId },

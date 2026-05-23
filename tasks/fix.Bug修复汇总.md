@@ -186,3 +186,43 @@ components: {
 ### 涉及文件
 - `apis/entity/article.entity.ts` — CreateArticleRequest 添加 content 和 manual_writing 状态
 - `apis/service/impl/article.service.impl.ts` — create 方法保存 content 并创建版本快照
+
+---
+
+## fix010. auth.controller.ts 安全加固（评审问题修复）
+
+### 问题
+根据 tasks/review/auth.controller.md 评审报告，auth.controller.ts 存在 CRITICAL 级别 IDOR 越权漏洞和多个安全/架构问题。
+
+### 修复
+
+**C-1（CRITICAL）saveSelection IDOR 越权**：
+- Service 层新增授权验证：调用 getAccessibleCompanies/getAccessibleProjects 检查用户是否有权选择指定公司/项目
+- 接口签名变更：`saveSelection(userId, request)` → `saveSelection(userId, role, userCompanyId, request)`
+
+**H-1 verify 端点冗余 Token 解析**：
+- 移除 verify 函数内重复的 token 提取和验证逻辑，信任 authMiddleware 已完成认证
+
+**H-3 err.message 泄露内部信息**：
+- 500 错误统一返回通用消息（如"保存失败，请稍后重试"），不再暴露 err.message
+
+**H-4 登录输入验证不足**：
+- 添加 typeof 检查（防止数组/对象注入）
+- 添加长度限制（username ≤ 100, password ≤ 200）
+
+**H-5 saveSelection 参数验证不足**：
+- parseInt + 正整数校验，拦截负数、0、NaN
+
+**M-3 req.user 访问不一致**：
+- 统一所有端点使用 `req.user` + 空值检查，移除 `(req as any).user` 和 `req.user!`
+
+**L-1 catch 类型**：
+- 所有 catch 块从 `err: any` 改为 `err: unknown`
+
+### 涉及文件
+- `apis/controller/auth.controller.ts`
+- `apis/service/auth.service.ts`
+- `apis/service/impl/auth.service.impl.ts`
+- `tests/apis/auth.controller.test.ts`（85 个测试）
+- `tests/apis/auth.service.test.ts`（42 个测试，含 3 个新增授权测试）
+- `tests/apis/auth.context.test.ts`

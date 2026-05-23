@@ -135,6 +135,47 @@ describe('Auth Controller', () => {
       expect(response.body.message).toBe('用户名和密码不能为空');
     });
 
+    // H-4: 类型验证
+    it('should return 400 when username is not a string', async () => {
+      const response = await agent
+        .post(LOGIN)
+        .send({ username: 123, password: 'pass123' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('用户名和密码格式不正确');
+    });
+
+    it('should return 400 when password is not a string', async () => {
+      const response = await agent
+        .post(LOGIN)
+        .send({ username: 'admin', password: 123 });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('用户名和密码格式不正确');
+    });
+
+    it('should return 400 when username is an array', async () => {
+      const response = await agent
+        .post(LOGIN)
+        .send({ username: ['admin'], password: 'pass123' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('用户名和密码格式不正确');
+    });
+
+    it('should return 400 when username exceeds max length', async () => {
+      const response = await agent
+        .post(LOGIN)
+        .send({ username: 'a'.repeat(101), password: 'pass123' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('输入长度超出限制');
+    });
+
+    it('should return 400 when password exceeds max length', async () => {
+      const response = await agent
+        .post(LOGIN)
+        .send({ username: 'admin', password: 'p'.repeat(201) });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('输入长度超出限制');
+    });
+
     it('should return 401 when user not found', async () => {
       const prisma = mockPrisma();
       prisma.user.findUnique.mockResolvedValue(null);
@@ -518,7 +559,7 @@ describe('Auth Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ project_id: 1 });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('company_id 不能为空');
+      expect(response.body.message).toBe('company_id 必须为正整数');
     });
 
     it('should return 400 when body is empty', async () => {
@@ -527,11 +568,67 @@ describe('Auth Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({});
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('company_id 不能为空');
+      expect(response.body.message).toBe('company_id 必须为正整数');
+    });
+
+    it('should return 400 when company_id is negative', async () => {
+      const response = await agent
+        .put(SELECTION)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ company_id: -1 });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('company_id 必须为正整数');
+    });
+
+    it('should return 400 when company_id is zero', async () => {
+      const response = await agent
+        .put(SELECTION)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ company_id: 0 });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('company_id 必须为正整数');
+    });
+
+    it('should return 400 when project_id is negative', async () => {
+      const response = await agent
+        .put(SELECTION)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ company_id: 1, project_id: -5 });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('project_id 必须为正整数或 null');
+    });
+
+    it('should return 403 when company_id is not accessible', async () => {
+      const prisma = mockPrisma();
+      // sysadmin sees all companies - but we return empty to simulate no accessible company
+      prisma.company.findMany.mockResolvedValue([]);
+
+      const response = await agent
+        .put(SELECTION)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ company_id: 999 });
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('无权选择该公司');
+    });
+
+    it('should return 403 when project_id is not accessible', async () => {
+      const prisma = mockPrisma();
+      // Company is accessible
+      prisma.company.findMany.mockResolvedValue([{ id: 1, shortName: 'Company A' }]);
+      // But project is not
+      prisma.project.findMany.mockResolvedValue([]);
+
+      const response = await agent
+        .put(SELECTION)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ company_id: 1, project_id: 999 });
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('无权选择该项目');
     });
 
     it('should save selection with company_id only', async () => {
       const prisma = mockPrisma();
+      prisma.company.findMany.mockResolvedValue([{ id: 1, shortName: 'Company A' }]);
 
       const response = await agent
         .put(SELECTION)
@@ -544,6 +641,8 @@ describe('Auth Controller', () => {
 
     it('should save selection with company_id and project_id', async () => {
       const prisma = mockPrisma();
+      prisma.company.findMany.mockResolvedValue([{ id: 1, shortName: 'Company A' }]);
+      prisma.project.findMany.mockResolvedValue([{ id: 2, shortName: 'Project 1' }]);
 
       const response = await agent
         .put(SELECTION)
@@ -554,8 +653,9 @@ describe('Auth Controller', () => {
       expect(response.body.message).toBe('保存成功');
     });
 
-    it('should return 500 when saveSelection throws error', async () => {
+    it('should return 500 with generic message when saveSelection throws error', async () => {
       const prisma = mockPrisma();
+      prisma.company.findMany.mockResolvedValue([{ id: 1, shortName: 'Company A' }]);
       prisma.user.update.mockRejectedValue(new Error('DB error'));
 
       const response = await agent
@@ -563,11 +663,12 @@ describe('Auth Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ company_id: 1 });
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('DB error');
+      expect(response.body.message).toBe('保存失败，请稍后重试');
     });
 
-    it('should return 500 with default message when error has no message', async () => {
+    it('should return 500 with generic message when error has no message', async () => {
       const prisma = mockPrisma();
+      prisma.company.findMany.mockResolvedValue([{ id: 1, shortName: 'Company A' }]);
       prisma.user.update.mockRejectedValue(new Error());
 
       const response = await agent
@@ -575,7 +676,7 @@ describe('Auth Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ company_id: 1 });
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('保存失败');
+      expect(response.body.message).toBe('保存失败，请稍后重试');
     });
   });
 
@@ -657,7 +758,7 @@ describe('Auth Controller', () => {
       expect(response.body.data).toHaveLength(0);
     });
 
-    it('should return 500 when service throws error', async () => {
+    it('should return 500 with generic message when service throws error', async () => {
       const prisma = mockPrisma();
       prisma.company.findMany.mockRejectedValue(new Error('DB error'));
 
@@ -665,10 +766,10 @@ describe('Auth Controller', () => {
         .get(COMPANIES)
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('DB error');
+      expect(response.body.message).toBe('获取公司列表失败，请稍后重试');
     });
 
-    it('should return 500 with default message on error without message', async () => {
+    it('should return 500 with generic message on error without message', async () => {
       const prisma = mockPrisma();
       prisma.company.findMany.mockRejectedValue(new Error());
 
@@ -676,7 +777,7 @@ describe('Auth Controller', () => {
         .get(COMPANIES)
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('获取公司列表失败');
+      expect(response.body.message).toBe('获取公司列表失败，请稍后重试');
     });
   });
 
@@ -694,7 +795,7 @@ describe('Auth Controller', () => {
         .get(PROJECTS)
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('company_id 不能为空');
+      expect(response.body.message).toBe('company_id 必须为正整数');
     });
 
     it('should return 400 when company_id is NaN', async () => {
@@ -703,7 +804,16 @@ describe('Auth Controller', () => {
         .query({ company_id: 'abc' })
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('company_id 不能为空');
+      expect(response.body.message).toBe('company_id 必须为正整数');
+    });
+
+    it('should return 400 when company_id is negative', async () => {
+      const response = await agent
+        .get(PROJECTS)
+        .query({ company_id: '-1' })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('company_id 必须为正整数');
     });
 
     it('should return projects for sysadmin', async () => {
@@ -767,7 +877,7 @@ describe('Auth Controller', () => {
       expect(response.body.data).toHaveLength(0);
     });
 
-    it('should return 500 when service throws error', async () => {
+    it('should return 500 with generic message when service throws error', async () => {
       const prisma = mockPrisma();
       prisma.project.findMany.mockRejectedValue(new Error('DB error'));
 
@@ -776,10 +886,10 @@ describe('Auth Controller', () => {
         .query({ company_id: '1' })
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('DB error');
+      expect(response.body.message).toBe('获取项目列表失败，请稍后重试');
     });
 
-    it('should return 500 with default message on error without message', async () => {
+    it('should return 500 with generic message on error without message', async () => {
       const prisma = mockPrisma();
       prisma.project.findMany.mockRejectedValue(new Error());
 
@@ -788,7 +898,7 @@ describe('Auth Controller', () => {
         .query({ company_id: '1' })
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('获取项目列表失败');
+      expect(response.body.message).toBe('获取项目列表失败，请稍后重试');
     });
   });
 
@@ -868,7 +978,7 @@ describe('Auth Controller', () => {
       expect(response.body.data.projects).toHaveLength(1);
     });
 
-    it('should return 500 when service throws error', async () => {
+    it('should return 500 with generic message when service throws error', async () => {
       const prisma = mockPrisma();
       prisma.company.findMany.mockRejectedValue(new Error('DB error'));
 
@@ -876,10 +986,10 @@ describe('Auth Controller', () => {
         .get(CONTEXT)
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('DB error');
+      expect(response.body.message).toBe('获取上下文失败，请稍后重试');
     });
 
-    it('should return 500 with default message on error without message', async () => {
+    it('should return 500 with generic message on error without message', async () => {
       const prisma = mockPrisma();
       prisma.company.findMany.mockRejectedValue(new Error());
 
@@ -887,7 +997,7 @@ describe('Auth Controller', () => {
         .get(CONTEXT)
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('获取上下文失败');
+      expect(response.body.message).toBe('获取上下文失败，请稍后重试');
     });
   });
 
@@ -913,6 +1023,22 @@ describe('Auth Controller', () => {
     it('should return 400 when id is NaN', async () => {
       const response = await agent
         .get(url('xyz'))
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的公司ID');
+    });
+
+    it('should return 400 when id is negative', async () => {
+      const response = await agent
+        .get(url(-1))
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的公司ID');
+    });
+
+    it('should return 400 when id is zero', async () => {
+      const response = await agent
+        .get(url(0))
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
       expect(response.body.message).toBe('无效的公司ID');
@@ -987,7 +1113,7 @@ describe('Auth Controller', () => {
       expect(response.status).toBe(200);
     });
 
-    it('should return 500 when service throws error', async () => {
+    it('should return 500 with generic message when service throws error', async () => {
       const prisma = mockPrisma();
       prisma.user.findMany.mockRejectedValue(new Error('DB error'));
 
@@ -995,10 +1121,10 @@ describe('Auth Controller', () => {
         .get(url(1))
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('DB error');
+      expect(response.body.message).toBe('获取公司用户失败，请稍后重试');
     });
 
-    it('should return 500 with default message on error without message', async () => {
+    it('should return 500 with generic message on error without message', async () => {
       const prisma = mockPrisma();
       prisma.user.findMany.mockRejectedValue(new Error());
 
@@ -1006,7 +1132,7 @@ describe('Auth Controller', () => {
         .get(url(1))
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('获取公司用户失败');
+      expect(response.body.message).toBe('获取公司用户失败，请稍后重试');
     });
   });
 });

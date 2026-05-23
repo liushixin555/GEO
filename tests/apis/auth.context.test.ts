@@ -90,7 +90,7 @@ describe('GET /api/auth/context', () => {
     it('should return own company and all projects', async () => {
       const token = makeToken(2, 'admin', 1);
       const mockCompanyFindUnique = jest.fn().mockResolvedValue({
-        id: 1, shortName: '公司A',
+        id: 1, shortName: '公司A', status: true,
       });
       const mockProjectOperatorFindMany = jest.fn().mockResolvedValue([
         { project: { id: 10, shortName: '项目X' } },
@@ -115,7 +115,7 @@ describe('GET /api/auth/context', () => {
     it('should return own company and viewed projects', async () => {
       const token = makeToken(3, 'view', 1);
       const mockCompanyFindUnique = jest.fn().mockResolvedValue({
-        id: 1, shortName: '公司A',
+        id: 1, shortName: '公司A', status: true,
       });
       const mockProjectViewerFindMany = jest.fn().mockResolvedValue([
         { project: { id: 10, shortName: '项目X', companyId: 1 } },

@@ -381,9 +381,15 @@ describe('AuthService', () => {
   describe('saveSelection', () => {
     it('应更新用户的 selectedCompanyId 和 selectedProjectId', async () => {
       const mockUpdate = jest.fn().mockResolvedValue({});
-      mockedGetPrisma.mockReturnValue({ user: { update: mockUpdate } } as any);
+      const mockCompanyFindMany = jest.fn().mockResolvedValue([{ id: 2, shortName: 'Co2' }]);
+      const mockProjectFindMany = jest.fn().mockResolvedValue([{ id: 3, shortName: 'Pr3' }]);
+      mockedGetPrisma.mockReturnValue({
+        user: { update: mockUpdate },
+        company: { findMany: mockCompanyFindMany },
+        project: { findMany: mockProjectFindMany },
+      } as any);
 
-      await authService.saveSelection(1, { company_id: 2, project_id: 3 });
+      await authService.saveSelection(1, 'sysadmin', null, { company_id: 2, project_id: 3 });
 
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -393,9 +399,13 @@ describe('AuthService', () => {
 
     it('project_id 为 undefined 时应设为 null', async () => {
       const mockUpdate = jest.fn().mockResolvedValue({});
-      mockedGetPrisma.mockReturnValue({ user: { update: mockUpdate } } as any);
+      const mockCompanyFindMany = jest.fn().mockResolvedValue([{ id: 2, shortName: 'Co2' }]);
+      mockedGetPrisma.mockReturnValue({
+        user: { update: mockUpdate },
+        company: { findMany: mockCompanyFindMany },
+      } as any);
 
-      await authService.saveSelection(1, { company_id: 2 });
+      await authService.saveSelection(1, 'sysadmin', null, { company_id: 2 });
 
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -405,14 +415,63 @@ describe('AuthService', () => {
 
     it('project_id 显式为 null 时应设为 null', async () => {
       const mockUpdate = jest.fn().mockResolvedValue({});
-      mockedGetPrisma.mockReturnValue({ user: { update: mockUpdate } } as any);
+      const mockCompanyFindMany = jest.fn().mockResolvedValue([{ id: 2, shortName: 'Co2' }]);
+      mockedGetPrisma.mockReturnValue({
+        user: { update: mockUpdate },
+        company: { findMany: mockCompanyFindMany },
+      } as any);
 
-      await authService.saveSelection(1, { company_id: 2, project_id: null });
+      await authService.saveSelection(1, 'sysadmin', null, { company_id: 2, project_id: null });
 
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { selectedCompanyId: 2, selectedProjectId: null },
       });
+    });
+
+    it('无权选择该公司时应抛出错误', async () => {
+      const mockUpdate = jest.fn().mockResolvedValue({});
+      const mockCompanyFindMany = jest.fn().mockResolvedValue([{ id: 1, shortName: 'Co1' }]);
+      mockedGetPrisma.mockReturnValue({
+        user: { update: mockUpdate },
+        company: { findMany: mockCompanyFindMany },
+      } as any);
+
+      await expect(
+        authService.saveSelection(1, 'sysadmin', null, { company_id: 999 })
+      ).rejects.toThrow('无权选择该公司');
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('无权选择该项目时应抛出错误', async () => {
+      const mockUpdate = jest.fn().mockResolvedValue({});
+      const mockCompanyFindMany = jest.fn().mockResolvedValue([{ id: 2, shortName: 'Co2' }]);
+      const mockProjectFindMany = jest.fn().mockResolvedValue([{ id: 5, shortName: 'Pr5' }]);
+      mockedGetPrisma.mockReturnValue({
+        user: { update: mockUpdate },
+        company: { findMany: mockCompanyFindMany },
+        project: { findMany: mockProjectFindMany },
+      } as any);
+
+      await expect(
+        authService.saveSelection(1, 'sysadmin', null, { company_id: 2, project_id: 999 })
+      ).rejects.toThrow('无权选择该项目');
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('admin 只能选择自己的公司', async () => {
+      const mockUpdate = jest.fn().mockResolvedValue({});
+      const mockCompanyFindUnique = jest.fn().mockResolvedValue({ id: 1, shortName: 'MyCo', status: true });
+      mockedGetPrisma.mockReturnValue({
+        user: { update: mockUpdate },
+        company: { findUnique: mockCompanyFindUnique },
+      } as any);
+
+      // admin 的 companyId=1, 尝试选择 company_id=2（不属于自己）
+      await expect(
+        authService.saveSelection(2, 'admin', 1, { company_id: 2 })
+      ).rejects.toThrow('无权选择该公司');
+      expect(mockUpdate).not.toHaveBeenCalled();
     });
   });
 
