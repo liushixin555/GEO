@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Row, Col, Card, Input, Select, Tag, Typography, Spin, Pagination,
   Empty, App, Breadcrumb, Button, Table, Flex, Tabs, Space, Popconfirm,
-  Modal,
+  Modal, Tooltip,
 } from 'antd';
 import {
   PlusOutlined,
@@ -11,6 +11,7 @@ import {
   CloseCircleOutlined,
   UndoOutlined,
   StopOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import axios from 'axios';
@@ -217,68 +218,52 @@ const TodoPage: React.FC = () => {
   };
 
   const getActionButtons = (item: TodoItem) => {
-    const btns: React.ReactNode[] = [];
     const isSysadmin = user.role === 'sysadmin';
     const isAssignee = item.assignee_id === user.id;
+    const canAct = isSysadmin || isAssignee;
 
-    // 查看日志
+    const btn = (key: string, icon: React.ReactNode, tip: string, onClick?: () => void, danger?: boolean, confirm?: { title: string; okText: string }) => {
+      const button = (
+        <Button
+          key={key}
+          type="link"
+          size="small"
+          icon={icon}
+          disabled={!canAct}
+          danger={danger}
+          onClick={confirm ? undefined : onClick}
+        />
+      );
+      const wrapped = confirm ? (
+        <Popconfirm key={key} title={confirm.title} onConfirm={onClick} okText={confirm.okText} cancelText="取消" disabled={!canAct}>
+          {button}
+        </Popconfirm>
+      ) : button;
+      return <Tooltip key={key} title={tip}>{wrapped}</Tooltip>;
+    };
+
+    const btns: React.ReactNode[] = [];
+
+    // 查看日志（所有人可用）
     btns.push(
-      <Button key="log" type="link" size="small" icon={<FileSearchOutlined />} onClick={() => handleViewLog(item.id)}>
-        日志
-      </Button>
+      <Tooltip key="log" title="日志">
+        <Button key="log" type="link" size="small" icon={<FileSearchOutlined />} onClick={() => handleViewLog(item.id)} />
+      </Tooltip>
     );
 
     if (item.status === 'open') {
-      // 转交 (处理中可转交)
-      if (isSysadmin || isAssignee) {
-        btns.push(
-          <Button key="transfer" type="link" size="small" icon={<SwapOutlined />} onClick={() => openTransferModal(item)}>
-            转交
-          </Button>
-        );
-      }
-      // 关闭
-      if (isSysadmin || isAssignee) {
-        btns.push(
-          <Popconfirm key="close" title="确定完成此待办？" onConfirm={() => handleClose(item.id)} okText="确定" cancelText="取消">
-            <Button type="link" size="small" icon={<CloseCircleOutlined />}>完成</Button>
-          </Popconfirm>
-        );
-      }
-      // 驳回 (仅 sysadmin)
-      if (isSysadmin) {
-        btns.push(
-          <Popconfirm key="reject" title="确定驳回此待办？" onConfirm={() => handleReject(item.id)} okText="驳回" cancelText="取消">
-            <Button type="link" size="small" danger icon={<StopOutlined />}>驳回</Button>
-          </Popconfirm>
-        );
-      }
-      // 编辑
-      if (isSysadmin || isAssignee) {
-        btns.push(
-          <Button key="edit" type="link" size="small" onClick={() => handleEdit(item)}>编辑</Button>
-        );
-      }
+      btns.push(btn('transfer', <SwapOutlined />, '转交', () => openTransferModal(item)));
+      btns.push(btn('close', <CloseCircleOutlined />, '完成', () => handleClose(item.id), false, { title: '确定完成此待办？', okText: '确定' }));
+      btns.push(btn('reject', <StopOutlined />, '驳回', () => handleReject(item.id), true, { title: '确定驳回此待办？', okText: '确定' }));
+      btns.push(btn('edit', <EditOutlined />, '编辑', () => handleEdit(item)));
     }
 
     if (item.status === 'closed') {
-      // 重新打开
-      if (isSysadmin || isAssignee) {
-        btns.push(
-          <Popconfirm key="reopen" title="确定重新打开此待办？" onConfirm={() => handleReopen(item.id)} okText="确定" cancelText="取消">
-            <Button type="link" size="small" icon={<UndoOutlined />}>重开</Button>
-          </Popconfirm>
-        );
-      }
+      btns.push(btn('reopen', <UndoOutlined />, '重开', () => handleReopen(item.id), false, { title: '确定重新打开此待办？', okText: '确定' }));
     }
 
     if (item.status === 'draft') {
-      // 编辑草稿
-      if (isSysadmin || isAssignee) {
-        btns.push(
-          <Button key="edit" type="link" size="small" onClick={() => handleEdit(item)}>编辑</Button>
-        );
-      }
+      btns.push(btn('edit', <EditOutlined />, '编辑', () => handleEdit(item)));
     }
 
     return <Space size={0}>{btns}</Space>;
