@@ -197,15 +197,14 @@ const KnowledgeBaseDetail: React.FC = () => {
         <Row gutter={[16, 16]}>
           {keywords.map((item) => (
             <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
-              <Card hoverable styles={{ body: { padding: 24 } }} style={{ height: '100%' }}
-                onClick={() => navigate(`/knowledge/${baseId}/keyword/${item.id}`)}
+              <Card styles={{ body: { padding: 24 } }} style={{ height: '100%' }}
               >
                 <div className="item-card-header">
                   <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.keyword}>{item.keyword}</span>
                   {canModify(item.created_by) && (
                     <div className="item-card-actions">
-                      <Popconfirm title="确定删除此关键词？" onConfirm={(e) => { e?.stopPropagation(); handleDeleteKeyword(item); }} okText="删除" cancelText="取消">
-                        <DeleteOutlined className="item-card-edit-danger" onClick={(e) => e.stopPropagation()} />
+                      <Popconfirm title="确定删除此关键词？" onConfirm={() => handleDeleteKeyword(item)} okText="删除" cancelText="取消">
+                        <DeleteOutlined className="item-card-edit-danger" />
                       </Popconfirm>
                     </div>
                   )}
