@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Input, Select, Tag, Typography, Spin, Pagination, Empty, Popconfirm, App, Breadcrumb } from 'antd';
+import { Row, Col, Card, Input, Select, Tag, Typography, Spin, Pagination, Empty, Popconfirm, App, Breadcrumb, Button, Descriptions, Table } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import axios from 'axios';
 import { useAppContext } from '../context/AppContext';
 
@@ -25,6 +26,14 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   publish_failed: { label: '发布失败', color: 'error' },
   published: { label: '已发布', color: 'success' },
 };
+
+function formatDate(value: string): string {
+  const d = new Date(value);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 const ArticlePage: React.FC = () => {
   const { projectId } = useAppContext();
@@ -84,6 +93,59 @@ const ArticlePage: React.FC = () => {
     return user.role === 'sysadmin' || item.created_by === user.id;
   };
 
+  const tableColumns: ColumnsType<ArticleItem> = [
+    {
+      title: '标题',
+      dataIndex: 'title',
+      key: 'title',
+      ellipsis: { showTitle: true },
+      render: (text: string, record: ArticleItem) => (
+        <a onClick={() => navigate(`/article/${record.id}`)} style={{ color: 'var(--color-primary, #0f62fe)' }}>
+          {record.id}. {text || record.keywords}
+        </a>
+      ),
+    },
+    {
+      title: '关键词',
+      dataIndex: 'keywords',
+      key: 'keywords',
+      ellipsis: { showTitle: true },
+      render: (text: string | null) => text || '-',
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 120,
+      render: (status: string) => {
+        const cfg = STATUS_CONFIG[status] || { label: status, color: 'default' };
+        return <Tag color={cfg.color}>{cfg.label}</Tag>;
+      },
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 120,
+      render: (val: string) => formatDate(val),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 120,
+      render: (_: unknown, record: ArticleItem) => (
+        <span style={{ display: 'flex', gap: 8 }}>
+          <Button type="link" size="small" onClick={() => navigate(`/article/${record.id}`)}>查看</Button>
+          {canDelete(record) && (
+            <Popconfirm title="确定删除此文章？" onConfirm={() => handleDelete(record)} okText="删除" cancelText="取消">
+              <Button type="link" size="small" danger>删除</Button>
+            </Popconfirm>
+          )}
+        </span>
+      ),
+    },
+  ];
+
   if (!projectId) {
     return (
       <div className="page-container">
@@ -115,44 +177,62 @@ const ArticlePage: React.FC = () => {
             options={Object.entries(STATUS_CONFIG).map(([value, { label }]) => ({ value, label }))}
           />
         </Col>
+        <Col xs={24} sm={6} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/article/new')}>添加文章</Button>
+        </Col>
       </Row>
 
       <Spin spinning={loading}>
-        <Row gutter={[16, 16]}>
+        {/* 卡片视图：<1280px */}
+        <div className="article-cards">
+          {data.length === 0 && (
+            <Card>
+              <div className="article-cards-empty">暂无数据</div>
+            </Card>
+          )}
           {data.map((item) => {
             const statusCfg = STATUS_CONFIG[item.status] || { label: item.status, color: 'default' };
             return (
-              <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
-                <Card hoverable styles={{ body: { padding: 24 } }} style={{ height: '100%' }}
-                  onClick={() => navigate(`/article/${item.id}`)}
-                >
-                  <div className="item-card-header">
-                    <Typography.Title level={3} className="item-card-title" ellipsis={{ tooltip: item.title || item.keywords }}>
-                      {item.id}.{item.title || item.keywords}
-                    </Typography.Title>
-                    {canDelete(item) && (
-                      <Popconfirm title="确定删除此文章？" onConfirm={(e) => { e?.stopPropagation(); handleDelete(item); }} okText="删除" cancelText="取消">
-                        <DeleteOutlined style={{ color: 'var(--text-secondary)', cursor: 'pointer' }} onClick={(e) => e.stopPropagation()} />
-                      </Popconfirm>
-                    )}
+              <Card
+                key={item.id}
+                size="small"
+                title={`${item.id}. ${item.title || item.keywords}`}
+                extra={<Tag color={statusCfg.color}>{statusCfg.label}</Tag>}
+                hoverable
+                onClick={() => navigate(`/article/${item.id}`)}
+                style={{ cursor: 'pointer' }}
+              >
+                <Descriptions column={2} size="small" colon={false}>
+                  <Descriptions.Item label="关键词">{item.keywords || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="创建时间">{formatDate(item.created_at)}</Descriptions.Item>
+                </Descriptions>
+                {canDelete(item) && (
+                  <div className="article-card-footer">
+                    <Popconfirm
+                      title="确定删除此文章？"
+                      onConfirm={(e) => { e?.stopPropagation(); handleDelete(item); }}
+                      okText="删除" cancelText="取消"
+                    >
+                      <Button type="link" size="small" danger onClick={(e) => e.stopPropagation()}>删除</Button>
+                    </Popconfirm>
                   </div>
-                  <div className="item-card-row">
-                    <Tag color={statusCfg.color}>{statusCfg.label}</Tag>
-                  </div>
-                  <div className="item-card-row">
-                    <span className="item-card-username">{new Date(item.created_at).toLocaleDateString()}</span>
-                  </div>
-                </Card>
-              </Col>
+                )}
+              </Card>
             );
           })}
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <Card hoverable onClick={() => navigate(`/article/new`)} className="company-add-card">
-              <PlusOutlined className="company-add-icon" />
-              <Typography.Text className="company-add-text">添加文章</Typography.Text>
-            </Card>
-          </Col>
-        </Row>
+        </div>
+
+        {/* 表格视图：>=1280px */}
+        <div className="article-table-wrapper">
+          <Table
+            columns={tableColumns}
+            dataSource={data}
+            rowKey="id"
+            size="middle"
+            pagination={false}
+            locale={{ emptyText: '暂无数据' }}
+          />
+        </div>
       </Spin>
 
       {total > pageSize && (

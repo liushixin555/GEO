@@ -880,3 +880,41 @@ a:hover {
     display: block;
   }
 }
+
+/* ========================================
+   Article Page — Card / Table Responsive
+   ======================================== */
+
+.article-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md, 12px);
+}
+
+.article-cards-empty {
+  text-align: center;
+  color: var(--color-ink-subtle);
+  padding: var(--spacing-xxl) 0;
+  font-size: 14px;
+}
+
+.article-card-footer {
+  margin-top: var(--spacing-sm, 8px);
+  padding-top: var(--spacing-sm, 8px);
+  border-top: 1px solid var(--color-hairline, #e0e0e0);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.article-table-wrapper {
+  display: none;
+}
+
+@media (min-width: 1280px) {
+  .article-cards {
+    display: none;
+  }
+  .article-table-wrapper {
+    display: block;
+  }
+}
