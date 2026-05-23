@@ -1,0 +1,1182 @@
+/**
+ * @jest-environment node
+ */
+process.env.JWT_SECRET = 'test-secret';
+process.env.JWT_EXPIRES_IN = '2h';
+
+jest.mock('../../apis/utils/db.util', () => ({
+  getPrisma: jest.fn(),
+  closePrisma: jest.fn(),
+}));
+
+import { getPrisma } from '../../apis/utils/db.util';
+import { KnowledgeBaseServiceImpl } from '../../apis/service/impl/knowledge-base.service.impl';
+
+const mockedGetPrisma = getPrisma as jest.MockedFunction<typeof getPrisma>;
+
+// ══════════════════════════════════════════
+//  Helpers
+// ══════════════════════════════════════════
+
+const BASE_INCLUDE = {
+  company: true,
+  project: true,
+  creator: true,
+  _count: {
+    select: {
+      keywords: true,
+      portraits: true,
+      images: true,
+      documents: true,
+    },
+  },
+};
+
+function makePrismaKnowledgeBase(overrides: Record<string, any> = {}) {
+  return {
+    id: 1,
+    name: '测试知识库',
+    description: '测试描述',
+    scope: 'platform',
+    companyId: null,
+    company: null,
+    projectId: null,
+    project: null,
+    status: true,
+    createdBy: 1,
+    creator: { cnName: '管理员' },
+    createdAt: new Date('2025-01-01'),
+    updatedAt: new Date('2025-06-01'),
+    deletedAt: null,
+    _count: { keywords: 5, portraits: 3, images: 2, documents: 1 },
+    ...overrides,
+  };
+}
+
+function makeExpectedMapped(overrides: Record<string, any> = {}) {
+  return {
+    id: 1,
+    name: '测试知识库',
+    description: '测试描述',
+    scope: 'platform',
+    company_id: null,
+    company_name: null,
+    project_id: null,
+    project_name: null,
+    status: true,
+    created_by: 1,
+    creator_name: '管理员',
+    keyword_count: 5,
+    portrait_count: 3,
+    image_count: 2,
+    document_count: 1,
+    created_at: new Date('2025-01-01'),
+    updated_at: new Date('2025-06-01'),
+    ...overrides,
+  };
+}
+
+// ══════════════════════════════════════════
+//  Tests
+// ══════════════════════════════════════════
+
+describe('KnowledgeBaseServiceImpl', () => {
+  let service: KnowledgeBaseServiceImpl;
+
+  beforeEach(() => {
+    service = new KnowledgeBaseServiceImpl();
+    jest.clearAllMocks();
+  });
+
+  // ──────────────────────────────────────
+  //  list()
+  // ──────────────────────────────────────
+  describe('list', () => {
+    it('should return paginated list ordered by id desc', async () => {
+      const items = [
+        makePrismaKnowledgeBase({ id: 2, name: 'B' }),
+        makePrismaKnowledgeBase({ id: 1, name: 'A' }),
+      ];
+      const mockFindMany = jest.fn().mockResolvedValue(items);
+      const mockCount = jest.fn().mockResolvedValue(2);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const result = await service.list(1, 10);
+
+      expect(result.total).toBe(2);
+      expect(result.list).toHaveLength(2);
+      expect(result.list[0].name).toBe('B');
+      expect(mockFindMany).toHaveBeenCalledWith({
+        where: {},
+        include: BASE_INCLUDE,
+        orderBy: { id: 'desc' },
+        skip: 0,
+        take: 10,
+      });
+    });
+
+    it('should calculate correct skip for page 2', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(3, 20);
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 40, take: 20 }),
+      );
+    });
+
+    it('should filter by search term (name or description)', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(1, 10, '关键词');
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            OR: [
+              { name: { contains: '关键词', mode: 'insensitive' } },
+              { description: { contains: '关键词', mode: 'insensitive' } },
+            ],
+          },
+        }),
+      );
+    });
+
+    it('should filter by scope', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(1, 10, undefined, 'company');
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { scope: 'company' } }),
+      );
+    });
+
+    it('should filter by status when status is true', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(1, 10, undefined, undefined, true);
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { status: true } }),
+      );
+    });
+
+    it('should filter by status when status is false', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(1, 10, undefined, undefined, false);
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { status: false } }),
+      );
+    });
+
+    it('should not filter by status when status is undefined', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(1, 10, undefined, undefined, undefined);
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: {} }),
+      );
+    });
+
+    it('should combine search, scope, and status filters', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(1, 10, '测试', 'project', true);
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            OR: [
+              { name: { contains: '测试', mode: 'insensitive' } },
+              { description: { contains: '测试', mode: 'insensitive' } },
+            ],
+            scope: 'project',
+            status: true,
+          },
+        }),
+      );
+    });
+
+    // ── Admin role filtering ──
+    it('should return empty when admin user not found', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      mockedGetPrisma.mockReturnValue({
+        user: { findFirst: mockFindFirst },
+      } as any);
+
+      const result = await service.list(1, 10, undefined, undefined, undefined, 99, 'admin');
+
+      expect(result).toEqual({ list: [], total: 0 });
+    });
+
+    it('should filter by admin role - platform only when user has no company and no projects', async () => {
+      const mockUser = { id: 1, companyId: null, deletedAt: null };
+      const mockFindFirst = jest.fn().mockResolvedValue(mockUser);
+      const mockOperatorFindMany = jest.fn().mockResolvedValue([]);
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        user: { findFirst: mockFindFirst },
+        projectOperator: { findMany: mockOperatorFindMany },
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(1, 10, undefined, undefined, undefined, 1, 'admin');
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { AND: [{ OR: [{ scope: 'platform', status: true }] }] },
+        }),
+      );
+    });
+
+    it('should filter by admin role - platform + company scope', async () => {
+      const mockUser = { id: 1, companyId: 10, deletedAt: null };
+      const mockFindFirst = jest.fn().mockResolvedValue(mockUser);
+      const mockOperatorFindMany = jest.fn().mockResolvedValue([]);
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        user: { findFirst: mockFindFirst },
+        projectOperator: { findMany: mockOperatorFindMany },
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(1, 10, undefined, undefined, undefined, 1, 'admin');
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            AND: [{
+              OR: [
+                { scope: 'platform', status: true },
+                { scope: 'company', companyId: 10, status: true },
+              ],
+            }],
+          },
+        }),
+      );
+    });
+
+    it('should filter by admin role - platform + project scope', async () => {
+      const mockUser = { id: 1, companyId: null, deletedAt: null };
+      const mockFindFirst = jest.fn().mockResolvedValue(mockUser);
+      const mockOperatorFindMany = jest.fn().mockResolvedValue([
+        { projectId: 100 },
+        { projectId: 200 },
+      ]);
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        user: { findFirst: mockFindFirst },
+        projectOperator: { findMany: mockOperatorFindMany },
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(1, 10, undefined, undefined, undefined, 1, 'admin');
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            AND: [{
+              OR: [
+                { scope: 'platform', status: true },
+                { scope: 'project', projectId: { in: [100, 200] }, status: true },
+              ],
+            }],
+          },
+        }),
+      );
+    });
+
+    it('should filter by admin role - all three scopes combined', async () => {
+      const mockUser = { id: 1, companyId: 10, deletedAt: null };
+      const mockFindFirst = jest.fn().mockResolvedValue(mockUser);
+      const mockOperatorFindMany = jest.fn().mockResolvedValue([{ projectId: 50 }]);
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        user: { findFirst: mockFindFirst },
+        projectOperator: { findMany: mockOperatorFindMany },
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(1, 10, undefined, undefined, undefined, 1, 'admin');
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            AND: [{
+              OR: [
+                { scope: 'platform', status: true },
+                { scope: 'company', companyId: 10, status: true },
+                { scope: 'project', projectId: { in: [50] }, status: true },
+              ],
+            }],
+          },
+        }),
+      );
+    });
+
+    it('should combine admin role filter with search filter', async () => {
+      const mockUser = { id: 1, companyId: 10, deletedAt: null };
+      const mockFindFirst = jest.fn().mockResolvedValue(mockUser);
+      const mockOperatorFindMany = jest.fn().mockResolvedValue([]);
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        user: { findFirst: mockFindFirst },
+        projectOperator: { findMany: mockOperatorFindMany },
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(1, 10, '测试', undefined, undefined, 1, 'admin');
+
+      // Should have both OR (search) and AND (role filter)
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where.OR).toBeDefined(); // search filter
+      expect(where.AND).toBeDefined(); // role filter
+    });
+
+    it('should correctly map list items', async () => {
+      const item = makePrismaKnowledgeBase({
+        id: 5,
+        name: '映射测试',
+        scope: 'company',
+        companyId: 10,
+        company: { shortName: 'ACME' },
+        projectId: null,
+        project: null,
+        _count: { keywords: 10, portraits: 5, images: 3, documents: 2 },
+      });
+      const mockFindMany = jest.fn().mockResolvedValue([item]);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const result = await service.list(1, 10);
+
+      expect(result.list[0]).toEqual(makeExpectedMapped({
+        id: 5,
+        name: '映射测试',
+        scope: 'company',
+        company_id: 10,
+        company_name: 'ACME',
+        keyword_count: 10,
+        portrait_count: 5,
+        image_count: 3,
+        document_count: 2,
+      }));
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  getById()
+  // ──────────────────────────────────────
+  describe('getById', () => {
+    it('should return knowledge base by id', async () => {
+      const item = makePrismaKnowledgeBase({ id: 3 });
+      const mockFindFirst = jest.fn().mockResolvedValue(item);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst },
+      } as any);
+
+      const result = await service.getById(3);
+
+      expect(result.id).toBe(3);
+      expect(result.name).toBe('测试知识库');
+      expect(mockFindFirst).toHaveBeenCalledWith({
+        where: { id: 3 },
+        include: BASE_INCLUDE,
+      });
+    });
+
+    it('should throw error when knowledge base not found', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst },
+      } as any);
+
+      await expect(service.getById(999)).rejects.toThrow('知识库不存在');
+    });
+
+    it('should correctly map all fields including relations', async () => {
+      const item = makePrismaKnowledgeBase({
+        id: 5,
+        scope: 'project',
+        companyId: 10,
+        company: { shortName: 'TestCo' },
+        projectId: 20,
+        project: { shortName: 'TestProj' },
+        createdBy: 2,
+        creator: { cnName: '张三' },
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(item);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst },
+      } as any);
+
+      const result = await service.getById(5);
+
+      expect(result).toEqual(makeExpectedMapped({
+        id: 5,
+        scope: 'project',
+        company_id: 10,
+        company_name: 'TestCo',
+        project_id: 20,
+        project_name: 'TestProj',
+        created_by: 2,
+        creator_name: '张三',
+      }));
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  create()
+  // ──────────────────────────────────────
+  describe('create', () => {
+    it('should create platform scope knowledge base (clears company_id and project_id)', async () => {
+      const request = {
+        name: '平台知识库',
+        description: '平台级别',
+        scope: 'platform' as const,
+        company_id: 10,
+        project_id: 20,
+      };
+      const created = makePrismaKnowledgeBase({ id: 1, name: '平台知识库' });
+      const mockCreate = jest.fn().mockResolvedValue(created);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      } as any);
+
+      const result = await service.create(request, 1);
+
+      expect(result.name).toBe('平台知识库');
+      expect(mockCreate).toHaveBeenCalledWith({
+        data: {
+          name: '平台知识库',
+          description: '平台级别',
+          scope: 'platform',
+          companyId: null,
+          projectId: null,
+          createdBy: 1,
+        },
+        include: BASE_INCLUDE,
+      });
+    });
+
+    it('should throw error when creating company scope without company_id', async () => {
+      const request = {
+        name: '公司知识库',
+        scope: 'company' as const,
+      };
+
+      await expect(service.create(request, 1)).rejects.toThrow('公司公共知识库必须选择公司');
+    });
+
+    it('should throw error when creating project scope without project_id', async () => {
+      const request = {
+        name: '项目知识库',
+        scope: 'project' as const,
+      };
+
+      await expect(service.create(request, 1)).rejects.toThrow('项目私有知识库必须选择项目');
+    });
+
+    it('should create company scope with company_id', async () => {
+      const request = {
+        name: '公司知识库',
+        description: '公司级别',
+        scope: 'company' as const,
+        company_id: 10,
+      };
+      const created = makePrismaKnowledgeBase({
+        id: 2, scope: 'company', companyId: 10,
+        company: { shortName: 'ACME' },
+      });
+      const mockCreate = jest.fn().mockResolvedValue(created);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      } as any);
+
+      const result = await service.create(request, 1);
+
+      expect(mockCreate).toHaveBeenCalledWith({
+        data: {
+          name: '公司知识库',
+          description: '公司级别',
+          scope: 'company',
+          companyId: 10,
+          projectId: null,
+          createdBy: 1,
+        },
+        include: BASE_INCLUDE,
+      });
+    });
+
+    it('should create project scope with project_id and optional company_id', async () => {
+      const request = {
+        name: '项目知识库',
+        description: '项目级别',
+        scope: 'project' as const,
+        project_id: 20,
+        company_id: 10,
+      };
+      const created = makePrismaKnowledgeBase({
+        id: 3, scope: 'project', projectId: 20, companyId: 10,
+      });
+      const mockCreate = jest.fn().mockResolvedValue(created);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      } as any);
+
+      const result = await service.create(request, 1);
+
+      expect(mockCreate).toHaveBeenCalledWith({
+        data: {
+          name: '项目知识库',
+          description: '项目级别',
+          scope: 'project',
+          companyId: 10,
+          projectId: 20,
+          createdBy: 1,
+        },
+        include: BASE_INCLUDE,
+      });
+    });
+
+    it('should create project scope without company_id (companyId defaults to null)', async () => {
+      const request = {
+        name: '项目知识库无公司',
+        scope: 'project' as const,
+        project_id: 30,
+      };
+      const created = makePrismaKnowledgeBase({
+        id: 4, scope: 'project', projectId: 30, companyId: null,
+      });
+      const mockCreate = jest.fn().mockResolvedValue(created);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      } as any);
+
+      await service.create(request, 1);
+
+      expect(mockCreate).toHaveBeenCalledWith({
+        data: {
+          name: '项目知识库无公司',
+          description: null,
+          scope: 'project',
+          companyId: null,
+          projectId: 30,
+          createdBy: 1,
+        },
+        include: BASE_INCLUDE,
+      });
+    });
+
+    it('should set description to null when not provided', async () => {
+      const request = {
+        name: '无描述知识库',
+        scope: 'platform' as const,
+      };
+      const created = makePrismaKnowledgeBase({ id: 4, description: null });
+      const mockCreate = jest.fn().mockResolvedValue(created);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      } as any);
+
+      await service.create(request, 1);
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ description: null }),
+        }),
+      );
+    });
+
+    it('should set description to null when empty string provided', async () => {
+      const request = {
+        name: '空描述知识库',
+        description: '',
+        scope: 'platform' as const,
+      };
+      const created = makePrismaKnowledgeBase({ id: 5, description: null });
+      const mockCreate = jest.fn().mockResolvedValue(created);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      } as any);
+
+      await service.create(request, 1);
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ description: null }),
+        }),
+      );
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  update()
+  // ──────────────────────────────────────
+  describe('update', () => {
+    it('should throw error when knowledge base not found', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst },
+      } as any);
+
+      await expect(service.update(999, { name: '新名称' }, 1, 'sysadmin')).rejects.toThrow('知识库不存在');
+    });
+
+    it('should throw error when non-sysadmin updates another user\'s knowledge base', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 2 });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst },
+      } as any);
+
+      await expect(service.update(1, { name: '新名称' }, 1, 'admin')).rejects.toThrow('只能修改自己创建的知识库');
+    });
+
+    it('should allow sysadmin to update any knowledge base', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 2 });
+      const updated = makePrismaKnowledgeBase({ id: 1, name: '更新后' });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.update(1, { name: '更新后' }, 1, 'sysadmin');
+
+      expect(result.name).toBe('更新后');
+    });
+
+    it('should allow owner to update their own knowledge base', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1 });
+      const updated = makePrismaKnowledgeBase({ id: 1, name: '更新后' });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.update(1, { name: '更新后' }, 1, 'admin');
+
+      expect(result.name).toBe('更新后');
+    });
+
+    it('should update name only', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1 });
+      const updated = makePrismaKnowledgeBase({ id: 1, name: '新名称' });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.update(1, { name: '新名称' }, 1, 'admin');
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { name: '新名称' },
+        include: BASE_INCLUDE,
+      });
+    });
+
+    it('should update description (set to null when empty)', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1 });
+      const updated = makePrismaKnowledgeBase({ id: 1, description: null });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.update(1, { description: '' }, 1, 'admin');
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { description: null },
+        include: BASE_INCLUDE,
+      });
+    });
+
+    it('should update status', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1, status: true });
+      const updated = makePrismaKnowledgeBase({ id: 1, status: false });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.update(1, { status: false }, 1, 'sysadmin');
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: false },
+        include: BASE_INCLUDE,
+      });
+    });
+
+    // ── Scope change ──
+    it('should change scope to platform and clear company_id and project_id', async () => {
+      const existing = makePrismaKnowledgeBase({
+        id: 1, createdBy: 1, scope: 'company',
+        companyId: 10, company: { shortName: 'ACME' },
+      });
+      const updated = makePrismaKnowledgeBase({ id: 1, scope: 'platform' });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.update(1, { scope: 'platform' }, 1, 'admin');
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { scope: 'platform', companyId: null, projectId: null },
+        include: BASE_INCLUDE,
+      });
+    });
+
+    it('should change scope to company with new company_id', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1, scope: 'platform' });
+      const updated = makePrismaKnowledgeBase({ id: 1, scope: 'company', companyId: 20 });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.update(1, { scope: 'company', company_id: 20 }, 1, 'admin');
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { scope: 'company', companyId: 20, projectId: null },
+        include: BASE_INCLUDE,
+      });
+    });
+
+    it('should change scope to company using existing company_id when not provided', async () => {
+      const existing = makePrismaKnowledgeBase({
+        id: 1, createdBy: 1, scope: 'platform', companyId: 10,
+      });
+      const updated = makePrismaKnowledgeBase({ id: 1, scope: 'company', companyId: 10 });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.update(1, { scope: 'company' }, 1, 'admin');
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: 10 }),
+        }),
+      );
+    });
+
+    it('should throw error when changing to company scope without company_id and no existing', async () => {
+      const existing = makePrismaKnowledgeBase({
+        id: 1, createdBy: 1, scope: 'platform', companyId: null,
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst },
+      } as any);
+
+      await expect(service.update(1, { scope: 'company' }, 1, 'admin')).rejects.toThrow('公司公共知识库必须选择公司');
+    });
+
+    it('should change scope to project with new project_id and company_id', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1, scope: 'platform' });
+      const updated = makePrismaKnowledgeBase({ id: 1, scope: 'project', projectId: 30 });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.update(1, { scope: 'project', project_id: 30, company_id: 10 }, 1, 'admin');
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { scope: 'project', projectId: 30, companyId: 10 },
+        include: BASE_INCLUDE,
+      });
+    });
+
+    it('should change scope to project using existing project_id when not provided', async () => {
+      const existing = makePrismaKnowledgeBase({
+        id: 1, createdBy: 1, scope: 'company', projectId: 20, companyId: 10,
+      });
+      const updated = makePrismaKnowledgeBase({ id: 1, scope: 'project', projectId: 20 });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.update(1, { scope: 'project' }, 1, 'admin');
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ projectId: 20 }),
+        }),
+      );
+    });
+
+    it('should throw error when changing to project scope without project_id and no existing', async () => {
+      const existing = makePrismaKnowledgeBase({
+        id: 1, createdBy: 1, scope: 'platform', projectId: null,
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst },
+      } as any);
+
+      await expect(service.update(1, { scope: 'project' }, 1, 'admin')).rejects.toThrow('项目私有知识库必须选择项目');
+    });
+
+    // ── No scope change, update company_id / project_id ──
+    it('should update company_id without scope change', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1, scope: 'company', companyId: 10 });
+      const updated = makePrismaKnowledgeBase({ id: 1, companyId: 20 });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.update(1, { company_id: 20 }, 1, 'admin');
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { companyId: 20 },
+        include: BASE_INCLUDE,
+      });
+    });
+
+    it('should update project_id without scope change', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1, scope: 'project', projectId: 10 });
+      const updated = makePrismaKnowledgeBase({ id: 1, projectId: 20 });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.update(1, { project_id: 20 }, 1, 'admin');
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { projectId: 20 },
+        include: BASE_INCLUDE,
+      });
+    });
+
+    it('should update multiple fields at once', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1 });
+      const updated = makePrismaKnowledgeBase({ id: 1, name: '多字段', description: '新描述', status: false });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.update(1, { name: '多字段', description: '新描述', status: false }, 1, 'admin');
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { name: '多字段', description: '新描述', status: false },
+        include: BASE_INCLUDE,
+      });
+    });
+
+    it('should find existing with deletedAt filter', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1 });
+      const updated = makePrismaKnowledgeBase({ id: 1, name: '更新' });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.update(1, { name: '更新' }, 1, 'admin');
+
+      expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 1, deletedAt: null } });
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  delete()
+  // ──────────────────────────────────────
+  describe('delete', () => {
+    it('should throw error when knowledge base not found', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst },
+      } as any);
+
+      await expect(service.delete(999, 1, 'sysadmin')).rejects.toThrow('知识库不存在');
+    });
+
+    it('should throw error when non-sysadmin deletes another user\'s knowledge base', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 2 });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst },
+      } as any);
+
+      await expect(service.delete(1, 1, 'admin')).rejects.toThrow('只能删除自己创建的知识库');
+    });
+
+    it('should soft delete (set deletedAt) as sysadmin', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 2 });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.delete(1, 1, 'sysadmin');
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { deletedAt: expect.any(Date) },
+      });
+    });
+
+    it('should allow owner to soft delete their own knowledge base', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1 });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.delete(1, 1, 'admin');
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { deletedAt: expect.any(Date) },
+      });
+    });
+
+    it('should find existing with deletedAt filter', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1 });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({});
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.delete(1, 1, 'admin');
+
+      expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 1, deletedAt: null } });
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  getAccessibleBaseIds()
+  // ──────────────────────────────────────
+  describe('getAccessibleBaseIds', () => {
+    it('should throw error when project not found', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst },
+      } as any);
+
+      await expect(service.getAccessibleBaseIds(999)).rejects.toThrow('项目不存在');
+    });
+
+    it('should return platform + project scope bases for project without company', async () => {
+      const mockProject = { id: 1, companyId: null };
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProject);
+      const mockFindMany = jest.fn().mockResolvedValue([
+        { id: 1 }, { id: 2 }, { id: 3 },
+      ]);
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst },
+        knowledgeBase: { findMany: mockFindMany },
+      } as any);
+
+      const result = await service.getAccessibleBaseIds(1);
+
+      expect(result).toEqual([1, 2, 3]);
+      expect(mockFindMany).toHaveBeenCalledWith({
+        where: {
+          OR: [
+            { scope: 'platform', status: true },
+            { scope: 'project', projectId: 1, status: true },
+          ],
+        },
+        select: { id: true },
+      });
+    });
+
+    it('should return platform + company + project scope bases for project with company', async () => {
+      const mockProject = { id: 1, companyId: 10 };
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProject);
+      const mockFindMany = jest.fn().mockResolvedValue([
+        { id: 1 }, { id: 2 }, { id: 3 }, { id: 4 },
+      ]);
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst },
+        knowledgeBase: { findMany: mockFindMany },
+      } as any);
+
+      const result = await service.getAccessibleBaseIds(1);
+
+      expect(result).toEqual([1, 2, 3, 4]);
+      expect(mockFindMany).toHaveBeenCalledWith({
+        where: {
+          OR: [
+            { scope: 'platform', status: true },
+            { scope: 'project', projectId: 1, status: true },
+            { scope: 'company', companyId: 10, status: true },
+          ],
+        },
+        select: { id: true },
+      });
+    });
+
+    it('should return empty array when no accessible bases exist', async () => {
+      const mockProject = { id: 1, companyId: null };
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProject);
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst },
+        knowledgeBase: { findMany: mockFindMany },
+      } as any);
+
+      const result = await service.getAccessibleBaseIds(1);
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  mapKnowledgeBase (field mapping)
+  // ──────────────────────────────────────
+  describe('field mapping', () => {
+    it('should handle null relations and missing _count gracefully', async () => {
+      const item = {
+        id: 1,
+        name: '空关联',
+        description: null,
+        scope: 'platform',
+        companyId: null,
+        company: null,
+        projectId: null,
+        project: null,
+        status: true,
+        createdBy: null,
+        creator: null,
+        createdAt: new Date('2025-01-01'),
+        updatedAt: new Date('2025-06-01'),
+        _count: undefined,
+      };
+      const mockFindFirst = jest.fn().mockResolvedValue(item);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst },
+      } as any);
+
+      const result = await service.getById(1);
+
+      expect(result).toEqual({
+        id: 1,
+        name: '空关联',
+        description: null,
+        scope: 'platform',
+        company_id: null,
+        company_name: null,
+        project_id: null,
+        project_name: null,
+        status: true,
+        created_by: null,
+        creator_name: null,
+        keyword_count: 0,
+        portrait_count: 0,
+        image_count: 0,
+        document_count: 0,
+        created_at: new Date('2025-01-01'),
+        updated_at: new Date('2025-06-01'),
+      });
+    });
+
+    it('should use shortName from company and project relations', async () => {
+      const item = makePrismaKnowledgeBase({
+        companyId: 10,
+        company: { shortName: 'MyCompany' },
+        projectId: 20,
+        project: { shortName: 'MyProject' },
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(item);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst },
+      } as any);
+
+      const result = await service.getById(1);
+
+      expect(result.company_name).toBe('MyCompany');
+      expect(result.project_name).toBe('MyProject');
+    });
+
+    it('should use cnName from creator relation', async () => {
+      const item = makePrismaKnowledgeBase({
+        createdBy: 5,
+        creator: { cnName: '李四' },
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(item);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst },
+      } as any);
+
+      const result = await service.getById(1);
+
+      expect(result.created_by).toBe(5);
+      expect(result.creator_name).toBe('李四');
+    });
+  });
+});
