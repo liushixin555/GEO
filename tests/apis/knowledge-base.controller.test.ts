@@ -165,6 +165,25 @@ describe('KnowledgeBase Controller', () => {
       );
     });
 
+    test('pageSize 超过上限被限制为 100', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const res = await agent
+        .get('/api/knowledge-bases?pageSize=999999')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.pageSize).toBe(100);
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 100 })
+      );
+    });
+
     test('带搜索参数查询知识库列表', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindMany = jest.fn().mockResolvedValue([]);
@@ -295,7 +314,7 @@ describe('KnowledgeBase Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(500);
-      expect(res.body.message).toBe('DB Error');
+      expect(res.body.message).toBe('获取知识库列表失败');
     });
 
     test('数据库异常无 message 返回默认错误', async () => {
@@ -377,7 +396,7 @@ describe('KnowledgeBase Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(500);
-      expect(res.body.message).toBe('DB Error');
+      expect(res.body.message).toBe('获取知识库详情失败');
     });
 
     test('获取详情异常无 message 返回默认错误', async () => {
@@ -488,7 +507,17 @@ describe('KnowledgeBase Controller', () => {
         .send({ name: '测试知识库' });
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toBe('知识库范围不能为空');
+      expect(res.body.message).toBe('知识库范围不合法，应为 platform/company/project');
+    });
+
+    test('scope 为无效值返回 400', async () => {
+      const res = await agent
+        .post('/api/knowledge-bases')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: '测试知识库', scope: 'invalid' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('知识库范围不合法，应为 platform/company/project');
     });
 
     test('company 知识库未选公司返回 400', async () => {
@@ -536,7 +565,7 @@ describe('KnowledgeBase Controller', () => {
         .send({ name: '测试', scope: 'platform' });
 
       expect(res.status).toBe(500);
-      expect(res.body.message).toBe('DB Error');
+      expect(res.body.message).toBe('创建知识库失败');
     });
 
     test('创建时异常无 message 返回默认错误', async () => {
@@ -628,6 +657,16 @@ describe('KnowledgeBase Controller', () => {
       expect(res.body.message).toBe('无效的知识库ID');
     });
 
+    test('无效的 scope 值返回 400', async () => {
+      const res = await agent
+        .put('/api/knowledge-bases/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ scope: 'invalid' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('知识库范围不合法，应为 platform/company/project');
+    });
+
     test('知识库不存在返回 404', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockResolvedValue(null);
@@ -678,7 +717,7 @@ describe('KnowledgeBase Controller', () => {
         .send({ name: 'test' });
 
       expect(res.status).toBe(500);
-      expect(res.body.message).toBe('DB Error');
+      expect(res.body.message).toBe('更新知识库失败');
     });
 
     test('更新时异常无 message 返回默认错误', async () => {
@@ -731,7 +770,7 @@ describe('KnowledgeBase Controller', () => {
       );
     });
 
-    test('更新 scope 为 company 且无 company_id 和已有 companyId 返回 500（controller 未映射为 400）', async () => {
+    test('更新 scope 为 company 且无 company_id 和已有 companyId 返回 400', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockResolvedValue({
         ...mockKB,
@@ -750,12 +789,11 @@ describe('KnowledgeBase Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scope: 'company' });
 
-      // controller update 未对此错误做 400 映射，走 500 兜底
-      expect(res.status).toBe(500);
+      expect(res.status).toBe(400);
       expect(res.body.message).toBe('公司公共知识库必须选择公司');
     });
 
-    test('更新 scope 为 project 且无 project_id 和已有 projectId 返回 500（controller 未映射为 400）', async () => {
+    test('更新 scope 为 project 且无 project_id 和已有 projectId 返回 400', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockResolvedValue({
         ...mockKB,
@@ -774,8 +812,7 @@ describe('KnowledgeBase Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scope: 'project' });
 
-      // controller update 未对此错误做 400 映射，走 500 兜底
-      expect(res.status).toBe(500);
+      expect(res.status).toBe(400);
       expect(res.body.message).toBe('项目私有知识库必须选择项目');
     });
   });
@@ -877,7 +914,7 @@ describe('KnowledgeBase Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(500);
-      expect(res.body.message).toBe('DB Error');
+      expect(res.body.message).toBe('删除知识库失败');
     });
 
     test('删除时异常无 message 返回默认错误', async () => {
