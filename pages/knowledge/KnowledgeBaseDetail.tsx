@@ -298,20 +298,19 @@ const KnowledgeBaseDetail: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 160,
-      render: (_: unknown, record: DocumentItem) => (
-        <span>
-          <Button type="link" size="small" icon={<DownloadOutlined />} href={record.file_url} target="_blank">下载</Button>
-          {canModify(record.created_by) && (
-            <>
-              <Button type="link" size="small" onClick={() => navigate(`/knowledge/${baseId}/document/${record.id}?mode=edit`)}>编辑</Button>
-              <Popconfirm title="确定删除此文档？" onConfirm={() => handleDeleteDocument(record)} okText="删除" cancelText="取消">
-                <Button type="link" size="small" danger>删除</Button>
-              </Popconfirm>
-            </>
-          )}
-        </span>
-      ),
+      width: 120,
+      render: (_: unknown, record: DocumentItem) => {
+        const mod = canModify(record.created_by);
+        return (
+          <span>
+            <Button type="text" size="small" icon={<DownloadOutlined />} href={record.file_url} target="_blank" style={{ color: 'var(--color-primary, #0f62fe)' }} />
+            <Button type="text" size="small" icon={<EditOutlined />} disabled={!mod} onClick={() => navigate(`/knowledge/${baseId}/document/${record.id}?mode=edit`)} style={{ color: mod ? 'var(--color-primary, #0f62fe)' : undefined }} />
+            <Popconfirm title="确定删除此文档？" onConfirm={() => handleDeleteDocument(record)} okText="删除" cancelText="取消" disabled={!mod}>
+              <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!mod} danger={mod} />
+            </Popconfirm>
+          </span>
+        );
+      },
     },
   ];
 
@@ -342,20 +341,19 @@ const KnowledgeBaseDetail: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 160,
-      render: (_: unknown, record: PortraitItem) => (
-        <span>
-          <Button type="link" size="small" onClick={() => navigate(`/knowledge/${baseId}/portrait/${record.id}`)}>查看</Button>
-          {canModify(record.created_by) && (
-            <>
-              <Button type="link" size="small" onClick={() => navigate(`/knowledge/${baseId}/portrait/${record.id}?mode=edit`)}>编辑</Button>
-              <Popconfirm title="确定删除此画像？" onConfirm={() => handleDeletePortrait(record)} okText="删除" cancelText="取消">
-                <Button type="link" size="small" danger>删除</Button>
-              </Popconfirm>
-            </>
-          )}
-        </span>
-      ),
+      width: 120,
+      render: (_: unknown, record: PortraitItem) => {
+        const mod = canModify(record.created_by);
+        return (
+          <span>
+            <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => navigate(`/knowledge/${baseId}/portrait/${record.id}`)} style={{ color: 'var(--color-primary, #0f62fe)' }} />
+            <Button type="text" size="small" icon={<EditOutlined />} disabled={!mod} onClick={() => navigate(`/knowledge/${baseId}/portrait/${record.id}?mode=edit`)} style={{ color: mod ? 'var(--color-primary, #0f62fe)' : undefined }} />
+            <Popconfirm title="确定删除此画像？" onConfirm={() => handleDeletePortrait(record)} okText="删除" cancelText="取消" disabled={!mod}>
+              <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!mod} danger={mod} />
+            </Popconfirm>
+          </span>
+        );
+      },
     },
   ];
 
@@ -386,19 +384,18 @@ const KnowledgeBaseDetail: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 120,
-      render: (_: unknown, record: ImageItem) => (
-        <span>
-          {canModify(record.created_by) && (
-            <>
-              <Button type="link" size="small" onClick={() => navigate(`/knowledge/${baseId}/image/${record.id}?mode=edit`)}>编辑</Button>
-              <Popconfirm title="确定删除此图片？" onConfirm={() => handleDeleteImage(record)} okText="删除" cancelText="取消">
-                <Button type="link" size="small" danger>删除</Button>
-              </Popconfirm>
-            </>
-          )}
-        </span>
-      ),
+      width: 80,
+      render: (_: unknown, record: ImageItem) => {
+        const mod = canModify(record.created_by);
+        return (
+          <span>
+            <Button type="text" size="small" icon={<EditOutlined />} disabled={!mod} onClick={() => navigate(`/knowledge/${baseId}/image/${record.id}?mode=edit`)} style={{ color: mod ? 'var(--color-primary, #0f62fe)' : undefined }} />
+            <Popconfirm title="确定删除此图片？" onConfirm={() => handleDeleteImage(record)} okText="删除" cancelText="取消" disabled={!mod}>
+              <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!mod} danger={mod} />
+            </Popconfirm>
+          </span>
+        );
+      },
     },
   ];
 
@@ -419,16 +416,17 @@ const KnowledgeBaseDetail: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 80,
-      render: (_: unknown, record: KeywordItem) => (
-        <span>
-          {canModify(record.created_by) && (
-            <Popconfirm title="确定删除此关键词？" onConfirm={() => handleDeleteKeyword(record)} okText="删除" cancelText="取消">
-              <Button type="link" size="small" danger>删除</Button>
+      width: 60,
+      render: (_: unknown, record: KeywordItem) => {
+        const mod = canModify(record.created_by);
+        return (
+          <span>
+            <Popconfirm title="确定删除此关键词？" onConfirm={() => handleDeleteKeyword(record)} okText="删除" cancelText="取消" disabled={!mod}>
+              <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!mod} danger={mod} />
             </Popconfirm>
-          )}
-        </span>
-      ),
+          </span>
+        );
+      },
     },
   ];
 
@@ -453,13 +451,11 @@ const KnowledgeBaseDetail: React.FC = () => {
                 <Card styles={{ body: { padding: 24 } }} style={{ height: '100%' }}>
                   <div className="item-card-header">
                     <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.keyword}>{item.keyword}</span>
-                    {canModify(item.created_by) && (
-                      <div className="item-card-actions">
-                        <Popconfirm title="确定删除此关键词？" onConfirm={() => handleDeleteKeyword(item)} okText="删除" cancelText="取消">
-                          <DeleteOutlined className="item-card-edit-danger" />
-                        </Popconfirm>
-                      </div>
-                    )}
+                    <div className="item-card-actions">
+                      <Popconfirm title="确定删除此关键词？" onConfirm={() => handleDeleteKeyword(item)} okText="删除" cancelText="取消">
+                        <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!canModify(item.created_by)} danger={canModify(item.created_by)} />
+                      </Popconfirm>
+                    </div>
                   </div>
                   <div className="item-card-row">
                     <span className="item-card-username">{formatDate(item.created_at)}</span>
@@ -508,15 +504,13 @@ const KnowledgeBaseDetail: React.FC = () => {
                 >
                   <div className="item-card-header">
                     <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.title}>{item.title}</span>
-                    {canModify(item.created_by) && (
-                      <div className="item-card-actions">
-                        <EyeOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/portrait/${item.id}`); }} />
-                        <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/portrait/${item.id}?mode=edit`); }} />
-                        <Popconfirm title="确定删除此画像？" onConfirm={(e) => { e?.stopPropagation(); handleDeletePortrait(item); }} okText="删除" cancelText="取消">
-                          <DeleteOutlined className="item-card-edit-danger" onClick={(e) => e.stopPropagation()} />
-                        </Popconfirm>
-                      </div>
-                    )}
+                    <div className="item-card-actions">
+                      <Button type="text" size="small" icon={<EyeOutlined />} onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/portrait/${item.id}`); }} style={{ color: 'var(--color-primary, #0f62fe)' }} />
+                      <Button type="text" size="small" icon={<EditOutlined />} disabled={!canModify(item.created_by)} onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/portrait/${item.id}?mode=edit`); }} style={{ color: canModify(item.created_by) ? 'var(--color-primary, #0f62fe)' : undefined }} />
+                      <Popconfirm title="确定删除此画像？" onConfirm={(e) => { e?.stopPropagation(); handleDeletePortrait(item); }} okText="删除" cancelText="取消">
+                        <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!canModify(item.created_by)} danger={canModify(item.created_by)} />
+                      </Popconfirm>
+                    </div>
                   </div>
                   {item.content && (
                     <div className="item-card-row">
@@ -576,14 +570,12 @@ const KnowledgeBaseDetail: React.FC = () => {
                     <Typography.Text strong ellipsis style={{ display: 'block' }}>{item.title}</Typography.Text>
                     {item.description && <Typography.Text type="secondary" style={{ fontSize: 12 }} ellipsis>{item.description}</Typography.Text>}
                   </div>
-                  {canModify(item.created_by) && (
-                    <div className="knowledge-image-actions">
-                      <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/image/${item.id}?mode=edit`); }} />
-                      <Popconfirm title="确定删除此图片？" onConfirm={(e) => { e?.stopPropagation(); handleDeleteImage(item); }} okText="删除" cancelText="取消">
-                        <DeleteOutlined className="item-card-edit-danger" onClick={(e) => e.stopPropagation()} />
-                      </Popconfirm>
-                    </div>
-                  )}
+                  <div className="knowledge-image-actions">
+                    <Button type="text" size="small" icon={<EditOutlined />} disabled={!canModify(item.created_by)} onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/image/${item.id}?mode=edit`); }} style={{ color: canModify(item.created_by) ? 'var(--color-primary, #0f62fe)' : undefined }} />
+                    <Popconfirm title="确定删除此图片？" onConfirm={(e) => { e?.stopPropagation(); handleDeleteImage(item); }} okText="删除" cancelText="取消">
+                      <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!canModify(item.created_by)} danger={canModify(item.created_by)} />
+                    </Popconfirm>
+                  </div>
                 </Card>
               </Col>
             ))}
@@ -638,15 +630,13 @@ const KnowledgeBaseDetail: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  {canModify(item.created_by) && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8, borderTop: '1px solid var(--border-subtle)', paddingTop: 8 }}>
-                      <Button type="text" size="small" icon={<DownloadOutlined />} href={item.file_url} target="_blank" onClick={(e) => e.stopPropagation()} />
-                      <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/document/${item.id}?mode=edit`); }} />
-                      <Popconfirm title="确定删除此文档？" onConfirm={(e) => { e?.stopPropagation(); handleDeleteDocument(item); }} okText="删除" cancelText="取消">
-                        <DeleteOutlined className="item-card-edit-danger" onClick={(e) => e.stopPropagation()} />
-                      </Popconfirm>
-                    </div>
-                  )}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8, borderTop: '1px solid var(--border-subtle)', paddingTop: 8 }}>
+                    <Button type="text" size="small" icon={<DownloadOutlined />} href={item.file_url} target="_blank" onClick={(e) => e.stopPropagation()} style={{ color: 'var(--color-primary, #0f62fe)' }} />
+                    <Button type="text" size="small" icon={<EditOutlined />} disabled={!canModify(item.created_by)} onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/document/${item.id}?mode=edit`); }} style={{ color: canModify(item.created_by) ? 'var(--color-primary, #0f62fe)' : undefined }} />
+                    <Popconfirm title="确定删除此文档？" onConfirm={(e) => { e?.stopPropagation(); handleDeleteDocument(item); }} okText="删除" cancelText="取消">
+                      <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!canModify(item.created_by)} danger={canModify(item.created_by)} />
+                    </Popconfirm>
+                  </div>
                 </Card>
               </Col>
             ))}
