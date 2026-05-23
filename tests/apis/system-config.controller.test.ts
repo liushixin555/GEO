@@ -163,6 +163,52 @@ describe('System Config Controller', () => {
       expect(item).toHaveProperty('created_at');
       expect(item).toHaveProperty('updated_at');
     });
+
+    it('应脱敏返回yishangshu_password的值', async () => {
+      mockPrismaForGet([
+        { id: 1, configKey: 'yishangshu_username', configValue: 'test_user', createdAt: new Date(), updatedAt: new Date() },
+        { id: 2, configKey: 'yishangshu_password', configValue: 'my_secret_password', createdAt: new Date(), updatedAt: new Date() },
+      ]);
+
+      const response = await agent
+        .get('/api/system-configs')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(2);
+      // username 不脱敏
+      expect(response.body.data[0].config_value).toBe('test_user');
+      // password 脱敏：前2位 + ****
+      expect(response.body.data[1].config_value).toBe('my****');
+    });
+
+    it('应脱敏处理短密码值', async () => {
+      mockPrismaForGet([
+        { id: 1, configKey: 'yishangshu_password', configValue: 'ab', createdAt: new Date(), updatedAt: new Date() },
+      ]);
+
+      const response = await agent
+        .get('/api/system-configs')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      // 短于等于2位的密码不脱敏
+      expect(response.body.data[0].config_value).toBe('ab');
+    });
+
+    it('应正确脱敏长度为3的密码值', async () => {
+      mockPrismaForGet([
+        { id: 1, configKey: 'yishangshu_password', configValue: 'abc', createdAt: new Date(), updatedAt: new Date() },
+      ]);
+
+      const response = await agent
+        .get('/api/system-configs')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      // 长度 > 2，脱敏为前2位 + ****
+      expect(response.body.data[0].config_value).toBe('ab****');
+    });
   });
 
   describe('PUT /api/system-configs', () => {
@@ -237,7 +283,7 @@ describe('System Config Controller', () => {
         .send({ configs: [{ config_key: 'unknown_key', config_value: 'test' }] });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toContain('不允许修改的配置项');
+      expect(response.body.message).toContain('不允许修改的配置项');  // DEV-P2: 不泄露具体 key 名称
     });
 
     it('应返回400当config_value为undefined时', async () => {
