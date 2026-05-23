@@ -1,147 +1,49 @@
-# 架构评审：apis/app.ts
+# 安全评审：apis/app.ts
 
 **评审日期**: 2026-05-23
-**评审角色**: 软件架构专家
-**评审范围**: Express 应用入口文件 `apis/app.ts`（209 行）
-**关联文件**: `apis/server.ts`, `apis/config/index.ts`, `apis/middleware/*.ts`, `apis/controller/*.ts`
+**评审角色**: 代码安全专家（OWASP / SANS / CWE 标准视角）
+**评审范围**: Express 应用入口文件 `apis/app.ts`（209 行）及关联中间件、配置
+**关联文件**: `apis/config/index.ts`, `apis/middleware/auth.middleware.ts`, `apis/middleware/anti-crawl.middleware.ts`, `apis/middleware/rate-limit.middleware.ts`
 
 ---
 
-## 1. 架构总体评级：B+（结构合理，存在架构级改进空间）
+## 1. 安全总体评级：C（存在多个高危漏洞，需立即修复）
 
-`app.ts` 作为 Express 应用的组装层（Composition Root），职责定位清晰——中间件注册 + 路由挂载。整体结构在中小型项目中可接受，但随着业务域增长（当前已有 16 个 controller、52 条路由），面临模块化和扩展性挑战。
+应用具备基础安全框架（JWT 认证 + RBAC 授权 + 限流 + 反爬），但关键安全配置存在严重缺陷，生产环境面临被攻击的实质性风险。
 
----
-
-## 2. 架构视图分析
-
-### 2.1 分层架构
-
-```
-server.ts (进程管理)
-  └─ app.ts (组装层 / Composition Root)
-       ├─ middleware/ (横切关注点)
-       │   ├─ helmet → cors → json → static
-       │   ├─ antiCrawlMiddleware (内存级 IP 封禁)
-       │   ├─ rateLimitMiddleware (express-rate-limit)
-       │   └─ authMiddleware + roleMiddleware (JWT + RBAC)
-       └─ controller/*.ts (16 个，直接挂载到 app)
-```
-
-**评价**: 分层结构存在，但组装层（app.ts）直接耦合了所有 controller，缺少路由层抽象。
-
-### 2.2 中间件管道
-
-```
-请求 → helmet → cors → express.json → static(/uploads) → antiCrawl → rateLimit → [路由匹配] → authMiddleware → roleMiddleware → controller
-```
-
-**评价**: 中间件顺序正确——安全头部 → 跨域 → 解析 → 限流 → 认证 → 授权。但存在以下问题：
-
-| 环节 | 问题 | 风险 |
-|------|------|------|
-| helmet | 配置合理 | 无 |
-| cors | 无 origin 白名单 | **高** |
-| static | `/uploads` 路径经过 antiCrawl + rateLimit | 健康检查和静态资源被不必要限流 |
-| antiCrawl | 内存 Map 存储，进程重启丢失 | 中 |
-| rateLimit | 使用 `express-rate-limit`（默认内存存储） | 中 |
+| 安全域 | 评分 | 状态 |
+|--------|------|------|
+| 认证（Authentication） | 7/10 | JWT 实现基本正确，但密钥管理有缺陷 |
+| 授权（Authorization） | 8/10 | RBAC 粒度合理，覆盖全面 |
+| 传输安全（Transport） | 2/10 | CORS 全开、缺少安全响应头 |
+| 输入验证（Input Validation） | 3/10 | 无请求体大小限制、无统一验证层 |
+| 错误处理（Error Handling） | 2/10 | 无全局错误处理、可能泄露栈信息 |
+| 数据保护（Data Protection） | 5/10 | 密码等敏感数据依赖框架处理 |
 
 ---
 
-## 3. 架构级发现
+## 2. 漏洞清单（按 OWASP Top 10 2021 映射）
 
-### ARCH-1: 缺少路由模块化层（架构债务）
+### SEC-01: CORS 策略完全开放 — OWASP A05:2021 Security Misconfiguration
 
-**严重度**: HIGH
-**位置**: 第 71-202 行
-
-**现状**: 52 条路由全部在 `app.ts` 中线性注册，直接引用 16 个 controller 模块。
-
-**问题**:
-- 违反**关注点分离**原则——app.ts 同时承担路由注册和中间件配置两个职责
-- 路由无法独立测试（必须启动完整 Express 实例）
-- 不同业务域（auth、article、knowledge）的路由混杂在一起
-- 新增路由只能追加到文件末尾，无法按领域隔离
-
-**建议架构**:
-
-```
-apis/
-├─ app.ts              (仅中间件配置 + 路由挂载)
-├─ routes/
-│   ├─ index.ts        (汇总导出)
-│   ├─ auth.routes.ts
-│   ├─ company.routes.ts
-│   ├─ article.routes.ts
-│   ├─ knowledge.routes.ts
-│   └─ ...
-└─ controller/
-    └─ ...
-```
+**严重度**: 🔴 CRITICAL
+**位置**: `app.ts:31`
+**CWE**: CWE-942 (Overly Permissive CORS Policy)
 
 ```typescript
-// routes/article.routes.ts
-import { Router } from 'express';
-import { authMiddleware, roleMiddleware } from '../middleware';
-import * as articleController from '../controller/article.controller';
-
-const router = Router();
-
-router.get('/:projectId/articles', authMiddleware, roleMiddleware('sysadmin', 'admin'), articleController.listArticles);
-// ...
-
-export default router;
-
-// app.ts
-import articleRoutes from './routes/article.routes';
-app.use('/api/projects', articleRoutes);
+// 当前代码
+app.use(cors());
 ```
 
-**收益**: 路由可独立测试、按域隔离、app.ts 从 209 行缩减至 ~60 行。
+**风险分析**:
+- `cors()` 无参数调用 = `origin: '*'`，允许**任何域名**发起跨域请求
+- 攻击者可构造恶意页面，诱骗已登录用户浏览器向 API 发起请求
+- 虽然使用 Bearer Token（非 Cookie）减轻了 CSRF 风险，但仍存在：
+  - **数据泄露**: 恶意网站可通过 XSS 读取 localStorage 中的 token 后调用 API
+  - **CSRF 变体**: 若未来改用 Cookie 存储 token，将直接暴露于 CSRF 攻击
+- **影响范围**: 全部 52 条 API 路由
 
----
-
-### ARCH-2: 缺少全局错误处理层（架构缺陷）
-
-**严重度**: HIGH
-**位置**: 文件末尾（缺失）
-
-**现状**: 没有 error handler middleware 和 404 fallback。
-
-**问题**:
-- 未捕获异常由 Express 默认处理，返回 HTML 格式错误栈（泄露内部实现）
-- 404 路由由 Express 默认处理（HTML 响应），前端 JSON 解析失败
-- 没有统一的错误响应格式，各 controller 各自处理错误
-
-**建议**:
-```typescript
-// 必须放在所有路由之后
-app.use((_req, res) => {
-  res.status(404).json({ code: 404, message: '接口不存在' });
-});
-
-// 全局错误处理 — Express 通过 4 参数签名识别
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  logger.error('Unhandled exception', err);
-  res.status(500).json({ code: 500, message: '服务器内部错误' });
-});
-```
-
----
-
-### ARCH-3: CORS 安全策略缺失（安全架构问题）
-
-**严重度**: HIGH
-**位置**: 第 31 行
-
-**现状**: `app.use(cors())` — 允许任意来源的跨域请求。
-
-**问题**:
-- 任何域名都可以向此 API 发起请求
-- 浏览器不会拦截来自恶意网站的请求
-- 与 JWT 认证组合使用时，若前端存储 token 在 cookie 中，构成 CSRF 攻击面
-
-**建议**: 配置化 CORS 白名单：
+**修复方案**:
 ```typescript
 app.use(cors({
   origin: (origin, callback) => {
@@ -149,182 +51,486 @@ app.use(cors({
     if (!origin || allowed.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('CORS not allowed'));
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 ```
 
 ---
 
-### ARCH-4: 静态资源与 API 共享中间件链（架构耦合）
+### SEC-02: JWT Secret 使用硬编码默认值 — OWASP A07:2021 Identification and Authentication Failures
 
-**严重度**: MEDIUM
-**位置**: 第 35-38 行 vs 第 41-42 行
+**严重度**: 🔴 CRITICAL
+**位置**: `apis/config/index.ts:52`
+**CWE**: CWE-798 (Use of Hard-coded Credentials)
 
-**现状**: `/uploads` 静态文件路由注册在 antiCrawl/rateLimit 之前，但 health check 端点（第 205 行）在其之后。
-
-**问题**:
-- `/api/health` 经过 antiCrawl 和 rateLimit 中间件，可能被限流
-- 生产环境健康检查（负载均衡器探测）可能被误封 IP
-- 静态资源请求被 antiCrawl 检查 User-Agent，影响 CDN 回源
-
-**建议**: 分离公共端点和受保护端点的中间件链：
 ```typescript
-// 公共端点 — 不经过限流
-app.get('/api/health', healthHandler);
-app.use('/uploads', staticMiddleware);
-
-// 受限端点 — 经过完整中间件链
-app.use(antiCrawlMiddleware);
-app.use(rateLimitMiddleware);
-// ... 所有 API 路由
+// 当前代码
+jwt: {
+  secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+  expiresIn: process.env.JWT_EXPIRES_IN || '2h',
+}
 ```
 
----
+**风险分析**:
+- 若 `.env` 文件缺失或 `JWT_SECRET` 未设置，使用公开可猜测的默认密钥
+- 攻击者可使用此密钥**伪造任意用户的 JWT token**，包括 `sysadmin` 角色
+- 该默认值出现在源代码中，任何有代码访问权限的人都能伪造 token
+- **影响**: 完整的认证绕过，等同于数据库无密码
 
-### ARCH-5: Anti-Crawl 内存存储限制扩展性（部署架构问题）
-
-**严重度**: MEDIUM
-**位置**: `apis/middleware/anti-crawl.middleware.ts`
-
-**现状**: IP 封禁数据存储在进程内存 `Map` 中。
-
-**问题**:
-- **多实例部署不共享**: 如果使用 PM2 cluster 或容器编排，每个实例独立计数，攻击者可分散到不同实例绕过限制
-- **进程重启数据丢失**: 封禁记录全部清空
-- **无 LRU 淘汰**: Map 无限增长，长时间运行可能内存泄漏
-
-**建议**: 对于单实例部署，当前可接受。若需横向扩展：
-- 短期：给 Map 添加定期清理和最大容量限制
-- 长期：迁移到 Redis 存储，使用 `rate-limit-redis`
-
----
-
-### ARCH-6: 缺少 API 版本化策略（演进架构问题）
-
-**严重度**: MEDIUM
-**位置**: 所有路由 `/api/` 前缀
-
-**现状**: 所有 API 使用 `/api/` 前缀，无版本号。
-
-**问题**:
-- 不兼容变更（如删除字段、修改 URL 结构）无法平滑过渡
-- 前后端必须同时发布
-- 没有版本策略意味着 v1 隐式存在，后续无法引入 v2
-
-**建议**: 引入 URL 版本前缀 + Express Router：
+**修复方案**:
 ```typescript
-import v1Routes from './routes/v1';
-app.use('/api/v1', v1Routes);
-```
-
----
-
-### ARCH-7: Swagger 规格无条件初始化（资源浪费）
-
-**严重度**: LOW
-**位置**: 第 45-64 行
-
-**现状**: `swaggerJSDoc()` 在模块加载时执行，即使 `config.swagger.enabled` 为 false。
-
-**问题**: 生产环境执行了不必要的文件 I/O（扫描 `controller/*.ts`）。
-
-**建议**: 延迟到条件分支内：
-```typescript
-if (config.swagger.enabled) {
-  const swaggerSpec = swaggerJSDoc({ ... });
-  app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
+jwt: {
+  secret: (() => {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error('FATAL: JWT_SECRET environment variable is required');
+    }
+    if (secret.length < 32) {
+      console.warn('WARNING: JWT_SECRET should be at least 32 characters');
+    }
+    return secret;
+  })(),
+  expiresIn: process.env.JWT_EXPIRES_IN || '2h',
 }
 ```
 
 ---
 
-## 4. 架构质量属性评估
+### SEC-03: 缺少请求体大小限制 — OWASP A05:2021 Security Misconfiguration
 
-### 4.1 可维护性 — 6/10
+**严重度**: 🟠 HIGH
+**位置**: `app.ts:32`
+**CWE**: CWE-400 (Uncontrolled Resource Consumption)
 
-| 维度 | 评分 | 说明 |
-|------|------|------|
-| 模块化 | 5 | 路由未拆分，controller 直接耦合到 app |
-| 可读性 | 8 | 注释清晰，路由分组明确 |
-| 可测试性 | 5 | 路由无法独立测试，需完整启动 |
-| 代码量 | 7 | 209 行可接受，但路由部分占 130 行 |
+```typescript
+// 当前代码
+app.use(express.json());
+```
 
-### 4.2 安全性 — 6/10
+**风险分析**:
+- `express.json()` 无 `limit` 参数，默认限制为 100kb（Express 4.x），但：
+  - 默认值未显式声明，依赖框架行为，属于隐式安全
+  - 100kb 对于大多数 API 请求过大，允许构造大型 JSON payload 进行 DoS
+  - 文件上传端点（`/api/upload`, `/api/upload/document`）使用独立的 multer 中间件，但 JSON 解析器仍接受 100kb
+- 攻击者可发送大量 99kb 的 JSON 请求耗尽服务器内存
 
-| 维度 | 评分 | 说明 |
-|------|------|------|
-| 认证 | 9 | JWT + roleMiddleware，设计良好 |
-| CORS | 3 | 完全开放，生产环境不可接受 |
-| 错误暴露 | 4 | 缺少全局错误处理，可能泄露栈信息 |
-| 输入验证 | 7 | express.json + 各 controller 验证 |
-
-### 4.3 可扩展性 — 5/10
-
-| 维度 | 评分 | 说明 |
-|------|------|------|
-| 横向扩展 | 4 | antiCrawl/rateLimit 内存存储不共享 |
-| 功能扩展 | 6 | 新增路由需修改 app.ts，但模式一致 |
-| API 演进 | 4 | 无版本化策略 |
-
-### 4.4 运维友好度 — 7/10
-
-| 维度 | 评分 | 说明 |
-|------|------|------|
-| 健康检查 | 5 | 端点存在但可能被限流 |
-| 优雅关闭 | 9 | server.ts 处理完善 |
-| 配置管理 | 8 | config 模块集中管理 |
-| 日志 | 6 | 缺少请求 ID 追踪 |
+**修复方案**:
+```typescript
+app.use(express.json({ limit: '1mb' })); // 显式设置合理上限
+```
 
 ---
 
-## 5. 架构改进路线图
+### SEC-04: Helmet 安全头配置严重不足 — OWASP A05:2021 Security Misconfiguration
 
-### Phase 1: 安全加固（优先级 P0，预估 2h）
+**严重度**: 🟠 HIGH
+**位置**: `app.ts:28-30`
+**CWE**: CWE-693 (Protection Mechanism Failure)
 
-| 编号 | 改进项 | 工作量 |
-|------|--------|--------|
-| ARCH-2 | 添加全局错误处理 + 404 fallback | 1h |
-| ARCH-3 | 配置 CORS 白名单 | 0.5h |
-| ARCH-4 | 分离公共/受保护中间件链 | 0.5h |
+```typescript
+// 当前代码
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
+```
 
-### Phase 2: 模块化重构（优先级 P1，预估 4h）
+**风险分析**:
+- Helmet 默认启用大部分安全头，但仅显式配置了 `crossOriginResourcePolicy`
+- `cross-origin` 策略允许跨域加载资源，适用于图片分享场景，但降低了资源保护级别
+- 缺少以下关键安全头的显式配置和验证：
 
-| 编号 | 改进项 | 工作量 |
-|------|--------|--------|
-| ARCH-1 | 路由拆分到 `routes/` 目录 | 3h |
-| ARCH-7 | Swagger 延迟初始化 | 0.5h |
-| ARCH-4 | 请求体大小限制显式设置 | 0.5h |
+| 安全头 | 状态 | 风险 |
+|--------|------|------|
+| Content-Security-Policy | ❌ 缺失 | 无 XSS 防护（前端 SPA 的最后一道防线） |
+| Strict-Transport-Security | ⚠️ Helmet 默认启用 | 未验证 HTTPS 部署是否生效 |
+| X-Frame-Options | ⚠️ Helmet 默认 SAMEORIGIN | 防止点击劫持 |
+| X-Content-Type-Options | ⚠️ Helmet 默认 nosniff | 防止 MIME 嗅探 |
+| Referrer-Policy | ⚠️ Helmet 默认 no-referrer | 控制引用来源泄露 |
+| Permissions-Policy | ❌ 未配置 | 未限制浏览器功能（摄像头、麦克风等） |
 
-### Phase 3: 扩展性优化（优先级 P2，按需）
-
-| 编号 | 改进项 | 工作量 |
-|------|--------|--------|
-| ARCH-6 | API 版本前缀 `/api/v1/` | 2h |
-| ARCH-5 | antiCrawl 添加清理机制/迁移 Redis | 2h |
+**修复方案**:
+```typescript
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'blob:'],
+      connectSrc: ["'self'"],
+    },
+  },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+}));
+```
 
 ---
 
-## 6. 与已有质量评审的对照
+### SEC-05: 缺少全局错误处理 — OWASP A05:2021 Security Misconfiguration
 
-| 维度 | 质量评审结论 | 架构评审补充 |
-|------|-------------|-------------|
-| 全局错误处理 | HIGH — 安全风险 | **架构缺陷** — 影响所有 controller 的错误传播模式 |
-| CORS 开放 | HIGH — 安全风险 | **安全架构** — 需纳入部署架构规范 |
-| 路由集中 | MEDIUM — 可维护性 | **架构债务** — 阻碍独立测试和模块化演进 |
-| API 版本 | MEDIUM — 建议 | **演进架构** — 影响前后端发布策略 |
-| antiCrawl 内存 | 未涉及 | **部署架构** — 影响横向扩展决策 |
+**严重度**: 🟠 HIGH
+**位置**: `app.ts` 文件末尾（缺失）
+**CWE**: CWE-209 (Generation of Error Message Containing Sensitive Information)
+
+```typescript
+// 缺失 — 文件在第 209 行 export default app; 结束
+```
+
+**风险分析**:
+- Express 默认错误处理会将错误栈以 HTML 格式返回
+- 未捕获的异常可能泄露：
+  - 文件系统路径
+  - 数据库连接字符串
+  - 内部 IP 地址和端口
+  - 第三方库版本信息
+- 404 路由返回 Express 默认 HTML 页面，前端 JSON 解析失败
+- 没有统一的错误响应格式，各 controller 错误处理不一致
+
+**修复方案**:
+```typescript
+// 404 fallback — 必须在所有路由之后
+app.use((_req, res) => {
+  res.status(404).json({ code: 404, message: '接口不存在' });
+});
+
+// 全局错误处理 — Express 通过 4 参数签名识别
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('[Unhandled Error]', err);
+  res.status(500).json({ code: 500, message: '服务器内部错误' });
+});
+```
+
+---
+
+### SEC-06: 静态文件服务可能泄露上传文件 — OWASP A01:2021 Broken Access Control
+
+**严重度**: 🟠 HIGH
+**位置**: `app.ts:35-38`
+**CWE**: CWE-552 (Files or Directories Accessible to External Parties)
+
+```typescript
+app.use('/uploads', (req, res, next) => {
+  res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.resolve(process.cwd(), 'uploads')));
+```
+
+**风险分析**:
+- `/uploads` 路径注册在 `authMiddleware` 之前，**任何人无需认证即可访问上传文件**
+- `path.resolve(process.cwd(), 'uploads')` 直接暴露整个 uploads 目录
+- 无目录遍历防护（虽然 `express.static` 默认防护了 `..`，但未显式验证）
+- 无文件类型白名单 — 如果上传了 `.php`、`.jsp` 等可执行文件，可能被 Web 服务器执行
+- 无文件访问日志
+
+**修复方案**:
+```typescript
+// 方案1: 将静态文件移到认证中间件之后
+app.use('/uploads', authMiddleware, express.static('uploads'));
+
+// 方案2: 使用签名 URL 替代直接文件访问
+// 方案3: 至少添加文件类型白名单中间件
+```
+
+---
+
+### SEC-07: 反爬虫中间件 IP 获取不安全 — OWASP A04:2021 Insecure Design
+
+**严重度**: 🟡 MEDIUM
+**位置**: `apis/middleware/anti-crawl.middleware.ts:11`
+**CWE**: CWE-290 (Authentication Bypass by Spoofing)
+
+```typescript
+const ip = req.ip || req.socket.remoteAddress || 'unknown';
+```
+
+**风险分析**:
+- `req.ip` 的值取决于 Express 的 `trust proxy` 设置
+- 当前未配置 `app.set('trust proxy', ...)`，在反向代理（Nginx）后：
+  - `req.ip` 返回代理服务器 IP（如 `127.0.0.1`），非真实客户端 IP
+  - 所有请求被视为来自同一 IP，正常用户可能被误封
+  - 或者攻击者通过 `X-Forwarded-For` 头伪造 IP 绕过封禁
+- `req.socket.remoteAddress` 在代理场景下同样不可靠
+
+**修复方案**:
+```typescript
+// 在 app.ts 中，必须在代理中间件之前设置
+app.set('trust proxy', 1); // 信任第一层代理
+
+// anti-crawl.middleware.ts 中使用
+const ip = req.ip; // trust proxy 设置后，req.ip 会正确解析 X-Forwarded-For
+```
+
+---
+
+### SEC-08: 反爬虫内存存储无容量限制 — OWASP A05:2021 Security Misconfiguration
+
+**严重度**: 🟡 MEDIUM
+**位置**: `apis/middleware/anti-crawl.middleware.ts:3-8`
+**CWE**: CWE-770 (Allocation of Resources Without Limits)
+
+```typescript
+const requestCounts = new Map<string, { count: number; lastReset: number }>();
+const blockedIPs = new Map<string, number>();
+```
+
+**风险分析**:
+- 两个 Map 均无最大容量限制，长时间运行后：
+  - 攻击者使用大量伪造 IP（配合 SEC-07 的 IP 获取问题），填满 Map 导致内存耗尽
+  - `requestCounts` 中的过期记录未被主动清理，仅在被重新访问时才检查过期
+  - `blockedIPs` 同理，过期记录仅在下次访问时删除
+- 无定期清理机制（如 `setInterval`）
+
+**修复方案**:
+```typescript
+// 添加定期清理
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, record] of requestCounts) {
+    if (now - record.lastReset > WINDOW_MS) requestCounts.delete(ip);
+  }
+  for (const [ip, expiry] of blockedIPs) {
+    if (now >= expiry) blockedIPs.delete(ip);
+  }
+}, WINDOW_MS);
+
+// 添加容量上限
+const MAX_ENTRIES = 10_000;
+function safeSet(map: Map<string, any>, key: string, value: any) {
+  if (map.size >= MAX_ENTRIES) {
+    // 删除最旧的条目
+    const firstKey = map.keys().next().value;
+    if (firstKey) map.delete(firstKey);
+  }
+  map.set(key, value);
+}
+```
+
+---
+
+### SEC-09: JWT Token 无刷新机制 — OWASP A07:2021 Identification and Authentication Failures
+
+**严重度**: 🟡 MEDIUM
+**位置**: `apis/config/index.ts:53`, `apis/middleware/auth.middleware.ts`
+**CWE**: CWE-613 (Insufficient Session Expiration)
+
+```typescript
+expiresIn: process.env.JWT_EXPIRES_IN || '2h',
+```
+
+**风险分析**:
+- Token 2 小时过期，无刷新（Refresh Token）机制
+- 用户在 2 小时后被强制重新登录，体验差
+- 若延长过期时间（如改为 7 天），被盗 token 的有效窗口增大
+- Token 中包含 `role` 信息，管理员更改用户角色后，旧 token 仍使用旧角色（最长 2 小时）
+
+**修复方案**:
+- 引入 Refresh Token 机制（双 token 模式）
+- 或在 token 中仅存储 userId，每次请求时从数据库查询角色
+
+---
+
+### SEC-10: 数据库默认凭据 — OWASP A07:2021 Identification and Authentication Failures
+
+**严重度**: 🟡 MEDIUM
+**位置**: `apis/config/index.ts:44-48`
+**CWE**: CWE-798 (Use of Hard-coded Credentials)
+
+```typescript
+database: {
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+}
+```
+
+**风险分析**:
+- 默认数据库用户名/密码为 `postgres/postgres`，是 PostgreSQL 最常见的默认凭据
+- 如果 `.env` 文件缺失，应用静默使用默认值连接数据库，无任何警告
+- 结合 SEC-02（JWT 默认密钥），攻击者可伪造 token → 获取 sysadmin 权限 → 通过 API 读取/修改数据
+
+**修复方案**:
+```typescript
+password: (() => {
+  const pwd = process.env.DB_PASSWORD;
+  if (!pwd && process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL: DB_PASSWORD is required in production');
+  }
+  return pwd || 'postgres';
+})(),
+```
+
+---
+
+### SEC-11: Swagger 在生产环境可能暴露 API 文档 — OWASP A01:2021 Broken Access Control
+
+**严重度**: 🟡 MEDIUM
+**位置**: `app.ts:66-69`
+**CWE**: CWE-200 (Exposure of Sensitive Information)
+
+```typescript
+if (config.swagger.enabled) {
+  app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
+  app.get('/api-docs.json', (_req, res) => res.json(swaggerSpec));
+}
+```
+
+**风险分析**:
+- Swagger 开关由环境变量 `SWAGGER_ENABLED` 控制，无认证保护
+- 若生产环境误设 `SWAGGER_ENABLED=true`，所有 API 端点文档对公网暴露
+- Swagger UI 无认证中间件，任何人可访问 `/api-docs`
+- `swaggerJSDoc()` 在模块加载时无条件执行（第 45-64 行），即使 disabled 也会扫描 controller 文件
+
+**修复方案**:
+```typescript
+// 方案1: 仅在非生产环境启用
+if (config.swagger.enabled && process.env.NODE_ENV !== 'production') {
+  // ...
+}
+
+// 方案2: 对 Swagger 路径添加认证
+if (config.swagger.enabled) {
+  app.use('/api-docs', authMiddleware, roleMiddleware('sysadmin'),
+    swaggerUI.serve, swaggerUI.setup(swaggerSpec));
+}
+
+// 方案3: 延迟初始化 swaggerSpec
+if (config.swagger.enabled) {
+  const swaggerSpec = swaggerJSDoc({ ... });
+  // ...
+}
+```
+
+---
+
+### SEC-12: 健康检查端点经过限流 — OWASP A05:2021 Security Misconfiguration
+
+**严重度**: 🟢 LOW
+**位置**: `app.ts:205-207`
+**CWE**: CWE-770 (Allocation of Resources Without Limits)
+
+```typescript
+// 在 antiCrawl + rateLimit 之后
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+```
+
+**风险分析**:
+- 健康检查端点位于 antiCrawl 和 rateLimit 中间件之后
+- 负载均衡器每 5-10 秒探测一次，100 次/分钟限制可能被健康检查消耗
+- 频繁探测可能触发反爬虫机制，导致实例被标记为不健康
+- `timestamp` 返回服务器时间，可用于时序攻击辅助
+
+**修复方案**: 将 health check 移到安全中间件之前。
+
+---
+
+## 3. 攻击面分析
+
+### 3.1 攻击面矩阵
+
+| 攻击向量 | 可利用性 | 影响 | 当前防护 |
+|----------|----------|------|----------|
+| JWT 伪造（默认密钥） | 高 | 完全控制 | ❌ 无启动验证 |
+| CORS 劫持 | 高 | 数据泄露 | ❌ 全开放 |
+| 大 payload DoS | 中 | 服务不可用 | ⚠️ 隐式 100kb 限制 |
+| 错误信息泄露 | 中 | 信息泄露 | ❌ 无全局处理 |
+| 上传文件未授权访问 | 高 | 数据泄露 | ❌ 无认证 |
+| IP 伪造绕过限流 | 中 | 限流失效 | ❌ 无 trust proxy |
+| 内存耗尽（Map 增长） | 低 | 服务不可用 | ❌ 无容量限制 |
+| Swagger 信息泄露 | 低 | API 结构暴露 | ⚠️ 环境变量控制 |
+
+### 3.2 攻击链演示
+
+**最危险的攻击链（SEC-02 → SEC-06）**:
+1. 攻击者获取源代码（公开仓库/泄露）
+2. 发现 JWT 默认密钥 `'your-secret-key-change-in-production'`
+3. 伪造 sysadmin 角色 token
+4. 调用 `POST /api/upload` 上传恶意文件
+5. 通过 `/uploads/` 无认证访问已上传文件
+6. 实现任意文件读取或存储型攻击
+
+---
+
+## 4. 安全合规性检查
+
+| 检查项 | 标准 | 状态 | 备注 |
+|--------|------|------|------|
+| HTTPS 强制 | HSTS 头 | ⚠️ | Helmet 默认启用，但需验证 |
+| 敏感数据传输 | TLS 加密 | ❓ | 取决于部署配置 |
+| 密钥管理 | 环境变量 + 无默认值 | ❌ | JWT/DB 有默认值 |
+| 访问控制 | RBAC | ✅ | 实现完善 |
+| 输入验证 | 请求体限制 | ❌ | 无显式限制 |
+| 错误处理 | 不泄露内部信息 | ❌ | 无全局处理 |
+| 日志审计 | 请求日志 | ❌ | 无请求级日志 |
+| CSRF 防护 | Token 或 SameSite | ⚠️ | Bearer Token 减轻了风险 |
+
+---
+
+## 5. 修复优先级路线图
+
+### P0: 立即修复（阻断攻击链）
+
+| 编号 | 修复项 | 工作量 | 风险降低 |
+|------|--------|--------|----------|
+| SEC-02 | JWT Secret 启动时强制验证 | 0.5h | 🔴→🟢 |
+| SEC-01 | CORS 白名单配置 | 0.5h | 🔴→🟢 |
+| SEC-05 | 全局错误处理 + 404 fallback | 1h | 🟠→🟢 |
+| SEC-03 | 请求体大小限制 | 0.1h | 🟠→🟢 |
+
+### P1: 尽快修复（减少攻击面）
+
+| 编号 | 修复项 | 工作量 | 风险降低 |
+|------|--------|--------|----------|
+| SEC-06 | 上传文件访问控制 | 1h | 🟠→🟢 |
+| SEC-04 | Helmet 完整配置 | 0.5h | 🟠→🟡 |
+| SEC-07 | trust proxy 设置 | 0.2h | 🟡→🟢 |
+| SEC-10 | 数据库凭据启动验证 | 0.3h | 🟡→🟢 |
+
+### P2: 计划修复（增强纵深防御）
+
+| 编号 | 修复项 | 工作量 | 风险降低 |
+|------|--------|--------|----------|
+| SEC-08 | 反爬虫 Map 容量限制 + 定期清理 | 1h | 🟡→🟢 |
+| SEC-09 | Refresh Token 机制 | 4h | 🟡→🟢 |
+| SEC-11 | Swagger 生产环境保护 | 0.5h | 🟡→🟢 |
+| SEC-12 | Health check 移到中间件前 | 0.2h | 🟢→🟢 |
+
+---
+
+## 6. 安全最佳实践建议
+
+### 6.1 部署层面
+
+1. **HTTPS 强制**: 在 Nginx/负载均衡器层强制 HTTPS，配置 HSTS
+2. **环境变量审计**: 生产环境 `.env` 文件权限设为 `600`，禁止提交到 Git
+3. **密钥轮换**: 建立定期轮换 JWT Secret 的机制
+4. **日志收集**: 接入 ELK/Sentry 等日志系统，监控异常请求
+
+### 6.2 代码层面
+
+1. **启动时验证**: 所有关键配置（JWT_SECRET、DB_PASSWORD）在启动时验证，缺失则拒绝启动
+2. **安全中间件顺序**: 公共端点 → 安全头 → 解析 → 认证 → 授权 → 业务逻辑
+3. **纵深防御**: 每一层都应有独立的安全检查，不依赖单一防护
+4. **安全测试**: 添加安全相关的集成测试（CORS、认证绕过、输入验证等）
+
+### 6.3 运维层面
+
+1. **依赖审计**: 定期运行 `npm audit`，及时更新有漏洞的依赖
+2. **容器安全**: Docker 镜像使用非 root 用户运行
+3. **网络隔离**: 数据库不应暴露公网，仅允许应用服务器访问
+4. **备份策略**: 确保数据库定期备份，备份文件加密存储
 
 ---
 
 ## 7. 结论
 
-`app.ts` 在中小型单体应用中表现合格，中间件管道设计合理，认证授权架构（JWT + RBAC）清晰。核心架构问题集中在三个方面：
+`app.ts` 的安全架构具备基础骨架（JWT + RBAC + 限流 + 反爬），但存在**4 个高危漏洞**可构成完整攻击链。最紧迫的风险是 JWT 默认密钥（SEC-02）和 CORS 全开放（SEC-01），两者组合可让攻击者在获取源代码后完全控制系统。
 
-1. **缺少错误处理层** — 影响系统的健壮性和安全性，应立即修复
-2. **路由与组装层耦合** — 阻碍模块化演进和独立测试，应在功能稳定后重构
-3. **无 API 版本策略** — 影响长期演进能力，建议在 v2 需求出现前建立
-
-建议按 Phase 1 → Phase 2 → Phase 3 的顺序推进改进，优先解决安全相关的架构缺陷。
+建议按 P0 → P1 → P2 顺序修复，P0 项应在部署到生产环境前全部完成。
