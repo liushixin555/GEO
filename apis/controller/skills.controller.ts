@@ -1,19 +1,69 @@
 import { Request, Response } from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import AdmZip from 'adm-zip';
 import { SkillsServiceImpl } from '../service/impl/skills.service.impl';
 import { success, fail, paginate } from '../utils';
 
 const skillsService = new SkillsServiceImpl();
+
+const SKILLS_DIR = path.resolve(process.cwd(), 'skills');
+
+// Multer config for zip uploads
+const upload = multer({
+  dest: path.resolve(process.cwd(), 'tmp', 'uploads'),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype === 'application/zip' || file.mimetype === 'application/x-zip-compressed' || file.originalname.endsWith('.zip')) {
+      cb(null, true);
+    } else {
+      cb(new Error('仅支持 .zip 文件'));
+    }
+  },
+});
+
+export function uploadSkillMiddleware(req: Request, res: Response, next: () => void): void {
+  upload.single('file')(req, res, (err: any) => {
+    if (err) {
+      fail(res, 400, err.message || '上传失败');
+      return;
+    }
+    next();
+  });
+}
+
+/**
+ * Parse SKILL.md frontmatter to extract name and description.
+ * Format:
+ * ---
+ * name: skill-name
+ * description: Some description
+ * ---
+ */
+function parseSkillMd(content: string): { name: string; description: string } {
+  const frontmatterMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+  if (!frontmatterMatch) throw new Error('SKILL.md 缺少 frontmatter（--- 包裹的 YAML 头部）');
+
+  const yaml = frontmatterMatch[1];
+  const nameMatch = yaml.match(/^name:\s*(.+)$/m);
+  const descMatch = yaml.match(/^description:\s*(.+)$/m);
+
+  if (!nameMatch) throw new Error('SKILL.md frontmatter 中缺少 name 字段');
+
+  return {
+    name: nameMatch[1].trim(),
+    description: descMatch ? descMatch[1].trim() : '',
+  };
+}
 
 export async function listSkills(req: Request, res: Response): Promise<void> {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = parseInt(req.query.pageSize as string) || 10;
     const search = req.query.search as string | undefined;
-    const category = req.query.category as string | undefined;
-    const status = req.query.status === undefined ? undefined : req.query.status === 'true';
 
-    // sysadmin + admin can see all skills (no filtering)
-    const { list, total } = await skillsService.list(page, pageSize, search, category, status);
+    const { list, total } = await skillsService.list(page, pageSize, search);
     paginate(res, list, total, page, pageSize);
   } catch (err: any) {
     fail(res, 500, err.message || '获取技能列表失败');
@@ -25,7 +75,6 @@ export async function getSkills(req: Request, res: Response): Promise<void> {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { fail(res, 400, '无效的技能ID'); return; }
 
-    // sysadmin + admin can see all skills (no filtering)
     const item = await skillsService.getById(id);
     success(res, item);
   } catch (err: any) {
@@ -38,17 +87,69 @@ export async function getSkills(req: Request, res: Response): Promise<void> {
 }
 
 export async function createSkills(req: Request, res: Response): Promise<void> {
+  const tmpPath = req.file?.path;
   try {
-    const { name, category } = req.body;
-    if (!name || !category) { fail(res, 400, '技能名称和类别不能为空'); return; }
+    if (!req.file) { fail(res, 400, '请选择技能 zip 包'); return; }
 
-    // Set creator to current user
-    req.body.created_by = req.user!.userId;
+    const zip = new AdmZip(req.file.path);
+    const zipEntries = zip.getEntries();
 
-    const item = await skillsService.create(req.body);
-    res.status(201).json({ code: 0, message: '创建技能成功', data: item });
+    // Find SKILL.md in zip (may be at root or inside a directory)
+    let skillMdEntry = zipEntries.find(e => !e.isDirectory && e.entryName.endsWith('SKILL.md'));
+    if (!skillMdEntry) {
+      fail(res, 400, 'zip 包中未找到 SKILL.md 文件');
+      return;
+    }
+
+    // Parse SKILL.md
+    const skillMdContent = skillMdEntry.getData().toString('utf-8');
+    const { name, description } = parseSkillMd(skillMdContent);
+
+    // Determine the top-level directory in the zip
+    // e.g., "ant-design/SKILL.md" → base dir is "ant-design"
+    const entryPath = skillMdEntry.entryName;
+    const topDir = entryPath.includes('/') ? entryPath.split('/')[0] : name;
+
+    // Target directory
+    const skillDir = path.join(SKILLS_DIR, topDir);
+    if (fs.existsSync(skillDir)) {
+      fail(res, 400, `技能目录「${topDir}」已存在，请先删除同名技能或使用不同的目录名`);
+      return;
+    }
+
+    // Extract to skills directory
+    fs.mkdirSync(SKILLS_DIR, { recursive: true });
+    zip.extractAllTo(SKILLS_DIR, true);
+
+    // Verify SKILL.md exists after extraction
+    const extractedSkillMd = path.join(skillDir, 'SKILL.md');
+    if (!fs.existsSync(extractedSkillMd) && entryPath.includes('/')) {
+      // The SKILL.md was inside a subdirectory - check if zip was flat
+      const altPath = path.join(SKILLS_DIR, 'SKILL.md');
+      if (fs.existsSync(altPath)) {
+        // Flat zip - create directory and move files
+        fs.mkdirSync(skillDir, { recursive: true });
+        fs.renameSync(altPath, path.join(skillDir, 'SKILL.md'));
+      }
+    }
+
+    // Create DB record
+    const item = await skillsService.create({
+      name,
+      description,
+      skill_dir: topDir,
+      created_by: req.user!.userId,
+    });
+
+    res.status(201).json({ code: 0, message: '技能创建成功', data: item });
   } catch (err: any) {
+    // Clean up on failure
     fail(res, 500, err.message || '创建技能失败');
+  } finally {
+    // Clean up temp file
+    if (tmpPath && fs.existsSync(tmpPath)) {
+      fs.unlinkSync(tmpPath);
+    }
   }
 }
 
@@ -57,13 +158,11 @@ export async function updateSkills(req: Request, res: Response): Promise<void> {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { fail(res, 400, '无效的技能ID'); return; }
 
-    // admin can only update their own skills
-    if (req.user?.role === 'admin') {
-      const existing = await skillsService.getById(id);
-      if (existing.created_by !== req.user.userId) {
-        fail(res, 403, '只能修改自己创建的技能');
-        return;
-      }
+    // Only author or sysadmin can update
+    const existing = await skillsService.getById(id);
+    if (req.user?.role !== 'sysadmin' && existing.created_by !== req.user?.userId) {
+      fail(res, 403, '只能修改自己创建的技能');
+      return;
     }
 
     const item = await skillsService.update(id, req.body);
@@ -82,12 +181,18 @@ export async function deleteSkills(req: Request, res: Response): Promise<void> {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { fail(res, 400, '无效的技能ID'); return; }
 
-    // admin can only delete their own skills
-    if (req.user?.role === 'admin') {
-      const existing = await skillsService.getById(id);
-      if (existing.created_by !== req.user.userId) {
-        fail(res, 403, '只能删除自己创建的技能');
-        return;
+    // Only author or sysadmin can delete
+    const existing = await skillsService.getById(id);
+    if (req.user?.role !== 'sysadmin' && existing.created_by !== req.user?.userId) {
+      fail(res, 403, '只能删除自己创建的技能');
+      return;
+    }
+
+    // Remove skill directory
+    if (existing.skill_dir) {
+      const skillDir = path.join(SKILLS_DIR, existing.skill_dir);
+      if (fs.existsSync(skillDir)) {
+        fs.rmSync(skillDir, { recursive: true, force: true });
       }
     }
 

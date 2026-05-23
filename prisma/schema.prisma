@@ -18,7 +18,6 @@ model Company {
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
   users         User[]
-  skills        Skills[]
   projects      Project[]
   knowledgeBases KnowledgeBase[]
   selectedByUsers User[] @relation("UserSelectedCompany")
@@ -83,19 +82,14 @@ enum KnowledgeScope {
 model Skills {
   id          Int      @id @default(autoincrement())
   name        String   @db.VarChar(200)
-  category    String   @db.VarChar(100)
   description String?  @db.VarChar(500)
-  status      Boolean  @default(true)
-  companyId   Int?     @map("company_id")
+  skillDir    String   @map("skill_dir") @db.VarChar(500)
   createdBy   Int?     @map("created_by")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
-  company     Company? @relation(fields: [companyId], references: [id])
   creator     User?    @relation("SkillsCreator", fields: [createdBy], references: [id])
 
-  @@index([companyId])
-  @@index([category])
-  @@index([status])
+  @@unique([name])
   @@map("skills")
 }
 

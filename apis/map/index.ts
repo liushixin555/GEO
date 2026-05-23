@@ -18,11 +18,10 @@ export function mapSkills(prismaSkills: any): Skills {
   return {
     id: prismaSkills.id,
     name: prismaSkills.name,
-    category: prismaSkills.category,
     description: prismaSkills.description,
-    status: prismaSkills.status,
-    company_id: prismaSkills.companyId ?? null,
+    skill_dir: prismaSkills.skillDir,
     created_by: prismaSkills.createdBy ?? null,
+    creator_name: prismaSkills.creator?.cnName || null,
     created_at: prismaSkills.createdAt,
     updated_at: prismaSkills.updatedAt,
   };
