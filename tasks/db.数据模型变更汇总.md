@@ -514,6 +514,38 @@ model User {
 
 ---
 
+## db017. Skills 模型精简
+
+### 变更原因
+技能管理简化，移除不再需要的字段，新增 skill_dir 存储技能目录路径。
+
+### Schema 变更
+```prisma
+// 移除字段
+- category   String   @db.VarChar(100)  // 已删除
+- companyId  Int?     @map("company_id") // 已删除
+- status     Boolean  @default(true)     // 已删除
+
+// 新增字段
++ skillDir   String   @default("") @map("skill_dir") @db.VarChar(500)
+
+// 新增约束
++ @@unique([name])
+```
+
+### 数据影响
+- `category`、`company_id`、`status` 三列数据被删除
+- `skill_dir` 使用 `@default("")` 确保已有行兼容
+- `name` 添加唯一约束
+
+### 迁移
+通过 `npx prisma db push --accept-data-loss` 执行，无正式 migration 文件。
+
+### pg_hba.conf 配置更新
+同步修改 `/etc/postgresql/16/main/pg_hba.conf`，将 host 规则改为 `0.0.0.0/0`（所有 IPv4）和 `::/0`（所有 IPv6），认证方式 md5，支持本机多网卡多 IP 连接。
+
+---
+
 ## db017. Skills 模型重构：移除 category/status/companyId，新增 skill_dir
 
 ### 变更原因

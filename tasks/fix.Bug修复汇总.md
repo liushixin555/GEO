@@ -103,6 +103,50 @@ components: {
 
 ---
 
+## fix007. 用户管理工具栏列宽溢出导致添加按钮换行
+
+### 问题
+用户管理页 toolbar 的 sm 列宽总和 12+6+6+6=30 超出 antd Row 的 24 列限制，导致"添加用户"按钮换行到下一行，无法靠右对齐。
+
+### 修复
+调整栅格列宽为 sm={12}+sm={4}+sm={4}+sm={4}=24，按钮列使用 `justifyContent: 'flex-end'` 靠右对齐。
+
+### 涉及文件
+- `pages/user/index.tsx`
+
+---
+
+## fix008. 知识库关键词/画像卡片标题字体过大
+
+### 问题
+`Typography.Title level={3}` 的内置样式优先级高于 inline style，设置 `fontSize: 12` 不生效。
+
+### 修复
+将 `Typography.Title` 替换为普通 `<span>` 元素，直接通过 inline style 控制 `fontSize: 12`。
+
+### 涉及文件
+- `pages/knowledge/KnowledgeBaseDetail.tsx`
+
+---
+
+## fix009. 时间格式化未使用中国时区
+
+### 问题
+各页面使用 `new Date(value).getFullYear()` 等方法取本地时区时间，未强制使用中国时区 (Asia/Shanghai UTC+8)。
+
+### 修复
+1. 创建共享工具 `pages/utils/date.ts`，使用 `toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })` 强制东八区
+2. 替换所有页面的本地 `formatDate`/`formatDateTime` 函数为共享版本
+3. 写入 CLAUDE.md 铁律第 3 条
+
+### 涉及文件
+- `pages/utils/date.ts`（新建）
+- `pages/article/index.tsx`
+- `pages/knowledge/index.tsx`
+- `pages/knowledge/KnowledgeBaseDetail.tsx`
+- `pages/publish/index.tsx`
+- `CLAUDE.md`
+
 ## fix007. 知识清单更新时间列宽不足导致换行
 
 ### 问题

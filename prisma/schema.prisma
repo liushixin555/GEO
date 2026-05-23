@@ -83,7 +83,7 @@ model Skills {
   id          Int      @id @default(autoincrement())
   name        String   @db.VarChar(200)
   description String?  @db.VarChar(500)
-  skillDir    String   @map("skill_dir") @db.VarChar(500)
+  skillDir    String   @default("") @map("skill_dir") @db.VarChar(500)
   createdBy   Int?     @map("created_by")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
