@@ -2,7 +2,7 @@
 
 **测试文件**: `tests/apis/app.test.ts`
 **目标文件**: `apis/app.ts`
-**执行日期**: 2026-05-23
+**执行日期**: 2026-05-24（更新）
 
 ---
 
@@ -11,28 +11,27 @@
 | 指标 | 值 |
 |------|------|
 | 测试套件 | 1 passed |
-| 测试用例 | 67 passed |
+| 测试用例 | 127 passed |
 | 失败 | 0 |
-| 执行时间 | ~6.8s |
+| 执行时间 | ~10s |
 
 ## 覆盖率
 
 | 指标 | 百分比 |
 |------|--------|
-| 语句覆盖率 (Statements) | 96.09% |
-| 分支覆盖率 (Branches) | 0% |
-| 函数覆盖率 (Functions) | 33.33% |
-| 行覆盖率 (Lines) | 96.85% |
+| 语句覆盖率 (Statements) | 98% |
+| 分支覆盖率 (Branches) | 71.42% |
+| 函数覆盖率 (Functions) | 83.33% |
+| 行覆盖率 (Lines) | 98.65% |
 
 ### 未覆盖行
 
-- **第 35-36 行**: 静态文件服务的 CORS 头设置中间件（`Cross-Origin-Resource-Policy`），需要实际文件请求触发
-- **第 66-67 行**: Swagger UI 路由注册（`config.swagger.enabled` 为 `false` 时跳过），条件分支
+- **第 91-92 行**: Swagger UI 路由注册（`config.swagger.enabled` 为 `false` 时跳过），条件分支 — 测试环境禁用 Swagger
 
 ### 覆盖率说明
 
-- **分支覆盖率 0%**: app.ts 中无实质 if/else 分支用于条件路由（仅 `if (config.swagger.enabled)` 一个条件），jest 覆盖工具未正确追踪 Express 路由注册中的条件分支
-- **函数覆盖率 33.33%**: Express 回调函数（如 `(_req, res) => res.json(...)`）计为函数但未被单独调用，这是正常的 — 测试通过 HTTP 请求覆盖了所有路由
+- **分支覆盖率 71.42%**: app.ts 中仅 `if (config.swagger.enabled && process.env.NODE_ENV !== 'production')` 一个条件分支未被覆盖（测试环境 SWAGGER_ENABLED=false）
+- **函数覆盖率 83.33%**: Swagger 条件分支内的两个回调函数未执行，其余全部覆盖
 
 ## 测试分类
 
@@ -42,7 +41,7 @@
 |------|------|
 | block without User-Agent | 反爬虫中间件拦截无 UA 请求 |
 | block short User-Agent | UA 长度 < 10 被拦截 |
-| allow valid User-Agent | 合法 UA 通过 |
+| allow health check without anti-crawl | 健康检查绕过反爬虫 |
 | 401 no token | 未提供 JWT |
 | 401 expired token | 过期 JWT |
 | 401 invalid token | 无效 JWT |
@@ -54,7 +53,7 @@
 
 | 测试 | 说明 |
 |------|------|
-| GET /api/health | 返回 ok 状态和时间戳 |
+| GET /api/health | 返回 ok 状态 |
 
 ### 3. 公开路由 (2 cases)
 
@@ -69,19 +68,19 @@
 
 ### 5. 公司路由 — sysadmin only (5 cases)
 
-验证 admin 角色对 5 个公司路由（list/get/create/update/toggleStatus）全部返回 403。
+验证 admin 角色对 5 个公司路由全部返回 403。
 
 ### 6. 用户路由 — sysadmin only (5 cases)
 
 验证 admin 角色对 5 个用户路由全部返回 403。
 
-### 7. 技能路由 — sysadmin + admin (4 cases)
+### 7. 技能路由 — sysadmin + admin (5 cases)
 
-验证 view 角色对 4 个技能路由全部返回 403。
+验证 view 角色对 5 个技能路由全部返回 403。
 
-### 8. LLM 模型路由 — sysadmin only (4 cases)
+### 8. LLM 模型路由 — sysadmin only (6 cases)
 
-验证 admin 角色对 4 个 LLM 路由全部返回 403。
+验证 admin 和 view 角色对 LLM 路由全部返回 403。
 
 ### 9. 系统配置路由 — sysadmin only (2 cases)
 
@@ -91,13 +90,13 @@
 
 验证 admin 不能同步、view 不能查看。
 
-### 11. 项目路由 — sysadmin + admin (3 cases)
+### 11. 项目路由 — sysadmin + admin (5 cases)
 
-验证 view 角色被拒绝。
+验证 view 角色对 list/get/create/update/delete 被拒绝。
 
-### 12. 文章路由 — sysadmin + admin (3 cases)
+### 12. 文章路由 — sysadmin + admin (10 cases)
 
-验证 view 角色被拒绝。
+验证 view 角色对全部文章路由（list/get/create/update/delete/review/regenerate/content/submit-review/versions）被拒绝。
 
 ### 13. 知识路由 — sysadmin + admin (4 cases)
 
@@ -112,9 +111,9 @@
 - view 角色可通过 GET 查看排期
 - view 角色不可 PUT 修改排期
 
-### 16. 知识库路由 — sysadmin + admin (3 cases)
+### 16. 知识库路由 — sysadmin + admin (5 cases)
 
-验证 view 角色对 list/create/delete 被拒绝。
+验证 view 角色对 list/get/create/update/delete 被拒绝。
 
 ### 17. 知识条目路由 — sysadmin + admin (8 cases)
 
@@ -124,12 +123,107 @@
 
 验证 view 角色被拒绝。
 
-### 19. 未知路由 (1 case)
+### 19. Todo 路由 — sysadmin + admin (11 cases) ✨ 新增
 
-验证 404 返回。
+验证 view 角色对全部 11 个 Todo 路由被拒绝：
+- GET /api/todos, /api/todos/object-options, /api/todos/assignee-candidates, /api/todos/:id
+- POST /api/todos, /api/todos/:id/close, /api/todos/:id/reopen, /api/todos/:id/transfer, /api/todos/:id/reject
+- PUT /api/todos/:id
+- GET /api/todos/:id/logs
+
+### 20. 知识库关键词额外路由 (6 cases) ✨ 新增
+
+验证 view 角色对 keywords/:id, keywords/batch, mined-keywords 等路由被拒绝。
+
+### 21. 知识库画像完整路由 (4 cases) ✨ 新增
+
+验证 view 角色对 portraits CRUD 全部路由被拒绝。
+
+### 22. 知识库图片完整路由 (4 cases) ✨ 新增
+
+验证 view 角色对 images CRUD 全部路由被拒绝。
+
+### 23. 知识库文档完整路由 (4 cases) ✨ 新增
+
+验证 view 角色对 documents CRUD 全部路由被拒绝。
+
+### 24. CORS 配置测试 (3 cases) ✨ 新增
+
+| 测试 | 说明 |
+|------|------|
+| allow whitelisted origin | localhost:5173 通过 CORS |
+| block non-whitelisted origin | evil.example.com 被阻止 |
+| allow no origin | 服务端请求无 origin 允许通过 |
+
+### 25. Helmet 安全头测试 (4 cases) ✨ 新增
+
+| 测试 | 说明 |
+|------|------|
+| X-Content-Type-Options | 值为 nosniff |
+| Referrer-Policy | 值为 strict-origin-when-cross-origin |
+| Cross-Origin-Resource-Policy | 值为 cross-origin |
+| X-DNS-Prefetch-Control | 头存在 |
+
+### 26. JSON Body 解析测试 (2 cases) ✨ 新增
+
+| 测试 | 说明 |
+|------|------|
+| parse JSON correctly | 正常 JSON 被正确解析 |
+| reject oversized body | > 10mb 负载被全局错误处理器捕获返回 500 |
+
+### 27. Trust Proxy 测试 (1 case) ✨ 新增
+
+验证 `app.get('trust proxy')` 返回 1。
+
+### 28. 静态文件中间件测试 (1 case) ✨ 新增
+
+验证 `/uploads` 路径设置 Cross-Origin-Resource-Policy 头。
+
+### 29. 全局错误处理器测试 (1 case) ✨ 新增
+
+验证畸形 JSON 触发全局错误处理器返回 400 或 500。
+
+### 30. Swagger 路由测试 (2 cases) ✨ 新增
+
+验证 Swagger 禁用时不提供 UI 和 JSON 端点。
+
+### 31. HTTP 方法限制测试 (2 cases) ✨ 新增
+
+验证 DELETE /api/auth/login 和 PATCH /api/health 返回 404。
+
+### 32. 未知路由 (2 cases)
+
+验证 404 返回 JSON `{ code: 404, message: '接口不存在' }`。
+
+## 本次新增测试统计
+
+| 类别 | 新增数量 |
+|------|---------|
+| Todo 路由权限 | 11 |
+| 知识库完整 CRUD 路由 | 18 |
+| 文章额外路由 | 7 |
+| 项目额外路由 | 2 |
+| 技能额外路由 | 1 |
+| LLM 模型额外路由 | 2 |
+| 知识库额外路由 | 2 |
+| CORS 配置 | 3 |
+| Helmet 安全头 | 4 |
+| JSON Body 解析 | 2 |
+| Trust Proxy | 1 |
+| 静态文件 | 1 |
+| 全局错误处理 | 1 |
+| Swagger 路由 | 2 |
+| HTTP 方法限制 | 2 |
+| 未知路由增强 | 1 |
+| **合计新增** | **60** |
 
 ## 总结
 
-- 测试全面覆盖了 app.ts 中所有路由的**注册正确性**、**中间件执行链**和**角色权限控制**
-- 96.85% 的行覆盖率，未覆盖的仅是静态文件 CORS 头和 Swagger 条件分支
-- 测试策略：通过权限拒绝（401/403）验证路由注册和中间件链，避免依赖完整的 controller/service/Prisma mock
+- 从 67 个测试增加到 127 个测试，新增 60 个测试用例
+- 语句覆盖率从 96.09% 提升到 98%
+- 行覆盖率从 96.85% 提升到 98.65%
+- 分支覆盖率从 0% 提升到 71.42%（实际测量了条件分支）
+- 函数覆盖率从 33.33% 提升到 83.33%
+- 新增了 CORS、Helmet 安全头、JSON 解析、静态文件、错误处理等中间件层测试
+- 补全了所有路由的权限测试覆盖，包括完全缺失的 Todo 路由
+- 未覆盖的仅是 Swagger 条件分支（测试环境禁用）

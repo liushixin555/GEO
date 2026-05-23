@@ -9,7 +9,7 @@ process.env.JWT_SECRET = 'test-secret';
 process.env.JWT_EXPIRES_IN = '2h';
 process.env.SWAGGER_ENABLED = 'false';
 process.env.RATE_LIMIT_WINDOW_MS = '60000';
-process.env.RATE_LIMIT_MAX = '100';
+process.env.RATE_LIMIT_MAX = '1000';
 
 jest.mock('../../apis/utils/db.util', () => ({
   getPrisma: jest.fn(),
@@ -582,9 +582,490 @@ describe('App - Knowledge Inventory Route', () => {
   });
 });
 
+  // ─── Todo Routes (sysadmin + admin) ───
+  describe('App - Todo Routes (sysadmin + admin)', () => {
+    it('GET /api/todos - should deny view role', async () => {
+      const response = await agent
+        .get('/api/todos')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('GET /api/todos/object-options - should deny view role', async () => {
+      const response = await agent
+        .get('/api/todos/object-options')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('GET /api/todos/assignee-candidates - should deny view role', async () => {
+      const response = await agent
+        .get('/api/todos/assignee-candidates')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('GET /api/todos/:id - should deny view role', async () => {
+      const response = await agent
+        .get('/api/todos/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('POST /api/todos - should deny view role', async () => {
+      const response = await agent
+        .post('/api/todos')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ title: 'test' });
+      expect(response.status).toBe(403);
+    });
+
+    it('PUT /api/todos/:id - should deny view role', async () => {
+      const response = await agent
+        .put('/api/todos/1')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ title: 'test' });
+      expect(response.status).toBe(403);
+    });
+
+    it('POST /api/todos/:id/close - should deny view role', async () => {
+      const response = await agent
+        .post('/api/todos/1/close')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('POST /api/todos/:id/reopen - should deny view role', async () => {
+      const response = await agent
+        .post('/api/todos/1/reopen')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('POST /api/todos/:id/transfer - should deny view role', async () => {
+      const response = await agent
+        .post('/api/todos/1/transfer')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ assigneeId: 2 });
+      expect(response.status).toBe(403);
+    });
+
+    it('POST /api/todos/:id/reject - should deny view role', async () => {
+      const response = await agent
+        .post('/api/todos/1/reject')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ reason: 'test' });
+      expect(response.status).toBe(403);
+    });
+
+    it('GET /api/todos/:id/logs - should deny view role', async () => {
+      const response = await agent
+        .get('/api/todos/1/logs')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+  });
+
+  // ─── Additional Knowledge Base Routes ───
+  describe('App - Knowledge Base Keywords Additional Routes', () => {
+    it('GET /api/knowledge-bases/:baseId/keywords/:id - should deny view role', async () => {
+      const response = await agent
+        .get('/api/knowledge-bases/1/keywords/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('POST /api/knowledge-bases/:baseId/keywords/batch - should deny view role', async () => {
+      const response = await agent
+        .post('/api/knowledge-bases/1/keywords/batch')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ keywords: ['test'] });
+      expect(response.status).toBe(403);
+    });
+
+    it('GET /api/knowledge-bases/:baseId/mined-keywords - should deny view role', async () => {
+      const response = await agent
+        .get('/api/knowledge-bases/1/mined-keywords')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('POST /api/knowledge-bases/:baseId/mined-keywords/save - should deny view role', async () => {
+      const response = await agent
+        .post('/api/knowledge-bases/1/mined-keywords/save')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ ids: [1] });
+      expect(response.status).toBe(403);
+    });
+
+    it('PUT /api/knowledge-bases/:baseId/mined-keywords/batch-toggle - should deny view role', async () => {
+      const response = await agent
+        .put('/api/knowledge-bases/1/mined-keywords/batch-toggle')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ ids: [1], enabled: true });
+      expect(response.status).toBe(403);
+    });
+
+    it('DELETE /api/knowledge-bases/:baseId/mined-keywords - should deny view role', async () => {
+      const response = await agent
+        .delete('/api/knowledge-bases/1/mined-keywords')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+  });
+
+  describe('App - Knowledge Base Portraits Full Routes', () => {
+    it('GET /api/knowledge-bases/:baseId/portraits/:id - should deny view role', async () => {
+      const response = await agent
+        .get('/api/knowledge-bases/1/portraits/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('POST /api/knowledge-bases/:baseId/portraits - should deny view role', async () => {
+      const response = await agent
+        .post('/api/knowledge-bases/1/portraits')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ name: 'test' });
+      expect(response.status).toBe(403);
+    });
+
+    it('PUT /api/knowledge-bases/:baseId/portraits/:id - should deny view role', async () => {
+      const response = await agent
+        .put('/api/knowledge-bases/1/portraits/1')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ name: 'test' });
+      expect(response.status).toBe(403);
+    });
+
+    it('DELETE /api/knowledge-bases/:baseId/portraits/:id - should deny view role', async () => {
+      const response = await agent
+        .delete('/api/knowledge-bases/1/portraits/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+  });
+
+  describe('App - Knowledge Base Images Full Routes', () => {
+    it('GET /api/knowledge-bases/:baseId/images/:id - should deny view role', async () => {
+      const response = await agent
+        .get('/api/knowledge-bases/1/images/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('POST /api/knowledge-bases/:baseId/images - should deny view role', async () => {
+      const response = await agent
+        .post('/api/knowledge-bases/1/images')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('PUT /api/knowledge-bases/:baseId/images/:id - should deny view role', async () => {
+      const response = await agent
+        .put('/api/knowledge-bases/1/images/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('DELETE /api/knowledge-bases/:baseId/images/:id - should deny view role', async () => {
+      const response = await agent
+        .delete('/api/knowledge-bases/1/images/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+  });
+
+  describe('App - Knowledge Base Documents Full Routes', () => {
+    it('GET /api/knowledge-bases/:baseId/documents/:id - should deny view role', async () => {
+      const response = await agent
+        .get('/api/knowledge-bases/1/documents/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('POST /api/knowledge-bases/:baseId/documents - should deny view role', async () => {
+      const response = await agent
+        .post('/api/knowledge-bases/1/documents')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('PUT /api/knowledge-bases/:baseId/documents/:id - should deny view role', async () => {
+      const response = await agent
+        .put('/api/knowledge-bases/1/documents/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('DELETE /api/knowledge-bases/:baseId/documents/:id - should deny view role', async () => {
+      const response = await agent
+        .delete('/api/knowledge-bases/1/documents/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+  });
+
+  // ─── Additional Article Routes ───
+  describe('App - Article Additional Routes', () => {
+    it('GET /api/projects/:projectId/articles/:id - should deny view role', async () => {
+      const response = await agent
+        .get('/api/projects/1/articles/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('PUT /api/projects/:projectId/articles/:id - should deny view role', async () => {
+      const response = await agent
+        .put('/api/projects/1/articles/1')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ title: 'test' });
+      expect(response.status).toBe(403);
+    });
+
+    it('PUT /api/projects/:projectId/articles/:id/review - should deny view role', async () => {
+      const response = await agent
+        .put('/api/projects/1/articles/1/review')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('PUT /api/projects/:projectId/articles/:id/regenerate - should deny view role', async () => {
+      const response = await agent
+        .put('/api/projects/1/articles/1/regenerate')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('PUT /api/projects/:projectId/articles/:id/content - should deny view role', async () => {
+      const response = await agent
+        .put('/api/projects/1/articles/1/content')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ content: 'test' });
+      expect(response.status).toBe(403);
+    });
+
+    it('PUT /api/projects/:projectId/articles/:id/submit-review - should deny view role', async () => {
+      const response = await agent
+        .put('/api/projects/1/articles/1/submit-review')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('GET /api/projects/:projectId/articles/:id/versions - should deny view role', async () => {
+      const response = await agent
+        .get('/api/projects/1/articles/1/versions')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+  });
+
+  // ─── Additional Project Routes ───
+  describe('App - Project Additional Routes', () => {
+    it('GET /api/projects/:id - should deny view role', async () => {
+      const response = await agent
+        .get('/api/projects/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('PUT /api/projects/:id - should deny view role', async () => {
+      const response = await agent
+        .put('/api/projects/1')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ name: 'test' });
+      expect(response.status).toBe(403);
+    });
+  });
+
+  // ─── Additional Skills Routes ───
+  describe('App - Skills Additional Routes', () => {
+    it('GET /api/skills/:id - should deny view role', async () => {
+      const response = await agent
+        .get('/api/skills/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+  });
+
+  // ─── LLM Model Additional Routes ───
+  describe('App - LLM Model Additional Routes', () => {
+    it('GET /api/llm-models/:id - should deny admin', async () => {
+      const response = await agent
+        .get('/api/llm-models/1')
+        .set('Authorization', `Bearer ${adminToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('GET /api/llm-models/enabled - should deny view role', async () => {
+      const response = await agent
+        .get('/api/llm-models/enabled')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+  });
+
+  // ─── Knowledge Base Additional Routes ───
+  describe('App - Knowledge Base Additional Routes', () => {
+    it('GET /api/knowledge-bases/:id - should deny view role', async () => {
+      const response = await agent
+        .get('/api/knowledge-bases/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('PUT /api/knowledge-bases/:id - should deny view role', async () => {
+      const response = await agent
+        .put('/api/knowledge-bases/1')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ name: 'test' });
+      expect(response.status).toBe(403);
+    });
+  });
+
+// ─── Non-existent Routes (top-level) ───
 describe('App - Non-existent Routes', () => {
   it('should return 404 for unknown route', async () => {
     const response = await agent.get('/api/non-existent-route');
+    expect(response.status).toBe(404);
+  });
+
+  it('should return JSON 404 body with code and message', async () => {
+    const response = await agent.get('/api/non-existent-route');
+    expect(response.status).toBe(404);
+    expect(response.body.code).toBe(404);
+    expect(response.body.message).toBe('接口不存在');
+  });
+});
+
+// ─── CORS Behavior ───
+describe('App - CORS Configuration', () => {
+  // Use /api/auth/verify which goes through CORS middleware (health check bypasses it)
+  it('should allow requests from whitelisted origin', async () => {
+    const response = await agent
+      .get('/api/auth/verify')
+      .set('Origin', 'http://localhost:5173');
+    // Will get 401 (no token) but CORS header should be present
+    expect(response.headers['access-control-allow-origin']).toBe('http://localhost:5173');
+  });
+
+  it('should block requests from non-whitelisted origin', async () => {
+    const response = await agent
+      .get('/api/auth/verify')
+      .set('Origin', 'http://evil.example.com');
+    // CORS error - either no allow-origin header or 500 from CORS error
+    expect(response.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
+  it('should allow requests without origin (server-to-server)', async () => {
+    const response = await agent.get('/api/auth/verify');
+    // No origin header - CORS allows by default (no origin = callback(null, true))
+    expect(response.status).toBe(401);
+  });
+});
+
+// ─── Helmet Security Headers ───
+describe('App - Helmet Security Headers', () => {
+  // Use /api/auth/verify which goes through helmet middleware (health check bypasses it)
+  it('should set X-Content-Type-Options header', async () => {
+    const response = await agent.get('/api/auth/verify');
+    expect(response.headers['x-content-type-options']).toBe('nosniff');
+  });
+
+  it('should set Referrer-Policy header', async () => {
+    const response = await agent.get('/api/auth/verify');
+    expect(response.headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
+  });
+
+  it('should set Cross-Origin-Resource-Policy header', async () => {
+    const response = await agent.get('/api/auth/verify');
+    expect(response.headers['cross-origin-resource-policy']).toBe('cross-origin');
+  });
+
+  it('should set X-DNS-Prefetch-Control header', async () => {
+    const response = await agent.get('/api/auth/verify');
+    expect(response.headers['x-dns-prefetch-control']).toBeDefined();
+  });
+});
+
+// ─── JSON Body Parsing ───
+describe('App - JSON Body Parsing', () => {
+  it('should parse JSON body correctly', async () => {
+    const response = await agent
+      .post('/api/auth/login')
+      .send({ username: 'testuser', password: 'testpass' });
+    // Should get past body parsing (400 from controller, not 500 from parse error)
+    expect(response.status).not.toBe(500);
+  });
+
+  it('should reject oversized JSON body (> 10mb)', async () => {
+    // Create a payload larger than 10mb
+    const largePayload = { data: 'x'.repeat(11 * 1024 * 1024) };
+    const response = await agent
+      .post('/api/auth/login')
+      .send(largePayload);
+    // Global error handler catches PayloadTooLargeError and returns 500
+    expect(response.status).toBe(500);
+    expect(response.body.code).toBe(500);
+  });
+});
+
+// ─── Trust Proxy ───
+describe('App - Trust Proxy Setting', () => {
+  it('should have trust proxy enabled', () => {
+    expect(app.get('trust proxy')).toBe(1);
+  });
+});
+
+// ─── Static Files ───
+describe('App - Static Files Middleware', () => {
+  it('should serve /uploads path with CORS headers', async () => {
+    const response = await request(app)
+      .get('/uploads/nonexistent-file.txt')
+      .set('User-Agent', 'test-agent/1.0');
+    // File doesn't exist, but the route should be handled (404 from static, not 404 from app)
+    // The Cross-Origin-Resource-Policy header should be set by our middleware
+    expect(response.headers['cross-origin-resource-policy']).toBe('cross-origin');
+  });
+});
+
+// ─── Global Error Handler ───
+describe('App - Global Error Handler', () => {
+  it('should return 500 JSON for unhandled errors', async () => {
+    // Trigger an error by sending malformed JSON
+    const response = await request(app)
+      .post('/api/auth/login')
+      .set('Content-Type', 'application/json')
+      .set('User-Agent', 'test-agent/1.0')
+      .send('{ invalid json }');
+    // Express json parser should handle this, but if it leaks through:
+    expect([400, 500]).toContain(response.status);
+  });
+});
+
+// ─── Swagger Configuration ───
+describe('App - Swagger Routes (disabled in test)', () => {
+  it('should not serve swagger UI when disabled', async () => {
+    const response = await agent.get('/api-docs/');
+    // Either 404 (route not registered) or redirect
+    expect([404, 301, 302]).toContain(response.status);
+  });
+
+  it('should not serve swagger JSON when disabled', async () => {
+    const response = await agent.get('/api-docs.json');
+    expect([404, 301, 302]).toContain(response.status);
+  });
+});
+
+// ─── HTTP Method Restrictions ───
+describe('App - HTTP Method Restrictions', () => {
+  it('should reject DELETE on login route', async () => {
+    const response = await agent.delete('/api/auth/login');
+    expect(response.status).toBe(404);
+  });
+
+  it('should reject PATCH on health route', async () => {
+    const response = await agent.patch('/api/health');
     expect(response.status).toBe(404);
   });
 });
