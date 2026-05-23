@@ -3,6 +3,7 @@
  */
 import {
   Article,
+  ArticleStatus,
   ArticleVersion,
   CreateArticleRequest,
   UpdateArticleRequest,
@@ -131,7 +132,7 @@ describe('article.entity', () => {
     });
 
     it('should support various status values', () => {
-      const statuses = ['draft', 'generating', 'manual_writing', 'pending_review', 'published', 'scheduled', 'rejected'];
+      const statuses: ArticleStatus[] = ['draft', 'generating', 'manual_writing', 'pending_review', 'published', 'publishing', 'generate_failed', 'publish_failed'];
       statuses.forEach((status) => {
         const article: Article = { ...baseArticle, status };
         expect(article.status).toBe(status);
@@ -411,7 +412,7 @@ describe('article.entity', () => {
       const req: UpdateArticleRequest = {
         title: 'T', article_type: 'a', write_mode: 'w', keywords: 'k',
         portrait: 'p', images: [], platforms: [], skills: 1, llm_model_id: 1,
-        content: 'c', status: 's', scheduled_publish_at: '2026-01-01',
+        content: 'c', status: 'draft', scheduled_publish_at: '2026-01-01T00:00:00.000Z',
       };
       expect(Object.keys(req)).toHaveLength(12);
     });

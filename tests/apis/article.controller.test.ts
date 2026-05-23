@@ -338,7 +338,7 @@ describe('Article Controller', () => {
     it('should create article with empty title when not provided', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockCreate = jest.fn().mockResolvedValue({
-        id: 5, projectId: 1, title: '', keywords: ['test'], portrait: null,
+        id: 5, projectId: 1, title: '', keywords: 'test', portrait: null,
         images: null, platforms: null, status: 'draft', createdBy: 1,
         createdAt: new Date(), updatedAt: new Date(),
       });
@@ -347,7 +347,7 @@ describe('Article Controller', () => {
       const response = await agent
         .post(BASE)
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ keywords: ['test'] });
+        .send({ keywords: 'test' });
       expect(response.status).toBe(201);
       expect(response.body.data.title).toBe('');
     });
@@ -355,7 +355,7 @@ describe('Article Controller', () => {
     it('should create article successfully', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockCreate = jest.fn().mockResolvedValue({
-        id: 1, projectId: 1, title: 'New Article', keywords: ['seo'], portrait: null,
+        id: 1, projectId: 1, title: 'New Article', keywords: 'seo', portrait: null,
         images: null, platforms: null, status: 'draft', createdBy: 1,
         createdAt: new Date(), updatedAt: new Date(),
       });
@@ -364,7 +364,7 @@ describe('Article Controller', () => {
       const response = await agent
         .post(BASE)
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ title: 'New Article', keywords: ['seo'] });
+        .send({ title: 'New Article', keywords: 'seo' });
 
       expect(response.status).toBe(201);
       expect(response.body.data.title).toBe('New Article');
@@ -807,8 +807,7 @@ describe('Article Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ title: 'Test', status: 'published' });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的初始状态');
-    });
+      expect(response.body.message).toMatch(/参数验证失败/);    });
 
     it('should create article with manual_writing status', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
@@ -2658,7 +2657,7 @@ describe('Article Controller', () => {
   // ============= Branch coverage: pagination bounds =============
 
   describe('GET /api/projects/:projectId/articles - pagination bounds', () => {
-    it('should clamp page to minimum 1', async () => {
+    it('should reject negative page via Zod validation', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindMany = jest.fn().mockResolvedValue([]);
       const mockCount = jest.fn().mockResolvedValue(0);
@@ -2668,10 +2667,11 @@ describe('Article Controller', () => {
         .get(`${BASE}?page=-1&pageSize=10`)
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
-    it('should clamp pageSize to maximum 100', async () => {
+    it('should reject oversized pageSize via Zod validation', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindMany = jest.fn().mockResolvedValue([]);
       const mockCount = jest.fn().mockResolvedValue(0);
@@ -2681,7 +2681,8 @@ describe('Article Controller', () => {
         .get(`${BASE}?page=1&pageSize=200`)
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
   });
 
@@ -2734,7 +2735,7 @@ describe('Article Controller', () => {
       expect(response.status).toBe(200);
     });
 
-    it('should trim and slice search parameter to 200 chars', async () => {
+    it('should reject search parameter exceeding 200 chars via Zod', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindMany = jest.fn().mockResolvedValue([]);
       const mockCount = jest.fn().mockResolvedValue(0);
@@ -2745,14 +2746,15 @@ describe('Article Controller', () => {
         .get(`${BASE}?search=${longSearch}&page=1&pageSize=10`)
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
   });
 
   // ============= Entity field whitelist enforcement =============
 
   describe('POST /api/projects/:projectId/articles - field whitelist', () => {
-    it('should strip disallowed fields during create', async () => {
+    it('should reject request with disallowed fields during create', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, projectId: 1, title: 'Test', keywords: null, portrait: null,
@@ -2766,24 +2768,13 @@ describe('Article Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           title: 'Test',
-          id: 999,              // disallowed - should be stripped
-          project_id: 999,      // disallowed - should be stripped
-          version: 5,           // disallowed - should be stripped
-          created_by: 999,      // disallowed - should be stripped
-          created_at: new Date(), // disallowed - should be stripped
-          updated_at: new Date(), // disallowed - should be stripped
-          malicious_field: 'hack', // disallowed - should be stripped
+          id: 999,              // disallowed - should cause rejection
+          malicious_field: 'hack', // disallowed - should cause rejection
         });
 
-      expect(response.status).toBe(201);
-      // Verify the create call did NOT receive disallowed fields from body
-      const createData = mockCreate.mock.calls[0][0].data;
-      expect(createData.id).toBeUndefined();
-      // projectId comes from path param via service, allowed
-      expect(createData.version).toBe(1); // set by service, not from body
-      // createdBy comes from auth context, not body
-      expect(createData.malicious_field).toBeUndefined();
-      expect(createData.title).toBe('Test');
+      // Zod strict() rejects requests with unrecognized keys
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should create article with all CreateArticleRequest fields', async () => {
@@ -2854,7 +2845,7 @@ describe('Article Controller', () => {
       createdAt: new Date(), updatedAt: new Date(),
     };
 
-    it('should strip disallowed fields during update', async () => {
+    it('should reject request with disallowed fields during update', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockUpdate = jest.fn().mockResolvedValue({ ...existingDraft, title: 'Updated' });
       getPrisma.mockReturnValue({
@@ -2870,20 +2861,12 @@ describe('Article Controller', () => {
         .send({
           title: 'Updated',
           id: 999,              // disallowed
-          project_id: 999,      // disallowed
-          version: 5,           // disallowed
-          created_by: 999,      // disallowed
           malicious: 'hack',    // disallowed
         });
 
-      expect(response.status).toBe(200);
-      const updateData = mockUpdate.mock.calls[0][0].data;
-      expect(updateData.id).toBeUndefined();
-      expect(updateData.projectId).toBeUndefined();
-      expect(updateData.version).toBeUndefined();
-      expect(updateData.createdBy).toBeUndefined();
-      expect(updateData.malicious).toBeUndefined();
-      expect(updateData.title).toBe('Updated');
+      // Zod strict() rejects requests with unrecognized keys
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should update article with all UpdateArticleRequest fields', async () => {
@@ -3064,7 +3047,7 @@ describe('Article Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ approved: 'true' });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('审核参数无效');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should return 400 when approved is number instead of boolean', async () => {
@@ -3073,7 +3056,7 @@ describe('Article Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ approved: 1 });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('审核参数无效');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should return 400 for invalid article id on review', async () => {

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { ArticleServiceImpl } from '../service/impl/article.service.impl';
 import { ProjectServiceImpl } from '../service/impl/project.service.impl';
 import { success, fail, paginate } from '../utils';
+import { createArticleSchema, updateArticleSchema, reviewArticleSchema, listArticlesSchema } from '../schema/article.schema';
 
 const articleService = new ArticleServiceImpl();
 const projectService = new ProjectServiceImpl();
@@ -87,15 +88,13 @@ export async function listArticles(req: Request, res: Response): Promise<void> {
     const projectId = parseInt(req.params.projectId as string, 10);
     if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
 
-    // MEDIUM-2 fix: 分页参数上下限
-    const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
-    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize as string, 10) || 10));
-
-    // LOW-1 fix: search 参数清理
-    const search = typeof req.query.search === 'string'
-      ? req.query.search.trim().slice(0, 200)
-      : undefined;
-    const status = req.query.status as string | undefined;
+    // Zod Schema 验证查询参数
+    const parsed = listArticlesSchema.safeParse(req.query);
+    if (!parsed.success) {
+      fail(res, 400, `参数验证失败: ${parsed.error.issues.map(i => i.message).join('; ')}`);
+      return;
+    }
+    const { page, pageSize, search, status } = parsed.data;
 
     const user = getAuthUser(req);
     if (!user) { fail(res, 401, '未认证'); return; }
@@ -162,14 +161,13 @@ export async function createArticle(req: Request, res: Response): Promise<void> 
     const projectId = parseInt(req.params.projectId as string, 10);
     if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
 
-    // HIGH-1 / CRITICAL-1 fix: 字段白名单过滤
-    const body = pickAllowedFields(req.body, CREATE_ALLOWED_FIELDS);
-
-    const { status } = body;
-    if (status && !VALID_CREATE_STATUSES.includes(status as string)) {
-      fail(res, 400, '无效的初始状态');
+    // HIGH-1 / CRITICAL-1 fix: Zod Schema 验证 + 字段白名单过滤
+    const parsed = createArticleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      fail(res, 400, `参数验证失败: ${parsed.error.issues.map(i => i.message).join('; ')}`);
       return;
     }
+    const body = pickAllowedFields(parsed.data, CREATE_ALLOWED_FIELDS);
 
     const user = getAuthUser(req);
     if (!user) { fail(res, 401, '未认证'); return; }
@@ -237,8 +235,13 @@ export async function updateArticle(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // CRITICAL-1 fix: 白名单过滤
-    const body = pickAllowedFields(req.body, UPDATE_ALLOWED_FIELDS);
+    // CRITICAL-1 fix: Zod Schema 验证 + 白名单过滤
+    const parsed = updateArticleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      fail(res, 400, `参数验证失败: ${parsed.error.issues.map(i => i.message).join('; ')}`);
+      return;
+    }
+    const body = pickAllowedFields(parsed.data, UPDATE_ALLOWED_FIELDS);
 
     // CRITICAL-2 fix: 状态转换白名单校验
     const targetStatus = body.status as string | undefined;
@@ -378,8 +381,12 @@ export async function reviewArticle(req: Request, res: Response): Promise<void> 
     if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
     if (isNaN(id)) { fail(res, 400, '无效的文章ID'); return; }
 
-    const { approved } = req.body;
-    if (typeof approved !== 'boolean') { fail(res, 400, '审核参数无效'); return; }
+    const parsed = reviewArticleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      fail(res, 400, `参数验证失败: ${parsed.error.issues.map(i => i.message).join('; ')}`);
+      return;
+    }
+    const { approved } = parsed.data;
 
     const user = getAuthUser(req);
     if (!user) { fail(res, 401, '未认证'); return; }

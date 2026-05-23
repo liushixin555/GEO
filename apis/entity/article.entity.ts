@@ -1,3 +1,14 @@
+/** 文章状态枚举，与 Prisma ArticleStatus 一致 */
+export type ArticleStatus =
+  | 'draft'
+  | 'manual_writing'
+  | 'generating'
+  | 'generate_failed'
+  | 'pending_review'
+  | 'publishing'
+  | 'publish_failed'
+  | 'published';
+
 export interface Article {
   id: number;
   project_id: number;
@@ -8,11 +19,14 @@ export interface Article {
   portrait: string | null;
   images: string[] | null;
   platforms: string[] | null;
-  skills: number | null;
+  /** Prisma Json? 类型，运行时可能为任意 JSON 结构 */
+  skills: unknown | null;
   llm_model_id: number | null;
+  /** 文章正文（纯文本，禁止 HTML） */
   content: string | null;
+  /** 版本号（Prisma Float，递增整数使用） */
   version: number;
-  status: string;
+  status: ArticleStatus;
   scheduled_publish_at: Date | null;
   created_by: number | null;
   created_at: Date;
@@ -50,10 +64,10 @@ export interface UpdateArticleRequest {
   portrait?: string;
   images?: string[];
   platforms?: string[];
-  skills?: number;
+  skills?: unknown;
   llm_model_id?: number;
   content?: string;
-  status?: string;
+  status?: ArticleStatus;
   scheduled_publish_at?: string | null;
 }
 

@@ -1,8 +1,8 @@
 import { getPrisma } from '../../utils';
-import { Article, ArticleVersion, CreateArticleRequest, UpdateArticleRequest } from '../../entity';
+import { Article, ArticleStatus, ArticleVersion, CreateArticleRequest, UpdateArticleRequest } from '../../entity';
 import { mapArticle, mapArticleVersion } from '../../map';
 import { IArticleService } from '../article.service';
-import { Prisma, ArticleStatus } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 export class ArticleServiceImpl implements IArticleService {
   async list(projectId: number, page: number, pageSize: number, search?: string, status?: string, userId?: number, role?: string): Promise<{ list: Article[]; total: number }> {
