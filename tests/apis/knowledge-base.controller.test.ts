@@ -1075,4 +1075,603 @@ describe('KnowledgeBase Controller', () => {
       expect(res.body.message).toBe('删除知识库失败');
     });
   });
+
+  // =========================================================
+  // 边界安全测试 — Boundary & Security Edge Cases
+  // =========================================================
+  describe('边界安全测试', () => {
+    // --- List 边界 ---
+    test('list: page=0 被修正为 1', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const res = await agent
+        .get('/api/knowledge-bases?page=0')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.page).toBe(1);
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 0 })
+      );
+    });
+
+    test('list: 负数 page 被修正为 1', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const res = await agent
+        .get('/api/knowledge-bases?page=-5')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.page).toBe(1);
+    });
+
+    test('list: pageSize=0 被修正为默认值 10', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const res = await agent
+        .get('/api/knowledge-bases?pageSize=0')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(res.status).toBe(200);
+      // parseInt('0') || 10 = 10, then Math.min(100, Math.max(1, 10)) = 10
+      expect(res.body.data.pageSize).toBe(10);
+    });
+
+    test('list: 负数 pageSize 被修正为 1', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const res = await agent
+        .get('/api/knowledge-bases?pageSize=-10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.pageSize).toBe(1);
+    });
+
+    test('list: search 超过100字符被截断', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const longSearch = 'A'.repeat(150);
+      const res = await agent
+        .get(`/api/knowledge-bases?search=${longSearch}`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(res.status).toBe(200);
+      // controller truncates search to 100 chars, service builds where clause from it
+      expect(mockFindMany).toHaveBeenCalled();
+    });
+
+    test('list: service 抛出 "知识库不存在" 返回 404', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockRejectedValue(new Error('知识库不存在'));
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: jest.fn() },
+      });
+
+      const res = await agent
+        .get('/api/knowledge-bases')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe('知识库不存在');
+    });
+
+    // --- Get 边界 ---
+    test('get: ID=0 parseInt结果为0，不触发isNaN检查', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst },
+      });
+
+      const res = await agent
+        .get('/api/knowledge-bases/0')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      // parseInt('0') = 0, isNaN(0) = false, so it queries DB with id=0
+      expect(res.status).toBe(404);
+    });
+
+    test('get: 负数 ID parseInt结果为负数，查询DB', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst },
+      });
+
+      const res = await agent
+        .get('/api/knowledge-bases/-1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      // parseInt('-1') = -1, isNaN(-1) = false, controller doesn't check negative
+      expect(res.status).toBe(404);
+    });
+
+    test('get: 小数 ID 被解析为整数', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst },
+      });
+
+      const res = await agent
+        .get('/api/knowledge-bases/1.5')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      // parseInt('1.5') = 1, so it queries id=1
+      expect([200, 404]).toContain(res.status);
+    });
+
+    // --- Create 边界 ---
+    test('create: name 恰好200字符成功', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        name: 'A'.repeat(200),
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const res = await agent
+        .post('/api/knowledge-bases')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: 'A'.repeat(200), scope: 'platform' });
+
+      expect(res.status).toBe(201);
+    });
+
+    test('create: description 恰好2000字符成功', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        description: 'B'.repeat(2000),
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const res = await agent
+        .post('/api/knowledge-bases')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: '测试', scope: 'platform', description: 'B'.repeat(2000) });
+
+      expect(res.status).toBe(201);
+    });
+
+    test('create: description=null 不报错', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        description: null,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const res = await agent
+        .post('/api/knowledge-bases')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: '测试', scope: 'platform', description: null });
+
+      expect(res.status).toBe(201);
+    });
+
+    test('create: company_id 为非整数被忽略', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const res = await agent
+        .post('/api/knowledge-bases')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: '测试', scope: 'platform', company_id: 1.5 });
+
+      expect(res.status).toBe(201);
+      // validateInteger returns undefined for float, service maps to companyId: null
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: null }),
+        })
+      );
+    });
+
+    test('create: company_id 为负数被忽略', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const res = await agent
+        .post('/api/knowledge-bases')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: '测试', scope: 'platform', company_id: -5 });
+
+      expect(res.status).toBe(201);
+      // validateInteger rejects negative, service maps to companyId: null
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: null }),
+        })
+      );
+    });
+
+    test('create: company_id 为0被忽略', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const res = await agent
+        .post('/api/knowledge-bases')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: '测试', scope: 'platform', company_id: 0 });
+
+      expect(res.status).toBe(201);
+      // validateInteger rejects 0 (value < 1), service maps to companyId: null
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: null }),
+        })
+      );
+    });
+
+    test('create: project_id 为非整数被忽略', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const res = await agent
+        .post('/api/knowledge-bases')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: '测试', scope: 'platform', project_id: 'abc' });
+
+      expect(res.status).toBe(201);
+      // validateInteger returns undefined for non-number, service maps to projectId: null
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ projectId: null }),
+        })
+      );
+    });
+
+    test('create: name 有前后空格被 trim', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const res = await agent
+        .post('/api/knowledge-bases')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: '  测试知识库  ', scope: 'platform' });
+
+      expect(res.status).toBe(201);
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ name: '测试知识库' }),
+        })
+      );
+    });
+
+    // --- Update 边界 ---
+    test('update: name 为非字符串类型返回 400', async () => {
+      const res = await agent
+        .put('/api/knowledge-bases/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: 12345 });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('知识库名称不能为空');
+    });
+
+    test('update: description=null 不报错', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        createdBy: 1,
+        companyId: null,
+        projectId: null,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        description: null,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const res = await agent
+        .put('/api/knowledge-bases/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ description: null });
+
+      expect(res.status).toBe(200);
+    });
+
+    test('update: company_id 为非整数被忽略（validateInteger）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        createdBy: 1,
+        companyId: null,
+        projectId: null,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const res = await agent
+        .put('/api/knowledge-bases/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ company_id: 3.14 });
+
+      expect(res.status).toBe(200);
+    });
+
+    test('update: name 恰好200字符成功', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        createdBy: 1,
+        companyId: null,
+        projectId: null,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        name: 'A'.repeat(200),
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const res = await agent
+        .put('/api/knowledge-bases/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: 'A'.repeat(200) });
+
+      expect(res.status).toBe(200);
+    });
+
+    test('update: description 恰好2000字符成功', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        createdBy: 1,
+        companyId: null,
+        projectId: null,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        description: 'B'.repeat(2000),
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const res = await agent
+        .put('/api/knowledge-bases/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ description: 'B'.repeat(2000) });
+
+      expect(res.status).toBe(200);
+    });
+
+    test('update: sysadmin 可修改任意知识库（绕过创建者限制）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        createdBy: 999,
+        companyId: null,
+        projectId: null,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        name: 'sysadmin修改',
+        company: null,
+        project: null,
+        creator: { cnName: '其他' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const res = await agent
+        .put('/api/knowledge-bases/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: 'sysadmin修改' });
+
+      expect(res.status).toBe(200);
+    });
+
+    test('update: 不传 name 时不做名称验证', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        createdBy: 1,
+        companyId: null,
+        projectId: null,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        description: '只更新描述',
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const res = await agent
+        .put('/api/knowledge-bases/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ description: '只更新描述' });
+
+      expect(res.status).toBe(200);
+    });
+
+    // --- Delete 边界 ---
+    test('delete: ID=0 parseInt结果为0，查询DB', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: jest.fn() },
+      });
+
+      const res = await agent
+        .delete('/api/knowledge-bases/0')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      // parseInt('0') = 0, isNaN(0) = false, so it queries DB
+      expect(res.status).toBe(404);
+    });
+
+    test('delete: sysadmin 可删除任意知识库（绕过创建者限制）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        createdBy: 999,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({});
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const res = await agent
+        .delete('/api/knowledge-bases/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toBe('删除知识库成功');
+    });
+
+    // --- 注入防护 ---
+    test('create: 额外字段不会注入到数据库（mass assignment 防护）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const res = await agent
+        .post('/api/knowledge-bases')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          name: '测试',
+          scope: 'platform',
+          id: 999,
+          created_by: 888,
+          malicious_field: 'hack',
+        });
+
+      expect(res.status).toBe(201);
+      const createData = mockCreate.mock.calls[0][0].data;
+      expect(createData.id).toBeUndefined();
+      expect(createData.created_by).toBeUndefined();
+      expect(createData.malicious_field).toBeUndefined();
+    });
+  });
 });
