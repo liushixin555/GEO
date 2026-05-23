@@ -6,10 +6,10 @@
 |------|------|
 | 源文件 | `apis/service/impl/todo.service.impl.ts` |
 | 测试文件 | `tests/apis/todo.service.test.ts` |
-| 执行日期 | 2026-05-23 |
+| 执行日期 | 2026-05-24 |
 | 测试框架 | Jest + ts-jest |
-| 测试数 | 51 个 |
-| 结果 | **全部通过 (51/51)** |
+| 测试数 | 64 个 |
+| 结果 | **全部通过 (64/64)** |
 
 ## 覆盖率
 
@@ -37,12 +37,15 @@
 | 9 | 应正确计算分页偏移 | 验证 page=3, pageSize=5 时 skip=10 |
 | 10 | 应返回正确映射的字段 | 验证 mapTodo 字段映射完整性 |
 
-### getById() — 2 个测试
+### getById() — 5 个测试
 
 | # | 测试用例 | 说明 |
 |---|---------|------|
 | 1 | 应返回映射后的待办 | 验证正常获取 |
 | 2 | 待办不存在应抛出错误 | 验证404错误 |
+| 3 | 非 sysadmin 访问其他公司的待办应抛出 ForbiddenError | 验证跨公司权限控制 |
+| 4 | sysadmin 可以访问任何公司的待办 | 验证系统管理员权限 |
+| 5 | admin 可以访问自己公司的待办 | 验证同公司访问权限 |
 
 ### create() — 5 个测试
 
@@ -110,19 +113,40 @@
 | 5 | 非 open 状态不能驳回 | 验证只有open可驳回 |
 | 6 | 非 sysadmin 不能驳回 | 验证只有系统管理员可驳回 |
 
-### getLogs() — 3 个测试
+### getLogs() — 4 个测试
 
 | # | 测试用例 | 说明 |
 |---|---------|------|
 | 1 | 应返回待办日志列表 | 验证日志列表映射 |
 | 2 | 待办不存在应抛出错误 | 验证404错误 |
-| 3 | 应按 createdAt 降序排列日志 | 验证排序规则 |
+| 3 | 非 sysadmin 访问其他公司的待办日志应抛出 ForbiddenError | 验证跨公司权限控制 |
+| 4 | 应按 createdAt 降序排列日志 | 验证排序规则 |
+
+### getObjectOptions() — 6 个测试（新增）
+
+| # | 测试用例 | 说明 |
+|---|---------|------|
+| 1 | objectType=article 应返回文章选项 | 验证文章类型查询 |
+| 2 | objectType=article 且 action=restore 应查询已删除文章 | 验证恢复模式下查询已删除文章 |
+| 3 | objectType=keyword 应返回关键词选项 | 验证关键词类型查询 |
+| 4 | objectType=keyword 且 action=restore 应查询已删除关键词 | 验证恢复模式下查询已删除关键词 |
+| 5 | objectType=keyword 无知识库时应返回空数组 | 验证空知识库边界条件 |
+| 6 | 未知的 objectType 应返回空数组 | 验证未知类型返回空 |
+
+### getAssigneeCandidates() — 3 个测试（新增）
+
+| # | 测试用例 | 说明 |
+|---|---------|------|
+| 1 | 应返回项目操作员和 sysadmin 的去重列表 | 验证候选人查询和字段映射 |
+| 2 | 应去重同时是操作员和 sysadmin 的用户 | 验证 Set 去重逻辑 |
+| 3 | 项目不存在应抛出错误 | 验证项目不存在错误 |
 
 ## 覆盖的分支
 
 - `list()`: 4种 tab 分支 (my_open, my_closed, all_open, all_closed, default)
 - `list()`: companyId 过滤 (sysadmin / admin+companyId / admin+null)
 - `list()`: priority / search 可选参数
+- `getById()`: NotFoundError / ForbiddenError (role+companyId)
 - `update()`: 各字段 undefined 检查
 - `update()`: status === 'closed' / assigneeId !== userId 分支
 - `close()`: status !== 'open' / assigneeId !== userId 分支
@@ -130,3 +154,6 @@
 - `transfer()`: status !== 'open' / assigneeId !== userId / targetUser null 分支
 - `reject()`: status !== 'open' / role !== 'sysadmin' / source manual vs system / sysadmin null 回退分支
 - `create()`: due_at 存在与否 / source 和 priority 默认值
+- `getLogs()`: NotFoundError / ForbiddenError (role+companyId)
+- `getObjectOptions()`: article 分支 (正常/restore) / keyword 分支 (正常/restore/空知识库) / 未知类型
+- `getAssigneeCandidates()`: 项目不存在 / 正常查询 / 用户去重

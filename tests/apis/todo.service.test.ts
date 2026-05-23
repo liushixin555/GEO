@@ -1153,4 +1153,207 @@ describe('TodoServiceImpl', () => {
       );
     });
   });
+
+  // ──────────────────────────────────────
+  //  getObjectOptions()
+  // ──────────────────────────────────────
+  describe('getObjectOptions', () => {
+    it('objectType=article 应返回文章选项', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([
+        { id: 1, title: '文章A' },
+        { id: 2, title: '文章B' },
+      ]);
+
+      mockedGetPrisma.mockReturnValue({
+        article: { findMany: mockFindMany },
+      } as any);
+
+      const result = await service.getObjectOptions({
+        projectId: 10,
+        objectType: 'article',
+      });
+
+      expect(result).toEqual([
+        { id: 1, name: '文章A' },
+        { id: 2, name: '文章B' },
+      ]);
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where.projectId).toBe(10);
+      expect(where.deletedAt).toBeNull();
+    });
+
+    it('objectType=article 且 action=restore 应查询已删除文章', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([
+        { id: 3, title: '已删除文章' },
+      ]);
+
+      mockedGetPrisma.mockReturnValue({
+        article: { findMany: mockFindMany },
+      } as any);
+
+      const result = await service.getObjectOptions({
+        projectId: 10,
+        objectType: 'article',
+        action: 'restore',
+      });
+
+      expect(result).toEqual([{ id: 3, name: '已删除文章' }]);
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where.deletedAt).toEqual({ not: null });
+    });
+
+    it('objectType=keyword 应返回关键词选项', async () => {
+      const mockKbFindMany = jest.fn().mockResolvedValue([
+        { id: 1 },
+        { id: 2 },
+      ]);
+      const mockKwFindMany = jest.fn().mockResolvedValue([
+        { id: 10, keyword: '关键词A' },
+        { id: 11, keyword: '关键词B' },
+      ]);
+
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockKbFindMany },
+        knowledgeKeyword: { findMany: mockKwFindMany },
+      } as any);
+
+      const result = await service.getObjectOptions({
+        projectId: 10,
+        objectType: 'keyword',
+      });
+
+      expect(result).toEqual([
+        { id: 10, name: '关键词A' },
+        { id: 11, name: '关键词B' },
+      ]);
+      expect(mockKbFindMany).toHaveBeenCalledWith({
+        where: { projectId: 10, deletedAt: null },
+        select: { id: true },
+      });
+    });
+
+    it('objectType=keyword 且 action=restore 应查询已删除关键词', async () => {
+      const mockKbFindMany = jest.fn().mockResolvedValue([{ id: 1 }]);
+      const mockKwFindMany = jest.fn().mockResolvedValue([
+        { id: 20, keyword: '已删除关键词' },
+      ]);
+
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockKbFindMany },
+        knowledgeKeyword: { findMany: mockKwFindMany },
+      } as any);
+
+      const result = await service.getObjectOptions({
+        projectId: 10,
+        objectType: 'keyword',
+        action: 'restore',
+      });
+
+      const kwWhere = mockKwFindMany.mock.calls[0][0].where;
+      expect(kwWhere.deletedAt).toEqual({ not: null });
+      expect(result[0].name).toBe('已删除关键词');
+    });
+
+    it('objectType=keyword 无知识库时应返回空数组', async () => {
+      const mockKbFindMany = jest.fn().mockResolvedValue([]);
+
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockKbFindMany },
+      } as any);
+
+      const result = await service.getObjectOptions({
+        projectId: 10,
+        objectType: 'keyword',
+      });
+
+      expect(result).toEqual([]);
+    });
+
+    it('未知的 objectType 应返回空数组', async () => {
+      mockedGetPrisma.mockReturnValue({} as any);
+
+      const result = await service.getObjectOptions({
+        projectId: 10,
+        objectType: 'unknown',
+      });
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  getAssigneeCandidates()
+  // ──────────────────────────────────────
+  describe('getAssigneeCandidates', () => {
+    it('应返回项目操作员和 sysadmin 的去重列表', async () => {
+      const mockProjectFindUnique = jest.fn().mockResolvedValue({
+        id: 10,
+        operators: [{ userId: 2 }, { userId: 3 }],
+      });
+      const mockUserFindMany = jest.fn().mockResolvedValue([
+        { id: 1, username: 'admin1', cnName: '管理员', role: 'sysadmin' },
+        { id: 2, username: 'user2', cnName: '用户2', role: 'admin' },
+        { id: 3, username: 'user3', cnName: '用户3', role: 'admin' },
+      ]);
+
+      mockedGetPrisma.mockReturnValue({
+        project: { findUnique: mockProjectFindUnique },
+        user: { findMany: mockUserFindMany },
+      } as any);
+
+      const result = await service.getAssigneeCandidates(10);
+
+      expect(result).toEqual([
+        { id: 1, username: 'admin1', cn_name: '管理员', role: 'sysadmin' },
+        { id: 2, username: 'user2', cn_name: '用户2', role: 'admin' },
+        { id: 3, username: 'user3', cn_name: '用户3', role: 'admin' },
+      ]);
+      expect(mockUserFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            OR: [
+              { id: { in: [2, 3] } },
+              { role: 'sysadmin' },
+            ],
+            status: true,
+            deletedAt: null,
+          },
+        }),
+      );
+    });
+
+    it('应去重同时是操作员和 sysadmin 的用户', async () => {
+      const mockProjectFindUnique = jest.fn().mockResolvedValue({
+        id: 10,
+        operators: [{ userId: 1 }],
+      });
+      // sysadmin(id=1) 同时出现在 operators 和 sysadmin 查询中
+      const mockUserFindMany = jest.fn().mockResolvedValue([
+        { id: 1, username: 'admin1', cnName: '管理员', role: 'sysadmin' },
+        { id: 1, username: 'admin1', cnName: '管理员', role: 'sysadmin' },
+      ]);
+
+      mockedGetPrisma.mockReturnValue({
+        project: { findUnique: mockProjectFindUnique },
+        user: { findMany: mockUserFindMany },
+      } as any);
+
+      const result = await service.getAssigneeCandidates(10);
+
+      expect(result).toEqual([
+        { id: 1, username: 'admin1', cn_name: '管理员', role: 'sysadmin' },
+      ]);
+      expect(result).toHaveLength(1);
+    });
+
+    it('项目不存在应抛出错误', async () => {
+      const mockProjectFindUnique = jest.fn().mockResolvedValue(null);
+
+      mockedGetPrisma.mockReturnValue({
+        project: { findUnique: mockProjectFindUnique },
+      } as any);
+
+      await expect(service.getAssigneeCandidates(999)).rejects.toThrow('项目不存在');
+    });
+  });
 });
