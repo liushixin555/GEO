@@ -245,7 +245,7 @@ const KnowledgePage: React.FC = () => {
       title: '更新时间',
       dataIndex: 'updatedAt',
       key: 'updatedAt',
-      width: 120,
+      width: 160,
       render: (val: string) => formatDateTime(val),
     },
   ];
