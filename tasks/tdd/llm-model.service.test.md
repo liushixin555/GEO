@@ -1,5 +1,8 @@
 # TDD 执行报告：llm-model.service.impl.ts
 
+## 执行日期
+2026-05-24
+
 ## 测试文件
 `tests/apis/llm-model.service.test.ts`
 
