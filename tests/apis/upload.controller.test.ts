@@ -175,7 +175,7 @@ describe('Upload Controller - Integration', () => {
     try { fs.unlinkSync(webpPath); } catch {}
   });
 
-  it('should upload SVG image successfully', async () => {
+  it('should reject SVG files with 400', async () => {
     const svgPath = path.join(uploadsDir, '_test.svg');
     const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1"/></svg>';
     fs.writeFileSync(svgPath, svg);
@@ -185,11 +185,9 @@ describe('Upload Controller - Integration', () => {
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', svgPath);
 
-    expect(response.status).toBe(200);
-    expect(response.body.data.url).toMatch(/\.svg$/);
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('不支持的图片格式');
 
-    const uploadedFile = path.join(uploadsDir, response.body.data.url.replace('/uploads/', ''));
-    try { fs.unlinkSync(uploadedFile); } catch {}
     try { fs.unlinkSync(svgPath); } catch {}
   });
 
@@ -217,7 +215,7 @@ describe('Upload Controller - Integration', () => {
     try { fs.unlinkSync(txtPath); } catch {}
   });
 
-  it('should reject file exceeding 10MB with 500', async () => {
+  it('should reject file exceeding 10MB with 413', async () => {
     // Create a file just over 10MB
     const largePath = path.join(uploadsDir, '_test_large.png');
     const buffer = Buffer.alloc(11 * 1024 * 1024, 'x');
@@ -228,8 +226,8 @@ describe('Upload Controller - Integration', () => {
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', largePath);
 
-    // Multer file size error is NOT '不支持的图片格式', so mapped to 500
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(413);
+    expect(response.body.message).toBe('文件大小超过 10MB 限制');
 
     try { fs.unlinkSync(largePath); } catch {}
   }, 30000);
@@ -261,11 +259,30 @@ describe('Upload Controller - Integration', () => {
 
     try { fs.unlinkSync(docPath); } catch {}
   });
+
+  it('should reject MIME-forged file (non-image with image Content-Type)', async () => {
+    // Create a text file that is NOT a valid image
+    const fakePath = path.join(uploadsDir, '_test_fake.png');
+    fs.writeFileSync(fakePath, 'this is not a real PNG image content');
+
+    const response = await agent
+      .post('/api/upload')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', fakePath, { contentType: 'image/png' });
+
+    // File passes MIME check but fails Magic Bytes validation
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('文件内容与声明类型不匹配');
+
+    try { fs.unlinkSync(fakePath); } catch {}
+  });
 });
 
 // ==================== Unit Tests ====================
 
 describe('uploadFile - Unit', () => {
+  const uploadsDir = path.resolve(process.cwd(), 'uploads');
+
   it('should return 400 when req.file is undefined', async () => {
     const req = {} as Request;
     const json = jest.fn();
@@ -279,7 +296,16 @@ describe('uploadFile - Unit', () => {
   });
 
   it('should return 200 with correct url on success', async () => {
-    const req = { file: { filename: 'abc-123.png' } } as unknown as Request;
+    const tmpPath = path.join(uploadsDir, '_unit_test_success.png');
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwADBwIAMCbHYQAAAABJRU5ErkJggg==',
+      'base64'
+    );
+    fs.writeFileSync(tmpPath, png);
+
+    const req = {
+      file: { filename: 'abc-123.png', path: tmpPath, mimetype: 'image/png' },
+    } as unknown as Request;
     const json = jest.fn();
     const res = { json } as unknown as Response;
 
@@ -290,9 +316,11 @@ describe('uploadFile - Unit', () => {
       message: '上传成功',
       data: { url: '/uploads/abc-123.png' },
     });
+
+    try { fs.unlinkSync(tmpPath); } catch {}
   });
 
-  it('should return 500 when exception occurs with error message', async () => {
+  it('should return 500 with generic message when exception occurs', async () => {
     const req = {
       get file() { throw new Error('disk full'); },
     } as unknown as Request;
@@ -303,7 +331,7 @@ describe('uploadFile - Unit', () => {
     await uploadFile(req, res);
 
     expect(status).toHaveBeenCalledWith(500);
-    expect(json).toHaveBeenCalledWith({ code: 500, message: 'disk full' });
+    expect(json).toHaveBeenCalledWith({ code: 500, message: '上传失败' });
   });
 
   it('should return 500 with default message when error has no message', async () => {
@@ -321,7 +349,16 @@ describe('uploadFile - Unit', () => {
   });
 
   it('should handle file with various extensions correctly', async () => {
-    const req = { file: { filename: 'uuid-value.jpeg' } } as unknown as Request;
+    const tmpPath = path.join(uploadsDir, '_unit_test_ext.jpg');
+    const jpeg = Buffer.from(
+      '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAFBABAAAAAAAAAAAAAAAAAAAACf/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AKgA/9k=',
+      'base64'
+    );
+    fs.writeFileSync(tmpPath, jpeg);
+
+    const req = {
+      file: { filename: 'uuid-value.jpg', path: tmpPath, mimetype: 'image/jpeg' },
+    } as unknown as Request;
     const json = jest.fn();
     const res = { json } as unknown as Response;
 
@@ -330,89 +367,29 @@ describe('uploadFile - Unit', () => {
     expect(json).toHaveBeenCalledWith({
       code: 0,
       message: '上传成功',
-      data: { url: '/uploads/uuid-value.jpeg' },
+      data: { url: '/uploads/uuid-value.jpg' },
     });
-  });
-});
 
-// ==================== Directory creation branch tests (mkdirSync) ====================
-
-describe('Upload directory creation - mkdirSync branches', () => {
-  const uploadsDir = path.resolve(process.cwd(), 'uploads');
-  const backupDir = path.resolve(process.cwd(), 'uploads_backup_test');
-
-  afterEach(() => {
-    // Restore uploads dir if it was renamed
-    if (fs.existsSync(backupDir) && !fs.existsSync(uploadsDir)) {
-      fs.renameSync(backupDir, uploadsDir);
-    }
+    try { fs.unlinkSync(tmpPath); } catch {}
   });
 
-  it('should create upload directory in storage callback when dir does not exist', async () => {
-    // Temporarily rename uploads dir to trigger mkdirSync in storage destination (line 19)
-    if (fs.existsSync(uploadsDir)) {
-      fs.renameSync(uploadsDir, backupDir);
-    }
+  it('should reject file when content does not match declared MIME type', async () => {
+    const tmpPath = path.join(uploadsDir, '_unit_fake.png');
+    fs.writeFileSync(tmpPath, 'this is not a PNG');
 
-    const testImagePath = path.join(backupDir, '_test_mkdir.png');
-    const png = Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwADBwIAMCbHYQAAAABJRU5ErkJggg==',
-      'base64'
-    );
-    if (!fs.existsSync(backupDir)) {
-      fs.mkdirSync(backupDir, { recursive: true });
-    }
-    fs.writeFileSync(testImagePath, png);
+    const req = {
+      file: { filename: 'fake.png', path: tmpPath, mimetype: 'image/png' },
+    } as unknown as Request;
+    const json = jest.fn();
+    const status = jest.fn().mockReturnValue({ json });
+    const res = { status } as unknown as Response;
 
-    const response = await agent
-      .post('/api/upload')
-      .set('Authorization', `Bearer ${sysadminToken()}`)
-      .attach('file', testImagePath);
+    await uploadFile(req, res);
 
-    expect(response.status).toBe(200);
-    expect(response.body.data.url).toMatch(/^\/uploads\//);
-    expect(fs.existsSync(uploadsDir)).toBe(true);
-
-    const uploadedFile = path.join(uploadsDir, response.body.data.url.replace('/uploads/', ''));
-    try { fs.unlinkSync(uploadedFile); } catch {}
-    try { fs.unlinkSync(testImagePath); } catch {}
-
-    // Restore
-    if (fs.existsSync(backupDir) && fs.existsSync(uploadsDir)) {
-      // Move remaining files back
-      const files = fs.readdirSync(uploadsDir);
-      for (const f of files) {
-        try { fs.renameSync(path.join(uploadsDir, f), path.join(backupDir, f)); } catch {}
-      }
-      fs.rmdirSync(uploadsDir);
-      fs.renameSync(backupDir, uploadsDir);
-    }
-  });
-});
-
-// ==================== Module init mkdirSync branch (line 10) ====================
-
-describe('Upload controller - module init mkdirSync', () => {
-  it('should cover mkdirSync when UPLOAD_DIR does not exist at module init', () => {
-    jest.isolateModules(() => {
-      const mockFs = {
-        existsSync: jest.fn().mockReturnValue(false),
-        mkdirSync: jest.fn(),
-        readdirSync: jest.fn().mockReturnValue([]),
-      };
-
-      // Use jest.mock before require
-      jest.doMock('fs', () => ({
-        __esModule: true,
-        default: mockFs,
-        ...mockFs,
-      }));
-
-      // Requiring the module triggers the top-level mkdirSync check
-      require('../../apis/controller/upload.controller');
-
-      expect(mockFs.existsSync).toHaveBeenCalled();
-    });
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith({ code: 400, message: '文件内容与声明类型不匹配' });
+    // File should be cleaned up
+    expect(fs.existsSync(tmpPath)).toBe(false);
   });
 });
 
