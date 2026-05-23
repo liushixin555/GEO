@@ -668,3 +668,487 @@ const token = req.headers.authorization?.slice(BEARER_PREFIX.length);
 ---
 
 *软件架构专家评审完成 — 2026-05-23*
+
+---
+
+# apis/controller/auth.controller.ts — 代码安全专家评审报告
+
+**评审日期**: 2026-05-23
+**评审角色**: 代码安全专家（认证与授权 / 输入验证 / 注入攻击 / 信息泄露 / 错误处理 / 会话管理）
+**文件路径**: `apis/controller/auth.controller.ts`
+**代码行数**: 247 行
+**关联文件**: `apis/service/impl/auth.service.impl.ts`, `apis/middleware/auth.middleware.ts`, `apis/config/index.ts`, `apis/entity/user.entity.ts`, `apis/app.ts`
+**严重级别**: CRITICAL(2) / HIGH(5) / MEDIUM(5) / LOW(4)
+
+---
+
+## 一、安全评价总览
+
+从代码安全专家视角对认证控制器进行全面审查，重点关注 OWASP Top 10 安全风险：认证失效（A07）、访问控制失效（A01）、注入（A03）、安全配置错误（A05）、加密失败（A02）。
+
+| 安全维度 | 评分 | 说明 |
+|----------|------|------|
+| 认证安全 | 6/10 | bcrypt 密码哈希、登录错误统一，但缺少暴力破解防护和账户状态检查 |
+| 授权安全 | 5/10 | getCompanyDetail 有权限检查，但 saveSelection 和 getAccessibleProjects 缺少 |
+| 输入验证 | 4/10 | 仅做基本的 truthy 检查，缺少类型、格式、范围验证 |
+| 信息泄露防护 | 5/10 | 登录错误统一，但其他端点 err.message 直接暴露给客户端 |
+| 会话管理 | 5/10 | JWT 2h 有效，logout 无服务端失效，无 Token 黑名单 |
+| 错误处理 | 4/10 | catch 块中 err.message 可能泄露数据库表名、字段名等内部信息 |
+
+**安全总评**: 6/10 — 存在 2 个 CRITICAL 和 5 个 HIGH 安全问题，需要优先修复。
+
+---
+
+## 二、安全问题清单
+
+### CRITICAL-1: saveSelection 越权修改 — IDOR（Insecure Direct Object Reference）
+
+**OWASP 分类**: A01:2021 – Broken Access Control
+**位置**: 第 119-132 行 + `auth.service.impl.ts` 第 104-113 行
+
+**问题描述**: `saveSelection` 接收 JWT 中的 `userId`，然后在 service 层直接使用该 userId 执行数据库更新，但**未验证**传入的 `company_id` 和 `project_id` 是否属于该用户可访问的范围。
+
+```typescript
+// auth.controller.ts 第 121-127 行
+const userId = (req as any).user?.userId;
+const { company_id, project_id } = req.body;
+// ❌ 未验证 company_id / project_id 是否属于用户可访问范围
+await authService.saveSelection(userId, { company_id, project_id });
+
+// auth.service.impl.ts 第 104-113 行
+await prisma.user.update({
+  where: { id: userId },
+  data: {
+    selectedCompanyId: request.company_id,   // ❌ 任意值均可写入
+    selectedProjectId: request.project_id ?? null,
+  },
+});
+```
+
+**安全影响**: 攻击者可使用合法 JWT token，将 `selectedCompanyId` 修改为任意公司 ID，包括不属于其权限范围的公司。后续业务逻辑若依赖 `selectedCompanyId` 做权限判断，将导致**权限提升**。
+
+**修复建议**: 在 service 层调用 `getAccessibleCompanies` 和 `getAccessibleProjects` 验证 ID 合法性：
+
+```typescript
+async saveSelection(userId: number, role: string, userCompanyId: number | null | undefined, request: SaveSelectionRequest): Promise<void> {
+    const accessibleCompanies = await this.getAccessibleCompanies(userId, role, userCompanyId);
+    if (!accessibleCompanies.some(c => c.id === request.company_id)) {
+      throw new Error('无权选择该公司');
+    }
+    if (request.project_id) {
+      const accessibleProjects = await this.getAccessibleProjects(userId, role, request.company_id);
+      if (!accessibleProjects.some(p => p.id === request.project_id)) {
+        throw new Error('无权选择该项目');
+      }
+    }
+    // 验证通过后才更新
+    await prisma.user.update({ ... });
+}
+```
+
+---
+
+### CRITICAL-2: 登录端点缺少独立的暴力破解防护
+
+**OWASP 分类**: A07:2021 – Identification and Authentication Failures
+**位置**: 第 36-52 行 + `app.ts` 路由配置
+
+**问题描述**: 登录端点 `POST /api/auth/login` 使用全局 rate-limit（100 次/分钟），对于认证端点过于宽松。攻击者可单 IP 每分钟尝试 100 种密码组合，24 小时可尝试 144,000 种。
+
+```typescript
+// app.ts — 登录使用全局 rateLimit (100/min)，无独立限流
+app.post('/api/auth/login', authController.login);
+```
+
+**安全影响**: 暴力破解风险。特别是 seed 密码 `sysadmin123` 等弱密码可被快速猜中。
+
+**修复建议**: 为登录端点配置独立的严格限流策略：
+
+```typescript
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 分钟
+  max: 5,                    // 每个 IP 最多 5 次尝试
+  message: { code: 429, message: '登录尝试过于频繁，请15分钟后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.post('/api/auth/login', loginLimiter, authController.login);
+```
+
+同时建议：
+- 添加账户锁定机制（连续失败 N 次后锁定账户）
+- 记录失败登录 IP 和时间
+- 可选：引入验证码（CAPTCHA）在人机识别后放行
+
+---
+
+### HIGH-1: 登录输入验证不充分 — 缺少类型和格式验证
+
+**OWASP 分类**: A03:2021 – Injection
+**位置**: 第 38-42 行
+
+**问题描述**: 仅检查 truthy，未验证类型和格式。传入数组或对象可能导致 `bcrypt.compare` 行为异常。
+
+```typescript
+const { username, password } = req.body;
+if (!username || !password) {  // ❌ 仅 truthy 检查
+  fail(res, 400, '用户名和密码不能为空');
+  return;
+}
+```
+
+**安全影响**: 非字符串类型输入可能导致意外错误，泄露系统内部信息。超长输入可能触发 bcrypt 的 DoS（bcrypt 对长输入有显著 CPU 开销）。
+
+**修复建议**:
+
+```typescript
+const { username, password } = req.body;
+if (typeof username !== 'string' || typeof password !== 'string') {
+  fail(res, 400, '用户名和密码格式不正确');
+  return;
+}
+if (username.length > 100 || password.length > 200) {
+  fail(res, 400, '输入长度超出限制');
+  return;
+}
+```
+
+---
+
+### HIGH-2: 错误信息泄露内部实现细节
+
+**OWASP 分类**: A05:2021 – Security Misconfiguration
+**位置**: 第 50、130、149、179、211、245 行
+
+**问题描述**: 所有 catch 块均使用 `err.message` 直接返回客户端。Prisma 数据库错误消息可能包含表名、字段名、SQL 查询片段。
+
+```typescript
+// 第 130 行
+fail(res, 500, err.message || '保存失败');  // ❌ err.message 可能是 Prisma 内部错误
+// 第 149 行
+fail(res, 500, err.message || '获取公司列表失败');  // ❌ 同上
+```
+
+**安全影响**: 内部错误消息帮助攻击者了解系统结构（数据库表名、ORM 查询模式），为后续攻击提供信息。
+
+**修复建议**: 对客户端返回通用错误消息，将详细错误记录到服务端日志：
+
+```typescript
+} catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('[saveSelection failed]', { error: message, userId });
+    fail(res, 500, '保存失败，请稍后重试');  // 客户端通用消息
+}
+```
+
+---
+
+### HIGH-3: saveSelection 的 company_id 和 project_id 缺少类型和数值验证
+
+**OWASP 分类**: A03:2021 – Injection
+**位置**: 第 122-126 行
+
+**问题描述**: `company_id` 仅做 truthy 检查，`project_id` 无任何验证。可传入负数、0、浮点数、极大数字或字符串。
+
+```typescript
+const { company_id, project_id } = req.body;
+if (!company_id) {  // ❌ -1 会通过检查
+  fail(res, 400, 'company_id 不能为空');
+  return;
+}
+```
+
+**安全影响**: 虽然 Prisma 参数化查询防止 SQL 注入，但非法输入可导致 Prisma 运行时错误，这些错误消息可能通过 HIGH-2 泄露到客户端。极大数字可导致数据库性能问题。
+
+**修复建议**:
+
+```typescript
+const companyId = parseInt(req.body.company_id, 10);
+const projectId = req.body.project_id != null ? parseInt(req.body.project_id, 10) : null;
+
+if (!companyId || companyId <= 0 || isNaN(companyId)) {
+  fail(res, 400, 'company_id 必须为正整数');
+  return;
+}
+if (projectId !== null && (projectId <= 0 || isNaN(projectId))) {
+  fail(res, 400, 'project_id 必须为正整数或 null');
+  return;
+}
+```
+
+---
+
+### HIGH-4: getAccessibleProjects 允许信息探测 — 遍历 company_id
+
+**OWASP 分类**: A01:2021 – Broken Access Control
+**位置**: 第 168-181 行
+
+**问题描述**: 任意已认证用户可查询任意 `company_id` 下的项目。admin/view 用户查询不属于自己的公司时返回空数组而非报错，允许通过枚举 company_id 探测系统中的公司数量和存在性。
+
+```typescript
+const companyId = parseInt(req.query.company_id as string, 10);
+// ❌ 无公司归属检查，sysadmin 可查任意公司，admin/view 查非本公司返回空
+const projects = await authService.getAccessibleProjects(user.userId, user.role, companyId);
+```
+
+**安全影响**: 信息泄露 — 攻击者通过枚举 company_id（1, 2, 3...）探测系统中的公司和项目数量，响应时间差异也可能泄露信息（时序攻击）。
+
+**修复建议**: 对非 sysadmin 角色添加公司归属检查：
+
+```typescript
+if (user.role !== 'sysadmin' && user.companyId !== companyId) {
+  fail(res, 403, '无权查询其他公司的项目');
+  return;
+}
+```
+
+---
+
+### HIGH-5: verify 端点冗余 Token 解析 — 增加攻击面
+
+**OWASP 分类**: A05:2021 – Security Misconfiguration
+**位置**: 第 82-94 行
+
+**问题描述**: `verify` 端点已受 `authMiddleware` 保护（已完成 JWT 验证），但函数内部又手动提取 token 并重新验证。`substring(7)` 硬编码假设 `Bearer ` 前缀，与中间件提取逻辑不同步。
+
+```typescript
+const token = req.headers.authorization?.substring(7);  // ❌ 硬编码，重复提取
+const result = await authService.verifyToken(token);     // ❌ 重复验证
+```
+
+**安全影响**: 冗余验证增加攻击面。若 `authorization` header 格式非标准（前有空格、大小写不同），`substring(7)` 可能提取出错误的 token 片段。
+
+**修复建议**: 信任 authMiddleware 的认证结果：
+
+```typescript
+export async function verify(req: Request, res: Response): Promise<void> {
+  // authMiddleware 已保证 req.user 存在且 token 有效
+  if (!req.user) {
+    fail(res, 401, '未登录');
+    return;
+  }
+  success(res, { valid: true }, 'token有效');
+}
+```
+
+---
+
+### MEDIUM-1: logout 无服务端 Token 失效机制
+
+**OWASP 分类**: A07:2021 – Identification and Authentication Failures
+**位置**: 第 66-68 行
+
+**问题描述**: logout 仅返回成功消息，JWT 在 2 小时有效期内仍可使用。Token 被盗用时无法通过登出撤销。
+
+```typescript
+export async function logout(_req: Request, res: Response): Promise<void> {
+  success(res, null, '登出成功');  // 空操作
+}
+```
+
+**修复建议**: 短期缩短 JWT 有效期至 30 分钟；长期引入 Redis Token 黑名单或 Refresh Token 机制。
+
+---
+
+### MEDIUM-2: 登录成功响应暴露数据库自增 ID
+
+**OWASP 分类**: A01:2021 – Broken Access Control
+**位置**: `auth.service.impl.ts` 第 81-92 行
+
+**问题描述**: 登录响应返回 `user.id`（数据库自增 ID），有助于攻击者进行 IDOR 枚举。
+
+**修复建议**: 考虑使用 UUID 替代自增 ID，或确保所有使用 `user.id` 的端点都做了权限检查。
+
+---
+
+### MEDIUM-3: `as any` 类型断言绕过 TypeScript 类型安全
+
+**位置**: 第 121、145、170 行
+
+**问题描述**: 多处使用 `(req as any).user`，而 `auth.middleware.ts` 已通过 `declare global` 扩展了 Express.Request 类型。`as any` 绕过编译时检查，可能导致拼写错误（如 `userId` 写成 `userid`）使安全检查失效。
+
+```typescript
+const userId = (req as any).user?.userId;  // ❌ 第 121 行
+const user = (req as any).user;             // ❌ 第 145、170 行
+```
+
+**修复建议**: 统一使用 `req.user`（第 203、235 行已正确使用 `req.user!`）。
+
+---
+
+### MEDIUM-4: parseInt 对负数验证不完整
+
+**位置**: 第 171-172 行
+
+**问题描述**: `!companyId` 不拦截负数（`!(-1)` 为 `false`），负数 company_id 会通过验证触发不必要的数据库查询。
+
+**修复建议**: 使用 `isNaN(companyId) || companyId <= 0` 替代 `!companyId`。
+
+---
+
+### MEDIUM-5: JWT 不响应运行时权限变更
+
+**位置**: `auth.service.impl.ts` JWT 签发处
+
+**问题描述**: JWT payload 包含 `role`、`companyId`，2 小时有效期内，管理员修改用户角色或禁用账户后，旧 token 仍有效。
+
+**修复建议**: (1) 缩短 JWT 至 15-30 分钟 + Refresh Token；(2) authMiddleware 中从数据库验证用户状态；(3) Token 版本号机制。
+
+---
+
+### LOW-1: catch 使用 `any` 类型
+
+**位置**: 第 45 行
+
+```typescript
+} catch (err: any) {  // ❌ 应使用 unknown
+```
+
+**修复建议**: 改用 `catch (err: unknown)`，通过 `instanceof` 安全窄化。
+
+---
+
+### LOW-2: 登录缺少账户状态检查
+
+**位置**: `auth.service.impl.ts` 登录查询
+
+**问题描述**: 被禁用的用户（`status: false`）或被软删除的用户（`deletedAt` 不为 null）仍可登录成功。
+
+**修复建议**:
+
+```typescript
+if (!user || !user.status || user.deletedAt) {
+  throw new Error('用户名或密码错误');
+}
+```
+
+---
+
+### LOW-3: 缺少登录失败安全审计日志
+
+**位置**: 第 45-51 行
+
+**问题描述**: 登录失败时没有记录安全审计日志，无法追踪暴力破解攻击或异常登录行为。
+
+**修复建议**: 添加安全日志（不记录密码）：
+
+```typescript
+logger.warn(`[Auth] Login failed`, { username, ip: req.ip, userAgent: req.get('User-Agent') });
+```
+
+---
+
+### LOW-4: CORS 配置 `!origin` 允许非浏览器请求
+
+**位置**: `app.ts` CORS 配置
+
+**问题描述**: `!origin` 时直接放行，允许 Postman/curl 等非浏览器客户端绕过 CORS 检查。这是 CORS 的设计行为，影响有限，但生产环境应考虑更严格配置。
+
+---
+
+## 三、正面发现（做得好的方面）
+
+1. **密码存储安全**: 使用 bcrypt 哈希，符合行业标准
+2. **登录错误统一**: 不区分"用户不存在"和"密码错误"，防止用户名枚举
+3. **安全中间件链**: `helmet → cors → anti-crawl → rate-limit → auth`，层次清晰
+4. **Prisma 防注入**: 参数化查询有效防止 SQL 注入
+5. **JWT Secret 生产校验**: `NODE_ENV=production` 时强制要求设置 JWT_SECRET
+6. **公司访问控制**: `getCompanyDetail` 正确检查 admin/view 只能查自己公司
+7. **Anti-crawl 机制**: 基于 IP 的反爬虫中间件含封禁和内存保护
+8. **config deepFreeze**: 防止运行时修改配置
+
+---
+
+## 四、修复优先级
+
+| 优先级 | 编号 | 问题 | 工作量 |
+|--------|------|------|--------|
+| **P0** | C-1 | saveSelection 越权修改（IDOR） | 中 |
+| **P0** | C-2 | 登录暴力破解防护不足 | 小 |
+| **P1** | L-2 | 被禁用用户可登录 | 小 |
+| **P1** | H-1 | 登录输入验证不足 | 小 |
+| **P1** | H-2 | 错误信息泄露内部细节 | 中 |
+| **P1** | H-3 | saveSelection 参数验证 | 小 |
+| **P2** | H-4 | 项目查询信息探测 | 小 |
+| **P2** | H-5 | verify 冗余 Token 解析 | 小 |
+| **P2** | M-1 | logout 无 Token 失效 | 大 |
+| **P2** | M-5 | JWT 不响应权限变更 | 大 |
+| **P3** | M-2 | 自增 ID 暴露 | 中 |
+| **P3** | M-3 | as any 类型绕过 | 小 |
+| **P3** | M-4 | parseInt 负数验证 | 小 |
+| **P3** | L-1 | any 类型捕获 | 小 |
+| **P3** | L-3 | 缺少安全审计日志 | 中 |
+| **P3** | L-4 | CORS !origin 放行 | 小 |
+
+---
+
+## 五、架构安全改进建议
+
+### 1. 引入输入验证层（Zod）
+
+```typescript
+// apis/middleware/validate.middleware.ts
+import { z } from 'zod';
+
+export function validate(schema: z.ZodSchema) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const result = schema.safeParse({ body: req.body, query: req.query, params: req.params });
+    if (!result.success) {
+      fail(res, 400, result.error.issues.map(i => i.message).join('; '));
+      return;
+    }
+    next();
+  };
+}
+
+// 路由注册
+app.post('/api/auth/login', loginLimiter, validate(loginSchema), authController.login);
+```
+
+### 2. 统一错误处理策略
+
+```typescript
+// apis/middleware/error-handler.middleware.ts
+export function errorHandler(err: Error, req: Request, res: Response, _next: NextFunction): void {
+  logger.error('Unhandled error', { error: err, path: req.path });
+  if (err instanceof AppError) {
+    fail(res, err.statusCode, err.message);
+    return;
+  }
+  fail(res, 500, '服务器内部错误');  // 永远不泄露内部错误
+}
+```
+
+### 3. Token 黑名单机制
+
+```typescript
+// 登出时将 token 加入 Redis 黑名单
+app.post('/api/auth/logout', authMiddleware, async (req, res) => {
+  const token = req.headers.authorization?.substring(7);
+  const decoded = jwt.decode(token!) as any;
+  await redis.setex(`token:blacklist:${token}`, decoded.exp - Date.now() / 1000, '1');
+  success(res, null, '登出成功');
+});
+```
+
+### 4. 安全审计日志
+
+为所有认证操作添加结构化安全日志：时间戳、IP、用户名（脱敏）、User-Agent、操作结果。
+
+---
+
+## 六、评审结论
+
+**判定: ⚠️ 不通过 — 存在 2 个 CRITICAL 安全漏洞，必须在上线前修复**
+
+核心安全问题：
+
+1. **IDOR 越权（C-1）**: saveSelection 允许用户设置任意 company_id，是严重的权限提升风险
+2. **暴力破解（C-2）**: 登录端点限流宽松（100次/分），弱密码可在短时间内被猜中
+
+建议立即修复 P0 级别问题，并在下个迭代中处理 P1 级别问题。P2/P3 级别问题应纳入技术债务治理计划。
+
+---
+
+*代码安全专家评审完成 — 2026-05-23*
