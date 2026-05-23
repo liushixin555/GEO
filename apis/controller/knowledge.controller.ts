@@ -3,7 +3,7 @@ import { KeywordServiceImpl, PortraitServiceImpl, ImageServiceImpl, DocumentServ
 import { KnowledgeBaseServiceImpl } from '../service/impl/knowledge-base.service.impl';
 import { ProjectServiceImpl } from '../service/impl/project.service.impl';
 import { LlmServiceImpl } from '../service/impl/llm.service.impl';
-import { success, fail, paginate } from '../utils';
+import { success, fail, paginate, created } from '../utils';
 import { getPrisma } from '../utils';
 
 const keywordService = new KeywordServiceImpl();
@@ -24,16 +24,29 @@ async function checkProjectOperator(projectId: number, userId: number, role: str
 }
 
 async function checkBaseAccess(baseId: number, userId: number, role: string): Promise<void> {
-  const base = await knowledgeBaseService.getById(baseId);
   if (role === 'sysadmin') return;
 
-  // Check if user can access this base
-  if (base.scope === 'platform') return; // platform bases are visible to all
+  const base = await knowledgeBaseService.getById(baseId);
 
-  // For company scope: check if user belongs to the company
-  // For project scope: check if user is an operator
-  // This is already filtered in the list endpoint, but for direct access we check here
-  // For now, allow access - the list endpoint handles visibility
+  if (base.scope === 'platform') return;
+
+  if (base.scope === 'company') {
+    const prisma = getPrisma();
+    const user = await prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      select: { companyId: true },
+    });
+    if (!user || user.companyId !== base.company_id) {
+      throw new Error('知识库不存在');
+    }
+    return;
+  }
+
+  if (base.scope === 'project') {
+    if (!base.project_id) throw new Error('知识库不存在');
+    await checkProjectOperator(base.project_id, userId, role);
+    return;
+  }
 }
 
 // ==================== Keywords ====================
@@ -44,7 +57,7 @@ export async function listKeywords(req: Request, res: Response): Promise<void> {
     if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const pageSize = Math.min(parseInt(req.query.pageSize as string) || 10, 100);
     const search = req.query.search as string | undefined;
 
     const { userId, role } = req.user!;
@@ -52,8 +65,12 @@ export async function listKeywords(req: Request, res: Response): Promise<void> {
 
     const { list, total } = await keywordService.list(baseId, page, pageSize, search);
     paginate(res, list, total, page, pageSize);
-  } catch (err: any) {
-    fail(res, 500, err.message || '获取关键词列表失败');
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '知识库不存在') {
+      fail(res, 404, err.message);
+    } else {
+      fail(res, 500, '获取关键词列表失败');
+    }
   }
 }
 
@@ -65,13 +82,15 @@ export async function getKeyword(req: Request, res: Response): Promise<void> {
     if (isNaN(id)) { fail(res, 400, '无效的关键词ID'); return; }
 
     const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
+
     const item = await keywordService.getById(id);
 
     if (item.base_id !== baseId) { fail(res, 404, '关键词不存在'); return; }
 
     success(res, item);
-  } catch (err: any) {
-    if (err.message === '关键词不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '获取关键词详情失败'); }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '关键词不存在') { fail(res, 404, err.message); } else if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '获取关键词详情失败'); }
   }
 }
 
@@ -87,9 +106,9 @@ export async function createKeyword(req: Request, res: Response): Promise<void> 
     await checkBaseAccess(baseId, userId, role);
 
     const item = await keywordService.create(baseId, req.body, userId);
-    res.status(201).json({ code: 0, message: '创建关键词成功', data: item });
-  } catch (err: any) {
-    if (err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '创建关键词失败'); }
+    created(res, item, '创建关键词成功');
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '创建关键词失败'); }
   }
 }
 
@@ -115,8 +134,8 @@ export async function updateKeyword(req: Request, res: Response): Promise<void> 
 
     const item = await keywordService.update(id, req.body);
     success(res, item, '更新关键词成功');
-  } catch (err: any) {
-    if (err.message === '关键词不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '更新关键词失败'); }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '关键词不存在') { fail(res, 404, err.message); } else { fail(res, 500, '更新关键词失败'); }
   }
 }
 
@@ -139,8 +158,8 @@ export async function deleteKeyword(req: Request, res: Response): Promise<void> 
 
     await keywordService.delete(id);
     success(res, null, '删除关键词成功');
-  } catch (err: any) {
-    if (err.message === '关键词不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '删除关键词失败'); }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '关键词不存在') { fail(res, 404, err.message); } else { fail(res, 500, '删除关键词失败'); }
   }
 }
 
@@ -160,8 +179,8 @@ export async function batchCreateKeywords(req: Request, res: Response): Promise<
 
     const result = await keywordService.batchCreate(baseId, keywords, userId, seed_word);
     success(res, result, `成功创建 ${result.created} 个关键词${result.duplicates > 0 ? `，${result.duplicates} 个已存在被跳过` : ''}`);
-  } catch (err: any) {
-    fail(res, 500, err.message || '批量创建关键词失败');
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '批量创建关键词失败'); }
   }
 }
 
@@ -175,8 +194,8 @@ export async function expandKeywords(req: Request, res: Response): Promise<void>
 
     const keywords = await llmService.expandKeywords(keyword);
     success(res, keywords);
-  } catch (err: any) {
-    fail(res, 500, err.message || '智能扩词失败');
+  } catch (err: unknown) {
+    fail(res, 500, '智能扩词失败');
   }
 }
 
@@ -188,7 +207,7 @@ export async function listPortraits(req: Request, res: Response): Promise<void> 
     if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const pageSize = Math.min(parseInt(req.query.pageSize as string) || 10, 100);
     const search = req.query.search as string | undefined;
 
     const { userId, role } = req.user!;
@@ -196,8 +215,8 @@ export async function listPortraits(req: Request, res: Response): Promise<void> 
 
     const { list, total } = await portraitService.list(baseId, page, pageSize, search);
     paginate(res, list, total, page, pageSize);
-  } catch (err: any) {
-    fail(res, 500, err.message || '获取画像列表失败');
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '获取画像列表失败'); }
   }
 }
 
@@ -209,13 +228,15 @@ export async function getPortrait(req: Request, res: Response): Promise<void> {
     if (isNaN(id)) { fail(res, 400, '无效的画像ID'); return; }
 
     const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
+
     const item = await portraitService.getById(id);
 
     if (item.base_id !== baseId) { fail(res, 404, '画像不存在'); return; }
 
     success(res, item);
-  } catch (err: any) {
-    if (err.message === '画像不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '获取画像详情失败'); }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '画像不存在') { fail(res, 404, err.message); } else if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '获取画像详情失败'); }
   }
 }
 
@@ -232,9 +253,9 @@ export async function createPortrait(req: Request, res: Response): Promise<void>
     await checkBaseAccess(baseId, userId, role);
 
     const item = await portraitService.create(baseId, req.body, userId);
-    res.status(201).json({ code: 0, message: '创建画像成功', data: item });
-  } catch (err: any) {
-    if (err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '创建画像失败'); }
+    created(res, item, '创建画像成功');
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '创建画像失败'); }
   }
 }
 
@@ -257,8 +278,8 @@ export async function updatePortrait(req: Request, res: Response): Promise<void>
 
     const item = await portraitService.update(id, req.body);
     success(res, item, '更新画像成功');
-  } catch (err: any) {
-    if (err.message === '画像不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '更新画像失败'); }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '画像不存在') { fail(res, 404, err.message); } else { fail(res, 500, '更新画像失败'); }
   }
 }
 
@@ -281,8 +302,8 @@ export async function deletePortrait(req: Request, res: Response): Promise<void>
 
     await portraitService.delete(id);
     success(res, null, '删除画像成功');
-  } catch (err: any) {
-    if (err.message === '画像不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '删除画像失败'); }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '画像不存在') { fail(res, 404, err.message); } else { fail(res, 500, '删除画像失败'); }
   }
 }
 
@@ -294,7 +315,7 @@ export async function listImages(req: Request, res: Response): Promise<void> {
     if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const pageSize = Math.min(parseInt(req.query.pageSize as string) || 10, 100);
     const search = req.query.search as string | undefined;
 
     const { userId, role } = req.user!;
@@ -302,8 +323,8 @@ export async function listImages(req: Request, res: Response): Promise<void> {
 
     const { list, total } = await imageService.list(baseId, page, pageSize, search);
     paginate(res, list, total, page, pageSize);
-  } catch (err: any) {
-    fail(res, 500, err.message || '获取图片列表失败');
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '获取图片列表失败'); }
   }
 }
 
@@ -315,13 +336,15 @@ export async function getImage(req: Request, res: Response): Promise<void> {
     if (isNaN(id)) { fail(res, 400, '无效的图片ID'); return; }
 
     const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
+
     const item = await imageService.getById(id);
 
     if (item.base_id !== baseId) { fail(res, 404, '图片不存在'); return; }
 
     success(res, item);
-  } catch (err: any) {
-    if (err.message === '图片不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '获取图片详情失败'); }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '图片不存在') { fail(res, 404, err.message); } else if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '获取图片详情失败'); }
   }
 }
 
@@ -346,9 +369,9 @@ export async function createImage(req: Request, res: Response): Promise<void> {
     if (dupUrl) { fail(res, 400, '该知识库已存在相同的图片'); return; }
 
     const item = await imageService.create(baseId, req.body, userId);
-    res.status(201).json({ code: 0, message: '创建图片成功', data: item });
-  } catch (err: any) {
-    if (err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '创建图片失败'); }
+    created(res, item, '创建图片成功');
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '创建图片失败'); }
   }
 }
 
@@ -379,8 +402,8 @@ export async function updateImage(req: Request, res: Response): Promise<void> {
 
     const item = await imageService.update(id, req.body);
     success(res, item, '更新图片成功');
-  } catch (err: any) {
-    if (err.message === '图片不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '更新图片失败'); }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '图片不存在') { fail(res, 404, err.message); } else { fail(res, 500, '更新图片失败'); }
   }
 }
 
@@ -403,8 +426,8 @@ export async function deleteImage(req: Request, res: Response): Promise<void> {
 
     await imageService.delete(id);
     success(res, null, '删除图片成功');
-  } catch (err: any) {
-    if (err.message === '图片不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '删除图片失败'); }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '图片不存在') { fail(res, 404, err.message); } else { fail(res, 500, '删除图片失败'); }
   }
 }
 
@@ -416,7 +439,7 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
     if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const pageSize = Math.min(parseInt(req.query.pageSize as string) || 10, 100);
     const search = req.query.search as string | undefined;
 
     const { userId, role } = req.user!;
@@ -424,8 +447,8 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
 
     const { list, total } = await documentService.list(baseId, page, pageSize, search);
     paginate(res, list, total, page, pageSize);
-  } catch (err: any) {
-    fail(res, 500, err.message || '获取文档列表失败');
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '获取文档列表失败'); }
   }
 }
 
@@ -436,13 +459,16 @@ export async function getDocument(req: Request, res: Response): Promise<void> {
     if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
     if (isNaN(id)) { fail(res, 400, '无效的文档ID'); return; }
 
+    const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
+
     const item = await documentService.getById(id);
 
     if (item.base_id !== baseId) { fail(res, 404, '文档不存在'); return; }
 
     success(res, item);
-  } catch (err: any) {
-    if (err.message === '文档不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '获取文档详情失败'); }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '文档不存在') { fail(res, 404, err.message); } else if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '获取文档详情失败'); }
   }
 }
 
@@ -470,9 +496,9 @@ export async function createDocument(req: Request, res: Response): Promise<void>
     if (dupUrl) { fail(res, 400, '该知识库已存在相同的文档'); return; }
 
     const item = await documentService.create(baseId, req.body, userId);
-    res.status(201).json({ code: 0, message: '创建文档成功', data: item });
-  } catch (err: any) {
-    if (err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '创建文档失败'); }
+    created(res, item, '创建文档成功');
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '创建文档失败'); }
   }
 }
 
@@ -503,8 +529,8 @@ export async function updateDocument(req: Request, res: Response): Promise<void>
 
     const item = await documentService.update(id, req.body);
     success(res, item, '更新文档成功');
-  } catch (err: any) {
-    if (err.message === '文档不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '更新文档失败'); }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '文档不存在') { fail(res, 404, err.message); } else { fail(res, 500, '更新文档失败'); }
   }
 }
 
@@ -527,8 +553,8 @@ export async function deleteDocument(req: Request, res: Response): Promise<void>
 
     await documentService.delete(id);
     success(res, null, '删除文档成功');
-  } catch (err: any) {
-    if (err.message === '文档不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '删除文档失败'); }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '文档不存在') { fail(res, 404, err.message); } else { fail(res, 500, '删除文档失败'); }
   }
 }
 
@@ -540,7 +566,7 @@ export async function listProjectKeywords(req: Request, res: Response): Promise<
     if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const pageSize = Math.min(parseInt(req.query.pageSize as string) || 10, 100);
     const search = req.query.search as string | undefined;
 
     const { userId, role } = req.user!;
@@ -548,8 +574,8 @@ export async function listProjectKeywords(req: Request, res: Response): Promise<
 
     const { list, total } = await keywordService.listByProject(projectId, page, pageSize, search);
     paginate(res, list, total, page, pageSize);
-  } catch (err: any) {
-    if (err.message === '无权操作该项目') { fail(res, 403, err.message); } else { fail(res, 500, err.message || '获取关键词列表失败'); }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '无权操作该项目') { fail(res, 403, err.message); } else { fail(res, 500, '获取关键词列表失败'); }
   }
 }
 
@@ -559,7 +585,7 @@ export async function listProjectPortraits(req: Request, res: Response): Promise
     if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const pageSize = Math.min(parseInt(req.query.pageSize as string) || 10, 100);
     const search = req.query.search as string | undefined;
 
     const { userId, role } = req.user!;
@@ -567,8 +593,8 @@ export async function listProjectPortraits(req: Request, res: Response): Promise
 
     const { list, total } = await portraitService.listByProject(projectId, page, pageSize, search);
     paginate(res, list, total, page, pageSize);
-  } catch (err: any) {
-    if (err.message === '无权操作该项目') { fail(res, 403, err.message); } else { fail(res, 500, err.message || '获取画像列表失败'); }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '无权操作该项目') { fail(res, 403, err.message); } else { fail(res, 500, '获取画像列表失败'); }
   }
 }
 
@@ -578,7 +604,7 @@ export async function listProjectImages(req: Request, res: Response): Promise<vo
     if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const pageSize = Math.min(parseInt(req.query.pageSize as string) || 10, 100);
     const search = req.query.search as string | undefined;
 
     const { userId, role } = req.user!;
@@ -586,8 +612,8 @@ export async function listProjectImages(req: Request, res: Response): Promise<vo
 
     const { list, total } = await imageService.listByProject(projectId, page, pageSize, search);
     paginate(res, list, total, page, pageSize);
-  } catch (err: any) {
-    if (err.message === '无权操作该项目') { fail(res, 403, err.message); } else { fail(res, 500, err.message || '获取图片列表失败'); }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '无权操作该项目') { fail(res, 403, err.message); } else { fail(res, 500, '获取图片列表失败'); }
   }
 }
 
@@ -597,7 +623,7 @@ export async function listProjectDocuments(req: Request, res: Response): Promise
     if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const pageSize = Math.min(parseInt(req.query.pageSize as string) || 10, 100);
     const search = req.query.search as string | undefined;
 
     const { userId, role } = req.user!;
@@ -605,8 +631,8 @@ export async function listProjectDocuments(req: Request, res: Response): Promise
 
     const { list, total } = await documentService.listByProject(projectId, page, pageSize, search);
     paginate(res, list, total, page, pageSize);
-  } catch (err: any) {
-    if (err.message === '无权操作该项目') { fail(res, 403, err.message); } else { fail(res, 500, err.message || '获取文档列表失败'); }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '无权操作该项目') { fail(res, 403, err.message); } else { fail(res, 500, '获取文档列表失败'); }
   }
 }
 
@@ -615,7 +641,7 @@ export async function listProjectDocuments(req: Request, res: Response): Promise
 export async function listInventory(req: Request, res: Response): Promise<void> {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const pageSize = Math.min(parseInt(req.query.pageSize as string) || 10, 100);
     const category = req.query.category as string | undefined;
     const search = req.query.search as string | undefined;
 
@@ -802,8 +828,8 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
         total,
       },
     });
-  } catch (err: any) {
-    fail(res, 500, err.message || '获取知识清单失败');
+  } catch (err: unknown) {
+    fail(res, 500, '获取知识清单失败');
   }
 }
 
@@ -813,10 +839,12 @@ export async function listMinedKeywords(req: Request, res: Response): Promise<vo
   try {
     const baseId = parseInt(req.params.baseId as string, 10);
     if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
     const items = await minedKeywordService.listByBase(baseId);
     success(res, items);
-  } catch (err: any) {
-    fail(res, 500, err.message || '获取挖掘关键词失败');
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '获取挖掘关键词失败'); }
   }
 }
 
@@ -824,7 +852,8 @@ export async function mineKeywords(req: Request, res: Response): Promise<void> {
   try {
     const baseId = parseInt(req.params.baseId as string, 10);
     if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
-    const { userId } = req.user!;
+    const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
     const sourceType = req.body.source_type || 'all';
 
     const prisma = getPrisma();
@@ -851,8 +880,8 @@ export async function mineKeywords(req: Request, res: Response): Promise<void> {
     const allMined = await minedKeywordService.listByBase(baseId);
 
     success(res, { mined: result.added, duplicates: result.duplicates, total: allMined.length, list: allMined });
-  } catch (err: any) {
-    fail(res, 500, err.message || '关键词挖掘失败');
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '关键词挖掘失败'); }
   }
 }
 
@@ -860,7 +889,8 @@ export async function saveMinedKeywords(req: Request, res: Response): Promise<vo
   try {
     const baseId = parseInt(req.params.baseId as string, 10);
     if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
-    const { userId } = req.user!;
+    const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
     const { keywords } = req.body;
     if (!Array.isArray(keywords) || keywords.length === 0) { fail(res, 400, '请选择至少一个关键词'); return; }
 
@@ -874,8 +904,8 @@ export async function saveMinedKeywords(req: Request, res: Response): Promise<vo
     });
 
     success(res, result, `成功保存 ${result.created} 个关键词${result.duplicates > 0 ? `，${result.duplicates} 个已存在被跳过` : ''}`);
-  } catch (err: any) {
-    fail(res, 500, err.message || '保存关键词失败');
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '保存关键词失败'); }
   }
 }
 
@@ -883,13 +913,15 @@ export async function toggleMinedKeywordsBatch(req: Request, res: Response): Pro
   try {
     const baseId = parseInt(req.params.baseId as string, 10);
     if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
     const { ids, selected } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) { fail(res, 400, '请选择关键词'); return; }
     await minedKeywordService.toggleSelectBatch(baseId, ids, selected);
     const items = await minedKeywordService.listByBase(baseId);
     success(res, items);
-  } catch (err: any) {
-    fail(res, 500, err.message || '操作失败');
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '操作失败'); }
   }
 }
 
@@ -897,9 +929,11 @@ export async function deleteMinedKeywords(req: Request, res: Response): Promise<
   try {
     const baseId = parseInt(req.params.baseId as string, 10);
     if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
     await minedKeywordService.clearAll(baseId);
     success(res, null, '已清空挖掘关键词');
-  } catch (err: any) {
-    fail(res, 500, err.message || '清空失败');
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '清空失败'); }
   }
 }
