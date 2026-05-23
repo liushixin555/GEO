@@ -82,7 +82,7 @@ const UserPage: React.FC = () => {
     <div className="page-container">
       <div className="page-breadcrumb"><Breadcrumb items={[{ title: '用户管理' }]} /></div>
       <Row gutter={[16, 12]} className="toolbar">
-        <Col xs={24} sm={12} md={8}>
+        <Col xs={24} sm={12}>
           <Input.Search
             placeholder="搜索用户名/姓名..."
             value={search}
@@ -90,7 +90,7 @@ const UserPage: React.FC = () => {
             allowClear
           />
         </Col>
-        <Col xs={24} sm={6} md={4}>
+        <Col xs={24} sm={4}>
           <Select
             value={filterRole || undefined}
             onChange={(val) => { setFilterRole(val || ''); setPage(1); }}
@@ -104,7 +104,7 @@ const UserPage: React.FC = () => {
             ]}
           />
         </Col>
-        <Col xs={24} sm={6} md={4}>
+        <Col xs={24} sm={4}>
           <Select
             value={filterStatus || undefined}
             onChange={(val) => { setFilterStatus(val || ''); setPage(1); }}
@@ -117,7 +117,7 @@ const UserPage: React.FC = () => {
             ]}
           />
         </Col>
-        <Col xs={24} sm={6} md={4} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <Col xs={24} sm={4} style={{ display: 'flex', justifyContent: 'flex-end' }}>
           {user.role === 'sysadmin' && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditItem(null); setShowForm(true); }}>添加用户</Button>
           )}
