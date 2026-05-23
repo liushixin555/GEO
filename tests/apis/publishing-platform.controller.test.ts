@@ -218,6 +218,62 @@ describe('PublishingPlatform Controller', () => {
       expect(response.status).toBe(500);
       expect(response.body.message).toBe('配置读取失败');
     });
+
+    it('should return 500 with default message when non-Error is thrown', async () => {
+      mockGetAllConfigs.mockResolvedValue(mockConfigRows());
+      mockSyncFromRm.mockRejectedValue('string error');
+
+      const response = await agent
+        .post('/api/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('同步发布平台失败');
+    });
+
+    it('should sync successfully with count 0', async () => {
+      mockGetAllConfigs.mockResolvedValue(mockConfigRows());
+      mockSyncFromRm.mockResolvedValue(0);
+
+      const response = await agent
+        .post('/api/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.count).toBe(0);
+      expect(response.body.message).toContain('同步成功');
+      expect(response.body.message).toContain('0');
+    });
+
+    it('should ignore extra config keys and still find credentials', async () => {
+      mockGetAllConfigs.mockResolvedValue([
+        { config_key: 'other_config', config_value: 'irrelevant' },
+        { config_key: 'ruanmeng_username', config_value: 'rmuser' },
+        { config_key: 'ruanmeng_password', config_value: 'rmpass' },
+        { config_key: 'third_config', config_value: 'noise' },
+      ]);
+      mockSyncFromRm.mockResolvedValue(10);
+
+      const response = await agent
+        .post('/api/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.count).toBe(10);
+      expect(mockSyncFromRm).toHaveBeenCalledWith('rmuser', 'rmpass');
+    });
+
+    it('should pass whitespace username to sync service as-is', async () => {
+      mockGetAllConfigs.mockResolvedValue(mockConfigRows('   ', 'rmpass'));
+      mockSyncFromRm.mockResolvedValue(5);
+
+      const response = await agent
+        .post('/api/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockSyncFromRm).toHaveBeenCalledWith('   ', 'rmpass');
+    });
   });
 
   // ========== GET /api/publishing-platforms (listPublishingPlatforms) ==========
@@ -385,6 +441,96 @@ describe('PublishingPlatform Controller', () => {
 
       expect(response.status).toBe(500);
       expect(response.body.message).toBe('获取发布平台失败');
+    });
+
+    it('should trigger paginated path when only pageSize is provided', async () => {
+      mockList.mockResolvedValue({ list: [mappedPlatform], total: 1 });
+
+      const response = await agent
+        .get('/api/publishing-platforms?pageSize=5')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 5, undefined, undefined, undefined, undefined);
+      expect(mockListAll).not.toHaveBeenCalled();
+    });
+
+    it('should trigger paginated path when only page is provided', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/publishing-platforms?page=2')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(2, 10, undefined, undefined, undefined, undefined);
+      expect(mockListAll).not.toHaveBeenCalled();
+    });
+
+    it('should return empty array when listAll returns no items', async () => {
+      mockListAll.mockResolvedValue([]);
+
+      const response = await agent
+        .get('/api/publishing-platforms')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual([]);
+    });
+
+    it('should return empty paginated result', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/publishing-platforms?page=3&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.list).toEqual([]);
+      expect(response.body.data.total).toBe(0);
+    });
+
+    it('should return 500 when non-Error is thrown from listAll', async () => {
+      mockListAll.mockRejectedValue('unexpected string');
+
+      const response = await agent
+        .get('/api/publishing-platforms')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取发布平台失败');
+    });
+
+    it('should return multiple platforms from listAll', async () => {
+      const secondPlatform = {
+        ...mappedPlatform,
+        id: 2,
+        name: '网易',
+        taxonomy: '门户网站',
+        rm_resource_id: 101,
+      };
+      mockListAll.mockResolvedValue([mappedPlatform, secondPlatform]);
+
+      const response = await agent
+        .get('/api/publishing-platforms')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(2);
+      expect(response.body.data[0].name).toBe('新浪');
+      expect(response.body.data[1].name).toBe('网易');
+    });
+
+    it('should default to page=1 and pageSize=10 when non-numeric values provided', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/publishing-platforms?page=abc&pageSize=xyz')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      // parseInt('abc') returns NaN, NaN || 1 => 1; parseInt('xyz') returns NaN, NaN || 10 => 10
+      expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, undefined, undefined);
     });
   });
 });
