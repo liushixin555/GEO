@@ -12,3 +12,5 @@ export { ISystemConfigService } from './system-config.service';
 export { SystemConfigServiceImpl } from './impl/system-config.service.impl';
 export { IPublishingPlatformService } from './publishing-platform.service';
 export { PublishingPlatformServiceImpl } from './impl/publishing-platform.service.impl';
+export { ITodoService } from './todo.service';
+export { TodoServiceImpl } from './impl/todo.service.impl';

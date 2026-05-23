@@ -21,6 +21,7 @@ model Company {
   projects      Project[]
   knowledgeBases KnowledgeBase[]
   selectedByUsers User[] @relation("UserSelectedCompany")
+  todos           Todo[]
 
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@map("companies")
@@ -51,6 +52,9 @@ model User {
   createdImages        KnowledgeImage[]      @relation("KnowledgeImageCreator")
   createdDocuments     KnowledgeDocument[]   @relation("KnowledgeDocumentCreator")
   createdKnowledgeBases KnowledgeBase[]      @relation("KnowledgeBaseCreator")
+  assignedTodos        Todo[]                @relation("TodoAssignee")
+  createdTodos         Todo[]                @relation("TodoCreator")
+  todoLogOperations    TodoLog[]             @relation("TodoLogOperator")
 
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([username])
@@ -157,6 +161,7 @@ model Project {
   articles    Article[]
   selectedByUsers User[] @relation("UserSelectedProject")
   knowledgeBases KnowledgeBase[]
+  todos          Todo[]
 
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([companyId])
@@ -359,4 +364,82 @@ model KnowledgeDocument {
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([baseId])
   @@map("knowledge_documents")
+}
+
+enum TodoSource {
+  manual
+  content_iteration
+  smart_link
+  daily_check
+  risk_warning
+}
+
+enum TodoPriority {
+  P0
+  P1
+  P2
+  P3
+  P4
+}
+
+enum TodoStatus {
+  open
+  closed
+  draft
+}
+
+enum TodoLogAction {
+  submit
+  close
+  reopen
+  transfer
+  reject
+}
+
+model Todo {
+  id          Int          @id @default(autoincrement())
+  title       String       @db.VarChar(500)
+  companyId   Int          @map("company_id")
+  projectId   Int?         @map("project_id")
+  objectType  String       @map("object_type") @db.VarChar(100)
+  objectId    Int?         @map("object_id")
+  action      String       @db.VarChar(500)
+  source      TodoSource   @default(manual)
+  priority    TodoPriority @default(P2)
+  assigneeId  Int          @map("assignee_id")
+  status      TodoStatus   @default(open)
+  createdById Int          @map("created_by_id")
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt   DateTime?    @map("deleted_at") @db.Timestamptz()
+
+  company     Company      @relation(fields: [companyId], references: [id])
+  project     Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  assignee    User         @relation("TodoAssignee", fields: [assigneeId], references: [id])
+  createdBy   User         @relation("TodoCreator", fields: [createdById], references: [id])
+  logs        TodoLog[]
+
+  @@index([companyId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([priority])
+  @@index([source])
+  @@map("todos")
+}
+
+model TodoLog {
+  id          Int            @id @default(autoincrement())
+  todoId      Int            @map("todo_id")
+  operatorId  Int            @map("operator_id")
+  action      TodoLogAction
+  objectType  String?        @map("object_type") @db.VarChar(100)
+  objectId    Int?           @map("object_id")
+  remark      String?        @db.VarChar(500)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz()
+
+  todo        Todo           @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  operator    User           @relation("TodoLogOperator", fields: [operatorId], references: [id])
+
+  @@index([todoId])
+  @@map("todo_logs")
 }
