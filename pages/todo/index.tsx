@@ -397,7 +397,7 @@ const TodoPage: React.FC = () => {
             options={Object.entries(PRIORITY_CONFIG).map(([value, { label }]) => ({ value, label }))}
           />
         </Col>
-        <Col xs={24} sm={4} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <Col flex="auto" style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>手工输入</Button>
         </Col>
       </Row>
