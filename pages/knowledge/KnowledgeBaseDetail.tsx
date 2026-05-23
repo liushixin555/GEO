@@ -201,7 +201,7 @@ const KnowledgeBaseDetail: React.FC = () => {
                 onClick={() => navigate(`/knowledge/${baseId}/keyword/${item.id}`)}
               >
                 <div className="item-card-header">
-                  <Typography.Title level={3} className="item-card-title" ellipsis={{ tooltip: item.keyword }}>{item.keyword}</Typography.Title>
+                  <Typography.Title level={3} className="item-card-title" style={{ fontSize: 12 }} ellipsis={{ tooltip: item.keyword }}>{item.keyword}</Typography.Title>
                   {canModify(item.created_by) && (
                     <div className="item-card-actions">
                       <Popconfirm title="确定删除此关键词？" onConfirm={(e) => { e?.stopPropagation(); handleDeleteKeyword(item); }} okText="删除" cancelText="取消">
@@ -245,7 +245,7 @@ const KnowledgeBaseDetail: React.FC = () => {
                 onClick={() => navigate(`/knowledge/${baseId}/portrait/${item.id}`)}
               >
                 <div className="item-card-header">
-                  <Typography.Title level={3} className="item-card-title" ellipsis={{ tooltip: item.title }}>{item.title}</Typography.Title>
+                  <Typography.Title level={3} className="item-card-title" style={{ fontSize: 12 }} ellipsis={{ tooltip: item.title }}>{item.title}</Typography.Title>
                   {canModify(item.created_by) && (
                     <div className="item-card-actions">
                       <EyeOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/portrait/${item.id}`); }} />
