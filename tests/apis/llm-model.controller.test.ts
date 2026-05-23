@@ -8,7 +8,7 @@ process.env.JWT_SECRET = 'test-secret';
 process.env.JWT_EXPIRES_IN = '2h';
 process.env.SWAGGER_ENABLED = 'false';
 process.env.RATE_LIMIT_WINDOW_MS = '60000';
-process.env.RATE_LIMIT_MAX = '100';
+process.env.RATE_LIMIT_MAX = '200';
 
 jest.mock('../../apis/utils/db.util', () => ({
   getPrisma: jest.fn(),
@@ -415,59 +415,40 @@ describe('LLM Model Controller', () => {
       expect(response.body.message).toBe('获取LLM模型详情失败');
     });
 
-    it('should handle id = 0 (valid parseInt result)', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindFirst = jest.fn().mockResolvedValue(null);
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
-
+    it('should return 400 for id = 0', async () => {
       const response = await agent
         .get('/api/llm-models/0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(404);
-      expect(response.body.message).toBe('LLM模型不存在');
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的模型ID');
     });
 
-    it('should handle negative id', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindFirst = jest.fn().mockResolvedValue(null);
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
-
+    it('should return 400 for negative id', async () => {
       const response = await agent
         .get('/api/llm-models/-1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的模型ID');
     });
 
-    it('should truncate float id to integer', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindFirst = jest.fn().mockResolvedValue({
-        id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date(),
-      });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
-
+    it('should return 400 for float id', async () => {
       const response = await agent
         .get('/api/llm-models/1.9')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的模型ID');
     });
 
-    it('should handle id with leading zeros', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindFirst = jest.fn().mockResolvedValue({
-        id: 7, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date(),
-      });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
-
+    it('should return 400 for id with leading zeros', async () => {
       const response = await agent
         .get('/api/llm-models/007')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 7 } });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的模型ID');
     });
 
     it('should return 400 for id = "Infinity"', async () => {
@@ -698,20 +679,20 @@ describe('LLM Model Controller', () => {
       expect(response.body.message).toContain('不能为空');
     });
 
-    it('should accept http:// protocol in base_url', async () => {
+    it('should accept http:// protocol with public address', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockCreate = jest.fn().mockResolvedValue({
-        id: 1, provider: 'LocalAI', baseUrl: 'http://localhost:8080/v1', apiKey: 'local-key', modelName: 'local-model', status: true, createdAt: new Date(), updatedAt: new Date(),
+        id: 1, provider: 'CustomAI', baseUrl: 'http://llm.example.com/v1', apiKey: 'local-key', modelName: 'custom-model', status: true, createdAt: new Date(), updatedAt: new Date(),
       });
       getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
 
       const response = await agent
         .post('/api/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ provider: 'LocalAI', base_url: 'http://localhost:8080/v1', api_key: 'local-key', model_name: 'local-model' });
+        .send({ provider: 'CustomAI', base_url: 'http://llm.example.com/v1', api_key: 'local-key', model_name: 'custom-model' });
 
       expect(response.status).toBe(201);
-      expect(response.body.data.provider).toBe('LocalAI');
+      expect(response.body.data.provider).toBe('CustomAI');
     });
 
     it('should reject javascript: protocol in base_url', async () => {
@@ -785,6 +766,98 @@ describe('LLM Model Controller', () => {
 
       expect(response.status).toBe(201);
       expect(response.body.data.provider).toBe('OpenAI');
+    });
+
+    // === SSRF 防护测试 ===
+    it('should reject localhost in base_url (SSRF)', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'Evil', base_url: 'http://localhost:8080/v1', api_key: 'sk-test', model_name: 'evil-model' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('localhost');
+    });
+
+    it('should reject 127.x.x.x in base_url (SSRF)', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'Evil', base_url: 'http://127.0.0.1/v1', api_key: 'sk-test', model_name: 'evil-model' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    it('should reject 169.254.x.x (AWS metadata) in base_url', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'Evil', base_url: 'http://169.254.169.254/latest/meta-data/', api_key: 'sk-test', model_name: 'evil-model' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    it('should reject 10.x.x.x in base_url (RFC 1918)', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'Evil', base_url: 'http://10.0.0.1/v1', api_key: 'sk-test', model_name: 'evil-model' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    it('should reject 192.168.x.x in base_url (RFC 1918)', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'Evil', base_url: 'http://192.168.1.1/v1', api_key: 'sk-test', model_name: 'evil-model' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    // === 输入验证测试 ===
+    it('should reject non-string provider', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 123, base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('字符串');
+    });
+
+    it('should reject whitespace-only provider', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: '   ', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
+
+    it('should reject too-long provider', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'A'.repeat(101), base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('长度不能超过');
+    });
+
+    it('should reject too-long base_url', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/' + 'a'.repeat(2100), api_key: 'sk-test', model_name: 'gpt-4o' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('长度不能超过');
     });
   });
 
@@ -952,62 +1025,44 @@ describe('LLM Model Controller', () => {
       expect(response.body.message).toBe('更新LLM模型成功');
     });
 
-    it('should handle id = 0 for update', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindFirst = jest.fn().mockResolvedValue(null);
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
-
+    it('should return 400 for id = 0', async () => {
       const response = await agent
         .put('/api/llm-models/0')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Anthropic' });
 
-      expect(response.status).toBe(404);
-      expect(response.body.message).toBe('LLM模型不存在');
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的模型ID');
     });
 
-    it('should handle negative id for update', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindFirst = jest.fn().mockResolvedValue(null);
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
-
+    it('should return 400 for negative id', async () => {
       const response = await agent
         .put('/api/llm-models/-1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Anthropic' });
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的模型ID');
     });
 
-    it('should truncate float id for update', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
-      const mockFindFirst = jest.fn().mockResolvedValue(existing);
-      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, provider: 'Anthropic' });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
-
+    it('should return 400 for float id', async () => {
       const response = await agent
         .put('/api/llm-models/1.9')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Anthropic' });
 
-      expect(response.status).toBe(200);
-      expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的模型ID');
     });
 
-    it('should update with empty body', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
-      const mockFindFirst = jest.fn().mockResolvedValue(existing);
-      const mockUpdate = jest.fn().mockResolvedValue(existing);
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
-
+    it('should return 400 for empty body', async () => {
       const response = await agent
         .put('/api/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({});
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('至少提供一个更新字段');
     });
 
     it('should update all fields at once', async () => {
@@ -1027,20 +1082,86 @@ describe('LLM Model Controller', () => {
       expect(response.body.data.status).toBe(false);
     });
 
-    it('should handle id with leading zeros for update', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const existing = { id: 7, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
-      const mockFindFirst = jest.fn().mockResolvedValue(existing);
-      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, provider: 'Anthropic' });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
-
+    it('should return 400 for id with leading zeros', async () => {
       const response = await agent
         .put('/api/llm-models/007')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Anthropic' });
 
-      expect(response.status).toBe(200);
-      expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 7 } });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的模型ID');
+    });
+
+    // === Update SSRF 防护测试 ===
+    it('should reject localhost in base_url during update (SSRF)', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ base_url: 'http://localhost:8080/v1' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('localhost');
+    });
+
+    it('should reject 169.254.x.x in base_url during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ base_url: 'http://169.254.169.254/latest/meta-data/' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    // === Update 输入验证测试 ===
+    it('should reject non-string provider during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 123 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('字符串');
+    });
+
+    it('should reject empty string provider during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: '   ' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
+
+    it('should reject non-boolean status during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: 'true' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('布尔值');
+    });
+
+    it('should reject too-long model_name during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ model_name: 'A'.repeat(201) });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('长度不能超过');
+    });
+
+    it('should reject malformed base_url during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ base_url: 'not-a-url' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('Base URL');
     });
   });
 
@@ -1152,59 +1273,40 @@ describe('LLM Model Controller', () => {
       expect(response.body.message).toBe('删除LLM模型失败');
     });
 
-    it('should handle id = 0 for delete', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindFirst = jest.fn().mockResolvedValue(null);
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
-
+    it('should return 400 for id = 0', async () => {
       const response = await agent
         .delete('/api/llm-models/0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(404);
-      expect(response.body.message).toBe('LLM模型不存在');
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的模型ID');
     });
 
-    it('should handle negative id for delete', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindFirst = jest.fn().mockResolvedValue(null);
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
-
+    it('should return 400 for negative id', async () => {
       const response = await agent
         .delete('/api/llm-models/-1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的模型ID');
     });
 
-    it('should truncate float id for delete', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
-      const mockFindFirst = jest.fn().mockResolvedValue(existing);
-      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
-
+    it('should return 400 for float id', async () => {
       const response = await agent
         .delete('/api/llm-models/1.9')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的模型ID');
     });
 
-    it('should handle id with leading zeros for delete', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const existing = { id: 7, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
-      const mockFindFirst = jest.fn().mockResolvedValue(existing);
-      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
-
+    it('should return 400 for id with leading zeros', async () => {
       const response = await agent
         .delete('/api/llm-models/007')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 7 } });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的模型ID');
     });
 
     it('should return null data after successful delete', async () => {

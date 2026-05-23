@@ -179,16 +179,16 @@ const llmModelService: ILlmModelService = new LlmModelServiceImpl();
 
 ### 必须完成（合并前）
 
-- [ ] **B-1**: `updateLlmModel` 添加字段白名单 + 类型检查 + URL 格式验证
-- [ ] **B-2**: URL 验证添加 SSRF 防护（内网地址黑名单），create 和 update 均覆盖
-- [ ] **R-1**: ID 解析提取为 `parseId` 工具函数，拒绝 0/负数
-- [ ] **R-2**: `createLlmModel` 替换为 `created(res, item, '创建LLM模型成功')`
-- [ ] **R-3**: create 添加 trim 后非空检查 + 字段类型检查 + 长度上限
+- [x] **B-1**: `updateLlmModel` 添加字段白名单 + 类型检查 + URL 格式验证 ✅ 已修复
+- [x] **B-2**: URL 验证添加 SSRF 防护（内网地址黑名单），create 和 update 均覆盖 ✅ 已修复
+- [x] **R-1**: ID 解析提取为 `parseId` 工具函数，拒绝 0/负数 ✅ 已修复
+- [x] **R-2**: `createLlmModel` 替换为 `created(res, item, '创建LLM模型成功')` ✅ 已修复
+- [x] **R-3**: create 添加 trim 后非空检查 + 字段类型检查 + 长度上限 ✅ 已修复
 
 ### 建议完成（合并时一并修复）
 
-- [ ] **S-1**: catch 变量统一使用 `err: unknown`
-- [ ] **S-2**: 验证逻辑提取为独立工具函数（修复 B-1/B-2 时自然完成）
+- [x] **S-1**: catch 变量统一使用 `err: unknown` ✅ 已修复
+- [x] **S-2**: 验证逻辑提取为独立工具函数（修复 B-1/B-2 时自然完成）✅ 已修复
 
 ### 后续跟进（创建独立任务）
 
