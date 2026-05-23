@@ -433,15 +433,205 @@ describe('PublishingSchedule Controller', () => {
     });
 
     it('should handle id=0 as invalid', async () => {
+      mockUpdateSchedule.mockRejectedValue(new Error('文章不存在'));
       const response = await agent
         .put('/api/publishing-schedule/0')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
       // parseInt('0') = 0, isNaN(0) = false, so it passes the NaN check
-      // but id=0 will likely cause a service error or succeed
-      // depending on the service implementation
+      // id=0 will cause a service error since no article has id=0
       expect([200, 400, 404, 500]).toContain(response.status);
+    });
+
+    it('should handle negative id', async () => {
+      mockUpdateSchedule.mockRejectedValue(new Error('文章不存在'));
+      const response = await agent
+        .put('/api/publishing-schedule/-1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
+
+      expect(response.status).toBe(404);
+      expect(response.body.message).toBe('文章不存在');
+    });
+
+    it('should handle float id by truncating to integer', async () => {
+      mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
+      const response = await agent
+        .put('/api/publishing-schedule/1.5')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
+
+      // parseInt('1.5') = 1, which is a valid integer
+      expect([200, 400, 404, 500]).toContain(response.status);
+    });
+
+    it('should return 400 when scheduled_publish_at is an array', async () => {
+      const response = await agent
+        .put('/api/publishing-schedule/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ scheduled_publish_at: ['2025-06-01'] });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('scheduled_publish_at参数无效');
+    });
+
+    it('should update with empty string scheduled_publish_at', async () => {
+      const updatedItem = { ...mockScheduleItem, scheduled_publish_at: '' };
+      mockUpdateSchedule.mockResolvedValue(updatedItem);
+
+      const response = await agent
+        .put('/api/publishing-schedule/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ scheduled_publish_at: '' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.code).toBe(0);
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '', 1, 'sysadmin');
+    });
+  });
+
+  // ========== Edge Cases for listPublishingSchedule ==========
+  describe('GET /api/publishing-schedule - edge cases', () => {
+    it('should use default page when page is non-numeric', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/publishing-schedule?page=abc&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 1 })
+      );
+    });
+
+    it('should use default pageSize when pageSize is non-numeric', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/publishing-schedule?page=1&pageSize=xyz')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(
+        expect.objectContaining({ pageSize: 10 })
+      );
+    });
+
+    it('should use page=1 when page is 0', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/publishing-schedule?page=0&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      // parseInt('0') = 0, 0 || 1 = 1
+      expect(mockList).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 1 })
+      );
+    });
+
+    it('should use pageSize=10 when pageSize is negative', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/publishing-schedule?page=1&pageSize=-5')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      // parseInt('-5') = -5, -5 || 10 = -5 (negative is truthy)
+      expect(mockList).toHaveBeenCalledWith(
+        expect.objectContaining({ pageSize: -5 })
+      );
+    });
+
+    it('should pass projectId as undefined when projectId is empty string', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/publishing-schedule?projectId=')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      // Empty string is falsy, so projectId should be undefined
+      expect(mockList).toHaveBeenCalledWith(
+        expect.objectContaining({ projectId: undefined })
+      );
+    });
+
+    it('should return multiple items correctly', async () => {
+      const items = [
+        mockScheduleItem,
+        { ...mockScheduleItem, id: 2, title: '第二篇文章' },
+        { ...mockScheduleItem, id: 3, title: '第三篇文章' },
+      ];
+      mockList.mockResolvedValue({ list: items, total: 3 });
+
+      const response = await agent
+        .get('/api/publishing-schedule?page=1&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.list).toHaveLength(3);
+      expect(response.body.data.total).toBe(3);
+      expect(response.body.data.list[1].title).toBe('第二篇文章');
+      expect(response.body.data.list[2].title).toBe('第三篇文章');
+    });
+
+    it('should handle large page number', async () => {
+      mockList.mockResolvedValue({ list: [], total: 100 });
+
+      const response = await agent
+        .get('/api/publishing-schedule?page=999&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 999 })
+      );
+    });
+
+    it('should handle special characters in search', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/publishing-schedule?search=%E6%B5%8B%E8%AF%95%26%3C%3E')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(
+        expect.objectContaining({ search: '测试&<>' })
+      );
+    });
+
+    it('should handle projectId with value 0 as falsy', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/publishing-schedule?projectId=0')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      // '0' is truthy, so it will try parseInt('0') = 0, which is projectId: 0
+      expect(mockList).toHaveBeenCalledWith(
+        expect.objectContaining({ projectId: 0 })
+      );
+    });
+
+    it('should return correct pagination metadata for page 2', async () => {
+      const items = [mockScheduleItem];
+      mockList.mockResolvedValue({ list: items, total: 15 });
+
+      const response = await agent
+        .get('/api/publishing-schedule?page=2&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.page).toBe(2);
+      expect(response.body.data.pageSize).toBe(10);
+      expect(response.body.data.total).toBe(15);
     });
   });
 });

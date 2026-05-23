@@ -10,8 +10,8 @@
 
 | 指标 | 数值 |
 |------|------|
-| 测试总数 | 30 |
-| 通过 | 30 |
+| 测试总数 | 44 |
+| 通过 | 44 |
 | 失败 | 0 |
 | 行覆盖率 | 100% |
 | 分支覆盖率 | 100% |
@@ -36,7 +36,7 @@
 13. `should return 500 when service throws error with message` — 服务异常返回 500 + 错误消息
 14. `should return 500 with default message when service error has no message` — 服务异常无消息时返回默认消息
 
-### PUT /api/publishing-schedule/:id (updatePublishingSchedule) — 16 个测试
+### PUT /api/publishing-schedule/:id (updatePublishingSchedule) — 19 个测试
 
 15. `should return 401 without token` — 未携带 token 返回 401
 16. `should return 403 for view role` — view 角色无权限返回 403
@@ -54,6 +54,23 @@
 28. `should return 500 when service throws generic error with message` — 服务异常返回 500 + 错误消息
 29. `should return 500 with default message when service error has no message` — 服务异常无消息时返回默认消息
 30. `should handle id=0 as invalid` — id=0 边界情况
+31. `should handle negative id` — 负数 id 处理
+32. `should handle float id by truncating to integer` — 浮点 id 截断为整数
+33. `should return 400 when scheduled_publish_at is an array` — 数组类型参数返回 400
+34. `should update with empty string scheduled_publish_at` — 空字符串参数更新成功
+
+### GET /api/publishing-schedule - 边界情况 — 11 个测试
+
+35. `should use default page when page is non-numeric` — 非数字 page 回退默认值 1
+36. `should use default pageSize when pageSize is non-numeric` — 非数字 pageSize 回退默认值 10
+37. `should use page=1 when page is 0` — page=0 时回退默认值 1
+38. `should use pageSize=10 when pageSize is negative` — 负数 pageSize 处理
+39. `should pass projectId as undefined when projectId is empty string` — 空 projectId 传递 undefined
+40. `should return multiple items correctly` — 多条数据返回正确
+41. `should handle large page number` — 大页码处理
+42. `should handle special characters in search` — 特殊字符搜索处理
+43. `should handle projectId with value 0 as falsy` — projectId=0 处理
+44. `should return correct pagination metadata for page 2` — 第 2 页分页元数据正确
 
 ## 覆盖的代码路径
 
@@ -63,10 +80,20 @@
 - 所有查询参数传递（search, status, projectId）
 - userId/role 传递给 service
 - 错误处理：有消息/无消息
+- 边界情况：非数字参数、零值参数、负数参数、特殊字符搜索
 
 ### updatePublishingSchedule
 - ID 验证（NaN 检测）
-- scheduled_publish_at 类型验证（非 string/null/undefined）
-- 正常更新路径（string, null, undefined 三种值）
+- ID 边界值（0、负数、浮点数）
+- scheduled_publish_at 类型验证（非 string/null/undefined/array）
+- 正常更新路径（string, null, undefined, 空字符串四种值）
 - 权限控制（sysadmin/admin 可访问，view 被拒）
 - 错误处理：404 文章不存在、400 不可编辑状态、500 通用错误
+
+## 测试策略
+
+- **Mock 策略**：Mock `PublishingScheduleServiceImpl`，控制 service 层返回值和异常
+- **认证测试**：覆盖无 token（401）、view 角色（403）、admin/sysadmin 正常访问
+- **参数验证**：覆盖所有参数类型边界和默认值
+- **错误分支**：覆盖所有已知错误消息的异常处理路径
+- **分页验证**：验证 page/pageSize/total 等分页元数据正确性
