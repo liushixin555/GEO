@@ -439,11 +439,12 @@ const KnowledgeBaseDetail: React.FC = () => {
       title: '来源',
       dataIndex: 'seed_word',
       key: 'seed_word',
-      width: 120,
+      width: 130,
       render: (val: string | null) => {
-        if (!val) return <Tag>手工输入</Tag>;
+        if (!val) return <Tag>系统自动推介</Tag>;
+        if (val === '手工输入') return <Tag color="green">手工输入</Tag>;
         if (val === '关键词挖掘') return <Tag color="purple">关键词挖掘</Tag>;
-        return <Tag color="blue">{val}</Tag>;
+        return <Tag color="blue">{val} 智能扩词</Tag>;
       },
     },
     {
@@ -501,8 +502,10 @@ const KnowledgeBaseDetail: React.FC = () => {
                   </div>
                   <div className="item-card-row">
                     <span className="item-card-username">{formatDate(item.created_at)}</span>
-                    {item.seed_word && <Tag style={{ marginLeft: 8 }} color={item.seed_word === '关键词挖掘' ? 'purple' : 'blue'}>{item.seed_word}</Tag>}
-                    {!item.seed_word && <Tag style={{ marginLeft: 8 }}>手工输入</Tag>}
+                    {!item.seed_word && <Tag style={{ marginLeft: 8 }}>系统自动推介</Tag>}
+                    {item.seed_word === '手工输入' && <Tag style={{ marginLeft: 8 }} color="green">手工输入</Tag>}
+                    {item.seed_word === '关键词挖掘' && <Tag style={{ marginLeft: 8 }} color="purple">关键词挖掘</Tag>}
+                    {item.seed_word && item.seed_word !== '手工输入' && item.seed_word !== '关键词挖掘' && <Tag style={{ marginLeft: 8 }} color="blue">{item.seed_word} 智能扩词</Tag>}
                   </div>
                 </Card>
               </Col>
