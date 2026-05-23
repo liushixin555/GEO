@@ -826,4 +826,272 @@ describe('CompanyServiceImpl', () => {
       expect(mockFindUnique).toHaveBeenCalledWith({ where: { id: 42 } });
     });
   });
+
+  // ──────────────────────────────────────
+  //  Additional edge cases & robustness
+  // ──────────────────────────────────────
+  describe('Additional robustness', () => {
+    // --- list ---
+    it('list: should return many companies with correct mapping', async () => {
+      const companies = Array.from({ length: 50 }, (_, i) =>
+        makePrismaCompany({ id: i + 1, shortName: `C${i + 1}` })
+      );
+      const mockFindMany = jest.fn().mockResolvedValue(companies);
+      mockedGetPrisma.mockReturnValue({ company: { findMany: mockFindMany } } as any);
+
+      const result = await service.list();
+
+      expect(result).toHaveLength(50);
+      expect(result[0].short_name).toBe('C1');
+      expect(result[49].short_name).toBe('C50');
+    });
+
+    // --- getById ---
+    it('getById: should return full CompanyDetail structure', async () => {
+      const mockFindUnique = jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 }));
+      const mockFindMany = jest.fn().mockResolvedValue([
+        makePrismaUser(1, 'admin', '管理员', 'admin1'),
+        makePrismaUser(2, 'view', '查看者', 'viewer1'),
+      ]);
+      mockedGetPrisma.mockReturnValue({
+        company: { findUnique: mockFindUnique },
+        user: { findMany: mockFindMany },
+      } as any);
+
+      const result = await service.getById(1);
+
+      // Verify all Company fields are present
+      expect(result).toHaveProperty('id');
+      expect(result).toHaveProperty('short_name');
+      expect(result).toHaveProperty('full_name');
+      expect(result).toHaveProperty('address');
+      expect(result).toHaveProperty('contact_person');
+      expect(result).toHaveProperty('contact_phone');
+      expect(result).toHaveProperty('status');
+      expect(result).toHaveProperty('created_at');
+      expect(result).toHaveProperty('updated_at');
+      // Verify CompanyDetail fields
+      expect(result).toHaveProperty('operator_ids');
+      expect(result).toHaveProperty('operators');
+      expect(result).toHaveProperty('viewer_ids');
+      expect(result).toHaveProperty('viewers');
+    });
+
+    it('getById: should handle company with address null', async () => {
+      const mockFindUnique = jest.fn().mockResolvedValue(
+        makePrismaCompany({ id: 1, address: null })
+      );
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({
+        company: { findUnique: mockFindUnique },
+        user: { findMany: mockFindMany },
+      } as any);
+
+      const result = await service.getById(1);
+
+      expect(result.address).toBeNull();
+    });
+
+    // --- create ---
+    it('create: should handle viewer_ids undefined explicitly', async () => {
+      const request = {
+        short_name: 'NOVIEW',
+        full_name: 'No Viewer Company',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [1],
+        viewer_ids: undefined,
+      };
+
+      const mockCompany = makePrismaCompany({ id: 10 });
+      const mockTx = {
+        company: { create: jest.fn().mockResolvedValue(mockCompany) },
+        user: { update: jest.fn().mockResolvedValue({}) },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      const result = await service.create(request as any);
+
+      expect(result.id).toBe(10);
+      // Only operator update, no viewer updates
+      expect(mockTx.user.update).toHaveBeenCalledTimes(1);
+    });
+
+    it('create: should propagate transaction error', async () => {
+      const request = {
+        short_name: 'ERR',
+        full_name: 'Error Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [1],
+      };
+
+      const mockPrisma = {
+        $transaction: jest.fn().mockRejectedValue(new Error('DB connection lost')),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await expect(service.create(request)).rejects.toThrow('DB connection lost');
+    });
+
+    it('create: should handle single operator correctly', async () => {
+      const request = {
+        short_name: 'SOLO',
+        full_name: 'Solo Op',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [5],
+      };
+
+      const mockCompany = makePrismaCompany({ id: 20 });
+      const mockTx = {
+        company: { create: jest.fn().mockResolvedValue(mockCompany) },
+        user: { update: jest.fn().mockResolvedValue({}) },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      const result = await service.create(request);
+
+      expect(result.id).toBe(20);
+      expect(mockTx.user.update).toHaveBeenCalledWith({
+        where: { id: 5 },
+        data: { companyId: 20 },
+      });
+    });
+
+    // --- update ---
+    it('update: should handle viewer_ids undefined explicitly', async () => {
+      const request = {
+        short_name: 'UV',
+        full_name: 'Undefined View',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [1],
+        viewer_ids: undefined,
+      };
+
+      const mockTx = {
+        company: { update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        user: {
+          updateMany: jest.fn().mockResolvedValue({}),
+          update: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      const result = await service.update(1, request as any);
+
+      expect(result).toBeDefined();
+      // Only 1 operator update (no viewer updates since viewer_ids is undefined)
+      expect(mockTx.user.update).toHaveBeenCalledTimes(1);
+    });
+
+    it('update: should propagate transaction error', async () => {
+      const request = {
+        short_name: 'ERR',
+        full_name: 'Error Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [1],
+      };
+
+      const mockPrisma = {
+        $transaction: jest.fn().mockRejectedValue(new Error('Transaction failed')),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await expect(service.update(1, request)).rejects.toThrow('Transaction failed');
+    });
+
+    it('update: should handle many operators and viewers', async () => {
+      const request = {
+        short_name: 'BIG',
+        full_name: 'Big Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [1, 2, 3, 4, 5],
+        viewer_ids: [10, 11, 12, 13, 14, 15],
+      };
+
+      const mockTx = {
+        company: { update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        user: {
+          updateMany: jest.fn().mockResolvedValue({}),
+          update: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await service.update(1, request);
+
+      // 5 operators + 6 viewers = 11 user.update calls
+      expect(mockTx.user.update).toHaveBeenCalledTimes(11);
+    });
+
+    // --- toggleStatus ---
+    it('toggleStatus: should toggle to same status (no-op semantically)', async () => {
+      const existing = makePrismaCompany({ id: 1, status: true });
+      const updated = makePrismaCompany({ id: 1, status: true });
+
+      const mockFindUnique = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        company: { findUnique: mockFindUnique, update: mockUpdate },
+      } as any);
+
+      const result = await service.toggleStatus(1, true);
+
+      expect(result.status).toBe(true);
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: true },
+      });
+    });
+
+    it('toggleStatus: should handle prisma update error', async () => {
+      const existing = makePrismaCompany({ id: 1 });
+      const mockFindUnique = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockRejectedValue(new Error('Update failed'));
+      mockedGetPrisma.mockReturnValue({
+        company: { findUnique: mockFindUnique, update: mockUpdate },
+      } as any);
+
+      await expect(service.toggleStatus(1, false)).rejects.toThrow('Update failed');
+    });
+
+    // --- Concurrency / multiple calls ---
+    it('list: should call getPrisma once per invocation', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({ company: { findMany: mockFindMany } } as any);
+
+      await service.list();
+
+      expect(mockedGetPrisma).toHaveBeenCalledTimes(1);
+    });
+
+    it('getById: should call getPrisma once', async () => {
+      const mockFindUnique = jest.fn().mockResolvedValue(makePrismaCompany());
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({
+        company: { findUnique: mockFindUnique },
+        user: { findMany: mockFindMany },
+      } as any);
+
+      await service.getById(1);
+
+      expect(mockedGetPrisma).toHaveBeenCalledTimes(1);
+    });
+  });
 });
