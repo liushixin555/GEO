@@ -29,6 +29,7 @@ describe('todo.entity', () => {
         status: 'pending',
         created_by_id: 2,
         created_by_name: '创建者',
+        due_at: '2025-12-31',
         created_at: new Date(),
         updated_at: new Date(),
       };
@@ -38,6 +39,7 @@ describe('todo.entity', () => {
       expect(todo.action).toBe('publish');
       expect(todo.priority).toBe('high');
       expect(todo.status).toBe('pending');
+      expect(todo.due_at).toBe('2025-12-31');
     });
 
     it('should allow project_id and project_name to be null', () => {
@@ -58,11 +60,13 @@ describe('todo.entity', () => {
         status: 'pending',
         created_by_id: 1,
         created_by_name: '用户1',
+        due_at: null,
         created_at: new Date(),
         updated_at: new Date(),
       };
       expect(todo.project_id).toBeNull();
       expect(todo.project_name).toBeNull();
+      expect(todo.due_at).toBeNull();
     });
 
     it('should allow object_id to be null', () => {
@@ -83,10 +87,12 @@ describe('todo.entity', () => {
         status: 'pending',
         created_by_id: 1,
         created_by_name: '用户',
+        due_at: '2025-06-30',
         created_at: new Date(),
         updated_at: new Date(),
       };
       expect(todo.object_id).toBeNull();
+      expect(todo.due_at).toBe('2025-06-30');
     });
 
     it('should have all required fields', () => {
@@ -107,15 +113,41 @@ describe('todo.entity', () => {
         status: 'pending',
         created_by_id: 1,
         created_by_name: 'B',
+        due_at: null,
         created_at: new Date(),
         updated_at: new Date(),
       };
       expect(Object.keys(todo).sort()).toEqual(
         ['id', 'title', 'company_id', 'company_name', 'project_id', 'project_name',
          'object_type', 'object_id', 'action', 'source', 'priority', 'assignee_id',
-         'assignee_name', 'status', 'created_by_id', 'created_by_name',
+         'assignee_name', 'status', 'created_by_id', 'created_by_name', 'due_at',
          'created_at', 'updated_at'].sort()
       );
+    });
+
+    it('should allow due_at as string date', () => {
+      const todo: Todo = {
+        id: 4,
+        title: '有截止日期',
+        company_id: 1,
+        company_name: 'C',
+        project_id: 1,
+        project_name: 'P',
+        object_type: 'article',
+        object_id: 1,
+        action: 'publish',
+        source: 'system',
+        priority: 'high',
+        assignee_id: 1,
+        assignee_name: 'A',
+        status: 'pending',
+        created_by_id: 1,
+        created_by_name: 'B',
+        due_at: '2025-12-31T23:59:59.000Z',
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(todo.due_at).toBe('2025-12-31T23:59:59.000Z');
     });
   });
 
@@ -153,6 +185,24 @@ describe('todo.entity', () => {
       expect(log.object_type).toBeNull();
       expect(log.object_id).toBeNull();
       expect(log.remark).toBeNull();
+    });
+
+    it('should have all required fields in TodoLog', () => {
+      const log: TodoLog = {
+        id: 3,
+        todo_id: 5,
+        operator_id: 2,
+        operator_name: '管理员',
+        action: 'transferred',
+        object_type: 'task',
+        object_id: 50,
+        remark: '转交处理',
+        created_at: new Date(),
+      };
+      expect(Object.keys(log).sort()).toEqual(
+        ['id', 'todo_id', 'operator_id', 'operator_name', 'action',
+         'object_type', 'object_id', 'remark', 'created_at'].sort()
+      );
     });
   });
 
@@ -229,6 +279,38 @@ describe('todo.entity', () => {
       };
       expect(req.object_id).toBe(100);
     });
+
+    it('should include optional due_at', () => {
+      const req: CreateTodoRequest = {
+        title: '有截止日期',
+        company_id: 1,
+        object_type: 'article',
+        action: 'publish',
+        assignee_id: 1,
+        due_at: '2025-12-31',
+      };
+      expect(req.due_at).toBe('2025-12-31');
+    });
+
+    it('should allow all optional fields together', () => {
+      const req: CreateTodoRequest = {
+        title: '完整待办',
+        company_id: 1,
+        project_id: 5,
+        object_type: 'article',
+        object_id: 100,
+        action: 'publish',
+        source: 'system',
+        priority: 'high',
+        assignee_id: 1,
+        due_at: '2025-12-31',
+      };
+      expect(req.project_id).toBe(5);
+      expect(req.object_id).toBe(100);
+      expect(req.source).toBe('system');
+      expect(req.priority).toBe('high');
+      expect(req.due_at).toBe('2025-12-31');
+    });
   });
 
   describe('UpdateTodoRequest interface', () => {
@@ -239,9 +321,11 @@ describe('todo.entity', () => {
         object_id: 200,
         action: 'review',
         priority: 'low',
+        due_at: '2025-11-30',
       };
       expect(req.title).toBe('更新标题');
       expect(req.priority).toBe('low');
+      expect(req.due_at).toBe('2025-11-30');
     });
 
     it('should allow partial updates', () => {
@@ -257,6 +341,16 @@ describe('todo.entity', () => {
     it('should allow object_id to be null', () => {
       const req: UpdateTodoRequest = { object_id: null };
       expect(req.object_id).toBeNull();
+    });
+
+    it('should allow due_at to be null', () => {
+      const req: UpdateTodoRequest = { due_at: null };
+      expect(req.due_at).toBeNull();
+    });
+
+    it('should allow updating only due_at', () => {
+      const req: UpdateTodoRequest = { due_at: '2025-10-01' };
+      expect(req.due_at).toBe('2025-10-01');
     });
   });
 
@@ -284,13 +378,12 @@ describe('todo.entity', () => {
 
   describe('re-exports from index', () => {
     it('should compile correctly when importing types from index.ts', () => {
-      // Type-only imports are validated at compile time by TypeScript
       const todo: Todo = {
         id: 1, title: 'T', company_id: 1, company_name: 'C',
         project_id: null, project_name: null, object_type: 'article',
         object_id: null, action: 'publish', source: 'system', priority: 'high',
         assignee_id: 1, assignee_name: 'A', status: 'pending',
-        created_by_id: 1, created_by_name: 'B',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
         created_at: new Date(), updated_at: new Date(),
       };
       expect(todo.title).toBe('T');
