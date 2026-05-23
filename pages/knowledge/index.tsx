@@ -367,11 +367,6 @@ const KnowledgePage: React.FC = () => {
         <Row gutter={[16, 16]} className="knowledge-stat-cards">
           <Col xs={12} sm={6}>
             <Card className="stat-card" styles={{ body: { padding: '16px 24px' } }}>
-              <Statistic title={<Space><AppstoreOutlined /> 总资产</Space>} value={invStats.total} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card className="stat-card" styles={{ body: { padding: '16px 24px' } }}>
               <Statistic title={<Space><TagsOutlined /> 关键词</Space>} value={invStats.keyword} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
             </Card>
           </Col>
