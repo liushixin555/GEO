@@ -1,7 +1,7 @@
 # 任务总表
 
 > 本文件记录项目所有开发任务的状态，按模块分类。
-> 最后更新：2026-05-17
+> 最后更新：2026-05-23
 
 ---
 
@@ -51,6 +51,9 @@
 | API-021 | 登录选择逻辑 — 返回 selected_company/selected_project，LoginSelectionError | `apis/service/impl/auth.service.impl.ts` | ✅ 已完成 | 05-17 |
 | API-022 | LLM 模型 CRUD — GET/POST/PUT/DELETE /api/llm-models（sysadmin-only） | `apis/controller/llm-model.controller.ts` | ✅ 已完成 | - |
 | API-023 | 系统配置 — GET/PUT /api/system-configs（sysadmin-only） | `apis/controller/system-config.controller.ts` | ✅ 已完成 | - |
+| API-024 | 发布计划 — GET /api/publishing-schedule, PUT /api/publishing-schedule/:id | `apis/controller/publishing-schedule.controller.ts` | ✅ 已完成 | 05-23 |
+| API-025 | 发布平台 — GET /api/publishing-platforms, POST /api/publishing-platforms/sync | `apis/controller/publishing-platform.controller.ts` | ✅ 已完成 | 05-23 |
+| API-026 | 文件上传 — POST /api/upload（multer + UUID 重命名） | `apis/controller/upload.controller.ts` | ✅ 已完成 | - |
 
 ---
 
@@ -92,6 +95,7 @@
 | FE-018 | 技能管理样式重构 — 同用户管理 | `pages/skills/index.tsx` | ✅ 已完成 | 05-16 |
 | FE-019 | 公司管理样式重构 — EditOutlined + 等高卡片 | `pages/company/index.tsx` | ✅ 已完成 | 05-16 |
 | FE-020 | 添加按钮改为卡片 — 虚线边框 + PlusOutlined | `pages/user/index.tsx`, `pages/skills/index.tsx` | ✅ 已完成 | 05-16 |
+| FE-021 | 发布管理页面 — 表格式展示 + 搜索筛选 + 编辑计划 | `pages/publish/index.tsx` | ✅ 已完成 | 05-23 |
 
 ---
 
@@ -105,6 +109,9 @@
 | DB-004 | Skills 新增 created_by — 追踪技能创建者 | `prisma/schema.prisma` | ✅ 已完成 | 05-17 |
 | DB-005 | Project 模型 — short_name, full_name, description, company_id, status | `prisma/schema.prisma` | ✅ 已完成 | 05-17 |
 | DB-006 | project_operators / project_viewers 多对多关联表 | `prisma/schema.prisma` | ✅ 已完成 | 05-17 |
+| DB-007 | Article 新增 article_type / write_mode / scheduled_publish_at 字段 | `scripts/sync-db-schema.sql` | ✅ 已完成 | 05-23 |
+| DB-008 | Article.keywords 从 jsonb 改为 varchar(500) | `scripts/sync-db-schema.sql` | ✅ 已完成 | 05-23 |
+| DB-009 | knowledge_keywords 新增 seed_word 字段 | `scripts/sync-db-schema.sql` | ✅ 已完成 | 05-23 |
 
 ---
 
@@ -121,14 +128,23 @@
 
 ---
 
-## 七、待开发任务
+## 七、定时任务与脚本
+
+| ID | 任务 | 涉及文件 | 状态 | 完成日期 |
+|----|------|----------|------|----------|
+| CRON-001 | 文章定时生成 — node-cron 调度，每次取10篇逐个处理 | `apis/scheduler/article-generation.scheduler.ts` | ✅ 已完成 | 05-23 |
+| SCRIPT-001 | 数据库 Schema 同步脚本 — 生产环境字段同步 | `scripts/sync-db-schema.sql` | ✅ 已完成 | 05-23 |
+
+---
+
+## 八、待开发任务
 
 > 以下为根据 permissions.md 路由表和前端菜单推断的待开发页面。
 
 | ID | 任务 | 路由 | 涉及 API | 状态 |
 |----|------|------|----------|------|
-| TODO-001 | AI知识库页面 | `/knowledge` | 待定 | ⏳ 待开发 |
-| TODO-002 | GEO文章页面 | `/article` | 待定 | ⏳ 待开发 |
-| TODO-003 | GEO成绩页面（默认页） | `/publish` | 待定 | ⏳ 待开发 |
+| ~~TODO-001~~ | ~~AI知识库页面~~ | `/knowledge` | /api/knowledge-bases | ✅ 已完成（dev015） |
+| ~~TODO-002~~ | ~~GEO文章页面~~ | `/article` | /api/projects/:id/articles | ✅ 已完成（dev014） |
+| ~~TODO-003~~ | ~~发布管理页面~~ | `/publish` | /api/publishing-schedule | ✅ 已完成（dev016） |
 | TODO-004 | 常用工具页面 | `/tools` | 待定 | ⏳ 待开发 |
-| TODO-005 | 系统管理页面 | `/sysadmin` | /api/llm-models, /api/system-configs | ⏳ 待开发 |
+| ~~TODO-005~~ | ~~系统管理页面~~ | `/sysadmin` | /api/llm-models, /api/system-configs | ✅ 已完成（dev012 + dev013） |

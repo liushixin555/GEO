@@ -154,3 +154,360 @@ model ProjectViewer {
 ### 关键经验
 - **Prisma 多对多必须命名关系**：双方都用 `@relation("关系名")`，名字必须匹配
 - **更新关联表**：先 `deleteMany` 再 `create`，避免唯一约束冲突
+
+---
+
+## db007. LlmModel 模型
+
+### 变更原因
+支持 LLM 模型管理，存储不同供应商的 API 配置。
+
+### Schema 变更
+```prisma
+model LlmModel {
+  id        Int      @id @default(autoincrement())
+  provider  String   @db.VarChar(100)
+  baseUrl   String   @map("base_url") @db.VarChar(500)
+  apiKey    String   @map("api_key") @db.VarChar(500)
+  modelName String   @map("model_name") @db.VarChar(200)
+  status    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  articles  Article[]
+
+  @@map("llm_models")
+}
+```
+
+### 关联
+- `Article.llmModelId` → `LlmModel.id`（文章使用的 LLM 模型，SetNull 删除策略）
+
+---
+
+## db008. PublishingPlatform 模型
+
+### 变更原因
+存储发布平台信息，关联资源管理系统。
+
+### Schema 变更
+```prisma
+model PublishingPlatform {
+  id           Int      @id @default(autoincrement())
+  rmResourceId Int      @unique @map("rm_resource_id")
+  name         String   @db.VarChar(200)
+  taxonomy     String   @db.VarChar(100)
+  price        Float    @default(0)
+  remark       String?  @db.VarChar(500)
+  includeRate  Float    @default(0) @map("include_rate")
+  publishRate  Float    @default(0) @map("publish_rate")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@index([rmResourceId])
+  @@index([taxonomy])
+  @@map("publishing_platforms")
+}
+```
+
+### 说明
+- `rmResourceId`：资源管理系统的资源 ID，唯一约束
+- `includeRate` / `publishRate`：收录率 / 发布率
+- 目前为独立表，暂未与其他模型建立外键关联
+
+---
+
+## db009. SystemConfig 模型
+
+### 变更原因
+系统级配置项持久化存储（如定时任务配置等）。
+
+### Schema 变更
+```prisma
+model SystemConfig {
+  id          Int      @id @default(autoincrement())
+  configKey   String   @unique @map("config_key") @db.VarChar(100)
+  configValue String   @map("config_value") @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("system_configs")
+}
+```
+
+### 说明
+- `configKey` 唯一约束，键值对模式
+- `configValue` 使用 `Text` 类型，支持存储复杂配置（JSON 字符串等）
+
+---
+
+## db010. ArticleStatus 枚举 + Article 模型
+
+### 变更原因
+文章管理功能，支持从草稿到发布的完整生命周期。
+
+### Schema 变更
+```prisma
+enum ArticleStatus {
+  draft
+  manual_writing
+  generating
+  generate_failed
+  pending_review
+  publishing
+  publish_failed
+  published
+}
+
+model Article {
+  id          Int           @id @default(autoincrement())
+  projectId   Int           @map("project_id")
+  title       String        @db.VarChar(500)
+  articleType String?       @map("article_type") @db.VarChar(50)
+  writeMode   String?       @map("write_mode") @db.VarChar(20)
+  keywords    String?       @db.VarChar(500)
+  portrait    String?
+  images      Json?
+  platforms   Json?
+  skills      Json?
+  llmModelId  Int?          @map("llm_model_id")
+  content     String?
+  version     Float         @default(1.0)
+  status      ArticleStatus @default(draft)
+  scheduledPublishAt DateTime? @map("scheduled_publish_at") @db.Timestamptz()
+  createdBy   Int?          @map("created_by")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  project     Project       @relation(...)
+  creator     User?         @relation("ArticleCreator", ...)
+  llmModel    LlmModel?     @relation(...)
+  versions    ArticleVersion[]
+
+  @@index([projectId])
+  @@index([status])
+  @@index([createdBy])
+  @@map("articles")
+}
+```
+
+### 字段演变
+- `keywords`：Json → **String**（从多选改为单选）
+- `articleType`：新增，必填字段
+- `writeMode`：新增，必填字段
+- `scheduledPublishAt`：新增，支持定时发布
+
+### 状态流转
+```
+draft → manual_writing / generating
+generating → generate_failed / pending_review
+pending_review → publishing
+publishing → publish_failed / published
+```
+
+---
+
+## db011. ArticleVersion 模型
+
+### 变更原因
+文章版本历史记录，支持内容追溯和回滚。
+
+### Schema 变更
+```prisma
+model ArticleVersion {
+  id        Int      @id @default(autoincrement())
+  articleId Int      @map("article_id")
+  version   Float
+  content   String
+  createdBy Int?     @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  article   Article  @relation(...)
+  creator   User?    @relation("ArticleVersionCreator", ...)
+
+  @@index([articleId])
+  @@map("article_versions")
+}
+```
+
+### 说明
+- 级联删除：删除文章时自动删除所有版本
+- `version` 使用 Float 类型（1.0, 1.1, 2.0...）
+
+---
+
+## db012. KnowledgeScope 枚举 + KnowledgeBase 模型
+
+### 变更原因
+AI 知识库功能，支持平台级/公司级/项目级三级作用域。
+
+### Schema 变更
+```prisma
+enum KnowledgeScope {
+  platform
+  company
+  project
+}
+
+model KnowledgeBase {
+  id          Int             @id @default(autoincrement())
+  name        String          @db.VarChar(200)
+  description String?         @db.VarChar(500)
+  scope       KnowledgeScope  @default(project)
+  companyId   Int?            @map("company_id")
+  projectId   Int?            @map("project_id")
+  status      Boolean         @default(true)
+  createdBy   Int?            @map("created_by")
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  company     Company?        @relation(...)
+  project     Project?        @relation(...)
+  creator     User?           @relation("KnowledgeBaseCreator", ...)
+  keywords    KnowledgeKeyword[]
+  portraits   KnowledgePortrait[]
+  images      KnowledgeImage[]
+
+  @@index([scope])
+  @@index([companyId])
+  @@index([projectId])
+  @@map("knowledge_bases")
+}
+```
+
+### 关联更新
+- `Company` 新增 `knowledgeBases KnowledgeBase[]`
+- `Project` 新增 `knowledgeBases KnowledgeBase[]`
+- `User` 新增 `createdKnowledgeBases KnowledgeBase[]`
+
+---
+
+## db013. KnowledgeKeyword + KeywordExpandedWord 模型
+
+### 变更原因
+知识库关键词管理，支持种子词→智能扩词→选关键词的完整流程。
+
+### Schema 变更
+```prisma
+model KnowledgeKeyword {
+  id        Int             @id @default(autoincrement())
+  baseId    Int             @map("base_id")
+  keyword   String          @db.VarChar(200)
+  seedWord  String?         @map("seed_word") @db.VarChar(200)
+  groupId   Int?            @map("group_id")
+  createdBy Int?            @map("created_by")
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  base      KnowledgeBase   @relation(...)
+  creator   User?           @relation("KnowledgeKeywordCreator", ...)
+  expandedWords KeywordExpandedWord[]
+
+  @@index([baseId])
+  @@map("knowledge_keywords")
+}
+
+model KeywordExpandedWord {
+  id        Int      @id @default(autoincrement())
+  keywordId Int      @map("keyword_id")
+  word      String   @db.VarChar(200)
+  selected  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  keyword   KnowledgeKeyword @relation(...)
+
+  @@index([keywordId])
+  @@map("keyword_expanded_words")
+}
+```
+
+### 字段演变
+- `groupId`：关键词分组 ID，支持分组管理
+- `seedWord`：新增，记录生成该关键词的种子词
+- `KeywordExpandedWord.selected`：标记是否被用户选中
+
+---
+
+## db014. KnowledgePortrait 模型
+
+### 变更原因
+知识库人物画像，存储人物相关的详细信息。
+
+### Schema 变更
+```prisma
+model KnowledgePortrait {
+  id        Int             @id @default(autoincrement())
+  baseId    Int             @map("base_id")
+  title     String          @db.VarChar(200)
+  content   String?         @db.Text
+  createdBy Int?            @map("created_by")
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  base      KnowledgeBase   @relation(...)
+  creator   User?           @relation("KnowledgePortraitCreator", ...)
+
+  @@index([baseId])
+  @@map("knowledge_portraits")
+}
+```
+
+---
+
+## db015. KnowledgeImage 模型
+
+### 变更原因
+知识库图片管理，存储图片 URL 和描述信息。
+
+### Schema 变更
+```prisma
+model KnowledgeImage {
+  id          Int             @id @default(autoincrement())
+  baseId      Int             @map("base_id")
+  title       String          @db.VarChar(200)
+  description String?         @db.VarChar(500)
+  imageUrl    String          @map("image_url") @db.VarChar(500)
+  createdBy   Int?            @map("created_by")
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  base        KnowledgeBase   @relation(...)
+  creator     User?           @relation("KnowledgeImageCreator", ...)
+
+  @@index([baseId])
+  @@map("knowledge_images")
+}
+```
+
+---
+
+## db016. Project 关联扩展
+
+### 变更原因
+项目与文章、知识库建立关联。
+
+### 新增关联
+```prisma
+model Project {
+  // ... existing fields
+  articles        Article[]
+  knowledgeBases  KnowledgeBase[]
+}
+```
+
+---
+
+## User 模型关联汇总
+
+随着功能迭代，User 模型新增了大量反向关联：
+
+```prisma
+model User {
+  // ... existing fields
+  createdSkills        Skills[]              @relation("SkillsCreator")
+  createdArticles      Article[]             @relation("ArticleCreator")
+  articleVersions      ArticleVersion[]      @relation("ArticleVersionCreator")
+  createdKeywords      KnowledgeKeyword[]    @relation("KnowledgeKeywordCreator")
+  createdPortraits     KnowledgePortrait[]   @relation("KnowledgePortraitCreator")
+  createdImages        KnowledgeImage[]      @relation("KnowledgeImageCreator")
+  createdKnowledgeBases KnowledgeBase[]      @relation("KnowledgeBaseCreator")
+}
+```
+
+### 经验
+- 每个 `created_by` 字段都需要在 User 上声明对应的反向关联
+- 关系命名必须双方匹配：如 `"KnowledgeBaseCreator"`
