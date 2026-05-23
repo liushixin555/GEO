@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Row, Col, Card, Input, Spin, Pagination, Breadcrumb, Button, Descriptions, Table, Popconfirm, App, Upload, Modal, Typography } from 'antd';
+import { Row, Col, Card, Input, Spin, Pagination, Breadcrumb, Button, Table, Popconfirm, App, Upload, Modal, Typography } from 'antd';
 import { DeleteOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
@@ -151,11 +151,13 @@ const SkillPage: React.FC = () => {
           )}
           {data.map((item) => (
             <Card key={item.id} size="small" title={item.name}>
-              <Descriptions column={2} size="small" colon={false}>
-                <Descriptions.Item label="描述">{item.description || '-'}</Descriptions.Item>
-                <Descriptions.Item label="添加者">{item.creator_name || '-'}</Descriptions.Item>
-                <Descriptions.Item label="添加时间">{formatDateTime(item.created_at)}</Descriptions.Item>
-              </Descriptions>
+              <div className="skill-card-desc">
+                {item.description || '-'}
+              </div>
+              <div className="skill-card-meta">
+                <span>{item.creator_name || '-'}</span>
+                <span>{formatDateTime(item.created_at)}</span>
+              </div>
               {canModify(item) && (
                 <div className="skills-card-footer">
                   <Popconfirm title="确定删除此技能？" onConfirm={() => handleDelete(item)} okText="删除" cancelText="取消">

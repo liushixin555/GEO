@@ -1004,6 +1004,27 @@ a:hover {
   font-size: 14px;
 }
 
+.skill-card-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-ink-muted, #525252);
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: var(--spacing-xs, 8px);
+  word-break: break-word;
+}
+
+.skill-card-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md, 16px);
+  color: var(--color-ink-subtle, #8c8c8c);
+  font-size: 12px;
+}
+
 .skills-card-footer {
   margin-top: var(--spacing-sm, 8px);
   padding-top: var(--spacing-sm, 8px);
