@@ -38,6 +38,7 @@ interface InventoryItem {
   baseName: string;
   scope: string;
   projectName: string;
+  creatorName: string;
   updatedAt: string;
 }
 
@@ -72,11 +73,7 @@ function formatDate(value: string): string {
 
 function formatDateTime(value: string): string {
   const d = new Date(value);
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const h = String(d.getHours()).padStart(2, '0');
-  const min = String(d.getMinutes()).padStart(2, '0');
-  return `${m}/${day} ${h}:${min}`;
+  return d.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 /* ==================== Page Component ==================== */
@@ -251,6 +248,12 @@ const KnowledgePage: React.FC = () => {
       width: 120,
     },
     {
+      title: '添加者',
+      dataIndex: 'creatorName',
+      key: 'creatorName',
+      width: 100,
+    },
+    {
       title: '更新时间',
       dataIndex: 'updatedAt',
       key: 'updatedAt',
@@ -421,6 +424,7 @@ const KnowledgePage: React.FC = () => {
                 <Descriptions column={2} size="small" colon={false}>
                   <Descriptions.Item label="所属知识库">{item.baseName}</Descriptions.Item>
                   <Descriptions.Item label="项目">{item.projectName}</Descriptions.Item>
+                  <Descriptions.Item label="添加者">{item.creatorName || '-'}</Descriptions.Item>
                   <Descriptions.Item label="更新时间">{formatDateTime(item.updatedAt)}</Descriptions.Item>
                 </Descriptions>
               </Card>

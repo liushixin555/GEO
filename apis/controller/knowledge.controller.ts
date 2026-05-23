@@ -490,8 +490,13 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
       baseName: string;
       scope: string;
       projectName: string;
+      creatorName: string;
+      creatorId: number | null;
       updatedAt: Date;
     }> = [];
+
+    // Collect all creator IDs for batch lookup
+    const creatorIds = new Set<number>();
 
     const getScopeLabel = (base: typeof bases[0]) => {
       if (base.project_name) return base.project_name;
@@ -504,6 +509,7 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
       if (search) kwWhere.keyword = { contains: search, mode: 'insensitive' };
       const keywords = await prisma.knowledgeKeyword.findMany({ where: kwWhere, orderBy: { updatedAt: 'desc' } });
       for (const k of keywords) {
+        if (k.createdBy) creatorIds.add(k.createdBy);
         const base = baseMap.get(k.baseId);
         items.push({
           id: `keyword-${k.id}`,
@@ -514,6 +520,8 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
           baseName: base?.name || '-',
           scope: base?.scope || 'platform',
           projectName: base ? getScopeLabel(base) : '-',
+          creatorName: '',
+          creatorId: k.createdBy,
           updatedAt: k.updatedAt,
         });
       }
@@ -524,6 +532,7 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
       if (search) ptWhere.title = { contains: search, mode: 'insensitive' };
       const portraits = await prisma.knowledgePortrait.findMany({ where: ptWhere, orderBy: { updatedAt: 'desc' } });
       for (const p of portraits) {
+        if (p.createdBy) creatorIds.add(p.createdBy);
         const base = baseMap.get(p.baseId);
         items.push({
           id: `portrait-${p.id}`,
@@ -534,6 +543,8 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
           baseName: base?.name || '-',
           scope: base?.scope || 'platform',
           projectName: base ? getScopeLabel(base) : '-',
+          creatorName: '',
+          creatorId: p.createdBy,
           updatedAt: p.updatedAt,
         });
       }
@@ -544,6 +555,7 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
       if (search) imgWhere.title = { contains: search, mode: 'insensitive' };
       const images = await prisma.knowledgeImage.findMany({ where: imgWhere, orderBy: { updatedAt: 'desc' } });
       for (const i of images) {
+        if (i.createdBy) creatorIds.add(i.createdBy);
         const base = baseMap.get(i.baseId);
         items.push({
           id: `image-${i.id}`,
@@ -554,8 +566,30 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
           baseName: base?.name || '-',
           scope: base?.scope || 'platform',
           projectName: base ? getScopeLabel(base) : '-',
+          creatorName: '',
+          creatorId: i.createdBy,
           updatedAt: i.updatedAt,
         });
+      }
+    }
+
+    // Batch lookup creator names
+    if (creatorIds.size > 0) {
+      const creators = await prisma.user.findMany({
+        where: { id: { in: Array.from(creatorIds) } },
+        select: { id: true, cnName: true },
+      });
+      const creatorMap = new Map(creators.map((c: any) => [c.id, c.cnName || '']));
+      for (const item of items) {
+        if (item.creatorId) {
+          item.creatorName = creatorMap.get(item.creatorId) || '-';
+        } else {
+          item.creatorName = '-';
+        }
+      }
+    } else {
+      for (const item of items) {
+        item.creatorName = '-';
       }
     }
 
@@ -563,7 +597,7 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
     items.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
     const total = items.length;
-    const pagedItems = items.slice((page - 1) * pageSize, page * pageSize);
+    const pagedItems = items.slice((page - 1) * pageSize, page * pageSize).map(({ creatorId, ...rest }) => rest);
 
     res.json({
       code: 0,
