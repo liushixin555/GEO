@@ -201,7 +201,7 @@ const ArticlePage: React.FC = () => {
                 onClick={() => navigate(`/article/${item.id}`)}
                 style={{ cursor: 'pointer' }}
               >
-                <Descriptions column={2} size="small" colon={false}>
+                <Descriptions column={3} size="small" colon={false}>
                   <Descriptions.Item label="ID">{item.id}</Descriptions.Item>
                   <Descriptions.Item label="关键词">{item.keywords || '-'}</Descriptions.Item>
                   <Descriptions.Item label="创建时间">{formatDate(item.created_at)}</Descriptions.Item>
