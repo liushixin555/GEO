@@ -60,7 +60,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 };
 
 const SOURCE_CONFIG: Record<string, string> = {
-  manual: '手工录入',
+  manual: '手工输入',
   content_iteration: '内容迭代',
   smart_link: '智能关联',
   daily_check: '每日检测',
