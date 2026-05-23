@@ -48,6 +48,7 @@ describe('LLM Model Controller', () => {
     jest.clearAllMocks();
   });
 
+  // ========== GET /api/llm-models ==========
   describe('GET /api/llm-models', () => {
     it('should return 401 without token', async () => {
       const response = await agent.get('/api/llm-models');
@@ -108,10 +109,66 @@ describe('LLM Model Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
+      expect(response.body.message).toBe('DB error');
+    });
+
+    it('should return default error message when err.message is empty', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockRejectedValue(new Error(''));
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+
+      const response = await agent
+        .get('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取LLM模型列表失败');
+    });
+
+    it('should return default error message when error has no message property', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockRejectedValue({ code: 'UNKNOWN' });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+
+      const response = await agent
+        .get('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取LLM模型列表失败');
+    });
+
+    it('should return multiple models', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([
+        { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test1', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() },
+        { id: 2, provider: 'Anthropic', baseUrl: 'https://api.anthropic.com', apiKey: 'sk-test2', modelName: 'claude-3', status: false, createdAt: new Date(), updatedAt: new Date() },
+      ]);
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+
+      const response = await agent
+        .get('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(2);
     });
   });
 
+  // ========== GET /api/llm-models/enabled ==========
   describe('GET /api/llm-models/enabled', () => {
+    it('should return 401 without token', async () => {
+      const response = await agent.get('/api/llm-models/enabled');
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 403 for view role', async () => {
+      const response = await agent
+        .get('/api/llm-models/enabled')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
     it('should return enabled models for sysadmin', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindMany = jest.fn().mockResolvedValue([
@@ -155,13 +212,86 @@ describe('LLM Model Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
+      expect(response.body.message).toBe('DB error');
+    });
+
+    it('should return default error message when err.message is empty', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockRejectedValue(new Error(''));
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+
+      const response = await agent
+        .get('/api/llm-models/enabled')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取启用的LLM模型列表失败');
+    });
+
+    it('should return default error message when error has no message property', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockRejectedValue({ code: 'UNKNOWN' });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+
+      const response = await agent
+        .get('/api/llm-models/enabled')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取启用的LLM模型列表失败');
+    });
+
+    it('should return multiple enabled models', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([
+        { id: 1, provider: 'OpenAI', modelName: 'gpt-4o' },
+        { id: 2, provider: 'Anthropic', modelName: 'claude-3' },
+      ]);
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+
+      const response = await agent
+        .get('/api/llm-models/enabled')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(2);
+      expect(response.body.data[0].model_name).toBe('gpt-4o');
     });
   });
 
+  // ========== GET /api/llm-models/:id ==========
   describe('GET /api/llm-models/:id', () => {
-    it('should return 400 for invalid id', async () => {
+    it('should return 401 without token', async () => {
+      const response = await agent.get('/api/llm-models/1');
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 403 for admin role', async () => {
+      const response = await agent
+        .get('/api/llm-models/1')
+        .set('Authorization', `Bearer ${adminToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 for view role', async () => {
+      const response = await agent
+        .get('/api/llm-models/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 400 for invalid id (non-numeric)', async () => {
       const response = await agent
         .get('/api/llm-models/abc')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的模型ID');
+    });
+
+    it('should return 400 for invalid id (special characters)', async () => {
+      const response = await agent
+        .get('/api/llm-models/@#$')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -208,15 +338,76 @@ describe('LLM Model Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
+      expect(response.body.message).toBe('DB error');
+    });
+
+    it('should return default error message when err.message is empty', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockRejectedValue(new Error(''));
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .get('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取LLM模型详情失败');
+    });
+
+    it('should return default error message when error has no message property', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockRejectedValue({ code: 'UNKNOWN' });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .get('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取LLM模型详情失败');
     });
   });
 
+  // ========== POST /api/llm-models ==========
   describe('POST /api/llm-models', () => {
-    it('should return 400 when required fields are missing', async () => {
+    it('should return 401 without token', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .send({ provider: 'OpenAI' });
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 403 for admin role', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${adminToken()}`)
+        .send({ provider: 'OpenAI' });
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 for view role', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ provider: 'OpenAI' });
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 400 when all required fields are missing', async () => {
       const response = await agent
         .post('/api/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ provider: 'OpenAI' });
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
+
+    it('should return 400 when provider is missing', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
 
       expect(response.status).toBe(400);
       expect(response.body.message).toContain('不能为空');
@@ -262,6 +453,8 @@ describe('LLM Model Controller', () => {
         .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
 
       expect(response.status).toBe(201);
+      expect(response.body.code).toBe(0);
+      expect(response.body.message).toBe('创建LLM模型成功');
       expect(response.body.data.provider).toBe('OpenAI');
     });
 
@@ -276,13 +469,103 @@ describe('LLM Model Controller', () => {
         .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
 
       expect(response.status).toBe(500);
+      expect(response.body.message).toBe('DB error');
+    });
+
+    it('should return default error message when err.message is empty during create', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockRejectedValue(new Error(''));
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('创建LLM模型失败');
+    });
+
+    it('should return default error message when error has no message property during create', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockRejectedValue({ code: 'UNKNOWN' });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('创建LLM模型失败');
+    });
+
+    it('should return 400 when provider is empty string', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: '', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should pass full body to service create', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        id: 1, provider: 'Anthropic', baseUrl: 'https://api.anthropic.com', apiKey: 'sk-ant', modelName: 'claude-3', status: true, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+
+      const body = { provider: 'Anthropic', base_url: 'https://api.anthropic.com', api_key: 'sk-ant', model_name: 'claude-3' };
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send(body);
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.provider).toBe('Anthropic');
+      expect(response.body.data.model_name).toBe('claude-3');
     });
   });
 
+  // ========== PUT /api/llm-models/:id ==========
   describe('PUT /api/llm-models/:id', () => {
-    it('should return 400 for invalid id', async () => {
+    it('should return 401 without token', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .send({ provider: 'Anthropic' });
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 403 for admin role', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${adminToken()}`)
+        .send({ provider: 'Anthropic' });
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 for view role', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ provider: 'Anthropic' });
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 400 for invalid id (non-numeric)', async () => {
       const response = await agent
         .put('/api/llm-models/abc')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'Anthropic' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的模型ID');
+    });
+
+    it('should return 400 for invalid id (special characters)', async () => {
+      const response = await agent
+        .put('/api/llm-models/!@#')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Anthropic' });
 
@@ -333,6 +616,7 @@ describe('LLM Model Controller', () => {
         .send({ status: false });
 
       expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe(false);
     });
 
     it('should update multiple fields', async () => {
@@ -350,9 +634,9 @@ describe('LLM Model Controller', () => {
       expect(response.status).toBe(200);
     });
 
-    it('should return 500 on database error', async () => {
+    it('should return 500 on generic database error (not "LLM模型不存在")', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindFirst = jest.fn().mockRejectedValue(new Error('DB error'));
+      const mockFindFirst = jest.fn().mockRejectedValue(new Error('Connection timeout'));
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
 
       const response = await agent
@@ -361,13 +645,87 @@ describe('LLM Model Controller', () => {
         .send({ provider: 'Anthropic' });
 
       expect(response.status).toBe(500);
+      expect(response.body.message).toBe('Connection timeout');
+    });
+
+    it('should return default error message when err.message is empty during update', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockRejectedValue(new Error(''));
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'Anthropic' });
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('更新LLM模型失败');
+    });
+
+    it('should return default error message when error has no message property during update', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockRejectedValue({ code: 'UNKNOWN' });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'Anthropic' });
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('更新LLM模型失败');
+    });
+
+    it('should return success message after update', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, provider: 'Anthropic' });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'Anthropic' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.message).toBe('更新LLM模型成功');
     });
   });
 
+  // ========== DELETE /api/llm-models/:id ==========
   describe('DELETE /api/llm-models/:id', () => {
-    it('should return 400 for invalid id', async () => {
+    it('should return 401 without token', async () => {
+      const response = await agent.delete('/api/llm-models/1');
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 403 for admin role', async () => {
+      const response = await agent
+        .delete('/api/llm-models/1')
+        .set('Authorization', `Bearer ${adminToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 for view role', async () => {
+      const response = await agent
+        .delete('/api/llm-models/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 400 for invalid id (non-numeric)', async () => {
       const response = await agent
         .delete('/api/llm-models/abc')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的模型ID');
+    });
+
+    it('should return 400 for invalid id (special characters)', async () => {
+      const response = await agent
+        .delete('/api/llm-models/!@#')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -384,6 +742,7 @@ describe('LLM Model Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
+      expect(response.body.message).toBe('LLM模型不存在');
     });
 
     it('should delete model successfully', async () => {
@@ -400,11 +759,12 @@ describe('LLM Model Controller', () => {
       expect(response.status).toBe(200);
       expect(response.body.code).toBe(0);
       expect(response.body.message).toContain('删除LLM模型成功');
+      expect(response.body.data).toBeNull();
     });
 
-    it('should return 500 on database error', async () => {
+    it('should return 500 on generic database error (not "LLM模型不存在")', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindFirst = jest.fn().mockRejectedValue(new Error('DB error'));
+      const mockFindFirst = jest.fn().mockRejectedValue(new Error('Connection timeout'));
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
 
       const response = await agent
@@ -412,6 +772,33 @@ describe('LLM Model Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
+      expect(response.body.message).toBe('Connection timeout');
+    });
+
+    it('should return default error message when err.message is empty during delete', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockRejectedValue(new Error(''));
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .delete('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('删除LLM模型失败');
+    });
+
+    it('should return default error message when error has no message property during delete', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockRejectedValue({ code: 'UNKNOWN' });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .delete('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('删除LLM模型失败');
     });
   });
 });
