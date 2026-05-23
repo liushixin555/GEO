@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Input, Select, Tag, Spin, Pagination, App, Breadcrumb, Button, Descriptions, Table, Statistic, Typography } from 'antd';
-import { EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Input, Select, Tag, Spin, Pagination, App, Breadcrumb, Button, Descriptions, Table, Statistic, Typography, Space } from 'antd';
+import { EditOutlined, PlusOutlined, TagsOutlined, UserOutlined, FileImageOutlined, FileTextOutlined, AppstoreOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import axios from 'axios';
 import KnowledgeBaseForm from './KnowledgeBaseForm';
@@ -190,9 +190,15 @@ const KnowledgePage: React.FC = () => {
     {
       title: '统计',
       key: 'stats',
-      width: 200,
-      render: (_: unknown, record: KnowledgeBaseItem) =>
-        `关键词 ${record.keyword_count} | 画像 ${record.portrait_count} | 图片 ${record.image_count} | 文档 ${record.document_count}`,
+      width: 240,
+      render: (_: unknown, record: KnowledgeBaseItem) => (
+        <Space size={12}>
+          <Space size={4}><TagsOutlined /> {record.keyword_count}</Space>
+          <Space size={4}><UserOutlined /> {record.portrait_count}</Space>
+          <Space size={4}><FileImageOutlined /> {record.image_count}</Space>
+          <Space size={4}><FileTextOutlined /> {record.document_count}</Space>
+        </Space>
+      ),
     },
     {
       title: '创建者',
@@ -314,7 +320,7 @@ const KnowledgePage: React.FC = () => {
                 <Descriptions column={2} size="small" colon={false}>
                   <Descriptions.Item label="描述">{item.description || '-'}</Descriptions.Item>
                   <Descriptions.Item label="创建者">{item.creator_name || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="统计">关键词 {item.keyword_count} | 画像 {item.portrait_count} | 图片 {item.image_count} | 文档 {item.document_count}</Descriptions.Item>
+                  <Descriptions.Item label="统计"><Space size={12}><Space size={4}><TagsOutlined /> {item.keyword_count}</Space><Space size={4}><UserOutlined /> {item.portrait_count}</Space><Space size={4}><FileImageOutlined /> {item.image_count}</Space><Space size={4}><FileTextOutlined /> {item.document_count}</Space></Space></Descriptions.Item>
                   <Descriptions.Item label="创建时间">{formatDate(item.created_at)}</Descriptions.Item>
                 </Descriptions>
                 {canModify(item) && (
@@ -361,27 +367,27 @@ const KnowledgePage: React.FC = () => {
         <Row gutter={[16, 16]} className="knowledge-stat-cards">
           <Col xs={12} sm={6}>
             <Card className="stat-card" styles={{ body: { padding: '16px 24px' } }}>
-              <Statistic title="总资产数" value={invStats.total} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
+              <Statistic title={<Space><AppstoreOutlined /> 总资产</Space>} value={invStats.total} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
             <Card className="stat-card" styles={{ body: { padding: '16px 24px' } }}>
-              <Statistic title="关键词" value={invStats.keyword} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
+              <Statistic title={<Space><TagsOutlined /> 关键词</Space>} value={invStats.keyword} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
             <Card className="stat-card" styles={{ body: { padding: '16px 24px' } }}>
-              <Statistic title="画像" value={invStats.portrait} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
+              <Statistic title={<Space><UserOutlined /> 画像</Space>} value={invStats.portrait} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
             <Card className="stat-card" styles={{ body: { padding: '16px 24px' } }}>
-              <Statistic title="图片" value={invStats.image} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
+              <Statistic title={<Space><FileImageOutlined /> 图片</Space>} value={invStats.image} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
             <Card className="stat-card" styles={{ body: { padding: '16px 24px' } }}>
-              <Statistic title="文档" value={invStats.document} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
+              <Statistic title={<Space><FileTextOutlined /> 文档</Space>} value={invStats.document} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
             </Card>
           </Col>
         </Row>
