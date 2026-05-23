@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Row, Col, Card, Input, Select, Switch, Tag, Typography, Spin, Pagination, Breadcrumb } from 'antd';
+import { Row, Col, Card, Input, Select, Switch, Tag, Typography, Spin, Pagination, Breadcrumb, Button, Descriptions } from 'antd';
 import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import UserForm from './UserForm';
@@ -82,7 +82,7 @@ const UserPage: React.FC = () => {
     <div className="page-container">
       <div className="page-breadcrumb"><Breadcrumb items={[{ title: '用户管理' }]} /></div>
       <Row gutter={[16, 12]} className="toolbar">
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={12} md={8}>
           <Input.Search
             placeholder="搜索用户名/姓名..."
             value={search}
@@ -90,12 +90,13 @@ const UserPage: React.FC = () => {
             allowClear
           />
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={6} md={4}>
           <Select
             value={filterRole || undefined}
             onChange={(val) => { setFilterRole(val || ''); setPage(1); }}
             allowClear
             placeholder="全部角色"
+            style={{ width: '100%' }}
             options={[
               { value: 'sysadmin', label: '系统管理员' },
               { value: 'admin', label: '运营者' },
@@ -103,12 +104,13 @@ const UserPage: React.FC = () => {
             ]}
           />
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={6} md={4}>
           <Select
             value={filterStatus || undefined}
             onChange={(val) => { setFilterStatus(val || ''); setPage(1); }}
             allowClear
             placeholder="全部状态"
+            style={{ width: '100%' }}
             options={[
               { value: 'true', label: '启用' },
               { value: 'false', label: '禁用' },
@@ -118,29 +120,93 @@ const UserPage: React.FC = () => {
       </Row>
 
       <Spin spinning={loading}>
-        <Row gutter={[16, 16]}>
-          {data.map((item) => (
-            <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
-              <Card hoverable styles={{ body: { padding: 24 } }} style={{ height: '100%' }}>
-                <div className="item-card-header">
-                  <Typography.Title level={3} className="item-card-title">{item.cn_name}</Typography.Title>
-                  {item.role !== 'sysadmin' && <EditOutlined className="item-card-edit" onClick={() => { setEditItem(item); setShowForm(true); }} />}
-                </div>
-                <div className="item-card-row">
-                  <span className="item-card-username">@{item.username}</span>
-                  <Tag color={roleColors[item.role]}>{roleLabels[item.role] || item.role}</Tag>
-                  {item.role !== 'sysadmin' && <Switch size="small" checked={item.status} onChange={() => handleToggleStatus(item)} checkedChildren="启用" unCheckedChildren="禁用" />}
-                </div>
-              </Card>
-            </Col>
-          ))}
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <Card hoverable onClick={() => { setEditItem(null); setShowForm(true); }} className="company-add-card">
-              <PlusOutlined className="company-add-icon" />
-              <Typography.Text className="company-add-text">添加用户</Typography.Text>
+        {/* 卡片视图：小于1280px时显示 */}
+        <div className="user-cards">
+          {data.length === 0 && (
+            <Card>
+              <div className="user-cards-empty">暂无数据</div>
             </Card>
-          </Col>
-        </Row>
+          )}
+          {data.map((item) => (
+            <Card key={item.id} size="small" title={item.cn_name} extra={<Tag color={roleColors[item.role]}>{roleLabels[item.role] || item.role}</Tag>}>
+              <Descriptions column={2} size="small" colon={false}>
+                <Descriptions.Item label="用户名">@{item.username}</Descriptions.Item>
+                <Descriptions.Item label="角色">{roleLabels[item.role] || item.role}</Descriptions.Item>
+                <Descriptions.Item label="状态">
+                  {item.role !== 'sysadmin'
+                    ? <Switch size="small" checked={item.status} onChange={() => handleToggleStatus(item)} checkedChildren="启用" unCheckedChildren="禁用" />
+                    : <Tag color="green">启用</Tag>
+                  }
+                </Descriptions.Item>
+              </Descriptions>
+              {item.role !== 'sysadmin' && (
+                <div className="user-card-footer">
+                  <Button
+                    type="primary"
+                    size="small"
+                    onClick={() => { setEditItem(item); setShowForm(true); }}
+                  >
+                    编辑
+                  </Button>
+                </div>
+              )}
+            </Card>
+          ))}
+        </div>
+
+        {/* 表格视图：大于等于1280px时显示 */}
+        <div className="user-table-wrapper">
+          <table className="user-table">
+            <thead>
+              <tr>
+                <th className="col-name">姓名</th>
+                <th className="col-username">用户名</th>
+                <th className="col-role">角色</th>
+                <th className="col-status">状态</th>
+                <th className="col-action">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="user-table-empty">暂无数据</td>
+                </tr>
+              )}
+              {data.map((item) => (
+                <tr key={item.id}>
+                  <td className="col-name">{item.cn_name}</td>
+                  <td className="col-username">@{item.username}</td>
+                  <td className="col-role"><Tag color={roleColors[item.role]}>{roleLabels[item.role] || item.role}</Tag></td>
+                  <td className="col-status">
+                    {item.role !== 'sysadmin'
+                      ? <Switch size="small" checked={item.status} onChange={() => handleToggleStatus(item)} checkedChildren="启用" unCheckedChildren="禁用" />
+                      : <Tag color="green">启用</Tag>
+                    }
+                  </td>
+                  <td className="col-action">
+                    {item.role !== 'sysadmin' && (
+                      <Button
+                        type="link"
+                        size="small"
+                        onClick={() => { setEditItem(item); setShowForm(true); }}
+                      >
+                        编辑
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* 添加用户卡片：仅卡片视图 */}
+        <div className="user-add-card-wrapper">
+          <Card hoverable onClick={() => { setEditItem(null); setShowForm(true); }} className="company-add-card">
+            <PlusOutlined className="company-add-icon" />
+            <Typography.Text className="company-add-text">添加用户</Typography.Text>
+          </Card>
+        </div>
       </Spin>
 
       {total > pageSize && (
