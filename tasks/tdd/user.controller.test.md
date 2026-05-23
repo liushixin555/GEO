@@ -3,9 +3,9 @@
 ## 基本信息
 - **测试文件**: tests/apis/user.controller.test.ts
 - **源文件**: apis/controller/user.controller.ts
-- **执行日期**: 2026-05-23
-- **测试数量**: 44 个测试
-- **测试结果**: 44 passed, 0 failed
+- **执行日期**: 2026-05-24
+- **测试数量**: 46 个测试
+- **测试结果**: 46 passed, 0 failed
 
 ## 测试覆盖率
 
@@ -38,16 +38,18 @@
 4. should return 500 on database error
 5. should return 500 with fallback message when error has no message
 
-### POST /api/users (9个)
+### POST /api/users (11个)
 1. should return 400 when required fields are missing
 2. should return 400 when password is missing
 3. should return 400 when role is missing
 4. should return 400 when cn_name is missing
 5. should return 400 with correct message when required fields missing
-6. should create user successfully
-7. should return 409 for duplicate username
-8. should return 500 on database error during create
-9. should return 500 with fallback message when create error has no message
+6. should return 400 when role is not in whitelist
+7. should return 400 when password is less than 8 characters
+8. should create user successfully
+9. should return 409 for duplicate username
+10. should return 500 on database error during create
+11. should return 500 with fallback message when create error has no message
 
 ### PUT /api/users/:id (8个)
 1. should return 400 for invalid id
@@ -74,18 +76,20 @@
 5. should return 500 on database error
 6. should return 500 with fallback message when delete error has no message
 
-## 本次新增测试（8个）
+## 本次新增测试（10个）
 
-本次从 36 个测试补全至 44 个，新增 8 个测试用例，覆盖率从 84.37% Branch 提升至 100%：
+本次从 36 个测试补全至 46 个，新增 10 个测试用例，覆盖率从 84.37% Branch 提升至 100%：
 
 1. **listUsers fallback message** — 错误无消息时返回 '获取用户列表失败'
 2. **listUsers status=false** — 验证 status=false 过滤参数正确传递
 3. **getUser fallback message** — 错误无消息时返回 '获取用户详情失败'
 4. **createUser cn_name missing** — 验证 cn_name 缺失返回 400
 5. **createUser 400 message** — 验证必填字段缺失的错误消息内容
-6. **createUser fallback message** — 错误无消息时返回 '创建用户失败'
-7. **updateUser fallback message** — 错误无消息时返回 '更新用户失败'
-8. **deleteUser fallback message** — 错误无消息时返回 '删除用户失败'
+6. **createUser role whitelist** — 验证不在白名单中的角色值返回 400 (2026-05-24)
+7. **createUser password length** — 验证密码少于8位返回 400 (2026-05-24)
+8. **createUser fallback message** — 错误无消息时返回 '创建用户失败'
+9. **updateUser fallback message** — 错误无消息时返回 '更新用户失败'
+10. **deleteUser fallback message** — 错误无消息时返回 '删除用户失败'
 
 ## 未覆盖分支分析（补全前）
 

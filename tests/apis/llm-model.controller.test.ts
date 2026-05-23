@@ -509,6 +509,26 @@ describe('LLM Model Controller', () => {
       expect(response.status).toBe(400);
     });
 
+    it('should return 400 when base_url has invalid protocol (ftp://)', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'OpenAI', base_url: 'ftp://example.com', api_key: 'sk-test', model_name: 'gpt-4o' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('http://');
+    });
+
+    it('should return 400 when base_url is malformed', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'OpenAI', base_url: 'not-a-url', api_key: 'sk-test', model_name: 'gpt-4o' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('Base URL');
+    });
+
     it('should pass full body to service create', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockCreate = jest.fn().mockResolvedValue({

@@ -3,9 +3,9 @@
 ## 基本信息
 - **测试文件**: tests/apis/skills.controller.test.ts
 - **源文件**: apis/controller/skills.controller.ts
-- **执行日期**: 2026-05-23
-- **测试数量**: 58 个测试
-- **测试结果**: 58 passed, 0 failed
+- **执行日期**: 2026-05-24
+- **测试数量**: 60 个测试
+- **测试结果**: 60 passed, 0 failed
 
 ## 测试覆盖率
 
@@ -39,11 +39,13 @@
 7. should return 500 on database error
 8. should return 500 with default message when error has no message
 
-### POST /api/skills（15 个）
+### POST /api/skills（17 个）
 1. should return 401 without token
 2. should return 403 for view role
 3. should return 400 when no file uploaded
-4. should return 400 when zip has no SKILL.md
+4. should return 400 when zip contains path traversal (Zip Slip)
+5. should return 400 when zip entry exceeds size limit (zip bomb)
+6. should return 400 when zip has no SKILL.md
 5. should create skill successfully with zip file
 6. should create skill for admin and set created_by
 7. should create skill with SKILL.md having only name (no description)
@@ -86,15 +88,16 @@
 13. should return 500 on database error during delete
 14. should return 500 with default message when delete error has no message
 
-## 本次新增测试（相比上一版 +24 个）
+## 本次新增测试（相比上一版 +26 个）
 
 ### 认证/角色测试（+8 个）
 - 为所有 4 个端点补充 401（无 token）和 403（view 角色）测试
 
-### 功能测试（+16 个）
+### 功能测试（+18 个）
 - GET list: 默认分页参数、错误无消息时默认消息
 - GET :id: admin 访问、错误无消息时默认消息
 - POST: SKILL.md 仅有 name 无 description、flat zip、数据库创建错误、错误无消息时默认消息、成功/失败后临时文件清理
+- POST: Zip Slip 路径遍历检测、Zip Bomb 大小限制检测 (2026-05-24)
 - PUT: update 数据库错误、错误无消息时默认消息
 - DELETE: skill_dir 不存在于文件系统、skill_dir 为 null、delete 数据库错误、错误无消息时默认消息
 

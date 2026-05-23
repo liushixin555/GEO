@@ -322,6 +322,26 @@ describe('User Controller', () => {
       expect(response.body.message).toBe('用户名、密码、姓名、角色不能为空');
     });
 
+    it('should return 400 when role is not in whitelist', async () => {
+      const response = await agent
+        .post('/api/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: 'test', password: 'Pass1234', cn_name: 'Test', role: 'superadmin' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('角色值不合法');
+    });
+
+    it('should return 400 when password is less than 8 characters', async () => {
+      const response = await agent
+        .post('/api/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: 'test', password: 'short', cn_name: 'Test', role: 'admin' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('密码长度不能少于8位');
+    });
+
     it('should create user successfully', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindUnique = jest.fn().mockResolvedValue(null);

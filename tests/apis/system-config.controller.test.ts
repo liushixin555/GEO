@@ -230,6 +230,16 @@ describe('System Config Controller', () => {
       expect(response.body.message).toContain('config_key');
     });
 
+    it('应返回400当config_key不在白名单中时', async () => {
+      const response = await agent
+        .put('/api/system-configs')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ configs: [{ config_key: 'unknown_key', config_value: 'test' }] });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不允许修改的配置项');
+    });
+
     it('应返回400当config_value为undefined时', async () => {
       const response = await agent
         .put('/api/system-configs')

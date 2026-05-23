@@ -3,9 +3,9 @@
 ## 基本信息
 - **测试文件**: tests/apis/system-config.controller.test.ts
 - **源文件**: apis/controller/system-config.controller.ts
-- **执行日期**: 2026-05-23
-- **测试数量**: 27 个测试
-- **测试结果**: 27 passed, 0 failed
+- **执行日期**: 2026-05-24
+- **测试数量**: 28 个测试
+- **测试结果**: 28 passed, 0 failed
 
 ## 测试覆盖率
 
@@ -30,7 +30,7 @@
 7. 应返回兜底错误消息当异常无message时
 8. 应返回完整字段格式的配置数据
 
-### PUT /api/system-configs（19 个）
+### PUT /api/system-configs（20 个）
 1. 应返回401当无token时
 2. 应返回403当角色为admin时
 3. 应返回403当角色为view时
@@ -41,7 +41,8 @@
 8. 应返回400当config_value为undefined时
 9. 应返回400当多条配置中第二条缺少config_key时
 10. 应返回400当多条配置中第二条缺少config_value时
-11. 应成功批量更新配置
+11. 应返回400当config_key不在白名单中时
+12. 应成功批量更新配置
 12. 应成功更新单条配置
 13. 应允许config_value为空字符串
 14. 应允许config_value为null
