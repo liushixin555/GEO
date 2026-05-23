@@ -263,6 +263,8 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
           object_type: values.object_type,
           object_id: values.object_id || null,
           action: values.action,
+          priority: values.priority,
+          due_at: computeDueAt(values.due_label),
         }, { headers: { Authorization: `Bearer ${token}` } });
         message.success('待办更新成功');
       } else {
@@ -367,26 +369,22 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
           </Form.Item>
         )}
 
-        {!isEdit && (
-          <Form.Item label="优先级" name="priority" initialValue="P2">
-            <Select
-              placeholder="选择优先级"
-              options={[
-                { value: 'P0', label: 'P0 紧急' },
-                { value: 'P1', label: 'P1 高' },
-                { value: 'P2', label: 'P2 中' },
-                { value: 'P3', label: 'P3 低' },
-                { value: 'P4', label: 'P4 最低' },
-              ]}
-            />
-          </Form.Item>
-        )}
+        <Form.Item label="优先级" name="priority" initialValue="P2">
+          <Select
+            placeholder="选择优先级"
+            options={[
+              { value: 'P0', label: 'P0 紧急' },
+              { value: 'P1', label: 'P1 高' },
+              { value: 'P2', label: 'P2 中' },
+              { value: 'P3', label: 'P3 低' },
+              { value: 'P4', label: 'P4 最低' },
+            ]}
+          />
+        </Form.Item>
 
-        {!isEdit && (
-          <Form.Item label="完成时间" name="due_label" rules={[{ required: true, message: '请选择完成时间' }]}>
-            <Select placeholder="选择完成时间" options={DUE_LABEL_OPTIONS} />
-          </Form.Item>
-        )}
+        <Form.Item label="完成时间" name="due_label" rules={[{ required: true, message: '请选择完成时间' }]}>
+          <Select placeholder="选择完成时间" options={DUE_LABEL_OPTIONS} />
+        </Form.Item>
       </Form>
     </Modal>
   );
