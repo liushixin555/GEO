@@ -100,3 +100,29 @@ components: {
 - `apis/app.ts` — 新增路由
 - `pages/project/ProjectForm.tsx` — 修改 API 路径
 - `tests/apis/auth.controller.test.ts` — 5 个新测试
+
+---
+
+## fix007. 知识清单更新时间列宽不足导致换行
+
+### 问题
+知识清单表格中「更新时间」列宽 120px，格式化为中国时区后内容换行。
+
+### 修复
+列宽从 120px 增至 160px。
+
+### 涉及文件
+- `pages/knowledge/index.tsx`
+
+---
+
+## fix008. 文章存草稿/提交时正文内容未保存
+
+### 问题
+`handleSaveSettings` 函数中读取 `content` 状态变量时，闭包捕获了旧值，导致新导入或编辑的正文内容在存草稿/提交时未被包含在 payload 中。
+
+### 修复
+将 `content` 改为 `contentRef.current`（与自动保存逻辑一致，始终读取最新值）。
+
+### 涉及文件
+- `pages/article/ArticleDetail.tsx`

@@ -511,3 +511,62 @@ model User {
 ### 经验
 - 每个 `created_by` 字段都需要在 User 上声明对应的反向关联
 - 关系命名必须双方匹配：如 `"KnowledgeBaseCreator"`
+
+---
+
+## db017. Skills 模型重构：移除 category/status/companyId，新增 skill_dir
+
+### 变更原因
+技能管理改为上传 zip 包模式，名称和描述从 SKILL.md frontmatter 提取，不再需要手动输入类别、状态管理和公司归属。
+
+### Schema 变更
+```prisma
+// Before
+model Skills {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(200)
+  category    String   @db.VarChar(100)
+  description String?  @db.VarChar(500)
+  status      Boolean  @default(true)
+  companyId   Int?     @map("company_id")
+  createdBy   Int?     @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  company     Company? @relation(fields: [companyId], references: [id])
+  creator     User?    @relation("SkillsCreator", fields: [createdBy], references: [id])
+}
+
+// After
+model Skills {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(200)
+  description String?  @db.VarChar(500)
+  skillDir    String   @default("") @map("skill_dir") @db.VarChar(500)
+  createdBy   Int?     @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  creator     User?    @relation("SkillsCreator", fields: [createdBy], references: [id])
+
+  @@unique([name])
+  @@map("skills")
+}
+```
+
+### 变更说明
+- 移除 `category`（类别从 SKILL.md 获取，无需单独字段）
+- 移除 `status`（无禁用功能）
+- 移除 `companyId`（技能为全局资源，无公司归属）
+- 移除 `company` 关联（Company 模型上同步移除 `skills` 反向关联）
+- 新增 `skillDir`（技能包解压目录路径，如 `skills/ant-design`）
+- 新增 `@@unique([name])`（防止同名技能重复创建）
+
+### 完整更新链
+1. `prisma/schema.prisma` — 模型变更
+2. `prisma/migrations/20260523000000_refactor_skills_remove_category_status/migration.sql` — 迁移 SQL
+3. `apis/entity/skills.entity.ts` — 接口更新
+4. `apis/service/skills.service.ts` + `impl` — 服务层重构
+5. `apis/controller/skills.controller.ts` — 改为 zip 上传处理
+6. `apis/map/index.ts` — 映射更新
+7. `apis/app.ts` — 上传路由添加 multer 中间件
+8. `pages/skills/index.tsx` — 前端页面重构
+9. `package.json` — 新增 `adm-zip` 依赖
