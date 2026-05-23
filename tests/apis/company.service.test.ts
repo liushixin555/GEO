@@ -642,5 +642,188 @@ describe('CompanyServiceImpl', () => {
       expect(result.short_name).toBe('MAPPED');
       expect(result.status).toBe(false);
     });
+
+    it('should call findUnique with correct where clause', async () => {
+      const mockFindUnique = jest.fn().mockResolvedValue(makePrismaCompany({ id: 5 }));
+      const mockUpdate = jest.fn().mockResolvedValue(makePrismaCompany({ id: 5, status: false }));
+      mockedGetPrisma.mockReturnValue({
+        company: { findUnique: mockFindUnique, update: mockUpdate },
+      } as any);
+
+      await service.toggleStatus(5, false);
+
+      expect(mockFindUnique).toHaveBeenCalledWith({ where: { id: 5 } });
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  Edge cases & parameter validation
+  // ──────────────────────────────────────
+  describe('Edge cases', () => {
+    it('create: should link operators with correct companyId', async () => {
+      const request = {
+        short_name: 'A',
+        full_name: 'A Co',
+        contact_person: 'X',
+        contact_phone: '111',
+        operator_ids: [100, 200],
+      };
+
+      const mockCompany = makePrismaCompany({ id: 99 });
+      const mockTx = {
+        company: { create: jest.fn().mockResolvedValue(mockCompany) },
+        user: { update: jest.fn().mockResolvedValue({}) },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await service.create(request);
+
+      expect(mockTx.user.update).toHaveBeenNthCalledWith(1, {
+        where: { id: 100 },
+        data: { companyId: 99 },
+      });
+      expect(mockTx.user.update).toHaveBeenNthCalledWith(2, {
+        where: { id: 200 },
+        data: { companyId: 99 },
+      });
+    });
+
+    it('create: should work with empty operator_ids and no viewer_ids', async () => {
+      const request = {
+        short_name: 'B',
+        full_name: 'B Co',
+        contact_person: 'Y',
+        contact_phone: '222',
+        operator_ids: [],
+      };
+
+      const mockCompany = makePrismaCompany({ id: 50 });
+      const mockTx = {
+        company: { create: jest.fn().mockResolvedValue(mockCompany) },
+        user: { update: jest.fn().mockResolvedValue({}) },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      const result = await service.create(request);
+
+      expect(result.id).toBe(50);
+      expect(mockTx.user.update).not.toHaveBeenCalled();
+    });
+
+    it('create: should preserve address when provided', async () => {
+      const request = {
+        short_name: 'C',
+        full_name: 'C Co',
+        address: ' Guangzhou',
+        contact_person: 'Z',
+        contact_phone: '333',
+        operator_ids: [1],
+      };
+
+      const mockCompany = makePrismaCompany({ id: 60 });
+      const mockTx = {
+        company: { create: jest.fn().mockResolvedValue(mockCompany) },
+        user: { update: jest.fn().mockResolvedValue({}) },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await service.create(request);
+
+      expect(mockTx.company.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ address: ' Guangzhou' }),
+      });
+    });
+
+    it('update: should link operators with correct companyId', async () => {
+      const request = {
+        short_name: 'D',
+        full_name: 'D Co',
+        contact_person: 'W',
+        contact_phone: '444',
+        operator_ids: [50, 60],
+        viewer_ids: [70],
+      };
+
+      const mockTx = {
+        company: { update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 10 })) },
+        user: {
+          updateMany: jest.fn().mockResolvedValue({}),
+          update: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await service.update(10, request);
+
+      // operator updates come first
+      expect(mockTx.user.update).toHaveBeenNthCalledWith(1, {
+        where: { id: 50 },
+        data: { companyId: 10 },
+      });
+      expect(mockTx.user.update).toHaveBeenNthCalledWith(2, {
+        where: { id: 60 },
+        data: { companyId: 10 },
+      });
+      // then viewer
+      expect(mockTx.user.update).toHaveBeenNthCalledWith(3, {
+        where: { id: 70 },
+        data: { companyId: 10 },
+      });
+    });
+
+    it('update: should preserve address when provided', async () => {
+      const request = {
+        short_name: 'E',
+        full_name: 'E Co',
+        address: 'Shenzhen',
+        contact_person: 'A',
+        contact_phone: '555',
+        operator_ids: [1],
+      };
+
+      const mockTx = {
+        company: { update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        user: {
+          updateMany: jest.fn().mockResolvedValue({}),
+          update: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await service.update(1, request);
+
+      expect(mockTx.company.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: expect.objectContaining({ address: 'Shenzhen' }),
+      });
+    });
+
+    it('getById: should call findUnique with correct where clause', async () => {
+      const mockFindUnique = jest.fn().mockResolvedValue(makePrismaCompany({ id: 42 }));
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({
+        company: { findUnique: mockFindUnique },
+        user: { findMany: mockFindMany },
+      } as any);
+
+      await service.getById(42);
+
+      expect(mockFindUnique).toHaveBeenCalledWith({ where: { id: 42 } });
+    });
   });
 });

@@ -7,8 +7,8 @@
 `apis/service/impl/company.service.impl.ts`
 
 ## 测试结果
-- **测试数量**: 24 个测试
-- **通过率**: 100% (24/24)
+- **测试数量**: 31 个测试
+- **通过率**: 100% (31/31)
 - **执行时间**: ~4.7s
 
 ## 覆盖率
@@ -50,24 +50,32 @@
 5. ✅ 应以正确数据调用 company.update（包含 null address）
 6. ✅ 应将每个查看者关联到更新的公司
 
-### toggleStatus() - 4 个测试
+### toggleStatus() - 5 个测试
 1. ✅ 应启用公司（设置 status 为 true）
 2. ✅ 应禁用公司（设置 status 为 false）
 3. ✅ 公司不存在时应抛出错误
 4. ✅ 切换后应返回映射后的公司对象
+5. ✅ 应以正确的 where 条件调用 findUnique
 
-## 新增测试（相比原 6 个）
-- list: +2 个（单公司、字段映射验证）
-- getById: +3 个（仅运营者、仅查看者、无用户）
-- create: +4 个（无 viewer_ids、空 viewer_ids、null address、仅查看者关联）
-- update: +5 个（解除关联验证、无 viewer_ids、空 viewer_ids、数据验证、查看者关联验证）
-- toggleStatus: +4 个（全部新增：启用、禁用、不存在、映射验证）
+### Edge cases - 6 个测试（本轮新增）
+1. ✅ create: 验证 operator 关联使用正确的 companyId
+2. ✅ create: 空 operator_ids 且无 viewer_ids 时不调用 user.update
+3. ✅ create: 提供 address 时应保留原值
+4. ✅ update: 验证 operator/viewer 关联使用正确的 companyId
+5. ✅ update: 提供 address 时应保留原值
+6. ✅ getById: 验证 findUnique 使用正确的 where 条件
 
 ## 关键覆盖分支
 - `create`: `if (request.viewer_ids?.length)` → true/false 均覆盖
 - `update`: `if (request.viewer_ids?.length)` → true/false 均覆盖
 - `getById`: `if (!company)` → true/false 均覆盖
 - `toggleStatus`: `if (!existing)` → true/false 均覆盖
+
+## 测试策略
+- 使用 `jest.mock` 模拟 `getPrisma` 返回值
+- 每个测试通过构造 mock prisma 对象隔离数据库依赖
+- 使用 `$transaction` mock 的 `mockImplementation` 模式直接执行回调函数
+- 测试覆盖了正常路径、异常路径和边界条件
 
 ## 执行时间
 2026-05-23
