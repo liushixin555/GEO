@@ -17,6 +17,7 @@ import KnowledgeBaseDetail from '../knowledge/KnowledgeBaseDetail';
 import KeywordDetail from '../knowledge/KeywordDetail';
 import PortraitDetail from '../knowledge/PortraitDetail';
 import ImageDetail from '../knowledge/ImageDetail';
+import DocumentDetail from '../knowledge/DocumentDetail';
 import { AppContextProvider } from '../context/AppContext';
 import axios from 'axios';
 
@@ -175,6 +176,7 @@ const Layout: React.FC = () => {
             <Route path="/knowledge/:baseId/keyword/:id" element={<KeywordDetail />} />
             <Route path="/knowledge/:baseId/portrait/:id" element={<PortraitDetail />} />
             <Route path="/knowledge/:baseId/image/:id" element={<ImageDetail />} />
+            <Route path="/knowledge/:baseId/document/:id" element={<DocumentDetail />} />
             <Route path="/article" element={<ArticlePage />} />
             <Route path="/article/:id" element={<ArticleDetail />} />
             <Route path="/publish" element={<PublishingSchedulePage />} />

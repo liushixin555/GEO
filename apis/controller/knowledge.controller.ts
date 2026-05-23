@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { KeywordServiceImpl, PortraitServiceImpl, ImageServiceImpl } from '../service/impl/knowledge.service.impl';
+import { KeywordServiceImpl, PortraitServiceImpl, ImageServiceImpl, DocumentServiceImpl } from '../service/impl/knowledge.service.impl';
 import { KnowledgeBaseServiceImpl } from '../service/impl/knowledge-base.service.impl';
 import { ProjectServiceImpl } from '../service/impl/project.service.impl';
 import { LlmServiceImpl } from '../service/impl/llm.service.impl';
@@ -9,6 +9,7 @@ import { getPrisma } from '../utils';
 const keywordService = new KeywordServiceImpl();
 const portraitService = new PortraitServiceImpl();
 const imageService = new ImageServiceImpl();
+const documentService = new DocumentServiceImpl();
 const knowledgeBaseService = new KnowledgeBaseServiceImpl();
 const projectService = new ProjectServiceImpl();
 const llmService = new LlmServiceImpl();
@@ -390,6 +391,114 @@ export async function deleteImage(req: Request, res: Response): Promise<void> {
   }
 }
 
+// ==================== Documents ====================
+
+export async function listDocuments(req: Request, res: Response): Promise<void> {
+  try {
+    const baseId = parseInt(req.params.baseId as string, 10);
+    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const search = req.query.search as string | undefined;
+
+    const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
+
+    const { list, total } = await documentService.list(baseId, page, pageSize, search);
+    paginate(res, list, total, page, pageSize);
+  } catch (err: any) {
+    fail(res, 500, err.message || '获取文档列表失败');
+  }
+}
+
+export async function getDocument(req: Request, res: Response): Promise<void> {
+  try {
+    const baseId = parseInt(req.params.baseId as string, 10);
+    const id = parseInt(req.params.id as string, 10);
+    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    if (isNaN(id)) { fail(res, 400, '无效的文档ID'); return; }
+
+    const item = await documentService.getById(id);
+
+    if (item.base_id !== baseId) { fail(res, 404, '文档不存在'); return; }
+
+    success(res, item);
+  } catch (err: any) {
+    if (err.message === '文档不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '获取文档详情失败'); }
+  }
+}
+
+export async function createDocument(req: Request, res: Response): Promise<void> {
+  try {
+    const baseId = parseInt(req.params.baseId as string, 10);
+    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+
+    const { title, file_url, file_name, file_type, file_size } = req.body;
+    if (!title) { fail(res, 400, '文档标题不能为空'); return; }
+    if (!file_url) { fail(res, 400, '文档地址不能为空'); return; }
+    if (!file_name) { fail(res, 400, '文件名不能为空'); return; }
+    if (!file_type) { fail(res, 400, '文件类型不能为空'); return; }
+    if (!file_size) { fail(res, 400, '文件大小不能为空'); return; }
+
+    const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
+
+    const item = await documentService.create(baseId, req.body, userId);
+    res.status(201).json({ code: 0, message: '创建文档成功', data: item });
+  } catch (err: any) {
+    if (err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '创建文档失败'); }
+  }
+}
+
+export async function updateDocument(req: Request, res: Response): Promise<void> {
+  try {
+    const baseId = parseInt(req.params.baseId as string, 10);
+    const id = parseInt(req.params.id as string, 10);
+    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    if (isNaN(id)) { fail(res, 400, '无效的文档ID'); return; }
+
+    const { userId, role } = req.user!;
+    const existing = await documentService.getById(id);
+
+    if (existing.base_id !== baseId) { fail(res, 404, '文档不存在'); return; }
+
+    if (role !== 'sysadmin' && existing.created_by !== userId) {
+      fail(res, 403, '只能修改自己创建的文档');
+      return;
+    }
+
+    const item = await documentService.update(id, req.body);
+    success(res, item, '更新文档成功');
+  } catch (err: any) {
+    if (err.message === '文档不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '更新文档失败'); }
+  }
+}
+
+export async function deleteDocument(req: Request, res: Response): Promise<void> {
+  try {
+    const baseId = parseInt(req.params.baseId as string, 10);
+    const id = parseInt(req.params.id as string, 10);
+    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    if (isNaN(id)) { fail(res, 400, '无效的文档ID'); return; }
+
+    const { userId, role } = req.user!;
+    const existing = await documentService.getById(id);
+
+    if (existing.base_id !== baseId) { fail(res, 404, '文档不存在'); return; }
+
+    if (role !== 'sysadmin' && existing.created_by !== userId) {
+      fail(res, 403, '只能删除自己创建的文档');
+      return;
+    }
+
+    await documentService.delete(id);
+    success(res, null, '删除文档成功');
+  } catch (err: any) {
+    if (err.message === '文档不存在') { fail(res, 404, err.message); } else { fail(res, 500, err.message || '删除文档失败'); }
+  }
+}
+
 // ==================== Project-scoped aggregation ====================
 
 export async function listProjectKeywords(req: Request, res: Response): Promise<void> {
@@ -449,6 +558,25 @@ export async function listProjectImages(req: Request, res: Response): Promise<vo
   }
 }
 
+export async function listProjectDocuments(req: Request, res: Response): Promise<void> {
+  try {
+    const projectId = parseInt(req.params.projectId as string, 10);
+    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const search = req.query.search as string | undefined;
+
+    const { userId, role } = req.user!;
+    await checkProjectOperator(projectId, userId, role);
+
+    const { list, total } = await documentService.listByProject(projectId, page, pageSize, search);
+    paginate(res, list, total, page, pageSize);
+  } catch (err: any) {
+    if (err.message === '无权操作该项目') { fail(res, 403, err.message); } else { fail(res, 500, err.message || '获取文档列表失败'); }
+  }
+}
+
 // ==================== Knowledge Inventory ====================
 
 export async function listInventory(req: Request, res: Response): Promise<void> {
@@ -466,7 +594,7 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
     const baseMap = new Map(bases.map(b => [b.id, b]));
 
     if (baseIds.length === 0) {
-      res.json({ code: 0, data: { stats: { keyword: 0, portrait: 0, image: 0, total: 0 }, list: [], total: 0 } });
+      res.json({ code: 0, data: { stats: { keyword: 0, portrait: 0, image: 0, document: 0, total: 0 }, list: [], total: 0 } });
       return;
     }
 
@@ -474,10 +602,11 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
     const baseFilter = { baseId: { in: baseIds } };
 
     // Count by type
-    const [keywordCount, portraitCount, imageCount] = await Promise.all([
+    const [keywordCount, portraitCount, imageCount, documentCount] = await Promise.all([
       prisma.knowledgeKeyword.count({ where: baseFilter }),
       prisma.knowledgePortrait.count({ where: baseFilter }),
       prisma.knowledgeImage.count({ where: baseFilter }),
+      prisma.knowledgeDocument.count({ where: baseFilter }),
     ]);
 
     // Build merged items list
@@ -573,6 +702,34 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
       }
     }
 
+    if (!category || category === 'document') {
+      const docWhere: any = { ...baseFilter };
+      if (search) {
+        docWhere.OR = [
+          { title: { contains: search, mode: 'insensitive' } },
+          { fileName: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+      const documents = await prisma.knowledgeDocument.findMany({ where: docWhere, orderBy: { updatedAt: 'desc' } });
+      for (const d of documents) {
+        if (d.createdBy) creatorIds.add(d.createdBy);
+        const base = baseMap.get(d.baseId);
+        items.push({
+          id: `document-${d.id}`,
+          name: d.title,
+          category: '文档',
+          categoryKey: 'document',
+          baseId: d.baseId,
+          baseName: base?.name || '-',
+          scope: base?.scope || 'platform',
+          projectName: base ? getScopeLabel(base) : '-',
+          creatorName: '',
+          creatorId: d.createdBy,
+          updatedAt: d.updatedAt,
+        });
+      }
+    }
+
     // Batch lookup creator names
     if (creatorIds.size > 0) {
       const creators = await prisma.user.findMany({
@@ -602,7 +759,7 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
     res.json({
       code: 0,
       data: {
-        stats: { keyword: keywordCount, portrait: portraitCount, image: imageCount, total: keywordCount + portraitCount + imageCount },
+        stats: { keyword: keywordCount, portrait: portraitCount, image: imageCount, document: documentCount, total: keywordCount + portraitCount + imageCount + documentCount },
         list: pagedItems,
         total,
       },

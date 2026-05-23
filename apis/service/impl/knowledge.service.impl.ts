@@ -1,7 +1,7 @@
 import { getPrisma } from '../../utils';
-import { KnowledgeKeyword, KeywordExpandedWord, KnowledgePortrait, KnowledgeImage, CreateKeywordRequest, UpdateKeywordRequest, CreatePortraitRequest, UpdatePortraitRequest, CreateImageRequest, UpdateImageRequest } from '../../entity';
-import { mapKeyword, mapPortrait, mapKnowledgeImage } from '../../map';
-import { IKeywordService, IPortraitService, IImageService } from '../knowledge.service';
+import { KnowledgeKeyword, KeywordExpandedWord, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, CreateKeywordRequest, UpdateKeywordRequest, CreatePortraitRequest, UpdatePortraitRequest, CreateImageRequest, UpdateImageRequest, CreateDocumentRequest, UpdateDocumentRequest } from '../../entity';
+import { mapKeyword, mapPortrait, mapKnowledgeImage, mapKnowledgeDocument } from '../../map';
+import { IKeywordService, IPortraitService, IImageService, IDocumentService } from '../knowledge.service';
 import { KnowledgeBaseServiceImpl } from './knowledge-base.service.impl';
 
 function mapRawKeyword(r: any): KnowledgeKeyword {
@@ -273,5 +273,86 @@ export class ImageServiceImpl implements IImageService {
     const existing = await prisma.knowledgeImage.findFirst({ where: { id } });
     if (!existing) throw new Error('图片不存在');
     await prisma.knowledgeImage.delete({ where: { id } });
+  }
+}
+
+export class DocumentServiceImpl implements IDocumentService {
+  private kbService = new KnowledgeBaseServiceImpl();
+
+  async list(baseId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeDocument[]; total: number }> {
+    const prisma = getPrisma();
+    const where: any = { baseId };
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { fileName: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+    const [items, total] = await Promise.all([
+      prisma.knowledgeDocument.findMany({ where, orderBy: { id: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.knowledgeDocument.count({ where }),
+    ]);
+    return { list: items.map(mapKnowledgeDocument), total };
+  }
+
+  async listByProject(projectId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeDocument[]; total: number }> {
+    const prisma = getPrisma();
+    const baseIds = await this.kbService.getAccessibleBaseIds(projectId);
+    if (baseIds.length === 0) return { list: [], total: 0 };
+
+    const where: any = { baseId: { in: baseIds } };
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { fileName: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+    const [items, total] = await Promise.all([
+      prisma.knowledgeDocument.findMany({ where, orderBy: { id: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.knowledgeDocument.count({ where }),
+    ]);
+    return { list: items.map(mapKnowledgeDocument), total };
+  }
+
+  async getById(id: number): Promise<KnowledgeDocument> {
+    const prisma = getPrisma();
+    const item = await prisma.knowledgeDocument.findFirst({ where: { id } });
+    if (!item) throw new Error('文档不存在');
+    return mapKnowledgeDocument(item);
+  }
+
+  async create(baseId: number, request: CreateDocumentRequest, userId: number): Promise<KnowledgeDocument> {
+    const prisma = getPrisma();
+    const item = await prisma.knowledgeDocument.create({
+      data: {
+        baseId,
+        title: request.title,
+        description: request.description || null,
+        fileUrl: request.file_url,
+        fileName: request.file_name,
+        fileType: request.file_type,
+        fileSize: request.file_size,
+        createdBy: userId,
+      },
+    });
+    return mapKnowledgeDocument(item);
+  }
+
+  async update(id: number, request: UpdateDocumentRequest): Promise<KnowledgeDocument> {
+    const prisma = getPrisma();
+    const existing = await prisma.knowledgeDocument.findFirst({ where: { id } });
+    if (!existing) throw new Error('文档不存在');
+    const data: any = {};
+    if (request.title !== undefined) data.title = request.title;
+    if (request.description !== undefined) data.description = request.description;
+    const updated = await prisma.knowledgeDocument.update({ where: { id }, data });
+    return mapKnowledgeDocument(updated);
+  }
+
+  async delete(id: number): Promise<void> {
+    const prisma = getPrisma();
+    const existing = await prisma.knowledgeDocument.findFirst({ where: { id } });
+    if (!existing) throw new Error('文档不存在');
+    await prisma.knowledgeDocument.delete({ where: { id } });
   }
 }

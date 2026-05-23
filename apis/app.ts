@@ -19,6 +19,7 @@ import * as knowledgeController from './controller/knowledge.controller';
 import * as knowledgeBaseController from './controller/knowledge-base.controller';
 import * as publishingScheduleController from './controller/publishing-schedule.controller';
 import { uploadMiddleware, uploadFile } from './controller/upload.controller';
+import { uploadDocumentMiddleware, uploadDocumentFile } from './controller/upload-document.controller';
 
 const app: Express = express();
 
@@ -138,9 +139,11 @@ app.get('/api/projects/:projectId/articles/:id/versions', authMiddleware, roleMi
 app.get('/api/projects/:projectId/knowledge/keywords', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listProjectKeywords);
 app.get('/api/projects/:projectId/knowledge/portraits', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listProjectPortraits);
 app.get('/api/projects/:projectId/knowledge/images', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listProjectImages);
+app.get('/api/projects/:projectId/knowledge/documents', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listProjectDocuments);
 
 // Upload route (sysadmin + admin)
 app.post('/api/upload', authMiddleware, roleMiddleware('sysadmin', 'admin'), uploadMiddleware, uploadFile);
+app.post('/api/upload/document', authMiddleware, roleMiddleware('sysadmin', 'admin'), uploadDocumentMiddleware, uploadDocumentFile);
 
 // Publishing Schedule routes (sysadmin + admin + view)
 app.get('/api/publishing-schedule', authMiddleware, roleMiddleware('sysadmin', 'admin', 'view'), publishingScheduleController.listPublishingSchedule);
@@ -174,6 +177,11 @@ app.get('/api/knowledge-bases/:baseId/images/:id', authMiddleware, roleMiddlewar
 app.post('/api/knowledge-bases/:baseId/images', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.createImage);
 app.put('/api/knowledge-bases/:baseId/images/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.updateImage);
 app.delete('/api/knowledge-bases/:baseId/images/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.deleteImage);
+app.get('/api/knowledge-bases/:baseId/documents', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listDocuments);
+app.get('/api/knowledge-bases/:baseId/documents/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.getDocument);
+app.post('/api/knowledge-bases/:baseId/documents', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.createDocument);
+app.put('/api/knowledge-bases/:baseId/documents/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.updateDocument);
+app.delete('/api/knowledge-bases/:baseId/documents/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.deleteDocument);
 
 // Health check
 app.get('/api/health', (_req, res) => {

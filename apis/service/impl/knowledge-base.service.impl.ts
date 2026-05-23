@@ -11,6 +11,7 @@ const BASE_INCLUDE = {
       keywords: true,
       portraits: true,
       images: true,
+      documents: true,
     },
   },
 };
@@ -31,6 +32,7 @@ function mapKnowledgeBase(item: any): KnowledgeBase {
     keyword_count: item._count?.keywords ?? 0,
     portrait_count: item._count?.portraits ?? 0,
     image_count: item._count?.images ?? 0,
+    document_count: item._count?.documents ?? 0,
     created_at: item.createdAt,
     updated_at: item.updatedAt,
   };

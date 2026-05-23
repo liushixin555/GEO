@@ -24,6 +24,7 @@ interface KnowledgeBaseItem {
   keyword_count: number;
   portrait_count: number;
   image_count: number;
+  document_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -47,6 +48,7 @@ interface InventoryStats {
   keyword: number;
   portrait: number;
   image: number;
+  document: number;
   total: number;
 }
 
@@ -62,6 +64,14 @@ const categoryColors: Record<string, string> = {
   keyword: '#0f62fe',
   portrait: '#24a148',
   image: '#f1c21b',
+  document: '#da1e28',
+};
+
+const categoryLabels: Record<string, string> = {
+  keyword: '关键词',
+  portrait: '画像',
+  image: '图片',
+  document: '文档',
 };
 
 /* ==================== Page Component ==================== */
@@ -88,7 +98,7 @@ const KnowledgePage: React.FC = () => {
   const [invPage, setInvPage] = useState(1);
   const [invPageSize] = useState(10);
   const [invLoading, setInvLoading] = useState(false);
-  const [invStats, setInvStats] = useState<InventoryStats>({ keyword: 0, portrait: 0, image: 0, total: 0 });
+  const [invStats, setInvStats] = useState<InventoryStats>({ keyword: 0, portrait: 0, image: 0, document: 0, total: 0 });
   const [invCategory, setInvCategory] = useState<string | undefined>(undefined);
   const [invSearch, setInvSearch] = useState('');
 
@@ -182,7 +192,7 @@ const KnowledgePage: React.FC = () => {
       key: 'stats',
       width: 200,
       render: (_: unknown, record: KnowledgeBaseItem) =>
-        `关键词 ${record.keyword_count} | 画像 ${record.portrait_count} | 图片 ${record.image_count}`,
+        `关键词 ${record.keyword_count} | 画像 ${record.portrait_count} | 图片 ${record.image_count} | 文档 ${record.document_count}`,
     },
     {
       title: '创建者',
@@ -221,7 +231,7 @@ const KnowledgePage: React.FC = () => {
       dataIndex: 'categoryKey',
       key: 'categoryKey',
       width: 100,
-      render: (key: string) => <Tag color={categoryColors[key]}>{key === 'keyword' ? '关键词' : key === 'portrait' ? '画像' : '图片'}</Tag>,
+      render: (key: string) => <Tag color={categoryColors[key]}>{categoryLabels[key] || key}</Tag>,
     },
     {
       title: '所属知识库',
@@ -304,7 +314,7 @@ const KnowledgePage: React.FC = () => {
                 <Descriptions column={2} size="small" colon={false}>
                   <Descriptions.Item label="描述">{item.description || '-'}</Descriptions.Item>
                   <Descriptions.Item label="创建者">{item.creator_name || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="统计">关键词 {item.keyword_count} | 画像 {item.portrait_count} | 图片 {item.image_count}</Descriptions.Item>
+                  <Descriptions.Item label="统计">关键词 {item.keyword_count} | 画像 {item.portrait_count} | 图片 {item.image_count} | 文档 {item.document_count}</Descriptions.Item>
                   <Descriptions.Item label="创建时间">{formatDate(item.created_at)}</Descriptions.Item>
                 </Descriptions>
                 {canModify(item) && (
@@ -369,6 +379,11 @@ const KnowledgePage: React.FC = () => {
               <Statistic title="图片" value={invStats.image} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
             </Card>
           </Col>
+          <Col xs={12} sm={6}>
+            <Card className="stat-card" styles={{ body: { padding: '16px 24px' } }}>
+              <Statistic title="文档" value={invStats.document} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
+            </Card>
+          </Col>
         </Row>
 
         {/* 筛选器 */}
@@ -392,6 +407,7 @@ const KnowledgePage: React.FC = () => {
                 { value: 'keyword', label: '关键词' },
                 { value: 'portrait', label: '画像' },
                 { value: 'image', label: '图片' },
+                { value: 'document', label: '文档' },
               ]}
             />
           </Col>

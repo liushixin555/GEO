@@ -70,3 +70,31 @@ export interface UpdateImageRequest {
   title?: string;
   description?: string;
 }
+
+export interface KnowledgeDocument {
+  id: number;
+  base_id: number;
+  title: string;
+  description: string | null;
+  file_url: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  created_by: number | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface CreateDocumentRequest {
+  title: string;
+  description?: string;
+  file_url: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+}
+
+export interface UpdateDocumentRequest {
+  title?: string;
+  description?: string;
+}

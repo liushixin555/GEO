@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Tabs, Row, Col, Card, Input, Typography, Spin, Pagination, Empty, Popconfirm, App, Breadcrumb, Image, Tag, Alert, Button } from 'antd';
-import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { Tabs, Row, Col, Card, Input, Typography, Spin, Pagination, Empty, Popconfirm, App, Breadcrumb, Image, Tag, Alert, Button, Flex } from 'antd';
+import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ArrowLeftOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FilePptOutlined, FileMarkdownOutlined, FileTextOutlined, FileOutlined, DownloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { formatDate } from '../utils/date';
 
@@ -36,6 +36,41 @@ interface ImageItem {
   image_url: string;
   created_by: number | null;
   created_at: string;
+}
+
+interface DocumentItem {
+  id: number;
+  base_id: number;
+  title: string;
+  description: string | null;
+  file_url: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  created_by: number | null;
+  created_at: string;
+}
+
+const FILE_TYPE_ICONS: Record<string, React.ReactNode> = {
+  pdf: <FilePdfOutlined style={{ fontSize: 24, color: '#da1e28' }} />,
+  doc: <FileWordOutlined style={{ fontSize: 24, color: '#0f62fe' }} />,
+  docx: <FileWordOutlined style={{ fontSize: 24, color: '#0f62fe' }} />,
+  xls: <FileExcelOutlined style={{ fontSize: 24, color: '#198038' }} />,
+  xlsx: <FileExcelOutlined style={{ fontSize: 24, color: '#198038' }} />,
+  ppt: <FilePptOutlined style={{ fontSize: 24, color: '#fa4d56' }} />,
+  pptx: <FilePptOutlined style={{ fontSize: 24, color: '#fa4d56' }} />,
+  md: <FileMarkdownOutlined style={{ fontSize: 24, color: '#697077' }} />,
+  json: <FileTextOutlined style={{ fontSize: 24, color: '#8a3ffc' }} />,
+  yaml: <FileTextOutlined style={{ fontSize: 24, color: '#8a3ffc' }} />,
+  yml: <FileTextOutlined style={{ fontSize: 24, color: '#8a3ffc' }} />,
+  csv: <FileTextOutlined style={{ fontSize: 24, color: '#198038' }} />,
+  xml: <FileTextOutlined style={{ fontSize: 24, color: '#697077' }} />,
+};
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 const KnowledgeBaseDetail: React.FC = () => {
@@ -83,6 +118,13 @@ const KnowledgeBaseDetail: React.FC = () => {
   const [imgPage, setImgPage] = useState(1);
   const [imgLoading, setImgLoading] = useState(false);
   const [imgSearch, setImgSearch] = useState('');
+
+  // Documents state
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [docTotal, setDocTotal] = useState(0);
+  const [docPage, setDocPage] = useState(1);
+  const [docLoading, setDocLoading] = useState(false);
+  const [docSearch, setDocSearch] = useState('');
 
   const pageSize = 12;
 
@@ -147,9 +189,25 @@ const KnowledgeBaseDetail: React.FC = () => {
     } catch { /* ignore */ } finally { setImgLoading(false); }
   }, [baseId, imgPage, imgSearch]);
 
+  const fetchDocuments = useCallback(async () => {
+    if (!baseId) return;
+    setDocLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const params: any = { page: docPage, pageSize };
+      if (docSearch) params.search = docSearch;
+      const res = await axios.get(`/api/knowledge-bases/${baseId}/documents`, {
+        headers: { Authorization: `Bearer ${token}` }, params,
+      });
+      setDocuments(res.data.data.list);
+      setDocTotal(res.data.data.total);
+    } catch { /* ignore */ } finally { setDocLoading(false); }
+  }, [baseId, docPage, docSearch]);
+
   useEffect(() => { fetchKeywords(); }, [fetchKeywords]);
   useEffect(() => { fetchPortraits(); }, [fetchPortraits]);
   useEffect(() => { fetchImages(); }, [fetchImages]);
+  useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
 
   const canModify = (createdBy: number | null) => user.role === 'sysadmin' || createdBy === user.id;
 
@@ -183,6 +241,17 @@ const KnowledgeBaseDetail: React.FC = () => {
       });
       message.success('删除成功');
       fetchImages();
+    } catch (err: any) { message.error(err.response?.data?.message || '删除失败'); }
+  };
+
+  const handleDeleteDocument = async (item: DocumentItem) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`/api/knowledge-bases/${baseId}/documents/${item.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      message.success('删除成功');
+      fetchDocuments();
     } catch (err: any) { message.error(err.response?.data?.message || '删除失败'); }
   };
 
@@ -327,10 +396,63 @@ const KnowledgeBaseDetail: React.FC = () => {
     </div>
   );
 
+  const documentTab = (
+    <div>
+      <Row gutter={[16, 12]} className="toolbar">
+        <Col xs={24} sm={12}>
+          <Input.Search placeholder="搜索文档标题或文件名..." value={docSearch} onChange={(e) => { setDocSearch(e.target.value); setDocPage(1); }} allowClear />
+        </Col>
+      </Row>
+      <Spin spinning={docLoading}>
+        <Row gutter={[16, 16]}>
+          {documents.map((item) => (
+            <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
+              <Card hoverable styles={{ body: { padding: 16 } }} style={{ height: '100%' }}
+                onClick={() => navigate(`/knowledge/${baseId}/document/${item.id}`)}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                  <div style={{ flexShrink: 0 }}>
+                    {FILE_TYPE_ICONS[item.file_type] || <FileOutlined style={{ fontSize: 24 }} />}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Typography.Text strong ellipsis style={{ display: 'block' }}>{item.title}</Typography.Text>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }} ellipsis>{item.file_name}</Typography.Text>
+                    <div style={{ marginTop: 4 }}>
+                      <Typography.Text type="secondary" style={{ fontSize: 11 }}>{formatFileSize(item.file_size)} · {formatDate(item.created_at)}</Typography.Text>
+                    </div>
+                  </div>
+                </div>
+                {canModify(item.created_by) && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8, borderTop: '1px solid var(--border-subtle)', paddingTop: 8 }}>
+                    <Button type="text" size="small" icon={<DownloadOutlined />} href={item.file_url} target="_blank" onClick={(e) => e.stopPropagation()} />
+                    <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/document/${item.id}?mode=edit`); }} />
+                    <Popconfirm title="确定删除此文档？" onConfirm={(e) => { e?.stopPropagation(); handleDeleteDocument(item); }} okText="删除" cancelText="取消">
+                      <DeleteOutlined className="item-card-edit-danger" onClick={(e) => e.stopPropagation()} />
+                    </Popconfirm>
+                  </div>
+                )}
+              </Card>
+            </Col>
+          ))}
+          <Col xs={24} sm={12} lg={8} xl={6}>
+            <Card hoverable onClick={() => navigate(`/knowledge/${baseId}/document/add`)} className="company-add-card">
+              <PlusOutlined className="company-add-icon" />
+              <Typography.Text className="company-add-text">添加文档</Typography.Text>
+            </Card>
+          </Col>
+        </Row>
+      </Spin>
+      {docTotal > pageSize && (
+        <div className="item-card-pagination"><Pagination current={docPage} pageSize={pageSize} total={docTotal} showSizeChanger={false} onChange={(p) => setDocPage(p)} /></div>
+      )}
+    </div>
+  );
+
   const tabItems = [
     { key: 'keywords', label: '关键词', children: keywordTab },
     { key: 'portraits', label: '画像', children: portraitTab },
     { key: 'images', label: '图片', children: imageTab },
+    { key: 'documents', label: '文档', children: documentTab },
   ];
 
   return (

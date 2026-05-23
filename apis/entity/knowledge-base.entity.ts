@@ -13,6 +13,7 @@ export interface KnowledgeBase {
   keyword_count: number;
   portrait_count: number;
   image_count: number;
+  document_count: number;
   created_at: Date;
   updated_at: Date;
 }

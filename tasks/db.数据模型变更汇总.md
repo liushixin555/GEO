@@ -602,3 +602,43 @@ model Skills {
 7. `apis/app.ts` — 上传路由添加 multer 中间件
 8. `pages/skills/index.tsx` — 前端页面重构
 9. `package.json` — 新增 `adm-zip` 依赖
+
+---
+
+## db018. KnowledgeDocument 模型
+
+### 变更原因
+AI知识库增加文档管理功能，支持多种文档格式上传。
+
+### Schema 变更
+```prisma
+model KnowledgeDocument {
+  id          Int             @id @default(autoincrement())
+  baseId      Int             @map("base_id")
+  title       String          @db.VarChar(200)
+  description String?         @db.VarChar(500)
+  fileUrl     String          @map("file_url") @db.VarChar(500)
+  fileName    String          @map("file_name") @db.VarChar(255)
+  fileType    String          @map("file_type") @db.VarChar(20)
+  fileSize    Int             @map("file_size")
+  createdBy   Int?            @map("created_by")
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  base        KnowledgeBase   @relation(fields: [baseId], references: [id], onDelete: Cascade)
+  creator     User?           @relation("KnowledgeDocumentCreator", fields: [createdBy], references: [id])
+
+  @@index([baseId])
+  @@map("knowledge_documents")
+}
+```
+
+### 关联更新
+- `KnowledgeBase` 新增 `documents KnowledgeDocument[]`
+- `User` 新增 `createdDocuments KnowledgeDocument[] @relation("KnowledgeDocumentCreator")`
+
+### 新增依赖
+- `js-yaml` — YAML 格式校验
+- `fast-xml-parser` — XML 格式校验
+
+### 迁移
+通过 `npx prisma db push` 执行，无正式 migration 文件。

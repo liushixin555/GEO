@@ -48,6 +48,7 @@ model User {
   createdKeywords      KnowledgeKeyword[]    @relation("KnowledgeKeywordCreator")
   createdPortraits     KnowledgePortrait[]   @relation("KnowledgePortraitCreator")
   createdImages        KnowledgeImage[]      @relation("KnowledgeImageCreator")
+  createdDocuments     KnowledgeDocument[]   @relation("KnowledgeDocumentCreator")
   createdKnowledgeBases KnowledgeBase[]      @relation("KnowledgeBaseCreator")
 
   @@index([username])
@@ -195,6 +196,7 @@ model KnowledgeBase {
   keywords    KnowledgeKeyword[]
   portraits   KnowledgePortrait[]
   images      KnowledgeImage[]
+  documents   KnowledgeDocument[]
 
   @@index([scope])
   @@index([companyId])
@@ -305,4 +307,23 @@ model KnowledgeImage {
 
   @@index([baseId])
   @@map("knowledge_images")
+}
+
+model KnowledgeDocument {
+  id          Int             @id @default(autoincrement())
+  baseId      Int             @map("base_id")
+  title       String          @db.VarChar(200)
+  description String?         @db.VarChar(500)
+  fileUrl     String          @map("file_url") @db.VarChar(500)
+  fileName    String          @map("file_name") @db.VarChar(255)
+  fileType    String          @map("file_type") @db.VarChar(20)
+  fileSize    Int             @map("file_size")
+  createdBy   Int?            @map("created_by")
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  base        KnowledgeBase   @relation(fields: [baseId], references: [id], onDelete: Cascade)
+  creator     User?           @relation("KnowledgeDocumentCreator", fields: [createdBy], references: [id])
+
+  @@index([baseId])
+  @@map("knowledge_documents")
 }

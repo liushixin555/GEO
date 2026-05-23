@@ -1,4 +1,4 @@
-import { KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, CreateKeywordRequest, UpdateKeywordRequest, CreatePortraitRequest, UpdatePortraitRequest, CreateImageRequest, UpdateImageRequest } from '../entity';
+import { KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, CreateKeywordRequest, UpdateKeywordRequest, CreatePortraitRequest, UpdatePortraitRequest, CreateImageRequest, UpdateImageRequest, CreateDocumentRequest, UpdateDocumentRequest } from '../entity';
 
 export interface IKeywordService {
   list(baseId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeKeyword[]; total: number }>;
@@ -27,5 +27,14 @@ export interface IImageService {
   getById(id: number): Promise<KnowledgeImage>;
   create(baseId: number, request: CreateImageRequest, userId: number): Promise<KnowledgeImage>;
   update(id: number, request: UpdateImageRequest): Promise<KnowledgeImage>;
+  delete(id: number): Promise<void>;
+}
+
+export interface IDocumentService {
+  list(baseId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeDocument[]; total: number }>;
+  listByProject(projectId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeDocument[]; total: number }>;
+  getById(id: number): Promise<KnowledgeDocument>;
+  create(baseId: number, request: CreateDocumentRequest, userId: number): Promise<KnowledgeDocument>;
+  update(id: number, request: UpdateDocumentRequest): Promise<KnowledgeDocument>;
   delete(id: number): Promise<void>;
 }
