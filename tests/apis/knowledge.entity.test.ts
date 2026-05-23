@@ -19,8 +19,11 @@ import {
 } from '../../apis/entity/knowledge.entity';
 
 describe('knowledge.entity', () => {
+  // ============================================================
+  // KnowledgeKeyword interface
+  // ============================================================
   describe('KnowledgeKeyword interface', () => {
-    it('should create a valid KnowledgeKeyword object', () => {
+    it('should create a valid KnowledgeKeyword object with all fields', () => {
       const keyword: KnowledgeKeyword = {
         id: 1,
         base_id: 1,
@@ -32,11 +35,14 @@ describe('knowledge.entity', () => {
         updated_at: new Date(),
       };
       expect(keyword.id).toBe(1);
+      expect(keyword.base_id).toBe(1);
       expect(keyword.keyword).toBe('SEO优化');
       expect(keyword.seed_word).toBe('seo');
+      expect(keyword.group_id).toBe(1);
+      expect(keyword.created_by).toBe(1);
     });
 
-    it('should allow nullable fields to be null', () => {
+    it('should allow all nullable fields to be null', () => {
       const keyword: KnowledgeKeyword = {
         id: 2,
         base_id: 1,
@@ -69,8 +75,185 @@ describe('knowledge.entity', () => {
       expect(keyword.expanded_words).toHaveLength(1);
       expect(keyword.expanded_words![0].word).toBe('扩展词1');
     });
+
+    it('should allow expanded_words to be undefined', () => {
+      const keyword: KnowledgeKeyword = {
+        id: 3,
+        base_id: 1,
+        keyword: '无扩展词',
+        seed_word: null,
+        group_id: null,
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(keyword.expanded_words).toBeUndefined();
+    });
+
+    it('should support multiple expanded_words', () => {
+      const keyword: KnowledgeKeyword = {
+        id: 4,
+        base_id: 1,
+        keyword: '多扩展词',
+        seed_word: '种子',
+        group_id: 1,
+        created_by: 1,
+        created_at: new Date(),
+        updated_at: new Date(),
+        expanded_words: [
+          { id: 1, keyword_id: 4, word: '扩展1', selected: true, created_at: new Date(), updated_at: new Date() },
+          { id: 2, keyword_id: 4, word: '扩展2', selected: false, created_at: new Date(), updated_at: new Date() },
+          { id: 3, keyword_id: 4, word: '扩展3', selected: true, created_at: new Date(), updated_at: new Date() },
+        ],
+      };
+      expect(keyword.expanded_words).toHaveLength(3);
+      expect(keyword.expanded_words![0].selected).toBe(true);
+      expect(keyword.expanded_words![1].selected).toBe(false);
+      expect(keyword.expanded_words![2].word).toBe('扩展3');
+    });
+
+    it('should have id as number type', () => {
+      const keyword: KnowledgeKeyword = {
+        id: 999,
+        base_id: 1,
+        keyword: 'K',
+        seed_word: null,
+        group_id: null,
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(typeof keyword.id).toBe('number');
+      expect(keyword.id).toBe(999);
+    });
+
+    it('should have base_id as number type', () => {
+      const keyword: KnowledgeKeyword = {
+        id: 1,
+        base_id: 42,
+        keyword: 'K',
+        seed_word: null,
+        group_id: null,
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(typeof keyword.base_id).toBe('number');
+      expect(keyword.base_id).toBe(42);
+    });
+
+    it('should support Chinese characters in keyword', () => {
+      const keyword: KnowledgeKeyword = {
+        id: 1,
+        base_id: 1,
+        keyword: '薄云商机倍增服务关键词',
+        seed_word: '薄云',
+        group_id: null,
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(keyword.keyword).toContain('薄云');
+      expect(keyword.keyword).toContain('关键词');
+    });
+
+    it('should have seed_word as non-null string', () => {
+      const keyword: KnowledgeKeyword = {
+        id: 1,
+        base_id: 1,
+        keyword: '测试',
+        seed_word: '种子词',
+        group_id: null,
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(keyword.seed_word).toBe('种子词');
+      expect(typeof keyword.seed_word).toBe('string');
+    });
+
+    it('should have group_id as non-null number', () => {
+      const keyword: KnowledgeKeyword = {
+        id: 1,
+        base_id: 1,
+        keyword: '测试',
+        seed_word: null,
+        group_id: 10,
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(keyword.group_id).toBe(10);
+      expect(typeof keyword.group_id).toBe('number');
+    });
+
+    it('should have created_by as non-null number', () => {
+      const keyword: KnowledgeKeyword = {
+        id: 1,
+        base_id: 1,
+        keyword: '测试',
+        seed_word: null,
+        group_id: null,
+        created_by: 5,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(keyword.created_by).toBe(5);
+      expect(typeof keyword.created_by).toBe('number');
+    });
+
+    it('should have created_at and updated_at as Date instances', () => {
+      const now = new Date();
+      const keyword: KnowledgeKeyword = {
+        id: 1,
+        base_id: 1,
+        keyword: '时间测试',
+        seed_word: null,
+        group_id: null,
+        created_by: null,
+        created_at: now,
+        updated_at: now,
+      };
+      expect(keyword.created_at).toBeInstanceOf(Date);
+      expect(keyword.updated_at).toBeInstanceOf(Date);
+      expect(keyword.created_at).toBe(now);
+      expect(keyword.updated_at).toBe(now);
+    });
+
+    it('should support different created_at and updated_at timestamps', () => {
+      const created = new Date('2024-01-01T00:00:00Z');
+      const updated = new Date('2024-12-31T23:59:59Z');
+      const keyword: KnowledgeKeyword = {
+        id: 1,
+        base_id: 1,
+        keyword: '时间差',
+        seed_word: null,
+        group_id: null,
+        created_by: null,
+        created_at: created,
+        updated_at: updated,
+      };
+      expect(keyword.created_at.getTime()).toBeLessThan(keyword.updated_at.getTime());
+    });
+
+    it('should support keyword as empty string', () => {
+      const keyword: KnowledgeKeyword = {
+        id: 1,
+        base_id: 1,
+        keyword: '',
+        seed_word: null,
+        group_id: null,
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(keyword.keyword).toBe('');
+    });
   });
 
+  // ============================================================
+  // KeywordExpandedWord interface
+  // ============================================================
   describe('KeywordExpandedWord interface', () => {
     it('should create a valid KeywordExpandedWord object', () => {
       const word: KeywordExpandedWord = {
@@ -81,6 +264,8 @@ describe('knowledge.entity', () => {
         created_at: new Date(),
         updated_at: new Date(),
       };
+      expect(word.id).toBe(1);
+      expect(word.keyword_id).toBe(1);
       expect(word.word).toBe('扩展词');
       expect(word.selected).toBe(true);
     });
@@ -96,10 +281,103 @@ describe('knowledge.entity', () => {
       };
       expect(word.selected).toBe(false);
     });
+
+    it('should have id as number type', () => {
+      const word: KeywordExpandedWord = {
+        id: 999,
+        keyword_id: 1,
+        word: 'w',
+        selected: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(typeof word.id).toBe('number');
+      expect(word.id).toBe(999);
+    });
+
+    it('should have keyword_id as number type', () => {
+      const word: KeywordExpandedWord = {
+        id: 1,
+        keyword_id: 42,
+        word: 'w',
+        selected: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(typeof word.keyword_id).toBe('number');
+      expect(word.keyword_id).toBe(42);
+    });
+
+    it('should support Chinese characters in word', () => {
+      const word: KeywordExpandedWord = {
+        id: 1,
+        keyword_id: 1,
+        word: '薄云商机扩展词',
+        selected: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(word.word).toContain('薄云');
+    });
+
+    it('should have created_at and updated_at as Date instances', () => {
+      const now = new Date();
+      const word: KeywordExpandedWord = {
+        id: 1,
+        keyword_id: 1,
+        word: 'w',
+        selected: true,
+        created_at: now,
+        updated_at: now,
+      };
+      expect(word.created_at).toBeInstanceOf(Date);
+      expect(word.updated_at).toBeInstanceOf(Date);
+    });
+
+    it('should support different timestamps for created_at and updated_at', () => {
+      const created = new Date('2024-06-01T00:00:00Z');
+      const updated = new Date('2024-06-15T12:00:00Z');
+      const word: KeywordExpandedWord = {
+        id: 1,
+        keyword_id: 1,
+        word: 'w',
+        selected: true,
+        created_at: created,
+        updated_at: updated,
+      };
+      expect(word.created_at.getTime()).toBeLessThan(word.updated_at.getTime());
+    });
+
+    it('should have selected as boolean type', () => {
+      const word: KeywordExpandedWord = {
+        id: 1,
+        keyword_id: 1,
+        word: 'w',
+        selected: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(typeof word.selected).toBe('boolean');
+    });
+
+    it('should support word as empty string', () => {
+      const word: KeywordExpandedWord = {
+        id: 1,
+        keyword_id: 1,
+        word: '',
+        selected: false,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(word.word).toBe('');
+    });
   });
 
+  // ============================================================
+  // KnowledgePortrait interface
+  // ============================================================
   describe('KnowledgePortrait interface', () => {
-    it('should create a valid KnowledgePortrait object', () => {
+    it('should create a valid KnowledgePortrait object with all fields', () => {
       const portrait: KnowledgePortrait = {
         id: 1,
         base_id: 1,
@@ -109,8 +387,11 @@ describe('knowledge.entity', () => {
         created_at: new Date(),
         updated_at: new Date(),
       };
+      expect(portrait.id).toBe(1);
+      expect(portrait.base_id).toBe(1);
       expect(portrait.title).toBe('用户画像');
       expect(portrait.content).toBe('画像内容');
+      expect(portrait.created_by).toBe(1);
     });
 
     it('should allow content and created_by to be null', () => {
@@ -126,10 +407,123 @@ describe('knowledge.entity', () => {
       expect(portrait.content).toBeNull();
       expect(portrait.created_by).toBeNull();
     });
+
+    it('should have id as number type', () => {
+      const portrait: KnowledgePortrait = {
+        id: 100,
+        base_id: 1,
+        title: 'T',
+        content: null,
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(typeof portrait.id).toBe('number');
+      expect(portrait.id).toBe(100);
+    });
+
+    it('should have base_id as number type', () => {
+      const portrait: KnowledgePortrait = {
+        id: 1,
+        base_id: 42,
+        title: 'T',
+        content: null,
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(typeof portrait.base_id).toBe('number');
+      expect(portrait.base_id).toBe(42);
+    });
+
+    it('should support Chinese characters in title', () => {
+      const portrait: KnowledgePortrait = {
+        id: 1,
+        base_id: 1,
+        title: '薄云商机倍增服务画像',
+        content: null,
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(portrait.title).toContain('薄云');
+    });
+
+    it('should have content as non-null string', () => {
+      const portrait: KnowledgePortrait = {
+        id: 1,
+        base_id: 1,
+        title: 'T',
+        content: '详细内容描述',
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(portrait.content).toBe('详细内容描述');
+    });
+
+    it('should have created_by as non-null number', () => {
+      const portrait: KnowledgePortrait = {
+        id: 1,
+        base_id: 1,
+        title: 'T',
+        content: null,
+        created_by: 7,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(portrait.created_by).toBe(7);
+    });
+
+    it('should have created_at and updated_at as Date instances', () => {
+      const now = new Date();
+      const portrait: KnowledgePortrait = {
+        id: 1,
+        base_id: 1,
+        title: 'T',
+        content: null,
+        created_by: null,
+        created_at: now,
+        updated_at: now,
+      };
+      expect(portrait.created_at).toBeInstanceOf(Date);
+      expect(portrait.updated_at).toBeInstanceOf(Date);
+    });
+
+    it('should support different timestamps', () => {
+      const created = new Date('2024-01-01T00:00:00Z');
+      const updated = new Date('2024-12-31T23:59:59Z');
+      const portrait: KnowledgePortrait = {
+        id: 1,
+        base_id: 1,
+        title: '时间差',
+        content: null,
+        created_by: null,
+        created_at: created,
+        updated_at: updated,
+      };
+      expect(portrait.created_at.getTime()).toBeLessThan(portrait.updated_at.getTime());
+    });
+
+    it('should support empty string content', () => {
+      const portrait: KnowledgePortrait = {
+        id: 1,
+        base_id: 1,
+        title: 'T',
+        content: '',
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(portrait.content).toBe('');
+    });
   });
 
+  // ============================================================
+  // KnowledgeImage interface
+  // ============================================================
   describe('KnowledgeImage interface', () => {
-    it('should create a valid KnowledgeImage object', () => {
+    it('should create a valid KnowledgeImage object with all fields', () => {
       const image: KnowledgeImage = {
         id: 1,
         base_id: 1,
@@ -140,8 +534,12 @@ describe('knowledge.entity', () => {
         created_at: new Date(),
         updated_at: new Date(),
       };
+      expect(image.id).toBe(1);
+      expect(image.base_id).toBe(1);
       expect(image.title).toBe('产品图');
+      expect(image.description).toBe('产品展示图');
       expect(image.image_url).toBe('https://example.com/image.jpg');
+      expect(image.created_by).toBe(1);
     });
 
     it('should allow description and created_by to be null', () => {
@@ -156,11 +554,139 @@ describe('knowledge.entity', () => {
         updated_at: new Date(),
       };
       expect(image.description).toBeNull();
+      expect(image.created_by).toBeNull();
+    });
+
+    it('should have id as number type', () => {
+      const image: KnowledgeImage = {
+        id: 999,
+        base_id: 1,
+        title: 'T',
+        description: null,
+        image_url: 'https://example.com/img.jpg',
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(typeof image.id).toBe('number');
+    });
+
+    it('should have base_id as number type', () => {
+      const image: KnowledgeImage = {
+        id: 1,
+        base_id: 42,
+        title: 'T',
+        description: null,
+        image_url: 'https://example.com/img.jpg',
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(typeof image.base_id).toBe('number');
+      expect(image.base_id).toBe(42);
+    });
+
+    it('should support Chinese characters in title', () => {
+      const image: KnowledgeImage = {
+        id: 1,
+        base_id: 1,
+        title: '薄云产品展示图',
+        description: null,
+        image_url: 'https://example.com/img.jpg',
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(image.title).toContain('薄云');
+    });
+
+    it('should have description as non-null string', () => {
+      const image: KnowledgeImage = {
+        id: 1,
+        base_id: 1,
+        title: 'T',
+        description: '详细的图片描述信息',
+        image_url: 'https://example.com/img.jpg',
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(image.description).toBe('详细的图片描述信息');
+    });
+
+    it('should support various image_url formats', () => {
+      const urls = [
+        'https://example.com/image.jpg',
+        'https://cdn.example.com/path/to/image.png',
+        '/uploads/local/image.webp',
+      ];
+      urls.forEach((url) => {
+        const image: KnowledgeImage = {
+          id: 1,
+          base_id: 1,
+          title: 'T',
+          description: null,
+          image_url: url,
+          created_by: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+        };
+        expect(image.image_url).toBe(url);
+      });
+    });
+
+    it('should have created_by as non-null number', () => {
+      const image: KnowledgeImage = {
+        id: 1,
+        base_id: 1,
+        title: 'T',
+        description: null,
+        image_url: 'https://example.com/img.jpg',
+        created_by: 7,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(image.created_by).toBe(7);
+    });
+
+    it('should have created_at and updated_at as Date instances', () => {
+      const now = new Date();
+      const image: KnowledgeImage = {
+        id: 1,
+        base_id: 1,
+        title: 'T',
+        description: null,
+        image_url: 'https://example.com/img.jpg',
+        created_by: null,
+        created_at: now,
+        updated_at: now,
+      };
+      expect(image.created_at).toBeInstanceOf(Date);
+      expect(image.updated_at).toBeInstanceOf(Date);
+    });
+
+    it('should support different timestamps', () => {
+      const created = new Date('2024-01-01T00:00:00Z');
+      const updated = new Date('2024-12-31T23:59:59Z');
+      const image: KnowledgeImage = {
+        id: 1,
+        base_id: 1,
+        title: '时间差',
+        description: null,
+        image_url: 'https://example.com/img.jpg',
+        created_by: null,
+        created_at: created,
+        updated_at: updated,
+      };
+      expect(image.created_at.getTime()).toBeLessThan(image.updated_at.getTime());
     });
   });
 
+  // ============================================================
+  // KnowledgeDocument interface
+  // ============================================================
   describe('KnowledgeDocument interface', () => {
-    it('should create a valid KnowledgeDocument object', () => {
+    it('should create a valid KnowledgeDocument object with all fields', () => {
       const doc: KnowledgeDocument = {
         id: 1,
         base_id: 1,
@@ -174,10 +700,15 @@ describe('knowledge.entity', () => {
         created_at: new Date(),
         updated_at: new Date(),
       };
+      expect(doc.id).toBe(1);
+      expect(doc.base_id).toBe(1);
       expect(doc.title).toBe('产品文档');
+      expect(doc.description).toBe('产品说明文档');
+      expect(doc.file_url).toBe('/uploads/doc.pdf');
       expect(doc.file_name).toBe('doc.pdf');
       expect(doc.file_type).toBe('application/pdf');
       expect(doc.file_size).toBe(1024);
+      expect(doc.created_by).toBe(1);
     });
 
     it('should allow description and created_by to be null', () => {
@@ -197,14 +728,205 @@ describe('knowledge.entity', () => {
       expect(doc.description).toBeNull();
       expect(doc.created_by).toBeNull();
     });
+
+    it('should have id as number type', () => {
+      const doc: KnowledgeDocument = {
+        id: 999,
+        base_id: 1,
+        title: 'T',
+        description: null,
+        file_url: '/uploads/f.pdf',
+        file_name: 'f.pdf',
+        file_type: 'application/pdf',
+        file_size: 0,
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(typeof doc.id).toBe('number');
+    });
+
+    it('should have base_id as number type', () => {
+      const doc: KnowledgeDocument = {
+        id: 1,
+        base_id: 42,
+        title: 'T',
+        description: null,
+        file_url: '/uploads/f.pdf',
+        file_name: 'f.pdf',
+        file_type: 'application/pdf',
+        file_size: 0,
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(typeof doc.base_id).toBe('number');
+      expect(doc.base_id).toBe(42);
+    });
+
+    it('should support various file_type values', () => {
+      const fileTypes = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/plain',
+        'text/csv',
+        'application/vnd.ms-excel',
+      ];
+      fileTypes.forEach((fileType) => {
+        const doc: KnowledgeDocument = {
+          id: 1,
+          base_id: 1,
+          title: 'T',
+          description: null,
+          file_url: '/uploads/f',
+          file_name: 'f',
+          file_type: fileType,
+          file_size: 100,
+          created_by: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+        };
+        expect(doc.file_type).toBe(fileType);
+      });
+    });
+
+    it('should support file_size as zero', () => {
+      const doc: KnowledgeDocument = {
+        id: 1,
+        base_id: 1,
+        title: '空文件',
+        description: null,
+        file_url: '/uploads/empty.txt',
+        file_name: 'empty.txt',
+        file_type: 'text/plain',
+        file_size: 0,
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(doc.file_size).toBe(0);
+    });
+
+    it('should support large file_size values', () => {
+      const doc: KnowledgeDocument = {
+        id: 1,
+        base_id: 1,
+        title: '大文件',
+        description: null,
+        file_url: '/uploads/big.zip',
+        file_name: 'big.zip',
+        file_type: 'application/zip',
+        file_size: 1073741824, // 1GB
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(doc.file_size).toBe(1073741824);
+    });
+
+    it('should have file_size as number type', () => {
+      const doc: KnowledgeDocument = {
+        id: 1,
+        base_id: 1,
+        title: 'T',
+        description: null,
+        file_url: '/uploads/f',
+        file_name: 'f',
+        file_type: 'text/plain',
+        file_size: 512,
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(typeof doc.file_size).toBe('number');
+    });
+
+    it('should support Chinese characters in title', () => {
+      const doc: KnowledgeDocument = {
+        id: 1,
+        base_id: 1,
+        title: '薄云商机文档',
+        description: null,
+        file_url: '/uploads/f.pdf',
+        file_name: 'f.pdf',
+        file_type: 'application/pdf',
+        file_size: 0,
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(doc.title).toContain('薄云');
+    });
+
+    it('should support various file_name extensions', () => {
+      const names = ['report.pdf', 'data.xlsx', 'notes.docx', 'readme.txt'];
+      names.forEach((fileName) => {
+        const doc: KnowledgeDocument = {
+          id: 1,
+          base_id: 1,
+          title: 'T',
+          description: null,
+          file_url: `/uploads/${fileName}`,
+          file_name: fileName,
+          file_type: 'application/octet-stream',
+          file_size: 100,
+          created_by: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+        };
+        expect(doc.file_name).toBe(fileName);
+      });
+    });
+
+    it('should have created_at and updated_at as Date instances', () => {
+      const now = new Date();
+      const doc: KnowledgeDocument = {
+        id: 1,
+        base_id: 1,
+        title: 'T',
+        description: null,
+        file_url: '/uploads/f',
+        file_name: 'f',
+        file_type: 'text/plain',
+        file_size: 0,
+        created_by: null,
+        created_at: now,
+        updated_at: now,
+      };
+      expect(doc.created_at).toBeInstanceOf(Date);
+      expect(doc.updated_at).toBeInstanceOf(Date);
+    });
+
+    it('should support different timestamps', () => {
+      const created = new Date('2024-01-01T00:00:00Z');
+      const updated = new Date('2024-12-31T23:59:59Z');
+      const doc: KnowledgeDocument = {
+        id: 1,
+        base_id: 1,
+        title: '时间差',
+        description: null,
+        file_url: '/uploads/f',
+        file_name: 'f',
+        file_type: 'text/plain',
+        file_size: 0,
+        created_by: null,
+        created_at: created,
+        updated_at: updated,
+      };
+      expect(doc.created_at.getTime()).toBeLessThan(doc.updated_at.getTime());
+    });
   });
 
+  // ============================================================
+  // CreateKeywordRequest interface
+  // ============================================================
   describe('CreateKeywordRequest interface', () => {
-    it('should create a valid request with required fields', () => {
+    it('should create a valid request with required fields only', () => {
       const req: CreateKeywordRequest = {
         keyword: '新关键词',
       };
       expect(req.keyword).toBe('新关键词');
+      expect(req.expanded_words).toBeUndefined();
     });
 
     it('should include optional expanded_words', () => {
@@ -217,30 +939,85 @@ describe('knowledge.entity', () => {
       };
       expect(req.expanded_words).toHaveLength(2);
       expect(req.expanded_words![0].selected).toBe(true);
+      expect(req.expanded_words![1].selected).toBe(false);
+    });
+
+    it('should allow empty expanded_words array', () => {
+      const req: CreateKeywordRequest = {
+        keyword: '空扩展',
+        expanded_words: [],
+      };
+      expect(req.expanded_words).toHaveLength(0);
+    });
+
+    it('should have keyword as string type', () => {
+      const req: CreateKeywordRequest = { keyword: '类型检查' };
+      expect(typeof req.keyword).toBe('string');
+    });
+
+    it('should support Chinese characters in keyword', () => {
+      const req: CreateKeywordRequest = { keyword: '薄云商机关键词' };
+      expect(req.keyword).toContain('薄云');
+    });
+
+    it('should support keyword as empty string', () => {
+      const req: CreateKeywordRequest = { keyword: '' };
+      expect(req.keyword).toBe('');
     });
   });
 
+  // ============================================================
+  // UpdateKeywordRequest interface
+  // ============================================================
   describe('UpdateKeywordRequest interface', () => {
-    it('should create a valid request', () => {
+    it('should create a valid request with all fields', () => {
       const req: UpdateKeywordRequest = {
         keyword: '更新关键词',
         expanded_words: [{ word: '新扩展', selected: true }],
       };
       expect(req.keyword).toBe('更新关键词');
+      expect(req.expanded_words).toHaveLength(1);
     });
 
     it('should allow keyword only update', () => {
       const req: UpdateKeywordRequest = { keyword: '只改词' };
+      expect(req.keyword).toBe('只改词');
       expect(req.expanded_words).toBeUndefined();
+    });
+
+    it('should allow expanded_words with keyword update', () => {
+      const req: UpdateKeywordRequest = {
+        keyword: '关键词',
+        expanded_words: [{ word: '只改扩展', selected: true }],
+      };
+      expect(req.keyword).toBe('关键词');
+      expect(req.expanded_words).toHaveLength(1);
+    });
+
+    it('should allow empty expanded_words with keyword', () => {
+      const req: UpdateKeywordRequest = {
+        keyword: '关键词',
+        expanded_words: [],
+      };
+      expect(req.expanded_words).toHaveLength(0);
+    });
+
+    it('should have keyword as string type when provided', () => {
+      const req: UpdateKeywordRequest = { keyword: '类型检查' };
+      expect(typeof req.keyword).toBe('string');
     });
   });
 
+  // ============================================================
+  // CreatePortraitRequest interface
+  // ============================================================
   describe('CreatePortraitRequest interface', () => {
-    it('should create a valid request with required fields', () => {
+    it('should create a valid request with required fields only', () => {
       const req: CreatePortraitRequest = {
         title: '新画像',
       };
       expect(req.title).toBe('新画像');
+      expect(req.content).toBeUndefined();
     });
 
     it('should include optional content', () => {
@@ -250,28 +1027,75 @@ describe('knowledge.entity', () => {
       };
       expect(req.content).toBe('画像内容');
     });
+
+    it('should support empty string content', () => {
+      const req: CreatePortraitRequest = {
+        title: '空内容',
+        content: '',
+      };
+      expect(req.content).toBe('');
+    });
+
+    it('should have title as string type', () => {
+      const req: CreatePortraitRequest = { title: '类型检查' };
+      expect(typeof req.title).toBe('string');
+    });
+
+    it('should support Chinese characters in title', () => {
+      const req: CreatePortraitRequest = { title: '薄云商机画像' };
+      expect(req.title).toContain('薄云');
+    });
   });
 
+  // ============================================================
+  // UpdatePortraitRequest interface
+  // ============================================================
   describe('UpdatePortraitRequest interface', () => {
-    it('should allow partial updates', () => {
+    it('should allow title only update', () => {
       const req: UpdatePortraitRequest = { title: '更新标题' };
+      expect(req.title).toBe('更新标题');
       expect(req.content).toBeUndefined();
     });
 
     it('should allow content only update', () => {
       const req: UpdatePortraitRequest = { content: '新内容' };
+      expect(req.content).toBe('新内容');
       expect(req.title).toBeUndefined();
+    });
+
+    it('should allow both title and content update', () => {
+      const req: UpdatePortraitRequest = {
+        title: '新标题',
+        content: '新内容',
+      };
+      expect(Object.keys(req)).toHaveLength(2);
+      expect(req.title).toBe('新标题');
+      expect(req.content).toBe('新内容');
+    });
+
+    it('should allow empty update request', () => {
+      const req: UpdatePortraitRequest = {};
+      expect(Object.keys(req)).toHaveLength(0);
+    });
+
+    it('should allow empty string content', () => {
+      const req: UpdatePortraitRequest = { content: '' };
+      expect(req.content).toBe('');
     });
   });
 
+  // ============================================================
+  // CreateImageRequest interface
+  // ============================================================
   describe('CreateImageRequest interface', () => {
-    it('should create a valid request with required fields', () => {
+    it('should create a valid request with required fields only', () => {
       const req: CreateImageRequest = {
         title: '新图片',
         image_url: 'https://example.com/new.jpg',
       };
       expect(req.title).toBe('新图片');
       expect(req.image_url).toBe('https://example.com/new.jpg');
+      expect(req.description).toBeUndefined();
     });
 
     it('should include optional description', () => {
@@ -282,20 +1106,75 @@ describe('knowledge.entity', () => {
       };
       expect(req.description).toBe('图片描述');
     });
-  });
 
-  describe('UpdateImageRequest interface', () => {
-    it('should allow partial updates', () => {
-      const req: UpdateImageRequest = { title: '新标题' };
-      expect(Object.keys(req)).toHaveLength(1);
+    it('should support various image_url formats', () => {
+      const urls = [
+        'https://cdn.example.com/image.png',
+        '/uploads/local.webp',
+        'https://s3.amazonaws.com/bucket/img.jpg',
+      ];
+      urls.forEach((url) => {
+        const req: CreateImageRequest = { title: 'T', image_url: url };
+        expect(req.image_url).toBe(url);
+      });
     });
 
-    it('should allow empty update', () => {
+    it('should support Chinese characters in title', () => {
+      const req: CreateImageRequest = {
+        title: '薄云产品图',
+        image_url: 'https://example.com/img.jpg',
+      };
+      expect(req.title).toContain('薄云');
+    });
+
+    it('should support empty string description', () => {
+      const req: CreateImageRequest = {
+        title: 'T',
+        description: '',
+        image_url: 'https://example.com/img.jpg',
+      };
+      expect(req.description).toBe('');
+    });
+  });
+
+  // ============================================================
+  // UpdateImageRequest interface
+  // ============================================================
+  describe('UpdateImageRequest interface', () => {
+    it('should allow title only update', () => {
+      const req: UpdateImageRequest = { title: '新标题' };
+      expect(Object.keys(req)).toHaveLength(1);
+      expect(req.title).toBe('新标题');
+    });
+
+    it('should allow description only update', () => {
+      const req: UpdateImageRequest = { description: '新描述' };
+      expect(Object.keys(req)).toHaveLength(1);
+      expect(req.description).toBe('新描述');
+    });
+
+    it('should allow both title and description update', () => {
+      const req: UpdateImageRequest = {
+        title: '新标题',
+        description: '新描述',
+      };
+      expect(Object.keys(req)).toHaveLength(2);
+    });
+
+    it('should allow empty update request', () => {
       const req: UpdateImageRequest = {};
       expect(Object.keys(req)).toHaveLength(0);
     });
+
+    it('should allow empty string title', () => {
+      const req: UpdateImageRequest = { title: '' };
+      expect(req.title).toBe('');
+    });
   });
 
+  // ============================================================
+  // CreateDocumentRequest interface
+  // ============================================================
   describe('CreateDocumentRequest interface', () => {
     it('should create a valid request with all required fields', () => {
       const req: CreateDocumentRequest = {
@@ -306,7 +1185,11 @@ describe('knowledge.entity', () => {
         file_size: 512,
       };
       expect(req.title).toBe('新文档');
+      expect(req.file_url).toBe('/uploads/new.pdf');
+      expect(req.file_name).toBe('new.pdf');
+      expect(req.file_type).toBe('application/pdf');
       expect(req.file_size).toBe(512);
+      expect(req.description).toBeUndefined();
     });
 
     it('should include optional description', () => {
@@ -320,17 +1203,108 @@ describe('knowledge.entity', () => {
       };
       expect(req.description).toBe('文档描述');
     });
-  });
 
-  describe('UpdateDocumentRequest interface', () => {
-    it('should allow partial updates', () => {
-      const req: UpdateDocumentRequest = { title: '更新标题' };
-      expect(Object.keys(req)).toHaveLength(1);
+    it('should support file_size as zero', () => {
+      const req: CreateDocumentRequest = {
+        title: '空文件',
+        file_url: '/uploads/empty.txt',
+        file_name: 'empty.txt',
+        file_type: 'text/plain',
+        file_size: 0,
+      };
+      expect(req.file_size).toBe(0);
+    });
+
+    it('should support various file_type values', () => {
+      const types = [
+        'application/pdf',
+        'text/csv',
+        'application/vnd.ms-excel',
+        'application/zip',
+      ];
+      types.forEach((fileType) => {
+        const req: CreateDocumentRequest = {
+          title: 'T',
+          file_url: '/uploads/f',
+          file_name: 'f',
+          file_type: fileType,
+          file_size: 100,
+        };
+        expect(req.file_type).toBe(fileType);
+      });
+    });
+
+    it('should support empty string description', () => {
+      const req: CreateDocumentRequest = {
+        title: 'T',
+        description: '',
+        file_url: '/uploads/f',
+        file_name: 'f',
+        file_type: 'text/plain',
+        file_size: 0,
+      };
+      expect(req.description).toBe('');
+    });
+
+    it('should have file_size as number type', () => {
+      const req: CreateDocumentRequest = {
+        title: 'T',
+        file_url: '/uploads/f',
+        file_name: 'f',
+        file_type: 'text/plain',
+        file_size: 2048,
+      };
+      expect(typeof req.file_size).toBe('number');
     });
   });
 
+  // ============================================================
+  // UpdateDocumentRequest interface
+  // ============================================================
+  describe('UpdateDocumentRequest interface', () => {
+    it('should allow title only update', () => {
+      const req: UpdateDocumentRequest = { title: '更新标题' };
+      expect(Object.keys(req)).toHaveLength(1);
+      expect(req.title).toBe('更新标题');
+    });
+
+    it('should allow description only update', () => {
+      const req: UpdateDocumentRequest = { description: '更新描述' };
+      expect(Object.keys(req)).toHaveLength(1);
+      expect(req.description).toBe('更新描述');
+    });
+
+    it('should allow both title and description update', () => {
+      const req: UpdateDocumentRequest = {
+        title: '新标题',
+        description: '新描述',
+      };
+      expect(Object.keys(req)).toHaveLength(2);
+      expect(req.title).toBe('新标题');
+      expect(req.description).toBe('新描述');
+    });
+
+    it('should allow empty update request', () => {
+      const req: UpdateDocumentRequest = {};
+      expect(Object.keys(req)).toHaveLength(0);
+    });
+
+    it('should allow empty string title', () => {
+      const req: UpdateDocumentRequest = { title: '' };
+      expect(req.title).toBe('');
+    });
+
+    it('should allow empty string description', () => {
+      const req: UpdateDocumentRequest = { description: '' };
+      expect(req.description).toBe('');
+    });
+  });
+
+  // ============================================================
+  // MinedKeyword interface
+  // ============================================================
   describe('MinedKeyword interface', () => {
-    it('should create a valid MinedKeyword object', () => {
+    it('should create a valid MinedKeyword object with all fields', () => {
       const mined: MinedKeyword = {
         id: 1,
         base_id: 1,
@@ -339,8 +1313,11 @@ describe('knowledge.entity', () => {
         created_by: 1,
         created_at: new Date(),
       };
+      expect(mined.id).toBe(1);
+      expect(mined.base_id).toBe(1);
       expect(mined.keyword).toBe('挖掘关键词');
       expect(mined.selected).toBe(false);
+      expect(mined.created_by).toBe(1);
     });
 
     it('should allow created_by to be null', () => {
@@ -354,17 +1331,143 @@ describe('knowledge.entity', () => {
       };
       expect(mined.created_by).toBeNull();
     });
+
+    it('should support selected being true', () => {
+      const mined: MinedKeyword = {
+        id: 3,
+        base_id: 1,
+        keyword: '已选',
+        selected: true,
+        created_by: null,
+        created_at: new Date(),
+      };
+      expect(mined.selected).toBe(true);
+    });
+
+    it('should have id as number type', () => {
+      const mined: MinedKeyword = {
+        id: 999,
+        base_id: 1,
+        keyword: 'K',
+        selected: false,
+        created_by: null,
+        created_at: new Date(),
+      };
+      expect(typeof mined.id).toBe('number');
+      expect(mined.id).toBe(999);
+    });
+
+    it('should have base_id as number type', () => {
+      const mined: MinedKeyword = {
+        id: 1,
+        base_id: 42,
+        keyword: 'K',
+        selected: false,
+        created_by: null,
+        created_at: new Date(),
+      };
+      expect(typeof mined.base_id).toBe('number');
+      expect(mined.base_id).toBe(42);
+    });
+
+    it('should have selected as boolean type', () => {
+      const mined: MinedKeyword = {
+        id: 1,
+        base_id: 1,
+        keyword: 'K',
+        selected: true,
+        created_by: null,
+        created_at: new Date(),
+      };
+      expect(typeof mined.selected).toBe('boolean');
+    });
+
+    it('should have created_at as Date instance', () => {
+      const now = new Date();
+      const mined: MinedKeyword = {
+        id: 1,
+        base_id: 1,
+        keyword: 'K',
+        selected: false,
+        created_by: null,
+        created_at: now,
+      };
+      expect(mined.created_at).toBeInstanceOf(Date);
+      expect(mined.created_at).toBe(now);
+    });
+
+    it('should support Chinese characters in keyword', () => {
+      const mined: MinedKeyword = {
+        id: 1,
+        base_id: 1,
+        keyword: '薄云商机挖掘词',
+        selected: true,
+        created_by: null,
+        created_at: new Date(),
+      };
+      expect(mined.keyword).toContain('薄云');
+    });
+
+    it('should have created_by as non-null number', () => {
+      const mined: MinedKeyword = {
+        id: 1,
+        base_id: 1,
+        keyword: 'K',
+        selected: false,
+        created_by: 5,
+        created_at: new Date(),
+      };
+      expect(mined.created_by).toBe(5);
+    });
   });
 
+  // ============================================================
+  // 重新导出验证
+  // ============================================================
   describe('re-exports from index', () => {
     it('should compile correctly when importing types from index.ts', () => {
-      // Type-only imports are validated at compile time by TypeScript
       const keyword: KnowledgeKeyword = {
         id: 1, base_id: 1, keyword: 'K', seed_word: null,
         group_id: null, created_by: null,
         created_at: new Date(), updated_at: new Date(),
       };
       expect(keyword.keyword).toBe('K');
+    });
+
+    it('should allow all request types to be imported and used', () => {
+      const createKeyword: CreateKeywordRequest = { keyword: '新词' };
+      const updateKeyword: UpdateKeywordRequest = { keyword: '更新词' };
+      const createPortrait: CreatePortraitRequest = { title: '新画像' };
+      const updatePortrait: UpdatePortraitRequest = { title: '更新画像' };
+      const createImage: CreateImageRequest = { title: '新图', image_url: 'https://example.com/img.jpg' };
+      const updateImage: UpdateImageRequest = { title: '更新图' };
+      const createDoc: CreateDocumentRequest = {
+        title: '新文档', file_url: '/uploads/f.pdf',
+        file_name: 'f.pdf', file_type: 'application/pdf', file_size: 100,
+      };
+      const updateDoc: UpdateDocumentRequest = { title: '更新文档' };
+
+      expect(createKeyword.keyword).toBe('新词');
+      expect(updateKeyword.keyword).toBe('更新词');
+      expect(createPortrait.title).toBe('新画像');
+      expect(updatePortrait.title).toBe('更新画像');
+      expect(createImage.title).toBe('新图');
+      expect(updateImage.title).toBe('更新图');
+      expect(createDoc.title).toBe('新文档');
+      expect(updateDoc.title).toBe('更新文档');
+    });
+
+    it('should allow MinedKeyword to be imported and used alongside other types', () => {
+      const mined: MinedKeyword = {
+        id: 1, base_id: 1, keyword: '挖掘',
+        selected: true, created_by: null, created_at: new Date(),
+      };
+      const word: KeywordExpandedWord = {
+        id: 1, keyword_id: 1, word: '扩展',
+        selected: true, created_at: new Date(), updated_at: new Date(),
+      };
+      expect(mined.keyword).toBe('挖掘');
+      expect(word.word).toBe('扩展');
     });
   });
 });

@@ -363,8 +363,10 @@ const TodoPage: React.FC = () => {
   const tabItems = [
     { key: 'my_open', label: '我的待办' },
     { key: 'my_closed', label: '我的已办' },
-    { key: 'all_open', label: '全部待办' },
-    { key: 'all_closed', label: '全部已办' },
+    ...(user.role === 'sysadmin' ? [
+      { key: 'all_open', label: '全部待办' },
+      { key: 'all_closed', label: '全部已办' },
+    ] : []),
   ];
 
   return (

@@ -18,6 +18,7 @@ interface TodoFormProps {
 
 interface UserItem {
   id: number;
+  username: string;
   cn_name: string;
   role: string;
 }
@@ -148,7 +149,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
               placeholder="选择责任人"
               showSearch
               filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-              options={users.map(u => ({ value: u.id, label: `${u.cn_name} (${u.role})` }))}
+              options={users.map(u => ({ value: u.id, label: u.username }))}
             />
           </Form.Item>
         )}
