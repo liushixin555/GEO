@@ -9,10 +9,15 @@ import { success, fail, paginate } from '../utils';
 const skillsService = new SkillsServiceImpl();
 
 const SKILLS_DIR = path.resolve(process.cwd(), 'skills');
+const TMP_DIR = path.resolve(process.cwd(), 'tmp', 'uploads');
+
+// Ensure directories exist
+if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
+if (!fs.existsSync(SKILLS_DIR)) fs.mkdirSync(SKILLS_DIR, { recursive: true });
 
 // Multer config for zip uploads
 const upload = multer({
-  dest: path.resolve(process.cwd(), 'tmp', 'uploads'),
+  dest: TMP_DIR,
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
   fileFilter: (_req, file, cb) => {
     if (file.mimetype === 'application/zip' || file.mimetype === 'application/x-zip-compressed' || file.originalname.endsWith('.zip')) {

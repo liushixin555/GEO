@@ -67,12 +67,12 @@ const SkillPage: React.FC = () => {
     }
   };
 
-  const handleUpload = async (file: UploadFile) => {
+  const handleUpload = async (rawFile: File) => {
     setUploading(true);
     try {
       const token = localStorage.getItem('token');
       const formData = new FormData();
-      formData.append('file', file.originFileObj as Blob);
+      formData.append('file', rawFile);
       await axios.post('/api/skills', formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
       });
@@ -84,7 +84,6 @@ const SkillPage: React.FC = () => {
     } finally {
       setUploading(false);
     }
-    return false;
   };
 
   const tableColumns: ColumnsType<SkillsItem> = [
@@ -201,11 +200,11 @@ const SkillPage: React.FC = () => {
         <Upload
           accept=".zip"
           maxCount={1}
-          beforeUpload={() => false}
-          onChange={(info) => {
-            if (info.fileList.length > 0) {
-              handleUpload(info.file);
-            }
+          showUploadList={false}
+          customRequest={({ file, onSuccess, onError }) => {
+            handleUpload(file as File)
+              .then(() => onSuccess?.(null))
+              .catch(() => onError?.(new Error('上传失败')));
           }}
           disabled={uploading}
         >
