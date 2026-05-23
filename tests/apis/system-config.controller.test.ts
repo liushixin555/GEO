@@ -131,7 +131,7 @@ describe('System Config Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('DB error');
+      expect(response.body.message).toBe('获取系统配置失败');
     });
 
     it('应返回兜底错误消息当异常无message时', async () => {
@@ -234,7 +234,7 @@ describe('System Config Controller', () => {
       const response = await agent
         .put('/api/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ configs: [{ config_key: 'test_key' }] });
+        .send({ configs: [{ config_key: 'yishangshu_username' }] });
 
       expect(response.status).toBe(400);
       expect(response.body.message).toContain('config_value');
@@ -246,7 +246,7 @@ describe('System Config Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [
-            { config_key: 'valid_key', config_value: 'valid_val' },
+            { config_key: 'yishangshu_username', config_value: 'valid_val' },
             { config_value: 'missing_key_val' },
           ],
         });
@@ -261,8 +261,8 @@ describe('System Config Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [
-            { config_key: 'valid_key', config_value: 'valid_val' },
-            { config_key: 'missing_val_key' },
+            { config_key: 'yishangshu_username', config_value: 'valid_val' },
+            { config_key: 'yishangshu_password' },
           ],
         });
 
@@ -292,7 +292,7 @@ describe('System Config Controller', () => {
     });
 
     it('应成功更新单条配置', async () => {
-      const result = { id: 1, configKey: 'single_key', configValue: 'single_value', createdAt: new Date(), updatedAt: new Date() };
+      const result = { id: 1, configKey: 'yishangshu_username', configValue: 'single_value', createdAt: new Date(), updatedAt: new Date() };
       mockPrismaForUpdate([result]);
 
       const response = await agent
@@ -300,17 +300,17 @@ describe('System Config Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [
-            { config_key: 'single_key', config_value: 'single_value' },
+            { config_key: 'yishangshu_username', config_value: 'single_value' },
           ],
         });
 
       expect(response.status).toBe(200);
       expect(response.body.data).toHaveLength(1);
-      expect(response.body.data[0].config_key).toBe('single_key');
+      expect(response.body.data[0].config_key).toBe('yishangshu_username');
     });
 
     it('应允许config_value为空字符串', async () => {
-      const result = { id: 1, configKey: 'test_key', configValue: '', createdAt: new Date(), updatedAt: new Date() };
+      const result = { id: 1, configKey: 'yishangshu_username', configValue: '', createdAt: new Date(), updatedAt: new Date() };
       mockPrismaForUpdate([result]);
 
       const response = await agent
@@ -318,7 +318,7 @@ describe('System Config Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [
-            { config_key: 'test_key', config_value: '' },
+            { config_key: 'yishangshu_username', config_value: '' },
           ],
         });
 
@@ -327,7 +327,7 @@ describe('System Config Controller', () => {
     });
 
     it('应允许config_value为null', async () => {
-      const result = { id: 1, configKey: 'test_key', configValue: null, createdAt: new Date(), updatedAt: new Date() };
+      const result = { id: 1, configKey: 'yishangshu_username', configValue: null, createdAt: new Date(), updatedAt: new Date() };
       mockPrismaForUpdate([result]);
 
       const response = await agent
@@ -335,7 +335,7 @@ describe('System Config Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [
-            { config_key: 'test_key', config_value: null },
+            { config_key: 'yishangshu_username', config_value: null },
           ],
         });
 
@@ -343,7 +343,7 @@ describe('System Config Controller', () => {
     });
 
     it('应允许config_value为0', async () => {
-      const result = { id: 1, configKey: 'test_key', configValue: 0, createdAt: new Date(), updatedAt: new Date() };
+      const result = { id: 1, configKey: 'yishangshu_username', configValue: 0, createdAt: new Date(), updatedAt: new Date() };
       mockPrismaForUpdate([result]);
 
       const response = await agent
@@ -351,7 +351,7 @@ describe('System Config Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [
-            { config_key: 'test_key', config_value: 0 },
+            { config_key: 'yishangshu_username', config_value: 0 },
           ],
         });
 
@@ -360,7 +360,7 @@ describe('System Config Controller', () => {
     });
 
     it('应允许config_value为false', async () => {
-      const result = { id: 1, configKey: 'test_key', configValue: false, createdAt: new Date(), updatedAt: new Date() };
+      const result = { id: 1, configKey: 'yishangshu_username', configValue: false, createdAt: new Date(), updatedAt: new Date() };
       mockPrismaForUpdate([result]);
 
       const response = await agent
@@ -368,7 +368,7 @@ describe('System Config Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [
-            { config_key: 'test_key', config_value: false },
+            { config_key: 'yishangshu_username', config_value: false },
           ],
         });
 
@@ -377,14 +377,14 @@ describe('System Config Controller', () => {
 
     it('应返回更新后配置的完整字段格式', async () => {
       const now = new Date();
-      const result = { id: 1, configKey: 'key1', configValue: 'val1', createdAt: now, updatedAt: now };
+      const result = { id: 1, configKey: 'yishangshu_username', configValue: 'val1', createdAt: now, updatedAt: now };
       mockPrismaForUpdate([result]);
 
       const response = await agent
         .put('/api/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
-          configs: [{ config_key: 'key1', config_value: 'val1' }],
+          configs: [{ config_key: 'yishangshu_username', config_value: 'val1' }],
         });
 
       expect(response.status).toBe(200);
@@ -404,12 +404,12 @@ describe('System Config Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [
-            { config_key: 'test_key', config_value: 'test_value' },
+            { config_key: 'yishangshu_username', config_value: 'test_value' },
           ],
         });
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('DB error');
+      expect(response.body.message).toBe('更新系统配置失败');
     });
 
     it('应返回兜底错误消息当更新异常无message时', async () => {
@@ -420,7 +420,7 @@ describe('System Config Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [
-            { config_key: 'test_key', config_value: 'test_value' },
+            { config_key: 'yishangshu_username', config_value: 'test_value' },
           ],
         });
 

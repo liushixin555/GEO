@@ -46,7 +46,7 @@ export function mapLlmModel(prismaLlmModel: any): LlmModel {
     id: prismaLlmModel.id,
     provider: prismaLlmModel.provider,
     base_url: prismaLlmModel.baseUrl,
-    api_key: prismaLlmModel.apiKey,
+    api_key: prismaLlmModel.apiKey ? `${prismaLlmModel.apiKey.slice(0, 4)}****${prismaLlmModel.apiKey.slice(-4)}` : '',
     model_name: prismaLlmModel.modelName,
     status: prismaLlmModel.status,
     created_at: prismaLlmModel.createdAt,

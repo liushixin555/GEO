@@ -333,7 +333,7 @@ describe('User Controller', () => {
       const response = await agent
         .post('/api/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ username: 'newuser', password: 'pass123', cn_name: '新用户', role: 'admin', company_id: 1 });
+        .send({ username: 'newuser', password: 'Pass1234', cn_name: '新用户', role: 'admin', company_id: 1 });
 
       expect(response.status).toBe(201);
       expect(response.body.data.username).toBe('newuser');
@@ -347,7 +347,7 @@ describe('User Controller', () => {
       const response = await agent
         .post('/api/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ username: 'existing', password: 'pass123', cn_name: '用户', role: 'admin', company_id: 1 });
+        .send({ username: 'existing', password: 'Pass1234', cn_name: '用户', role: 'admin', company_id: 1 });
 
       expect(response.status).toBe(409);
     });
@@ -360,7 +360,7 @@ describe('User Controller', () => {
       const response = await agent
         .post('/api/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ username: 'test', password: 'pass', cn_name: 'Test', role: 'admin' });
+        .send({ username: 'test', password: 'Pass1234', cn_name: 'Test', role: 'admin' });
 
       expect(response.status).toBe(500);
     });
@@ -373,7 +373,7 @@ describe('User Controller', () => {
       const response = await agent
         .post('/api/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ username: 'test', password: 'pass', cn_name: 'Test', role: 'admin' });
+        .send({ username: 'test', password: 'Pass1234', cn_name: 'Test', role: 'admin' });
 
       expect(response.status).toBe(500);
       expect(response.body.message).toBe('创建用户失败');
@@ -420,7 +420,7 @@ describe('User Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ role: 'admin' });
 
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(403);
       expect(response.body.message).toBe('系统管理员角色不可修改');
     });
 
@@ -595,7 +595,7 @@ describe('User Controller', () => {
         .delete('/api/users/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(403);
       expect(response.body.message).toBe('系统管理员不可删除');
     });
 

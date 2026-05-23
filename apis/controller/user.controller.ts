@@ -14,8 +14,8 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
 
     const { list, total } = await userService.list(null, page, pageSize, search, role, status);
     paginate(res, list, total, page, pageSize);
-  } catch (err: any) {
-    fail(res, 500, err.message || '获取用户列表失败');
+  } catch (_err: any) {
+    fail(res, 500, '获取用户列表失败');
   }
 }
 
@@ -30,7 +30,7 @@ export async function getUser(req: Request, res: Response): Promise<void> {
     if (err.message === '用户不存在') {
       fail(res, 404, err.message);
     } else {
-      fail(res, 500, err.message || '获取用户详情失败');
+      fail(res, 500, '获取用户详情失败');
     }
   }
 }
@@ -43,13 +43,25 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    // H-3: 角色值白名单校验
+    if (!['sysadmin', 'admin', 'view'].includes(role)) {
+      fail(res, 400, '角色值不合法');
+      return;
+    }
+
+    // H-4: 密码强度验证
+    if (password.length < 8) {
+      fail(res, 400, '密码长度不能少于8位');
+      return;
+    }
+
     const user = await userService.create(req.body);
     res.status(201).json({ code: 0, message: '创建用户成功', data: user });
   } catch (err: any) {
     if (err.message === '用户名已存在') {
       fail(res, 409, err.message);
     } else {
-      fail(res, 500, err.message || '创建用户失败');
+      fail(res, 500, '创建用户失败');
     }
   }
 }
@@ -64,8 +76,10 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
   } catch (err: any) {
     if (err.message === '用户不存在') {
       fail(res, 404, err.message);
+    } else if (err.message === '系统管理员角色不可修改') {
+      fail(res, 403, err.message);
     } else {
-      fail(res, 500, err.message || '更新用户失败');
+      fail(res, 500, '更新用户失败');
     }
   }
 }
@@ -80,8 +94,10 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
   } catch (err: any) {
     if (err.message === '用户不存在') {
       fail(res, 404, err.message);
+    } else if (err.message === '系统管理员不可删除') {
+      fail(res, 403, err.message);
     } else {
-      fail(res, 500, err.message || '删除用户失败');
+      fail(res, 500, '删除用户失败');
     }
   }
 }

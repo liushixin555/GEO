@@ -439,3 +439,31 @@ const pageSize = parseInt(req.query.pageSize as string) || 10;
 ---
 
 *Committer 审核完成 — 2026-05-24*
+
+---
+
+## 八、安全修复记录
+
+**修复日期**: 2026-05-24
+**修复范围**: P0 + P1 全部问题（8项）
+
+### 修复清单
+
+| 编号 | 问题 | 修复文件 | 状态 |
+|------|------|---------|------|
+| C-1 | API密钥明文泄露 | `apis/map/index.ts` — `mapLlmModel` 脱敏为 `sk-t****-key` 格式 | ✅ 已修复 |
+| C-2 | Zip Slip路径遍历 | `apis/controller/skills.controller.ts` — 解压前逐条校验路径 + zip bomb 检查 | ✅ 已修复 |
+| C-3 | todo IDOR越权 | `apis/controller/todo.controller.ts` — `getObjectOptions`/`getAssigneeCandidates` 添加项目权限校验 | ✅ 已修复 |
+| H-1 | 错误信息泄露 | `todo/user/llm-model/system-config` 四个 controller 统一使用固定错误消息 | ✅ 已修复 |
+| H-3 | 角色值白名单 | `apis/controller/user.controller.ts` — `createUser` 添加 `['sysadmin','admin','view']` 校验 | ✅ 已修复 |
+| H-4 | 密码强度验证 | `apis/controller/user.controller.ts` — `createUser` 要求密码 >= 8位 | ✅ 已修复 |
+| H-5 | URL格式验证 | `apis/controller/llm-model.controller.ts` — `createLlmModel` 验证 URL 格式 + 协议白名单 | ✅ 已修复 |
+| H-6 | config_key白名单 | `apis/controller/system-config.controller.ts` — 仅允许 `yishangshu_username`/`yishangshu_password` | ✅ 已修复 |
+
+### 测试结果
+
+- 799 个测试全部通过
+- 构建通过（`pnpm build`）
+- 同步更新了 6 个测试文件以适配安全修复
+
+*安全修复完成 — 2026-05-24*

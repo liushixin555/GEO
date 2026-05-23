@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
 import { TodoServiceImpl } from '../service/impl/todo.service.impl';
+import { ProjectServiceImpl } from '../service/impl/project.service.impl';
 import { getPrisma } from '../utils';
 import { success, fail, paginate } from '../utils';
 
 const todoService = new TodoServiceImpl();
+const projectService = new ProjectServiceImpl();
 
 export async function listTodos(req: Request, res: Response): Promise<void> {
   try {
@@ -31,8 +33,8 @@ export async function listTodos(req: Request, res: Response): Promise<void> {
     });
 
     paginate(res, list, total, page, pageSize);
-  } catch (err: any) {
-    fail(res, 500, err.message || '获取待办列表失败');
+  } catch (_err: any) {
+    fail(res, 500, '获取待办列表失败');
   }
 }
 
@@ -47,7 +49,7 @@ export async function getTodo(req: Request, res: Response): Promise<void> {
     if (err.message === '待办不存在') {
       fail(res, 404, err.message);
     } else {
-      fail(res, 500, err.message || '获取待办详情失败');
+      fail(res, 500, '获取待办详情失败');
     }
   }
 }
@@ -56,8 +58,8 @@ export async function createTodo(req: Request, res: Response): Promise<void> {
   try {
     const item = await todoService.create(req.body, req.user!.userId);
     res.status(201).json({ code: 0, message: '待办创建成功', data: item });
-  } catch (err: any) {
-    fail(res, 500, err.message || '创建待办失败');
+  } catch (_err: any) {
+    fail(res, 500, '创建待办失败');
   }
 }
 
@@ -168,6 +170,15 @@ export async function getObjectOptions(req: Request, res: Response): Promise<voi
       return;
     }
 
+    // C-3: 验证用户是否有权访问该项目
+    if (req.user!.role !== 'sysadmin') {
+      const project = await projectService.getById(projectId, req.user!.userId, req.user!.role);
+      if (!project.operator_ids.includes(req.user!.userId)) {
+        fail(res, 403, '无权访问该项目');
+        return;
+      }
+    }
+
     const prisma = getPrisma();
     const showDeleted = action === 'restore';
     const where: any = { projectId };
@@ -202,7 +213,7 @@ export async function getObjectOptions(req: Request, res: Response): Promise<voi
       success(res, []);
     }
   } catch (err: any) {
-    fail(res, 500, err.message || '获取操作对象失败');
+    fail(res, 500, '获取操作对象失败');
   }
 }
 
@@ -210,6 +221,15 @@ export async function getAssigneeCandidates(req: Request, res: Response): Promis
   try {
     const projectId = parseInt(req.query.projectId as string);
     if (!projectId) { fail(res, 400, '缺少项目ID'); return; }
+
+    // C-3: 验证用户是否有权访问该项目
+    if (req.user!.role !== 'sysadmin') {
+      const project = await projectService.getById(projectId, req.user!.userId, req.user!.role);
+      if (!project.operator_ids.includes(req.user!.userId)) {
+        fail(res, 403, '无权访问该项目');
+        return;
+      }
+    }
 
     const prisma = getPrisma();
 
@@ -243,6 +263,6 @@ export async function getAssigneeCandidates(req: Request, res: Response): Promis
 
     success(res, result);
   } catch (err: any) {
-    fail(res, 500, err.message || '获取责任人候选失败');
+    fail(res, 500, '获取责任人候选失败');
   }
 }

@@ -85,7 +85,7 @@ describe('LlmModelServiceImpl', () => {
         id: 1,
         provider: 'openai',
         base_url: 'https://api.openai.com/v1',
-        api_key: 'sk-test-key',
+        api_key: 'sk-t****-key',
         model_name: 'gpt-4',
         status: true,
         created_at: items[0].createdAt,
@@ -95,7 +95,7 @@ describe('LlmModelServiceImpl', () => {
         id: 2,
         provider: 'anthropic',
         base_url: 'https://api.openai.com/v1',
-        api_key: 'sk-test-key',
+        api_key: 'sk-t****-key',
         model_name: 'claude-3',
         status: true,
         created_at: items[1].createdAt,
@@ -122,7 +122,7 @@ describe('LlmModelServiceImpl', () => {
       expect(result[0].id).toBe(1);
       expect(result[0].provider).toBe('openai');
       expect(result[0].base_url).toBe('https://api.openai.com/v1');
-      expect(result[0].api_key).toBe('sk-test-key');
+      expect(result[0].api_key).toBe('sk-t****-key');
       expect(result[0].model_name).toBe('gpt-4');
       expect(result[0].status).toBe(true);
     });
@@ -243,7 +243,7 @@ describe('LlmModelServiceImpl', () => {
         id: 10,
         provider: 'anthropic',
         base_url: 'https://api.anthropic.com',
-        api_key: 'sk-ant-key',
+        api_key: 'sk-a****-key',
         model_name: 'claude-3-opus',
         status: false,
         created_at: date1,
@@ -316,7 +316,7 @@ describe('LlmModelServiceImpl', () => {
       });
 
       expect(result.base_url).toBe('https://open.bigmodel.cn');
-      expect(result.api_key).toBe('zhipu-key');
+      expect(result.api_key).toBe('zhip****-key');
       expect(result.model_name).toBe('glm-4-plus');
       expect((result as any).baseUrl).toBeUndefined();
       expect((result as any).apiKey).toBeUndefined();
@@ -467,7 +467,7 @@ describe('LlmModelServiceImpl', () => {
         id: 5,
         provider: 'anthropic',
         base_url: 'https://api.anthropic.com',
-        api_key: 'new-ant-key',
+        api_key: 'new-****-key',
         model_name: 'claude-3-opus',
         status: false,
         created_at: updated.createdAt,
@@ -860,7 +860,7 @@ describe('LlmModelServiceImpl', () => {
         id: 10,
         provider: 'deepseek',
         base_url: 'https://api.deepseek.com',
-        api_key: 'sk-ds',
+        api_key: 'sk-d****k-ds',
         model_name: 'deepseek-v3',
         status: true,
         created_at: new Date('2025-01-01'),
@@ -870,7 +870,7 @@ describe('LlmModelServiceImpl', () => {
         id: 20,
         provider: 'zhipu',
         base_url: 'https://open.bigmodel.cn',
-        api_key: 'sk-zp',
+        api_key: 'sk-z****k-zp',
         model_name: 'glm-4',
         status: false,
         created_at: new Date('2025-02-01'),
@@ -913,7 +913,7 @@ describe('LlmModelServiceImpl', () => {
         model_name: 'gpt-4',
       });
 
-      expect(result.api_key).toBe(specialKey);
+      expect(result.api_key).toBe('sk-p****_bar');
       const callArgs = mockPrisma.llmModel.create.mock.calls[0][0] as any;
       expect(callArgs.data.apiKey).toBe(specialKey);
     });

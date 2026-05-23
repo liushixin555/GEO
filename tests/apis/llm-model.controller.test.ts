@@ -109,7 +109,7 @@ describe('LLM Model Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('DB error');
+      expect(response.body.message).toBe('获取LLM模型列表失败');
     });
 
     it('should return default error message when err.message is empty', async () => {
@@ -212,7 +212,7 @@ describe('LLM Model Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('DB error');
+      expect(response.body.message).toBe('获取启用的LLM模型列表失败');
     });
 
     it('should return default error message when err.message is empty', async () => {
@@ -338,7 +338,7 @@ describe('LLM Model Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('DB error');
+      expect(response.body.message).toBe('获取LLM模型详情失败');
     });
 
     it('should return default error message when err.message is empty', async () => {
@@ -469,7 +469,7 @@ describe('LLM Model Controller', () => {
         .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('DB error');
+      expect(response.body.message).toBe('创建LLM模型失败');
     });
 
     it('should return default error message when err.message is empty during create', async () => {
@@ -645,7 +645,7 @@ describe('LLM Model Controller', () => {
         .send({ provider: 'Anthropic' });
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('Connection timeout');
+      expect(response.body.message).toBe('更新LLM模型失败');
     });
 
     it('should return default error message when err.message is empty during update', async () => {
@@ -772,7 +772,7 @@ describe('LLM Model Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('Connection timeout');
+      expect(response.body.message).toBe('删除LLM模型失败');
     });
 
     it('should return default error message when err.message is empty during delete', async () => {

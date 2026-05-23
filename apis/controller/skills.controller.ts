@@ -122,6 +122,21 @@ export async function createSkills(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    // Validate zip entries for path traversal (Zip Slip) and zip bomb
+    const resolvedSkillsDir = path.resolve(SKILLS_DIR);
+    const MAX_ENTRY_SIZE = 100 * 1024 * 1024; // 100MB per entry
+    for (const entry of zipEntries) {
+      const entryResolved = path.resolve(resolvedSkillsDir, entry.entryName);
+      if (!entryResolved.startsWith(resolvedSkillsDir + path.sep) && entryResolved !== resolvedSkillsDir) {
+        fail(res, 400, 'zip 包包含非法路径');
+        return;
+      }
+      if (!entry.isDirectory && entry.header.size > MAX_ENTRY_SIZE) {
+        fail(res, 400, 'zip 包中文件过大');
+        return;
+      }
+    }
+
     // Extract to skills directory
     fs.mkdirSync(SKILLS_DIR, { recursive: true });
     zip.extractAllTo(SKILLS_DIR, true);

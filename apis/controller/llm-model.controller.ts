@@ -9,7 +9,7 @@ export async function listLlmModels(_req: Request, res: Response): Promise<void>
     const items = await llmModelService.list();
     success(res, items);
   } catch (err: any) {
-    fail(res, 500, err.message || '获取LLM模型列表失败');
+    fail(res, 500, '获取LLM模型列表失败');
   }
 }
 
@@ -18,7 +18,7 @@ export async function listEnabledLlmModels(_req: Request, res: Response): Promis
     const items = await llmModelService.listEnabled();
     success(res, items);
   } catch (err: any) {
-    fail(res, 500, err.message || '获取启用的LLM模型列表失败');
+    fail(res, 500, '获取启用的LLM模型列表失败');
   }
 }
 
@@ -33,7 +33,7 @@ export async function getLlmModel(req: Request, res: Response): Promise<void> {
     if (err.message === 'LLM模型不存在') {
       fail(res, 404, err.message);
     } else {
-      fail(res, 500, err.message || '获取LLM模型详情失败');
+      fail(res, 500, '获取LLM模型详情失败');
     }
   }
 }
@@ -46,10 +46,22 @@ export async function createLlmModel(req: Request, res: Response): Promise<void>
       return;
     }
 
+    // H-5: URL格式验证
+    try {
+      const url = new URL(base_url);
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        fail(res, 400, 'Base URL 必须以 http:// 或 https:// 开头');
+        return;
+      }
+    } catch {
+      fail(res, 400, 'Base URL 格式不合法');
+      return;
+    }
+
     const item = await llmModelService.create(req.body);
     res.status(201).json({ code: 0, message: '创建LLM模型成功', data: item });
-  } catch (err: any) {
-    fail(res, 500, err.message || '创建LLM模型失败');
+  } catch (_err: any) {
+    fail(res, 500, '创建LLM模型失败');
   }
 }
 
@@ -64,7 +76,7 @@ export async function updateLlmModel(req: Request, res: Response): Promise<void>
     if (err.message === 'LLM模型不存在') {
       fail(res, 404, err.message);
     } else {
-      fail(res, 500, err.message || '更新LLM模型失败');
+      fail(res, 500, '更新LLM模型失败');
     }
   }
 }
@@ -80,7 +92,7 @@ export async function deleteLlmModel(req: Request, res: Response): Promise<void>
     if (err.message === 'LLM模型不存在') {
       fail(res, 404, err.message);
     } else {
-      fail(res, 500, err.message || '删除LLM模型失败');
+      fail(res, 500, '删除LLM模型失败');
     }
   }
 }
