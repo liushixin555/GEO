@@ -11,19 +11,17 @@
 
 ## 测试结果
 - **测试套件**: 1 passed
-- **测试用例**: 42 passed, 0 failed
-- **总耗时**: ~7.5s
+- **测试用例**: 44 passed, 0 failed
+- **总耗时**: ~4.2s
 
 ## 覆盖率
 
 | 指标 | 覆盖率 |
 |------|--------|
 | 语句 (Statements) | **100%** |
-| 分支 (Branches) | **94.28%** |
+| 分支 (Branches) | **100%** |
 | 函数 (Functions) | **100%** |
 | 行 (Lines) | **100%** |
-
-未覆盖分支: 第77-78行（`mineKeywordsFromContent` 中 error fallback 的短路分支，3个方法逻辑相同但 istanbul 分别统计）
 
 ## 测试用例清单
 
@@ -44,7 +42,7 @@
 14. axios调用失败且无response时应显示未知状态码
 15. 应查询status=true且deletedAt=null的模型（按id升序）
 
-### mineKeywordsFromContent() — 12 个测试
+### mineKeywordsFromContent() — 14 个测试
 1. 应正确从内容中提取关键词
 2. 应去除编号前缀
 3. 应过滤掉长度<=1和>=100的行
@@ -56,7 +54,9 @@
 9. LLM返回null内容时应返回空数组
 10. axios调用失败且response.data.message存在时应使用该message
 11. axios调用失败时应抛出包含状态码的错误
-12. 应查询status=true且deletedAt=null的模型
+12. axios调用失败且response存在但无status时应显示未知状态码
+13. axios调用失败且response.data无error.message和message时应使用err.message
+14. 应查询status=true且deletedAt=null的模型
 
 ### generateArticle() — 15 个测试
 1. 应成功生成文章并返回内容

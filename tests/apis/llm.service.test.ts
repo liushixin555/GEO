@@ -374,6 +374,28 @@ describe('LlmServiceImpl', () => {
       );
     });
 
+    it('axios调用失败且response存在但无status时应显示未知状态码', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(defaultModel);
+      const axiosError: any = new Error('Partial response');
+      axiosError.response = { data: {} };
+      mockedAxios.post.mockRejectedValue(axiosError);
+
+      await expect(service.mineKeywordsFromContent('内容')).rejects.toThrow(
+        'LLM调用失败(未知): Partial response'
+      );
+    });
+
+    it('axios调用失败且response.data无error.message和message时应使用err.message', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(defaultModel);
+      const axiosError: any = new Error('Raw error message');
+      axiosError.response = { status: 502, data: {} };
+      mockedAxios.post.mockRejectedValue(axiosError);
+
+      await expect(service.mineKeywordsFromContent('内容')).rejects.toThrow(
+        'LLM调用失败(502): Raw error message'
+      );
+    });
+
     it('应查询status=true且deletedAt=null的模型', async () => {
       mockPrisma.llmModel.findFirst.mockResolvedValue(defaultModel);
       mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('关键词')));
