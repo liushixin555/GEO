@@ -6,7 +6,7 @@
 |------|------|
 | 源文件 | `apis/service/impl/skills.service.impl.ts` |
 | 测试文件 | `tests/apis/skills.service.test.ts` |
-| 执行日期 | 2026-05-23 |
+| 执行日期 | 2026-05-24 |
 | 测试框架 | Jest + ts-jest |
 | 测试数 | 42 个 |
 | 结果 | **全部通过 (42/42)** |
