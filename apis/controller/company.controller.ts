@@ -2,42 +2,18 @@ import { Request, Response } from 'express';
 import { CompanyServiceImpl } from '../service/impl/company.service.impl';
 import { success, fail, created } from '../utils';
 import { CreateCompanyRequest, UpdateCompanyRequest } from '../entity';
+import { createCompanySchema, updateCompanySchema } from '../schema/company.schema';
 
 const companyService = new CompanyServiceImpl();
 
 /** 常量消息 */
 const MSG_INVALID_ID = '无效的公司ID';
-const MSG_REQUIRED_FIELDS = '公司名短名、公司名全名、接口人、接口人电话不能为空';
-const MSG_OPERATOR_REQUIRED = '运营者不能为空';
 const MSG_NOT_FOUND = '公司不存在';
 const MSG_LIST_FAIL = '获取公司列表失败';
 const MSG_DETAIL_FAIL = '获取公司详情失败';
 const MSG_CREATE_FAIL = '创建公司失败';
 const MSG_UPDATE_FAIL = '更新公司失败';
 const MSG_TOGGLE_FAIL = '操作失败';
-
-function validateCompanyBody(body: Record<string, unknown>): string | null {
-  const { short_name, full_name, contact_person, contact_phone, operator_ids } = body;
-  if (!short_name || !full_name || !contact_person || !contact_phone) {
-    return MSG_REQUIRED_FIELDS;
-  }
-  if (!Array.isArray(operator_ids) || operator_ids.length === 0) {
-    return MSG_OPERATOR_REQUIRED;
-  }
-  return null;
-}
-
-function buildCompanyRequest(body: Record<string, unknown>): CreateCompanyRequest {
-  return {
-    short_name: body.short_name as string,
-    full_name: body.full_name as string,
-    address: body.address as string | undefined,
-    contact_person: body.contact_person as string,
-    contact_phone: body.contact_phone as string,
-    operator_ids: body.operator_ids as number[],
-    viewer_ids: body.viewer_ids as number[] | undefined,
-  };
-}
 
 function isNotFoundError(err: unknown): boolean {
   return err instanceof Error && err.message === MSG_NOT_FOUND;
@@ -149,13 +125,13 @@ export async function getCompany(req: Request, res: Response): Promise<void> {
  */
 export async function createCompany(req: Request, res: Response): Promise<void> {
   try {
-    const validationError = validateCompanyBody(req.body);
-    if (validationError) {
-      fail(res, 400, validationError);
+    const parsed = createCompanySchema.safeParse(req.body);
+    if (!parsed.success) {
+      fail(res, 400, parsed.error.issues.map((e: { message: string }) => e.message).join('; '));
       return;
     }
 
-    const createRequest: CreateCompanyRequest = buildCompanyRequest(req.body);
+    const createRequest: CreateCompanyRequest = parsed.data;
     const company = await companyService.create(createRequest);
     created(res, company, '创建公司成功');
   } catch (err: unknown) {
@@ -222,13 +198,13 @@ export async function updateCompany(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const validationError = validateCompanyBody(req.body);
-    if (validationError) {
-      fail(res, 400, validationError);
+    const parsed = updateCompanySchema.safeParse(req.body);
+    if (!parsed.success) {
+      fail(res, 400, parsed.error.issues.map((e: { message: string }) => e.message).join('; '));
       return;
     }
 
-    const updateRequest: UpdateCompanyRequest = buildCompanyRequest(req.body);
+    const updateRequest: UpdateCompanyRequest = parsed.data;
     const company = await companyService.update(id, updateRequest);
     success(res, company, '更新公司成功');
   } catch (err: unknown) {

@@ -29,6 +29,7 @@ function makePrismaCompany(overrides: Record<string, any> = {}) {
     status: true,
     createdAt: new Date('2025-01-01'),
     updatedAt: new Date('2025-06-01'),
+    deletedAt: null,
     ...overrides,
   };
 }
@@ -65,7 +66,7 @@ describe('CompanyServiceImpl', () => {
       expect(result).toHaveLength(2);
       expect(result[0].short_name).toBe('DEFAULT');
       expect(result[1].short_name).toBe('ACME');
-      expect(mockFindMany).toHaveBeenCalledWith({ orderBy: { id: 'asc' } });
+      expect(mockFindMany).toHaveBeenCalledWith({ where: { deletedAt: null }, orderBy: { id: 'asc' } });
     });
 
     it('should return empty array when no companies exist', async () => {
@@ -114,6 +115,7 @@ describe('CompanyServiceImpl', () => {
         status: false,
         created_at: date,
         updated_at: date,
+        deleted_at: null,
       });
     });
   });
@@ -236,7 +238,15 @@ describe('CompanyServiceImpl', () => {
 
       const mockTx = {
         company: { create: jest.fn().mockResolvedValue(mockCompany) },
-        user: { update: jest.fn().mockResolvedValue({}) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 10, role: 'admin', status: true },
+            { id: 11, role: 'admin', status: true },
+            { id: 20, role: 'view', status: true },
+            { id: 21, role: 'view', status: true },
+          ]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
       };
       const mockPrisma = {
         $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
@@ -260,8 +270,11 @@ describe('CompanyServiceImpl', () => {
         },
       });
 
-      // user.update called for all operators + viewers (4 total)
-      expect(mockTx.user.update).toHaveBeenCalledTimes(4);
+      // validateUserIds calls user.findMany
+      expect(mockTx.user.findMany).toHaveBeenCalledTimes(1);
+
+      // user.updateMany called twice: once for operators, once for viewers
+      expect(mockTx.user.updateMany).toHaveBeenCalledTimes(2);
     });
 
     it('should create company without viewer_ids', async () => {
@@ -276,7 +289,12 @@ describe('CompanyServiceImpl', () => {
       const mockCompany = makePrismaCompany({ id: 4, shortName: 'SOLO' });
       const mockTx = {
         company: { create: jest.fn().mockResolvedValue(mockCompany) },
-        user: { update: jest.fn().mockResolvedValue({}) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 10, role: 'admin', status: true },
+          ]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
       };
       const mockPrisma = {
         $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
@@ -286,8 +304,8 @@ describe('CompanyServiceImpl', () => {
       const result = await service.create(request);
 
       expect(result.short_name).toBe('SOLO');
-      // Only operator_ids update, no viewer_ids
-      expect(mockTx.user.update).toHaveBeenCalledTimes(1);
+      // Only operator_ids updateMany, no viewer_ids
+      expect(mockTx.user.updateMany).toHaveBeenCalledTimes(1);
     });
 
     it('should create company with empty viewer_ids array', async () => {
@@ -303,7 +321,12 @@ describe('CompanyServiceImpl', () => {
       const mockCompany = makePrismaCompany({ id: 5, shortName: 'EMPTY' });
       const mockTx = {
         company: { create: jest.fn().mockResolvedValue(mockCompany) },
-        user: { update: jest.fn().mockResolvedValue({}) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 10, role: 'admin', status: true },
+          ]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
       };
       const mockPrisma = {
         $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
@@ -313,8 +336,8 @@ describe('CompanyServiceImpl', () => {
       const result = await service.create(request);
 
       expect(result.short_name).toBe('EMPTY');
-      // Only 1 operator update, no viewer updates (empty array)
-      expect(mockTx.user.update).toHaveBeenCalledTimes(1);
+      // Only 1 operator updateMany, no viewer updateMany (empty array)
+      expect(mockTx.user.updateMany).toHaveBeenCalledTimes(1);
     });
 
     it('should handle address as null when not provided', async () => {
@@ -329,7 +352,12 @@ describe('CompanyServiceImpl', () => {
       const mockCompany = makePrismaCompany({ id: 6, shortName: 'NOADDR', address: null });
       const mockTx = {
         company: { create: jest.fn().mockResolvedValue(mockCompany) },
-        user: { update: jest.fn().mockResolvedValue({}) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 1, role: 'admin', status: true },
+          ]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
       };
       const mockPrisma = {
         $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
@@ -356,7 +384,14 @@ describe('CompanyServiceImpl', () => {
       const mockCompany = makePrismaCompany({ id: 7 });
       const mockTx = {
         company: { create: jest.fn().mockResolvedValue(mockCompany) },
-        user: { update: jest.fn().mockResolvedValue({}) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 30, role: 'view', status: true },
+            { id: 31, role: 'view', status: true },
+            { id: 32, role: 'view', status: true },
+          ]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
       };
       const mockPrisma = {
         $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
@@ -365,8 +400,12 @@ describe('CompanyServiceImpl', () => {
 
       await service.create(request);
 
-      // 0 operators + 3 viewers = 3 user.update calls
-      expect(mockTx.user.update).toHaveBeenCalledTimes(3);
+      // 2 updateMany calls: 1 for operators (empty array still triggers call) + 1 for viewers
+      expect(mockTx.user.updateMany).toHaveBeenCalledTimes(2);
+      expect(mockTx.user.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: [30, 31, 32] } },
+        data: { companyId: 7 },
+      });
     });
   });
 
@@ -390,10 +429,18 @@ describe('CompanyServiceImpl', () => {
       });
 
       const mockTx = {
-        company: { update: jest.fn().mockResolvedValue(updatedCompany) },
+        company: {
+          findUnique: jest.fn().mockResolvedValue(makePrismaCompany({ id: 2 })),
+          update: jest.fn().mockResolvedValue(updatedCompany),
+        },
         user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 11, role: 'admin', status: true },
+            { id: 12, role: 'admin', status: true },
+            { id: 21, role: 'view', status: true },
+            { id: 22, role: 'view', status: true },
+          ]),
           updateMany: jest.fn().mockResolvedValue({}),
-          update: jest.fn().mockResolvedValue({}),
         },
       };
       const mockPrisma = {
@@ -418,10 +465,16 @@ describe('CompanyServiceImpl', () => {
       };
 
       const mockTx = {
-        company: { update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        company: {
+          findUnique: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+          update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+        },
         user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 10, role: 'admin', status: true },
+            { id: 20, role: 'view', status: true },
+          ]),
           updateMany: jest.fn().mockResolvedValue({}),
-          update: jest.fn().mockResolvedValue({}),
         },
       };
       const mockPrisma = {
@@ -431,14 +484,9 @@ describe('CompanyServiceImpl', () => {
 
       await service.update(1, request);
 
-      // updateMany called twice: once for admin, once for view
-      expect(mockTx.user.updateMany).toHaveBeenCalledTimes(2);
-      expect(mockTx.user.updateMany).toHaveBeenNthCalledWith(1, {
-        where: { companyId: 1, role: 'admin' },
-        data: { companyId: null },
-      });
-      expect(mockTx.user.updateMany).toHaveBeenNthCalledWith(2, {
-        where: { companyId: 1, role: 'view' },
+      // First updateMany: unlink all admin+view users in one call
+      expect(mockTx.user.updateMany).toHaveBeenCalledWith({
+        where: { companyId: 1, role: { in: ['admin', 'view'] } },
         data: { companyId: null },
       });
     });
@@ -453,10 +501,15 @@ describe('CompanyServiceImpl', () => {
       };
 
       const mockTx = {
-        company: { update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1, shortName: 'NOVIEW' })) },
+        company: {
+          findUnique: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+          update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1, shortName: 'NOVIEW' })),
+        },
         user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 10, role: 'admin', status: true },
+          ]),
           updateMany: jest.fn().mockResolvedValue({}),
-          update: jest.fn().mockResolvedValue({}),
         },
       };
       const mockPrisma = {
@@ -467,10 +520,8 @@ describe('CompanyServiceImpl', () => {
       const result = await service.update(1, request);
 
       expect(result.short_name).toBe('NOVIEW');
-      // 2 updateMany (unlink admin + view) + 1 user.update (link operator) = 3 calls to user.update
-      // Actually updateMany is on user.updateMany, update is on user.update
-      // So user.update is called only for operator_ids
-      expect(mockTx.user.update).toHaveBeenCalledTimes(1);
+      // updateMany: 1 unlink + 1 link operator = 2 total
+      expect(mockTx.user.updateMany).toHaveBeenCalledTimes(2);
     });
 
     it('should update with empty viewer_ids array', async () => {
@@ -484,10 +535,15 @@ describe('CompanyServiceImpl', () => {
       };
 
       const mockTx = {
-        company: { update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        company: {
+          findUnique: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+          update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+        },
         user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 10, role: 'admin', status: true },
+          ]),
           updateMany: jest.fn().mockResolvedValue({}),
-          update: jest.fn().mockResolvedValue({}),
         },
       };
       const mockPrisma = {
@@ -497,8 +553,8 @@ describe('CompanyServiceImpl', () => {
 
       await service.update(1, request);
 
-      // Only operator linked, no viewers (empty array)
-      expect(mockTx.user.update).toHaveBeenCalledTimes(1);
+      // updateMany: 1 unlink + 1 link operator = 2 total (no viewer link since empty array)
+      expect(mockTx.user.updateMany).toHaveBeenCalledTimes(2);
     });
 
     it('should call company.update with correct data including null address', async () => {
@@ -511,10 +567,15 @@ describe('CompanyServiceImpl', () => {
       };
 
       const mockTx = {
-        company: { update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        company: {
+          findUnique: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+          update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+        },
         user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 5, role: 'admin', status: true },
+          ]),
           updateMany: jest.fn().mockResolvedValue({}),
-          update: jest.fn().mockResolvedValue({}),
         },
       };
       const mockPrisma = {
@@ -547,10 +608,17 @@ describe('CompanyServiceImpl', () => {
       };
 
       const mockTx = {
-        company: { update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        company: {
+          findUnique: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+          update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+        },
         user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 10, role: 'admin', status: true },
+            { id: 30, role: 'view', status: true },
+            { id: 31, role: 'view', status: true },
+          ]),
           updateMany: jest.fn().mockResolvedValue({}),
-          update: jest.fn().mockResolvedValue({}),
         },
       };
       const mockPrisma = {
@@ -560,15 +628,11 @@ describe('CompanyServiceImpl', () => {
 
       await service.update(1, request);
 
-      // 1 operator + 2 viewers = 3 user.update calls
-      expect(mockTx.user.update).toHaveBeenCalledTimes(3);
-      // Check viewer updates specifically
-      expect(mockTx.user.update).toHaveBeenNthCalledWith(2, {
-        where: { id: 30 },
-        data: { companyId: 1 },
-      });
-      expect(mockTx.user.update).toHaveBeenNthCalledWith(3, {
-        where: { id: 31 },
+      // updateMany: 1 unlink + 1 link operators + 1 link viewers = 3 total
+      expect(mockTx.user.updateMany).toHaveBeenCalledTimes(3);
+      // Check viewer batch update
+      expect(mockTx.user.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: [30, 31] } },
         data: { companyId: 1 },
       });
     });
@@ -672,7 +736,13 @@ describe('CompanyServiceImpl', () => {
       const mockCompany = makePrismaCompany({ id: 99 });
       const mockTx = {
         company: { create: jest.fn().mockResolvedValue(mockCompany) },
-        user: { update: jest.fn().mockResolvedValue({}) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 100, role: 'admin', status: true },
+            { id: 200, role: 'admin', status: true },
+          ]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
       };
       const mockPrisma = {
         $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
@@ -681,12 +751,9 @@ describe('CompanyServiceImpl', () => {
 
       await service.create(request);
 
-      expect(mockTx.user.update).toHaveBeenNthCalledWith(1, {
-        where: { id: 100 },
-        data: { companyId: 99 },
-      });
-      expect(mockTx.user.update).toHaveBeenNthCalledWith(2, {
-        where: { id: 200 },
+      // Batch updateMany for operators
+      expect(mockTx.user.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: [100, 200] } },
         data: { companyId: 99 },
       });
     });
@@ -703,7 +770,10 @@ describe('CompanyServiceImpl', () => {
       const mockCompany = makePrismaCompany({ id: 50 });
       const mockTx = {
         company: { create: jest.fn().mockResolvedValue(mockCompany) },
-        user: { update: jest.fn().mockResolvedValue({}) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
       };
       const mockPrisma = {
         $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
@@ -713,7 +783,9 @@ describe('CompanyServiceImpl', () => {
       const result = await service.create(request);
 
       expect(result.id).toBe(50);
-      expect(mockTx.user.update).not.toHaveBeenCalled();
+      // operator_ids is [] but service still calls updateMany with empty array
+      // viewer_ids is undefined so no second call
+      expect(mockTx.user.updateMany).toHaveBeenCalledTimes(1);
     });
 
     it('create: should preserve address when provided', async () => {
@@ -729,7 +801,12 @@ describe('CompanyServiceImpl', () => {
       const mockCompany = makePrismaCompany({ id: 60 });
       const mockTx = {
         company: { create: jest.fn().mockResolvedValue(mockCompany) },
-        user: { update: jest.fn().mockResolvedValue({}) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 1, role: 'admin', status: true },
+          ]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
       };
       const mockPrisma = {
         $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
@@ -754,10 +831,17 @@ describe('CompanyServiceImpl', () => {
       };
 
       const mockTx = {
-        company: { update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 10 })) },
+        company: {
+          findUnique: jest.fn().mockResolvedValue(makePrismaCompany({ id: 10 })),
+          update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 10 })),
+        },
         user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 50, role: 'admin', status: true },
+            { id: 60, role: 'admin', status: true },
+            { id: 70, role: 'view', status: true },
+          ]),
           updateMany: jest.fn().mockResolvedValue({}),
-          update: jest.fn().mockResolvedValue({}),
         },
       };
       const mockPrisma = {
@@ -767,18 +851,14 @@ describe('CompanyServiceImpl', () => {
 
       await service.update(10, request);
 
-      // operator updates come first
-      expect(mockTx.user.update).toHaveBeenNthCalledWith(1, {
-        where: { id: 50 },
+      // Batch updateMany for operators
+      expect(mockTx.user.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: [50, 60] } },
         data: { companyId: 10 },
       });
-      expect(mockTx.user.update).toHaveBeenNthCalledWith(2, {
-        where: { id: 60 },
-        data: { companyId: 10 },
-      });
-      // then viewer
-      expect(mockTx.user.update).toHaveBeenNthCalledWith(3, {
-        where: { id: 70 },
+      // Batch updateMany for viewers
+      expect(mockTx.user.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: [70] } },
         data: { companyId: 10 },
       });
     });
@@ -794,10 +874,15 @@ describe('CompanyServiceImpl', () => {
       };
 
       const mockTx = {
-        company: { update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        company: {
+          findUnique: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+          update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+        },
         user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 1, role: 'admin', status: true },
+          ]),
           updateMany: jest.fn().mockResolvedValue({}),
-          update: jest.fn().mockResolvedValue({}),
         },
       };
       const mockPrisma = {
@@ -870,6 +955,7 @@ describe('CompanyServiceImpl', () => {
       expect(result).toHaveProperty('status');
       expect(result).toHaveProperty('created_at');
       expect(result).toHaveProperty('updated_at');
+      expect(result).toHaveProperty('deleted_at');
       // Verify CompanyDetail fields
       expect(result).toHaveProperty('operator_ids');
       expect(result).toHaveProperty('operators');
@@ -906,7 +992,12 @@ describe('CompanyServiceImpl', () => {
       const mockCompany = makePrismaCompany({ id: 10 });
       const mockTx = {
         company: { create: jest.fn().mockResolvedValue(mockCompany) },
-        user: { update: jest.fn().mockResolvedValue({}) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 1, role: 'admin', status: true },
+          ]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
       };
       const mockPrisma = {
         $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
@@ -916,8 +1007,8 @@ describe('CompanyServiceImpl', () => {
       const result = await service.create(request as any);
 
       expect(result.id).toBe(10);
-      // Only operator update, no viewer updates
-      expect(mockTx.user.update).toHaveBeenCalledTimes(1);
+      // Only operator updateMany, no viewer updateMany
+      expect(mockTx.user.updateMany).toHaveBeenCalledTimes(1);
     });
 
     it('create: should propagate transaction error', async () => {
@@ -949,7 +1040,12 @@ describe('CompanyServiceImpl', () => {
       const mockCompany = makePrismaCompany({ id: 20 });
       const mockTx = {
         company: { create: jest.fn().mockResolvedValue(mockCompany) },
-        user: { update: jest.fn().mockResolvedValue({}) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 5, role: 'admin', status: true },
+          ]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
       };
       const mockPrisma = {
         $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
@@ -959,8 +1055,9 @@ describe('CompanyServiceImpl', () => {
       const result = await service.create(request);
 
       expect(result.id).toBe(20);
-      expect(mockTx.user.update).toHaveBeenCalledWith({
-        where: { id: 5 },
+      // Batch updateMany for single operator
+      expect(mockTx.user.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: [5] } },
         data: { companyId: 20 },
       });
     });
@@ -977,10 +1074,15 @@ describe('CompanyServiceImpl', () => {
       };
 
       const mockTx = {
-        company: { update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        company: {
+          findUnique: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+          update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+        },
         user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 1, role: 'admin', status: true },
+          ]),
           updateMany: jest.fn().mockResolvedValue({}),
-          update: jest.fn().mockResolvedValue({}),
         },
       };
       const mockPrisma = {
@@ -991,8 +1093,8 @@ describe('CompanyServiceImpl', () => {
       const result = await service.update(1, request as any);
 
       expect(result).toBeDefined();
-      // Only 1 operator update (no viewer updates since viewer_ids is undefined)
-      expect(mockTx.user.update).toHaveBeenCalledTimes(1);
+      // updateMany: 1 unlink + 1 link operator = 2 total (no viewer since undefined)
+      expect(mockTx.user.updateMany).toHaveBeenCalledTimes(2);
     });
 
     it('update: should propagate transaction error', async () => {
@@ -1023,10 +1125,25 @@ describe('CompanyServiceImpl', () => {
       };
 
       const mockTx = {
-        company: { update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        company: {
+          findUnique: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+          update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+        },
         user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 1, role: 'admin', status: true },
+            { id: 2, role: 'admin', status: true },
+            { id: 3, role: 'admin', status: true },
+            { id: 4, role: 'admin', status: true },
+            { id: 5, role: 'admin', status: true },
+            { id: 10, role: 'view', status: true },
+            { id: 11, role: 'view', status: true },
+            { id: 12, role: 'view', status: true },
+            { id: 13, role: 'view', status: true },
+            { id: 14, role: 'view', status: true },
+            { id: 15, role: 'view', status: true },
+          ]),
           updateMany: jest.fn().mockResolvedValue({}),
-          update: jest.fn().mockResolvedValue({}),
         },
       };
       const mockPrisma = {
@@ -1036,8 +1153,8 @@ describe('CompanyServiceImpl', () => {
 
       await service.update(1, request);
 
-      // 5 operators + 6 viewers = 11 user.update calls
-      expect(mockTx.user.update).toHaveBeenCalledTimes(11);
+      // updateMany: 1 unlink + 1 link operators + 1 link viewers = 3 total (batch)
+      expect(mockTx.user.updateMany).toHaveBeenCalledTimes(3);
     });
 
     // --- toggleStatus ---

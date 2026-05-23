@@ -21,6 +21,7 @@ describe('company.entity', () => {
         status: true,
         created_at: new Date(),
         updated_at: new Date(),
+        deleted_at: null,
       };
       expect(company.id).toBe(1);
       expect(company.short_name).toBe('ACME');
@@ -39,6 +40,7 @@ describe('company.entity', () => {
         status: true,
         created_at: new Date(),
         updated_at: new Date(),
+        deleted_at: null,
       };
       expect(company.address).toBeNull();
     });
@@ -54,6 +56,7 @@ describe('company.entity', () => {
         status: false,
         created_at: new Date(),
         updated_at: new Date(),
+        deleted_at: null,
       };
       expect(company.created_at).toBeInstanceOf(Date);
       expect(company.updated_at).toBeInstanceOf(Date);
@@ -148,6 +151,7 @@ describe('company.entity', () => {
         status: true,
         created_at: new Date(),
         updated_at: new Date(),
+        deleted_at: null,
         operator_ids: [1, 2],
         operators: [
           { id: 1, cn_name: '运营者1', username: 'op1' },
@@ -176,6 +180,7 @@ describe('company.entity', () => {
         status: true,
         created_at: new Date(),
         updated_at: new Date(),
+        deleted_at: null,
         operator_ids: [],
         operators: [],
         viewer_ids: [],
@@ -200,6 +205,7 @@ describe('company.entity', () => {
         status: true,
         created_at: new Date(),
         updated_at: new Date(),
+        deleted_at: null,
         operator_ids: [1],
         operators: [{ id: 1, cn_name: '用户', username: 'user1' }],
         viewer_ids: [],
@@ -224,6 +230,7 @@ describe('company.entity', () => {
         status: false,
         created_at: new Date(),
         updated_at: new Date(),
+        deleted_at: null,
       };
       expect(company.status).toBe(false);
     });
@@ -239,6 +246,7 @@ describe('company.entity', () => {
         status: true,
         created_at: new Date(),
         updated_at: new Date(),
+        deleted_at: null,
       };
       expect(company.id).toBe(Number.MAX_SAFE_INTEGER);
     });
@@ -254,6 +262,7 @@ describe('company.entity', () => {
         status: true,
         created_at: new Date('2026-01-01T00:00:00Z'),
         updated_at: new Date('2026-12-31T23:59:59Z'),
+        deleted_at: null,
       };
       expect(company.short_name).toBe('A&B<Co>');
       expect(company.full_name).toBe('Company "引号" & <tags>');
@@ -274,6 +283,7 @@ describe('company.entity', () => {
         status: true,
         created_at: new Date(),
         updated_at: new Date(),
+        deleted_at: null,
       };
       expect(company.short_name).toBe('');
       expect(company.address).toBe('');
@@ -442,6 +452,7 @@ describe('company.entity', () => {
         status: true,
         created_at: new Date(),
         updated_at: new Date(),
+        deleted_at: null,
         operator_ids: [],
         operators: [],
         viewer_ids: [],
@@ -464,6 +475,7 @@ describe('company.entity', () => {
         status: true,
         created_at: new Date(),
         updated_at: new Date(),
+        deleted_at: null,
         operator_ids: [1, 2, 3, 4, 5],
         operators: [
           { id: 1, cn_name: '运营1', username: 'op1' },
@@ -495,6 +507,7 @@ describe('company.entity', () => {
         status: true,
         created_at: new Date(),
         updated_at: new Date(),
+        deleted_at: null,
         operator_ids: [],
         operators: [],
         viewer_ids: [100],
@@ -517,6 +530,7 @@ describe('company.entity', () => {
         status: true,
         created_at: new Date(),
         updated_at: new Date(),
+        deleted_at: null,
         operator_ids: [],
         operators: [],
         viewer_ids: [],
@@ -536,13 +550,14 @@ describe('company.entity', () => {
         status: false,
         created_at: new Date(),
         updated_at: new Date(),
+        deleted_at: null,
         operator_ids: [1],
         operators: [{ id: 1, cn_name: 'OP', username: 'op' }],
         viewer_ids: [2],
         viewers: [{ id: 2, cn_name: 'VW', username: 'vw' }],
       };
       // Verify all Company base fields exist
-      const baseKeys = ['id', 'short_name', 'full_name', 'address', 'contact_person', 'contact_phone', 'status', 'created_at', 'updated_at'];
+      const baseKeys = ['id', 'short_name', 'full_name', 'address', 'contact_person', 'contact_phone', 'status', 'created_at', 'updated_at', 'deleted_at'];
       for (const key of baseKeys) {
         expect(detail).toHaveProperty(key);
       }
@@ -565,6 +580,7 @@ describe('company.entity', () => {
         status: true,
         created_at: new Date(),
         updated_at: new Date(),
+        deleted_at: null,
         operator_ids: [1],
         operators: [{ id: 1, cn_name: '双角色', username: 'dual' }],
         viewer_ids: [1],
@@ -581,7 +597,7 @@ describe('company.entity', () => {
       const company: Company = {
         id: 1, short_name: 'A', full_name: 'B', address: null,
         contact_person: 'C', contact_phone: 'D', status: true,
-        created_at: new Date(), updated_at: new Date(),
+        created_at: new Date(), updated_at: new Date(), deleted_at: null,
       };
       expect(company.short_name).toBe('A');
     });

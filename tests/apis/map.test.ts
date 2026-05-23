@@ -31,6 +31,7 @@ describe('mapCompany', () => {
     status: true,
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-06-01'),
+    deletedAt: null,
   };
 
   test('正确映射所有字段', () => {
@@ -45,6 +46,7 @@ describe('mapCompany', () => {
       status: true,
       created_at: basePrisma.createdAt,
       updated_at: basePrisma.updatedAt,
+      deleted_at: null,
     });
   });
 
@@ -63,14 +65,15 @@ describe('mapCompany', () => {
     expect(result.id).toBe(999);
   });
 
-  test('contactPerson 为 null 时正确映射', () => {
-    const result = mapCompany({ ...basePrisma, contactPerson: null });
-    expect(result.contact_person).toBeNull();
+  test('deletedAt 有值时正确映射', () => {
+    const deletedDate = new Date('2024-12-01');
+    const result = mapCompany({ ...basePrisma, deletedAt: deletedDate });
+    expect(result.deleted_at).toEqual(deletedDate);
   });
 
-  test('contactPhone 为 null 时正确映射', () => {
-    const result = mapCompany({ ...basePrisma, contactPhone: null });
-    expect(result.contact_phone).toBeNull();
+  test('contactPhone 为空字符串时正确映射', () => {
+    const result = mapCompany({ ...basePrisma, contactPhone: '' });
+    expect(result.contact_phone).toBe('');
   });
 
   test('full_name 为空字符串时正确映射', () => {
@@ -78,9 +81,9 @@ describe('mapCompany', () => {
     expect(result.full_name).toBe('');
   });
 
-  test('id 为字符串类型时正确映射', () => {
-    const result = mapCompany({ ...basePrisma, id: 'uuid-123' });
-    expect(result.id).toBe('uuid-123');
+  test('不同 id 正确映射', () => {
+    const result = mapCompany({ ...basePrisma, id: 42 });
+    expect(result.id).toBe(42);
   });
 
   test('shortName 为空字符串时正确映射', () => {

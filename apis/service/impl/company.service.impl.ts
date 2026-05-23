@@ -6,14 +6,17 @@ import { ICompanyService } from '../company.service';
 export class CompanyServiceImpl implements ICompanyService {
   async list(): Promise<Company[]> {
     const prisma = getPrisma();
-    const companies = await prisma.company.findMany({ orderBy: { id: 'asc' } });
+    const companies = await prisma.company.findMany({
+      where: { deletedAt: null },
+      orderBy: { id: 'asc' },
+    });
     return companies.map(mapCompany);
   }
 
   async getById(id: number): Promise<CompanyDetail> {
     const prisma = getPrisma();
     const company = await prisma.company.findUnique({ where: { id } });
-    if (!company) {
+    if (!company || company.deletedAt) {
       throw new Error('公司不存在');
     }
 
@@ -37,6 +40,9 @@ export class CompanyServiceImpl implements ICompanyService {
   async create(request: CreateCompanyRequest): Promise<Company> {
     const prisma = getPrisma();
     return prisma.$transaction(async (tx) => {
+      // 校验所有 operator/viewer IDs 的合法性
+      await this.validateUserIds(tx, request.operator_ids, request.viewer_ids);
+
       const company = await tx.company.create({
         data: {
           shortName: request.short_name,
@@ -47,20 +53,18 @@ export class CompanyServiceImpl implements ICompanyService {
         },
       });
 
-      for (const operatorId of request.operator_ids) {
-        await tx.user.update({
-          where: { id: operatorId },
+      // 批量设置 operators
+      await tx.user.updateMany({
+        where: { id: { in: request.operator_ids } },
+        data: { companyId: company.id },
+      });
+
+      // 批量设置 viewers
+      if (request.viewer_ids?.length) {
+        await tx.user.updateMany({
+          where: { id: { in: request.viewer_ids } },
           data: { companyId: company.id },
         });
-      }
-
-      if (request.viewer_ids?.length) {
-        for (const viewerId of request.viewer_ids) {
-          await tx.user.update({
-            where: { id: viewerId },
-            data: { companyId: company.id },
-          });
-        }
       }
 
       return mapCompany(company);
@@ -70,6 +74,11 @@ export class CompanyServiceImpl implements ICompanyService {
   async update(id: number, request: UpdateCompanyRequest): Promise<Company> {
     const prisma = getPrisma();
     return prisma.$transaction(async (tx) => {
+      const existing = await tx.company.findUnique({ where: { id } });
+      if (!existing || existing.deletedAt) {
+        throw new Error('公司不存在');
+      }
+
       const company = await tx.company.update({
         where: { id },
         data: {
@@ -81,32 +90,27 @@ export class CompanyServiceImpl implements ICompanyService {
         },
       });
 
-      // Unlink previous admin/view users
+      // 解绑旧的 admin/view 用户
       await tx.user.updateMany({
-        where: { companyId: id, role: 'admin' },
-        data: { companyId: null },
-      });
-      await tx.user.updateMany({
-        where: { companyId: id, role: 'view' },
+        where: { companyId: id, role: { in: ['admin', 'view'] } },
         data: { companyId: null },
       });
 
-      // Link new operators
-      for (const operatorId of request.operator_ids) {
-        await tx.user.update({
-          where: { id: operatorId },
+      // 校验新的 operator/viewer IDs 合法性
+      await this.validateUserIds(tx, request.operator_ids, request.viewer_ids);
+
+      // 批量绑定新的 operators
+      await tx.user.updateMany({
+        where: { id: { in: request.operator_ids } },
+        data: { companyId: id },
+      });
+
+      // 批量绑定新的 viewers
+      if (request.viewer_ids?.length) {
+        await tx.user.updateMany({
+          where: { id: { in: request.viewer_ids } },
           data: { companyId: id },
         });
-      }
-
-      // Link new viewers
-      if (request.viewer_ids?.length) {
-        for (const viewerId of request.viewer_ids) {
-          await tx.user.update({
-            where: { id: viewerId },
-            data: { companyId: id },
-          });
-        }
       }
 
       return mapCompany(company);
@@ -116,12 +120,48 @@ export class CompanyServiceImpl implements ICompanyService {
   async toggleStatus(id: number, status: boolean): Promise<Company> {
     const prisma = getPrisma();
     const existing = await prisma.company.findUnique({ where: { id } });
-    if (!existing) throw new Error('公司不存在');
+    if (!existing || existing.deletedAt) throw new Error('公司不存在');
 
     const company = await prisma.company.update({
       where: { id },
       data: { status },
     });
     return mapCompany(company);
+  }
+
+  /** 校验用户 ID 列表的合法性：存在性、角色、状态 */
+  private async validateUserIds(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    tx: any,
+    operatorIds: number[],
+    viewerIds?: number[],
+  ): Promise<void> {
+    const targetIds = [...operatorIds, ...(viewerIds ?? [])];
+
+    if (targetIds.length === 0) return;
+
+    const users: { id: number; role: string; status: boolean }[] = await tx.user.findMany({
+      where: { id: { in: targetIds } },
+      select: { id: true, role: true, status: true },
+    });
+
+    // 检查所有 ID 存在
+    const foundIds = new Set(users.map(u => u.id));
+    const missingIds = targetIds.filter(id => !foundIds.has(id));
+    if (missingIds.length > 0) {
+      throw new Error(`用户不存在: ${missingIds.join(', ')}`);
+    }
+
+    // 检查无 sysadmin 被关联
+    const sysadminIds = users.filter(u => u.role === 'sysadmin').map(u => u.id);
+    if (sysadminIds.length > 0) {
+      throw new Error('系统管理员不可被关联到公司');
+    }
+
+    // 检查用户状态
+    const inactiveIds = users.filter(u => !u.status).map(u => u.id);
+    if (inactiveIds.length > 0) {
+      throw new Error(`用户已禁用: ${inactiveIds.join(', ')}`);
+    }
   }
 }

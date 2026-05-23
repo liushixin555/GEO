@@ -1,6 +1,7 @@
 import { Company, User, Skills, LlmModel, SystemConfig, Project, Article, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, KnowledgeBase, MinedKeyword, Todo, TodoLog } from '../entity';
+import { Company as PrismaCompany } from '@prisma/client';
 
-export function mapCompany(prismaCompany: any): Company {
+export function mapCompany(prismaCompany: PrismaCompany): Company {
   return {
     id: prismaCompany.id,
     short_name: prismaCompany.shortName,
@@ -11,6 +12,7 @@ export function mapCompany(prismaCompany: any): Company {
     status: prismaCompany.status,
     created_at: prismaCompany.createdAt,
     updated_at: prismaCompany.updatedAt,
+    deleted_at: prismaCompany.deletedAt,
   };
 }
 

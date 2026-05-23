@@ -82,7 +82,7 @@ describe('Company Controller', () => {
             {
               id: 1, shortName: 'DEFAULT', fullName: 'Default Company',
               address: null, contactPerson: 'System', contactPhone: '0000000000',
-              status: true, createdAt: new Date(), updatedAt: new Date(),
+              status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
             },
           ]),
         },
@@ -152,12 +152,12 @@ describe('Company Controller', () => {
             {
               id: 1, shortName: 'DEFAULT', fullName: 'Default Company',
               address: null, contactPerson: 'System', contactPhone: '0000000000',
-              status: true, createdAt: now, updatedAt: now,
+              status: true, createdAt: now, updatedAt: now, deletedAt: null,
             },
             {
               id: 2, shortName: 'ACME', fullName: 'ACME Corp',
               address: 'Beijing', contactPerson: 'Zhang San', contactPhone: '13800138000',
-              status: false, createdAt: now, updatedAt: now,
+              status: false, createdAt: now, updatedAt: now, deletedAt: null,
             },
           ]),
         },
@@ -230,7 +230,7 @@ describe('Company Controller', () => {
           findUnique: jest.fn().mockResolvedValue({
             id: 2, shortName: 'ACME', fullName: 'ACME Corp', address: 'Beijing',
             contactPerson: 'Zhang San', contactPhone: '13800138000',
-            status: true, createdAt: new Date(), updatedAt: new Date(),
+            status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
           }),
         },
         user: {
@@ -261,7 +261,7 @@ describe('Company Controller', () => {
           findUnique: jest.fn().mockResolvedValue({
             id: 3, shortName: 'SOLO', fullName: 'Solo Corp', address: null,
             contactPerson: 'Wang', contactPhone: '13900139000',
-            status: true, createdAt: new Date(), updatedAt: new Date(),
+            status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
           }),
         },
         user: {
@@ -353,7 +353,7 @@ describe('Company Controller', () => {
           findUnique: jest.fn().mockResolvedValue({
             id: 5, shortName: 'OPS', fullName: 'Ops Only Corp', address: 'Shanghai',
             contactPerson: 'Admin', contactPhone: '13100131000',
-            status: true, createdAt: new Date(), updatedAt: new Date(),
+            status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
           }),
         },
         user: {
@@ -382,7 +382,7 @@ describe('Company Controller', () => {
           findUnique: jest.fn().mockResolvedValue({
             id: 6, shortName: 'VIEW', fullName: 'Viewer Only Corp', address: null,
             contactPerson: 'Viewer', contactPhone: '13200132000',
-            status: true, createdAt: new Date(), updatedAt: new Date(),
+            status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
           }),
         },
         user: {
@@ -409,7 +409,7 @@ describe('Company Controller', () => {
           findUnique: jest.fn().mockResolvedValue({
             id: 7, shortName: 'MIX', fullName: 'Mixed Corp', address: 'Guangzhou',
             contactPerson: 'Mix', contactPhone: '13300133000',
-            status: true, createdAt: new Date(), updatedAt: new Date(),
+            status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
           }),
         },
         user: {
@@ -559,13 +559,16 @@ describe('Company Controller', () => {
       const mockCompany = {
         id: 3, shortName: 'NEWCO', fullName: 'New Company',
         address: null, contactPerson: 'Test', contactPhone: '123',
-        status: true, createdAt: new Date(), updatedAt: new Date(),
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
       };
       mockPrisma({
         $transaction: jest.fn().mockImplementation(async (cb: any) => {
           const mockTx = {
             company: { create: jest.fn().mockResolvedValue(mockCompany) },
-            user: { update: jest.fn().mockResolvedValue({}) },
+            user: {
+              findMany: jest.fn().mockResolvedValue([{ id: 10, role: 'admin', status: true }]),
+              updateMany: jest.fn().mockResolvedValue({}),
+            },
           };
           return cb(mockTx);
         }),
@@ -592,13 +595,20 @@ describe('Company Controller', () => {
       const mockCompany = {
         id: 4, shortName: 'NEWCO2', fullName: 'New Company 2',
         address: 'Shanghai', contactPerson: 'Test2', contactPhone: '456',
-        status: true, createdAt: new Date(), updatedAt: new Date(),
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
       };
       mockPrisma({
         $transaction: jest.fn().mockImplementation(async (cb: any) => {
           const mockTx = {
             company: { create: jest.fn().mockResolvedValue(mockCompany) },
-            user: { update: jest.fn().mockResolvedValue({}) },
+            user: {
+              findMany: jest.fn().mockResolvedValue([
+                { id: 10, role: 'admin', status: true },
+                { id: 20, role: 'view', status: true },
+                { id: 21, role: 'view', status: true },
+              ]),
+              updateMany: jest.fn().mockResolvedValue({}),
+            },
           };
           return cb(mockTx);
         }),
@@ -702,14 +712,17 @@ describe('Company Controller', () => {
       const mockCompany = {
         id: 10, shortName: 'MIN', fullName: 'Minimal Corp',
         address: null, contactPerson: 'Min', contactPhone: '100',
-        status: true, createdAt: new Date(), updatedAt: new Date(),
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
       };
-      const userUpdate = jest.fn().mockResolvedValue({});
+      const updateMany = jest.fn().mockResolvedValue({});
       mockPrisma({
         $transaction: jest.fn().mockImplementation(async (cb: any) => {
           const mockTx = {
             company: { create: jest.fn().mockResolvedValue(mockCompany) },
-            user: { update: userUpdate },
+            user: {
+              findMany: jest.fn().mockResolvedValue([{ id: 10, role: 'admin', status: true }]),
+              updateMany,
+            },
           };
           return cb(mockTx);
         }),
@@ -729,22 +742,30 @@ describe('Company Controller', () => {
       expect(response.status).toBe(201);
       expect(response.body.data.short_name).toBe('MIN');
       expect(response.body.data.address).toBeNull();
-      // operator_ids[0] = 10, so user.update should be called once for the operator
-      expect(userUpdate).toHaveBeenCalledTimes(1);
+      // operator_ids[0] = 10, so user.updateMany should be called once for the operator
+      expect(updateMany).toHaveBeenCalledTimes(1);
     });
 
     it('should create company with multiple viewer_ids', async () => {
       const mockCompany = {
         id: 11, shortName: 'MV', fullName: 'Multi Viewer Corp',
         address: 'Shenzhen', contactPerson: 'Multi', contactPhone: '200',
-        status: true, createdAt: new Date(), updatedAt: new Date(),
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
       };
-      const userUpdate = jest.fn().mockResolvedValue({});
+      const updateMany = jest.fn().mockResolvedValue({});
       mockPrisma({
         $transaction: jest.fn().mockImplementation(async (cb: any) => {
           const mockTx = {
             company: { create: jest.fn().mockResolvedValue(mockCompany) },
-            user: { update: userUpdate },
+            user: {
+              findMany: jest.fn().mockResolvedValue([
+                { id: 1, role: 'admin', status: true },
+                { id: 10, role: 'view', status: true },
+                { id: 20, role: 'view', status: true },
+                { id: 30, role: 'view', status: true },
+              ]),
+              updateMany,
+            },
           };
           return cb(mockTx);
         }),
@@ -764,22 +785,25 @@ describe('Company Controller', () => {
         });
 
       expect(response.status).toBe(201);
-      // 1 operator + 3 viewers = 4 user.update calls
-      expect(userUpdate).toHaveBeenCalledTimes(4);
+      // 1 updateMany for operators + 1 updateMany for viewers = 2 updateMany calls
+      expect(updateMany).toHaveBeenCalledTimes(2);
     });
 
     it('should create company with viewer_ids as empty array (no viewers linked)', async () => {
       const mockCompany = {
         id: 12, shortName: 'EV', fullName: 'Empty Viewer Corp',
         address: null, contactPerson: 'Ev', contactPhone: '300',
-        status: true, createdAt: new Date(), updatedAt: new Date(),
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
       };
-      const userUpdate = jest.fn().mockResolvedValue({});
+      const updateMany = jest.fn().mockResolvedValue({});
       mockPrisma({
         $transaction: jest.fn().mockImplementation(async (cb: any) => {
           const mockTx = {
             company: { create: jest.fn().mockResolvedValue(mockCompany) },
-            user: { update: userUpdate },
+            user: {
+              findMany: jest.fn().mockResolvedValue([{ id: 1, role: 'admin', status: true }]),
+              updateMany,
+            },
           };
           return cb(mockTx);
         }),
@@ -798,8 +822,8 @@ describe('Company Controller', () => {
         });
 
       expect(response.status).toBe(201);
-      // Only 1 operator update, no viewer updates since viewer_ids is empty
-      expect(userUpdate).toHaveBeenCalledTimes(1);
+      // Only 1 updateMany for operators, no viewer updateMany since viewer_ids is empty
+      expect(updateMany).toHaveBeenCalledTimes(1);
     });
 
     it('should return 403 for view role', async () => {
@@ -934,15 +958,18 @@ describe('Company Controller', () => {
       const updatedCompany = {
         id: 2, shortName: 'ACME-UPD', fullName: 'ACME Updated',
         address: 'Shanghai', contactPerson: 'Wang', contactPhone: '137',
-        status: true, createdAt: new Date(), updatedAt: new Date(),
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
       };
       mockPrisma({
         $transaction: jest.fn().mockImplementation(async (cb: any) => {
           const mockTx = {
-            company: { update: jest.fn().mockResolvedValue(updatedCompany) },
+            company: {
+              findUnique: jest.fn().mockResolvedValue({ id: 2, deletedAt: null }),
+              update: jest.fn().mockResolvedValue(updatedCompany),
+            },
             user: {
+              findMany: jest.fn().mockResolvedValue([{ id: 10, role: 'admin', status: true }]),
               updateMany: jest.fn().mockResolvedValue({}),
-              update: jest.fn().mockResolvedValue({}),
             },
           };
           return cb(mockTx);
@@ -971,15 +998,21 @@ describe('Company Controller', () => {
       const updatedCompany = {
         id: 2, shortName: 'ACME-V', fullName: 'ACME Viewers',
         address: null, contactPerson: 'Wang', contactPhone: '137',
-        status: true, createdAt: new Date(), updatedAt: new Date(),
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
       };
       mockPrisma({
         $transaction: jest.fn().mockImplementation(async (cb: any) => {
           const mockTx = {
-            company: { update: jest.fn().mockResolvedValue(updatedCompany) },
+            company: {
+              findUnique: jest.fn().mockResolvedValue({ id: 2, deletedAt: null }),
+              update: jest.fn().mockResolvedValue(updatedCompany),
+            },
             user: {
+              findMany: jest.fn().mockResolvedValue([
+                { id: 10, role: 'admin', status: true },
+                { id: 20, role: 'view', status: true },
+              ]),
               updateMany: jest.fn().mockResolvedValue({}),
-              update: jest.fn().mockResolvedValue({}),
             },
           };
           return cb(mockTx);
@@ -1100,15 +1133,20 @@ describe('Company Controller', () => {
       const updatedCompany = {
         id: 2, shortName: 'NO-V', fullName: 'No Viewers Corp',
         address: null, contactPerson: 'A', contactPhone: '123',
-        status: true, createdAt: new Date(), updatedAt: new Date(),
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
       };
       const updateMany = jest.fn().mockResolvedValue({});
-      const userUpdate = jest.fn().mockResolvedValue({});
       mockPrisma({
         $transaction: jest.fn().mockImplementation(async (cb: any) => {
           const mockTx = {
-            company: { update: jest.fn().mockResolvedValue(updatedCompany) },
-            user: { updateMany, update: userUpdate },
+            company: {
+              findUnique: jest.fn().mockResolvedValue({ id: 2, deletedAt: null }),
+              update: jest.fn().mockResolvedValue(updatedCompany),
+            },
+            user: {
+              findMany: jest.fn().mockResolvedValue([{ id: 1, role: 'admin', status: true }]),
+              updateMany,
+            },
           };
           return cb(mockTx);
         }),
@@ -1127,24 +1165,34 @@ describe('Company Controller', () => {
         });
 
       expect(response.status).toBe(200);
-      // Should call updateMany twice (admin + view), and user.update once (for operator)
+      // Should call updateMany twice: 1 unlink + 1 operator bind
       expect(updateMany).toHaveBeenCalledTimes(2);
-      expect(userUpdate).toHaveBeenCalledTimes(1);
     });
 
     it('should update company with multiple viewer_ids', async () => {
       const updatedCompany = {
         id: 2, shortName: 'MV', fullName: 'Multi View Corp',
         address: 'Chengdu', contactPerson: 'B', contactPhone: '456',
-        status: true, createdAt: new Date(), updatedAt: new Date(),
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
       };
       const updateMany = jest.fn().mockResolvedValue({});
-      const userUpdate = jest.fn().mockResolvedValue({});
       mockPrisma({
         $transaction: jest.fn().mockImplementation(async (cb: any) => {
           const mockTx = {
-            company: { update: jest.fn().mockResolvedValue(updatedCompany) },
-            user: { updateMany, update: userUpdate },
+            company: {
+              findUnique: jest.fn().mockResolvedValue({ id: 2, deletedAt: null }),
+              update: jest.fn().mockResolvedValue(updatedCompany),
+            },
+            user: {
+              findMany: jest.fn().mockResolvedValue([
+                { id: 1, role: 'admin', status: true },
+                { id: 2, role: 'admin', status: true },
+                { id: 10, role: 'view', status: true },
+                { id: 20, role: 'view', status: true },
+                { id: 30, role: 'view', status: true },
+              ]),
+              updateMany,
+            },
           };
           return cb(mockTx);
         }),
@@ -1164,8 +1212,8 @@ describe('Company Controller', () => {
         });
 
       expect(response.status).toBe(200);
-      // 2 operators + 3 viewers = 5 user.update calls
-      expect(userUpdate).toHaveBeenCalledTimes(5);
+      // 1 unlink + 1 operator bind + 1 viewer bind = 3 updateMany calls
+      expect(updateMany).toHaveBeenCalledTimes(3);
     });
 
     it('should return 403 for view role', async () => {
@@ -1245,7 +1293,7 @@ describe('Company Controller', () => {
       const enabledCompany = {
         id: 1, shortName: 'TEST', fullName: 'Test Corp',
         address: null, contactPerson: 'A', contactPhone: '123',
-        status: true, createdAt: new Date(), updatedAt: new Date(),
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
       };
       mockPrisma({
         company: {
@@ -1268,7 +1316,7 @@ describe('Company Controller', () => {
       const disabledCompany = {
         id: 1, shortName: 'TEST', fullName: 'Test Corp',
         address: null, contactPerson: 'A', contactPhone: '123',
-        status: false, createdAt: new Date(), updatedAt: new Date(),
+        status: false, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
       };
       mockPrisma({
         company: {
@@ -1322,7 +1370,7 @@ describe('Company Controller', () => {
     it('should return 500 with default message for error without message', async () => {
       mockPrisma({
         company: {
-          findUnique: jest.fn().mockResolvedValue({ id: 1, status: true }),
+          findUnique: jest.fn().mockResolvedValue({ id: 1, status: true, deletedAt: null }),
           update: jest.fn().mockRejectedValue(new Error()),
         },
       });
@@ -1415,7 +1463,7 @@ describe('Company Controller', () => {
           findUnique: jest.fn().mockResolvedValue({
             id: 1, shortName: 'TEST', fullName: 'Test Corp', address: null,
             contactPerson: 'A', contactPhone: '123',
-            status: true, createdAt: new Date(), updatedAt: new Date(),
+            status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
           }),
         },
         user: { findMany: jest.fn().mockResolvedValue([]) },
@@ -1436,7 +1484,7 @@ describe('Company Controller', () => {
           findUnique: jest.fn().mockResolvedValue({
             id: 7, shortName: 'TEST', fullName: 'Test Corp', address: null,
             contactPerson: 'A', contactPhone: '123',
-            status: true, createdAt: new Date(), updatedAt: new Date(),
+            status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
           }),
         },
         user: { findMany: jest.fn().mockResolvedValue([]) },
@@ -1454,13 +1502,16 @@ describe('Company Controller', () => {
       const mockCompany = {
         id: 1, shortName: '<script>alert("xss")</script>', fullName: '"; DROP TABLE companies; --',
         address: null, contactPerson: "O'Brien", contactPhone: '+86-138-0000-0000',
-        status: true, createdAt: new Date(), updatedAt: new Date(),
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
       };
       mockPrisma({
         $transaction: jest.fn().mockImplementation(async (cb: any) => {
           const mockTx = {
             company: { create: jest.fn().mockResolvedValue(mockCompany) },
-            user: { update: jest.fn().mockResolvedValue({}) },
+            user: {
+              findMany: jest.fn().mockResolvedValue([{ id: 1, role: 'admin', status: true }]),
+              updateMany: jest.fn().mockResolvedValue({}),
+            },
           };
           return cb(mockTx);
         }),
@@ -1485,13 +1536,16 @@ describe('Company Controller', () => {
       const mockCompany = {
         id: 20, shortName: '薄云科技', fullName: '薄云商机倍增服务有限公司',
         address: '北京市朝阳区建国路88号', contactPerson: '张三', contactPhone: '13800138000',
-        status: true, createdAt: new Date(), updatedAt: new Date(),
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
       };
       mockPrisma({
         $transaction: jest.fn().mockImplementation(async (cb: any) => {
           const mockTx = {
             company: { create: jest.fn().mockResolvedValue(mockCompany) },
-            user: { update: jest.fn().mockResolvedValue({}) },
+            user: {
+              findMany: jest.fn().mockResolvedValue([{ id: 1, role: 'admin', status: true }]),
+              updateMany: jest.fn().mockResolvedValue({}),
+            },
           };
           return cb(mockTx);
         }),
@@ -1551,17 +1605,21 @@ describe('Company Controller', () => {
     });
 
     it('should handle create with very long field values', async () => {
-      const longName = 'A'.repeat(200);
+      const shortName = 'A'.repeat(50);  // max allowed
+      const fullName = 'B'.repeat(200);  // max allowed
       const mockCompany = {
-        id: 30, shortName: longName, fullName: longName,
+        id: 30, shortName, fullName,
         address: null, contactPerson: 'Test', contactPhone: '123',
-        status: true, createdAt: new Date(), updatedAt: new Date(),
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
       };
       mockPrisma({
         $transaction: jest.fn().mockImplementation(async (cb: any) => {
           const mockTx = {
             company: { create: jest.fn().mockResolvedValue(mockCompany) },
-            user: { update: jest.fn().mockResolvedValue({}) },
+            user: {
+              findMany: jest.fn().mockResolvedValue([{ id: 1, role: 'admin', status: true }]),
+              updateMany: jest.fn().mockResolvedValue({}),
+            },
           };
           return cb(mockTx);
         }),
@@ -1571,15 +1629,15 @@ describe('Company Controller', () => {
         .post('/api/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
-          short_name: longName,
-          full_name: longName,
+          short_name: shortName,
+          full_name: fullName,
           contact_person: 'Test',
           contact_phone: '123',
           operator_ids: [1],
         });
 
       expect(response.status).toBe(201);
-      expect(response.body.data.short_name).toBe(longName);
+      expect(response.body.data.short_name).toBe(shortName);
     });
 
     it('should return 401 for wrong JWT secret', async () => {
@@ -1611,7 +1669,7 @@ describe('Company Controller', () => {
       const disabledCompany = {
         id: 1, shortName: 'TEST', fullName: 'Test Corp',
         address: null, contactPerson: 'A', contactPhone: '123',
-        status: false, createdAt: new Date(), updatedAt: new Date(),
+        status: false, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
       };
       mockPrisma({
         company: {
@@ -1634,14 +1692,21 @@ describe('Company Controller', () => {
       const mockCompany = {
         id: 40, shortName: 'MULTI', fullName: 'Multi Op Corp',
         address: null, contactPerson: 'A', contactPhone: '123',
-        status: true, createdAt: new Date(), updatedAt: new Date(),
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
       };
-      const userUpdate = jest.fn().mockResolvedValue({});
+      const updateMany = jest.fn().mockResolvedValue({});
       mockPrisma({
         $transaction: jest.fn().mockImplementation(async (cb: any) => {
           const mockTx = {
             company: { create: jest.fn().mockResolvedValue(mockCompany) },
-            user: { update: userUpdate },
+            user: {
+              findMany: jest.fn().mockResolvedValue([
+                { id: 1, role: 'admin', status: true },
+                { id: 2, role: 'admin', status: true },
+                { id: 3, role: 'admin', status: true },
+              ]),
+              updateMany,
+            },
           };
           return cb(mockTx);
         }),
@@ -1659,8 +1724,8 @@ describe('Company Controller', () => {
         });
 
       expect(response.status).toBe(201);
-      // 3 operators → 3 user.update calls
-      expect(userUpdate).toHaveBeenCalledTimes(3);
+      // 3 operators → 1 updateMany call for all operators
+      expect(updateMany).toHaveBeenCalledTimes(1);
     });
   });
 });

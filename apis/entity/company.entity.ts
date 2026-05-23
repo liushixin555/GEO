@@ -8,6 +8,7 @@ export interface Company {
   status: boolean;
   created_at: Date;
   updated_at: Date;
+  deleted_at: Date | null;
 }
 
 export interface CreateCompanyRequest {
@@ -16,7 +17,9 @@ export interface CreateCompanyRequest {
   address?: string;
   contact_person: string;
   contact_phone: string;
+  /** 运营者用户 ID 列表（全量替换，传入空数组将清空所有运营者） */
   operator_ids: number[];
+  /** 查看者用户 ID 列表（可选，全量替换） */
   viewer_ids?: number[];
 }
 
@@ -26,7 +29,9 @@ export interface UpdateCompanyRequest {
   address?: string;
   contact_person: string;
   contact_phone: string;
+  /** 运营者用户 ID 列表（全量替换，传入空数组将清空所有运营者） */
   operator_ids: number[];
+  /** 查看者用户 ID 列表（可选，全量替换） */
   viewer_ids?: number[];
 }
 
