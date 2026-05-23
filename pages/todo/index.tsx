@@ -8,7 +8,7 @@ import {
   PlusOutlined,
   FileSearchOutlined,
   SwapOutlined,
-  CloseCircleOutlined,
+  CheckCircleOutlined,
   UndoOutlined,
   StopOutlined,
   EditOutlined,
@@ -253,7 +253,7 @@ const TodoPage: React.FC = () => {
 
     if (item.status === 'open') {
       btns.push(btn('transfer', <SwapOutlined />, '转交', () => openTransferModal(item)));
-      btns.push(btn('close', <CloseCircleOutlined />, '完成', () => handleClose(item.id), false, { title: '确定完成此待办？', okText: '确定' }));
+      btns.push(btn('close', <CheckCircleOutlined />, '完成', () => handleClose(item.id), false, { title: '确定完成此待办？', okText: '确定' }));
       btns.push(btn('reject', <StopOutlined />, '驳回', () => handleReject(item.id), true, { title: '确定驳回此待办？', okText: '确定' }));
       btns.push(btn('edit', <EditOutlined />, '编辑', () => handleEdit(item)));
     }
