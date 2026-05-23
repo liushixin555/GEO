@@ -640,3 +640,135 @@ export const reviewArticleSchema = z.object({
 3. **最易修复**: 添加 Zod schema 验证可以在一个 PR 中解决 CRITICAL-1、CRITICAL-2、HIGH-1、HIGH-4 四个问题
 
 **安全加固优先级**: CRITICAL-1 + CRITICAL-2 > HIGH-3 > HIGH-1 > HIGH-2 > HIGH-4 > MEDIUM > LOW
+
+---
+
+## 七、Committer 审核意见
+
+**审核日期**: 2026-05-23
+**审核角色**: 代码 Committer 审核专家（代码准入 + 架构一致性 + 工程质量 + 评审质量校验）
+**审核对象**: 上述代码安全专家评审报告 + `apis/controller/article.controller.ts` 源码
+
+---
+
+### 7.1 评审报告质量评估
+
+安全专家的评审报告覆盖面广， CWE 编号和 OWASP 分类准确，修复建议（Zod schema + 状态机）具有实操性。但以下几处需要修正或补充：
+
+| 评审编号 | 评审结论 | Committer 校验结果 |
+|----------|----------|-------------------|
+| CRITICAL-1 | 请求体无白名单过滤 | **部分同意** — service 层 `update()` (article.service.impl.ts:87-100) 仅处理 11 个显式映射字段，未映射的字段被 Prisma 忽略，不会写入数据库。实际风险比描述的低。但 `status` 字段确实可被注入，因此核心风险成立，维持 CRITICAL 级别 |
+| CRITICAL-2 | 状态转换未校验 | **完全同意** — 经验证：draft 状态的文章可通过 `PUT /api/projects/:id/articles/:id` + `{"status":"published"}` 绕过审核流程直达 published。service 层第 97 行 `data.status = request.status` 无条件赋值。这是最紧急的阻断级漏洞 |
+| HIGH-1 | 创建请求无 schema 验证 | **同意，但建议降为 MEDIUM** — service 层 `create()` (article.service.impl.ts:47-63) 显式映射了所有字段，多余的 req.body 属性被忽略。实际影响是类型错误和缺少业务级长度限制，而非任意字段注入 |
+| HIGH-2 | 审核缺少职责分离 | **同意** — 创建者可审核自己的文章，违反 SoD 原则。但需确认业务需求：小团队场景下 admin 既是创建者也是审核者可能是产品有意设计。建议与产品确认后再决定修复优先级 |
+| HIGH-3 | 错误响应泄露内部信息 | **完全同意** — 500 错误返回 `err.message` 是全局问题，影响所有 9 个端点。Prisma 错误可能暴露表名、字段名、约束名 |
+| HIGH-4 | Content 无大小限制 | **同意** — 全局 10MB 限制 (app.ts:56) 提供基础防护，但版本快照机制 (service 层第 115-123 行) 会级联放大存储压力 |
+| MEDIUM-1~5 | 各种中低级问题 | **同意** — 分析准确，建议合理 |
+
+### 7.2 补充发现（安全评审未覆盖的问题）
+
+#### 补充-1: `updateArticle` 中 `generating` 分支绕过了内容更新版本记录
+
+**位置**: article.controller.ts:152-157
+
+```typescript
+if (targetStatus && targetStatus === 'generating') {
+  const item = await articleService.update(id, { ...req.body, status: 'generating' }, userId, role);
+  success(res, item, '已提交AI生成');
+  return;
+}
+```
+
+**问题**: 当 `targetStatus === 'generating'` 时，`req.body` 中可能包含 `content` 字段，service 层的 update 会触发版本快照创建。但从业务逻辑看，提交 AI 生成的请求不应携带 content。这可能导致版本历史中出现由用户提交的无关内容快照，污染版本记录。
+
+**建议**: `generating` 分支应仅传递元数据字段，排除 `content`：
+
+```typescript
+if (targetStatus && targetStatus === 'generating') {
+  const { content, ...metadata } = req.body;
+  const item = await articleService.update(id, { ...metadata, status: 'generating' }, userId, role);
+  success(res, item, '已提交AI生成');
+  return;
+}
+```
+
+#### 补充-2: 模块级 Service 单例缺少依赖注入
+
+**位置**: article.controller.ts:6-7
+
+```typescript
+const articleService = new ArticleServiceImpl();
+const projectService = new ProjectServiceImpl();
+```
+
+**问题**: Service 实例在模块加载时创建为顶层常量，无法在测试中替换为 mock。这导致控制器层难以进行单元测试，当前项目可能依赖集成测试覆盖。不影响安全性，但影响可测试性和工程维护性。
+
+**建议**: 长期可考虑引入简单的 DI 容器或在控制器函数中接受 service 参数。短期维持现状即可，不阻塞合并。
+
+#### 补充-3: `listArticles` 对 admin 的双重查询效率问题
+
+**位置**: article.controller.ts:33-39 + 42
+
+```typescript
+if (role === 'admin') {
+  try {
+    await checkProjectOperator(projectId, userId, role);  // 查询1: 获取 project
+  } catch { ... }
+}
+const { list, total } = await articleService.list(...);   // 查询2: 获取文章列表
+```
+
+**问题**: `checkProjectOperator` 调用 `projectService.getById()` 获取完整 project 记录，仅为了检查 `operator_ids`。紧接着 `articleService.list()` 又会查询一次数据库。admin 角色实际上触发了两次数据库查询。这不是安全问题，但影响性能。
+
+**建议**: 可在 `articleService.list()` 的 Prisma where 条件中直接加入 operator 校验，避免额外查询。非阻塞项。
+
+### 7.3 严重级别调整建议
+
+| 原编号 | 原级别 | 建议级别 | 调整理由 |
+|--------|--------|----------|----------|
+| CRITICAL-1 | CRITICAL | **HIGH** | Service 层显式映射字段，非映射字段被忽略；实际风险是 status 可被篡改（已由 CRITICAL-2 覆盖） |
+| HIGH-1 | HIGH | **MEDIUM** | Service 层 create 显式映射，多余字段被忽略；实际风险为类型安全和长度限制缺失 |
+| 其他 | 不变 | 不变 | 级别评定准确 |
+
+**调整后最终统计**: CRITICAL(1) / HIGH(4) / MEDIUM(6) / LOW(4)
+
+### 7.4 最终裁决
+
+**结论: ⚠️ 有条件通过 — 阻断项必须在下次迭代前修复**
+
+#### 阻断项（必须修复后才能合并到 main）
+
+1. **CRITICAL-2（状态机绕过）**: 这是最严重的问题。攻击者可通过 PUT 请求直接将 draft 文章状态设为 `published`，完全绕过审核流程。**必须引入状态转换白名单**，不接受任何理由的延期。
+
+2. **HIGH-3（错误信息泄露）**: 全局性 `err.message` 泄露问题，影响所有端点。修复方案简单且风险低，**应在本次一并修复**。
+
+#### 强烈建议修复（下一个 sprint）
+
+3. **HIGH-2（审核职责分离）**: 需产品确认业务需求后决定。如果确认需要 SoD，修复成本极低（一行检查）。
+4. **HIGH-4（Content 大小限制）**: 添加 MAX_CONTENT_LENGTH 常量，一行代码。
+5. **CRITICAL-1 / HIGH-1 的 Zod schema 验证**: 一次性解决输入验证问题，建议作为独立 PR。
+
+#### 可延期处理
+
+6. MEDIUM 级别问题（分页上限、权限检查一致性、req.user! 防御性检查等）
+7. LOW 级别问题（魔法字符串、parseInt 基数等）
+8. 补充发现的非阻断项（版本记录污染、DI 改造、查询效率）
+
+#### 工程质量评价
+
+| 维度 | 评分 | 说明 |
+|------|------|------|
+| 代码可读性 | 7/10 | 函数命名清晰，结构一致，但重复代码较多（权限检查、参数解析） |
+| 错误处理 | 5/10 | 有 try-catch 覆盖，但 err.message 泄露和 catch(err: any) 类型不安全 |
+| 权限模型 | 6/10 | 三层权限（sysadmin/admin/view）基本完整，但有绕过风险和 SoD 缺失 |
+| 输入验证 | 3/10 | 仅 ID 解析检查，请求体无 schema 验证，是最大短板 |
+| 可测试性 | 4/10 | Service 单例硬编码，控制器函数难以独立测试 |
+| 可维护性 | 6/10 | 9 个函数结构相似但大量重复，建议提取公共中间逻辑 |
+
+#### 合并建议
+
+当前代码**不建议直接合并到 main**。应创建 `fix/article-controller-security` 分支，至少修复 CRITICAL-2（状态机绕过）和 HIGH-3（错误信息泄露）后，经过 code review 再合并。Zod schema 验证可作为后续独立 PR。
+
+---
+
+*Committer 审核完成 — 2026-05-23*
