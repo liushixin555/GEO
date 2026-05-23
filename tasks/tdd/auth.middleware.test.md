@@ -1,6 +1,6 @@
 # TDD 执行报告：auth.middleware.ts
 
-**日期**: 2026-05-23
+**日期**: 2026-05-24（更新）
 **文件**: `apis/middleware/auth.middleware.ts`
 **测试文件**: `tests/apis/middleware/auth.middleware.test.ts`
 
@@ -19,9 +19,9 @@
    - 检查用户角色是否在允许列表中
    - 不匹配时返回 401（未登录）或 403（无权限）
 
-## 测试用例设计（22 个测试）
+## 测试用例设计（35 个测试）
 
-### authMiddleware（12 个测试）
+### authMiddleware（19 个测试）
 
 | # | 场景 | 预期结果 |
 |---|------|---------|
@@ -37,26 +37,44 @@
 | 10 | 有效 token + 完整 payload | next() + req.user 设置正确 |
 | 11 | companyId 为 null 的 payload | next() + req.user.companyId=null |
 | 12 | 不包含 companyId 的 payload | next() + req.user 正确 |
+| 13 | "bearer"（小写）开头 | 401 未登录 |
+| 14 | "BEARER"（大写）开头 | 401 未登录 |
+| 15 | 被篡改的 token | 401 登录已过期 |
+| 16 | companyId 为 0 的 payload | next() + companyId=0 |
+| 17 | 包含额外字段的 payload | next() + 额外字段保留 |
+| 18 | Authorization 只有空格 | 401 未登录 |
+| 19 | undefined authorization | 401 未登录 |
 
-### roleMiddleware（10 个测试）
+### roleMiddleware（13 个测试）
 
 | # | 场景 | 预期结果 |
 |---|------|---------|
-| 13 | req.user 未设置 | 401 未登录 |
-| 14 | req.user 为 undefined | 401 未登录 |
-| 15 | 角色不在允许列表 | 403 无权限 |
-| 16 | view 角色只允许 admin | 403 无权限 |
-| 17 | 允许列表为空 | 403 无权限 |
-| 18 | 角色匹配单个允许角色 | next() |
-| 19 | 角色匹配多个允许角色之一 | next() |
-| 20 | sysadmin 角色匹配 | next() |
-| 21 | view 角色匹配 | next() |
-| 22 | AuthPayload 集成验证 | 全字段正确 |
+| 20 | req.user 未设置 | 401 未登录 |
+| 21 | req.user 为 undefined | 401 未登录 |
+| 22 | 角色不在允许列表 | 403 无权限 |
+| 23 | view 角色只允许 admin | 403 无权限 |
+| 24 | 允许列表为空 | 403 无权限 |
+| 25 | 角色匹配单个允许角色 | next() |
+| 26 | 角色匹配多个允许角色之一 | next() |
+| 27 | sysadmin 角色匹配 | next() |
+| 28 | view 角色匹配 | next() |
+| 29 | AuthPayload 集成验证 | 全字段正确 |
+| 30 | 工厂函数返回 function | typeof === 'function' |
+| 31 | 独立中间件实例 | 不同角色列表互不影响 |
+| 32 | 角色字符串引用匹配 | next() |
+
+### 完整认证+鉴权流程（3 个测试）
+
+| # | 场景 | 预期结果 |
+|---|------|---------|
+| 33 | 有效 token + 角色匹配 | 通过 |
+| 34 | 有效 token + 角色不匹配 | 403 |
+| 35 | 无效 token → roleMiddleware | 401（未设置 user） |
 
 ## 测试结果
 
 ```
-PASS api tests/apis/middleware/auth.middleware.test.ts
+PASS api tests/apis/middleware/auth.middleware.test.ts (8.647 s)
   authMiddleware
     无 authorization header
       ✓ 应该返回 401 当 authorization header 缺失时
@@ -89,9 +107,25 @@ PASS api tests/apis/middleware/auth.middleware.test.ts
       ✓ 应该调用 next() 当用户角色为 view 且允许 view
     AuthPayload 集成验证
       ✓ 应该正确携带 userId, username, role, companyId 字段
+    authMiddleware 安全边界
+      ✓ 应该拒绝 "bearer"（小写）开头的 header
+      ✓ 应该拒绝 "BEARER"（大写）开头的 header
+      ✓ 应该拒绝被篡改的 token（payload 被修改）
+      ✓ 应该正确解析 companyId 为 0 的 payload
+      ✓ 应该正确解析包含额外字段的 token payload
+      ✓ 应该拒绝 Authorization header 只有空格的情况
+      ✓ 应该拒绝 undefined authorization header
+    roleMiddleware 工厂函数特性
+      ✓ 应该返回一个函数
+      ✓ 每次调用应该返回独立的中间件实例
+      ✓ 应该正确处理角色完全相同但不同对象引用的匹配
+    完整认证+鉴权流程
+      ✓ 有效 token + 角色匹配 → 通过
+      ✓ 有效 token + 角色不匹配 → 403
+      ✓ 无效 token → 后续 roleMiddleware 也会 401（未设置 user）
 
 Test Suites: 1 passed, 1 total
-Tests:       22 passed, 22 total
+Tests:       35 passed, 35 total
 ```
 
 ## 覆盖率
@@ -108,8 +142,16 @@ File                | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
 
 ## 覆盖分支分析
 
-- `!authHeader` → ✓ 空/缺失 header 测试
-- `!authHeader.startsWith('Bearer ')` → ✓ Basic/Bearer/Token 格式测试
-- `catch` (jwt.verify 失败) → ✓ 无效/过期/错误密钥/空 token 测试
-- `!req.user` → ✓ user 未设置/undefined 测试
-- `!allowedRoles.includes(req.user.role)` → ✓ 角色不匹配/空列表测试
+- `!authHeader` → ✓ 空/缺失/undefined/空格 header 测试
+- `!authHeader.startsWith('Bearer ')` → ✓ Basic/Bearer/Token/小写bearer/大写BEARER 格式测试
+- `catch` (jwt.verify 失败) → ✓ 无效/过期/错误密钥/空token/篡改token 测试
+- `!req.user` → ✓ user 未设置/undefined/认证失败后 测试
+- `!allowedRoles.includes(req.user.role)` → ✓ 角色不匹配/空列表 测试
+
+## 新增测试亮点（相比原 22 个测试 → 35 个）
+
+1. **Bearer 大小写敏感验证**：确认仅接受 `Bearer `（首字母大写+空格）
+2. **token 篡改检测**：修改签名尾部字符后被正确拒绝
+3. **companyId 边界值**：测试 0、null、undefined、不存在四种情况
+4. **工厂函数独立性**：多次调用 roleMiddleware 返回独立闭包
+5. **完整流水线测试**：authMiddleware → roleMiddleware 端到端三种路径
