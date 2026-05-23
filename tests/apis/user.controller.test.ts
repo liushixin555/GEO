@@ -309,7 +309,7 @@ describe('User Controller', () => {
         .send({ username: 'test', password: 'pass', role: 'admin' });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('用户名、密码、姓名、角色不能为空');
+      expect(response.body.message).toBe('密码长度不能少于8位; 姓名不能为空');
     });
 
     it('should return 400 with correct message when required fields missing', async () => {
@@ -319,7 +319,7 @@ describe('User Controller', () => {
         .send({ username: 'test' });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('用户名、密码、姓名、角色不能为空');
+      expect(response.body.message).toBe('密码不能为空; 姓名不能为空; 角色值不合法');
     });
 
     it('should return 400 when role is not in whitelist', async () => {
@@ -716,7 +716,7 @@ describe('User Controller', () => {
         .send({ username: '', password: 'Pass1234', cn_name: 'Test', role: 'admin' });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('用户名、密码、姓名、角色不能为空');
+      expect(response.body.message).toBe('用户名不能为空');
     });
 
     // createUser: empty string password
@@ -727,7 +727,7 @@ describe('User Controller', () => {
         .send({ username: 'test', password: '', cn_name: 'Test', role: 'admin' });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('用户名、密码、姓名、角色不能为空');
+      expect(response.body.message).toBe('密码长度不能少于8位');
     });
 
     // createUser: empty string cn_name
@@ -738,7 +738,7 @@ describe('User Controller', () => {
         .send({ username: 'test', password: 'Pass1234', cn_name: '', role: 'admin' });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('用户名、密码、姓名、角色不能为空');
+      expect(response.body.message).toBe('姓名不能为空');
     });
 
     // createUser: empty string role
@@ -749,7 +749,7 @@ describe('User Controller', () => {
         .send({ username: 'test', password: 'Pass1234', cn_name: 'Test', role: '' });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('用户名、密码、姓名、角色不能为空');
+      expect(response.body.message).toBe('角色值不合法');
     });
 
     // createUser: exactly 8 characters password should pass
@@ -981,7 +981,7 @@ describe('User Controller', () => {
         .send({});
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('用户名、密码、姓名、角色不能为空');
+      expect(response.body.message).toBe('用户名不能为空; 密码不能为空; 姓名不能为空; 角色值不合法');
     });
 
     // createUser: response structure validation

@@ -4,6 +4,7 @@ import { getPrisma } from '../../utils';
 import { UserListItem, CreateUserRequest, UpdateUserRequest } from '../../entity';
 import { mapUser } from '../../map';
 import { IUserService } from '../user.service';
+import { NotFoundError, ForbiddenError, ConflictError } from '../../errors';
 
 export class UserServiceImpl implements IUserService {
   async list(companyId: number | null, page: number, pageSize: number, search?: string, role?: string, status?: boolean): Promise<{ list: UserListItem[]; total: number }> {
@@ -38,7 +39,7 @@ export class UserServiceImpl implements IUserService {
     const user = await prisma.user.findFirst({
       where: { id },
     });
-    if (!user) throw new Error('用户不存在');
+    if (!user) throw new NotFoundError('用户');
     return mapUser(user);
   }
 
@@ -46,7 +47,7 @@ export class UserServiceImpl implements IUserService {
     const prisma = getPrisma();
 
     const existing = await prisma.user.findUnique({ where: { username: request.username } });
-    if (existing) throw new Error('用户名已存在');
+    if (existing) throw new ConflictError('用户名已存在');
 
     const passwordHash = await bcrypt.hash(request.password, 10);
     const user = await prisma.user.create({
@@ -65,10 +66,10 @@ export class UserServiceImpl implements IUserService {
     const prisma = getPrisma();
 
     const existing = await prisma.user.findFirst({ where: { id } });
-    if (!existing) throw new Error('用户不存在');
+    if (!existing) throw new NotFoundError('用户');
 
     if (existing.role === 'sysadmin' && request.role !== undefined && request.role !== 'sysadmin') {
-      throw new Error('系统管理员角色不可修改');
+      throw new ForbiddenError('系统管理员角色不可修改');
     }
 
     const data: any = {};
@@ -88,9 +89,9 @@ export class UserServiceImpl implements IUserService {
     const prisma = getPrisma();
 
     const existing = await prisma.user.findFirst({ where: { id } });
-    if (!existing) throw new Error('用户不存在');
+    if (!existing) throw new NotFoundError('用户');
 
-    if (existing.role === 'sysadmin') throw new Error('系统管理员不可删除');
+    if (existing.role === 'sysadmin') throw new ForbiddenError('系统管理员不可删除');
 
     await prisma.user.update({ where: { id }, data: { deletedAt: new Date() } });
   }
