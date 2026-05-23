@@ -608,6 +608,195 @@ describe('apis/utils/document-validator.ts', () => {
         expect(result.valid).toBe(false);
         expect(result.error).toContain('不匹配');
       });
+
+      it('should exercise getCanonicalType yml branch via detectType mismatch', async () => {
+        // getCanonicalType('yml') returns 'yaml', covering line 99
+        // Use PDF content declared as .yml to trigger the mismatch path
+        // detectType returns 'pdf', ext is 'yml'
+        // getCanonicalType('yml') → 'yaml', still != 'pdf', so mismatch reported
+        const result = await DocumentValidator.validateContent(makePdfBuffer(), 'yml');
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('不匹配');
+      });
+
+      it('should validate YML content matching via getCanonicalType', async () => {
+        // Test the path where getCanonicalType allows yml→yaml equivalence
+        // Use YAML text content that passes validateTextContent
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('key: value\nname: test'), 'yml'
+        );
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('yaml');
+      });
+    });
+
+    // --- ZIP bomb protection ---
+    describe('ZIP bomb protection', () => {
+      it('should reject ZIP with more than 1000 entries', async () => {
+        // Create a ZIP with 1001 entries to trigger the > 1000 check
+        const entries: { name: string; content: string }[] = [];
+        for (let i = 0; i < 1001; i++) {
+          entries.push({ name: `file_${i}.txt`, content: `content_${i}` });
+        }
+        const bigZip = makeZipBuffer(entries);
+        const result = await DocumentValidator.validateContent(bigZip, 'docx');
+        expect(result.valid).toBe(false);
+        // detectType returns null for >1000 entries, falls through to validateTextContent
+        // which returns null for docx (default case), then '无法识别文件内容格式'
+        expect(result.error).toContain('无法识别');
+      });
+
+      it('should reject ZIP with total uncompressed size exceeding 100MB', async () => {
+        // Create a ZIP where total uncompressed > 100MB
+        // 2 entries of 55MB each = 110MB total uncompressed
+        // Compressed size is tiny (repeated chars), but header.size reflects uncompressed
+        const bigZip = new AdmZip();
+        bigZip.addFile('word/large1.xml', Buffer.alloc(55 * 1024 * 1024, 'a'));
+        bigZip.addFile('word/large2.xml', Buffer.alloc(55 * 1024 * 1024, 'b'));
+        const zipBuffer = bigZip.toBuffer();
+
+        const result = await DocumentValidator.validateContent(zipBuffer, 'docx');
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('无法识别');
+      });
+    });
+
+    // --- validateTextContent default case ---
+    describe('validateTextContent default case', () => {
+      it('should return null for binary extensions that reach validateTextContent', async () => {
+        // For extensions like doc/xls/ppt (OLE2), if detectType returns null,
+        // validateTextContent default case returns null → '无法识别文件内容格式'
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('some random content'), 'doc'
+        );
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('无法识别');
+      });
+
+      it('should return null for docx when detectType returns null', async () => {
+        // Non-ZIP, non-PDF, non-OLE2 buffer with docx extension
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('plain text not a zip'), 'docx'
+        );
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('无法识别');
+      });
+
+      it('should return null for xls when detectType returns null', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('plain text not an xls'), 'xls'
+        );
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('无法识别');
+      });
+
+      it('should return null for ppt when detectType returns null', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('plain text not a ppt'), 'ppt'
+        );
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('无法识别');
+      });
+    });
+
+    // --- Additional edge cases ---
+    describe('additional edge cases', () => {
+      it('should handle getExtension with empty string', () => {
+        expect(DocumentValidator.getExtension('')).toBe('');
+      });
+
+      it('should handle getExtension with dot only', () => {
+        expect(DocumentValidator.getExtension('.')).toBe('');
+      });
+
+      it('should handle getExtension with trailing dot', () => {
+        expect(DocumentValidator.getExtension('file.')).toBe('');
+      });
+
+      it('should handle validateExtension with uppercase extension', () => {
+        expect(DocumentValidator.validateExtension('file.JSON')).toBe(true);
+        expect(DocumentValidator.validateExtension('file.PDF')).toBe(true);
+      });
+
+      it('should handle YAML with undefined result from load', async () => {
+        const spy = jest.spyOn(yaml, 'load').mockReturnValue(undefined);
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('test: value'), 'yaml'
+        );
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('空');
+        spy.mockRestore();
+      });
+
+      it('should handle YAML load returning null', async () => {
+        const spy = jest.spyOn(yaml, 'load').mockReturnValue(null);
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('test: value'), 'yml'
+        );
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('空');
+        spy.mockRestore();
+      });
+
+      it('should handle YAML error thrown as Error instance', async () => {
+        const spy = jest.spyOn(yaml, 'load').mockImplementation(() => {
+          throw new Error('bad yaml: invalid indent');
+        });
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('test: value'), 'yaml'
+        );
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('bad yaml: invalid indent');
+        spy.mockRestore();
+      });
+
+      it('should validate JSON number', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('42'), 'json'
+        );
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('json');
+      });
+
+      it('should validate JSON string', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('"hello"'), 'json'
+        );
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('json');
+      });
+
+      it('should validate JSON boolean', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('true'), 'json'
+        );
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('json');
+      });
+
+      it('should validate JSON null', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('null'), 'json'
+        );
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('json');
+      });
+
+      it('should validate CSV with only tab separator', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('a\tb\tc'), 'csv'
+        );
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('csv');
+      });
+
+      it('should validate CSV with only semicolon separator', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('a;b;c'), 'csv'
+        );
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('csv');
+      });
     });
   });
 });
