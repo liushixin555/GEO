@@ -280,7 +280,7 @@ const PublishingSchedulePage: React.FC = () => {
         </div>
       </Spin>
 
-      {total > pageSize && (
+      {total > 0 && (
         <div className="item-card-pagination">
           <Pagination
             current={page}
