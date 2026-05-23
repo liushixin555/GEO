@@ -88,13 +88,24 @@ const ArticlePage: React.FC = () => {
 
   const tableColumns: ColumnsType<ArticleItem> = [
     {
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 70,
+      render: (id: number) => (
+        <a onClick={() => navigate(`/article/${id}`)} style={{ color: 'var(--color-primary, #0f62fe)' }}>
+          {id}
+        </a>
+      ),
+    },
+    {
       title: '标题',
       dataIndex: 'title',
       key: 'title',
       ellipsis: { showTitle: true },
       render: (text: string, record: ArticleItem) => (
         <a onClick={() => navigate(`/article/${record.id}`)} style={{ color: 'var(--color-primary, #0f62fe)' }}>
-          {record.id}. {text || '<还没有标题，待生成>'}
+          {text || '<还没有标题，待生成>'}
         </a>
       ),
     },
@@ -184,13 +195,14 @@ const ArticlePage: React.FC = () => {
               <Card
                 key={item.id}
                 size="small"
-                title={`${item.id}. ${item.title || '<还没有标题，待生成>'}`}
+                title={item.title || '<还没有标题，待生成>'}
                 extra={<Tag color={statusCfg.color}>{statusCfg.label}</Tag>}
                 hoverable
                 onClick={() => navigate(`/article/${item.id}`)}
                 style={{ cursor: 'pointer' }}
               >
                 <Descriptions column={2} size="small" colon={false}>
+                  <Descriptions.Item label="ID">{item.id}</Descriptions.Item>
                   <Descriptions.Item label="关键词">{item.keywords || '-'}</Descriptions.Item>
                   <Descriptions.Item label="创建时间">{formatDate(item.created_at)}</Descriptions.Item>
                 </Descriptions>
