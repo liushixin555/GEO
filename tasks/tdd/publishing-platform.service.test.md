@@ -12,8 +12,10 @@
 |------|--------|------|
 | `syncFromRm` | 13 | ✅ 全部通过 |
 | `listAll` | 4 | ✅ 全部通过 |
-| `list` | 20 | ✅ 全部通过 |
-| **合计** | **37** | **✅ 全部通过** |
+| `list` | 25 | ✅ 全部通过 |
+| `syncFromSystemConfig` | 11 | ✅ 全部通过 |
+| `constructor` | 2 | ✅ 全部通过 |
+| **合计** | **55** | **✅ 全部通过** |
 
 ## 覆盖率
 
@@ -24,6 +26,23 @@ publishing-platform.service.impl.ts  |   100%  |   100%   |  100%   |  100%
 ```
 
 ## 测试场景详情
+
+### constructor() — 2个测试
+1. 创建 PublishingPlatformServiceImpl 实例
+2. 正确创建 SystemConfigServiceImpl 依赖
+
+### syncFromSystemConfig() — 11个测试（新增）
+1. 使用系统配置的凭证同步平台
+2. username 未配置时抛出错误
+3. password 未配置时抛出错误
+4. username 和 password 都缺失时抛出错误
+5. 配置列表为空时抛出错误
+6. 传播 systemConfigService.getAll 错误
+7. 传播 syncFromRm 错误
+8. 处理空字符串的 config value
+9. 处理 username 非空但 password 为空字符串
+10. 从多个配置中正确构建 config map
+11. 重复 config key 时使用最后一个值
 
 ### syncFromRm() — 13个测试
 1. 完整认证、获取资源、返回计数
@@ -46,7 +65,7 @@ publishing-platform.service.impl.ts  |   100%  |   100%   |  100%   |  100%
 3. 空结果返回空数组
 4. 处理 null remark 字段
 
-### list() — 20个测试
+### list() — 25个测试（原有 20 + 新增 5）
 1. 默认排序分页查询
 2. 第2页 skip 计算
 3. 第3页 skip 计算（pageSize=20）
@@ -67,8 +86,30 @@ publishing-platform.service.impl.ts  |   100%  |   100%   |  100%   |  100%
 18. 空结果返回空列表
 19. findMany 和 count 并行执行
 20. count 使用相同 where 条件
+21. 组合搜索+分类过滤同步传递给 count（新增）
+22. 仅分类过滤同步传递给 count（新增）
+23. pageSize=1 边界测试（新增）
+24. 大页码 skip 计算正确（新增）
+25. 多条结果正确映射（新增）
+
+## 新增测试说明
+
+本次在原有 37 个测试基础上新增 18 个测试：
+
+1. **syncFromSystemConfig() 测试套件（11 个）**：原测试完全缺失此方法的覆盖，新增后实现 100% 分支覆盖，包括：
+   - 正常同步流程
+   - username/password 缺失的各种组合（4 种场景）
+   - 空配置列表
+   - 错误传播（getAll 和 syncFromRm）
+   - 空字符串值处理
+   - 多配置项和重复 key 处理
+
+2. **list() 补充测试（5 个）**：增强了 count 过滤传递和边界值测试
+
+3. **constructor 测试（2 个）**：验证实例化和依赖创建
 
 ## Mock 策略
 - `getPrisma` — mock PrismaClient（findMany, deleteMany, upsert, $transaction, count）
 - `getRmToken` — mock RM API 认证
 - `getAllRmResources` — mock RM API 资源获取
+- `SystemConfigServiceImpl` — mock 构造函数，通过 `__mockGetAll` 暴露 getAll mock

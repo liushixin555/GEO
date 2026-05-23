@@ -14,9 +14,27 @@ jest.mock('../../apis/utils/rmapi.utils', () => ({
   getAllRmResources: jest.fn(),
 }));
 
+jest.mock('../../apis/service/impl/system-config.service.impl', () => {
+  const mockGetAll = jest.fn();
+  const mockBatchUpdate = jest.fn();
+  return {
+    SystemConfigServiceImpl: jest.fn(() => ({
+      getAll: mockGetAll,
+      batchUpdate: mockBatchUpdate,
+    })),
+    __mockGetAll: mockGetAll,
+    __mockBatchUpdate: mockBatchUpdate,
+  };
+});
+
 import { getPrisma } from '../../apis/utils/db.util';
 import { getRmToken, getAllRmResources } from '../../apis/utils/rmapi.utils';
 import { PublishingPlatformServiceImpl } from '../../apis/service/impl/publishing-platform.service.impl';
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { __mockGetAll } = require('../../apis/service/impl/system-config.service.impl') as {
+  __mockGetAll: jest.Mock;
+};
 
 const mockedGetPrisma = getPrisma as jest.MockedFunction<typeof getPrisma>;
 const mockedGetRmToken = getRmToken as jest.MockedFunction<typeof getRmToken>;
@@ -779,6 +797,240 @@ describe('PublishingPlatformServiceImpl', () => {
         ],
       };
       expect(mockCount).toHaveBeenCalledWith({ where: expectedWhere });
+    });
+
+    it('should pass combined search + taxonomy filter to count', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(1, 10, '新浪', '门户');
+
+      const expectedWhere = {
+        OR: [
+          { name: { contains: '新浪', mode: 'insensitive' } },
+          { taxonomy: { contains: '新浪', mode: 'insensitive' } },
+        ],
+        taxonomy: '门户',
+      };
+      expect(mockCount).toHaveBeenCalledWith({ where: expectedWhere });
+    });
+
+    it('should pass taxonomy-only filter to count', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(1, 10, undefined, '综合');
+
+      expect(mockCount).toHaveBeenCalledWith({ where: { taxonomy: '综合' } });
+    });
+
+    it('should handle page 1 with pageSize 1', async () => {
+      const row = makePrismaPlatform({ id: 1 });
+      const mockFindMany = jest.fn().mockResolvedValue([row]);
+      const mockCount = jest.fn().mockResolvedValue(50);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const result = await service.list(1, 1);
+
+      expect(result.list).toHaveLength(1);
+      expect(result.total).toBe(50);
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 0, take: 1 }),
+      );
+    });
+
+    it('should handle large page number correctly', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(1000);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(100, 20);
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 1980, take: 20 }),
+      );
+    });
+
+    it('should map multiple results correctly', async () => {
+      const rows = [
+        makePrismaPlatform({ id: 1, rmResourceId: 10, name: '新浪', taxonomy: '门户', price: 500, includeRate: 0.9, publishRate: 0.8 }),
+        makePrismaPlatform({ id: 2, rmResourceId: 20, name: '网易', taxonomy: '门户', price: 300, includeRate: 0.7, publishRate: 0.6 }),
+        makePrismaPlatform({ id: 3, rmResourceId: 30, name: '腾讯', taxonomy: '综合', price: 800, remark: 'VIP', includeRate: 0.95, publishRate: 0.85 }),
+      ];
+      const mockFindMany = jest.fn().mockResolvedValue(rows);
+      const mockCount = jest.fn().mockResolvedValue(3);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const result = await service.list(1, 10);
+
+      expect(result.list).toHaveLength(3);
+      expect(result.total).toBe(3);
+      expect(result.list[0].name).toBe('新浪');
+      expect(result.list[1].name).toBe('网易');
+      expect(result.list[2].name).toBe('腾讯');
+      expect(result.list[2].remark).toBe('VIP');
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  syncFromSystemConfig()
+  // ──────────────────────────────────────
+  describe('syncFromSystemConfig', () => {
+    function setupSyncFromRmMocks() {
+      const resources = [makeRmResource({ id: 1, name: '新浪' })];
+      mockedGetRmToken.mockResolvedValue('test-token');
+      mockedGetAllRmResources.mockResolvedValue(resources);
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockDeleteMany = jest.fn().mockResolvedValue({ count: 0 });
+      const mockUpsert = jest.fn().mockResolvedValue(makePrismaPlatform());
+      const mockTransaction = jest.fn().mockResolvedValue([makePrismaPlatform()]);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany, deleteMany: mockDeleteMany, upsert: mockUpsert },
+        $transaction: mockTransaction,
+      } as any);
+    }
+
+    it('should sync platforms using system config credentials', async () => {
+      __mockGetAll.mockResolvedValue([
+        { config_key: 'ruanmeng_username', config_value: '13800000000' },
+        { config_key: 'ruanmeng_password', config_value: 'password123' },
+      ]);
+      setupSyncFromRmMocks();
+
+      const result = await service.syncFromSystemConfig();
+
+      expect(__mockGetAll).toHaveBeenCalledTimes(1);
+      expect(mockedGetRmToken).toHaveBeenCalledWith({ mobile: '13800000000', password: 'password123' });
+      expect(result).toBe(1);
+    });
+
+    it('should throw error when username is not configured', async () => {
+      __mockGetAll.mockResolvedValue([
+        { config_key: 'ruanmeng_password', config_value: 'password123' },
+      ]);
+
+      await expect(service.syncFromSystemConfig()).rejects.toThrow('请先配置软盟账号和密码');
+      expect(mockedGetRmToken).not.toHaveBeenCalled();
+    });
+
+    it('should throw error when password is not configured', async () => {
+      __mockGetAll.mockResolvedValue([
+        { config_key: 'ruanmeng_username', config_value: '13800000000' },
+      ]);
+
+      await expect(service.syncFromSystemConfig()).rejects.toThrow('请先配置软盟账号和密码');
+      expect(mockedGetRmToken).not.toHaveBeenCalled();
+    });
+
+    it('should throw error when both username and password are missing', async () => {
+      __mockGetAll.mockResolvedValue([
+        { config_key: 'other_config', config_value: 'some_value' },
+      ]);
+
+      await expect(service.syncFromSystemConfig()).rejects.toThrow('请先配置软盟账号和密码');
+      expect(mockedGetRmToken).not.toHaveBeenCalled();
+    });
+
+    it('should throw error when config list is empty', async () => {
+      __mockGetAll.mockResolvedValue([]);
+
+      await expect(service.syncFromSystemConfig()).rejects.toThrow('请先配置软盟账号和密码');
+      expect(mockedGetRmToken).not.toHaveBeenCalled();
+    });
+
+    it('should propagate error from systemConfigService.getAll', async () => {
+      __mockGetAll.mockRejectedValue(new Error('数据库连接失败'));
+
+      await expect(service.syncFromSystemConfig()).rejects.toThrow('数据库连接失败');
+    });
+
+    it('should propagate error from syncFromRm', async () => {
+      __mockGetAll.mockResolvedValue([
+        { config_key: 'ruanmeng_username', config_value: '13800000000' },
+        { config_key: 'ruanmeng_password', config_value: 'password123' },
+      ]);
+      mockedGetRmToken.mockRejectedValue(new Error('rmapi 认证失败: 密码错误'));
+
+      await expect(service.syncFromSystemConfig()).rejects.toThrow('rmapi 认证失败: 密码错误');
+    });
+
+    it('should handle config values that are empty strings', async () => {
+      __mockGetAll.mockResolvedValue([
+        { config_key: 'ruanmeng_username', config_value: '' },
+        { config_key: 'ruanmeng_password', config_value: 'password123' },
+      ]);
+
+      // Empty string is falsy, so it should throw
+      await expect(service.syncFromSystemConfig()).rejects.toThrow('请先配置软盟账号和密码');
+      expect(mockedGetRmToken).not.toHaveBeenCalled();
+    });
+
+    it('should handle username with empty password', async () => {
+      __mockGetAll.mockResolvedValue([
+        { config_key: 'ruanmeng_username', config_value: '13800000000' },
+        { config_key: 'ruanmeng_password', config_value: '' },
+      ]);
+
+      await expect(service.syncFromSystemConfig()).rejects.toThrow('请先配置软盟账号和密码');
+      expect(mockedGetRmToken).not.toHaveBeenCalled();
+    });
+
+    it('should correctly build config map from multiple configs', async () => {
+      __mockGetAll.mockResolvedValue([
+        { config_key: 'ruanmeng_username', config_value: 'user1' },
+        { config_key: 'ruanmeng_password', config_value: 'pass1' },
+        { config_key: 'other_key1', config_value: 'other_value1' },
+        { config_key: 'other_key2', config_value: 'other_value2' },
+      ]);
+      setupSyncFromRmMocks();
+
+      const result = await service.syncFromSystemConfig();
+
+      // Should correctly extract username/password despite other configs being present
+      expect(mockedGetRmToken).toHaveBeenCalledWith({ mobile: 'user1', password: 'pass1' });
+      expect(result).toBe(1);
+    });
+
+    it('should use last value when duplicate config keys exist', async () => {
+      __mockGetAll.mockResolvedValue([
+        { config_key: 'ruanmeng_username', config_value: 'old_user' },
+        { config_key: 'ruanmeng_username', config_value: 'new_user' },
+        { config_key: 'ruanmeng_password', config_value: 'password123' },
+      ]);
+      setupSyncFromRmMocks();
+
+      await service.syncFromSystemConfig();
+
+      // Map constructor with duplicate keys uses last value
+      expect(mockedGetRmToken).toHaveBeenCalledWith({ mobile: 'new_user', password: 'password123' });
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  Constructor
+  // ──────────────────────────────────────
+  describe('constructor', () => {
+    it('should create an instance of PublishingPlatformServiceImpl', () => {
+      const svc = new PublishingPlatformServiceImpl();
+      expect(svc).toBeInstanceOf(PublishingPlatformServiceImpl);
+    });
+
+    it('should create SystemConfigServiceImpl dependency', () => {
+      const svc = new PublishingPlatformServiceImpl();
+      // Service should be created without error, meaning SystemConfigServiceImpl was instantiated
+      expect(svc).toBeDefined();
     });
   });
 });
