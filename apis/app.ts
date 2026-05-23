@@ -167,6 +167,11 @@ app.post('/api/knowledge-bases/:baseId/keywords/batch', authMiddleware, roleMidd
 app.post('/api/knowledge-bases/:baseId/keywords/expand', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.expandKeywords);
 app.put('/api/knowledge-bases/:baseId/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.updateKeyword);
 app.delete('/api/knowledge-bases/:baseId/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.deleteKeyword);
+app.get('/api/knowledge-bases/:baseId/mined-keywords', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listMinedKeywords);
+app.post('/api/knowledge-bases/:baseId/keywords/mine', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.mineKeywords);
+app.post('/api/knowledge-bases/:baseId/mined-keywords/save', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.saveMinedKeywords);
+app.put('/api/knowledge-bases/:baseId/mined-keywords/batch-toggle', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.toggleMinedKeywordsBatch);
+app.delete('/api/knowledge-bases/:baseId/mined-keywords', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.deleteMinedKeywords);
 app.get('/api/knowledge-bases/:baseId/portraits', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listPortraits);
 app.get('/api/knowledge-bases/:baseId/portraits/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.getPortrait);
 app.post('/api/knowledge-bases/:baseId/portraits', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.createPortrait);

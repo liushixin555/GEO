@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Tabs, Row, Col, Card, Input, Typography, Spin, Pagination, Popconfirm, App, Breadcrumb, Image, Tag, Alert, Button, Table } from 'antd';
-import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ArrowLeftOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FilePptOutlined, FileMarkdownOutlined, FileTextOutlined, FileOutlined, DownloadOutlined } from '@ant-design/icons';
+import { Tabs, Row, Col, Card, Input, Typography, Spin, Pagination, Popconfirm, App, Breadcrumb, Image, Tag, Alert, Button, Table, Modal, Form } from 'antd';
+import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ArrowLeftOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FilePptOutlined, FileMarkdownOutlined, FileTextOutlined, FileOutlined, DownloadOutlined, SearchOutlined, ThunderboltOutlined, FormOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import axios from 'axios';
 import { formatDate } from '../utils/date';
@@ -127,6 +127,11 @@ const KnowledgeBaseDetail: React.FC = () => {
   const [docLoading, setDocLoading] = useState(false);
   const [docSearch, setDocSearch] = useState('');
 
+  // Manual input state
+  const [manualInputVisible, setManualInputVisible] = useState(false);
+  const [manualInput, setManualInput] = useState('');
+  const [manualSaving, setManualSaving] = useState(false);
+
   const pageSize = 12;
 
   useEffect(() => {
@@ -221,6 +226,29 @@ const KnowledgeBaseDetail: React.FC = () => {
       message.success('删除成功');
       fetchKeywords();
     } catch (err: any) { message.error(err.response?.data?.message || '删除失败'); }
+  };
+
+  const handleManualSave = async () => {
+    const keywords = manualInput
+      .split(/[\n,，;；]/)
+      .map(k => k.trim())
+      .filter(k => k.length > 0);
+    const unique = [...new Set(keywords)];
+    if (unique.length === 0) { message.warning('请输入至少一个关键词'); return; }
+    setManualSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`/api/knowledge-bases/${baseId}/keywords/batch`,
+        { keywords: unique },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      message.success(res.data.message || `成功添加 ${unique.length} 个关键词`);
+      setManualInputVisible(false);
+      setManualInput('');
+      fetchKeywords();
+    } catch (err: any) {
+      message.error(err.response?.data?.message || '保存失败');
+    } finally { setManualSaving(false); }
   };
 
   const handleDeletePortrait = async (item: PortraitItem) => {
@@ -438,8 +466,10 @@ const KnowledgeBaseDetail: React.FC = () => {
         <Col xs={24} sm={12}>
           <Input.Search placeholder="搜索关键词..." value={kwSearch} onChange={(e) => { setKwSearch(e.target.value); setKwPage(1); }} allowClear />
         </Col>
-        <Col xs={24} sm={12} style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate(`/knowledge/${baseId}/keyword/add`)}>添加关键词</Button>
+        <Col xs={24} sm={12} style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <Button icon={<SearchOutlined />} onClick={() => navigate(`/knowledge/${baseId}/keyword-mine`)}>关键词挖掘</Button>
+          <Button type="primary" icon={<ThunderboltOutlined />} onClick={() => navigate(`/knowledge/${baseId}/keyword/add`)}>智能扩词</Button>
+          <Button icon={<FormOutlined />} onClick={() => setManualInputVisible(true)}>手工输入</Button>
         </Col>
       </Row>
       <Spin spinning={kwLoading}>
@@ -681,6 +711,25 @@ const KnowledgeBaseDetail: React.FC = () => {
         {baseScope && <Tag color={scopeLabels[baseScope]?.color}>{scopeLabels[baseScope]?.text}</Tag>}
       </div>
       <Tabs activeKey={activeTab} onChange={handleTabChange} items={tabItems} />
+      <Modal
+        title="手工输入关键词"
+        open={manualInputVisible}
+        onCancel={() => { setManualInputVisible(false); setManualInput(''); }}
+        onOk={handleManualSave}
+        confirmLoading={manualSaving}
+        okText="保存"
+        cancelText="取消"
+      >
+        <Form.Item label="关键词" style={{ marginBottom: 8 }}>
+          <Input.TextArea
+            rows={6}
+            placeholder="每行一个关键词，或用逗号/分号分隔"
+            value={manualInput}
+            onChange={(e) => setManualInput(e.target.value)}
+          />
+        </Form.Item>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>支持换行或中英文逗号、分号分隔，自动去除重复项</Typography.Text>
+      </Modal>
     </div>
   );
 };

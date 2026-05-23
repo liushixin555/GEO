@@ -6,5 +6,5 @@ export { SystemConfig, UpdateSystemConfigsRequest } from './system-config.entity
 export { PublishingPlatform } from './publishing-platform.entity';
 export { Project, CreateProjectRequest, UpdateProjectRequest } from './project.entity';
 export { Article, ArticleVersion, CreateArticleRequest, UpdateArticleRequest, ReviewArticleRequest } from './article.entity';
-export { KnowledgeKeyword, KeywordExpandedWord, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, CreateKeywordRequest, UpdateKeywordRequest, CreatePortraitRequest, UpdatePortraitRequest, CreateImageRequest, UpdateImageRequest, CreateDocumentRequest, UpdateDocumentRequest } from './knowledge.entity';
+export { KnowledgeKeyword, KeywordExpandedWord, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, CreateKeywordRequest, UpdateKeywordRequest, CreatePortraitRequest, UpdatePortraitRequest, CreateImageRequest, UpdateImageRequest, CreateDocumentRequest, UpdateDocumentRequest, MinedKeyword } from './knowledge.entity';
 export { KnowledgeBase, CreateKnowledgeBaseRequest, UpdateKnowledgeBaseRequest } from './knowledge-base.entity';

@@ -1,4 +1,4 @@
-import { Company, User, Skills, LlmModel, SystemConfig, Project, Article, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, KnowledgeBase } from '../entity';
+import { Company, User, Skills, LlmModel, SystemConfig, Project, Article, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, KnowledgeBase, MinedKeyword } from '../entity';
 
 export function mapCompany(prismaCompany: any): Company {
   return {
@@ -184,5 +184,16 @@ export function mapKnowledgeDocument(prismaDoc: any): KnowledgeDocument {
     created_by: prismaDoc.createdBy ?? null,
     created_at: prismaDoc.createdAt,
     updated_at: prismaDoc.updatedAt,
+  };
+}
+
+export function mapMinedKeyword(prismaItem: any): MinedKeyword {
+  return {
+    id: prismaItem.id,
+    base_id: prismaItem.baseId,
+    keyword: prismaItem.keyword,
+    selected: prismaItem.selected,
+    created_by: prismaItem.createdBy ?? null,
+    created_at: prismaItem.createdAt,
   };
 }

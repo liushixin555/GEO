@@ -1,7 +1,7 @@
 import { getPrisma } from '../../utils';
-import { KnowledgeKeyword, KeywordExpandedWord, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, CreateKeywordRequest, UpdateKeywordRequest, CreatePortraitRequest, UpdatePortraitRequest, CreateImageRequest, UpdateImageRequest, CreateDocumentRequest, UpdateDocumentRequest } from '../../entity';
-import { mapKeyword, mapPortrait, mapKnowledgeImage, mapKnowledgeDocument } from '../../map';
-import { IKeywordService, IPortraitService, IImageService, IDocumentService } from '../knowledge.service';
+import { KnowledgeKeyword, KeywordExpandedWord, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, CreateKeywordRequest, UpdateKeywordRequest, CreatePortraitRequest, UpdatePortraitRequest, CreateImageRequest, UpdateImageRequest, CreateDocumentRequest, UpdateDocumentRequest, MinedKeyword } from '../../entity';
+import { mapKeyword, mapPortrait, mapKnowledgeImage, mapKnowledgeDocument, mapMinedKeyword } from '../../map';
+import { IKeywordService, IPortraitService, IImageService, IDocumentService, IMinedKeywordService } from '../knowledge.service';
 import { KnowledgeBaseServiceImpl } from './knowledge-base.service.impl';
 
 function mapRawKeyword(r: any): KnowledgeKeyword {
@@ -354,5 +354,54 @@ export class DocumentServiceImpl implements IDocumentService {
     const existing = await prisma.knowledgeDocument.findFirst({ where: { id } });
     if (!existing) throw new Error('文档不存在');
     await prisma.knowledgeDocument.delete({ where: { id } });
+  }
+}
+
+export class MinedKeywordServiceImpl implements IMinedKeywordService {
+  async listByBase(baseId: number): Promise<MinedKeyword[]> {
+    const prisma = getPrisma();
+    const items = await prisma.minedKeyword.findMany({
+      where: { baseId },
+      orderBy: { id: 'desc' },
+    });
+    return items.map(mapMinedKeyword);
+  }
+
+  async addMinedKeywords(baseId: number, keywords: string[], userId: number): Promise<{ added: number; duplicates: number }> {
+    const prisma = getPrisma();
+    const existing = await prisma.minedKeyword.findMany({
+      where: { baseId, keyword: { in: keywords } },
+      select: { keyword: true },
+    });
+    const existingSet = new Set(existing.map((e: any) => e.keyword));
+    const newKeywords = keywords.filter(k => !existingSet.has(k));
+
+    if (newKeywords.length > 0) {
+      await prisma.minedKeyword.createMany({
+        data: newKeywords.map(keyword => ({ baseId, keyword, createdBy: userId })),
+        skipDuplicates: true,
+      });
+    }
+    return { added: newKeywords.length, duplicates: existingSet.size };
+  }
+
+  async toggleSelectBatch(baseId: number, ids: number[], selected: boolean): Promise<void> {
+    const prisma = getPrisma();
+    await prisma.minedKeyword.updateMany({
+      where: { id: { in: ids }, baseId },
+      data: { selected },
+    });
+  }
+
+  async deleteByIds(baseId: number, ids: number[]): Promise<void> {
+    const prisma = getPrisma();
+    await prisma.minedKeyword.deleteMany({
+      where: { id: { in: ids }, baseId },
+    });
+  }
+
+  async clearAll(baseId: number): Promise<void> {
+    const prisma = getPrisma();
+    await prisma.minedKeyword.deleteMany({ where: { baseId } });
   }
 }

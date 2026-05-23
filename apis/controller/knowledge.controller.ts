@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { KeywordServiceImpl, PortraitServiceImpl, ImageServiceImpl, DocumentServiceImpl } from '../service/impl/knowledge.service.impl';
+import { KeywordServiceImpl, PortraitServiceImpl, ImageServiceImpl, DocumentServiceImpl, MinedKeywordServiceImpl } from '../service/impl/knowledge.service.impl';
 import { KnowledgeBaseServiceImpl } from '../service/impl/knowledge-base.service.impl';
 import { ProjectServiceImpl } from '../service/impl/project.service.impl';
 import { LlmServiceImpl } from '../service/impl/llm.service.impl';
@@ -13,6 +13,7 @@ const documentService = new DocumentServiceImpl();
 const knowledgeBaseService = new KnowledgeBaseServiceImpl();
 const projectService = new ProjectServiceImpl();
 const llmService = new LlmServiceImpl();
+const minedKeywordService = new MinedKeywordServiceImpl();
 
 async function checkProjectOperator(projectId: number, userId: number, role: string): Promise<void> {
   if (role === 'sysadmin') return;
@@ -798,5 +799,101 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
     });
   } catch (err: any) {
     fail(res, 500, err.message || '获取知识清单失败');
+  }
+}
+
+// ==================== Mined Keywords (关键词挖掘) ====================
+
+export async function listMinedKeywords(req: Request, res: Response): Promise<void> {
+  try {
+    const baseId = parseInt(req.params.baseId as string, 10);
+    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const items = await minedKeywordService.listByBase(baseId);
+    success(res, items);
+  } catch (err: any) {
+    fail(res, 500, err.message || '获取挖掘关键词失败');
+  }
+}
+
+export async function mineKeywords(req: Request, res: Response): Promise<void> {
+  try {
+    const baseId = parseInt(req.params.baseId as string, 10);
+    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const { userId } = req.user!;
+    const sourceType = req.body.source_type || 'all';
+
+    const prisma = getPrisma();
+    const contentParts: string[] = [];
+
+    if (sourceType === 'all' || sourceType === 'document') {
+      const docs = await prisma.knowledgeDocument.findMany({ where: { baseId } });
+      contentParts.push(...docs.map((d: any) => `[文档] 标题: ${d.title}${d.description ? ', 描述: ' + d.description : ''}`));
+    }
+    if (sourceType === 'all' || sourceType === 'portrait') {
+      const pts = await prisma.knowledgePortrait.findMany({ where: { baseId } });
+      contentParts.push(...pts.map((p: any) => `[画像] 标题: ${p.title}${p.content ? ', 内容: ' + p.content : ''}`));
+    }
+    if (sourceType === 'all' || sourceType === 'image') {
+      const imgs = await prisma.knowledgeImage.findMany({ where: { baseId } });
+      contentParts.push(...imgs.map((i: any) => `[图片] 标题: ${i.title}${i.description ? ', 描述: ' + i.description : ''}`));
+    }
+
+    if (contentParts.length === 0) { fail(res, 400, '知识库中暂无内容可供挖掘'); return; }
+
+    const content = contentParts.join('\n').substring(0, 8000);
+    const keywords = await llmService.mineKeywordsFromContent(content);
+    const result = await minedKeywordService.addMinedKeywords(baseId, keywords, userId);
+    const allMined = await minedKeywordService.listByBase(baseId);
+
+    success(res, { mined: result.added, duplicates: result.duplicates, total: allMined.length, list: allMined });
+  } catch (err: any) {
+    fail(res, 500, err.message || '关键词挖掘失败');
+  }
+}
+
+export async function saveMinedKeywords(req: Request, res: Response): Promise<void> {
+  try {
+    const baseId = parseInt(req.params.baseId as string, 10);
+    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const { userId } = req.user!;
+    const { keywords } = req.body;
+    if (!Array.isArray(keywords) || keywords.length === 0) { fail(res, 400, '请选择至少一个关键词'); return; }
+
+    const result = await keywordService.batchCreate(baseId, keywords, userId);
+
+    // Delete saved keywords from mined list
+    const prisma = getPrisma();
+    await prisma.minedKeyword.deleteMany({
+      where: { baseId, keyword: { in: keywords } },
+    });
+
+    success(res, result, `成功保存 ${result.created} 个关键词${result.duplicates > 0 ? `，${result.duplicates} 个已存在被跳过` : ''}`);
+  } catch (err: any) {
+    fail(res, 500, err.message || '保存关键词失败');
+  }
+}
+
+export async function toggleMinedKeywordsBatch(req: Request, res: Response): Promise<void> {
+  try {
+    const baseId = parseInt(req.params.baseId as string, 10);
+    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const { ids, selected } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) { fail(res, 400, '请选择关键词'); return; }
+    await minedKeywordService.toggleSelectBatch(baseId, ids, selected);
+    const items = await minedKeywordService.listByBase(baseId);
+    success(res, items);
+  } catch (err: any) {
+    fail(res, 500, err.message || '操作失败');
+  }
+}
+
+export async function deleteMinedKeywords(req: Request, res: Response): Promise<void> {
+  try {
+    const baseId = parseInt(req.params.baseId as string, 10);
+    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    await minedKeywordService.clearAll(baseId);
+    success(res, null, '已清空挖掘关键词');
+  } catch (err: any) {
+    fail(res, 500, err.message || '清空失败');
   }
 }

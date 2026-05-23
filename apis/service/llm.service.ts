@@ -8,5 +8,6 @@ export interface ArticleGenerationParams {
 
 export interface ILlmService {
   expandKeywords(keyword: string): Promise<string[]>;
+  mineKeywordsFromContent(content: string): Promise<string[]>;
   generateArticle(params: ArticleGenerationParams): Promise<string>;
 }

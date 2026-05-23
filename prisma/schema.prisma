@@ -193,10 +193,11 @@ model KnowledgeBase {
   company     Company?        @relation(fields: [companyId], references: [id])
   project     Project?        @relation(fields: [projectId], references: [id])
   creator     User?           @relation("KnowledgeBaseCreator", fields: [createdBy], references: [id])
-  keywords    KnowledgeKeyword[]
-  portraits   KnowledgePortrait[]
-  images      KnowledgeImage[]
-  documents   KnowledgeDocument[]
+  keywords      KnowledgeKeyword[]
+  portraits     KnowledgePortrait[]
+  images        KnowledgeImage[]
+  documents     KnowledgeDocument[]
+  minedKeywords MinedKeyword[]
 
   @@index([scope])
   @@index([companyId])
@@ -276,6 +277,20 @@ model KeywordExpandedWord {
 
   @@index([keywordId])
   @@map("keyword_expanded_words")
+}
+
+model MinedKeyword {
+  id        Int      @id @default(autoincrement())
+  baseId    Int      @map("base_id")
+  keyword   String   @db.VarChar(200)
+  selected  Boolean  @default(false)
+  createdBy Int?     @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  base      KnowledgeBase @relation(fields: [baseId], references: [id], onDelete: Cascade)
+
+  @@unique([baseId, keyword])
+  @@index([baseId])
+  @@map("mined_keywords")
 }
 
 model KnowledgePortrait {

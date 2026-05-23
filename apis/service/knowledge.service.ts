@@ -1,4 +1,4 @@
-import { KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, CreateKeywordRequest, UpdateKeywordRequest, CreatePortraitRequest, UpdatePortraitRequest, CreateImageRequest, UpdateImageRequest, CreateDocumentRequest, UpdateDocumentRequest } from '../entity';
+import { KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, CreateKeywordRequest, UpdateKeywordRequest, CreatePortraitRequest, UpdatePortraitRequest, CreateImageRequest, UpdateImageRequest, CreateDocumentRequest, UpdateDocumentRequest, MinedKeyword } from '../entity';
 
 export interface IKeywordService {
   list(baseId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeKeyword[]; total: number }>;
@@ -37,4 +37,12 @@ export interface IDocumentService {
   create(baseId: number, request: CreateDocumentRequest, userId: number): Promise<KnowledgeDocument>;
   update(id: number, request: UpdateDocumentRequest): Promise<KnowledgeDocument>;
   delete(id: number): Promise<void>;
+}
+
+export interface IMinedKeywordService {
+  listByBase(baseId: number): Promise<MinedKeyword[]>;
+  addMinedKeywords(baseId: number, keywords: string[], userId: number): Promise<{ added: number; duplicates: number }>;
+  toggleSelectBatch(baseId: number, ids: number[], selected: boolean): Promise<void>;
+  deleteByIds(baseId: number, ids: number[]): Promise<void>;
+  clearAll(baseId: number): Promise<void>;
 }

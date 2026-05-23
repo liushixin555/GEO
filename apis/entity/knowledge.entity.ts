@@ -98,3 +98,12 @@ export interface UpdateDocumentRequest {
   title?: string;
   description?: string;
 }
+
+export interface MinedKeyword {
+  id: number;
+  base_id: number;
+  keyword: string;
+  selected: boolean;
+  created_by: number | null;
+  created_at: Date;
+}

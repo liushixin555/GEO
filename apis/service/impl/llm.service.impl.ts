@@ -44,6 +44,49 @@ export class LlmServiceImpl implements ILlmService {
     return keywords;
   }
 
+  async mineKeywordsFromContent(content: string): Promise<string[]> {
+    const prisma = getPrisma();
+    const model = await prisma.llmModel.findFirst({ where: { status: true }, orderBy: { id: 'asc' } });
+    if (!model) throw new Error('没有可用的LLM模型，请先在系统管理中配置');
+
+    const prompt = `请从以下内容中提取所有可以作为SEO关键词的词语和短语。要求：
+1. 每个关键词占一行
+2. 不要编号，不要多余解释
+3. 提取专业术语、产品名称、行业关键词、技术名词等
+4. 每个关键词长度2-20个字
+5. 尽可能全面，至少提取20个关键词
+
+内容：
+${content}`;
+
+    const url = `${model.baseUrl.replace(/\/+$/, '')}/chat/completions`;
+    let response;
+    try {
+      response = await axios.post(url, {
+        model: model.modelName,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0,
+      }, {
+        headers: {
+          'Authorization': `Bearer ${model.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 300000,
+      });
+    } catch (err: any) {
+      const detail = err.response?.data?.error?.message || err.response?.data?.message || err.message;
+      throw new Error(`LLM调用失败(${err.response?.status || '未知'}): ${detail}`);
+    }
+
+    const result = response.data?.choices?.[0]?.message?.content || '';
+    const keywords = result
+      .split('\n')
+      .map((line: string) => line.replace(/^[\d]+[.、)\s]+/, '').trim())
+      .filter((line: string) => line.length > 1 && line.length < 100);
+
+    return keywords;
+  }
+
   async generateArticle(params: ArticleGenerationParams): Promise<string> {
     const prisma = getPrisma();
     const model = await prisma.llmModel.findFirst({ where: { status: true }, orderBy: { id: 'asc' } });

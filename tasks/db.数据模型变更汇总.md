@@ -642,3 +642,29 @@ model KnowledgeDocument {
 
 ### 迁移
 通过 `npx prisma db push` 执行，无正式 migration 文件。
+
+---
+
+## db012. 新增 mined_keywords 表
+
+### 变更原因
+关键词挖掘功能需要持久化保存从文档/画像/图片中提取的关键词候选列表。
+
+### 变更内容
+- 新增 `mined_keywords` 表
+- `KnowledgeBase` 模型新增 `minedKeywords` 关联
+
+### 表结构
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | Int | PK, AUTO | 主键 |
+| base_id | Int | NOT NULL, FK | 关联 knowledge_bases(id)，CASCADE |
+| keyword | VARCHAR(200) | NOT NULL | 关键词文本 |
+| selected | Boolean | DEFAULT false | 是否被用户选中 |
+| created_by | Int | NULL | 创建者用户ID |
+| created_at | TIMESTAMPTZ | DEFAULT now() | 创建时间 |
+
+唯一约束：(base_id, keyword)
+
+### 迁移
+通过 `npx prisma db push` 执行。
