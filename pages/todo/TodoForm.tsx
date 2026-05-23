@@ -273,7 +273,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
           object_type: values.object_type,
           object_id: values.object_id || null,
           action: values.action,
-          priority: 'P2',
+          priority: values.priority || 'P2',
           assignee_id: values.assignee_id,
           due_at: computeDueAt(values.due_label),
         }, { headers: { Authorization: `Bearer ${token}` } });
@@ -363,6 +363,21 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
               showSearch
               filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
               options={assignees.map(a => ({ value: a.id, label: a.username }))}
+            />
+          </Form.Item>
+        )}
+
+        {!isEdit && (
+          <Form.Item label="优先级" name="priority" initialValue="P2">
+            <Select
+              placeholder="选择优先级"
+              options={[
+                { value: 'P0', label: 'P0 紧急' },
+                { value: 'P1', label: 'P1 高' },
+                { value: 'P2', label: 'P2 中' },
+                { value: 'P3', label: 'P3 低' },
+                { value: 'P4', label: 'P4 最低' },
+              ]}
             />
           </Form.Item>
         )}
