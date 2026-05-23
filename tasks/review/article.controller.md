@@ -1,143 +1,118 @@
-# apis/controller/article.controller.ts — 软件质量专家评审报告
+# apis/controller/article.controller.ts — 软件架构专家评审报告
 
 **评审日期**: 2026-05-23
-**评审角色**: 软件质量专家（代码质量 + 安全性 + 可维护性）
+**评审角色**: 软件架构专家（分层架构 + 关注点分离 + 可扩展性 + 可测试性）
 **文件路径**: `apis/controller/article.controller.ts`
 **代码行数**: 426 行
-**关联文件**: `apis/service/impl/article.service.impl.ts`, `apis/utils/response.util.ts`
-**严重级别**: HIGH(3) / MEDIUM(5) / LOW(4)
+**关联文件**: `apis/service/impl/article.service.impl.ts`, `apis/service/impl/project.service.impl.ts`, `apis/utils/response.util.ts`, `apis/middleware/`
+**严重级别**: CRITICAL(1) / HIGH(3) / MEDIUM(4) / LOW(3)
 
 ---
 
-## 一、质量评价总览
+## 一、架构评价总览
 
-文章控制器是整个文章管理模块的入口层，承载了 9 个端点的请求处理、参数校验、权限控制和错误处理。该文件被路由层直接引用，是业务逻辑与 HTTP 层的桥梁。
+文章控制器承载了 9 个 HTTP 端点处理函数，职责包括参数解析、权限控制、业务编排和响应格式化。从分层架构视角审视，该文件存在 **控制器层职责过重、横切关注点未抽取、依赖注入缺失** 三大架构问题。
 
-| 质量维度 | 评分 | 说明 |
+| 架构维度 | 评分 | 说明 |
 |----------|------|------|
-| 权限控制 | 7/10 | 三级角色控制完整，但 admin 权限检查代码大量重复 |
-| 输入验证 | 5/10 | ID 解析和基本类型校验存在，但缺少边界校验和枚举白名单 |
-| 错误处理 | 6/10 | 主要异常场景覆盖，但 `err: any` 不安全且 catch 块过于宽泛 |
-| 代码复用 | 3/10 | 权限检查、参数解析、项目校验逻辑在 9 个函数中高度重复 |
-| 可测试性 | 5/10 | 模块级单例实例化使 mock 困难，checkProjectOperator 是亮点 |
-| 安全防护 | 6/10 | 无 SQL 注入风险（Prisma 参数化），但缺少速率限制和输入长度限制 |
+| 分层清晰度 | 3/10 | 控制器承担了本属于中间件/守卫层的权限、校验逻辑 |
+| 关注点分离 | 3/10 | 参数解析、授权、业务规则、响应格式全部混在 handler 内 |
+| 可扩展性 | 3/10 | 新增端点需复制粘贴大量重复模式，无复用基础设施 |
+| 可测试性 | 4/10 | 模块级单例 + 无 DI，单元测试只能通过 jest.mock 模拟 |
+| 依赖管理 | 3/10 | 硬编码依赖具体实现类，违反依赖倒置原则 |
+| 一致性 | 6/10 | 9 个 handler 结构相似但存在不一致（如 createArticle 返回格式不同） |
 
 ---
 
 ## 二、问题清单
 
-### HIGH-1: `err: any` 类型不安全，违反 TypeScript 最佳实践
+### CRITICAL-1: 控制器层职责严重越界，违反分层架构原则
 
-**位置**: 第 44, 75, 109, 161, 211, 259, 299, 336, 383, 419 行（全部 catch 块）
-**CWE**: CWE-209 (Information Exposure Through Error Message)
-**问题**: 所有 catch 块使用 `err: any` 类型注解，存在两个问题：
+**位置**: 全文 9 个 handler 函数
+**问题**: 控制器承担了以下本不属于 HTTP 层的职责：
 
-1. **类型不安全**: `any` 类型绕过 TypeScript 检查，`err.message` 可能不存在（非 Error 对象抛出时会报 `undefined`）
-2. **信息泄露风险**: `err.message || '默认消息'` 直接将内部错误消息返回客户端，可能泄露数据库结构、文件路径等敏感信息
+1. **授权逻辑**（第 33-40, 65-72, 98-105 行等）— admin 角色的项目操作员检查在 9 个 handler 中重复出现 9 次
+2. **业务规则校验**（第 146-149, 204-207, 252-254, 376-379 行）— 状态可编辑性检查、文章状态转换规则属于 Service 层
+3. **所有权检查**（第 140-143, 198-201, 246-249, 371-374 行）— `created_by !== userId` 检查是业务规则
 
-```typescript
-// 当前代码 — 第 44 行
-} catch (err: any) {
-  fail(res, 500, err.message || '获取文章列表失败');
-}
+**影响**: 控制器 426 行中有约 200 行是重复的授权/校验逻辑，真正的请求编排只占约一半。任何权限规则变更需要修改 9 个函数。
+
+**建议**:
+
 ```
+方案: 引入 Express 中间件链，按职责分层
 
-**修复建议**:
-```typescript
-// 安全的错误处理模式
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return '未知错误';
-}
+路由层定义:
+  router.get('/:projectId/articles',
+    authMiddleware,           // JWT 解析
+    projectAccessGuard,       // 项目访问权限（含 admin 操作员检查）
+    articleOwnerGuard,        // 文章所有权检查（写操作）
+    validate(listArticleSchema), // 请求参数校验
+    articleController.list    // 纯粹的请求编排
+  )
 
-// 在 catch 中使用
-} catch (err: unknown) {
-  if (err instanceof Error && err.message === '文章不存在') {
-    fail(res, 404, err.message);
-  } else {
-    // 生产环境不返回具体错误信息
-    fail(res, 500, '获取文章列表失败');
-  }
-}
+控制器职责收窄为:
+  1. 从 req 提取已验证的参数
+  2. 调用 service 方法
+  3. 格式化响应
 ```
 
 ---
 
-### HIGH-2: 模块级实例化 `new ArticleServiceImpl()` 无法被测试 Mock
+### HIGH-1: 无依赖注入，模块级硬编码单例
 
 **位置**: 第 6-7 行
-**问题**: 在模块顶层直接 `new` 服务实例，导致：
-1. **无法替换为 Mock**: 测试时无法注入模拟实例，必须 mock 整个模块
-2. **紧耦合**: 控制器与服务实现绑定，违反依赖倒置原则
-3. **测试现有做法**: 查看 `article.controller.test.ts`（2261 行），确实需要通过复杂手段绕过此限制
 
 ```typescript
-// 当前代码
 const articleService = new ArticleServiceImpl();
 const projectService = new ProjectServiceImpl();
 ```
 
-**修复建议**（依赖注入模式）:
+**问题**:
+- 控制器直接依赖具体实现类（`ArticleServiceImpl`），违反依赖倒置原则（DIP）
+- 模块加载时创建实例，生命周期不可控
+- 单元测试必须使用 `jest.mock()` 替换整个模块，无法注入 mock 实例
+- Service 构造函数参数变化时，控制器必须同步修改
+
+**建议**: 使用工厂函数或简单的 DI 容器：
+
 ```typescript
-// 工厂函数，支持注入
+// 方案 A: 工厂函数（最小改动）
 export function createArticleController(
-  articleSvc: IArticleService = new ArticleServiceImpl(),
-  projectSvc: IProjectService = new ProjectServiceImpl()
+  articleService: IArticleService,
+  projectService: IProjectService
 ) {
   return {
-    listArticles: (req: Request, res: Response) => { /* ... */ },
+    listArticles: async (req, res) => { /* ... */ },
     // ...
-  };
-}
-```
-
-> **注意**: 此项为架构层面改进，当前测试已通过大量 mock 覆盖，优先级可酌情降低。
-
----
-
-### HIGH-3: `updateArticle` 中状态转换逻辑不完整，存在绕过校验风险
-
-**位置**: 第 152-157 行
-**问题**: `updateArticle` 中对 `generating` 状态做了特殊处理，允许从 draft 直接跳转到 generating，但：
-
-1. **未校验前置状态**: 只检查了 `targetStatus === 'generating'`，没有验证 `existing.status === 'draft'`（虽然第 146 行检查了 `SETTINGS_EDITABLE_STATUSES`，但 generating 不在此列表内，说明逻辑意图模糊）
-2. **直接透传 req.body**: `{ ...req.body, status: 'generating' }` 将所有请求体传给 service，可能包含不应该在此状态下修改的字段
-
-```typescript
-// 当前代码 — 第 152-157 行
-if (targetStatus && targetStatus === 'generating') {
-  const item = await articleService.update(id, { ...req.body, status: 'generating' }, userId, role);
-  success(res, item, '已提交AI生成');
-  return;
-}
-```
-
-**修复建议**:
-```typescript
-// 显式校验前置状态
-if (targetStatus === 'generating') {
-  if (existing.status !== 'draft') {
-    fail(res, 400, '只有草稿状态的文章可以提交AI生成');
-    return;
   }
-  // 只传递必要字段，不透传整个 body
-  const item = await articleService.update(id, { status: 'generating' }, userId, role);
-  success(res, item, '已提交AI生成');
-  return;
+}
+
+// 方案 B: 类 + 构造注入
+export class ArticleController {
+  constructor(
+    private articleService: IArticleService,
+    private projectService: IProjectService
+  ) {}
 }
 ```
 
 ---
 
-### MEDIUM-1: 权限检查代码在 7 个函数中重复，违反 DRY 原则
+### HIGH-2: 横切关注点未抽取为中间件/守卫
 
-**位置**: 第 33-40, 65-72, 98-105, 130-137, 188-195, 236-243, 287-294, 325-332, 362-369, 407-414 行
-**问题**: admin 角色检查 + `checkProjectOperator` 的 try-catch 模式在几乎所有处理函数中重复出现。每新增一个端点都需要复制相同的权限检查代码，容易遗漏。
+**位置**: 每个函数中重复出现的以下模式
 
+**模式 1 — 参数解析 + 校验**（出现 9 次）:
 ```typescript
-// 重复出现 10 次的代码模式
+const projectId = parseInt(req.params.projectId as string, 10);
+const id = parseInt(req.params.id as string, 10);
+if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
+if (isNaN(id)) { fail(res, 400, '无效的文章ID'); return; }
+```
+
+**模式 2 — 项目操作员权限检查**（出现 9 次）:
+```typescript
 if (role === 'admin') {
   try {
     await checkProjectOperator(projectId, userId, role);
@@ -148,263 +123,351 @@ if (role === 'admin') {
 }
 ```
 
-**修复建议**: 使用中间件或装饰器模式提取权限检查：
+**模式 3 — 项目归属校验**（出现 7 次）:
 ```typescript
-// 方案一：中间件（推荐）
-async function requireProjectOperator(req: Request, res: Response, next: NextFunction) {
-  const { userId, role } = req.user!;
-  const projectId = parseInt(req.params.projectId, 10);
-  if (role === 'sysadmin') return next();
-  if (role === 'admin') {
-    try {
-      await checkProjectOperator(projectId, userId, role);
-      return next();
-    } catch {
-      fail(res, 403, '无权操作该项目');
+const existing = await articleService.getById(id, userId, role);
+if (existing.project_id !== projectId) {
+  fail(res, 404, '文章不存在');
+  return;
+}
+```
+
+**建议**: 每个模式抽取为独立中间件或参数装饰器：
+
+```typescript
+// middleware/paramParser.ts
+export function parseIds(...names: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    for (const name of names) {
+      const val = parseInt(req.params[name], 10);
+      if (isNaN(val)) { fail(res, 400, `无效的${labelMap[name]}`); return; }
+      res.locals[name] = val;
     }
+    next();
+  };
+}
+
+// middleware/projectAccess.ts
+export function requireProjectAccess() {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const { userId, role } = req.user!;
+    const projectId = res.locals.projectId;
+    if (role === 'sysadmin') return next();
+    if (role === 'admin') {
+      try {
+        await checkProjectOperator(projectId, userId, role);
+        return next();
+      } catch { return fail(res, 403, '无权操作该项目'); }
+    }
+    next(); // view role — service 层通过 where 过滤
+  };
+}
+```
+
+---
+
+### HIGH-3: 业务规则泄漏到控制器层
+
+**位置**: 多处硬编码的业务状态规则
+
+```typescript
+// 第 9-10 行: 状态常量应来源于 Service/Domain 层
+const SETTINGS_EDITABLE_STATUSES = ['draft'];
+const CONTENT_EDITABLE_STATUSES = ['draft', 'manual_writing', 'generate_failed', 'publish_failed'];
+
+// 第 90-93 行: 创建时的有效状态列表
+if (status && !['draft', 'manual_writing', 'generating'].includes(status))
+
+// 第 146-149 行: 设置可编辑性
+if (!SETTINGS_EDITABLE_STATUSES.includes(existing.status))
+
+// 第 204-207 行: 正文可编辑性
+if (!CONTENT_EDITABLE_STATUSES.includes(existing.status))
+
+// 第 376-379 行: 状态转换规则
+if (existing.status !== 'manual_writing')
+```
+
+**问题**: 状态机规则分散在控制器中，与 Service 层的状态逻辑形成双重维护点。未来新增状态时，需要同时修改控制器常量和 Service 方法。
+
+**建议**: 状态机规则收敛到 Service/Domain 层，控制器仅传递意图：
+
+```typescript
+// Service 层提供意图驱动方法
+articleService.updateSettings(id, data, userId, role)  // 内部校验 status 可编辑性
+articleService.updateContent(id, content, userId, role) // 内部校验 content 可编辑性
+articleService.submitForReview(id, userId, role)        // 内部校验状态前置条件
+```
+
+---
+
+### MEDIUM-1: 响应格式不一致
+
+**位置**: 第 108 行 vs 其他所有 handler
+
+```typescript
+// createArticle — 自定义格式，不使用 success()
+res.status(201).json({ code: 0, message: '创建文章成功', data: item });
+
+// 其他所有 handler — 使用 success()
+success(res, item, '更新文章成功');
+```
+
+**问题**: `success()` 工具函数内部可能设置 `code: 0`，但 `createArticle` 手动构造响应对象，存在格式不一致风险。如果 `success()` 的格式变更，`createArticle` 不会同步更新。
+
+**建议**: 统一使用 `success()` 或 `created()` 工具函数：
+
+```typescript
+// 添加 created 响应工具
+export function created(res: Response, data: any, message = '创建成功') {
+  res.status(201).json({ code: 0, message, data });
+}
+```
+
+---
+
+### MEDIUM-2: 错误处理策略不统一
+
+**位置**: 各 handler 的 catch 块
+
+**问题**: 9 个 handler 的错误处理策略各不相同：
+
+| Handler | 特殊错误处理 |
+|---------|-------------|
+| listArticles | 仅通用 500 |
+| getArticle | 区分 '文章不存在' → 404 |
+| createArticle | 仅通用 500 |
+| updateArticle | 区分 '文章不存在' → 404 |
+| updateArticleContent | 区分 '文章不存在' → 404 |
+| deleteArticle | 区分 '文章不存在' → 404 |
+| reviewArticle | 区分 '文章不存在' → 404 + 状态不支持 → 400 |
+| regenerateArticle | 区分 '文章不存在' → 404 + 状态不支持 → 400 |
+| submitForReview | 区分 '文章不存在' → 404 |
+
+**建议**: 使用集中式错误映射或自定义错误类：
+
+```typescript
+// 方案: 自定义业务异常
+class BusinessError extends Error {
+  constructor(message: string, public statusCode: number) {
+    super(message);
   }
+}
+
+// Service 层抛出
+throw new BusinessError('文章不存在', 404);
+throw new BusinessError('文章当前状态不支持审核操作', 400);
+
+// 控制器统一处理
+} catch (err) {
+  if (err instanceof BusinessError) {
+    fail(res, err.statusCode, err.message);
+  } else {
+    fail(res, 500, err.message || '操作失败');
+  }
+}
+```
+
+---
+
+### MEDIUM-3: `req.user!` 非空断言不安全
+
+**位置**: 第 30, 56, 95, 121 行等（9 处）
+
+```typescript
+const { userId, role } = req.user!;
+```
+
+**问题**: 非空断言 `!` 绕过了 TypeScript 的空值检查。如果认证中间件未正确挂载（如路由配置错误），运行时会抛出 `Cannot destructure property 'userId' of undefined`，错误信息不明确。
+
+**建议**: 在控制器入口添加防御性检查或使用类型守卫：
+
+```typescript
+// 方案: auth 中间件保证 req.user 存在后，扩展 Express Request 类型
+// types/express.d.ts 已声明 user 为可选，中间件应确保赋值
+// 控制器中可添加:
+if (!req.user) { fail(res, 401, '未认证'); return; }
+const { userId, role } = req.user;
+```
+
+---
+
+### MEDIUM-4: `checkProjectOperator` 额外查询数据库
+
+**位置**: 第 12-18 行
+
+```typescript
+async function checkProjectOperator(projectId: number, userId: number, role: string): Promise<void> {
+  if (role === 'sysadmin') return;
+  const project = await projectService.getById(projectId, userId, role);
+  if (!project.operator_ids.includes(userId)) {
+    throw new Error('无权操作该项目');
+  }
+}
+```
+
+**问题**: 此函数在每次请求中额外调用 `projectService.getById()`，而后续 handler 中的 `articleService.getById()` 也会触发数据库查询。对于 getArticle、updateArticle 等已有 `articleService.getById` 调用的 handler，`checkProjectOperator` 产生了一次冗余的数据库查询。
+
+**建议**: 在一次查询中获取 project + article 数据，或在中间件层缓存 project 信息：
+
+```typescript
+// 方案: 中间件层一次性获取 project 并挂载到 res.locals
+export async function loadProjectContext(req: Request, res: Response, next: NextFunction) {
+  const project = await projectService.getById(res.locals.projectId, req.user!.userId, req.user!.role);
+  res.locals.project = project;
   next();
 }
-
-// 在路由定义中使用
-router.get('/projects/:projectId/articles', auth, requireProjectOperator, listArticles);
 ```
 
 ---
 
-### MEDIUM-2: `listArticles` 缺少分页参数边界校验
+### LOW-1: 魔法字符串硬编码
 
-**位置**: 第 25-26 行
-**问题**: `page` 和 `pageSize` 直接使用 `parseInt` 解析，无边界限制：
-1. `pageSize` 可传入极大值（如 `999999`），导致一次查询返回海量数据，影响数据库性能
-2. `page` 可传入负数或 0，虽然 service 层会计算出负数 offset，但语义不正确
-3. 与 service 层 `article.service.impl.ts:28` 的 `skip: (page - 1) * pageSize` 配合，当 page=0 时 skip 为负数
+**位置**: 多处
 
 ```typescript
-// 当前代码
-const page = parseInt(req.query.page as string) || 1;
-const pageSize = parseInt(req.query.pageSize as string) || 10;
+// 角色字符串
+role === 'sysadmin'  // 第 13, 140, 198, 246 行
+role === 'admin'     // 第 33, 65, 98 行
+
+// 状态字符串
+status === 'generating'     // 第 153 行
+existing.status === 'published' // 第 252 行
+existing.status !== 'manual_writing' // 第 376 行
 ```
 
-**修复建议**:
+**建议**: 使用 Prisma 生成的枚举常量或统一常量文件：
+
 ```typescript
-const page = Math.max(1, parseInt(req.query.page as string) || 1);
-const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize as string) || 10));
+import { Role, ArticleStatus } from '@prisma/client';
+if (role === Role.sysadmin) { /* ... */ }
+if (existing.status === ArticleStatus.published) { /* ... */ }
 ```
 
 ---
 
-### MEDIUM-3: `createArticle` 中状态白名单不完整
+### LOW-2: 函数签名过长且参数类型不明确
 
-**位置**: 第 90 行
-**问题**: 只验证了 `status` 的白名单 `['draft', 'manual_writing', 'generating']`，但：
-1. `req.body` 中其他字段（`title`, `content`, `keywords` 等）完全未校验
-2. 客户端可以传入任意字段，service 层会直接忽略但不会报错
-3. 字符串长度无限制，可传入超长字符串
+**位置**: 所有 handler 函数
 
 ```typescript
-// 当前代码 — 只校验了 status
-const { status } = req.body;
-if (status && !['draft', 'manual_writing', 'generating'].includes(status)) {
-  fail(res, 400, '无效的初始状态');
-  return;
-}
+export async function listArticles(req: Request, res: Response): Promise<void> {
 ```
 
-**修复建议**: 使用 Zod schema 校验请求体：
+**问题**: 所有函数签名相同（`(req, res) => void`），无法从签名看出需要哪些参数、返回什么数据。Express 的 `Request/Response` 是通用的 HTTP 类型，不携带业务语义。
+
+**建议**: 虽然这是 Express 的固有模式，但可以通过扩展 Request 类型改善：
+
 ```typescript
-import { z } from 'zod';
-
-const createArticleSchema = z.object({
-  title: z.string().max(500).optional(),
-  content: z.string().max(100000).optional(),
-  keywords: z.string().max(1000).optional(),
-  status: z.enum(['draft', 'manual_writing', 'generating']).optional(),
-  write_mode: z.enum(['manual', 'ai']).optional(),
-  // ... 其他字段
-});
-
-// 在 handler 中
-const parsed = createArticleSchema.safeParse(req.body);
-if (!parsed.success) {
-  fail(res, 400, parsed.error.errors[0].message);
-  return;
+interface ArticleRequest extends Request {
+  params: { projectId: string; id: string };
+  query: { page?: string; pageSize?: string; search?: string; status?: string };
+  user: { userId: number; role: string };
 }
 ```
 
 ---
 
-### MEDIUM-4: `updateArticleContent` 缺少内容长度限制
+### LOW-3: 缺少 Handler 函数的统一导出契约
 
-**位置**: 第 178 行
-**问题**: 只校验了 `typeof content !== 'string'`，没有限制内容长度。超长内容可能导致：
-1. 数据库写入失败（超过字段长度限制）
-2. 内存压力
-3. 版本快照表膨胀
+**位置**: 文件末尾
+
+**问题**: 9 个 handler 函数独立导出，路由注册时需要逐个引用。没有统一的控制器对象或命名空间，增加了路由配置的维护成本。
+
+**建议**: 聚合为控制器对象或使用类：
 
 ```typescript
-// 当前代码
-if (typeof content !== 'string') { fail(res, 400, 'content参数无效'); return; }
-```
-
-**修复建议**:
-```typescript
-if (typeof content !== 'string') { fail(res, 400, 'content参数无效'); return; }
-if (content.length > 100000) { fail(res, 400, '文章内容不能超过100000字符'); return; }
+export const articleController = {
+  list: listArticles,
+  get: getArticle,
+  create: createArticle,
+  update: updateArticle,
+  updateContent: updateArticleContent,
+  delete: deleteArticle,
+  review: reviewArticle,
+  regenerate: regenerateArticle,
+  submitForReview: submitForReview,
+  listVersions: listArticleVersions,
+};
 ```
 
 ---
 
-### MEDIUM-5: `deleteArticle` 只阻止 `published` 状态删除，其他中间状态未考虑
+## 三、架构改进路线图
 
-**位置**: 第 252 行
-**问题**: 只检查了 `published` 状态不可删除，但 `generating`、`publishing` 等中间状态的文章删除后可能导致：
-1. AI 生成任务回写失败
-2. 发布流程中断
-3. 数据不一致
+### 短期（低风险，可立即执行）
+
+1. **统一响应格式** — `createArticle` 改用 `created()` 工具函数
+2. **替换魔法字符串** — 引用 Prisma 枚举常量
+3. **添加 `req.user` 防御检查** — 替代非空断言
+
+### 中期（中等风险，需测试覆盖）
+
+4. **抽取中间件链** — 参数解析、项目访问、文章归属各为独立中间件
+5. **引入自定义错误类** — 统一错误映射策略
+6. **状态机规则下沉到 Service** — 控制器仅传递意图
+
+### 长期（需架构评审）
+
+7. **引入依赖注入** — 控制器通过构造函数接收 Service 实例
+8. **请求验证层** — 使用 Zod schema 定义请求/响应类型，替代手动校验
+9. **控制器类化** — 聚合 handler 为 ArticleController 类，支持方法级中间件
+
+---
+
+## 四、推荐重构后的控制器结构
+
+```
+apis/
+├── controller/
+│   └── article.controller.ts          ← 纯编排层（~100行）
+├── middleware/
+│   ├── auth.ts                         ← 已有
+│   ├── paramParser.ts                  ← 新增: ID 解析 + 校验
+│   ├── projectAccess.ts                ← 新增: 项目访问权限守卫
+│   └── articleOwner.ts                 ← 新增: 文章所有权守卫
+├── routes/
+│   └── article.routes.ts              ← 新增: 路由定义 + 中间件组合
+├── errors/
+│   └── business.ts                     ← 新增: BusinessError 类
+└── service/
+    └── impl/
+        └── article.service.impl.ts     ← 承接状态机规则
+```
+
+**重构后的 handler 示例**:
 
 ```typescript
-// 当前代码
-if (existing.status === 'published') {
-  fail(res, 400, '已发布的文章不能删除');
-  return;
+// article.controller.ts — 重构后
+export async function listArticles(req: Request, res: Response): Promise<void> {
+  const { projectId } = res.locals;
+  const { page, pageSize, search, status } = req.query;
+  const { userId, role } = req.user!;
+
+  const { list, total } = await articleService.list(
+    projectId, page, pageSize, search, status, userId, role
+  );
+  paginate(res, list, total, page, pageSize);
 }
-```
 
-**修复建议**:
-```typescript
-const DELETE_BLOCKED_STATUSES = ['published', 'generating', 'publishing'];
-if (DELETE_BLOCKED_STATUSES.includes(existing.status)) {
-  const statusMessages: Record<string, string> = {
-    published: '已发布的文章不能删除',
-    generating: 'AI生成中的文章不能删除',
-    publishing: '发布中的文章不能删除',
-  };
-  fail(res, 400, statusMessages[existing.status] || '当前状态不可删除');
-  return;
-}
-```
+export async function updateArticle(req: Request, res: Response): Promise<void> {
+  const { id } = res.locals;
+  const { userId, role } = req.user!;
 
----
-
-### LOW-1: `reviewArticle` 缺少审核权限区分，任何角色都能审核
-
-**位置**: 第 268-306 行
-**问题**: `reviewArticle` 函数中，只要通过了项目操作者检查，创建者本人也能审核自己的文章。这违反了基本的审批分离原则（Segregation of Duties）。
-
-**修复建议**:
-```typescript
-// 审核者不能是文章创建者
-if (role !== 'sysadmin' && existing.created_by === userId) {
-  fail(res, 403, '不能审核自己创建的文章');
-  return;
-}
-```
-
----
-
-### LOW-2: `SETTINGS_EDITABLE_STATUSES` 和 `CONTENT_EDITABLE_STATUSES` 定义在控制器层
-
-**位置**: 第 9-10 行
-**问题**: 业务规则常量定义在控制器层不合适，应该定义在 service 层或专门的常量文件中：
-1. 控制器应只负责 HTTP 请求/响应处理
-2. 如果 service 层也需要这些常量（如在 `review` 方法中判断状态），会导致重复定义
-3. 状态转换规则散落在 controller 和 service 中，维护时容易不一致
-
-**修复建议**: 移到 service 层或专门的 `constants.ts` 文件中。
-
----
-
-### LOW-3: `submitForReview` 和 `regenerateArticle` 缺少创建者校验
-
-**位置**: 第 309-345 行（regenerateArticle）
-**问题**: `regenerateArticle` 没有检查操作者是否是文章创建者（对比 `submitForReview` 第 371 行有此检查），意味着任何项目操作者都可以重新生成他人创建的文章。这是否符合业务需求需要确认。
-
----
-
-### LOW-4: 文件 426 行接近推荐的 800 行上限，但函数粒度合理
-
-**位置**: 整个文件
-**问题**: 文件包含 9 个导出函数，每个函数平均 30-50 行，函数粒度合理。但由于权限检查代码重复，实际有效逻辑更少。提取权限检查到中间件后，文件可缩减至约 250 行。
-
----
-
-## 三、架构改进建议
-
-### 3.1 引入请求验证层
-
-当前所有参数校验都是手动 if-else，建议引入 Zod schema 做统一请求体验证：
-
-```
-controller (HTTP 适配) → schema 验证 → service (业务逻辑) → repository (数据访问)
-```
-
-### 3.2 权限检查中间件化
-
-将 `checkProjectOperator` 提取为 Express 中间件，在路由定义时绑定，避免控制器内部重复：
-
-```typescript
-router.put('/projects/:projectId/articles/:id', auth, requireProjectOperator, updateArticle);
-```
-
-### 3.3 错误处理统一化
-
-引入自定义业务异常类（如 `BusinessError`、`NotFoundError`、`AuthorizationError`），在 service 层抛出，控制器层统一捕获处理：
-
-```typescript
-// 统一错误处理
-} catch (err: unknown) {
-  if (err instanceof NotFoundError) fail(res, 404, err.message);
-  else if (err instanceof AuthorizationError) fail(res, 403, err.message);
-  else if (err instanceof ValidationError) fail(res, 400, err.message);
-  else fail(res, 500, '操作失败');
+  const item = await articleService.update(id, req.body, userId, role);
+  success(res, item, '更新文章成功');
 }
 ```
 
 ---
 
-## 四、优先级路线图
+## 五、总结
 
-| 优先级 | 问题编号 | 修复建议 | 预估工时 |
-|--------|----------|----------|----------|
-| P0 | HIGH-1 | `err: any` → `err: unknown` + 安全错误消息 | 30 min |
-| P0 | HIGH-3 | 状态转换前置校验 + 不透传 body | 15 min |
-| P1 | MEDIUM-2 | 分页参数边界校验 | 5 min |
-| P1 | MEDIUM-4 | 内容长度限制 | 5 min |
-| P1 | MEDIUM-5 | 中间状态删除保护 | 10 min |
-| P1 | HIGH-2 | 依赖注入改造（可选，当前测试已覆盖） | 2 hr |
-| P2 | MEDIUM-1 | 权限检查中间件化 | 1 hr |
-| P2 | MEDIUM-3 | Zod schema 请求体验证 | 1 hr |
-| P2 | LOW-1 | 审核权限分离 | 10 min |
-| P2 | LOW-2 | 常量提取到 service 层 | 15 min |
-| P2 | LOW-3 | regenerateArticle 创建者校验 | 10 min |
+该控制器当前的架构问题是典型的 **"胖控制器"反模式** — 426 行代码中约 50% 是重复的横切关注点（参数解析、权限检查、错误处理），仅 50% 是真正的请求编排逻辑。
 
----
+核心改进方向:
+1. **控制器瘦身**: 通过中间件链消除重复代码，目标降至 ~150 行
+2. **依赖倒置**: 依赖接口而非实现，提升可测试性
+3. **规则下沉**: 业务规则（状态机、可编辑性）归属 Service 层
 
-## 五、代码亮点
-
-1. **`checkProjectOperator` 辅助函数**: 虽然复用不够充分，但将权限查询逻辑提取为独立函数是好的设计方向
-2. **三级角色控制**: sysadmin/admin/view 的权限分层清晰
-3. **状态常量定义**: `SETTINGS_EDITABLE_STATUSES` 和 `CONTENT_EDITABLE_STATUSES` 使用数组常量而非魔法字符串
-4. **项目-文章关联校验**: 每个操作都验证了文章确实属于指定项目（第 59, 124, 183 行等）
-5. **测试覆盖**: 已有 2261 行的测试文件，覆盖了主要场景
-
----
-
-## 六、Committer 审核意见
-
-**审核人**: 软件质量专家
-**审核结论**: **WARNING** — 无关键安全漏洞，但有 3 个 HIGH 级别问题建议修复后再合并
-
-| 检查项 | 结果 |
-|--------|------|
-| 无硬编码密钥 | PASS |
-| 输入验证 | WARN — 缺少长度和边界校验 |
-| SQL 注入防护 | PASS — 使用 Prisma 参数化查询 |
-| XSS 防护 | PASS — API 层无 HTML 渲染 |
-| 认证/授权 | PASS — 三级角色控制完整 |
-| 错误信息泄露 | WARN — `err.message` 直接返回客户端 |
-| 测试覆盖 | PASS — 2261 行测试文件 |
-| 代码重复 | WARN — 权限检查重复 10 次 |
-
-**总结**: 控制器整体结构合理，业务逻辑正确，权限控制完整。主要问题集中在代码复用（权限检查重复）和输入验证不够严格。建议优先修复 HIGH-1（错误类型安全）和 HIGH-3（状态转换校验），这两项改动量小但安全收益高。
+按优先级排序: CRITICAL-1 > HIGH-2 > HIGH-3 > HIGH-1 > MEDIUM-1~4 > LOW-1~3
