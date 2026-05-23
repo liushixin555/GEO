@@ -3,14 +3,14 @@
 **文件**: `apis/service/impl/auth.service.impl.ts`
 **接口**: `apis/service/auth.service.ts`
 **测试文件**: `tests/apis/auth.service.test.ts`
-**日期**: 2026-05-23
+**日期**: 2026-05-24
 
 ## 测试概况
 
 | 指标 | 值 |
 |------|------|
-| 测试用例总数 | 39 |
-| 通过 | 39 |
+| 测试用例总数 | 42 |
+| 通过 | 42 |
 | 失败 | 0 |
 | 语句覆盖率 | 100% |
 | 分支覆盖率 | 100% |
@@ -44,12 +44,15 @@
 | 格式错误的 token 应返回 { valid: false } | 格式异常处理 |
 | 使用错误密钥签发的 token 应返回 { valid: false } | 密钥不匹配处理 |
 
-### saveSelection (3 个测试)
+### saveSelection (6 个测试)
 | 测试用例 | 说明 |
 |----------|------|
 | 应更新用户的 selectedCompanyId 和 selectedProjectId | 基本更新 |
 | project_id 为 undefined 时应设为 null | 缺失 project_id 处理 |
 | project_id 显式为 null 时应设为 null | null project_id 处理 |
+| 无权选择该公司时应抛出错误 | 公司权限校验 |
+| 无权选择该项目时应抛出错误 | 项目权限校验 |
+| admin 只能选择自己的公司 | admin 角色公司限制 |
 
 ### getAccessibleCompanies (6 个测试)
 | 测试用例 | 说明 |
