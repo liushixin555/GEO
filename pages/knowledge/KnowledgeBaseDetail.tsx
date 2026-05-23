@@ -79,7 +79,7 @@ const KnowledgeBaseDetail: React.FC = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const navigate = useNavigate();
   const { message } = App.useApp();
-  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('kb_active_tab') || 'keywords');
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('kb_active_tab') || 'documents');
   const [baseName, setBaseName] = useState('');
   const [baseScope, setBaseScope] = useState<string>('');
 
@@ -449,10 +449,10 @@ const KnowledgeBaseDetail: React.FC = () => {
   );
 
   const tabItems = [
-    { key: 'keywords', label: '关键词', children: keywordTab },
+    { key: 'documents', label: '文档', children: documentTab },
     { key: 'portraits', label: '画像', children: portraitTab },
     { key: 'images', label: '图片', children: imageTab },
-    { key: 'documents', label: '文档', children: documentTab },
+    { key: 'keywords', label: '关键词', children: keywordTab },
   ];
 
   return (

@@ -193,10 +193,10 @@ const KnowledgePage: React.FC = () => {
       width: 240,
       render: (_: unknown, record: KnowledgeBaseItem) => (
         <Space size={12}>
-          <Space size={0}><TagsOutlined />{record.keyword_count}</Space>
+          <Space size={0}><FileTextOutlined />{record.document_count}</Space>
           <Space size={0}><SolutionOutlined />{record.portrait_count}</Space>
           <Space size={0}><PictureOutlined />{record.image_count}</Space>
-          <Space size={0}><FileTextOutlined />{record.document_count}</Space>
+          <Space size={0}><TagsOutlined />{record.keyword_count}</Space>
         </Space>
       ),
     },
@@ -320,7 +320,7 @@ const KnowledgePage: React.FC = () => {
                 <Descriptions column={2} size="small" colon={false}>
                   <Descriptions.Item label="描述"><Typography.Text ellipsis style={{ maxWidth: '100%' }}>{item.description || '-'}</Typography.Text></Descriptions.Item>
                   <Descriptions.Item label="创建者">{item.creator_name || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="统计"><Space size={12}><Space size={0}><TagsOutlined />{item.keyword_count}</Space><Space size={0}><SolutionOutlined />{item.portrait_count}</Space><Space size={0}><PictureOutlined />{item.image_count}</Space><Space size={0}><FileTextOutlined />{item.document_count}</Space></Space></Descriptions.Item>
+                  <Descriptions.Item label="统计"><Space size={12}><Space size={0}><FileTextOutlined />{item.document_count}</Space><Space size={0}><SolutionOutlined />{item.portrait_count}</Space><Space size={0}><PictureOutlined />{item.image_count}</Space><Space size={0}><TagsOutlined />{item.keyword_count}</Space></Space></Descriptions.Item>
                   <Descriptions.Item label="创建时间">{formatDate(item.created_at)}</Descriptions.Item>
                 </Descriptions>
                 {canModify(item) && (
@@ -367,7 +367,7 @@ const KnowledgePage: React.FC = () => {
         <Row gutter={[16, 16]} className="knowledge-stat-cards">
           <Col xs={12} sm={6}>
             <Card className="stat-card" styles={{ body: { padding: '16px 24px' } }}>
-              <Statistic title={<Space><TagsOutlined /> 关键词</Space>} value={invStats.keyword} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
+              <Statistic title={<Space><FileTextOutlined /> 文档</Space>} value={invStats.document} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
@@ -382,7 +382,7 @@ const KnowledgePage: React.FC = () => {
           </Col>
           <Col xs={12} sm={6}>
             <Card className="stat-card" styles={{ body: { padding: '16px 24px' } }}>
-              <Statistic title={<Space><FileTextOutlined /> 文档</Space>} value={invStats.document} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
+              <Statistic title={<Space><TagsOutlined /> 关键词</Space>} value={invStats.keyword} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
             </Card>
           </Col>
         </Row>
@@ -405,10 +405,10 @@ const KnowledgePage: React.FC = () => {
               placeholder="全部分类"
               style={{ width: '100%' }}
               options={[
-                { value: 'keyword', label: '关键词' },
+                { value: 'document', label: '文档' },
                 { value: 'portrait', label: '画像' },
                 { value: 'image', label: '图片' },
-                { value: 'document', label: '文档' },
+                { value: 'keyword', label: '关键词' },
               ]}
             />
           </Col>
