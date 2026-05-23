@@ -15,10 +15,11 @@ async function loadConfigWithEnv(envVars: Record<string, string | undefined>) {
 
   // Clear all config-related env vars
   const configKeys = [
+    'NODE_ENV',
     'PORT', 'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD',
     'JWT_SECRET', 'JWT_EXPIRES_IN', 'SWAGGER_ENABLED',
     'RATE_LIMIT_WINDOW_MS', 'RATE_LIMIT_MAX',
-    'CRON_ARTICLE_INTERVAL', 'CRON_ARTICLE_ENABLED',
+    'CRON_ARTICLE_INTERVAL', 'CRON_ARTICLE_ENABLED', 'CORS_ORIGINS',
   ];
   configKeys.forEach(key => delete process.env[key]);
 
@@ -90,6 +91,12 @@ describe('apis/config/index.ts', () => {
       // Empty string is falsy, so random generation should kick in
       expect(typeof config.jwt.secret).toBe('string');
       expect(config.jwt.secret.length).toBeGreaterThan(0);
+    });
+
+    it('should generate 64-char hex JWT secret when not set', async () => {
+      const config = await loadConfigWithEnv({ JWT_SECRET: '' });
+      // crypto.randomBytes(32).toString('hex') → 64 hex chars
+      expect(config.jwt.secret).toMatch(/^[0-9a-f]{64}$/);
     });
 
     it('should use default JWT expiresIn 2h', async () => {
@@ -369,6 +376,36 @@ describe('apis/config/index.ts', () => {
       expect(config.database.pool.max).toBe(10);
     });
 
+    it('should throw when DB_PORT is out of range (0)', async () => {
+      await expect(loadConfigWithEnv({ DB_PORT: '0' })).rejects.toThrow(
+        'FATAL: DB_PORT must be >= 1'
+      );
+    });
+
+    it('should throw when DB_PORT is out of range (70000)', async () => {
+      await expect(loadConfigWithEnv({ DB_PORT: '70000' })).rejects.toThrow(
+        'FATAL: DB_PORT must be <= 65535'
+      );
+    });
+
+    it('should throw when RATE_LIMIT_WINDOW_MS is zero', async () => {
+      await expect(loadConfigWithEnv({ RATE_LIMIT_WINDOW_MS: '0' })).rejects.toThrow(
+        'FATAL: RATE_LIMIT_WINDOW_MS must be >= 1'
+      );
+    });
+
+    it('should throw when RATE_LIMIT_MAX is negative', async () => {
+      await expect(loadConfigWithEnv({ RATE_LIMIT_MAX: '-5' })).rejects.toThrow(
+        'FATAL: RATE_LIMIT_MAX must be >= 1'
+      );
+    });
+
+    it('should throw when PORT is negative', async () => {
+      await expect(loadConfigWithEnv({ PORT: '-1' })).rejects.toThrow(
+        'FATAL: PORT must be >= 1'
+      );
+    });
+
     it('should handle multiple env overrides simultaneously', async () => {
       const config = await loadConfigWithEnv({
         PORT: '4000',
@@ -432,6 +469,20 @@ describe('apis/config/index.ts', () => {
         'FATAL: CORS_ORIGINS must contain at least one valid origin'
       );
     });
+
+    it('should trim spaces around CORS origins', async () => {
+      const config = await loadConfigWithEnv({
+        CORS_ORIGINS: '  http://localhost:3000  ,  https://example.com  ',
+      });
+      expect(config.corsOrigins).toEqual(['http://localhost:3000', 'https://example.com']);
+    });
+
+    it('should handle single CORS origin', async () => {
+      const config = await loadConfigWithEnv({
+        CORS_ORIGINS: 'https://myapp.com',
+      });
+      expect(config.corsOrigins).toEqual(['https://myapp.com']);
+    });
   });
 
   describe('config immutability (deepFreeze)', () => {
@@ -455,6 +506,45 @@ describe('apis/config/index.ts', () => {
       expect(() => {
         (config.corsOrigins as string[]).push('http://evil.com');
       }).toThrow();
+    });
+
+    it('should prevent modification of database.pool', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config.database.pool as { min: number; max: number }).min = 99;
+      }).toThrow();
+    });
+
+    it('should prevent modification of rateLimit properties', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config.rateLimit as { windowMs: number; max: number }).max = 9999;
+      }).toThrow();
+    });
+  });
+
+  describe('production environment', () => {
+    it('should throw in production when DB_PASSWORD is not set', async () => {
+      await expect(
+        loadConfigWithEnv({ NODE_ENV: 'production' })
+      ).rejects.toThrow('FATAL: DB_PASSWORD is required in production');
+    });
+
+    it('should throw in production when JWT_SECRET is not set', async () => {
+      // DB_PASSWORD must be set first to reach JWT_SECRET check
+      await expect(
+        loadConfigWithEnv({ NODE_ENV: 'production', DB_PASSWORD: 'prod-pwd', JWT_SECRET: '' })
+      ).rejects.toThrow('FATAL: JWT_SECRET is required in production');
+    });
+
+    it('should not throw in production when both DB_PASSWORD and JWT_SECRET are set', async () => {
+      const config = await loadConfigWithEnv({
+        NODE_ENV: 'production',
+        DB_PASSWORD: 'prod-pwd',
+        JWT_SECRET: 'prod-secret-key',
+      });
+      expect(config.database.password).toBe('prod-pwd');
+      expect(config.jwt.secret).toBe('prod-secret-key');
     });
   });
 
