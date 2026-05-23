@@ -216,6 +216,7 @@ export function mapTodo(prismaTodo: any): Todo {
     status: prismaTodo.status,
     created_by_id: prismaTodo.createdById,
     created_by_name: prismaTodo.createdBy?.cnName || '',
+    due_at: prismaTodo.dueAt?.toISOString() || null,
     created_at: prismaTodo.createdAt,
     updated_at: prismaTodo.updatedAt,
   };

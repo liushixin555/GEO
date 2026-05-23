@@ -793,3 +793,22 @@ Company, User, Skills, LlmModel, PublishingPlatform, SystemConfig, Project, Proj
 
 ### 迁移
 通过 `npx prisma db push` 执行。
+
+---
+
+## db014. Todo 新增 dueAt 字段
+
+### 变更原因
+新建待办表单重构为结构化表单，增加"完成时间"选择，需存储截止时间。
+
+### 变更内容
+- `Todo` 模型新增 `dueAt DateTime?`（可选，截止时间，UTC 时区）
+
+### 影响范围
+- `apis/entity/todo.entity.ts`：Todo 接口增加 `due_at`，CreateTodoRequest 增加 `due_at`
+- `apis/map/index.ts`：mapTodo 增加 `due_at` 映射
+- `apis/service/impl/todo.service.impl.ts`：create 方法支持 `due_at`
+- `pages/todo/TodoForm.tsx`：新建表单增加完成时间选择
+
+### 迁移
+通过 `npx prisma db push` 执行。

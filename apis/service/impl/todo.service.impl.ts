@@ -112,6 +112,7 @@ export class TodoServiceImpl implements ITodoService {
         assigneeId: request.assignee_id,
         createdById,
         status: 'open',
+        ...(request.due_at ? { dueAt: new Date(request.due_at) } : {}),
       },
       include: {
         company: true,

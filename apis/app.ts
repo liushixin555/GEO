@@ -162,6 +162,8 @@ app.get('/api/knowledge-inventory', authMiddleware, roleMiddleware('sysadmin', '
 
 // Knowledge Item routes (sysadmin + admin) - scoped to knowledge base
 app.get('/api/todos', authMiddleware, roleMiddleware('sysadmin', 'admin'), todoController.listTodos);
+app.get('/api/todos/object-options', authMiddleware, roleMiddleware('sysadmin', 'admin'), todoController.getObjectOptions);
+app.get('/api/todos/assignee-candidates', authMiddleware, roleMiddleware('sysadmin', 'admin'), todoController.getAssigneeCandidates);
 app.get('/api/todos/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), todoController.getTodo);
 app.post('/api/todos', authMiddleware, roleMiddleware('sysadmin', 'admin'), todoController.createTodo);
 app.put('/api/todos/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), todoController.updateTodo);

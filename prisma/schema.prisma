@@ -408,6 +408,7 @@ model Todo {
   priority    TodoPriority @default(P2)
   assigneeId  Int          @map("assignee_id")
   status      TodoStatus   @default(open)
+  dueAt       DateTime?    @map("due_at") @db.Timestamptz()
   createdById Int          @map("created_by_id")
   createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()

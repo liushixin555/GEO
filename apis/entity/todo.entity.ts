@@ -15,6 +15,7 @@ export interface Todo {
   status: string;
   created_by_id: number;
   created_by_name: string;
+  due_at: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -41,6 +42,7 @@ export interface CreateTodoRequest {
   source?: string;
   priority?: string;
   assignee_id: number;
+  due_at?: string;
 }
 
 export interface UpdateTodoRequest {

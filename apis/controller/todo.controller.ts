@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { TodoServiceImpl } from '../service/impl/todo.service.impl';
+import { getPrisma } from '../utils';
 import { success, fail, paginate } from '../utils';
 
 const todoService = new TodoServiceImpl();
@@ -153,5 +154,95 @@ export async function getTodoLogs(req: Request, res: Response): Promise<void> {
     } else {
       fail(res, 500, err.message || '获取操作日志失败');
     }
+  }
+}
+
+export async function getObjectOptions(req: Request, res: Response): Promise<void> {
+  try {
+    const projectId = parseInt(req.query.projectId as string);
+    const objectType = req.query.objectType as string;
+    const action = req.query.action as string;
+
+    if (!projectId || !objectType || !action) {
+      fail(res, 400, '缺少必要参数');
+      return;
+    }
+
+    const prisma = getPrisma();
+    const showDeleted = action === 'restore';
+    const where: any = { projectId };
+
+    if (showDeleted) {
+      where.deletedAt = { not: null };
+    } else {
+      where.deletedAt = null;
+    }
+
+    if (objectType === 'article') {
+      const items = await prisma.article.findMany({ where, select: { id: true, title: true }, orderBy: { id: 'desc' } });
+      success(res, items.map(i => ({ id: i.id, name: i.title })));
+    } else if (objectType === 'keyword') {
+      const kbs = await prisma.knowledgeBase.findMany({
+        where: { projectId, deletedAt: null },
+        select: { id: true },
+      });
+      const baseIds = kbs.map(kb => kb.id);
+      if (baseIds.length === 0) { success(res, []); return; }
+
+      const kwWhere: any = { baseId: { in: baseIds } };
+      kwWhere.deletedAt = showDeleted ? { not: null } : null;
+
+      const items = await prisma.knowledgeKeyword.findMany({
+        where: kwWhere,
+        select: { id: true, keyword: true },
+        orderBy: { id: 'desc' },
+      });
+      success(res, items.map(i => ({ id: i.id, name: i.keyword })));
+    } else {
+      success(res, []);
+    }
+  } catch (err: any) {
+    fail(res, 500, err.message || '获取操作对象失败');
+  }
+}
+
+export async function getAssigneeCandidates(req: Request, res: Response): Promise<void> {
+  try {
+    const projectId = parseInt(req.query.projectId as string);
+    if (!projectId) { fail(res, 400, '缺少项目ID'); return; }
+
+    const prisma = getPrisma();
+
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: { operators: { select: { userId: true } } },
+    });
+    if (!project) { fail(res, 404, '项目不存在'); return; }
+
+    const operatorIds = project.operators.map(o => o.userId);
+
+    const users = await prisma.user.findMany({
+      where: {
+        OR: [
+          { id: { in: operatorIds } },
+          { role: 'sysadmin' },
+        ],
+        status: true,
+        deletedAt: null,
+      },
+      select: { id: true, username: true, cnName: true, role: true },
+      orderBy: { id: 'asc' },
+    });
+
+    const seen = new Set<number>();
+    const result = users.filter(u => {
+      if (seen.has(u.id)) return false;
+      seen.add(u.id);
+      return true;
+    }).map(u => ({ id: u.id, username: u.username, cn_name: u.cnName, role: u.role }));
+
+    success(res, result);
+  } catch (err: any) {
+    fail(res, 500, err.message || '获取责任人候选失败');
   }
 }

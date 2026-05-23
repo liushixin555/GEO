@@ -60,6 +60,7 @@ const mockTodoFull = {
   createdById: 1,
   createdBy: { id: 1, cnName: '管理员' },
   status: 'open',
+  dueAt: null,
   createdAt: new Date(),
   updatedAt: new Date(),
   deletedAt: null,
@@ -535,6 +536,28 @@ describe('Todo Controller', () => {
       expect(mockCreate).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ status: 'open' }),
+        })
+      );
+    });
+
+    it('should accept due_at field', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue(mockTodoFull);
+      const mockLogCreate = jest.fn().mockResolvedValue({});
+      getPrisma.mockReturnValue({
+        todo: { create: mockCreate },
+        todoLog: { create: mockLogCreate },
+      });
+
+      const dueAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      await agent
+        .post('/api/todos')
+        .send({ ...createPayload, due_at: dueAt })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ dueAt: expect.any(Date) }),
         })
       );
     });
@@ -1076,6 +1099,187 @@ describe('Todo Controller', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.data).toHaveLength(0);
+    });
+  });
+
+  // ============================================================
+  // GET /api/todos/object-options — getObjectOptions
+  // ============================================================
+  describe('GET /api/todos/object-options', () => {
+    it('should return 401 without token', async () => {
+      const response = await agent.get('/api/todos/object-options');
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 400 when missing params', async () => {
+      const response = await agent
+        .get('/api/todos/object-options?projectId=1&objectType=article')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('should return active articles for delete action', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([
+        { id: 1, title: '文章A' },
+        { id: 2, title: '文章B' },
+      ]);
+      getPrisma.mockReturnValue({
+        article: { findMany: mockFindMany },
+      });
+
+      const response = await agent
+        .get('/api/todos/object-options?projectId=1&objectType=article&action=delete')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(2);
+      expect(response.body.data[0]).toEqual({ id: 1, name: '文章A' });
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ deletedAt: null }),
+        })
+      );
+    });
+
+    it('should return deleted articles for restore action', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([
+        { id: 3, title: '已删除文章' },
+      ]);
+      getPrisma.mockReturnValue({
+        article: { findMany: mockFindMany },
+      });
+
+      const response = await agent
+        .get('/api/todos/object-options?projectId=1&objectType=article&action=restore')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(1);
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ deletedAt: { not: null } }),
+        })
+      );
+    });
+
+    it('should return keywords for a project', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockKbFindMany = jest.fn().mockResolvedValue([{ id: 10 }]);
+      const mockKwFindMany = jest.fn().mockResolvedValue([
+        { id: 1, keyword: '关键词A' },
+      ]);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockKbFindMany },
+        knowledgeKeyword: { findMany: mockKwFindMany },
+      });
+
+      const response = await agent
+        .get('/api/todos/object-options?projectId=1&objectType=keyword&action=update')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(1);
+      expect(response.body.data[0]).toEqual({ id: 1, name: '关键词A' });
+    });
+
+    it('should return empty when no knowledge bases', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockKbFindMany = jest.fn().mockResolvedValue([]);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockKbFindMany },
+      });
+
+      const response = await agent
+        .get('/api/todos/object-options?projectId=1&objectType=keyword&action=delete')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(0);
+    });
+  });
+
+  // ============================================================
+  // GET /api/todos/assignee-candidates — getAssigneeCandidates
+  // ============================================================
+  describe('GET /api/todos/assignee-candidates', () => {
+    it('should return 401 without token', async () => {
+      const response = await agent.get('/api/todos/assignee-candidates');
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 400 when missing projectId', async () => {
+      const response = await agent
+        .get('/api/todos/assignee-candidates')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 404 for non-existent project', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        project: { findUnique: jest.fn().mockResolvedValue(null) },
+      });
+
+      const response = await agent
+        .get('/api/todos/assignee-candidates?projectId=999')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(404);
+    });
+
+    it('should return operators and sysadmin users', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockProject = {
+        id: 1,
+        operators: [{ userId: 10 }, { userId: 20 }],
+      };
+      const mockUsers = [
+        { id: 10, username: 'op1', cnName: '运营1', role: 'admin' },
+        { id: 20, username: 'op2', cnName: '运营2', role: 'admin' },
+        { id: 1, username: 'sysadmin', cnName: '超级管理', role: 'sysadmin' },
+      ];
+      getPrisma.mockReturnValue({
+        project: { findUnique: jest.fn().mockResolvedValue(mockProject) },
+        user: { findMany: jest.fn().mockResolvedValue(mockUsers) },
+      });
+
+      const response = await agent
+        .get('/api/todos/assignee-candidates?projectId=1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(3);
+      expect(response.body.data[2]).toEqual({
+        id: 1,
+        username: 'sysadmin',
+        cn_name: '超级管理',
+        role: 'sysadmin',
+      });
+    });
+
+    it('should deduplicate users', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockProject = {
+        id: 1,
+        operators: [{ userId: 1 }],
+      };
+      // sysadmin (id=1) is also an operator
+      const mockUsers = [
+        { id: 1, username: 'sysadmin', cnName: '超级管理', role: 'sysadmin' },
+      ];
+      getPrisma.mockReturnValue({
+        project: { findUnique: jest.fn().mockResolvedValue(mockProject) },
+        user: { findMany: jest.fn().mockResolvedValue(mockUsers) },
+      });
+
+      const response = await agent
+        .get('/api/todos/assignee-candidates?projectId=1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(1);
     });
   });
 });
