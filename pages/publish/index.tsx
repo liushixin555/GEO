@@ -223,8 +223,13 @@ const PublishingSchedulePage: React.FC = () => {
                     <td className="col-schedule">{formatDate(item.scheduled_publish_at)}</td>
                     <td className="col-status"><Tag color={statusCfg.color}>{statusCfg.label}</Tag></td>
                     <td className="col-action">
-                      {canEditThis && (
-                        <Button type="link" size="small" onClick={() => handleEditClick(item)}>
+                      {item.status === 'publishing' && (
+                        <Button
+                          type="link"
+                          size="small"
+                          disabled={!canEditThis}
+                          onClick={() => handleEditClick(item)}
+                        >
                           编辑计划
                         </Button>
                       )}
