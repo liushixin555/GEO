@@ -529,6 +529,29 @@ describe('KeywordServiceImpl', () => {
       // Verify that the INSERT uses existing.createdBy (5), not 0
       expect(mockExecuteRaw).toHaveBeenCalledTimes(2); // 1 delete + 1 insert
     });
+
+    it('should use 0 as userId when existing.createdBy is null', async () => {
+      const existing = makePrismaKeyword({ id: 1, baseId: 10, createdBy: null });
+      const updated = makePrismaKeyword({ id: 1, keyword: '空创建者' });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      const mockExecuteRaw = jest.fn().mockResolvedValue(undefined);
+      const mockQueryRaw = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeKeyword: { findFirst: mockFindFirst, update: mockUpdate },
+        $executeRaw: mockExecuteRaw,
+        $queryRaw: mockQueryRaw,
+      } as any);
+
+      const result = await service.update(1, {
+        keyword: '空创建者',
+        expanded_words: [{ word: '扩展', selected: true }],
+      });
+
+      expect(result.expanded_words).toEqual([]);
+      // createdBy null → uses 0 as fallback
+      expect(mockExecuteRaw).toHaveBeenCalledTimes(2);
+    });
   });
 
   // ──────────────────────────────────────
@@ -1055,6 +1078,28 @@ describe('ImageServiceImpl', () => {
       const result = await service.listByProject(1, 1, 10);
 
       expect(result.list).toHaveLength(1);
+    });
+
+    it('should filter by search in project context', async () => {
+      const mockKbService = (service as any).kbService;
+      mockKbService.getAccessibleBaseIds.mockResolvedValue([10]);
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeImage: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.listByProject(1, 1, 10, '图片搜索');
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            baseId: { in: [10] },
+            deletedAt: null,
+            title: { contains: '图片搜索', mode: 'insensitive' },
+          },
+        }),
+      );
     });
   });
 

@@ -8,7 +8,7 @@
 
 ## 覆盖范围
 
-### 1. KeywordServiceImpl（33 个测试）
+### 1. KeywordServiceImpl（35 个测试）
 | 方法 | 测试数 | 覆盖场景 |
 |------|--------|----------|
 | list() | 4 | 分页、偏移量计算、搜索过滤、字段映射 |
@@ -18,7 +18,7 @@
 | batchCreate() | 4 | 混合创建与去重、带seedWord、全部重复、无重复 |
 | listByGroup() | 1 | stub 返回空数组 |
 | syncGroup() | 1 | stub 返回空数组 |
-| update() | 4 | 不存在抛错、无扩展词更新、含扩展词同步、createdBy非0 |
+| update() | 5 | 不存在抛错、无扩展词更新、含扩展词同步、createdBy非0、createdBy为null时回退0 |
 | delete() | 3 | 不存在抛错、软删除、deletedAt过滤 |
 | listExpandedWords() | 2 | 返回映射列表、空数组 |
 | syncExpandedWords() | 2 | 删除旧+插入新、多词插入 |
@@ -34,11 +34,11 @@
 | update() | 4 | 不存在抛错、仅更新title、仅更新content、双更新、空更新 |
 | delete() | 2 | 不存在抛错、软删除 |
 
-### 3. ImageServiceImpl（14 个测试）
+### 3. ImageServiceImpl（15 个测试）
 | 方法 | 测试数 | 覆盖场景 |
 |------|--------|----------|
 | list() | 3 | 分页、搜索过滤、字段映射 |
-| listByProject() | 2 | 无基础返回空、有基础查询 |
+| listByProject() | 3 | 无基础返回空、有基础查询、搜索过滤 |
 | getById() | 2 | 正常返回、不存在抛错 |
 | create() | 2 | 全字段创建、无描述设null |
 | update() | 4 | 不存在抛错、仅title、仅description、空更新 |
@@ -64,21 +64,22 @@
 | clearAll() | 1 | 全量软删除 |
 
 ## 测试结果
-- **测试总数**: 88
-- **通过**: 88
+- **测试总数**: 90
+- **通过**: 90
 - **失败**: 0
-- **执行时间**: 7.64s
+- **执行时间**: 7.31s
 
 ## 覆盖率
 | 指标 | 覆盖率 | 未覆盖行 |
 |------|--------|----------|
-| 语句覆盖率 | 99.53% | — |
-| 分支覆盖率 | 96.22% | — |
+| 语句覆盖率 | 100% | — |
+| 分支覆盖率 | 100% | — |
 | 函数覆盖率 | 100% | — |
-| 行覆盖率 | 99.46% | 第236行 |
+| 行覆盖率 | 100% | — |
 
-### 未覆盖说明
-- 第236行：`ImageServiceImpl.listByProject()` 中 `search` 过滤条件的 `title` 分支已在其他类的 `listByProject` 中间接覆盖，语义上无遗漏
+## 本次新增测试用例（2个）
+1. `ImageServiceImpl.listByProject — should filter by search in project context`：覆盖 ImageServiceImpl.listByProject 中 search 参数的 title 过滤分支（原第236行）
+2. `KeywordServiceImpl.update — should use 0 as userId when existing.createdBy is null`：覆盖 update 方法中 `existing.createdBy ?? 0` 的 nullish coalescing 右侧分支（原第117行）
 
 ## Mock 策略
 - `getPrisma()`: Mock 返回包含对应 Prisma Model 方法的对象
