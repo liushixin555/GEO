@@ -2,7 +2,7 @@ import { KnowledgeBase, CreateKnowledgeBaseRequest, UpdateKnowledgeBaseRequest }
 
 export interface IKnowledgeBaseService {
   list(page: number, pageSize: number, search?: string, scope?: string, status?: boolean, userId?: number, role?: string): Promise<{ list: KnowledgeBase[]; total: number }>;
-  getById(id: number): Promise<KnowledgeBase>;
+  getById(id: number, userId?: number, role?: string): Promise<KnowledgeBase>;
   create(request: CreateKnowledgeBaseRequest, userId: number): Promise<KnowledgeBase>;
   update(id: number, request: UpdateKnowledgeBaseRequest, userId: number, role: string): Promise<KnowledgeBase>;
   delete(id: number, userId: number, role: string): Promise<void>;

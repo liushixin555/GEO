@@ -1,17 +1,27 @@
 import { Request, Response } from 'express';
 import { KnowledgeBaseServiceImpl } from '../service/impl/knowledge-base.service.impl';
 import { success, fail, paginate, created } from '../utils';
+import { UpdateKnowledgeBaseRequest } from '../entity';
 
 const knowledgeBaseService = new KnowledgeBaseServiceImpl();
 
 const VALID_SCOPES = ['platform', 'company', 'project'] as const;
+
+function validateInteger(value: unknown, fieldName: string): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
+    return undefined;
+  }
+  return value;
+}
 
 export async function listKnowledgeBases(req: Request, res: Response): Promise<void> {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const rawPageSize = parseInt(req.query.pageSize as string) || 10;
     const pageSize = Math.min(100, Math.max(1, rawPageSize));
-    const search = req.query.search as string | undefined;
+    const rawSearch = req.query.search as string | undefined;
+    const search = rawSearch ? rawSearch.slice(0, 100) : undefined;
     const scope = req.query.scope as string | undefined;
     const status = req.query.status === undefined ? undefined : req.query.status === 'true';
 
@@ -34,7 +44,10 @@ export async function getKnowledgeBase(req: Request, res: Response): Promise<voi
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { fail(res, 400, '无效的知识库ID'); return; }
 
-    const item = await knowledgeBaseService.getById(id);
+    const user = req.user;
+    if (!user) { fail(res, 401, '未登录'); return; }
+    const { userId, role } = user;
+    const item = await knowledgeBaseService.getById(id, userId, role);
     success(res, item);
   } catch (err: unknown) {
     if (err instanceof Error && err.message === '知识库不存在') {
@@ -48,17 +61,27 @@ export async function getKnowledgeBase(req: Request, res: Response): Promise<voi
 export async function createKnowledgeBase(req: Request, res: Response): Promise<void> {
   try {
     const { name, description, scope, company_id, project_id } = req.body;
-    if (!name) { fail(res, 400, '知识库名称不能为空'); return; }
+
+    // Input validation
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      fail(res, 400, '知识库名称不能为空'); return;
+    }
+    if (name.length > 200) { fail(res, 400, '知识库名称不能超过200个字符'); return; }
+    if (description !== undefined && description !== null && typeof description === 'string' && description.length > 2000) {
+      fail(res, 400, '描述不能超过2000个字符'); return;
+    }
     if (!scope || !VALID_SCOPES.includes(scope)) {
       fail(res, 400, '知识库范围不合法，应为 platform/company/project');
       return;
     }
+    const validCompanyId = validateInteger(company_id, 'company_id');
+    const validProjectId = validateInteger(project_id, 'project_id');
 
     const user = req.user;
     if (!user) { fail(res, 401, '未登录'); return; }
     const { userId } = user;
     const item = await knowledgeBaseService.create(
-      { name, description, scope, company_id, project_id },
+      { name: name.trim(), description, scope, company_id: validCompanyId, project_id: validProjectId },
       userId
     );
     created(res, item, '创建知识库成功');
@@ -81,11 +104,31 @@ export async function updateKnowledgeBase(req: Request, res: Response): Promise<
       fail(res, 400, '知识库范围不合法，应为 platform/company/project');
       return;
     }
+    // Input validation
+    if (req.body.name !== undefined) {
+      if (typeof req.body.name !== 'string' || req.body.name.trim().length === 0) {
+        fail(res, 400, '知识库名称不能为空'); return;
+      }
+      if (req.body.name.length > 200) { fail(res, 400, '知识库名称不能超过200个字符'); return; }
+    }
+    if (req.body.description !== undefined && req.body.description !== null && typeof req.body.description === 'string' && req.body.description.length > 2000) {
+      fail(res, 400, '描述不能超过2000个字符'); return;
+    }
+
+    // Explicitly construct update request to prevent mass assignment (SEC-M-04)
+    const updateRequest: UpdateKnowledgeBaseRequest = {
+      name: req.body.name,
+      description: req.body.description,
+      scope: req.body.scope,
+      status: req.body.status,
+      company_id: validateInteger(req.body.company_id, 'company_id'),
+      project_id: validateInteger(req.body.project_id, 'project_id'),
+    };
 
     const user = req.user;
     if (!user) { fail(res, 401, '未登录'); return; }
     const { userId, role } = user;
-    const item = await knowledgeBaseService.update(id, req.body, userId, role);
+    const item = await knowledgeBaseService.update(id, updateRequest, userId, role);
     success(res, item, '更新知识库成功');
   } catch (err: unknown) {
     if (err instanceof Error && err.message === '知识库不存在') {

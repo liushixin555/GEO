@@ -384,6 +384,79 @@ describe('KnowledgeBase Controller', () => {
       expect(res.body.message).toBe('知识库不存在');
     });
 
+    test('admin 获取 platform 知识库详情成功（可见性控制）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'platform',
+        status: true,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst },
+      });
+
+      const res = await agent
+        .get('/api/knowledge-bases/1')
+        .set('Authorization', `Bearer ${adminToken()}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.id).toBe(1);
+    });
+
+    test('admin 获取不属自己公司的 company 知识库返回 404', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockKBFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'company',
+        companyId: 999,
+        company: { shortName: '其他公司' },
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      const mockUserFindFirst = jest.fn().mockResolvedValue({ id: 2, companyId: 2 });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockKBFindFirst },
+        user: { findFirst: mockUserFindFirst },
+      });
+
+      const res = await agent
+        .get('/api/knowledge-bases/1')
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe('知识库不存在');
+    });
+
+    test('admin 获取不属自己项目的 project 知识库返回 404', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockKBFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'project',
+        projectId: 999,
+        company: null,
+        project: { shortName: '其他项目' },
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      const mockOperatorFindFirst = jest.fn().mockResolvedValue(null);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockKBFindFirst },
+        projectOperator: { findFirst: mockOperatorFindFirst },
+      });
+
+      const res = await agent
+        .get('/api/knowledge-bases/1')
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe('知识库不存在');
+    });
+
     test('获取详情数据库异常返回 500', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockRejectedValue(new Error('DB Error'));
@@ -498,6 +571,46 @@ describe('KnowledgeBase Controller', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.message).toBe('知识库名称不能为空');
+    });
+
+    test('名称为纯空格返回 400', async () => {
+      const res = await agent
+        .post('/api/knowledge-bases')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: '   ', scope: 'platform' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('知识库名称不能为空');
+    });
+
+    test('名称为非字符串类型返回 400', async () => {
+      const res = await agent
+        .post('/api/knowledge-bases')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: [1, 2, 3], scope: 'platform' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('知识库名称不能为空');
+    });
+
+    test('名称超过200字符返回 400', async () => {
+      const res = await agent
+        .post('/api/knowledge-bases')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: 'A'.repeat(201), scope: 'platform' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('知识库名称不能超过200个字符');
+    });
+
+    test('描述超过2000字符返回 400', async () => {
+      const res = await agent
+        .post('/api/knowledge-bases')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: '测试', scope: 'platform', description: 'A'.repeat(2001) });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('描述不能超过2000个字符');
     });
 
     test('scope 为空返回 400', async () => {
@@ -665,6 +778,36 @@ describe('KnowledgeBase Controller', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.message).toBe('知识库范围不合法，应为 platform/company/project');
+    });
+
+    test('更新时名称为空字符串返回 400', async () => {
+      const res = await agent
+        .put('/api/knowledge-bases/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: '   ' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('知识库名称不能为空');
+    });
+
+    test('更新时名称超过200字符返回 400', async () => {
+      const res = await agent
+        .put('/api/knowledge-bases/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: 'A'.repeat(201) });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('知识库名称不能超过200个字符');
+    });
+
+    test('更新时描述超过2000字符返回 400', async () => {
+      const res = await agent
+        .put('/api/knowledge-bases/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ description: 'A'.repeat(2001) });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('描述不能超过2000个字符');
     });
 
     test('知识库不存在返回 404', async () => {

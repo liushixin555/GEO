@@ -1135,4 +1135,53 @@ describe('Auth Controller', () => {
       expect(response.body.message).toBe('获取公司用户失败，请稍后重试');
     });
   });
+
+  // ============================================================
+  // Additional edge cases for higher branch coverage
+  // ============================================================
+  describe('Additional edge cases', () => {
+    it('saveSelection should return 400 when project_id is zero', async () => {
+      const response = await agent
+        .put(SELECTION)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ company_id: 1, project_id: 0 });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('project_id 必须为正整数或 null');
+    });
+
+    it('saveSelection should return 400 when company_id is a non-numeric string', async () => {
+      const response = await agent
+        .put(SELECTION)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ company_id: 'abc' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('company_id 必须为正整数');
+    });
+
+    it('getContext should return empty projects when company_id is invalid string', async () => {
+      const prisma = mockPrisma();
+      prisma.company.findMany.mockResolvedValue([
+        { id: 1, shortName: 'Company A' },
+      ]);
+
+      const response = await agent
+        .get(CONTEXT)
+        .query({ company_id: 'abc' })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(200);
+      // Number('abc') = NaN, which is falsy, so projects = []
+      expect(response.body.data.projects).toHaveLength(0);
+    });
+
+    it('getCompanyDetail should accept float id (parseInt truncates to valid int)', async () => {
+      const prisma = mockPrisma();
+      prisma.user.findMany.mockResolvedValue([]);
+
+      const response = await agent
+        .get(`${COMPANIES}/1.5`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      // parseInt('1.5') = 1, which is > 0, so it's valid
+      expect(response.status).toBe(200);
+    });
+  });
 });

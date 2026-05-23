@@ -102,13 +102,35 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
     return { list: items.map(mapKnowledgeBase), total };
   }
 
-  async getById(id: number): Promise<KnowledgeBase> {
+  async getById(id: number, userId?: number, role?: string): Promise<KnowledgeBase> {
     const prisma = getPrisma();
     const item = await prisma.knowledgeBase.findFirst({
       where: { id },
       include: BASE_INCLUDE,
     });
     if (!item) throw new Error('知识库不存在');
+
+    // Non-sysadmin: check data-level access control (SEC-H-01)
+    if (role !== 'sysadmin' && userId) {
+      if (item.scope === 'platform') {
+        // platform knowledge bases: only active ones are visible
+        if (!item.status) throw new Error('知识库不存在');
+      } else if (item.scope === 'company') {
+        const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
+        if (!user || user.companyId !== item.companyId) {
+          throw new Error('知识库不存在');
+        }
+      } else if (item.scope === 'project') {
+        if (!item.projectId) throw new Error('知识库不存在');
+        const operator = await prisma.projectOperator.findFirst({
+          where: { userId, projectId: item.projectId, deletedAt: null },
+        });
+        if (!operator) {
+          throw new Error('知识库不存在');
+        }
+      }
+    }
+
     return mapKnowledgeBase(item);
   }
 
