@@ -77,3 +77,10 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 - **Memory**: 每次任务结束后，将价值信息（架构变更、新增功能、技术决策、踩坑经验）持久化保存到本项目 `.claude/` 目录下的对应文件（rules.md / architecture.md / frontend.md / progress.md），禁止保存到用户目录 `~/.claude/projects/`
 - **Git commit 必须使用中文**: 所有 commit 消息的描述部分必须使用中文，格式：`<类型>: <中文描述>`，例如 `feat: 添加知识库模块`，禁止使用英文
 - **Git**: 每次任务结束后，执行 `git add` + `git commit` + `git push`，将所有变更提交并推送到远程仓库
+
+## 铁律（每次任务结束后必须执行）
+
+1. **更新任务描述** — 参考 `tasks/dev001.登录功能.md` 格式，更新本次任务对应的 tasks/ 文档（功能说明、业务规则、验收标准等）
+2. **更新 `tasks/fix.Bug修复汇总.md`** — 如果本次涉及 Bug 修复，追加记录
+3. **更新 `tasks/db.数据模型变更汇总.md`** — 如果本次涉及数据库 schema 变更，追加记录
+4. **执行 `git add` + `git commit` + `git push`** — 将所有变更提交并推送到远程仓库，commit 消息使用中文

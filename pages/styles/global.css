@@ -839,10 +839,44 @@ a:hover {
   padding: var(--spacing-xxl) !important;
 }
 
-/* Hide columns on narrow screens */
-@media (max-width: 672px) {
-  .publishing-table .col-keywords,
-  .publishing-table .col-type {
+/* ---- Card view (default on narrow screens, uses antd Card) ---- */
+.publishing-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md, 12px);
+}
+
+.publishing-cards-empty {
+  text-align: center;
+  color: var(--color-ink-subtle);
+  padding: var(--spacing-xxl) 0;
+  font-size: 14px;
+}
+
+.publishing-card-footer {
+  margin-top: var(--spacing-sm, 8px);
+  padding-top: var(--spacing-sm, 8px);
+  border-top: 1px solid var(--color-hairline, #e0e0e0);
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ---- Responsive: table vs cards ---- */
+
+/* 默认：卡片可见，表格隐藏 */
+.publishing-cards {
+  display: flex;
+}
+.publishing-table-wrapper {
+  display: none;
+}
+
+/* >=1280px：表格可见，卡片隐藏 */
+@media (min-width: 1280px) {
+  .publishing-cards {
     display: none;
+  }
+  .publishing-table-wrapper {
+    display: block;
   }
 }

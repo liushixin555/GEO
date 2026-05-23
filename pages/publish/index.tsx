@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Row, Col, Input, Select, Tag, Typography, Spin, Pagination, Button, Modal, DatePicker, Breadcrumb, App } from 'antd';
+import { Row, Col, Input, Select, Tag, Typography, Spin, Pagination, Button, Modal, DatePicker, Breadcrumb, App, Card, Descriptions } from 'antd';
 import dayjs from 'dayjs';
 import axios from 'axios';
 
@@ -188,6 +188,44 @@ const PublishingSchedulePage: React.FC = () => {
       </Row>
 
       <Spin spinning={loading}>
+        {/* 卡片视图：小于1280px时显示 */}
+        <div className="publishing-cards">
+          {data.length === 0 && (
+            <Card>
+              <div className="publishing-cards-empty">暂无数据</div>
+            </Card>
+          )}
+          {data.map((item) => {
+            const statusCfg = getDerivedStatus(item);
+            const canEditThis = (user.role === 'sysadmin' || item.created_by === user.id) && item.status === 'publishing';
+            return (
+              <Card key={item.id} size="small" title={item.title} extra={<Tag color={statusCfg.color}>{statusCfg.label}</Tag>}>
+                <Descriptions column={2} size="small" colon={false}>
+                  <Descriptions.Item label="关键词">{item.keywords || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="项目">{item.project_name}</Descriptions.Item>
+                  <Descriptions.Item label="发布平台">{item.platforms?.join(', ') || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="内容类型">{item.article_type || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="作者">{item.created_by_name || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="计划发布时间">{formatDate(item.scheduled_publish_at)}</Descriptions.Item>
+                </Descriptions>
+                {item.status === 'publishing' && (
+                  <div className="publishing-card-footer">
+                    <Button
+                      type="primary"
+                      size="small"
+                      disabled={!canEditThis}
+                      onClick={() => handleEditClick(item)}
+                    >
+                      编辑计划
+                    </Button>
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* 表格视图：大于等于1280px时显示 */}
         <div className="publishing-table-wrapper">
           <table className="publishing-table">
             <thead>
