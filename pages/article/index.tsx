@@ -134,14 +134,9 @@ const ArticlePage: React.FC = () => {
       key: 'action',
       width: 120,
       render: (_: unknown, record: ArticleItem) => (
-        <span style={{ display: 'flex', gap: 8 }}>
-          <Button type="link" size="small" onClick={() => navigate(`/article/${record.id}`)}>查看</Button>
-          {canDelete(record) && (
-            <Popconfirm title="确定删除此文章？" onConfirm={() => handleDelete(record)} okText="删除" cancelText="取消">
-              <Button type="link" size="small" danger>删除</Button>
-            </Popconfirm>
-          )}
-        </span>
+        <Popconfirm title="确定删除此文章？" onConfirm={() => handleDelete(record)} okText="删除" cancelText="取消">
+          <Button type="link" size="small" danger disabled={!canDelete(record)}>删除</Button>
+        </Popconfirm>
       ),
     },
   ];
