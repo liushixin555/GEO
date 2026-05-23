@@ -39,21 +39,6 @@ async function main() {
     });
     console.log('sysadmin user created.');
   }
-
-  // Seed sample skills
-  const skillCount = await prisma.skills.count();
-  if (skillCount === 0) {
-    await prisma.skills.createMany({
-      data: [
-        { name: 'TypeScript', category: '编程语言', description: 'JavaScript 超集', companyId: company.id },
-        { name: 'React', category: '框架', description: 'UI 框架', companyId: company.id },
-        { name: 'Node.js', category: '运行时', description: '服务端 JavaScript', companyId: company.id },
-        { name: 'PostgreSQL', category: '数据库', description: '关系型数据库', companyId: company.id },
-        { name: 'Docker', category: '运维', description: '容器化部署', companyId: company.id },
-      ],
-    });
-    console.log('Sample skills created.');
-  }
 }
 
 main()
