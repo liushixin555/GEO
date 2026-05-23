@@ -62,6 +62,31 @@ describe('mapCompany', () => {
     const result = mapCompany({ ...basePrisma, id: 999 });
     expect(result.id).toBe(999);
   });
+
+  test('contactPerson 为 null 时正确映射', () => {
+    const result = mapCompany({ ...basePrisma, contactPerson: null });
+    expect(result.contact_person).toBeNull();
+  });
+
+  test('contactPhone 为 null 时正确映射', () => {
+    const result = mapCompany({ ...basePrisma, contactPhone: null });
+    expect(result.contact_phone).toBeNull();
+  });
+
+  test('full_name 为空字符串时正确映射', () => {
+    const result = mapCompany({ ...basePrisma, fullName: '' });
+    expect(result.full_name).toBe('');
+  });
+
+  test('id 为字符串类型时正确映射', () => {
+    const result = mapCompany({ ...basePrisma, id: 'uuid-123' });
+    expect(result.id).toBe('uuid-123');
+  });
+
+  test('shortName 为空字符串时正确映射', () => {
+    const result = mapCompany({ ...basePrisma, shortName: '' });
+    expect(result.short_name).toBe('');
+  });
 });
 
 // ============================================================
@@ -112,6 +137,21 @@ describe('mapSkills', () => {
     const { createdBy, ...withoutCreatedBy } = basePrisma;
     const result = mapSkills(withoutCreatedBy);
     expect(result.created_by).toBeNull();
+  });
+
+  test('description 为 null 时正确映射', () => {
+    const result = mapSkills({ ...basePrisma, description: null });
+    expect(result.description).toBeNull();
+  });
+
+  test('skillDir 为 null 时正确映射', () => {
+    const result = mapSkills({ ...basePrisma, skillDir: null });
+    expect(result.skill_dir).toBeNull();
+  });
+
+  test('name 为空字符串时正确映射', () => {
+    const result = mapSkills({ ...basePrisma, name: '' });
+    expect(result.name).toBe('');
   });
 });
 
@@ -181,6 +221,22 @@ describe('mapUser', () => {
     const result = mapUser({ ...basePrisma, status: false });
     expect(result.status).toBe(false);
   });
+
+  test('cnName 为 null 时正确映射', () => {
+    const result = mapUser({ ...basePrisma, cnName: null });
+    expect(result.cn_name).toBeNull();
+  });
+
+  test('cnName 为空字符串时正确映射', () => {
+    const result = mapUser({ ...basePrisma, cnName: '' });
+    expect(result.cn_name).toBe('');
+  });
+
+  test('company 为 undefined 时 company_name 为空字符串', () => {
+    const { company, ...rest } = basePrisma;
+    const result = mapUser(rest);
+    expect(result.company_name).toBe('');
+  });
 });
 
 // ============================================================
@@ -191,25 +247,52 @@ describe('mapLlmModel', () => {
     id: 1,
     provider: 'OpenAI',
     baseUrl: 'https://api.openai.com',
-    apiKey: 'sk-test-key',
+    apiKey: 'sk-test-key-value-here',
     modelName: 'gpt-4',
     status: true,
     createdAt: new Date('2024-03-01'),
     updatedAt: new Date('2024-08-01'),
   };
 
-  test('正确映射所有字段', () => {
+  test('正确映射所有字段（apiKey 脱敏）', () => {
     const result = mapLlmModel(basePrisma);
     expect(result).toEqual({
       id: 1,
       provider: 'OpenAI',
       base_url: 'https://api.openai.com',
-      api_key: 'sk-test-key',
+      api_key: 'sk-t****here',
       model_name: 'gpt-4',
       status: true,
       created_at: basePrisma.createdAt,
       updated_at: basePrisma.updatedAt,
     });
+  });
+
+  test('apiKey 脱敏格式：前4位+****+后4位', () => {
+    const result = mapLlmModel({ ...basePrisma, apiKey: 'abcdefghijklmnop' });
+    expect(result.api_key).toBe('abcd****mnop');
+  });
+
+  test('apiKey 为 null 时返回空字符串', () => {
+    const result = mapLlmModel({ ...basePrisma, apiKey: null });
+    expect(result.api_key).toBe('');
+  });
+
+  test('apiKey 为 undefined 时返回空字符串', () => {
+    const { apiKey, ...rest } = basePrisma;
+    const result = mapLlmModel(rest);
+    expect(result.api_key).toBe('');
+  });
+
+  test('apiKey 为空字符串时返回空字符串', () => {
+    const result = mapLlmModel({ ...basePrisma, apiKey: '' });
+    expect(result.api_key).toBe('');
+  });
+
+  test('apiKey 为短字符串时正确脱敏', () => {
+    const result = mapLlmModel({ ...basePrisma, apiKey: 'sk-k' });
+    // 'sk-k'.slice(0,4) = 'sk-k', 'sk-k'.slice(-4) = 'sk-k'
+    expect(result.api_key).toBe('sk-k****sk-k');
   });
 
   test('status 为 false 时正确映射', () => {
@@ -221,6 +304,16 @@ describe('mapLlmModel', () => {
     const result = mapLlmModel({ ...basePrisma, provider: 'Anthropic', modelName: 'claude-3' });
     expect(result.provider).toBe('Anthropic');
     expect(result.model_name).toBe('claude-3');
+  });
+
+  test('baseUrl 为 null 时正确映射', () => {
+    const result = mapLlmModel({ ...basePrisma, baseUrl: null });
+    expect(result.base_url).toBeNull();
+  });
+
+  test('id 为数字类型时正确映射', () => {
+    const result = mapLlmModel({ ...basePrisma, id: 42 });
+    expect(result.id).toBe(42);
   });
 });
 
@@ -251,6 +344,21 @@ describe('mapSystemConfig', () => {
     const result = mapSystemConfig({ ...basePrisma, configKey: 'site_name', configValue: 'MySite' });
     expect(result.config_key).toBe('site_name');
     expect(result.config_value).toBe('MySite');
+  });
+
+  test('configValue 为空字符串时正确映射', () => {
+    const result = mapSystemConfig({ ...basePrisma, configValue: '' });
+    expect(result.config_value).toBe('');
+  });
+
+  test('configValue 为 JSON 字符串时正确映射', () => {
+    const result = mapSystemConfig({ ...basePrisma, configValue: '{"key":"value"}' });
+    expect(result.config_value).toBe('{"key":"value"}');
+  });
+
+  test('configKey 包含特殊字符时正确映射', () => {
+    const result = mapSystemConfig({ ...basePrisma, configKey: 'app.feature_toggle' });
+    expect(result.config_key).toBe('app.feature_toggle');
   });
 });
 
@@ -351,6 +459,58 @@ describe('mapProject', () => {
     const result = mapProject({ ...basePrisma, status: false });
     expect(result.status).toBe(false);
   });
+
+  test('operator 中 user.id 与 userId 不同时优先使用 user.id', () => {
+    const input = {
+      ...basePrisma,
+      operators: [{ userId: 50, user: { id: 60, cnName: '测试' } }],
+    };
+    const result = mapProject(input);
+    expect(result.operator_ids).toEqual([60]);
+  });
+
+  test('operator 中 user 存在但 cnName 为空字符串时返回空字符串', () => {
+    const input = {
+      ...basePrisma,
+      operators: [{ userId: 1, user: { id: 1, cnName: '' } }],
+    };
+    const result = mapProject(input);
+    expect(result.operator_names).toEqual(['']);
+  });
+
+  test('company 存在但 shortName 为空字符串时返回空字符串', () => {
+    const result = mapProject({ ...basePrisma, company: { shortName: '' } });
+    expect(result.company_name).toBe('');
+  });
+
+  test('多个 operators 和 viewers 正确映射', () => {
+    const input = {
+      ...basePrisma,
+      operators: [
+        { userId: 1, user: { id: 1, cnName: 'A' } },
+        { userId: 2, user: { id: 2, cnName: 'B' } },
+        { userId: 3, user: { id: 3, cnName: 'C' } },
+      ],
+      viewers: [
+        { userId: 4, user: { id: 4, cnName: 'D' } },
+        { userId: 5, user: { id: 5, cnName: 'E' } },
+      ],
+    };
+    const result = mapProject(input);
+    expect(result.operator_ids).toEqual([1, 2, 3]);
+    expect(result.operator_names).toEqual(['A', 'B', 'C']);
+    expect(result.viewer_ids).toEqual([4, 5]);
+    expect(result.viewer_names).toEqual(['D', 'E']);
+  });
+
+  test('viewer 中 user 存在但 cnName 为空时返回空字符串', () => {
+    const input = {
+      ...basePrisma,
+      viewers: [{ userId: 10, user: { id: 10, cnName: '' } }],
+    };
+    const result = mapProject(input);
+    expect(result.viewer_names).toEqual(['']);
+  });
 });
 
 // ============================================================
@@ -418,6 +578,12 @@ describe('mapArticle', () => {
     expect(result.write_mode).toBeNull();
   });
 
+  test('writeMode 为 undefined 时映射为 null', () => {
+    const { writeMode, ...rest } = basePrisma;
+    const result = mapArticle(rest);
+    expect(result.write_mode).toBeNull();
+  });
+
   test('llmModelId 为 null 时映射为 null', () => {
     const result = mapArticle({ ...basePrisma, llmModelId: null });
     expect(result.llm_model_id).toBeNull();
@@ -460,6 +626,41 @@ describe('mapArticle', () => {
     const result = mapArticle({ ...basePrisma, platforms: null });
     expect(result.platforms).toBeNull();
   });
+
+  test('keywords 为 null 时正确映射', () => {
+    const result = mapArticle({ ...basePrisma, keywords: null });
+    expect(result.keywords).toBeNull();
+  });
+
+  test('portrait 为 null 时正确映射', () => {
+    const result = mapArticle({ ...basePrisma, portrait: null });
+    expect(result.portrait).toBeNull();
+  });
+
+  test('content 为空字符串时正确映射', () => {
+    const result = mapArticle({ ...basePrisma, content: '' });
+    expect(result.content).toBe('');
+  });
+
+  test('version 为 0 时正确映射', () => {
+    const result = mapArticle({ ...basePrisma, version: 0 });
+    expect(result.version).toBe(0);
+  });
+
+  test('images 为空数组时正确映射', () => {
+    const result = mapArticle({ ...basePrisma, images: [] });
+    expect(result.images).toEqual([]);
+  });
+
+  test('platforms 为空数组时正确映射', () => {
+    const result = mapArticle({ ...basePrisma, platforms: [] });
+    expect(result.platforms).toEqual([]);
+  });
+
+  test('status 为 published 时正确映射', () => {
+    const result = mapArticle({ ...basePrisma, status: 'published' });
+    expect(result.status).toBe('published');
+  });
 });
 
 // ============================================================
@@ -496,6 +697,21 @@ describe('mapArticleVersion', () => {
     const { createdBy, ...rest } = basePrisma;
     const result = mapArticleVersion(rest);
     expect(result.created_by).toBeNull();
+  });
+
+  test('content 为空字符串时正确映射', () => {
+    const result = mapArticleVersion({ ...basePrisma, content: '' });
+    expect(result.content).toBe('');
+  });
+
+  test('version 为 0 时正确映射', () => {
+    const result = mapArticleVersion({ ...basePrisma, version: 0 });
+    expect(result.version).toBe(0);
+  });
+
+  test('version 为大数值时正确映射', () => {
+    const result = mapArticleVersion({ ...basePrisma, version: 100 });
+    expect(result.version).toBe(100);
   });
 });
 
@@ -545,6 +761,31 @@ describe('mapPublishingPlatform', () => {
   test('includeRate 为 0 时正确映射', () => {
     const result = mapPublishingPlatform({ ...basePrisma, includeRate: 0 });
     expect(result.include_rate).toBe(0);
+  });
+
+  test('publishRate 为 0 时正确映射', () => {
+    const result = mapPublishingPlatform({ ...basePrisma, publishRate: 0 });
+    expect(result.publish_rate).toBe(0);
+  });
+
+  test('taxonomy 为 null 时正确映射', () => {
+    const result = mapPublishingPlatform({ ...basePrisma, taxonomy: null });
+    expect(result.taxonomy).toBeNull();
+  });
+
+  test('name 为空字符串时正确映射', () => {
+    const result = mapPublishingPlatform({ ...basePrisma, name: '' });
+    expect(result.name).toBe('');
+  });
+
+  test('rmResourceId 为 null 时正确映射', () => {
+    const result = mapPublishingPlatform({ ...basePrisma, rmResourceId: null });
+    expect(result.rm_resource_id).toBeNull();
+  });
+
+  test('includeRate 为 1 时正确映射', () => {
+    const result = mapPublishingPlatform({ ...basePrisma, includeRate: 1 });
+    expect(result.include_rate).toBe(1);
   });
 });
 
@@ -609,6 +850,16 @@ describe('mapKeyword', () => {
     const result = mapKeyword(rest);
     expect(result.created_by).toBeNull();
   });
+
+  test('keyword 为空字符串时正确映射', () => {
+    const result = mapKeyword({ ...basePrisma, keyword: '' });
+    expect(result.keyword).toBe('');
+  });
+
+  test('seedWord 为空字符串时保持为空字符串（?? 只对 null/undefined 生效）', () => {
+    const result = mapKeyword({ ...basePrisma, seedWord: '' });
+    expect(result.seed_word).toBe('');
+  });
 });
 
 // ============================================================
@@ -647,6 +898,21 @@ describe('mapPortrait', () => {
     const { createdBy, ...rest } = basePrisma;
     const result = mapPortrait(rest);
     expect(result.created_by).toBeNull();
+  });
+
+  test('title 为空字符串时正确映射', () => {
+    const result = mapPortrait({ ...basePrisma, title: '' });
+    expect(result.title).toBe('');
+  });
+
+  test('content 为 null 时正确映射', () => {
+    const result = mapPortrait({ ...basePrisma, content: null });
+    expect(result.content).toBeNull();
+  });
+
+  test('content 为空字符串时正确映射', () => {
+    const result = mapPortrait({ ...basePrisma, content: '' });
+    expect(result.content).toBe('');
   });
 });
 
@@ -688,6 +954,21 @@ describe('mapKnowledgeImage', () => {
     const { createdBy, ...rest } = basePrisma;
     const result = mapKnowledgeImage(rest);
     expect(result.created_by).toBeNull();
+  });
+
+  test('description 为 null 时正确映射', () => {
+    const result = mapKnowledgeImage({ ...basePrisma, description: null });
+    expect(result.description).toBeNull();
+  });
+
+  test('imageUrl 为 null 时正确映射', () => {
+    const result = mapKnowledgeImage({ ...basePrisma, imageUrl: null });
+    expect(result.image_url).toBeNull();
+  });
+
+  test('title 为空字符串时正确映射', () => {
+    const result = mapKnowledgeImage({ ...basePrisma, title: '' });
+    expect(result.title).toBe('');
   });
 });
 
@@ -741,6 +1022,26 @@ describe('mapKnowledgeDocument', () => {
     const result = mapKnowledgeDocument({ ...basePrisma, fileSize: 0 });
     expect(result.file_size).toBe(0);
   });
+
+  test('description 为 null 时正确映射', () => {
+    const result = mapKnowledgeDocument({ ...basePrisma, description: null });
+    expect(result.description).toBeNull();
+  });
+
+  test('fileType 为空字符串时正确映射', () => {
+    const result = mapKnowledgeDocument({ ...basePrisma, fileType: '' });
+    expect(result.file_type).toBe('');
+  });
+
+  test('fileName 为空字符串时正确映射', () => {
+    const result = mapKnowledgeDocument({ ...basePrisma, fileName: '' });
+    expect(result.file_name).toBe('');
+  });
+
+  test('fileUrl 为 null 时正确映射', () => {
+    const result = mapKnowledgeDocument({ ...basePrisma, fileUrl: null });
+    expect(result.file_url).toBeNull();
+  });
 });
 
 // ============================================================
@@ -782,6 +1083,11 @@ describe('mapMinedKeyword', () => {
     const { createdBy, ...rest } = basePrisma;
     const result = mapMinedKeyword(rest);
     expect(result.created_by).toBeNull();
+  });
+
+  test('keyword 为空字符串时正确映射', () => {
+    const result = mapMinedKeyword({ ...basePrisma, keyword: '' });
+    expect(result.keyword).toBe('');
   });
 });
 
@@ -842,8 +1148,19 @@ describe('mapTodo', () => {
     expect(result.project_id).toBeNull();
   });
 
+  test('projectId 为 undefined 时映射为 null', () => {
+    const { projectId, ...rest } = basePrisma;
+    const result = mapTodo({ ...rest, project: null });
+    expect(result.project_id).toBeNull();
+  });
+
   test('project 为 null 时 project_name 为 null', () => {
     const result = mapTodo({ ...basePrisma, project: null });
+    expect(result.project_name).toBeNull();
+  });
+
+  test('project 存在但 shortName 为空字符串时 project_name 为 null', () => {
+    const result = mapTodo({ ...basePrisma, project: { shortName: '' } });
     expect(result.project_name).toBeNull();
   });
 
@@ -863,13 +1180,28 @@ describe('mapTodo', () => {
     expect(result.company_name).toBe('');
   });
 
+  test('company 存在但 shortName 为空字符串时 company_name 为空字符串', () => {
+    const result = mapTodo({ ...basePrisma, company: { shortName: '' } });
+    expect(result.company_name).toBe('');
+  });
+
   test('assignee 为 null 时 assignee_name 为空字符串', () => {
     const result = mapTodo({ ...basePrisma, assignee: null });
     expect(result.assignee_name).toBe('');
   });
 
+  test('assignee 存在但 cnName 为空字符串时 assignee_name 为空字符串', () => {
+    const result = mapTodo({ ...basePrisma, assignee: { cnName: '' } });
+    expect(result.assignee_name).toBe('');
+  });
+
   test('createdBy 为 null 时 created_by_name 为空字符串', () => {
     const result = mapTodo({ ...basePrisma, createdBy: null });
+    expect(result.created_by_name).toBe('');
+  });
+
+  test('createdBy 存在但 cnName 为空字符串时 created_by_name 为空字符串', () => {
+    const result = mapTodo({ ...basePrisma, createdBy: { cnName: '' } });
     expect(result.created_by_name).toBe('');
   });
 
@@ -887,6 +1219,27 @@ describe('mapTodo', () => {
   test('dueAt 存在时转换为 ISO 字符串', () => {
     const result = mapTodo(basePrisma);
     expect(result.due_at).toBe(dueDate.toISOString());
+  });
+
+  test('status 为不同值时正确映射', () => {
+    const result = mapTodo({ ...basePrisma, status: 'completed' });
+    expect(result.status).toBe('completed');
+  });
+
+  test('priority 为不同值时正确映射', () => {
+    const result = mapTodo({ ...basePrisma, priority: 'low' });
+    expect(result.priority).toBe('low');
+  });
+
+  test('title 为空字符串时正确映射', () => {
+    const result = mapTodo({ ...basePrisma, title: '' });
+    expect(result.title).toBe('');
+  });
+
+  test('dueAt.toISOString() 返回正确的格式', () => {
+    const result = mapTodo(basePrisma);
+    // 验证 ISO 字符串格式
+    expect(result.due_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
   });
 });
 
@@ -957,5 +1310,25 @@ describe('mapTodoLog', () => {
   test('operator 为 null 时 operator_name 为空字符串', () => {
     const result = mapTodoLog({ ...basePrisma, operator: null });
     expect(result.operator_name).toBe('');
+  });
+
+  test('operator 存在但 cnName 为空字符串时 operator_name 为空字符串', () => {
+    const result = mapTodoLog({ ...basePrisma, operator: { cnName: '' } });
+    expect(result.operator_name).toBe('');
+  });
+
+  test('action 为不同值时正确映射', () => {
+    const result = mapTodoLog({ ...basePrisma, action: 'create' });
+    expect(result.action).toBe('create');
+  });
+
+  test('remark 为空字符串时保持为空字符串（?? 只对 null/undefined 生效）', () => {
+    const result = mapTodoLog({ ...basePrisma, remark: '' });
+    expect(result.remark).toBe('');
+  });
+
+  test('operatorId 为 0 时正确映射', () => {
+    const result = mapTodoLog({ ...basePrisma, operatorId: 0 });
+    expect(result.operator_id).toBe(0);
   });
 });
