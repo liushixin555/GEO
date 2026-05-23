@@ -352,7 +352,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
               placeholder="选择责任人"
               showSearch
               filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-              options={assignees.map(a => ({ value: a.id, label: `${a.username} (${a.role})` }))}
+              options={assignees.map(a => ({ value: a.id, label: a.username }))}
             />
           </Form.Item>
         )}
