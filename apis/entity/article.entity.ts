@@ -38,7 +38,8 @@ export interface CreateArticleRequest {
   platforms?: string[];
   skills?: number;
   llm_model_id?: number;
-  status?: 'draft' | 'generating';
+  content?: string;
+  status?: 'draft' | 'generating' | 'manual_writing';
 }
 
 export interface UpdateArticleRequest {

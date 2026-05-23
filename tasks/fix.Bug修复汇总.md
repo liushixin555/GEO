@@ -170,3 +170,19 @@ components: {
 
 ### 涉及文件
 - `pages/article/ArticleDetail.tsx`
+
+---
+
+## fix009. 创建文章时 content 字段未保存
+
+### 问题
+`POST /api/projects/:projectId/articles` 创建文章时，请求体中包含 `content` 字段，但 API 返回 `content: null`。原因是 `article.service.impl.ts` 的 `create` 方法中 `prisma.article.create` 的 `data` 完全忽略了 `content` 字段，且 `CreateArticleRequest` 接口也未定义 `content` 属性。
+
+### 修复
+1. `CreateArticleRequest` 接口添加 `content?: string` 字段，同时补充 `manual_writing` 状态
+2. `create` 方法中 `prisma.article.create` 的 `data` 添加 `content` 和 `version` 字段
+3. 创建后如果 content 非空，自动保存为初始版本快照（与 update 方法逻辑一致）
+
+### 涉及文件
+- `apis/entity/article.entity.ts` — CreateArticleRequest 添加 content 和 manual_writing 状态
+- `apis/service/impl/article.service.impl.ts` — create 方法保存 content 并创建版本快照

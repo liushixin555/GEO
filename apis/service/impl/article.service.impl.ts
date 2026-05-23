@@ -43,6 +43,7 @@ export class ArticleServiceImpl implements IArticleService {
   async create(projectId: number, request: CreateArticleRequest, userId: number): Promise<Article> {
     const prisma = getPrisma();
 
+    const version = 1;
     const item = await prisma.article.create({
       data: {
         projectId,
@@ -55,10 +56,25 @@ export class ArticleServiceImpl implements IArticleService {
         platforms: request.platforms || Prisma.JsonNull,
         skills: request.skills || Prisma.JsonNull,
         llmModelId: request.llm_model_id || null,
+        content: request.content || null,
         status: (request.status as ArticleStatus) || 'draft',
+        version,
         createdBy: userId,
       },
     });
+
+    // Save initial content as version snapshot
+    if (request.content) {
+      await prisma.articleVersion.create({
+        data: {
+          articleId: item.id,
+          version,
+          content: request.content,
+          createdBy: userId,
+        },
+      });
+    }
+
     return mapArticle(item);
   }
 
