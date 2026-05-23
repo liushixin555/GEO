@@ -141,11 +141,14 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
   useEffect(() => {
     if (!visible) return;
     form.resetFields();
+    setObjectOptions([]);
+    setAssignees([]);
     if (todo) {
       form.setFieldsValue({
         company_id: todo.company_id,
         project_id: todo.project_id,
         object_type: todo.object_type,
+        object_id: todo.object_id,
         action: todo.action,
         priority: todo.priority,
       });
@@ -158,9 +161,14 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
       const res = await axios.get('/api/auth/companies', { headers: authHeaders() });
       const list = res.data.data || [];
       setCompanies(list.map((c: any) => ({ id: c.id, name: c.short_name || c.full_name })));
-      // If editing, load downstream data
       if (todo?.company_id) {
-        loadProjects(todo.company_id);
+        const projList = await loadProjects(todo.company_id);
+        if (todo.project_id) {
+          await Promise.all([
+            loadObjectOptions(todo.project_id, todo.object_type, todo.action),
+            loadAssignees(todo.project_id),
+          ]);
+        }
       }
     } catch {
       setCompanies([]);
@@ -175,8 +183,10 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
       });
       const list = res.data.data || [];
       setProjects(list.map((p: any) => ({ id: p.id, name: p.short_name || p.full_name })));
+      return list;
     } catch {
       setProjects([]);
+      return [];
     }
   };
 
@@ -253,6 +263,8 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
           object_type: values.object_type,
           object_id: values.object_id || null,
           action: values.action,
+          priority: values.priority,
+          due_at: computeDueAt(values.due_label),
         }, { headers: { Authorization: `Bearer ${token}` } });
         message.success('待办更新成功');
       } else {
@@ -263,7 +275,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
           object_type: values.object_type,
           object_id: values.object_id || null,
           action: values.action,
-          priority: 'P2',
+          priority: values.priority || 'P2',
           assignee_id: values.assignee_id,
           due_at: computeDueAt(values.due_label),
         }, { headers: { Authorization: `Bearer ${token}` } });
@@ -357,11 +369,22 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
           </Form.Item>
         )}
 
-        {!isEdit && (
-          <Form.Item label="完成时间" name="due_label" rules={[{ required: true, message: '请选择完成时间' }]}>
-            <Select placeholder="选择完成时间" options={DUE_LABEL_OPTIONS} />
-          </Form.Item>
-        )}
+        <Form.Item label="优先级" name="priority" initialValue="P2">
+          <Select
+            placeholder="选择优先级"
+            options={[
+              { value: 'P0', label: 'P0 紧急' },
+              { value: 'P1', label: 'P1 高' },
+              { value: 'P2', label: 'P2 中' },
+              { value: 'P3', label: 'P3 低' },
+              { value: 'P4', label: 'P4 最低' },
+            ]}
+          />
+        </Form.Item>
+
+        <Form.Item label="完成时间" name="due_label" rules={[{ required: true, message: '请选择完成时间' }]}>
+          <Select placeholder="选择完成时间" options={DUE_LABEL_OPTIONS} />
+        </Form.Item>
       </Form>
     </Modal>
   );

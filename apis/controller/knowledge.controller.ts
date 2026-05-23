@@ -651,6 +651,7 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
       baseId: number;
       baseName: string;
       scope: string;
+      companyName: string;
       projectName: string;
       creatorName: string;
       creatorId: number | null;
@@ -681,6 +682,7 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
           baseId: k.baseId,
           baseName: base?.name || '-',
           scope: base?.scope || 'platform',
+          companyName: base?.company_name || '-',
           projectName: base ? getScopeLabel(base) : '-',
           creatorName: '',
           creatorId: k.createdBy,
@@ -704,6 +706,7 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
           baseId: p.baseId,
           baseName: base?.name || '-',
           scope: base?.scope || 'platform',
+          companyName: base?.company_name || '-',
           projectName: base ? getScopeLabel(base) : '-',
           creatorName: '',
           creatorId: p.createdBy,
@@ -727,6 +730,7 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
           baseId: i.baseId,
           baseName: base?.name || '-',
           scope: base?.scope || 'platform',
+          companyName: base?.company_name || '-',
           projectName: base ? getScopeLabel(base) : '-',
           creatorName: '',
           creatorId: i.createdBy,
@@ -755,6 +759,7 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
           baseId: d.baseId,
           baseName: base?.name || '-',
           scope: base?.scope || 'platform',
+          companyName: base?.company_name || '-',
           projectName: base ? getScopeLabel(base) : '-',
           creatorName: '',
           creatorId: d.createdBy,

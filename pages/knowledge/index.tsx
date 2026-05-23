@@ -39,6 +39,7 @@ interface InventoryItem {
   baseId: number;
   baseName: string;
   scope: string;
+  companyName: string;
   projectName: string;
   creatorName: string;
   updatedAt: string;
@@ -246,6 +247,12 @@ const KnowledgePage: React.FC = () => {
       width: 160,
     },
     {
+      title: '公司',
+      dataIndex: 'companyName',
+      key: 'companyName',
+      width: 100,
+    },
+    {
       title: '项目',
       dataIndex: 'projectName',
       key: 'projectName',
@@ -432,6 +439,7 @@ const KnowledgePage: React.FC = () => {
                 </div>
                 <Descriptions column={2} size="small" colon={false}>
                   <Descriptions.Item label="所属知识库">{item.baseName}</Descriptions.Item>
+                  <Descriptions.Item label="公司">{item.companyName}</Descriptions.Item>
                   <Descriptions.Item label="项目">{item.projectName}</Descriptions.Item>
                   <Descriptions.Item label="添加者">{item.creatorName || '-'}</Descriptions.Item>
                   <Descriptions.Item label="更新时间">{formatDateTime(item.updatedAt)}</Descriptions.Item>

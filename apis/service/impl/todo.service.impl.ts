@@ -154,6 +154,7 @@ export class TodoServiceImpl implements ITodoService {
     if (request.object_id !== undefined) data.objectId = request.object_id;
     if (request.action !== undefined) data.action = request.action;
     if (request.priority !== undefined) data.priority = request.priority;
+    if (request.due_at !== undefined) data.dueAt = request.due_at ? new Date(request.due_at) : null;
 
     const updated = await prisma.todo.update({
       where: { id },

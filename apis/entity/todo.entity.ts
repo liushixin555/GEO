@@ -51,6 +51,7 @@ export interface UpdateTodoRequest {
   object_id?: number | null;
   action?: string;
   priority?: string;
+  due_at?: string | null;
 }
 
 export interface TransferTodoRequest {

@@ -8,7 +8,7 @@ import {
   PlusOutlined,
   FileSearchOutlined,
   SwapOutlined,
-  CloseCircleOutlined,
+  CheckCircleOutlined,
   UndoOutlined,
   StopOutlined,
   EditOutlined,
@@ -36,12 +36,14 @@ interface TodoItem {
   status: string;
   created_by_id: number;
   created_by_name: string;
+  due_at: string | null;
   created_at: string;
   updated_at: string;
 }
 
 interface UserItem {
   id: number;
+  username: string;
   cn_name: string;
   role: string;
 }
@@ -253,7 +255,7 @@ const TodoPage: React.FC = () => {
 
     if (item.status === 'open') {
       btns.push(btn('transfer', <SwapOutlined />, '转交', () => openTransferModal(item)));
-      btns.push(btn('close', <CloseCircleOutlined />, '完成', () => handleClose(item.id), false, { title: '确定完成此待办？', okText: '确定' }));
+      btns.push(btn('close', <CheckCircleOutlined />, '完成', () => handleClose(item.id), false, { title: '确定完成此待办？', okText: '确定' }));
       btns.push(btn('reject', <StopOutlined />, '驳回', () => handleReject(item.id), true, { title: '确定驳回此待办？', okText: '确定' }));
       btns.push(btn('edit', <EditOutlined />, '编辑', () => handleEdit(item)));
     }
@@ -331,16 +333,16 @@ const TodoPage: React.FC = () => {
       },
     },
     {
-      title: '创建时间',
-      dataIndex: 'created_at',
-      key: 'created_at',
+      title: '期望完成',
+      dataIndex: 'due_at',
+      key: 'due_at',
       width: 100,
-      render: (val: string) => formatDate(val),
+      render: (val: string | null) => val ? formatDate(val) : '-',
     },
     {
       title: '操作',
       key: 'action',
-      width: 240,
+      width: 120,
       render: (_: unknown, record: TodoItem) => getActionButtons(record),
     },
   ];
@@ -420,7 +422,7 @@ const TodoPage: React.FC = () => {
                   </Flex>
                   <Flex gap="middle" wrap style={{ whiteSpace: 'nowrap', fontSize: 13 }}>
                     <Typography.Text type="secondary">项目: {item.project_name || '-'}</Typography.Text>
-                    <Typography.Text type="secondary">创建: {formatDate(item.created_at)}</Typography.Text>
+                    <Typography.Text type="secondary">期望完成: {item.due_at ? formatDate(item.due_at) : '-'}</Typography.Text>
                   </Flex>
                 </Flex>
                 <div className="article-card-footer">
@@ -488,7 +490,7 @@ const TodoPage: React.FC = () => {
             value={transferTargetId ?? undefined}
             onChange={setTransferTargetId}
             loading={transferLoading}
-            options={users.map(u => ({ value: u.id, label: `${u.cn_name} (${u.role})` }))}
+            options={users.map(u => ({ value: u.id, label: u.username }))}
             showSearch
             filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
           />
