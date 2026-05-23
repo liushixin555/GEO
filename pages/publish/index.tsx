@@ -15,6 +15,8 @@ interface ScheduleItem {
   scheduled_publish_at: string | null;
   project_name: string;
   company_name: string;
+  created_by: number | null;
+  created_by_name: string;
 }
 
 const PUBLISH_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -147,7 +149,6 @@ const PublishingSchedulePage: React.FC = () => {
   };
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const canEdit = user.role === 'sysadmin' || user.role === 'admin';
 
   return (
     <div className="page-container">
@@ -196,6 +197,7 @@ const PublishingSchedulePage: React.FC = () => {
                 <th className="col-project">项目</th>
                 <th className="col-platforms">发布平台</th>
                 <th className="col-type">内容类型</th>
+                <th className="col-author">作者</th>
                 <th className="col-schedule">计划发布时间</th>
                 <th className="col-status">发布状态</th>
                 <th className="col-action">操作</th>
@@ -204,11 +206,12 @@ const PublishingSchedulePage: React.FC = () => {
             <tbody>
               {data.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="publishing-table-empty">暂无数据</td>
+                  <td colSpan={9} className="publishing-table-empty">暂无数据</td>
                 </tr>
               )}
               {data.map((item) => {
                 const statusCfg = getDerivedStatus(item);
+                const canEditThis = (user.role === 'sysadmin' || item.created_by === user.id) && item.status === 'publishing';
                 return (
                   <tr key={item.id}>
                     <td className="col-title" title={item.title}>{item.title}</td>
@@ -216,10 +219,11 @@ const PublishingSchedulePage: React.FC = () => {
                     <td className="col-project">{item.project_name}</td>
                     <td className="col-platforms">{item.platforms?.join(', ') || '-'}</td>
                     <td className="col-type">{item.article_type || '-'}</td>
+                    <td className="col-author">{item.created_by_name || '-'}</td>
                     <td className="col-schedule">{formatDate(item.scheduled_publish_at)}</td>
                     <td className="col-status"><Tag color={statusCfg.color}>{statusCfg.label}</Tag></td>
                     <td className="col-action">
-                      {canEdit && item.status === 'publishing' && (
+                      {canEditThis && (
                         <Button type="link" size="small" onClick={() => handleEditClick(item)}>
                           编辑计划
                         </Button>

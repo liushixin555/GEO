@@ -59,6 +59,7 @@ export class PublishingScheduleServiceImpl implements IPublishingScheduleService
               company: { select: { shortName: true } },
             },
           },
+          creator: { select: { id: true, cnName: true } },
         },
         orderBy: { id: 'desc' },
         skip: (page - 1) * pageSize,
@@ -78,6 +79,8 @@ export class PublishingScheduleServiceImpl implements IPublishingScheduleService
       project_id: item.projectId,
       project_name: item.project?.shortName || '',
       company_name: item.project?.company?.shortName || '',
+      created_by: item.createdBy ?? null,
+      created_by_name: item.creator?.cnName || '',
       created_at: item.createdAt,
       updated_at: item.updatedAt,
     }));
