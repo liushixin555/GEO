@@ -372,6 +372,34 @@ describe('KnowledgeBaseServiceImpl', () => {
       expect(where.AND).toBeDefined(); // role filter
     });
 
+    it('should not apply admin filtering for view role', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(1, 10, undefined, undefined, undefined, 1, 'view');
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: {} }),
+      );
+    });
+
+    it('should not apply admin filtering for sysadmin role', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(1, 10, undefined, undefined, undefined, 1, 'sysadmin');
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: {} }),
+      );
+    });
+
     it('should correctly map list items', async () => {
       const item = makePrismaKnowledgeBase({
         id: 5,
@@ -846,11 +874,11 @@ describe('KnowledgeBaseServiceImpl', () => {
       });
     });
 
-    it('should change scope to project using existing project_id when not provided', async () => {
+    it('should change scope to project using existing project_id and company_id when not provided', async () => {
       const existing = makePrismaKnowledgeBase({
         id: 1, createdBy: 1, scope: 'company', projectId: 20, companyId: 10,
       });
-      const updated = makePrismaKnowledgeBase({ id: 1, scope: 'project', projectId: 20 });
+      const updated = makePrismaKnowledgeBase({ id: 1, scope: 'project', projectId: 20, companyId: 10 });
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue(updated);
       mockedGetPrisma.mockReturnValue({
@@ -859,11 +887,11 @@ describe('KnowledgeBaseServiceImpl', () => {
 
       await service.update(1, { scope: 'project' }, 1, 'admin');
 
-      expect(mockUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ projectId: 20 }),
-        }),
-      );
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { scope: 'project', projectId: 20, companyId: 10 },
+        include: BASE_INCLUDE,
+      });
     });
 
     it('should throw error when changing to project scope without project_id and no existing', async () => {

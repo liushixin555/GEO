@@ -7,9 +7,9 @@
 `apis/service/impl/knowledge-base.service.impl.ts`
 
 ## 测试结果
-- **测试数量**: 56 个测试
-- **通过率**: 100% (56/56)
-- **执行时间**: ~8s
+- **测试数量**: 58 个测试
+- **通过率**: 100% (58/58)
+- **执行时间**: ~5s
 
 ## 覆盖率
 
@@ -20,11 +20,11 @@
 | 函数 (Functions) | 100% |
 | 行 (Lines) | 100% |
 
-未覆盖分支: line 128 `request.scope === 'project' ? request.project_id ?? null : null` 中 `scope !== 'project'` 且 `project_id` 未提供时的 `?? null` 回退分支（极端边缘场景，非 scope=project 时 project_id 传入 null/undefined）。
+未覆盖分支: line 128 `request.scope === 'project' ? request.project_id ?? null : null` 中 `?? null` 回退分支（不可达代码：scope='project' 时 project_id 为 undefined 会在第123行提前抛出异常）。
 
 ## 测试用例清单
 
-### list() - 15 个测试
+### list() - 17 个测试
 1. ✅ 应返回按 id 降序排列的分页列表
 2. ✅ 应正确计算第 3 页的 skip 偏移量
 3. ✅ 应按搜索词过滤（name 或 description）
@@ -39,7 +39,9 @@
 12. ✅ admin 角色 - 平台 + 项目范围
 13. ✅ admin 角色 - 三种范围全部组合
 14. ✅ admin 角色过滤与搜索过滤组合
-15. ✅ 应正确映射列表项字段
+15. ✅ view 角色不应用 admin 过滤
+16. ✅ sysadmin 角色不应用 admin 过滤
+17. ✅ 应正确映射列表项字段
 
 ### getById() - 3 个测试
 1. ✅ 应按 id 返回知识库
@@ -69,7 +71,7 @@
 10. ✅ 切换到 company 范围使用已有 company_id
 11. ✅ 切换到 company 范围无 company_id 且无已有值时抛出错误
 12. ✅ 切换到 project 范围带新 project_id 和 company_id
-13. ✅ 切换到 project 范围使用已有 project_id
+13. ✅ 切换到 project 范围使用已有 project_id 和 company_id（回退验证）
 14. ✅ 切换到 project 范围无 project_id 且无已有值时抛出错误
 15. ✅ 不改 scope，仅更新 company_id
 16. ✅ 不改 scope，仅更新 project_id
@@ -83,7 +85,7 @@
 4. ✅ 所有者可软删除自己的知识库
 5. ✅ 查询已存在记录时使用 deletedAt 过滤
 
-### getAccessibleBaseIds() - 4 个测试
+### getAccessibleBaseIds() - 3 个测试
 1. ✅ 项目不存在时抛出错误
 2. ✅ 无公司的项目返回平台 + 项目范围
 3. ✅ 有公司的项目返回平台 + 公司 + 项目范围
@@ -94,10 +96,16 @@
 2. ✅ 使用 company 和 project 的 shortName
 3. ✅ 使用 creator 的 cnName
 
+## 本次新增测试用例（2个）
+
+1. **list - view 角色不应用 admin 过滤**: 验证 role='view' 时不会触发 admin 角色的可见范围限制
+2. **list - sysadmin 角色不应用 admin 过滤**: 验证 role='sysadmin' 时不会触发 admin 角色的可见范围限制
+3. **update - scope 切换到 project 使用已有 companyId 回退**: 完善验证 scope 切换到 project 时 company_id 回退逻辑
+
 ## 测试策略
 
 - **Mock 策略**: 使用 `jest.mock` 模拟 `getPrisma`，每个测试独立设置 Prisma 方法的返回值
 - **边界覆盖**: 覆盖了所有错误分支（不存在、权限不足、缺少必填字段）
-- **角色测试**: sysadmin vs admin 权限区分，admin 角色的可见范围过滤
+- **角色测试**: sysadmin/admin/view 三种角色权限区分，admin 角色的可见范围过滤
 - **字段映射**: 测试了 mapKnowledgeBase 函数的所有字段转换逻辑
 - **Scope 转换**: 覆盖了 platform/company/project 三种 scope 之间的切换逻辑
