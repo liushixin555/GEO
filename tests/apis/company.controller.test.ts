@@ -143,6 +143,61 @@ describe('Company Controller', () => {
       expect(response.body.code).toBe(0);
       expect(response.body.data).toHaveLength(0);
     });
+
+    it('should return multiple companies with correct entity fields', async () => {
+      const now = new Date('2026-01-15T10:00:00Z');
+      mockPrisma({
+        company: {
+          findMany: jest.fn().mockResolvedValue([
+            {
+              id: 1, shortName: 'DEFAULT', fullName: 'Default Company',
+              address: null, contactPerson: 'System', contactPhone: '0000000000',
+              status: true, createdAt: now, updatedAt: now,
+            },
+            {
+              id: 2, shortName: 'ACME', fullName: 'ACME Corp',
+              address: 'Beijing', contactPerson: 'Zhang San', contactPhone: '13800138000',
+              status: false, createdAt: now, updatedAt: now,
+            },
+          ]),
+        },
+      });
+
+      const response = await agent
+        .get('/api/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(2);
+      // Verify Company entity field mapping (snake_case)
+      const first = response.body.data[0];
+      expect(first).toHaveProperty('id', 1);
+      expect(first).toHaveProperty('short_name', 'DEFAULT');
+      expect(first).toHaveProperty('full_name', 'Default Company');
+      expect(first).toHaveProperty('address');
+      expect(first.address).toBeNull();
+      expect(first).toHaveProperty('contact_person', 'System');
+      expect(first).toHaveProperty('contact_phone', '0000000000');
+      expect(first).toHaveProperty('status', true);
+      expect(first).toHaveProperty('created_at');
+      expect(first).toHaveProperty('updated_at');
+      // Second company with non-null address and status false
+      const second = response.body.data[1];
+      expect(second.address).toBe('Beijing');
+      expect(second.status).toBe(false);
+    });
+
+    it('should return 403 for view role', async () => {
+      const viewT = jwt.sign(
+        { userId: 3, username: 'viewer', role: 'view', companyId: 1 },
+        'test-secret',
+        { expiresIn: '2h' }
+      );
+      const response = await agent
+        .get('/api/companies')
+        .set('Authorization', `Bearer ${viewT}`);
+      expect(response.status).toBe(403);
+    });
   });
 
   // ========== getCompany ==========
@@ -264,6 +319,127 @@ describe('Company Controller', () => {
 
       expect(response.status).toBe(500);
       expect(response.body.message).toBe('获取公司详情失败');
+    });
+
+    it('should return 400 for negative ID', async () => {
+      const response = await agent
+        .get('/api/companies/-1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      // parseInt('-1') = -1, not NaN, so it goes to service
+      // service will throw '公司不存在' since findUnique returns null
+      mockPrisma({
+        company: { findUnique: jest.fn().mockResolvedValue(null) },
+      });
+    });
+
+    it('should return 400 for ID = 0', async () => {
+      mockPrisma({
+        company: { findUnique: jest.fn().mockResolvedValue(null) },
+      });
+
+      const response = await agent
+        .get('/api/companies/0')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(404);
+      expect(response.body.message).toBe('公司不存在');
+    });
+
+    it('should return CompanyDetail with operators only (no viewers)', async () => {
+      mockPrisma({
+        company: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 5, shortName: 'OPS', fullName: 'Ops Only Corp', address: 'Shanghai',
+            contactPerson: 'Admin', contactPhone: '13100131000',
+            status: true, createdAt: new Date(), updatedAt: new Date(),
+          }),
+        },
+        user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 10, role: 'admin', cnName: '管理员A', username: 'adminA' },
+            { id: 11, role: 'admin', cnName: '管理员B', username: 'adminB' },
+          ]),
+        },
+      });
+
+      const response = await agent
+        .get('/api/companies/5')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.operator_ids).toEqual([10, 11]);
+      expect(response.body.data.operators).toHaveLength(2);
+      expect(response.body.data.operators[0]).toEqual({ id: 10, cn_name: '管理员A', username: 'adminA' });
+      expect(response.body.data.viewer_ids).toEqual([]);
+      expect(response.body.data.viewers).toEqual([]);
+    });
+
+    it('should return CompanyDetail with viewers only (no operators)', async () => {
+      mockPrisma({
+        company: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 6, shortName: 'VIEW', fullName: 'Viewer Only Corp', address: null,
+            contactPerson: 'Viewer', contactPhone: '13200132000',
+            status: true, createdAt: new Date(), updatedAt: new Date(),
+          }),
+        },
+        user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 20, role: 'view', cnName: '观察者A', username: 'viewerA' },
+          ]),
+        },
+      });
+
+      const response = await agent
+        .get('/api/companies/6')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.operator_ids).toEqual([]);
+      expect(response.body.data.operators).toEqual([]);
+      expect(response.body.data.viewer_ids).toEqual([20]);
+      expect(response.body.data.viewers).toEqual([{ id: 20, cn_name: '观察者A', username: 'viewerA' }]);
+    });
+
+    it('should return CompanyDetail with multiple operators and viewers', async () => {
+      mockPrisma({
+        company: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 7, shortName: 'MIX', fullName: 'Mixed Corp', address: 'Guangzhou',
+            contactPerson: 'Mix', contactPhone: '13300133000',
+            status: true, createdAt: new Date(), updatedAt: new Date(),
+          }),
+        },
+        user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 1, role: 'admin', cnName: '管理员1', username: 'op1' },
+            { id: 2, role: 'admin', cnName: '管理员2', username: 'op2' },
+            { id: 3, role: 'view', cnName: '观察者1', username: 'vw1' },
+            { id: 4, role: 'view', cnName: '观察者2', username: 'vw2' },
+            { id: 5, role: 'view', cnName: '观察者3', username: 'vw3' },
+          ]),
+        },
+      });
+
+      const response = await agent
+        .get('/api/companies/7')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.operator_ids).toEqual([1, 2]);
+      expect(response.body.data.operators).toHaveLength(2);
+      expect(response.body.data.viewer_ids).toEqual([3, 4, 5]);
+      expect(response.body.data.viewers).toHaveLength(3);
+      // Verify CompanyDetail structure completeness
+      expect(response.body.data).toHaveProperty('id', 7);
+      expect(response.body.data).toHaveProperty('short_name', 'MIX');
+      expect(response.body.data).toHaveProperty('full_name', 'Mixed Corp');
+      expect(response.body.data).toHaveProperty('address', 'Guangzhou');
+      expect(response.body.data).toHaveProperty('contact_person', 'Mix');
+      expect(response.body.data).toHaveProperty('contact_phone', '13300133000');
+      expect(response.body.data).toHaveProperty('status', true);
+      expect(response.body.data).toHaveProperty('created_at');
+      expect(response.body.data).toHaveProperty('updated_at');
     });
   });
 
@@ -478,6 +654,163 @@ describe('Company Controller', () => {
 
       expect(response.status).toBe(500);
       expect(response.body.message).toBe('创建公司失败');
+    });
+
+    it('should return 400 when short_name is empty string', async () => {
+      const response = await agent
+        .post('/api/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ short_name: '', full_name: 'FN', contact_person: 'A', contact_phone: '123', operator_ids: [1] });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
+
+    it('should return 400 when full_name is empty string', async () => {
+      const response = await agent
+        .post('/api/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ short_name: 'SN', full_name: '', contact_person: 'A', contact_phone: '123', operator_ids: [1] });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
+
+    it('should return 400 when contact_person is empty string', async () => {
+      const response = await agent
+        .post('/api/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ short_name: 'SN', full_name: 'FN', contact_person: '', contact_phone: '123', operator_ids: [1] });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
+
+    it('should return 400 when contact_phone is empty string', async () => {
+      const response = await agent
+        .post('/api/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ short_name: 'SN', full_name: 'FN', contact_person: 'A', contact_phone: '', operator_ids: [1] });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
+
+    it('should create company without optional fields (no address, no viewer_ids)', async () => {
+      const mockCompany = {
+        id: 10, shortName: 'MIN', fullName: 'Minimal Corp',
+        address: null, contactPerson: 'Min', contactPhone: '100',
+        status: true, createdAt: new Date(), updatedAt: new Date(),
+      };
+      const userUpdate = jest.fn().mockResolvedValue({});
+      mockPrisma({
+        $transaction: jest.fn().mockImplementation(async (cb: any) => {
+          const mockTx = {
+            company: { create: jest.fn().mockResolvedValue(mockCompany) },
+            user: { update: userUpdate },
+          };
+          return cb(mockTx);
+        }),
+      });
+
+      const response = await agent
+        .post('/api/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'MIN',
+          full_name: 'Minimal Corp',
+          contact_person: 'Min',
+          contact_phone: '100',
+          operator_ids: [10],
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.short_name).toBe('MIN');
+      expect(response.body.data.address).toBeNull();
+      // operator_ids[0] = 10, so user.update should be called once for the operator
+      expect(userUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it('should create company with multiple viewer_ids', async () => {
+      const mockCompany = {
+        id: 11, shortName: 'MV', fullName: 'Multi Viewer Corp',
+        address: 'Shenzhen', contactPerson: 'Multi', contactPhone: '200',
+        status: true, createdAt: new Date(), updatedAt: new Date(),
+      };
+      const userUpdate = jest.fn().mockResolvedValue({});
+      mockPrisma({
+        $transaction: jest.fn().mockImplementation(async (cb: any) => {
+          const mockTx = {
+            company: { create: jest.fn().mockResolvedValue(mockCompany) },
+            user: { update: userUpdate },
+          };
+          return cb(mockTx);
+        }),
+      });
+
+      const response = await agent
+        .post('/api/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'MV',
+          full_name: 'Multi Viewer Corp',
+          address: 'Shenzhen',
+          contact_person: 'Multi',
+          contact_phone: '200',
+          operator_ids: [1],
+          viewer_ids: [10, 20, 30],
+        });
+
+      expect(response.status).toBe(201);
+      // 1 operator + 3 viewers = 4 user.update calls
+      expect(userUpdate).toHaveBeenCalledTimes(4);
+    });
+
+    it('should create company with viewer_ids as empty array (no viewers linked)', async () => {
+      const mockCompany = {
+        id: 12, shortName: 'EV', fullName: 'Empty Viewer Corp',
+        address: null, contactPerson: 'Ev', contactPhone: '300',
+        status: true, createdAt: new Date(), updatedAt: new Date(),
+      };
+      const userUpdate = jest.fn().mockResolvedValue({});
+      mockPrisma({
+        $transaction: jest.fn().mockImplementation(async (cb: any) => {
+          const mockTx = {
+            company: { create: jest.fn().mockResolvedValue(mockCompany) },
+            user: { update: userUpdate },
+          };
+          return cb(mockTx);
+        }),
+      });
+
+      const response = await agent
+        .post('/api/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'EV',
+          full_name: 'Empty Viewer Corp',
+          contact_person: 'Ev',
+          contact_phone: '300',
+          operator_ids: [1],
+          viewer_ids: [],
+        });
+
+      expect(response.status).toBe(201);
+      // Only 1 operator update, no viewer updates since viewer_ids is empty
+      expect(userUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return 403 for view role', async () => {
+      const viewT = jwt.sign(
+        { userId: 3, username: 'viewer', role: 'view', companyId: 1 },
+        'test-secret',
+        { expiresIn: '2h' }
+      );
+      const response = await agent
+        .post('/api/companies')
+        .set('Authorization', `Bearer ${viewT}`)
+        .send({ short_name: 'TEST' });
+      expect(response.status).toBe(403);
     });
   });
 
@@ -720,6 +1053,131 @@ describe('Company Controller', () => {
       expect(response.status).toBe(500);
       expect(response.body.message).toBe('更新公司失败');
     });
+
+    it('should return 400 when short_name is empty string', async () => {
+      const response = await agent
+        .put('/api/companies/2')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ short_name: '', full_name: 'FN', contact_person: 'A', contact_phone: '123', operator_ids: [1] });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
+
+    it('should return 400 when full_name is empty string', async () => {
+      const response = await agent
+        .put('/api/companies/2')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ short_name: 'SN', full_name: '', contact_person: 'A', contact_phone: '123', operator_ids: [1] });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
+
+    it('should return 400 when contact_person is empty string', async () => {
+      const response = await agent
+        .put('/api/companies/2')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ short_name: 'SN', full_name: 'FN', contact_person: '', contact_phone: '123', operator_ids: [1] });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
+
+    it('should return 400 when contact_phone is empty string', async () => {
+      const response = await agent
+        .put('/api/companies/2')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ short_name: 'SN', full_name: 'FN', contact_person: 'A', contact_phone: '', operator_ids: [1] });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
+
+    it('should update company with viewer_ids as empty array', async () => {
+      const updatedCompany = {
+        id: 2, shortName: 'NO-V', fullName: 'No Viewers Corp',
+        address: null, contactPerson: 'A', contactPhone: '123',
+        status: true, createdAt: new Date(), updatedAt: new Date(),
+      };
+      const updateMany = jest.fn().mockResolvedValue({});
+      const userUpdate = jest.fn().mockResolvedValue({});
+      mockPrisma({
+        $transaction: jest.fn().mockImplementation(async (cb: any) => {
+          const mockTx = {
+            company: { update: jest.fn().mockResolvedValue(updatedCompany) },
+            user: { updateMany, update: userUpdate },
+          };
+          return cb(mockTx);
+        }),
+      });
+
+      const response = await agent
+        .put('/api/companies/2')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'NO-V',
+          full_name: 'No Viewers Corp',
+          contact_person: 'A',
+          contact_phone: '123',
+          operator_ids: [1],
+          viewer_ids: [],
+        });
+
+      expect(response.status).toBe(200);
+      // Should call updateMany twice (admin + view), and user.update once (for operator)
+      expect(updateMany).toHaveBeenCalledTimes(2);
+      expect(userUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it('should update company with multiple viewer_ids', async () => {
+      const updatedCompany = {
+        id: 2, shortName: 'MV', fullName: 'Multi View Corp',
+        address: 'Chengdu', contactPerson: 'B', contactPhone: '456',
+        status: true, createdAt: new Date(), updatedAt: new Date(),
+      };
+      const updateMany = jest.fn().mockResolvedValue({});
+      const userUpdate = jest.fn().mockResolvedValue({});
+      mockPrisma({
+        $transaction: jest.fn().mockImplementation(async (cb: any) => {
+          const mockTx = {
+            company: { update: jest.fn().mockResolvedValue(updatedCompany) },
+            user: { updateMany, update: userUpdate },
+          };
+          return cb(mockTx);
+        }),
+      });
+
+      const response = await agent
+        .put('/api/companies/2')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'MV',
+          full_name: 'Multi View Corp',
+          address: 'Chengdu',
+          contact_person: 'B',
+          contact_phone: '456',
+          operator_ids: [1, 2],
+          viewer_ids: [10, 20, 30],
+        });
+
+      expect(response.status).toBe(200);
+      // 2 operators + 3 viewers = 5 user.update calls
+      expect(userUpdate).toHaveBeenCalledTimes(5);
+    });
+
+    it('should return 403 for view role', async () => {
+      const viewT = jwt.sign(
+        { userId: 3, username: 'viewer', role: 'view', companyId: 1 },
+        'test-secret',
+        { expiresIn: '2h' }
+      );
+      const response = await agent
+        .put('/api/companies/2')
+        .set('Authorization', `Bearer ${viewT}`)
+        .send({ short_name: 'TEST' });
+      expect(response.status).toBe(403);
+    });
   });
 
   // ========== toggleCompanyStatus ==========
@@ -874,6 +1332,49 @@ describe('Company Controller', () => {
 
       expect(response.status).toBe(500);
       expect(response.body.message).toBe('操作失败');
+    });
+
+    it('should return 400 when status is null', async () => {
+      const response = await agent
+        .put('/api/companies/1/status')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: null });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('status参数无效');
+    });
+
+    it('should return 400 when status is an object', async () => {
+      const response = await agent
+        .put('/api/companies/1/status')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: { value: true } });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('status参数无效');
+    });
+
+    it('should return 400 when status is an array', async () => {
+      const response = await agent
+        .put('/api/companies/1/status')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: [true] });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('status参数无效');
+    });
+
+    it('should return 403 for view role', async () => {
+      const viewT = jwt.sign(
+        { userId: 3, username: 'viewer', role: 'view', companyId: 1 },
+        'test-secret',
+        { expiresIn: '2h' }
+      );
+      const response = await agent
+        .put('/api/companies/1/status')
+        .set('Authorization', `Bearer ${viewT}`)
+        .send({ status: true });
+      expect(response.status).toBe(403);
     });
   });
 });
