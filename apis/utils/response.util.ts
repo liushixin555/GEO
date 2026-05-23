@@ -4,6 +4,10 @@ export function success<T>(res: Response, data: T, message = '操作成功') {
   return res.json({ code: 0, message, data });
 }
 
+export function created<T>(res: Response, data: T, message = '创建成功') {
+  return res.status(201).json({ code: 0, message, data });
+}
+
 export function fail(res: Response, code: number, message: string) {
   return res.status(code >= 400 ? code : 400).json({ code, message });
 }

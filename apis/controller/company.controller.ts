@@ -1,8 +1,47 @@
 import { Request, Response } from 'express';
 import { CompanyServiceImpl } from '../service/impl/company.service.impl';
-import { success, fail } from '../utils';
+import { success, fail, created } from '../utils';
+import { CreateCompanyRequest, UpdateCompanyRequest } from '../entity';
 
 const companyService = new CompanyServiceImpl();
+
+/** 常量消息 */
+const MSG_INVALID_ID = '无效的公司ID';
+const MSG_REQUIRED_FIELDS = '公司名短名、公司名全名、接口人、接口人电话不能为空';
+const MSG_OPERATOR_REQUIRED = '运营者不能为空';
+const MSG_NOT_FOUND = '公司不存在';
+const MSG_LIST_FAIL = '获取公司列表失败';
+const MSG_DETAIL_FAIL = '获取公司详情失败';
+const MSG_CREATE_FAIL = '创建公司失败';
+const MSG_UPDATE_FAIL = '更新公司失败';
+const MSG_TOGGLE_FAIL = '操作失败';
+
+function validateCompanyBody(body: Record<string, unknown>): string | null {
+  const { short_name, full_name, contact_person, contact_phone, operator_ids } = body;
+  if (!short_name || !full_name || !contact_person || !contact_phone) {
+    return MSG_REQUIRED_FIELDS;
+  }
+  if (!Array.isArray(operator_ids) || operator_ids.length === 0) {
+    return MSG_OPERATOR_REQUIRED;
+  }
+  return null;
+}
+
+function buildCompanyRequest(body: Record<string, unknown>): CreateCompanyRequest {
+  return {
+    short_name: body.short_name as string,
+    full_name: body.full_name as string,
+    address: body.address as string | undefined,
+    contact_person: body.contact_person as string,
+    contact_phone: body.contact_phone as string,
+    operator_ids: body.operator_ids as number[],
+    viewer_ids: body.viewer_ids as number[] | undefined,
+  };
+}
+
+function isNotFoundError(err: unknown): boolean {
+  return err instanceof Error && err.message === MSG_NOT_FOUND;
+}
 
 /**
  * @swagger
@@ -20,8 +59,8 @@ export async function listCompanies(_req: Request, res: Response): Promise<void>
   try {
     const companies = await companyService.list();
     success(res, companies, '获取公司列表成功');
-  } catch (err: any) {
-    fail(res, 500, err.message || '获取公司列表失败');
+  } catch (err: unknown) {
+    fail(res, 500, MSG_LIST_FAIL);
   }
 }
 
@@ -49,16 +88,16 @@ export async function getCompany(req: Request, res: Response): Promise<void> {
   try {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) {
-      fail(res, 400, '无效的公司ID');
+      fail(res, 400, MSG_INVALID_ID);
       return;
     }
     const company = await companyService.getById(id);
     success(res, company, '获取公司详情成功');
-  } catch (err: any) {
-    if (err.message === '公司不存在') {
-      fail(res, 404, err.message);
+  } catch (err: unknown) {
+    if (isNotFoundError(err)) {
+      fail(res, 404, MSG_NOT_FOUND);
     } else {
-      fail(res, 500, err.message || '获取公司详情失败');
+      fail(res, 500, MSG_DETAIL_FAIL);
     }
   }
 }
@@ -110,22 +149,17 @@ export async function getCompany(req: Request, res: Response): Promise<void> {
  */
 export async function createCompany(req: Request, res: Response): Promise<void> {
   try {
-    const { short_name, full_name, contact_person, contact_phone, operator_ids } = req.body;
-
-    if (!short_name || !full_name || !contact_person || !contact_phone) {
-      fail(res, 400, '公司名短名、公司名全名、接口人、接口人电话不能为空');
+    const validationError = validateCompanyBody(req.body);
+    if (validationError) {
+      fail(res, 400, validationError);
       return;
     }
 
-    if (!Array.isArray(operator_ids) || operator_ids.length === 0) {
-      fail(res, 400, '运营者不能为空');
-      return;
-    }
-
-    const company = await companyService.create(req.body);
-    res.status(201).json({ code: 0, message: '创建公司成功', data: company });
-  } catch (err: any) {
-    fail(res, 500, err.message || '创建公司失败');
+    const createRequest: CreateCompanyRequest = buildCompanyRequest(req.body);
+    const company = await companyService.create(createRequest);
+    created(res, company, '创建公司成功');
+  } catch (err: unknown) {
+    fail(res, 500, MSG_CREATE_FAIL);
   }
 }
 
@@ -184,38 +218,66 @@ export async function updateCompany(req: Request, res: Response): Promise<void> 
   try {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) {
-      fail(res, 400, '无效的公司ID');
+      fail(res, 400, MSG_INVALID_ID);
       return;
     }
 
-    const { short_name, full_name, contact_person, contact_phone, operator_ids } = req.body;
-
-    if (!short_name || !full_name || !contact_person || !contact_phone) {
-      fail(res, 400, '公司名短名、公司名全名、接口人、接口人电话不能为空');
+    const validationError = validateCompanyBody(req.body);
+    if (validationError) {
+      fail(res, 400, validationError);
       return;
     }
 
-    if (!Array.isArray(operator_ids) || operator_ids.length === 0) {
-      fail(res, 400, '运营者不能为空');
-      return;
-    }
-
-    const company = await companyService.update(id, req.body);
+    const updateRequest: UpdateCompanyRequest = buildCompanyRequest(req.body);
+    const company = await companyService.update(id, updateRequest);
     success(res, company, '更新公司成功');
-  } catch (err: any) {
-    if (err.message === '公司不存在') {
-      fail(res, 404, err.message);
+  } catch (err: unknown) {
+    if (isNotFoundError(err)) {
+      fail(res, 404, MSG_NOT_FOUND);
     } else {
-      fail(res, 500, err.message || '更新公司失败');
+      fail(res, 500, MSG_UPDATE_FAIL);
     }
   }
 }
 
+/**
+ * @swagger
+ * /api/companies/{id}/status:
+ *   put:
+ *     summary: Toggle company status (enable/disable)
+ *     tags: [Company]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Company status updated
+ *       400:
+ *         description: Invalid parameters
+ *       404:
+ *         description: Company not found
+ */
 export async function toggleCompanyStatus(req: Request, res: Response): Promise<void> {
   try {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) {
-      fail(res, 400, '无效的公司ID');
+      fail(res, 400, MSG_INVALID_ID);
       return;
     }
 
@@ -227,11 +289,11 @@ export async function toggleCompanyStatus(req: Request, res: Response): Promise<
 
     const company = await companyService.toggleStatus(id, status);
     success(res, company, status ? '公司已启用' : '公司已禁用');
-  } catch (err: any) {
-    if (err.message === '公司不存在') {
-      fail(res, 404, err.message);
+  } catch (err: unknown) {
+    if (isNotFoundError(err)) {
+      fail(res, 404, MSG_NOT_FOUND);
     } else {
-      fail(res, 500, err.message || '操作失败');
+      fail(res, 500, MSG_TOGGLE_FAIL);
     }
   }
 }

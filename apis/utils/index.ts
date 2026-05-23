@@ -1,2 +1,2 @@
 export { getPrisma, closePrisma } from './db.util';
-export { success, fail, paginate } from './response.util';
+export { success, fail, paginate, created } from './response.util';

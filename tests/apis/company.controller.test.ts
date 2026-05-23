@@ -110,7 +110,7 @@ describe('Company Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('数据库连接失败');
+      expect(response.body.message).toBe('获取公司列表失败');
     });
 
     it('should return 500 with default message when error has no message', async () => {
@@ -303,7 +303,7 @@ describe('Company Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('未知错误');
+      expect(response.body.message).toBe('获取公司详情失败');
     });
 
     it('should return 500 with default message for error without message', async () => {
@@ -321,15 +321,17 @@ describe('Company Controller', () => {
       expect(response.body.message).toBe('获取公司详情失败');
     });
 
-    it('should return 400 for negative ID', async () => {
-      const response = await agent
-        .get('/api/companies/-1')
-        .set('Authorization', `Bearer ${sysadminToken()}`);
-      // parseInt('-1') = -1, not NaN, so it goes to service
-      // service will throw '公司不存在' since findUnique returns null
+    it('should return 404 for negative ID', async () => {
       mockPrisma({
         company: { findUnique: jest.fn().mockResolvedValue(null) },
       });
+
+      const response = await agent
+        .get('/api/companies/-1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(404);
+      expect(response.body.message).toBe('公司不存在');
     });
 
     it('should return 400 for ID = 0', async () => {
@@ -635,7 +637,7 @@ describe('Company Controller', () => {
         });
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('创建失败');
+      expect(response.body.message).toBe('创建公司失败');
     });
 
     it('should return 500 with default message for error without message', async () => {
@@ -1033,7 +1035,7 @@ describe('Company Controller', () => {
         });
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('数据库异常');
+      expect(response.body.message).toBe('更新公司失败');
     });
 
     it('should return 500 with default message for error without message', async () => {
@@ -1314,7 +1316,7 @@ describe('Company Controller', () => {
         .send({ status: true });
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('数据库错误');
+      expect(response.body.message).toBe('操作失败');
     });
 
     it('should return 500 with default message for error without message', async () => {
