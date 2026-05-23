@@ -425,6 +425,7 @@ describe('uploadDocumentMiddleware - Unit', () => {
           },
         });
         mockMulter.diskStorage = jest.fn().mockReturnValue({});
+        mockMulter.MulterError = class MulterError extends Error { code = ''; };
         return mockMulter;
       });
 
@@ -439,7 +440,7 @@ describe('uploadDocumentMiddleware - Unit', () => {
       mockedMiddleware({} as Request, res, next);
 
       expect(status).toHaveBeenCalledWith(500);
-      expect(json).toHaveBeenCalledWith({ code: 500, message: 'Internal multer error' });
+      expect(json).toHaveBeenCalledWith({ code: 500, message: '上传失败' });
       expect(next).not.toHaveBeenCalled();
     });
   });
@@ -455,6 +456,7 @@ describe('uploadDocumentMiddleware - Unit', () => {
           },
         });
         mockMulter.diskStorage = jest.fn().mockReturnValue({});
+        mockMulter.MulterError = class MulterError extends Error { code = ''; };
         return mockMulter;
       });
 
@@ -573,7 +575,7 @@ describe('uploadDocumentFile - Unit', () => {
     await uploadDocumentFile(req, res);
 
     expect(status).toHaveBeenCalledWith(500);
-    expect(json).toHaveBeenCalledWith({ code: 500, message: 'read error' });
+    expect(json).toHaveBeenCalledWith({ code: 500, message: '上传失败' });
 
     // File should be cleaned up on error
     expect(fs.existsSync(tempPath)).toBe(false);

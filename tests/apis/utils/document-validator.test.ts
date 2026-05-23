@@ -421,12 +421,12 @@ describe('apis/utils/document-validator.ts', () => {
         expect(result.detectedType).toBe('md');
       });
 
-      it('should validate plain text as markdown (non-empty)', async () => {
+      it('should reject plain text without markdown patterns', async () => {
         const result = await DocumentValidator.validateContent(
           Buffer.from('Just some plain text'), 'md'
         );
-        expect(result.valid).toBe(true);
-        expect(result.detectedType).toBe('md');
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('Markdown');
       });
 
       it('should reject empty markdown', async () => {
@@ -434,7 +434,7 @@ describe('apis/utils/document-validator.ts', () => {
           Buffer.from(''), 'md'
         );
         expect(result.valid).toBe(false);
-        expect(result.error).toContain('空');
+        expect(result.error).toContain('Markdown');
       });
     });
 

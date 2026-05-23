@@ -116,7 +116,12 @@ export class DocumentValidator {
     if (buffer.length >= 4 && buffer[0] === 0x50 && buffer[1] === 0x4B && buffer[2] === 0x03 && buffer[3] === 0x04) {
       try {
         const zip = new AdmZip(buffer);
-        const entries = zip.getEntries().map(e => e.entryName);
+        const zipEntries = zip.getEntries();
+        // ZIP 炸弹防护：限制条目数量和解压后总大小
+        if (zipEntries.length > 1000) return null;
+        const totalUncompressed = zipEntries.reduce((sum, e) => sum + (e.header?.size || 0), 0);
+        if (totalUncompressed > 100 * 1024 * 1024) return null;
+        const entries = zipEntries.map(e => e.entryName);
         if (entries.some(e => e.startsWith('word/'))) return 'docx';
         if (entries.some(e => e.startsWith('xl/'))) return 'xlsx';
         if (entries.some(e => e.startsWith('ppt/'))) return 'pptx';
@@ -149,7 +154,7 @@ export class DocumentValidator {
       case 'yaml':
       case 'yml': {
         try {
-          const result = yaml.load(text);
+          const result = yaml.load(text, { schema: yaml.JSON_SCHEMA });
           if (result === null || result === undefined) {
             return { valid: false, detectedType: null, error: 'YAML 内容为空' };
           }
@@ -161,7 +166,11 @@ export class DocumentValidator {
       }
       case 'xml': {
         try {
-          const parser = new XMLParser();
+          const parser = new XMLParser({
+            ignoreAttributes: false,
+            processEntities: false,
+            htmlEntities: false,
+          });
           const result = parser.parse(text);
           if (!result || typeof result !== 'object') {
             return { valid: false, detectedType: null, error: 'XML 格式无效' };
@@ -186,10 +195,10 @@ export class DocumentValidator {
       case 'md': {
         // Markdown: check for common patterns
         const hasMarkdownPatterns = /(^#{1,6}\s)|(\*\*.*?\*\*)|(\[.*?\]\(.*?\))|(^[-*+]\s)|(^>\s)|(```)/m.test(text);
-        if (hasMarkdownPatterns || text.length > 0) {
+        if (hasMarkdownPatterns) {
           return { valid: true, detectedType: 'md', error: null };
         }
-        return { valid: false, detectedType: null, error: 'Markdown 内容为空' };
+        return { valid: false, detectedType: null, error: '文件内容不包含有效的 Markdown 语法' };
       }
       default:
         return null;

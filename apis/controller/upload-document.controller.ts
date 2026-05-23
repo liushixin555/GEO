@@ -1,27 +1,26 @@
 import { Request, Response, NextFunction } from 'express';
-import multer from 'multer';
+import multer, { MulterError } from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { promises as fsp } from 'fs';
 import crypto from 'crypto';
 import { success, fail } from '../utils';
 import { DocumentValidator } from '../utils/document-validator';
 
 const UPLOAD_DIR = path.resolve(process.cwd(), 'uploads');
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-}
+// 直接创建，recursive 模式下已存在不报错（修复 TOCTOU 竞态）
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+const MAX_FILENAME_LENGTH = 255;
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    if (!fs.existsSync(UPLOAD_DIR)) {
-      fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-    }
     cb(null, UPLOAD_DIR);
   },
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
+    const ext = path.extname(file.originalname).toLowerCase();
     const name = crypto.randomUUID();
-    cb(null, `${name}${ext}`);
+    cb(null, ext ? `${name}${ext}` : name);
   },
 });
 
@@ -29,6 +28,17 @@ const upload = multer({
   storage,
   limits: { fileSize: DocumentValidator.MAX_FILE_SIZE },
   fileFilter: (_req, file, cb) => {
+    // 文件名长度限制
+    if (file.originalname.length > MAX_FILENAME_LENGTH) {
+      cb(new Error('文件名过长（最大 255 个字符）'));
+      return;
+    }
+    // 防御性校验：扩展名中不应包含路径分隔符
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ext.includes('/') || ext.includes('\\') || ext.includes('..')) {
+      cb(new Error('非法文件扩展名'));
+      return;
+    }
     if (!DocumentValidator.validateExtension(file.originalname)) {
       cb(new Error(`不支持的文档格式，仅支持: ${DocumentValidator.ALLOWED_EXTENSIONS.map(e => `.${e}`).join(', ')}`));
       return;
@@ -38,14 +48,22 @@ const upload = multer({
 });
 
 export function uploadDocumentMiddleware(req: Request, res: Response, next: NextFunction): void {
-  upload.single('file')(req, res, (err: any) => {
+  upload.single('file')(req, res, (err: unknown) => {
     if (err) {
-      if (err.code === 'LIMIT_FILE_SIZE') {
+      if (err instanceof MulterError && err.code === 'LIMIT_FILE_SIZE') {
         fail(res, 400, `文件大小超过限制（最大 ${DocumentValidator.MAX_FILE_SIZE / 1024 / 1024}MB）`);
         return;
       }
-      const status = err.message.includes('不支持的文档格式') ? 400 : 500;
-      fail(res, status, err.message || '上传失败');
+      if (err instanceof Error) {
+        if (err.message.includes('不支持的文档格式') ||
+            err.message.includes('文件名过长') ||
+            err.message.includes('非法文件扩展名')) {
+          fail(res, 400, err.message);
+          return;
+        }
+      }
+      // 不暴露内部错误消息
+      fail(res, 500, '上传失败');
       return;
     }
     next();
@@ -60,13 +78,13 @@ export async function uploadDocumentFile(req: Request, res: Response): Promise<v
     }
 
     const ext = DocumentValidator.getExtension(req.file.originalname);
-    const buffer = fs.readFileSync(req.file.path);
+    const buffer = await fsp.readFile(req.file.path);
 
     // Strict content validation
     const validation = await DocumentValidator.validateContent(buffer, ext);
     if (!validation.valid) {
       // Delete the uploaded file since validation failed
-      fs.unlinkSync(req.file.path);
+      try { await fsp.unlink(req.file.path); } catch {}
       fail(res, 400, validation.error || '文档内容格式校验失败');
       return;
     }
@@ -78,12 +96,11 @@ export async function uploadDocumentFile(req: Request, res: Response): Promise<v
       fileType: ext,
       fileSize: req.file.size,
     }, '上传成功');
-  } catch (err: unknown) {
+  } catch {
     // Clean up file on error
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
+    if (req.file) {
+      try { await fsp.unlink(req.file.path); } catch {}
     }
-    const msg = err instanceof Error ? err.message : '上传失败';
-    fail(res, 500, msg);
+    fail(res, 500, '上传失败');
   }
 }
