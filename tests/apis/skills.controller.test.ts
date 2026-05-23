@@ -56,10 +56,20 @@ function createSkillZip(skillName = 'test-skill', description = 'A test skill'):
   return zip.toBuffer();
 }
 
+/** 创建 flat zip（SKILL.md 在根目录，无子目录） */
+function createFlatSkillZip(skillName = 'flat-skill', description = 'A flat skill'): Buffer {
+  const zip = new AdmZip();
+  zip.addFile(
+    'SKILL.md',
+    Buffer.from(`---\nname: ${skillName}\ndescription: ${description}\n---\n# Skill Content`)
+  );
+  return zip.toBuffer();
+}
+
 describe('Skills Controller', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // 清理 skills 目录（不删 tmp/uploads，multer 需要它）
+    // 清理 skills 目录
     const skillsDir = path.resolve(process.cwd(), 'skills');
     if (fs.existsSync(skillsDir)) {
       fs.rmSync(skillsDir, { recursive: true, force: true });
@@ -78,6 +88,9 @@ describe('Skills Controller', () => {
     }
   });
 
+  // ============================================================
+  // GET /api/skills — listSkills
+  // ============================================================
   describe('GET /api/skills', () => {
     it('should return 401 without token', async () => {
       const response = await agent.get('/api/skills');
@@ -164,6 +177,25 @@ describe('Skills Controller', () => {
       );
     });
 
+    it('should use default pagination when no params provided', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ skills: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get('/api/skills')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip: 0,
+          take: 10,
+        })
+      );
+    });
+
     it('should return 500 on database error', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindMany = jest.fn().mockRejectedValue(new Error('DB error'));
@@ -176,9 +208,38 @@ describe('Skills Controller', () => {
 
       expect(response.status).toBe(500);
     });
+
+    it('should return 500 with default error message when err.message is empty', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockRejectedValue(new Error(''));
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ skills: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get('/api/skills')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取技能列表失败');
+    });
   });
 
+  // ============================================================
+  // GET /api/skills/:id — getSkills
+  // ============================================================
   describe('GET /api/skills/:id', () => {
+    it('should return 401 without token', async () => {
+      const response = await agent.get('/api/skills/1');
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 403 for view role', async () => {
+      const response = await agent
+        .get('/api/skills/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
     it('should return 400 for invalid id', async () => {
       const response = await agent
         .get('/api/skills/abc')
@@ -202,6 +263,21 @@ describe('Skills Controller', () => {
       expect(response.status).toBe(200);
       expect(response.body.code).toBe(0);
       expect(response.body.data.name).toBe('TypeScript');
+    });
+
+    it('should return skill detail for admin', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        id: 2, name: 'React', description: 'UI lib', skillDir: 'react', createdBy: 2, creator: { cnName: '运营' }, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .get('/api/skills/2')
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.name).toBe('React');
     });
 
     it('should return 404 for non-existent skill', async () => {
@@ -228,9 +304,44 @@ describe('Skills Controller', () => {
 
       expect(response.status).toBe(500);
     });
+
+    it('should return 500 with default message when error has no message', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockRejectedValue(new Error(''));
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .get('/api/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取技能详情失败');
+    });
   });
 
+  // ============================================================
+  // POST /api/skills — createSkills
+  // ============================================================
   describe('POST /api/skills', () => {
+    it('should return 401 without token', async () => {
+      const zipBuffer = createSkillZip();
+      const response = await agent
+        .post('/api/skills')
+        .attach('file', zipBuffer, 'skill.zip');
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 403 for view role', async () => {
+      const zipBuffer = createSkillZip();
+      const response = await agent
+        .post('/api/skills')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .attach('file', zipBuffer, 'skill.zip');
+
+      expect(response.status).toBe(403);
+    });
+
     it('should return 400 when no file uploaded', async () => {
       const response = await agent
         .post('/api/skills')
@@ -304,6 +415,57 @@ describe('Skills Controller', () => {
       );
     });
 
+    it('should create skill with SKILL.md having only name (no description)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      const mockCreate = jest.fn().mockResolvedValue({
+        id: 3, name: 'name-only-skill', description: '', skillDir: 'name-only-skill', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, create: mockCreate } });
+
+      // SKILL.md with name but no description field
+      const zip = new AdmZip();
+      zip.addFile(
+        'name-only-skill/SKILL.md',
+        Buffer.from('---\nname: name-only-skill\n---\n# Skill Content')
+      );
+
+      const response = await agent
+        .post('/api/skills')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .attach('file', zip.toBuffer(), 'skill.zip');
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.name).toBe('name-only-skill');
+    });
+
+    it('should create skill with flat zip (SKILL.md at root, no subdirectory)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      const mockCreate = jest.fn().mockResolvedValue({
+        id: 4, name: 'flat-skill', description: 'A flat skill', skillDir: 'flat-skill', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, create: mockCreate } });
+
+      const zipBuffer = createFlatSkillZip();
+
+      const response = await agent
+        .post('/api/skills')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .attach('file', zipBuffer, 'skill.zip');
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.name).toBe('flat-skill');
+      // topDir should be the skill name (from frontmatter) when SKILL.md is at root
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            skillDir: 'flat-skill',
+          }),
+        })
+      );
+    });
+
     it('should return 400 when skill directory already exists', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockResolvedValue(null);
@@ -337,7 +499,7 @@ describe('Skills Controller', () => {
       expect(response.body.message).toContain('zip');
     });
 
-    it('should return 400 when SKILL.md has no frontmatter', async () => {
+    it('should return 500 when SKILL.md has no frontmatter', async () => {
       const zip = new AdmZip();
       zip.addFile('skill/SKILL.md', Buffer.from('# No frontmatter here'));
 
@@ -350,7 +512,7 @@ describe('Skills Controller', () => {
       expect(response.body.message).toContain('frontmatter');
     });
 
-    it('should return 400 when SKILL.md has no name field', async () => {
+    it('should return 500 when SKILL.md has no name field', async () => {
       const zip = new AdmZip();
       zip.addFile('skill/SKILL.md', Buffer.from('---\ndescription: No name\n---\n'));
 
@@ -362,9 +524,107 @@ describe('Skills Controller', () => {
       expect(response.status).toBe(500);
       expect(response.body.message).toContain('name');
     });
+
+    it('should return 500 on database error during create (service throws)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      const mockCreate = jest.fn().mockRejectedValue(new Error('DB create error'));
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, create: mockCreate } });
+
+      const zipBuffer = createSkillZip('db-error-skill', 'DB error');
+
+      const response = await agent
+        .post('/api/skills')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .attach('file', zipBuffer, 'skill.zip');
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('DB create error');
+    });
+
+    it('should return 500 with default message when create error has no message', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      const mockCreate = jest.fn().mockRejectedValue(new Error(''));
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, create: mockCreate } });
+
+      const zipBuffer = createSkillZip('nomsg-skill', 'No message');
+
+      const response = await agent
+        .post('/api/skills')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .attach('file', zipBuffer, 'skill.zip');
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('创建技能失败');
+    });
+
+    it('should clean up temp file after successful create', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      const mockCreate = jest.fn().mockResolvedValue({
+        id: 5, name: 'cleanup-skill', description: 'Cleanup test', skillDir: 'cleanup-skill', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, create: mockCreate } });
+
+      const zipBuffer = createSkillZip('cleanup-skill', 'Cleanup test');
+
+      const tmpDir = path.resolve(process.cwd(), 'tmp', 'uploads');
+      const filesBefore = fs.readdirSync(tmpDir);
+
+      const response = await agent
+        .post('/api/skills')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .attach('file', zipBuffer, 'skill.zip');
+
+      expect(response.status).toBe(201);
+      const filesAfter = fs.readdirSync(tmpDir);
+      // Temp file should be cleaned up (filesAfter should not have new files)
+      expect(filesAfter.length).toBeLessThanOrEqual(filesBefore.length);
+    });
+
+    it('should clean up temp file after failed create', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockRejectedValue(new Error('DB error'));
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
+
+      const zipBuffer = createSkillZip('fail-skill', 'Will fail');
+
+      const tmpDir = path.resolve(process.cwd(), 'tmp', 'uploads');
+      const filesBefore = fs.readdirSync(tmpDir);
+
+      const response = await agent
+        .post('/api/skills')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .attach('file', zipBuffer, 'skill.zip');
+
+      expect(response.status).toBe(500);
+      const filesAfter = fs.readdirSync(tmpDir);
+      expect(filesAfter.length).toBeLessThanOrEqual(filesBefore.length);
+    });
   });
 
+  // ============================================================
+  // PUT /api/skills/:id — updateSkills
+  // ============================================================
   describe('PUT /api/skills/:id', () => {
+    it('should return 401 without token', async () => {
+      const response = await agent
+        .put('/api/skills/1')
+        .send({ name: 'Updated' });
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 403 for view role', async () => {
+      const response = await agent
+        .put('/api/skills/1')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ name: 'Updated' });
+
+      expect(response.status).toBe(403);
+    });
+
     it('should return 400 for invalid id', async () => {
       const response = await agent
         .put('/api/skills/abc')
@@ -449,7 +709,7 @@ describe('Skills Controller', () => {
       expect(response.body.message).toBe('技能不存在');
     });
 
-    it('should return 500 on database error during update', async () => {
+    it('should return 500 on database error during getById', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockRejectedValue(new Error('DB error'));
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
@@ -461,9 +721,56 @@ describe('Skills Controller', () => {
 
       expect(response.status).toBe(500);
     });
+
+    it('should return 500 on database error during update', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, name: 'React', description: 'UI', skillDir: 'react', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockRejectedValue(new Error('Update DB error'));
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const response = await agent
+        .put('/api/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: 'Vue' });
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('Update DB error');
+    });
+
+    it('should return 500 with default message when update error has no message', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, name: 'React', description: 'UI', skillDir: 'react', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockRejectedValue(new Error(''));
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const response = await agent
+        .put('/api/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: 'Vue' });
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('更新技能失败');
+    });
   });
 
+  // ============================================================
+  // DELETE /api/skills/:id — deleteSkills
+  // ============================================================
   describe('DELETE /api/skills/:id', () => {
+    it('should return 401 without token', async () => {
+      const response = await agent.delete('/api/skills/1');
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 403 for view role', async () => {
+      const response = await agent
+        .delete('/api/skills/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
     it('should return 400 for invalid id', async () => {
       const response = await agent
         .delete('/api/skills/abc')
@@ -586,7 +893,46 @@ describe('Skills Controller', () => {
       expect(fs.existsSync(fullDir)).toBe(false);
     });
 
-    it('should return 500 on database error', async () => {
+    it('should handle delete when skill_dir does not exist on filesystem', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = {
+        id: 1, name: 'Ghost', description: 'No dir', skillDir: 'nonexistent-dir', createdBy: 1,
+        creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date(),
+      };
+      const mockFindFirst = jest.fn()
+        .mockResolvedValueOnce(existing)
+        .mockResolvedValueOnce(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const response = await agent
+        .delete('/api/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.message).toContain('删除技能成功');
+    });
+
+    it('should handle delete when skill_dir is null', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = {
+        id: 1, name: 'NoDir', description: 'No dir set', skillDir: null, createdBy: 1,
+        creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date(),
+      };
+      const mockFindFirst = jest.fn()
+        .mockResolvedValueOnce(existing)
+        .mockResolvedValueOnce(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const response = await agent
+        .delete('/api/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should return 500 on database error during getById', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockRejectedValue(new Error('DB error'));
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
@@ -596,6 +942,46 @@ describe('Skills Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
+    });
+
+    it('should return 500 on database error during delete', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = {
+        id: 1, name: 'React', description: 'UI', skillDir: null, createdBy: 1,
+        creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date(),
+      };
+      const mockFindFirst = jest.fn()
+        .mockResolvedValueOnce(existing)
+        .mockResolvedValueOnce(existing);
+      const mockUpdate = jest.fn().mockRejectedValue(new Error('Delete DB error'));
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const response = await agent
+        .delete('/api/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('Delete DB error');
+    });
+
+    it('should return 500 with default message when delete error has no message', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = {
+        id: 1, name: 'React', description: 'UI', skillDir: null, createdBy: 1,
+        creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date(),
+      };
+      const mockFindFirst = jest.fn()
+        .mockResolvedValueOnce(existing)
+        .mockResolvedValueOnce(existing);
+      const mockUpdate = jest.fn().mockRejectedValue(new Error(''));
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const response = await agent
+        .delete('/api/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('删除技能失败');
     });
   });
 });
