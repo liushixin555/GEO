@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Row, Col, Card, Input, Select, Switch, Typography, Spin, Pagination, Breadcrumb } from 'antd';
+import { Row, Col, Card, Input, Select, Switch, Spin, Pagination, Breadcrumb, Button, Descriptions, Table, Tag } from 'antd';
 import { EditOutlined, PlusOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import axios from 'axios';
 import SkillsForm from './SkillsForm';
 
@@ -66,6 +67,48 @@ const SkillPage: React.FC = () => {
     }
   };
 
+  const tableColumns: ColumnsType<SkillsItem> = [
+    {
+      title: '技能名称',
+      dataIndex: 'name',
+      key: 'name',
+      ellipsis: { showTitle: true },
+    },
+    {
+      title: '类别',
+      dataIndex: 'category',
+      key: 'category',
+      width: 120,
+    },
+    {
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: { showTitle: true },
+      render: (text: string | null) => text || '-',
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (status: boolean) => (
+        <Tag color={status ? 'success' : 'default'}>{status ? '启用' : '禁用'}</Tag>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 140,
+      render: (_: unknown, record: SkillsItem) => (
+        <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => { setEditItem(record); setShowForm(true); }}>编辑</Button>
+          <Switch size="small" checked={record.status} onChange={() => handleToggleStatus(record)} />
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div className="page-container">
       <div className="page-breadcrumb"><Breadcrumb items={[{ title: '技能管理' }]} /></div>
@@ -102,29 +145,43 @@ const SkillPage: React.FC = () => {
       </Row>
 
       <Spin spinning={loading}>
-        <Row gutter={[16, 16]}>
-          {data.map((item) => (
-            <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
-              <Card hoverable styles={{ body: { padding: 24 } }} style={{ height: '100%' }}>
-                <div className="item-card-header">
-                  <Typography.Title level={3} className="item-card-title">{item.name}</Typography.Title>
-                  <EditOutlined className="item-card-edit" onClick={() => { setEditItem(item); setShowForm(true); }} />
-                </div>
-                <div className="item-card-row">
-                  <span className="item-card-username">{item.category}</span>
-                  {item.description && <span className="item-card-username">{item.description}</span>}
-                  <Switch size="small" checked={item.status} onChange={() => handleToggleStatus(item)} checkedChildren="启用" unCheckedChildren="禁用" />
-                </div>
-              </Card>
-            </Col>
-          ))}
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <Card hoverable onClick={() => { setEditItem(null); setShowForm(true); }} className="company-add-card">
-              <PlusOutlined className="company-add-icon" />
-              <Typography.Text className="company-add-text">添加技能</Typography.Text>
+        {/* 卡片视图：<1280px */}
+        <div className="skills-cards">
+          {data.length === 0 && (
+            <Card>
+              <div className="skills-cards-empty">暂无数据</div>
             </Card>
-          </Col>
-        </Row>
+          )}
+          {data.map((item) => (
+            <Card
+              key={item.id}
+              size="small"
+              title={item.name}
+              extra={<Tag color={item.status ? 'success' : 'default'}>{item.status ? '启用' : '禁用'}</Tag>}
+            >
+              <Descriptions column={2} size="small" colon={false}>
+                <Descriptions.Item label="类别">{item.category}</Descriptions.Item>
+                <Descriptions.Item label="描述">{item.description || '-'}</Descriptions.Item>
+              </Descriptions>
+              <div className="skills-card-footer">
+                <Switch size="small" checked={item.status} onChange={() => handleToggleStatus(item)} checkedChildren="启用" unCheckedChildren="禁用" />
+                <Button type="link" size="small" icon={<EditOutlined />} onClick={() => { setEditItem(item); setShowForm(true); }}>编辑</Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        {/* 表格视图：>=1280px */}
+        <div className="skills-table-wrapper">
+          <Table
+            columns={tableColumns}
+            dataSource={data}
+            rowKey="id"
+            size="middle"
+            pagination={false}
+            locale={{ emptyText: '暂无数据' }}
+          />
+        </div>
       </Spin>
 
       {total > pageSize && (
@@ -147,6 +204,15 @@ const SkillPage: React.FC = () => {
           onSaved={fetchData}
         />
       )}
+
+      <Button
+        type="primary"
+        icon={<PlusOutlined />}
+        onClick={() => { setEditItem(null); setShowForm(true); }}
+        style={{ position: 'fixed', bottom: 24, right: 24 }}
+      >
+        添加技能
+      </Button>
     </div>
   );
 };
