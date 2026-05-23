@@ -380,5 +380,132 @@ describe('SystemConfigServiceImpl', () => {
       expect(result).toHaveLength(1);
       expect(result[0].config_value).toBe('唯一值');
     });
+
+    it('应处理包含特殊字符的配置值', async () => {
+      const specialValue = '<script>alert("xss")</script>&"\'\\n\\t';
+      const prismaResult = makePrismaSystemConfig({ configKey: 'footer_html', configValue: specialValue });
+      const mockUpsert = jest.fn().mockResolvedValue(prismaResult);
+      const mockTransaction = jest.fn().mockImplementation((ops: any[]) =>
+        Promise.all(ops.map((op: any) => op))
+      );
+
+      mockedGetPrisma.mockReturnValue({
+        systemConfig: { upsert: mockUpsert },
+        $transaction: mockTransaction,
+      } as any);
+
+      const result = await service.batchUpdate({
+        configs: [{ config_key: 'footer_html', config_value: specialValue }],
+      });
+
+      expect(mockUpsert).toHaveBeenCalledWith({
+        where: { configKey: 'footer_html' },
+        update: { configValue: specialValue },
+        create: { configKey: 'footer_html', configValue: specialValue },
+      });
+      expect(result[0].config_value).toBe(specialValue);
+    });
+
+    it('应处理批量更新中部分 upsert 失败', async () => {
+      const mockUpsert = jest.fn()
+        .mockResolvedValueOnce(makePrismaSystemConfig({ configKey: 'key1', configValue: 'val1' }))
+        .mockRejectedValueOnce(new Error('Partial failure'));
+      const mockTransaction = jest.fn().mockImplementation((ops: any[]) =>
+        Promise.allSettled(ops.map((op: any) => op))
+      );
+
+      mockedGetPrisma.mockReturnValue({
+        systemConfig: { upsert: mockUpsert },
+        $transaction: mockTransaction,
+      } as any);
+
+      const results = await service.batchUpdate({
+        configs: [
+          { config_key: 'key1', config_value: 'val1' },
+          { config_key: 'key2', config_value: 'val2' },
+        ],
+      });
+
+      expect(mockUpsert).toHaveBeenCalledTimes(2);
+      expect(results).toHaveLength(2);
+    });
+
+    it('应处理大量配置批量更新', async () => {
+      const configs = Array.from({ length: 50 }, (_, i) => ({
+        config_key: `key_${i}`,
+        config_value: `value_${i}`,
+      }));
+      const mockUpsert = jest.fn().mockImplementation((args: any) =>
+        Promise.resolve(makePrismaSystemConfig({
+          configKey: args.where.configKey,
+          configValue: args.update.configValue,
+        }))
+      );
+      const mockTransaction = jest.fn().mockImplementation((ops: any[]) =>
+        Promise.all(ops.map((op: any) => op))
+      );
+
+      mockedGetPrisma.mockReturnValue({
+        systemConfig: { upsert: mockUpsert },
+        $transaction: mockTransaction,
+      } as any);
+
+      const result = await service.batchUpdate({ configs });
+
+      expect(result).toHaveLength(50);
+      expect(mockUpsert).toHaveBeenCalledTimes(50);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  getAll() - 边界场景
+  // ──────────────────────────────────────
+  describe('getAll - 边界场景', () => {
+    it('应处理包含特殊字符的配置值', async () => {
+      const specialValue = '{"nested":"value","emoji":"🎉"}';
+      const prismaItem = makePrismaSystemConfig({
+        configKey: 'json_config',
+        configValue: specialValue,
+      });
+      const mockFindMany = jest.fn().mockResolvedValue([prismaItem]);
+
+      mockedGetPrisma.mockReturnValue({
+        systemConfig: { findMany: mockFindMany },
+      } as any);
+
+      const result = await service.getAll();
+
+      expect(result[0].config_value).toBe(specialValue);
+    });
+
+    it('应处理大量配置项返回', async () => {
+      const prismaItems = Array.from({ length: 100 }, (_, i) =>
+        makePrismaSystemConfig({ id: i + 1, configKey: `key_${i}`, configValue: `val_${i}` })
+      );
+      const mockFindMany = jest.fn().mockResolvedValue(prismaItems);
+
+      mockedGetPrisma.mockReturnValue({
+        systemConfig: { findMany: mockFindMany },
+      } as any);
+
+      const result = await service.getAll();
+
+      expect(result).toHaveLength(100);
+      expect(result[0].config_key).toBe('key_0');
+      expect(result[99].config_key).toBe('key_99');
+    });
+
+    it('应处理配置值为空字符串的情况', async () => {
+      const prismaItem = makePrismaSystemConfig({ configKey: 'empty_val', configValue: '' });
+      const mockFindMany = jest.fn().mockResolvedValue([prismaItem]);
+
+      mockedGetPrisma.mockReturnValue({
+        systemConfig: { findMany: mockFindMany },
+      } as any);
+
+      const result = await service.getAll();
+
+      expect(result[0].config_value).toBe('');
+    });
   });
 });
