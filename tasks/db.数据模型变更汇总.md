@@ -671,7 +671,112 @@ model KnowledgeDocument {
 
 ---
 
-## db013. 全局软删除 — 所有模型添加 deletedAt 字段
+## db019. Todo + TodoLog 模型 + 枚举
+
+### 变更原因
+今日待办功能，支持手工创建和系统自动生成待办事项，提供按优先级、状态、责任人的多维度筛选。
+
+### 新增枚举
+```prisma
+enum TodoSource {
+  manual
+  content_iteration
+  smart_link
+  daily_check
+  risk_warning
+}
+
+enum TodoPriority {
+  P0
+  P1
+  P2
+  P3
+  P4
+}
+
+enum TodoStatus {
+  open
+  closed
+  draft
+}
+
+enum TodoLogAction {
+  submit
+  close
+  reopen
+  transfer
+  reject
+}
+```
+
+### Todo 表
+```prisma
+model Todo {
+  id          Int          @id @default(autoincrement())
+  title       String       @db.VarChar(500)
+  companyId   Int          @map("company_id")
+  projectId   Int?         @map("project_id")
+  objectType  String       @map("object_type") @db.VarChar(100)
+  objectId    Int?         @map("object_id")
+  action      String       @db.VarChar(500)
+  source      TodoSource   @default(manual)
+  priority    TodoPriority @default(P2)
+  assigneeId  Int          @map("assignee_id")
+  status      TodoStatus   @default(open)
+  createdById Int          @map("created_by_id")
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt   DateTime?    @map("deleted_at") @db.Timestamptz()
+
+  company     Company      @relation(...)
+  project     Project?     @relation(...)
+  assignee    User         @relation("TodoAssignee", ...)
+  createdBy   User         @relation("TodoCreator", ...)
+  logs        TodoLog[]
+
+  @@index([companyId, assigneeId, status, priority, source])
+  @@map("todos")
+}
+```
+
+### TodoLog 表
+```prisma
+model TodoLog {
+  id          Int            @id @default(autoincrement())
+  todoId      Int            @map("todo_id")
+  operatorId  Int            @map("operator_id")
+  action      TodoLogAction
+  objectType  String?        @map("object_type") @db.VarChar(100)
+  objectId    Int?           @map("object_id")
+  remark      String?        @db.VarChar(500)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz()
+
+  todo        Todo           @relation(...)
+  operator    User           @relation("TodoLogOperator", ...)
+
+  @@index([todoId])
+  @@map("todo_logs")
+}
+```
+
+### 关联更新
+- `Company` 新增 `todos Todo[]`
+- `Project` 新增 `todos Todo[]`
+- `User` 新增 `assignedTodos Todo[] @relation("TodoAssignee")`
+- `User` 新增 `createdTodos Todo[] @relation("TodoCreator")`
+- `User` 新增 `todoLogOperations TodoLog[] @relation("TodoLogOperator")`
+
+### 状态流转
+```
+创建 → open（处理中）
+open → closed（关闭/完成）
+closed → open（重新打开）
+open → draft（驳回）
+draft → open（提交）
+```
+
+### 迁移
+通过 `npx prisma db push` 执行。 — 所有模型添加 deletedAt 字段
 
 ### 变更原因
 所有删除操作改为软删除，只标记 `deletedAt` 字段而非真正删除记录，前端通过后端过滤不显示已删除数据。

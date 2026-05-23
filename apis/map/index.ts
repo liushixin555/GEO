@@ -1,4 +1,4 @@
-import { Company, User, Skills, LlmModel, SystemConfig, Project, Article, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, KnowledgeBase, MinedKeyword } from '../entity';
+import { Company, User, Skills, LlmModel, SystemConfig, Project, Article, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, KnowledgeBase, MinedKeyword, Todo, TodoLog } from '../entity';
 
 export function mapCompany(prismaCompany: any): Company {
   return {
@@ -195,5 +195,42 @@ export function mapMinedKeyword(prismaItem: any): MinedKeyword {
     selected: prismaItem.selected,
     created_by: prismaItem.createdBy ?? null,
     created_at: prismaItem.createdAt,
+  };
+}
+
+export function mapTodo(prismaTodo: any): Todo {
+  return {
+    id: prismaTodo.id,
+    title: prismaTodo.title,
+    company_id: prismaTodo.companyId,
+    company_name: prismaTodo.company?.shortName || '',
+    project_id: prismaTodo.projectId ?? null,
+    project_name: prismaTodo.project?.shortName || null,
+    object_type: prismaTodo.objectType,
+    object_id: prismaTodo.objectId ?? null,
+    action: prismaTodo.action,
+    source: prismaTodo.source,
+    priority: prismaTodo.priority,
+    assignee_id: prismaTodo.assigneeId,
+    assignee_name: prismaTodo.assignee?.cnName || '',
+    status: prismaTodo.status,
+    created_by_id: prismaTodo.createdById,
+    created_by_name: prismaTodo.createdBy?.cnName || '',
+    created_at: prismaTodo.createdAt,
+    updated_at: prismaTodo.updatedAt,
+  };
+}
+
+export function mapTodoLog(prismaLog: any): TodoLog {
+  return {
+    id: prismaLog.id,
+    todo_id: prismaLog.todoId,
+    operator_id: prismaLog.operatorId,
+    operator_name: prismaLog.operator?.cnName || '',
+    action: prismaLog.action,
+    object_type: prismaLog.objectType ?? null,
+    object_id: prismaLog.objectId ?? null,
+    remark: prismaLog.remark ?? null,
+    created_at: prismaLog.createdAt,
   };
 }

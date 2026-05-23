@@ -13,6 +13,7 @@ import ArticlePage from '../article';
 import ArticleDetail from '../article/ArticleDetail';
 import KnowledgePage from '../knowledge';
 import PublishingSchedulePage from '../publish';
+import TodoPage from '../todo';
 import KnowledgeBaseDetail from '../knowledge/KnowledgeBaseDetail';
 import KeywordDetail from '../knowledge/KeywordDetail';
 import PortraitDetail from '../knowledge/PortraitDetail';
@@ -181,6 +182,7 @@ const Layout: React.FC = () => {
             <Route path="/knowledge/:baseId/document/:id" element={<DocumentDetail />} />
             <Route path="/article" element={<ArticlePage />} />
             <Route path="/article/:id" element={<ArticleDetail />} />
+            <Route path="/todo" element={<TodoPage />} />
             <Route path="/publish" element={<PublishingSchedulePage />} />
             <Route path="/tools" element={<PlaceholderPage title="常用工具" />} />
             <Route path="/project" element={<ProjectPage />} />

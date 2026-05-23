@@ -43,38 +43,64 @@ function viewToken() {
   );
 }
 
+function mockPrismaForGet(result: any) {
+  const { getPrisma } = require('../../apis/utils/db.util');
+  const mockFindMany = jest.fn().mockResolvedValue(result);
+  getPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } });
+  return mockFindMany;
+}
+
+function mockPrismaForGetError(error: any) {
+  const { getPrisma } = require('../../apis/utils/db.util');
+  const mockFindMany = jest.fn().mockRejectedValue(error);
+  getPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } });
+  return mockFindMany;
+}
+
+function mockPrismaForUpdate(result: any) {
+  const { getPrisma } = require('../../apis/utils/db.util');
+  const mockTransaction = jest.fn().mockResolvedValue(result);
+  getPrisma.mockReturnValue({ systemConfig: { upsert: jest.fn() }, $transaction: mockTransaction });
+  return mockTransaction;
+}
+
+function mockPrismaForUpdateError(error: any) {
+  const { getPrisma } = require('../../apis/utils/db.util');
+  const mockTransaction = jest.fn().mockRejectedValue(error);
+  getPrisma.mockReturnValue({ systemConfig: { upsert: jest.fn() }, $transaction: mockTransaction });
+  return mockTransaction;
+}
+
 describe('System Config Controller', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   describe('GET /api/system-configs', () => {
-    it('should return 401 without token', async () => {
+    it('应返回401当无token时', async () => {
       const response = await agent.get('/api/system-configs');
       expect(response.status).toBe(401);
     });
 
-    it('should return 403 for admin role', async () => {
+    it('应返回403当角色为admin时', async () => {
       const response = await agent
         .get('/api/system-configs')
         .set('Authorization', `Bearer ${adminToken()}`);
       expect(response.status).toBe(403);
     });
 
-    it('should return 403 for view role', async () => {
+    it('应返回403当角色为view时', async () => {
       const response = await agent
         .get('/api/system-configs')
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(response.status).toBe(403);
     });
 
-    it('should return configs list for sysadmin', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindMany = jest.fn().mockResolvedValue([
+    it('应返回配置列表当角色为sysadmin时', async () => {
+      mockPrismaForGet([
         { id: 1, configKey: 'yishangshu_username', configValue: 'test_user', createdAt: new Date(), updatedAt: new Date() },
         { id: 2, configKey: 'yishangshu_password', configValue: 'test_pass', createdAt: new Date(), updatedAt: new Date() },
       ]);
-      getPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } });
 
       const response = await agent
         .get('/api/system-configs')
@@ -86,10 +112,8 @@ describe('System Config Controller', () => {
       expect(response.body.data[0].config_key).toBe('yishangshu_username');
     });
 
-    it('should return empty list when no configs', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindMany = jest.fn().mockResolvedValue([]);
-      getPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } });
+    it('应返回空列表当无配置时', async () => {
+      mockPrismaForGet([]);
 
       const response = await agent
         .get('/api/system-configs')
@@ -99,21 +123,76 @@ describe('System Config Controller', () => {
       expect(response.body.data).toHaveLength(0);
     });
 
-    it('should return 500 on database error', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindMany = jest.fn().mockRejectedValue(new Error('DB error'));
-      getPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } });
+    it('应返回500当数据库错误时', async () => {
+      mockPrismaForGetError(new Error('DB error'));
 
       const response = await agent
         .get('/api/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
+      expect(response.body.message).toBe('DB error');
+    });
+
+    it('应返回兜底错误消息当异常无message时', async () => {
+      mockPrismaForGetError('string error');
+
+      const response = await agent
+        .get('/api/system-configs')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取系统配置失败');
+    });
+
+    it('应返回完整字段格式的配置数据', async () => {
+      const now = new Date();
+      mockPrismaForGet([
+        { id: 1, configKey: 'key1', configValue: 'val1', createdAt: now, updatedAt: now },
+      ]);
+
+      const response = await agent
+        .get('/api/system-configs')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      const item = response.body.data[0];
+      expect(item).toHaveProperty('id');
+      expect(item).toHaveProperty('config_key');
+      expect(item).toHaveProperty('config_value');
+      expect(item).toHaveProperty('created_at');
+      expect(item).toHaveProperty('updated_at');
     });
   });
 
   describe('PUT /api/system-configs', () => {
-    it('should return 400 when configs is empty array', async () => {
+    it('应返回401当无token时', async () => {
+      const response = await agent
+        .put('/api/system-configs')
+        .send({ configs: [{ config_key: 'k', config_value: 'v' }] });
+
+      expect(response.status).toBe(401);
+    });
+
+    it('应返回403当角色为admin时', async () => {
+      const response = await agent
+        .put('/api/system-configs')
+        .set('Authorization', `Bearer ${adminToken()}`)
+        .send({ configs: [{ config_key: 'k', config_value: 'v' }] });
+
+      expect(response.status).toBe(403);
+    });
+
+    it('应返回403当角色为view时', async () => {
+      const response = await agent
+        .put('/api/system-configs')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ configs: [{ config_key: 'k', config_value: 'v' }] });
+
+      expect(response.status).toBe(403);
+    });
+
+    it('应返回400当configs为空数组时', async () => {
       const response = await agent
         .put('/api/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
@@ -123,7 +202,7 @@ describe('System Config Controller', () => {
       expect(response.body.message).toContain('不能为空');
     });
 
-    it('should return 400 when configs is not an array', async () => {
+    it('应返回400当configs不是数组时', async () => {
       const response = await agent
         .put('/api/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
@@ -132,25 +211,7 @@ describe('System Config Controller', () => {
       expect(response.status).toBe(400);
     });
 
-    it('should return 400 when config_key is missing', async () => {
-      const response = await agent
-        .put('/api/system-configs')
-        .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ configs: [{ config_value: 'test' }] });
-
-      expect(response.status).toBe(400);
-    });
-
-    it('should return 400 when config_value is undefined', async () => {
-      const response = await agent
-        .put('/api/system-configs')
-        .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ configs: [{ config_key: 'test_key' }] });
-
-      expect(response.status).toBe(400);
-    });
-
-    it('should return 400 when configs field is missing', async () => {
+    it('应返回400当configs字段缺失时', async () => {
       const response = await agent
         .put('/api/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
@@ -159,12 +220,60 @@ describe('System Config Controller', () => {
       expect(response.status).toBe(400);
     });
 
-    it('should batch update configs successfully', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
+    it('应返回400当config_key缺失时', async () => {
+      const response = await agent
+        .put('/api/system-configs')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ configs: [{ config_value: 'test' }] });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('config_key');
+    });
+
+    it('应返回400当config_value为undefined时', async () => {
+      const response = await agent
+        .put('/api/system-configs')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ configs: [{ config_key: 'test_key' }] });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('config_value');
+    });
+
+    it('应返回400当多条配置中第二条缺少config_key时', async () => {
+      const response = await agent
+        .put('/api/system-configs')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          configs: [
+            { config_key: 'valid_key', config_value: 'valid_val' },
+            { config_value: 'missing_key_val' },
+          ],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('config_key');
+    });
+
+    it('应返回400当多条配置中第二条缺少config_value时', async () => {
+      const response = await agent
+        .put('/api/system-configs')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          configs: [
+            { config_key: 'valid_key', config_value: 'valid_val' },
+            { config_key: 'missing_val_key' },
+          ],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('config_value');
+    });
+
+    it('应成功批量更新配置', async () => {
       const result1 = { id: 1, configKey: 'yishangshu_username', configValue: 'new_user', createdAt: new Date(), updatedAt: new Date() };
       const result2 = { id: 2, configKey: 'yishangshu_password', configValue: 'new_pass', createdAt: new Date(), updatedAt: new Date() };
-      const mockTransaction = jest.fn().mockResolvedValue([result1, result2]);
-      getPrisma.mockReturnValue({ systemConfig: { upsert: jest.fn() }, $transaction: mockTransaction });
+      mockPrismaForUpdate([result1, result2]);
 
       const response = await agent
         .put('/api/system-configs')
@@ -182,11 +291,9 @@ describe('System Config Controller', () => {
       expect(response.body.data).toHaveLength(2);
     });
 
-    it('should update single config successfully', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
+    it('应成功更新单条配置', async () => {
       const result = { id: 1, configKey: 'single_key', configValue: 'single_value', createdAt: new Date(), updatedAt: new Date() };
-      const mockTransaction = jest.fn().mockResolvedValue([result]);
-      getPrisma.mockReturnValue({ systemConfig: { upsert: jest.fn() }, $transaction: mockTransaction });
+      mockPrismaForUpdate([result]);
 
       const response = await agent
         .put('/api/system-configs')
@@ -202,11 +309,9 @@ describe('System Config Controller', () => {
       expect(response.body.data[0].config_key).toBe('single_key');
     });
 
-    it('should allow config_value to be empty string', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
+    it('应允许config_value为空字符串', async () => {
       const result = { id: 1, configKey: 'test_key', configValue: '', createdAt: new Date(), updatedAt: new Date() };
-      const mockTransaction = jest.fn().mockResolvedValue([result]);
-      getPrisma.mockReturnValue({ systemConfig: { upsert: jest.fn() }, $transaction: mockTransaction });
+      mockPrismaForUpdate([result]);
 
       const response = await agent
         .put('/api/system-configs')
@@ -218,12 +323,81 @@ describe('System Config Controller', () => {
         });
 
       expect(response.status).toBe(200);
+      expect(response.body.data[0].config_value).toBe('');
     });
 
-    it('should return 500 on database error', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockTransaction = jest.fn().mockRejectedValue(new Error('DB error'));
-      getPrisma.mockReturnValue({ systemConfig: { upsert: jest.fn() }, $transaction: mockTransaction });
+    it('应允许config_value为null', async () => {
+      const result = { id: 1, configKey: 'test_key', configValue: null, createdAt: new Date(), updatedAt: new Date() };
+      mockPrismaForUpdate([result]);
+
+      const response = await agent
+        .put('/api/system-configs')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          configs: [
+            { config_key: 'test_key', config_value: null },
+          ],
+        });
+
+      expect(response.status).toBe(200);
+    });
+
+    it('应允许config_value为0', async () => {
+      const result = { id: 1, configKey: 'test_key', configValue: 0, createdAt: new Date(), updatedAt: new Date() };
+      mockPrismaForUpdate([result]);
+
+      const response = await agent
+        .put('/api/system-configs')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          configs: [
+            { config_key: 'test_key', config_value: 0 },
+          ],
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data[0].config_value).toBe(0);
+    });
+
+    it('应允许config_value为false', async () => {
+      const result = { id: 1, configKey: 'test_key', configValue: false, createdAt: new Date(), updatedAt: new Date() };
+      mockPrismaForUpdate([result]);
+
+      const response = await agent
+        .put('/api/system-configs')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          configs: [
+            { config_key: 'test_key', config_value: false },
+          ],
+        });
+
+      expect(response.status).toBe(200);
+    });
+
+    it('应返回更新后配置的完整字段格式', async () => {
+      const now = new Date();
+      const result = { id: 1, configKey: 'key1', configValue: 'val1', createdAt: now, updatedAt: now };
+      mockPrismaForUpdate([result]);
+
+      const response = await agent
+        .put('/api/system-configs')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          configs: [{ config_key: 'key1', config_value: 'val1' }],
+        });
+
+      expect(response.status).toBe(200);
+      const item = response.body.data[0];
+      expect(item).toHaveProperty('id');
+      expect(item).toHaveProperty('config_key');
+      expect(item).toHaveProperty('config_value');
+      expect(item).toHaveProperty('created_at');
+      expect(item).toHaveProperty('updated_at');
+    });
+
+    it('应返回500当数据库错误时', async () => {
+      mockPrismaForUpdateError(new Error('DB error'));
 
       const response = await agent
         .put('/api/system-configs')
@@ -235,6 +409,23 @@ describe('System Config Controller', () => {
         });
 
       expect(response.status).toBe(500);
+      expect(response.body.message).toBe('DB error');
+    });
+
+    it('应返回兜底错误消息当更新异常无message时', async () => {
+      mockPrismaForUpdateError('string error');
+
+      const response = await agent
+        .put('/api/system-configs')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          configs: [
+            { config_key: 'test_key', config_value: 'test_value' },
+          ],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('更新系统配置失败');
     });
   });
 });

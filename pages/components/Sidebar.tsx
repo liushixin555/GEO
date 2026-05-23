@@ -14,6 +14,7 @@ import {
   ProjectOutlined,
   SettingOutlined,
   ThunderboltOutlined,
+  CheckSquareOutlined,
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
 import CompanyProjectSwitcher from './CompanyProjectSwitcher';
@@ -35,6 +36,7 @@ interface MenuItemDef {
 }
 
 const menuItems: MenuItemDef[] = [
+  { label: '今日待办', path: '/todo', roles: ['sysadmin', 'admin'], icon: <CheckSquareOutlined /> },
   { label: 'AI知识库', path: '/knowledge', roles: ['sysadmin', 'admin'], icon: <BookOutlined /> },
   { label: '文章管理', path: '/article', roles: ['sysadmin', 'admin'], icon: <FileTextOutlined /> },
   { label: '发布管理', path: '/publish', roles: ['sysadmin', 'admin', 'view'], icon: <TrophyOutlined /> },

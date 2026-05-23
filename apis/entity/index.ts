@@ -8,3 +8,4 @@ export { Project, CreateProjectRequest, UpdateProjectRequest } from './project.e
 export { Article, ArticleVersion, CreateArticleRequest, UpdateArticleRequest, ReviewArticleRequest } from './article.entity';
 export { KnowledgeKeyword, KeywordExpandedWord, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, CreateKeywordRequest, UpdateKeywordRequest, CreatePortraitRequest, UpdatePortraitRequest, CreateImageRequest, UpdateImageRequest, CreateDocumentRequest, UpdateDocumentRequest, MinedKeyword } from './knowledge.entity';
 export { KnowledgeBase, CreateKnowledgeBaseRequest, UpdateKnowledgeBaseRequest } from './knowledge-base.entity';
+export { Todo, TodoLog, CreateTodoRequest, UpdateTodoRequest, TransferTodoRequest } from './todo.entity';

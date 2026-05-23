@@ -20,6 +20,7 @@ import * as knowledgeBaseController from './controller/knowledge-base.controller
 import * as publishingScheduleController from './controller/publishing-schedule.controller';
 import { uploadMiddleware, uploadFile } from './controller/upload.controller';
 import { uploadDocumentMiddleware, uploadDocumentFile } from './controller/upload-document.controller';
+import * as todoController from './controller/todo.controller';
 
 const app: Express = express();
 
@@ -160,6 +161,16 @@ app.delete('/api/knowledge-bases/:id', authMiddleware, roleMiddleware('sysadmin'
 app.get('/api/knowledge-inventory', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listInventory);
 
 // Knowledge Item routes (sysadmin + admin) - scoped to knowledge base
+app.get('/api/todos', authMiddleware, roleMiddleware('sysadmin', 'admin'), todoController.listTodos);
+app.get('/api/todos/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), todoController.getTodo);
+app.post('/api/todos', authMiddleware, roleMiddleware('sysadmin', 'admin'), todoController.createTodo);
+app.put('/api/todos/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), todoController.updateTodo);
+app.post('/api/todos/:id/close', authMiddleware, roleMiddleware('sysadmin', 'admin'), todoController.closeTodo);
+app.post('/api/todos/:id/reopen', authMiddleware, roleMiddleware('sysadmin', 'admin'), todoController.reopenTodo);
+app.post('/api/todos/:id/transfer', authMiddleware, roleMiddleware('sysadmin', 'admin'), todoController.transferTodo);
+app.post('/api/todos/:id/reject', authMiddleware, roleMiddleware('sysadmin', 'admin'), todoController.rejectTodo);
+app.get('/api/todos/:id/logs', authMiddleware, roleMiddleware('sysadmin', 'admin'), todoController.getTodoLogs);
+
 app.get('/api/knowledge-bases/:baseId/keywords', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listKeywords);
 app.get('/api/knowledge-bases/:baseId/keywords/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.getKeyword);
 app.post('/api/knowledge-bases/:baseId/keywords', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.createKeyword);
