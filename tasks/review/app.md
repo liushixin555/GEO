@@ -534,3 +534,196 @@ app.get('/api/health', (_req, res) => {
 `app.ts` 的安全架构具备基础骨架（JWT + RBAC + 限流 + 反爬），但存在**4 个高危漏洞**可构成完整攻击链。最紧迫的风险是 JWT 默认密钥（SEC-02）和 CORS 全开放（SEC-01），两者组合可让攻击者在获取源代码后完全控制系统。
 
 建议按 P0 → P1 → P2 顺序修复，P0 项应在部署到生产环境前全部完成。
+
+---
+
+## 8. Committer 审核意见
+
+**审核日期**: 2026-05-23
+**审核角色**: 代码 Committer 审核专家（代码合并审查 + 技术可行性验证）
+**审核对象**: 上述安全评审报告（第 1-7 章）
+
+### 8.1 评审报告质量评价
+
+| 评价维度 | 评分 | 说明 |
+|----------|------|------|
+| 漏洞识别准确性 | 8/10 | 12 个发现中 10 个准确，2 个存在过度解读 |
+| 代码定位精确度 | 9/10 | 行号引用准确，代码片段与源码一致 |
+| 修复方案可行性 | 7/10 | 部分修复方案需调整才能合入，缺少对现有功能的兼容分析 |
+| OWASP 映射正确性 | 9/10 | CWE 编号映射合理 |
+| 优先级划分 | 8/10 | P0/P1/P2 分级基本合理，个别项需调整 |
+
+### 8.2 逐项审核裁决
+
+#### SEC-01: CORS 策略完全开放 — ✅ 同意，需修复
+
+**验证**: 确认 `app.ts:31` 为 `app.use(cors())`，无参数。
+
+**审核意见**: 发现准确。修复方案基本可行，但需注意：
+- `config.corsOrigins` 当前配置文件 (`apis/config/index.ts`) 中**未定义此字段**，需先在 `AppConfig` 接口和 `config` 对象中添加 `corsOrigins` 配置项
+- `credentials: true` 与 `origin: '*'` 互斥（浏览器规范要求），修复方案中已使用回调函数，兼容性正确
+- 修复工作量评估 0.5h **偏低**，需增加配置定义 + .env 变量 + 类型声明，实际约 1h
+
+#### SEC-02: JWT Secret 硬编码默认值 — ✅ 同意，需立即修复
+
+**验证**: 确认 `apis/config/index.ts:52` 为 `process.env.JWT_SECRET || 'your-secret-key-change-in-production'`。
+
+**审核意见**: 发现准确，是最严重的安全漏洞。修复方案可行，但建议调整：
+- 使用 IIFE 在模块顶层抛异常会导致**开发环境启动失败**（本地开发常不设 .env）
+- 建议改为：开发环境用警告，生产环境（`NODE_ENV=production`）才抛异常
+- 推荐方案：
+
+```typescript
+secret: (() => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret && process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL: JWT_SECRET is required in production');
+  }
+  if (!secret) {
+    console.warn('WARNING: Using default JWT_SECRET. Set JWT_SECRET in production.');
+  }
+  return secret || 'dev-only-secret-key';
+})(),
+```
+
+#### SEC-03: 缺少请求体大小限制 — ⚠️ 部分同意
+
+**验证**: `app.ts:32` 确实为 `app.use(express.json())` 无 limit 参数。
+
+**审核意见**: 发现方向正确，但严重度评级偏高：
+- Express 4.x `express.json()` **默认限制为 100kb**（源码确认），并非"无限制"
+- 评审报告也承认了"默认限制为 100kb"，但仍然评为 HIGH，理由不充分
+- 100kb 对绝大多数 API JSON 请求已足够，实际 DoS 风险有限
+- **建议降级为 MEDIUM**，添加显式 `limit: '1mb'` 是好实践，但非紧急
+- 修复建议改为：`express.json({ limit: '10mb' })` — 考虑到知识库文档上传可能包含大型 JSON payload
+
+#### SEC-04: Helmet 安全头配置不足 — ⚠️ 部分同意
+
+**验证**: `app.ts:28-30` 确认仅配置了 `crossOriginResourcePolicy`。
+
+**审核意见**:
+- **Content-Security-Policy 缺失**: 评审报告评为 ❌ 不完全准确。CSP 是**前端 SPA 的防护**，后端 API 主要服务 JSON，不返回 HTML，CSP 对纯 API 服务器意义有限。前端由 Vite 构建的 SPA 应在 Nginx 或 CDN 层配置 CSP，而非 Express
+- **Helmet 默认安全头**: Helmet 默认已启用 `strictTransportSecurity`、`xContentTypeOptions`、`xFrameOptions`、`referrerPolicy` 等，评审报告标注"⚠️ 默认启用"但仍列为缺失，表述矛盾
+- 实际需要关注的是 `Permissions-Policy`，建议添加
+- **建议降级为 MEDIUM**，CSP 部分需要区分前后端场景
+
+#### SEC-05: 缺少全局错误处理 — ✅ 同意，需修复
+
+**验证**: `app.ts` 末尾确无错误处理中间件，直接 `export default app`。
+
+**审核意见**: 发现准确，是必须修复的项。补充几点：
+- 404 fallback 需放在所有路由之后、错误处理中间件之前，评审方案正确
+- 错误处理中间件需注意：生产环境不应返回 `err.message`，当前方案只返回固定消息，是正确的
+- 建议补充：区分已知业务错误（如 Prisma `PrismaClientKnownRequestError`）和未知错误，返回不同状态码
+- 修复工作量 1h 评估合理
+
+#### SEC-06: 静态文件服务无认证 — ✅ 同意，需修复
+
+**验证**: `app.ts:35-38` 在认证中间件之前注册，无认证。
+
+**审核意见**: 发现准确，但需分析实际影响：
+- 上传的文件（图片、文档）需要跨域访问（前端 SPA 在不同域名/端口），这是 `cross-origin` 策略的设计意图
+- 如果给 `/uploads` 加 `authMiddleware`，前端需要在所有 `<img src>` 请求中附加 Bearer token，浏览器原生 `<img>` 标签**不支持自定义 Authorization 头**
+- 评审的"方案1"（添加 authMiddleware）在实际场景中**不可行**
+- **推荐方案**: 使用签名 URL 或 Token-based 访问控制，或通过 Nginx 层实现 `X-Accel-Redirect` 内部重定向
+- **建议保持 HIGH 严重度，但修复方案需重新设计**
+
+#### SEC-07: 反爬虫 IP 获取不安全 — ✅ 同意
+
+**验证**: `anti-crawl.middleware.ts:11` 使用 `req.ip || req.socket.remoteAddress`，`app.ts` 无 `trust proxy` 设置。
+
+**审核意见**: 发现准确。补充：
+- `app.set('trust proxy', 1)` 位置需在 `antiCrawlMiddleware` 之前，即 `app.ts:25` 之后、`app.ts:41` 之前
+- 生产环境通常使用 Nginx 反向代理，此配置必需
+
+#### SEC-08: 反爬虫内存存储无容量限制 — ✅ 同意
+
+**审核意见**: 发现准确。修复方案中的 `setInterval` 清理机制可行，但需注意：
+- `setInterval` 在单测环境中可能造成干扰，需确保测试时可以清理
+- 容量上限 10,000 合理，但 Map 的插入顺序清理（`firstKey = map.keys().next().value`）在 V8 引擎中有效，可接受
+
+#### SEC-09: JWT Token 无刷新机制 — ⚠️ 部分同意
+
+**审核意见**: 发现方向正确，但作为 `app.ts` 的安全评审，此问题属于**架构设计层面**，非文件级代码缺陷：
+- 当前 2 小时过期 + 重新登录的方案在 B 端企业管理系统中是**可接受**的
+- Refresh Token 机制需要数据库存储、token 吊销等配套，工作量 4h 评估偏低，实际 8-12h
+- **建议降级为 LOW/信息性建议**，不阻塞合并
+
+#### SEC-10: 数据库默认凭据 — ✅ 同意
+
+**验证**: `apis/config/index.ts:48` 确认 `password: process.env.DB_PASSWORD || 'postgres'`。
+
+**审核意见**: 发现准确，与 SEC-02 同类问题。修复方案（仅生产环境强制验证）合理。
+
+#### SEC-11: Swagger 生产环境暴露 — ✅ 同意
+
+**验证**: `app.ts:66-69` 确认 Swagger 仅通过 `config.swagger.enabled` 控制，无认证。
+
+**审核意见**: 推荐方案1（`NODE_ENV !== 'production'` 双重检查），简单有效。
+
+#### SEC-12: 健康检查经过限流 — ✅ 同意
+
+**审核意见**: 发现准确，修复简单。将 health check 路由移到 `app.ts:34`（静态文件之前）即可。
+
+### 8.3 评审报告未覆盖的问题
+
+作为 Committer 审查，补充以下未被安全评审覆盖但应关注的问题：
+
+#### REV-01: 反爬虫中间件存在数据竞争
+
+**位置**: `anti-crawl.middleware.ts:29`
+**问题**: `record.count++` 直接修改 Map 中的对象属性，Node.js 单线程下安全，但代码风格违反项目不可变性原则
+
+#### REV-02: 中间件顺序导致所有路由（包括 login）经过反爬虫和限流
+
+**位置**: `app.ts:41-42`
+**问题**: `POST /api/auth/login` 位于第 72 行，在反爬虫和限流之后。这是**正确的安全设计**（防止登录接口被暴力破解），但应在代码中添加注释说明意图
+
+#### REV-03: CORS 与 Cross-Origin-Resource-Policy 策略矛盾
+
+**位置**: `app.ts:29` vs `app.ts:36`
+**问题**: Helmet 设置 `crossOriginResourcePolicy: 'cross-origin'` 允许跨域加载资源，CORS 也全开放。两层都设为开放，修复时应一并处理
+
+---
+
+## 9. 最终裁决
+
+### 9.1 裁决结果
+
+| 裁决项 | 结论 |
+|--------|------|
+| **合并状态** | ❌ **拒绝合并 — 需要 P0 修复后重新提交** |
+| **总体安全评级** | C（同意原评审评级） |
+| **评审报告质量** | 良好（8.2/10），个别严重度和修复方案需调整 |
+
+### 9.2 合并前必须修复（P0 硬性要求）
+
+| # | 编号 | 修复内容 | Comitter 审核要求 |
+|---|------|----------|-------------------|
+| 1 | SEC-02 | JWT Secret 生产环境强制验证 | 使用环境区分方案，非生产环境允许默认值 |
+| 2 | SEC-01 | CORS 白名单配置 | 在 config 中新增 `corsOrigins` 配置项 |
+| 3 | SEC-05 | 全局错误处理 + 404 fallback | 区分业务错误和未知错误 |
+| 4 | SEC-03 | 显式设置请求体大小限制 | `express.json({ limit: '10mb' })` |
+
+### 9.3 严重度调整
+
+| 编号 | 原评级 | 调整后 | 调整理由 |
+|------|--------|--------|----------|
+| SEC-03 | HIGH | MEDIUM | Express 默认 100kb 限制已存在，非"无限制" |
+| SEC-04 | HIGH | MEDIUM | CSP 对纯 API 服务器意义有限，Helmet 默认头已覆盖大部分 |
+| SEC-09 | MEDIUM | LOW/信息性 | B 端管理系统 2h 过期可接受，Refresh Token 属架构优化 |
+
+### 9.4 修复方案调整建议
+
+| 编号 | 调整内容 |
+|------|----------|
+| SEC-02 | 开发环境使用默认值 + 警告，仅生产环境抛异常 |
+| SEC-03 | limit 建议设为 `10mb`（非 `1mb`），考虑文档上传场景 |
+| SEC-06 | `authMiddleware` 方案不可行（`<img>` 不支持自定义头），需用签名 URL |
+| SEC-09 | 标记为后续架构优化，不阻塞当前合并 |
+
+### 9.5 Comitter 签署
+
+- **审核人**: Committer 审核专家
+- **审核结论**: 报告整体质量高，漏洞识别准确，但部分严重度评级偏高，修复方案需结合实际场景调整
+- **最终建议**: 完成 P0 四项修复后可合并，P1/P2 项列入下个迭代计划
