@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Row, Col, Card, Input, Select, Switch, Tag, Typography, Spin, Pagination, Breadcrumb, Button, Descriptions } from 'antd';
-import { EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Input, Select, Switch, Tag, Spin, Pagination, Breadcrumb, Button, Descriptions } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import UserForm from './UserForm';
 
@@ -117,6 +117,11 @@ const UserPage: React.FC = () => {
             ]}
           />
         </Col>
+        <Col xs={24} sm={6} md={4} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          {user.role === 'sysadmin' && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditItem(null); setShowForm(true); }}>添加用户</Button>
+          )}
+        </Col>
       </Row>
 
       <Spin spinning={loading}>
@@ -200,13 +205,6 @@ const UserPage: React.FC = () => {
           </table>
         </div>
 
-        {/* 添加用户卡片：仅卡片视图 */}
-        <div className="user-add-card-wrapper">
-          <Card hoverable onClick={() => { setEditItem(null); setShowForm(true); }} className="company-add-card">
-            <PlusOutlined className="company-add-icon" />
-            <Typography.Text className="company-add-text">添加用户</Typography.Text>
-          </Card>
-        </div>
       </Spin>
 
       {total > pageSize && (
