@@ -76,8 +76,12 @@ const ImageDetail: React.FC = () => {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
       });
       setImageUrl(res.data.data.url);
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '上传失败');
+      // 自动填充标题为文件名（去掉扩展名）
+      const fileName = file.name.replace(/\.[^.]+$/, '');
+      form.setFieldValue('title', form.getFieldValue('title') || fileName);
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : '上传失败';
+      message.error(errorMsg);
     } finally { setUploading(false); }
     return false;
   };
@@ -123,28 +127,44 @@ const ImageDetail: React.FC = () => {
       </div>
       <Form form={form} onFinish={handleSave} layout="vertical" style={{ maxWidth: 600 }}>
         {error && <Alert type="error" title={error} className="form-alert" showIcon closable onClose={() => setError('')} />}
-        <Form.Item name="title" label="图片标题" rules={[{ required: true, message: '标题不能为空' }]}>
-          <Input placeholder="输入图片标题" disabled={!canEdit} />
-        </Form.Item>
-        <Form.Item name="description" label="图片描述">
-          <Input.TextArea placeholder="输入图片描述" autoSize={{ minRows: 2 }} disabled={!canEdit} />
-        </Form.Item>
-        <Form.Item label="图片">
-          {canEdit && isNew && (
+        {/* 新增模式：未上传图片时只显示上传按钮 */}
+        {isNew && !imageUrl && (
+          <Form.Item label="图片">
             <Upload accept="image/*" showUploadList={false} beforeUpload={(file) => { handleUpload(file); return false; }} disabled={uploading}>
               <div style={{ border: '1px dashed var(--border-subtle)', borderRadius: 2, padding: '16px 0', textAlign: 'center', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <InboxOutlined style={{ fontSize: 24 }} />
                 <span style={{ marginTop: 8 }}>{uploading ? '上传中...' : '点击上传图片'}</span>
               </div>
             </Upload>
-          )}
-          {imageUrl && (
-            <div style={{ marginTop: 8 }}>
-              <Image src={imageUrl} style={{ maxWidth: 300, maxHeight: 200, objectFit: 'contain' }} />
-            </div>
-          )}
-        </Form.Item>
-        {canEdit && (
+          </Form.Item>
+        )}
+        {/* 新增模式：上传成功后显示标题、描述和图片预览；编辑/查看模式：显示所有字段 */}
+        {(imageUrl || !isNew) && (
+          <>
+            <Form.Item name="title" label="图片标题" rules={[{ required: true, message: '标题不能为空' }]}>
+              <Input placeholder="输入图片标题" disabled={!canEdit} />
+            </Form.Item>
+            <Form.Item name="description" label="图片描述">
+              <Input.TextArea placeholder="输入图片描述" autoSize={{ minRows: 2 }} disabled={!canEdit} />
+            </Form.Item>
+            <Form.Item label="图片">
+              {canEdit && isNew && (
+                <Upload accept="image/*" showUploadList={false} beforeUpload={(file) => { handleUpload(file); return false; }} disabled={uploading}>
+                  <div style={{ border: '1px dashed var(--border-subtle)', borderRadius: 2, padding: '16px 0', textAlign: 'center', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <InboxOutlined style={{ fontSize: 24 }} />
+                    <span style={{ marginTop: 8 }}>{uploading ? '上传中...' : '重新上传'}</span>
+                  </div>
+                </Upload>
+              )}
+              {imageUrl && (
+                <div style={{ marginTop: 8 }}>
+                  <Image src={imageUrl} style={{ maxWidth: 300, maxHeight: 200, objectFit: 'contain' }} />
+                </div>
+              )}
+            </Form.Item>
+          </>
+        )}
+        {canEdit && imageUrl && (
           <div className="form-actions">
             <Button onClick={() => navigate(`/knowledge/${baseId}`)}>取消</Button>
             <Button type="primary" htmlType="submit" loading={saving}>保存</Button>
