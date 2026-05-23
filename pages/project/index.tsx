@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Row, Col, Card, Input, Select, Switch, Typography, Spin, Pagination, Breadcrumb } from 'antd';
-import { EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Input, Select, Switch, Tag, Spin, Pagination, Breadcrumb, Button, Descriptions, Table, App } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import axios from 'axios';
 import ProjectForm from './ProjectForm';
 
@@ -35,6 +36,7 @@ const ProjectPage: React.FC = () => {
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<ProjectItem | null>(null);
+  const { message } = App.useApp();
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -85,17 +87,69 @@ const ProjectPage: React.FC = () => {
       }, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      message.success(item.status ? '项目已禁用' : '项目已启用');
       fetchData();
     } catch {
-      // ignore
+      message.error('操作失败');
     }
   };
+
+  const tableColumns: ColumnsType<ProjectItem> = [
+    {
+      title: '简称',
+      dataIndex: 'short_name',
+      key: 'short_name',
+      ellipsis: { showTitle: true },
+    },
+    {
+      title: '全称',
+      dataIndex: 'full_name',
+      key: 'full_name',
+      ellipsis: { showTitle: true },
+    },
+    {
+      title: '公司',
+      dataIndex: 'company_name',
+      key: 'company_name',
+      width: 120,
+    },
+    {
+      title: '运营者',
+      dataIndex: 'operator_names',
+      key: 'operator_names',
+      width: 140,
+      render: (names: string[]) => names.length > 0 ? names.join(', ') : '-',
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (status: boolean, record: ProjectItem) => (
+        <Switch
+          size="small"
+          checked={status}
+          onChange={() => handleToggleStatus(record)}
+          checkedChildren="启用"
+          unCheckedChildren="禁用"
+        />
+      ),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 80,
+      render: (_: unknown, record: ProjectItem) => (
+        <Button type="link" size="small" onClick={() => { setEditItem(record); setShowForm(true); }}>编辑</Button>
+      ),
+    },
+  ];
 
   return (
     <div className="page-container">
       <div className="page-breadcrumb"><Breadcrumb items={[{ title: '项目管理' }]} /></div>
       <Row gutter={[16, 12]} className="toolbar">
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={12}>
           <Input.Search
             placeholder="搜索项目名称..."
             value={search}
@@ -103,17 +157,17 @@ const ProjectPage: React.FC = () => {
             allowClear
           />
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={4}>
           <Select
             value={filterCompany}
             onChange={(val) => { setFilterCompany(val); setPage(1); }}
             allowClear
-            placeholder="全部公司的全部项目"
+            placeholder="全部公司"
             style={{ width: '100%' }}
             options={companies.map(c => ({ value: c.id, label: c.short_name }))}
           />
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={4}>
           <Select
             value={filterStatus || undefined}
             onChange={(val) => { setFilterStatus(val || ''); setPage(1); }}
@@ -126,37 +180,57 @@ const ProjectPage: React.FC = () => {
             ]}
           />
         </Col>
+        <Col xs={24} sm={4} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditItem(null); setShowForm(true); }}>添加项目</Button>
+        </Col>
       </Row>
 
       <Spin spinning={loading}>
-        <Row gutter={[16, 16]}>
-          {data.map((item) => (
-            <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
-              <Card hoverable styles={{ body: { padding: 24 } }} style={{ height: '100%' }}>
-                <div className="item-card-header">
-                  <Typography.Title level={3} className="item-card-title">{item.short_name}</Typography.Title>
-                  <EditOutlined className="item-card-edit" onClick={() => { setEditItem(item); setShowForm(true); }} />
-                </div>
-                <div className="item-card-row">
-                  <span className="item-card-username">{item.full_name}</span>
-                </div>
-                <div className="item-card-row">
-                  <span className="item-card-username">{item.company_name}</span>
-                  {item.operator_names.length > 0 && <span className="item-card-username">{item.operator_names.join(', ')}</span>}
-                </div>
-                <div className="item-card-row">
-                  <Switch size="small" checked={item.status} onChange={() => handleToggleStatus(item)} checkedChildren="启用" unCheckedChildren="禁用" />
-                </div>
-              </Card>
-            </Col>
-          ))}
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <Card hoverable onClick={() => { setEditItem(null); setShowForm(true); }} className="company-add-card">
-              <PlusOutlined className="company-add-icon" />
-              <Typography.Text className="company-add-text">添加项目</Typography.Text>
+        {/* 卡片视图：<1280px */}
+        <div className="project-cards">
+          {data.length === 0 && !loading && (
+            <Card>
+              <div className="project-cards-empty">暂无数据</div>
             </Card>
-          </Col>
-        </Row>
+          )}
+          {data.map((item) => (
+            <Card
+              key={item.id}
+              size="small"
+              title={item.short_name}
+              extra={
+                <Switch
+                  size="small"
+                  checked={item.status}
+                  onChange={() => handleToggleStatus(item)}
+                  checkedChildren="启用"
+                  unCheckedChildren="禁用"
+                />
+              }
+            >
+              <Descriptions column={2} size="small" colon={false}>
+                <Descriptions.Item label="全称">{item.full_name}</Descriptions.Item>
+                <Descriptions.Item label="公司">{item.company_name}</Descriptions.Item>
+                <Descriptions.Item label="运营者">{item.operator_names.length > 0 ? item.operator_names.join(', ') : '-'}</Descriptions.Item>
+              </Descriptions>
+              <div className="project-card-footer">
+                <Button type="link" size="small" onClick={() => { setEditItem(item); setShowForm(true); }}>编辑</Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        {/* 表格视图：>=1280px */}
+        <div className="project-table-wrapper">
+          <Table
+            columns={tableColumns}
+            dataSource={data}
+            rowKey="id"
+            size="middle"
+            pagination={false}
+            locale={{ emptyText: '暂无数据' }}
+          />
+        </div>
       </Spin>
 
       {total > pageSize && (
