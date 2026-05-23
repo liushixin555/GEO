@@ -1379,4 +1379,288 @@ describe('Company Controller', () => {
       expect(response.status).toBe(403);
     });
   });
+
+  // ========== 边界测试补充 ==========
+  describe('Edge Cases & Security', () => {
+    it('should return 401 for expired JWT token', async () => {
+      const expiredToken = jwt.sign(
+        { userId: 1, username: 'sysadmin', role: 'sysadmin', companyId: 1 },
+        'test-secret',
+        { expiresIn: '-1s' }
+      );
+      const response = await agent
+        .get('/api/companies')
+        .set('Authorization', `Bearer ${expiredToken}`);
+      expect(response.status).toBe(401);
+      expect(response.body.message).toBe('登录已过期，请重新登录');
+    });
+
+    it('should return 401 for malformed JWT token', async () => {
+      const response = await agent
+        .get('/api/companies')
+        .set('Authorization', 'Bearer not.a.valid.token');
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 401 for Bearer without token', async () => {
+      const response = await agent
+        .get('/api/companies')
+        .set('Authorization', 'Bearer ');
+      expect(response.status).toBe(401);
+    });
+
+    it('should handle decimal ID - parseInt truncates to integer', async () => {
+      mockPrisma({
+        company: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'TEST', fullName: 'Test Corp', address: null,
+            contactPerson: 'A', contactPhone: '123',
+            status: true, createdAt: new Date(), updatedAt: new Date(),
+          }),
+        },
+        user: { findMany: jest.fn().mockResolvedValue([]) },
+      });
+
+      const response = await agent
+        .get('/api/companies/1.9')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      // parseInt('1.9') = 1, so it queries company with id=1
+      expect(response.status).toBe(200);
+      expect(response.body.data.id).toBe(1);
+    });
+
+    it('should handle ID with leading zeros', async () => {
+      mockPrisma({
+        company: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 7, shortName: 'TEST', fullName: 'Test Corp', address: null,
+            contactPerson: 'A', contactPhone: '123',
+            status: true, createdAt: new Date(), updatedAt: new Date(),
+          }),
+        },
+        user: { findMany: jest.fn().mockResolvedValue([]) },
+      });
+
+      const response = await agent
+        .get('/api/companies/007')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.id).toBe(7);
+    });
+
+    it('should handle special characters in company name fields', async () => {
+      const mockCompany = {
+        id: 1, shortName: '<script>alert("xss")</script>', fullName: '"; DROP TABLE companies; --',
+        address: null, contactPerson: "O'Brien", contactPhone: '+86-138-0000-0000',
+        status: true, createdAt: new Date(), updatedAt: new Date(),
+      };
+      mockPrisma({
+        $transaction: jest.fn().mockImplementation(async (cb: any) => {
+          const mockTx = {
+            company: { create: jest.fn().mockResolvedValue(mockCompany) },
+            user: { update: jest.fn().mockResolvedValue({}) },
+          };
+          return cb(mockTx);
+        }),
+      });
+
+      const response = await agent
+        .post('/api/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: '<script>alert("xss")</script>',
+          full_name: '"; DROP TABLE companies; --',
+          contact_person: "O'Brien",
+          contact_phone: '+86-138-0000-0000',
+          operator_ids: [1],
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.short_name).toBe('<script>alert("xss")</script>');
+    });
+
+    it('should create company with Chinese characters in all fields', async () => {
+      const mockCompany = {
+        id: 20, shortName: '薄云科技', fullName: '薄云商机倍增服务有限公司',
+        address: '北京市朝阳区建国路88号', contactPerson: '张三', contactPhone: '13800138000',
+        status: true, createdAt: new Date(), updatedAt: new Date(),
+      };
+      mockPrisma({
+        $transaction: jest.fn().mockImplementation(async (cb: any) => {
+          const mockTx = {
+            company: { create: jest.fn().mockResolvedValue(mockCompany) },
+            user: { update: jest.fn().mockResolvedValue({}) },
+          };
+          return cb(mockTx);
+        }),
+      });
+
+      const response = await agent
+        .post('/api/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: '薄云科技',
+          full_name: '薄云商机倍增服务有限公司',
+          address: '北京市朝阳区建国路88号',
+          contact_person: '张三',
+          contact_phone: '13800138000',
+          operator_ids: [1],
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.short_name).toBe('薄云科技');
+      expect(response.body.data.full_name).toBe('薄云商机倍增服务有限公司');
+      expect(response.body.data.address).toBe('北京市朝阳区建国路88号');
+      expect(response.body.data.contact_person).toBe('张三');
+    });
+
+    it('should validate ID before body in updateCompany', async () => {
+      // When ID is invalid, should return 400 for ID even if body is also invalid
+      const response = await agent
+        .put('/api/companies/abc')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({}); // empty body (also invalid)
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的公司ID');
+    });
+
+    it('should validate ID before status in toggleCompanyStatus', async () => {
+      const response = await agent
+        .put('/api/companies/abc/status')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({}); // missing status
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的公司ID');
+    });
+
+    it('should handle toggle status with expired token', async () => {
+      const expiredToken = jwt.sign(
+        { userId: 1, username: 'sysadmin', role: 'sysadmin', companyId: 1 },
+        'test-secret',
+        { expiresIn: '-1s' }
+      );
+      const response = await agent
+        .put('/api/companies/1/status')
+        .set('Authorization', `Bearer ${expiredToken}`)
+        .send({ status: true });
+      expect(response.status).toBe(401);
+    });
+
+    it('should handle create with very long field values', async () => {
+      const longName = 'A'.repeat(200);
+      const mockCompany = {
+        id: 30, shortName: longName, fullName: longName,
+        address: null, contactPerson: 'Test', contactPhone: '123',
+        status: true, createdAt: new Date(), updatedAt: new Date(),
+      };
+      mockPrisma({
+        $transaction: jest.fn().mockImplementation(async (cb: any) => {
+          const mockTx = {
+            company: { create: jest.fn().mockResolvedValue(mockCompany) },
+            user: { update: jest.fn().mockResolvedValue({}) },
+          };
+          return cb(mockTx);
+        }),
+      });
+
+      const response = await agent
+        .post('/api/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: longName,
+          full_name: longName,
+          contact_person: 'Test',
+          contact_phone: '123',
+          operator_ids: [1],
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.short_name).toBe(longName);
+    });
+
+    it('should return 401 for wrong JWT secret', async () => {
+      const wrongSecretToken = jwt.sign(
+        { userId: 1, username: 'sysadmin', role: 'sysadmin', companyId: 1 },
+        'wrong-secret',
+        { expiresIn: '2h' }
+      );
+      const response = await agent
+        .get('/api/companies')
+        .set('Authorization', `Bearer ${wrongSecretToken}`);
+      expect(response.status).toBe(401);
+    });
+
+    it('should handle update with negative ID (parsed as negative int)', async () => {
+      mockPrisma({
+        company: { findUnique: jest.fn().mockResolvedValue(null) },
+      });
+
+      const response = await agent
+        .get('/api/companies/-1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(404);
+      expect(response.body.message).toBe('公司不存在');
+    });
+
+    it('should handle toggle status with boolean edge case - false', async () => {
+      const disabledCompany = {
+        id: 1, shortName: 'TEST', fullName: 'Test Corp',
+        address: null, contactPerson: 'A', contactPhone: '123',
+        status: false, createdAt: new Date(), updatedAt: new Date(),
+      };
+      mockPrisma({
+        company: {
+          findUnique: jest.fn().mockResolvedValue({ ...disabledCompany, status: true }),
+          update: jest.fn().mockResolvedValue(disabledCompany),
+        },
+      });
+
+      const response = await agent
+        .put('/api/companies/1/status')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: false });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe(false);
+      expect(response.body.message).toBe('公司已禁用');
+    });
+
+    it('should create company with operator_ids containing multiple operators', async () => {
+      const mockCompany = {
+        id: 40, shortName: 'MULTI', fullName: 'Multi Op Corp',
+        address: null, contactPerson: 'A', contactPhone: '123',
+        status: true, createdAt: new Date(), updatedAt: new Date(),
+      };
+      const userUpdate = jest.fn().mockResolvedValue({});
+      mockPrisma({
+        $transaction: jest.fn().mockImplementation(async (cb: any) => {
+          const mockTx = {
+            company: { create: jest.fn().mockResolvedValue(mockCompany) },
+            user: { update: userUpdate },
+          };
+          return cb(mockTx);
+        }),
+      });
+
+      const response = await agent
+        .post('/api/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'MULTI',
+          full_name: 'Multi Op Corp',
+          contact_person: 'A',
+          contact_phone: '123',
+          operator_ids: [1, 2, 3],
+        });
+
+      expect(response.status).toBe(201);
+      // 3 operators → 3 user.update calls
+      expect(userUpdate).toHaveBeenCalledTimes(3);
+    });
+  });
 });

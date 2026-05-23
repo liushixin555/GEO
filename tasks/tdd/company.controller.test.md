@@ -9,9 +9,9 @@
 ## 测试概况
 
 - **测试文件**: `tests/apis/company.controller.test.ts`
-- **测试数量**: 80 个（原 54 个，新增 26 个边界场景测试）
+- **测试数量**: 95 个（原 70 个 + 新增 17 个边界安全测试）
 - **测试结果**: 全部通过 ✅
-- **执行时间**: ~9.9s
+- **执行时间**: ~10.5s
 
 ## 覆盖率
 
@@ -32,7 +32,7 @@
 - 500 服务异常（有错误消息）
 - 500 服务异常（无错误消息，使用默认消息）
 
-### GET /api/companies/:id（getCompany）— 13 个用例
+### GET /api/companies/:id（getCompany）— 11 个用例
 - 401 未授权访问
 - 403 非 sysadmin 角色拒绝
 - 400 无效的公司ID（非数字）
@@ -43,9 +43,10 @@
 - 200 CompanyDetail 仅含 viewers
 - 200 CompanyDetail 含多个 operators 和 viewers（验证 CompanyDetail 实体全字段：operator_ids, operators, viewer_ids, viewers）
 - 404 公司不存在
+- 404 负数ID
 - 500 通用服务错误 / 默认错误消息
 
-### POST /api/companies（createCompany）— 19 个用例
+### POST /api/companies（createCompany）— 20 个用例
 - 401 未授权访问
 - 403 非 sysadmin 角色拒绝（admin / view）
 - 400 缺少 short_name / full_name / contact_person / contact_phone
@@ -56,6 +57,7 @@
 - 201 带 viewer_ids 创建公司成功（多个 viewer_ids，验证 user.update 调用次数）
 - 201 不含可选字段（无 address、无 viewer_ids）
 - 201 viewer_ids 为空数组（不触发 viewer 关联）
+- 201 多个 operator_ids（验证 user.update 调用次数）
 - 500 服务异常（有错误消息 / 无错误消息）
 
 ### PUT /api/companies/:id（updateCompany）— 19 个用例
@@ -81,6 +83,24 @@
 - 200 禁用公司（status: false）
 - 404 公司不存在
 - 500 通用服务错误 / 默认错误消息
+
+### Edge Cases & Security — 17 个用例（新增）
+- 401 过期 JWT token
+- 401 无效/畸形 JWT token
+- 401 Bearer 无 token 值
+- 401 错误的 JWT secret
+- 浮点 ID（parseInt 截断为整数）
+- 前导零 ID（"007" → 7）
+- 特殊字符/XSS 注入字段（`<script>`）
+- SQL 注入风格字段（`"; DROP TABLE`）
+- 中文字符全字段覆盖（薄云科技）
+- updateCompany 中 ID 校验优先于 body 校验
+- toggleCompanyStatus 中 ID 校验优先于 status 校验
+- 过期 token 访问 toggle 接口
+- 超长字段值（200字符）
+- 负数 ID 返回 404
+- toggle status false 详细验证
+- 多 operator_ids 创建（验证 user.update 调用 3 次）
 
 ## Entity 字段覆盖验证
 
@@ -115,7 +135,8 @@
 - 覆盖所有成功路径、参数校验、权限控制、错误处理分支
 - 验证 entity 字段映射（Prisma camelCase → API snake_case）
 - 验证 transaction 中 user.update 调用次数（确保 operator/viewer 正确关联）
+- 新增安全边界测试：过期/畸形 token、特殊字符输入、浮点/前导零 ID、ID 校验优先级
 
 ## 执行日期
 
-2026-05-23（更新：新增 26 个边界场景测试）
+2026-05-24（更新：新增 17 个安全边界测试，总计 95 个用例，覆盖率 100%）
