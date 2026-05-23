@@ -61,7 +61,7 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
 
     // Admin can only see: platform bases + their company bases + their project bases
     if (role === 'admin' && userId) {
-      const user = await prisma.user.findFirst({ where: { id: userId } });
+      const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
       if (!user) {
         return { list: [], total: 0 };
       }
@@ -77,7 +77,7 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
 
       // Project scope: projects where user is an operator
       const operatorProjects = await prisma.projectOperator.findMany({
-        where: { userId },
+        where: { userId, deletedAt: null },
         select: { projectId: true },
       });
       const projectIds = operatorProjects.map(op => op.projectId);
@@ -144,7 +144,7 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
   async update(id: number, request: UpdateKnowledgeBaseRequest, userId: number, role: string): Promise<KnowledgeBase> {
     const prisma = getPrisma();
 
-    const existing = await prisma.knowledgeBase.findFirst({ where: { id } });
+    const existing = await prisma.knowledgeBase.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new Error('知识库不存在');
 
     // Non-sysadmin can only update their own
@@ -192,20 +192,20 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
   async delete(id: number, userId: number, role: string): Promise<void> {
     const prisma = getPrisma();
 
-    const existing = await prisma.knowledgeBase.findFirst({ where: { id } });
+    const existing = await prisma.knowledgeBase.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new Error('知识库不存在');
 
     if (role !== 'sysadmin' && existing.createdBy !== userId) {
       throw new Error('只能删除自己创建的知识库');
     }
 
-    await prisma.knowledgeBase.delete({ where: { id } });
+    await prisma.knowledgeBase.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 
   async getAccessibleBaseIds(projectId: number): Promise<number[]> {
     const prisma = getPrisma();
 
-    const project = await prisma.project.findFirst({ where: { id: projectId } });
+    const project = await prisma.project.findFirst({ where: { id: projectId, deletedAt: null } });
     if (!project) throw new Error('项目不存在');
 
     const orConditions: any[] = [

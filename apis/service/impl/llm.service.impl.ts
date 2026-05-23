@@ -5,7 +5,7 @@ import { ILlmService, ArticleGenerationParams } from '../llm.service';
 export class LlmServiceImpl implements ILlmService {
   async expandKeywords(keyword: string): Promise<string[]> {
     const prisma = getPrisma();
-    const model = await prisma.llmModel.findFirst({ where: { status: true }, orderBy: { id: 'asc' } });
+    const model = await prisma.llmModel.findFirst({ where: { status: true, deletedAt: null }, orderBy: { id: 'asc' } });
     if (!model) throw new Error('没有可用的LLM模型，请先在系统管理中配置');
 
     const prompt = `请根据给定的关键词，生成20个相关的长尾关键词扩展。要求：
@@ -46,7 +46,7 @@ export class LlmServiceImpl implements ILlmService {
 
   async mineKeywordsFromContent(content: string): Promise<string[]> {
     const prisma = getPrisma();
-    const model = await prisma.llmModel.findFirst({ where: { status: true }, orderBy: { id: 'asc' } });
+    const model = await prisma.llmModel.findFirst({ where: { status: true, deletedAt: null }, orderBy: { id: 'asc' } });
     if (!model) throw new Error('没有可用的LLM模型，请先在系统管理中配置');
 
     const prompt = `请从以下内容中提取所有可以作为SEO关键词的词语和短语。要求：
@@ -89,7 +89,7 @@ ${content}`;
 
   async generateArticle(params: ArticleGenerationParams): Promise<string> {
     const prisma = getPrisma();
-    const model = await prisma.llmModel.findFirst({ where: { status: true }, orderBy: { id: 'asc' } });
+    const model = await prisma.llmModel.findFirst({ where: { status: true, deletedAt: null }, orderBy: { id: 'asc' } });
     if (!model) throw new Error('没有可用的LLM模型，请先在系统管理中配置');
 
     const imageList = params.images.length > 0

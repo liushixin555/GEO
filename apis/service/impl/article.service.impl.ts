@@ -8,7 +8,7 @@ export class ArticleServiceImpl implements IArticleService {
   async list(projectId: number, page: number, pageSize: number, search?: string, status?: string, userId?: number, role?: string): Promise<{ list: Article[]; total: number }> {
     const prisma = getPrisma();
 
-    const where: any = { projectId };
+    const where: any = { projectId, deletedAt: null };
     if (search) {
       where.keywords = { contains: search, mode: 'insensitive' };
     }
@@ -35,7 +35,7 @@ export class ArticleServiceImpl implements IArticleService {
 
   async getById(id: number, userId?: number, role?: string): Promise<Article> {
     const prisma = getPrisma();
-    const item = await prisma.article.findFirst({ where: { id } });
+    const item = await prisma.article.findFirst({ where: { id, deletedAt: null } });
     if (!item) throw new Error('文章不存在');
     return mapArticle(item);
   }
@@ -81,7 +81,7 @@ export class ArticleServiceImpl implements IArticleService {
   async update(id: number, request: UpdateArticleRequest, userId?: number, role?: string): Promise<Article> {
     const prisma = getPrisma();
 
-    const existing = await prisma.article.findFirst({ where: { id } });
+    const existing = await prisma.article.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new Error('文章不存在');
 
     const data: any = {};
@@ -132,16 +132,16 @@ export class ArticleServiceImpl implements IArticleService {
   async delete(id: number, userId?: number, role?: string): Promise<void> {
     const prisma = getPrisma();
 
-    const existing = await prisma.article.findFirst({ where: { id } });
+    const existing = await prisma.article.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new Error('文章不存在');
 
-    await prisma.article.delete({ where: { id } });
+    await prisma.article.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 
   async review(id: number, approved: boolean, userId?: number, role?: string): Promise<Article> {
     const prisma = getPrisma();
 
-    const existing = await prisma.article.findFirst({ where: { id } });
+    const existing = await prisma.article.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new Error('文章不存在');
 
     if (existing.status !== 'pending_review') {
@@ -159,7 +159,7 @@ export class ArticleServiceImpl implements IArticleService {
   async regenerate(id: number, userId?: number, role?: string): Promise<Article> {
     const prisma = getPrisma();
 
-    const existing = await prisma.article.findFirst({ where: { id } });
+    const existing = await prisma.article.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new Error('文章不存在');
 
     if (existing.status !== 'pending_review') {
@@ -176,7 +176,7 @@ export class ArticleServiceImpl implements IArticleService {
   async listVersions(articleId: number): Promise<ArticleVersion[]> {
     const prisma = getPrisma();
     const versions = await prisma.articleVersion.findMany({
-      where: { articleId },
+      where: { articleId, deletedAt: null },
       orderBy: { version: 'desc' },
     });
     return versions.map(mapArticleVersion);

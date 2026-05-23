@@ -92,6 +92,6 @@ export class UserServiceImpl implements IUserService {
 
     if (existing.role === 'sysadmin') throw new Error('系统管理员不可删除');
 
-    await prisma.user.delete({ where: { id } });
+    await prisma.user.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 }

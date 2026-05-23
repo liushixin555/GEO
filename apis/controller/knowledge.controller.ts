@@ -339,10 +339,10 @@ export async function createImage(req: Request, res: Response): Promise<void> {
 
     // 检查标题重复
     const prisma = getPrisma();
-    const dupTitle = await prisma.knowledgeImage.findFirst({ where: { baseId, title } });
+    const dupTitle = await prisma.knowledgeImage.findFirst({ where: { baseId, title, deletedAt: null } });
     if (dupTitle) { fail(res, 400, '该知识库已存在相同标题的图片'); return; }
     // 检查图片URL重复
-    const dupUrl = await prisma.knowledgeImage.findFirst({ where: { baseId, imageUrl: image_url } });
+    const dupUrl = await prisma.knowledgeImage.findFirst({ where: { baseId, imageUrl: image_url, deletedAt: null } });
     if (dupUrl) { fail(res, 400, '该知识库已存在相同的图片'); return; }
 
     const item = await imageService.create(baseId, req.body, userId);
@@ -373,7 +373,7 @@ export async function updateImage(req: Request, res: Response): Promise<void> {
     const newTitle = req.body.title;
     if (newTitle && newTitle !== existing.title) {
       const prisma = getPrisma();
-      const dup = await prisma.knowledgeImage.findFirst({ where: { baseId, title: newTitle, id: { not: id } } });
+      const dup = await prisma.knowledgeImage.findFirst({ where: { baseId, title: newTitle, id: { not: id }, deletedAt: null } });
       if (dup) { fail(res, 400, '该知识库已存在相同标题的图片'); return; }
     }
 
@@ -463,10 +463,10 @@ export async function createDocument(req: Request, res: Response): Promise<void>
 
     // 检查标题重复
     const prisma = getPrisma();
-    const dupTitle = await prisma.knowledgeDocument.findFirst({ where: { baseId, title } });
+    const dupTitle = await prisma.knowledgeDocument.findFirst({ where: { baseId, title, deletedAt: null } });
     if (dupTitle) { fail(res, 400, '该知识库已存在相同标题的文档'); return; }
     // 检查文件URL重复
-    const dupUrl = await prisma.knowledgeDocument.findFirst({ where: { baseId, fileUrl: file_url } });
+    const dupUrl = await prisma.knowledgeDocument.findFirst({ where: { baseId, fileUrl: file_url, deletedAt: null } });
     if (dupUrl) { fail(res, 400, '该知识库已存在相同的文档'); return; }
 
     const item = await documentService.create(baseId, req.body, userId);
@@ -497,7 +497,7 @@ export async function updateDocument(req: Request, res: Response): Promise<void>
     const newTitle = req.body.title;
     if (newTitle && newTitle !== existing.title) {
       const prisma = getPrisma();
-      const dup = await prisma.knowledgeDocument.findFirst({ where: { baseId, title: newTitle, id: { not: id } } });
+      const dup = await prisma.knowledgeDocument.findFirst({ where: { baseId, title: newTitle, id: { not: id }, deletedAt: null } });
       if (dup) { fail(res, 400, '该知识库已存在相同标题的文档'); return; }
     }
 
@@ -826,15 +826,15 @@ export async function mineKeywords(req: Request, res: Response): Promise<void> {
     const contentParts: string[] = [];
 
     if (sourceType === 'all' || sourceType === 'document') {
-      const docs = await prisma.knowledgeDocument.findMany({ where: { baseId } });
+      const docs = await prisma.knowledgeDocument.findMany({ where: { baseId, deletedAt: null } });
       contentParts.push(...docs.map((d: any) => `[文档] 标题: ${d.title}${d.description ? ', 描述: ' + d.description : ''}`));
     }
     if (sourceType === 'all' || sourceType === 'portrait') {
-      const pts = await prisma.knowledgePortrait.findMany({ where: { baseId } });
+      const pts = await prisma.knowledgePortrait.findMany({ where: { baseId, deletedAt: null } });
       contentParts.push(...pts.map((p: any) => `[画像] 标题: ${p.title}${p.content ? ', 内容: ' + p.content : ''}`));
     }
     if (sourceType === 'all' || sourceType === 'image') {
-      const imgs = await prisma.knowledgeImage.findMany({ where: { baseId } });
+      const imgs = await prisma.knowledgeImage.findMany({ where: { baseId, deletedAt: null } });
       contentParts.push(...imgs.map((i: any) => `[图片] 标题: ${i.title}${i.description ? ', 描述: ' + i.description : ''}`));
     }
 
@@ -863,8 +863,9 @@ export async function saveMinedKeywords(req: Request, res: Response): Promise<vo
 
     // Delete saved keywords from mined list
     const prisma = getPrisma();
-    await prisma.minedKeyword.deleteMany({
-      where: { baseId, keyword: { in: keywords } },
+    await prisma.minedKeyword.updateMany({
+      where: { baseId, keyword: { in: keywords }, deletedAt: null },
+      data: { deletedAt: new Date() },
     });
 
     success(res, result, `成功保存 ${result.created} 个关键词${result.duplicates > 0 ? `，${result.duplicates} 个已存在被跳过` : ''}`);

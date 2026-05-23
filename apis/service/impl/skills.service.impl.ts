@@ -56,7 +56,7 @@ export class SkillsServiceImpl implements ISkillsService {
   async update(id: number, request: UpdateSkillsRequest): Promise<Skills> {
     const prisma = getPrisma();
 
-    const existing = await prisma.skills.findFirst({ where: { id } });
+    const existing = await prisma.skills.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new Error('技能不存在');
 
     const data: any = {};
@@ -75,9 +75,9 @@ export class SkillsServiceImpl implements ISkillsService {
   async delete(id: number): Promise<void> {
     const prisma = getPrisma();
 
-    const existing = await prisma.skills.findFirst({ where: { id } });
+    const existing = await prisma.skills.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new Error('技能不存在');
 
-    await prisma.skills.delete({ where: { id } });
+    await prisma.skills.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 }

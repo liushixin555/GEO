@@ -60,6 +60,6 @@ export class LlmModelServiceImpl implements ILlmModelService {
     const prisma = getPrisma();
     const existing = await prisma.llmModel.findFirst({ where: { id } });
     if (!existing) throw new Error('LLM模型不存在');
-    await prisma.llmModel.delete({ where: { id } });
+    await prisma.llmModel.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 }

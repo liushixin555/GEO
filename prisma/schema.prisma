@@ -22,6 +22,7 @@ model Company {
   knowledgeBases KnowledgeBase[]
   selectedByUsers User[] @relation("UserSelectedCompany")
 
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@map("companies")
 }
 
@@ -51,6 +52,7 @@ model User {
   createdDocuments     KnowledgeDocument[]   @relation("KnowledgeDocumentCreator")
   createdKnowledgeBases KnowledgeBase[]      @relation("KnowledgeBaseCreator")
 
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([username])
   @@index([companyId])
   @@index([role])
@@ -90,6 +92,7 @@ model Skills {
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
   creator     User?    @relation("SkillsCreator", fields: [createdBy], references: [id])
 
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@unique([name])
   @@map("skills")
 }
@@ -106,6 +109,7 @@ model LlmModel {
 
   articles  Article[]
 
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@map("llm_models")
 }
 
@@ -121,6 +125,7 @@ model PublishingPlatform {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
 
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([rmResourceId])
   @@index([taxonomy])
   @@map("publishing_platforms")
@@ -133,6 +138,7 @@ model SystemConfig {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
 
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@map("system_configs")
 }
 
@@ -152,6 +158,7 @@ model Project {
   selectedByUsers User[] @relation("UserSelectedProject")
   knowledgeBases KnowledgeBase[]
 
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([companyId])
   @@index([status])
   @@map("projects")
@@ -163,6 +170,7 @@ model ProjectOperator {
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user      User    @relation("UserProjectOperator", fields: [userId], references: [id], onDelete: Cascade)
 
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@id([projectId, userId])
   @@index([userId])
   @@map("project_operators")
@@ -174,6 +182,7 @@ model ProjectViewer {
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user      User    @relation("UserProjectViewer", fields: [userId], references: [id], onDelete: Cascade)
 
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@id([projectId, userId])
   @@index([userId])
   @@map("project_viewers")
@@ -199,6 +208,7 @@ model KnowledgeBase {
   documents     KnowledgeDocument[]
   minedKeywords MinedKeyword[]
 
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([scope])
   @@index([companyId])
   @@index([projectId])
@@ -229,6 +239,7 @@ model Article {
   llmModel    LlmModel?     @relation(fields: [llmModelId], references: [id], onDelete: SetNull)
   versions    ArticleVersion[]
 
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([projectId])
   @@index([status])
   @@index([createdBy])
@@ -245,6 +256,7 @@ model ArticleVersion {
   article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
   creator   User?    @relation("ArticleVersionCreator", fields: [createdBy], references: [id])
 
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([articleId])
   @@map("article_versions")
 }
@@ -262,6 +274,7 @@ model KnowledgeKeyword {
   creator   User?           @relation("KnowledgeKeywordCreator", fields: [createdBy], references: [id])
   expandedWords KeywordExpandedWord[]
 
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([baseId])
   @@map("knowledge_keywords")
 }
@@ -275,6 +288,7 @@ model KeywordExpandedWord {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
   keyword   KnowledgeKeyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
 
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([keywordId])
   @@map("keyword_expanded_words")
 }
@@ -288,6 +302,7 @@ model MinedKeyword {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
   base      KnowledgeBase @relation(fields: [baseId], references: [id], onDelete: Cascade)
 
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@unique([baseId, keyword])
   @@index([baseId])
   @@map("mined_keywords")
@@ -304,6 +319,7 @@ model KnowledgePortrait {
   base      KnowledgeBase   @relation(fields: [baseId], references: [id], onDelete: Cascade)
   creator   User?           @relation("KnowledgePortraitCreator", fields: [createdBy], references: [id])
 
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([baseId])
   @@map("knowledge_portraits")
 }
@@ -320,6 +336,7 @@ model KnowledgeImage {
   base        KnowledgeBase   @relation(fields: [baseId], references: [id], onDelete: Cascade)
   creator     User?           @relation("KnowledgeImageCreator", fields: [createdBy], references: [id])
 
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([baseId])
   @@map("knowledge_images")
 }
@@ -339,6 +356,7 @@ model KnowledgeDocument {
   base        KnowledgeBase   @relation(fields: [baseId], references: [id], onDelete: Cascade)
   creator     User?           @relation("KnowledgeDocumentCreator", fields: [createdBy], references: [id])
 
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([baseId])
   @@map("knowledge_documents")
 }

@@ -13,7 +13,7 @@ export class ProjectServiceImpl implements IProjectService {
   async list(page: number, pageSize: number, search?: string, company_id?: number, status?: boolean, userId?: number, role?: string): Promise<{ list: Project[]; total: number }> {
     const prisma = getPrisma();
 
-    const where: any = {};
+    const where: any = { deletedAt: null };
     if (search) {
       where.OR = [
         { shortName: { contains: search, mode: 'insensitive' } },
@@ -46,7 +46,7 @@ export class ProjectServiceImpl implements IProjectService {
   async getById(id: number, userId?: number, role?: string): Promise<Project> {
     const prisma = getPrisma();
     const item = await prisma.project.findFirst({
-      where: { id },
+      where: { id, deletedAt: null },
       include: OPERATOR_INCLUDE,
     });
     if (!item) throw new Error('项目不存在');
@@ -60,7 +60,7 @@ export class ProjectServiceImpl implements IProjectService {
     // Validate operators belong to the specified company
     if (request.operator_ids?.length) {
       const operators = await prisma.user.findMany({
-        where: { id: { in: request.operator_ids }, companyId: request.company_id, role: 'admin' },
+        where: { id: { in: request.operator_ids }, companyId: request.company_id, role: 'admin', deletedAt: null },
       });
       if (operators.length !== request.operator_ids.length) {
         throw new Error('运营者不属于指定公司');
@@ -70,7 +70,7 @@ export class ProjectServiceImpl implements IProjectService {
     // Validate viewers belong to the specified company
     if (request.viewer_ids?.length) {
       const viewers = await prisma.user.findMany({
-        where: { id: { in: request.viewer_ids }, companyId: request.company_id, role: 'view' },
+        where: { id: { in: request.viewer_ids }, companyId: request.company_id, role: 'view', deletedAt: null },
       });
       if (viewers.length !== request.viewer_ids.length) {
         throw new Error('查看者不属于指定公司');
@@ -98,7 +98,7 @@ export class ProjectServiceImpl implements IProjectService {
   async update(id: number, request: UpdateProjectRequest, userId?: number, role?: string): Promise<Project> {
     const prisma = getPrisma();
 
-    const existing = await prisma.project.findFirst({ where: { id } });
+    const existing = await prisma.project.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new Error('项目不存在');
 
     // Company-level check is done in the controller
@@ -122,7 +122,7 @@ export class ProjectServiceImpl implements IProjectService {
           throw new Error('运营者不属于指定公司');
         }
       }
-      await prisma.projectOperator.deleteMany({ where: { projectId: id } });
+      await prisma.projectOperator.updateMany({ where: { projectId: id, deletedAt: null }, data: { deletedAt: new Date() } });
       data.operators = {
         create: request.operator_ids.map((userId: number) => ({ userId })),
       };
@@ -138,7 +138,7 @@ export class ProjectServiceImpl implements IProjectService {
           throw new Error('查看者不属于指定公司');
         }
       }
-      await prisma.projectViewer.deleteMany({ where: { projectId: id } });
+      await prisma.projectViewer.updateMany({ where: { projectId: id, deletedAt: null }, data: { deletedAt: new Date() } });
       data.viewers = {
         create: request.viewer_ids.map((userId: number) => ({ userId })),
       };
@@ -155,11 +155,11 @@ export class ProjectServiceImpl implements IProjectService {
   async delete(id: number, userId?: number, role?: string): Promise<void> {
     const prisma = getPrisma();
 
-    const existing = await prisma.project.findFirst({ where: { id } });
+    const existing = await prisma.project.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new Error('项目不存在');
 
     // Company-level check is done in the controller
 
-    await prisma.project.delete({ where: { id } });
+    await prisma.project.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 }

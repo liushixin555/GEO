@@ -33,7 +33,7 @@ export class KeywordServiceImpl implements IKeywordService {
 
   async list(baseId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeKeyword[]; total: number }> {
     const prisma = getPrisma();
-    const where: any = { baseId };
+    const where: any = { baseId, deletedAt: null };
     if (search) {
       where.keyword = { contains: search, mode: 'insensitive' };
     }
@@ -49,7 +49,7 @@ export class KeywordServiceImpl implements IKeywordService {
     const baseIds = await this.kbService.getAccessibleBaseIds(projectId);
     if (baseIds.length === 0) return { list: [], total: 0 };
 
-    const where: any = { baseId: { in: baseIds } };
+    const where: any = { baseId: { in: baseIds }, deletedAt: null };
     if (search) {
       where.keyword = { contains: search, mode: 'insensitive' };
     }
@@ -62,7 +62,7 @@ export class KeywordServiceImpl implements IKeywordService {
 
   async getById(id: number): Promise<KnowledgeKeyword> {
     const prisma = getPrisma();
-    const rows: any[] = await prisma.$queryRaw`SELECT * FROM knowledge_keywords WHERE id = ${id}`;
+    const rows: any[] = await prisma.$queryRaw`SELECT * FROM knowledge_keywords WHERE id = ${id} AND deleted_at IS NULL`;
     if (!rows || rows.length === 0) throw new Error('关键词不存在');
     const keyword = mapRawKeyword(rows[0]);
     keyword.expanded_words = await this.listExpandedWords(id);
@@ -85,7 +85,7 @@ export class KeywordServiceImpl implements IKeywordService {
     const prisma = getPrisma();
     // Check existing keywords to avoid duplicates
     const existing = await prisma.knowledgeKeyword.findMany({
-      where: { baseId, keyword: { in: keywords } },
+      where: { baseId, keyword: { in: keywords }, deletedAt: null },
       select: { keyword: true },
     });
     const existingSet = new Set(existing.map((e: any) => e.keyword));
@@ -109,7 +109,7 @@ export class KeywordServiceImpl implements IKeywordService {
 
   async update(id: number, request: UpdateKeywordRequest): Promise<KnowledgeKeyword> {
     const prisma = getPrisma();
-    const existing = await prisma.knowledgeKeyword.findFirst({ where: { id } });
+    const existing = await prisma.knowledgeKeyword.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new Error('关键词不存在');
     const updated = await prisma.knowledgeKeyword.update({ where: { id }, data: { keyword: request.keyword } });
     const keyword = mapKeyword(updated);
@@ -123,20 +123,20 @@ export class KeywordServiceImpl implements IKeywordService {
 
   async delete(id: number): Promise<void> {
     const prisma = getPrisma();
-    const existing = await prisma.knowledgeKeyword.findFirst({ where: { id } });
+    const existing = await prisma.knowledgeKeyword.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new Error('关键词不存在');
-    await prisma.knowledgeKeyword.delete({ where: { id } });
+    await prisma.knowledgeKeyword.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 
   async listExpandedWords(keywordId: number): Promise<KeywordExpandedWord[]> {
     const prisma = getPrisma();
-    const rows: any[] = await prisma.$queryRaw`SELECT * FROM keyword_expanded_words WHERE keyword_id = ${keywordId} ORDER BY id ASC`;
+    const rows: any[] = await prisma.$queryRaw`SELECT * FROM keyword_expanded_words WHERE keyword_id = ${keywordId} AND deleted_at IS NULL ORDER BY id ASC`;
     return rows.map(mapRawExpandedWord);
   }
 
   async syncExpandedWords(keywordId: number, _baseId: number, words: { word: string; selected: boolean }[], _userId: number): Promise<KeywordExpandedWord[]> {
     const prisma = getPrisma();
-    await prisma.$executeRaw`DELETE FROM keyword_expanded_words WHERE keyword_id = ${keywordId}`;
+    await prisma.$executeRaw`UPDATE keyword_expanded_words SET deleted_at = NOW() WHERE keyword_id = ${keywordId} AND deleted_at IS NULL`;
     for (const w of words) {
       await prisma.$executeRaw`INSERT INTO keyword_expanded_words (keyword_id, word, selected, created_at, updated_at) VALUES (${keywordId}, ${w.word}, ${w.selected}, NOW(), NOW())`;
     }
@@ -149,7 +149,7 @@ export class PortraitServiceImpl implements IPortraitService {
 
   async list(baseId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgePortrait[]; total: number }> {
     const prisma = getPrisma();
-    const where: any = { baseId };
+    const where: any = { baseId, deletedAt: null };
     if (search) {
       where.title = { contains: search, mode: 'insensitive' };
     }
@@ -165,7 +165,7 @@ export class PortraitServiceImpl implements IPortraitService {
     const baseIds = await this.kbService.getAccessibleBaseIds(projectId);
     if (baseIds.length === 0) return { list: [], total: 0 };
 
-    const where: any = { baseId: { in: baseIds } };
+    const where: any = { baseId: { in: baseIds }, deletedAt: null };
     if (search) {
       where.title = { contains: search, mode: 'insensitive' };
     }
@@ -178,7 +178,7 @@ export class PortraitServiceImpl implements IPortraitService {
 
   async getById(id: number): Promise<KnowledgePortrait> {
     const prisma = getPrisma();
-    const item = await prisma.knowledgePortrait.findFirst({ where: { id } });
+    const item = await prisma.knowledgePortrait.findFirst({ where: { id, deletedAt: null } });
     if (!item) throw new Error('画像不存在');
     return mapPortrait(item);
   }
@@ -193,7 +193,7 @@ export class PortraitServiceImpl implements IPortraitService {
 
   async update(id: number, request: UpdatePortraitRequest): Promise<KnowledgePortrait> {
     const prisma = getPrisma();
-    const existing = await prisma.knowledgePortrait.findFirst({ where: { id } });
+    const existing = await prisma.knowledgePortrait.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new Error('画像不存在');
     const data: any = {};
     if (request.title !== undefined) data.title = request.title;
@@ -204,9 +204,9 @@ export class PortraitServiceImpl implements IPortraitService {
 
   async delete(id: number): Promise<void> {
     const prisma = getPrisma();
-    const existing = await prisma.knowledgePortrait.findFirst({ where: { id } });
+    const existing = await prisma.knowledgePortrait.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new Error('画像不存在');
-    await prisma.knowledgePortrait.delete({ where: { id } });
+    await prisma.knowledgePortrait.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 }
 
@@ -215,7 +215,7 @@ export class ImageServiceImpl implements IImageService {
 
   async list(baseId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeImage[]; total: number }> {
     const prisma = getPrisma();
-    const where: any = { baseId };
+    const where: any = { baseId, deletedAt: null };
     if (search) {
       where.title = { contains: search, mode: 'insensitive' };
     }
@@ -231,7 +231,7 @@ export class ImageServiceImpl implements IImageService {
     const baseIds = await this.kbService.getAccessibleBaseIds(projectId);
     if (baseIds.length === 0) return { list: [], total: 0 };
 
-    const where: any = { baseId: { in: baseIds } };
+    const where: any = { baseId: { in: baseIds }, deletedAt: null };
     if (search) {
       where.title = { contains: search, mode: 'insensitive' };
     }
@@ -244,7 +244,7 @@ export class ImageServiceImpl implements IImageService {
 
   async getById(id: number): Promise<KnowledgeImage> {
     const prisma = getPrisma();
-    const item = await prisma.knowledgeImage.findFirst({ where: { id } });
+    const item = await prisma.knowledgeImage.findFirst({ where: { id, deletedAt: null } });
     if (!item) throw new Error('图片不存在');
     return mapKnowledgeImage(item);
   }
@@ -259,7 +259,7 @@ export class ImageServiceImpl implements IImageService {
 
   async update(id: number, request: UpdateImageRequest): Promise<KnowledgeImage> {
     const prisma = getPrisma();
-    const existing = await prisma.knowledgeImage.findFirst({ where: { id } });
+    const existing = await prisma.knowledgeImage.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new Error('图片不存在');
     const data: any = {};
     if (request.title !== undefined) data.title = request.title;
@@ -270,9 +270,9 @@ export class ImageServiceImpl implements IImageService {
 
   async delete(id: number): Promise<void> {
     const prisma = getPrisma();
-    const existing = await prisma.knowledgeImage.findFirst({ where: { id } });
+    const existing = await prisma.knowledgeImage.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new Error('图片不存在');
-    await prisma.knowledgeImage.delete({ where: { id } });
+    await prisma.knowledgeImage.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 }
 
@@ -300,7 +300,7 @@ export class DocumentServiceImpl implements IDocumentService {
     const baseIds = await this.kbService.getAccessibleBaseIds(projectId);
     if (baseIds.length === 0) return { list: [], total: 0 };
 
-    const where: any = { baseId: { in: baseIds } };
+    const where: any = { baseId: { in: baseIds }, deletedAt: null };
     if (search) {
       where.OR = [
         { title: { contains: search, mode: 'insensitive' } },
@@ -316,7 +316,7 @@ export class DocumentServiceImpl implements IDocumentService {
 
   async getById(id: number): Promise<KnowledgeDocument> {
     const prisma = getPrisma();
-    const item = await prisma.knowledgeDocument.findFirst({ where: { id } });
+    const item = await prisma.knowledgeDocument.findFirst({ where: { id, deletedAt: null } });
     if (!item) throw new Error('文档不存在');
     return mapKnowledgeDocument(item);
   }
@@ -340,7 +340,7 @@ export class DocumentServiceImpl implements IDocumentService {
 
   async update(id: number, request: UpdateDocumentRequest): Promise<KnowledgeDocument> {
     const prisma = getPrisma();
-    const existing = await prisma.knowledgeDocument.findFirst({ where: { id } });
+    const existing = await prisma.knowledgeDocument.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new Error('文档不存在');
     const data: any = {};
     if (request.title !== undefined) data.title = request.title;
@@ -351,9 +351,9 @@ export class DocumentServiceImpl implements IDocumentService {
 
   async delete(id: number): Promise<void> {
     const prisma = getPrisma();
-    const existing = await prisma.knowledgeDocument.findFirst({ where: { id } });
+    const existing = await prisma.knowledgeDocument.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new Error('文档不存在');
-    await prisma.knowledgeDocument.delete({ where: { id } });
+    await prisma.knowledgeDocument.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 }
 
@@ -361,7 +361,7 @@ export class MinedKeywordServiceImpl implements IMinedKeywordService {
   async listByBase(baseId: number): Promise<MinedKeyword[]> {
     const prisma = getPrisma();
     const items = await prisma.minedKeyword.findMany({
-      where: { baseId },
+      where: { baseId, deletedAt: null },
       orderBy: { id: 'desc' },
     });
     return items.map(mapMinedKeyword);
@@ -370,7 +370,7 @@ export class MinedKeywordServiceImpl implements IMinedKeywordService {
   async addMinedKeywords(baseId: number, keywords: string[], userId: number): Promise<{ added: number; duplicates: number }> {
     const prisma = getPrisma();
     const existing = await prisma.minedKeyword.findMany({
-      where: { baseId, keyword: { in: keywords } },
+      where: { baseId, keyword: { in: keywords }, deletedAt: null },
       select: { keyword: true },
     });
     const existingSet = new Set(existing.map((e: any) => e.keyword));
@@ -388,20 +388,21 @@ export class MinedKeywordServiceImpl implements IMinedKeywordService {
   async toggleSelectBatch(baseId: number, ids: number[], selected: boolean): Promise<void> {
     const prisma = getPrisma();
     await prisma.minedKeyword.updateMany({
-      where: { id: { in: ids }, baseId },
+      where: { id: { in: ids }, baseId, deletedAt: null },
       data: { selected },
     });
   }
 
   async deleteByIds(baseId: number, ids: number[]): Promise<void> {
     const prisma = getPrisma();
-    await prisma.minedKeyword.deleteMany({
-      where: { id: { in: ids }, baseId },
+    await prisma.minedKeyword.updateMany({
+      where: { id: { in: ids }, baseId, deletedAt: null },
+      data: { deletedAt: new Date() },
     });
   }
 
   async clearAll(baseId: number): Promise<void> {
     const prisma = getPrisma();
-    await prisma.minedKeyword.deleteMany({ where: { baseId } });
+    await prisma.minedKeyword.updateMany({ where: { baseId, deletedAt: null }, data: { deletedAt: new Date() } });
   }
 }

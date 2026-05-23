@@ -668,3 +668,23 @@ model KnowledgeDocument {
 
 ### 迁移
 通过 `npx prisma db push` 执行。
+
+---
+
+## db013. 全局软删除 — 所有模型添加 deletedAt 字段
+
+### 变更原因
+所有删除操作改为软删除，只标记 `deletedAt` 字段而非真正删除记录，前端通过后端过滤不显示已删除数据。
+
+### 变更内容
+为以下18个模型添加 `deletedAt DateTime? @map("deleted_at") @db.Timestamptz()` 字段：
+
+Company, User, Skills, LlmModel, PublishingPlatform, SystemConfig, Project, ProjectOperator, ProjectViewer, KnowledgeBase, Article, ArticleVersion, KnowledgeKeyword, KeywordExpandedWord, MinedKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument
+
+### 关联代码变更
+- 所有 service 层的 `delete()` 改为 `update({ data: { deletedAt: new Date() } })`
+- 所有 `findMany` / `findFirst` 查询添加 `deletedAt: null` 过滤
+- `$queryRaw` 查询添加 `AND deleted_at IS NULL`
+
+### 迁移
+通过 `npx prisma db push` 执行。
