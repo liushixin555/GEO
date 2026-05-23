@@ -43,6 +43,7 @@ interface TodoItem {
 
 interface UserItem {
   id: number;
+  username: string;
   cn_name: string;
   role: string;
 }
@@ -489,7 +490,7 @@ const TodoPage: React.FC = () => {
             value={transferTargetId ?? undefined}
             onChange={setTransferTargetId}
             loading={transferLoading}
-            options={users.map(u => ({ value: u.id, label: `${u.cn_name} (${u.role})` }))}
+            options={users.map(u => ({ value: u.id, label: u.username }))}
             showSearch
             filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
           />
