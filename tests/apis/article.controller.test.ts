@@ -2748,4 +2748,533 @@ describe('Article Controller', () => {
       expect(response.status).toBe(200);
     });
   });
+
+  // ============= Entity field whitelist enforcement =============
+
+  describe('POST /api/projects/:projectId/articles - field whitelist', () => {
+    it('should strip disallowed fields during create', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        id: 1, projectId: 1, title: 'Test', keywords: null, portrait: null,
+        images: null, platforms: null, status: 'draft', createdBy: 1,
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ article: { create: mockCreate } });
+
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          title: 'Test',
+          id: 999,              // disallowed - should be stripped
+          project_id: 999,      // disallowed - should be stripped
+          version: 5,           // disallowed - should be stripped
+          created_by: 999,      // disallowed - should be stripped
+          created_at: new Date(), // disallowed - should be stripped
+          updated_at: new Date(), // disallowed - should be stripped
+          malicious_field: 'hack', // disallowed - should be stripped
+        });
+
+      expect(response.status).toBe(201);
+      // Verify the create call did NOT receive disallowed fields from body
+      const createData = mockCreate.mock.calls[0][0].data;
+      expect(createData.id).toBeUndefined();
+      // projectId comes from path param via service, allowed
+      expect(createData.version).toBe(1); // set by service, not from body
+      // createdBy comes from auth context, not body
+      expect(createData.malicious_field).toBeUndefined();
+      expect(createData.title).toBe('Test');
+    });
+
+    it('should create article with all CreateArticleRequest fields', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        id: 1, projectId: 1, title: 'Full Article', articleType: 'seo', writeMode: 'ai',
+        keywords: 'kw1,kw2', portrait: 'portrait-url', images: ['img1.jpg'], platforms: ['wechat'],
+        skills: 5, llmModelId: 2, content: 'article content', status: 'draft', version: 1,
+        createdBy: 1, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({
+        article: { create: mockCreate },
+        articleVersion: { create: jest.fn().mockResolvedValue({}) },
+      });
+
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          title: 'Full Article',
+          article_type: 'seo',
+          write_mode: 'ai',
+          keywords: 'kw1,kw2',
+          portrait: 'portrait-url',
+          images: ['img1.jpg'],
+          platforms: ['wechat'],
+          skills: 5,
+          llm_model_id: 2,
+          content: 'article content',
+          status: 'draft',
+        });
+
+      expect(response.status).toBe(201);
+      const createData = mockCreate.mock.calls[0][0].data;
+      expect(createData.title).toBe('Full Article');
+      expect(createData.articleType).toBe('seo');
+      expect(createData.writeMode).toBe('ai');
+      expect(createData.keywords).toBe('kw1,kw2');
+      expect(createData.portrait).toBe('portrait-url');
+      expect(createData.skills).toBe(5);
+      expect(createData.llmModelId).toBe(2);
+      expect(createData.content).toBe('article content');
+      expect(createData.status).toBe('draft');
+    });
+
+    it('should create article with no status defaults to draft', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        id: 1, projectId: 1, title: 'Default Status', status: 'draft', createdBy: 1,
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ article: { create: mockCreate } });
+
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Default Status' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.status).toBe('draft');
+    });
+  });
+
+  describe('PUT /api/projects/:projectId/articles/:id - field whitelist on update', () => {
+    const existingDraft = {
+      id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
+      images: null, platforms: null, status: 'draft', createdBy: 1,
+      createdAt: new Date(), updatedAt: new Date(),
+    };
+
+    it('should strip disallowed fields during update', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existingDraft, title: 'Updated' });
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(existingDraft),
+          update: mockUpdate,
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          title: 'Updated',
+          id: 999,              // disallowed
+          project_id: 999,      // disallowed
+          version: 5,           // disallowed
+          created_by: 999,      // disallowed
+          malicious: 'hack',    // disallowed
+        });
+
+      expect(response.status).toBe(200);
+      const updateData = mockUpdate.mock.calls[0][0].data;
+      expect(updateData.id).toBeUndefined();
+      expect(updateData.projectId).toBeUndefined();
+      expect(updateData.version).toBeUndefined();
+      expect(updateData.createdBy).toBeUndefined();
+      expect(updateData.malicious).toBeUndefined();
+      expect(updateData.title).toBe('Updated');
+    });
+
+    it('should update article with all UpdateArticleRequest fields', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...existingDraft,
+        title: 'New Title', articleType: 'blog', writeMode: 'manual',
+        keywords: 'new kw', portrait: 'new p', images: ['img1'], platforms: ['p1'],
+        skills: 2, llmModelId: 3,
+      });
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(existingDraft),
+          update: mockUpdate,
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          title: 'New Title',
+          article_type: 'blog',
+          write_mode: 'manual',
+          keywords: 'new kw',
+          portrait: 'new p',
+          images: ['img1'],
+          platforms: ['p1'],
+          skills: 2,
+          llm_model_id: 3,
+          scheduled_publish_at: '2026-07-01T10:00:00Z',
+        });
+
+      expect(response.status).toBe(200);
+      const updateData = mockUpdate.mock.calls[0][0].data;
+      expect(updateData.title).toBe('New Title');
+      expect(updateData.articleType).toBe('blog');
+      expect(updateData.writeMode).toBe('manual');
+      expect(updateData.scheduledPublishAt).toEqual(new Date('2026-07-01T10:00:00Z'));
+    });
+  });
+
+  // ============= Entity null field handling =============
+
+  describe('POST /api/projects/:projectId/articles - null optional fields', () => {
+    it('should create article with null/undefined optional fields', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        id: 1, projectId: 1, title: 'Minimal', articleType: null, writeMode: null,
+        keywords: null, portrait: null, images: null, platforms: null, skills: null,
+        llmModelId: null, content: null, status: 'draft', version: 1,
+        createdBy: 1, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ article: { create: mockCreate } });
+
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Minimal' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.title).toBe('Minimal');
+      expect(response.body.data.status).toBe('draft');
+    });
+  });
+
+  // ============= Content update edge cases =============
+
+  describe('PUT /api/projects/:projectId/articles/:id/content - edge cases', () => {
+    it('should accept empty string content', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = {
+        id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+        images: null, platforms: null, status: 'draft', createdBy: 1,
+        content: 'old', version: 1,
+        createdAt: new Date(), updatedAt: new Date(),
+      };
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(existing),
+          update: jest.fn().mockResolvedValue({ ...existing, content: '', version: 2 }),
+        },
+        articleVersion: { create: jest.fn().mockResolvedValue({}) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: '' });
+      expect(response.status).toBe(200);
+    });
+
+    it('should return 401 without token on content update', async () => {
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .send({ content: 'test' });
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 401 without token on regenerate', async () => {
+      const response = await agent
+        .put(`${BASE}/1/regenerate`);
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 401 without token on submit-review', async () => {
+      const response = await agent
+        .put(`${BASE}/1/submit-review`);
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 401 without token on versions', async () => {
+      const response = await agent
+        .get(`${BASE}/1/versions`);
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 401 without token on delete', async () => {
+      const response = await agent
+        .delete(`${BASE}/1`);
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 401 without token on review', async () => {
+      const response = await agent
+        .put(`${BASE}/1/review`)
+        .send({ approved: true });
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 401 without token on getArticle', async () => {
+      const response = await agent
+        .get(`${BASE}/1`);
+      expect(response.status).toBe(401);
+    });
+  });
+
+  // ============= Valid status transitions via update =============
+
+  describe('PUT /api/projects/:projectId/articles/:id - valid generating transition details', () => {
+    it('should allow draft -> generating with metadata only', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = {
+        id: 1, projectId: 1, title: 'A', keywords: 'kw', portrait: null,
+        images: null, platforms: null, status: 'draft', createdBy: 1,
+        content: 'old content', version: 1,
+        createdAt: new Date(), updatedAt: new Date(),
+      };
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, status: 'generating' });
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(existing),
+          update: mockUpdate,
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: 'generating', keywords: 'new kw', content: 'should be stripped' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.message).toBe('已提交AI生成');
+      // Verify content was NOT passed to update
+      const updateData = mockUpdate.mock.calls[0][0].data;
+      expect(updateData.content).toBeUndefined();
+      expect(updateData.keywords).toBe('new kw');
+      expect(updateData.status).toBe('generating');
+    });
+  });
+
+  // ============= Review edge cases =============
+
+  describe('PUT /api/projects/:projectId/articles/:id/review - edge cases', () => {
+    it('should return 400 when approved is string instead of boolean', async () => {
+      const response = await agent
+        .put(`${BASE}/1/review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ approved: 'true' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('审核参数无效');
+    });
+
+    it('should return 400 when approved is number instead of boolean', async () => {
+      const response = await agent
+        .put(`${BASE}/1/review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ approved: 1 });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('审核参数无效');
+    });
+
+    it('should return 400 for invalid article id on review', async () => {
+      const response = await agent
+        .put(`${BASE}/abc/review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ approved: true });
+      expect(response.status).toBe(400);
+    });
+  });
+
+  // ============= Submit review edge cases =============
+
+  describe('PUT /api/projects/:projectId/articles/:id/submit-review - additional', () => {
+    it('should return 400 when article status is generating (not manual_writing)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'generating', createdBy: 1,
+          content: 'c', version: 1,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('只有手工编写中的文章可以提交审核');
+    });
+
+    it('should return 400 when article status is pending_review', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'pending_review', createdBy: 1,
+          content: 'c', version: 1,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('只有手工编写中的文章可以提交审核');
+    });
+
+    it('should return 400 when article status is published', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'published', createdBy: 1,
+          content: 'c', version: 1,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('只有手工编写中的文章可以提交审核');
+    });
+  });
+
+  // ============= Content editable status coverage =============
+
+  describe('PUT /api/projects/:projectId/articles/:id/content - non-editable statuses', () => {
+    const makeArticle = (status: string) => ({
+      id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+      images: null, platforms: null, status, createdBy: 1,
+      content: 'old', version: 1,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+
+    it('should return 400 when status is pending_review', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(makeArticle('pending_review')) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'new' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('当前文章状态不可编辑正文');
+    });
+
+    it('should return 400 when status is publishing', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(makeArticle('publishing')) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'new' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('当前文章状态不可编辑正文');
+    });
+
+    it('should return 400 when status is manual_writing but user is not creator', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(makeArticle('manual_writing')) },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 2, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Company A' },
+            operators: [{ userId: 4 }],
+            viewers: [],
+          }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${adminToken(4, 2)}`)
+        .send({ content: 'new' });
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('只能修改自己创建的文章');
+    });
+  });
+
+  // ============= Regenerate edge cases =============
+
+  describe('PUT /api/projects/:projectId/articles/:id/regenerate - additional', () => {
+    it('should allow sysadmin to regenerate regardless of creator', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+            images: null, platforms: null, status: 'pending_review', createdBy: 99,
+            content: 'c', version: 1,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+          update: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'A', status: 'generating', createdBy: 99,
+            content: 'c', version: 1,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/regenerate`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(200);
+      expect(response.body.message).toBe('已重新提交AI生成');
+    });
+  });
+
+  // ============= Delete edge cases =============
+
+  describe('DELETE /api/projects/:projectId/articles/:id - additional statuses', () => {
+    it('should return 400 when deleting published article as creator admin', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      mockPrismaWithProjectAccess({
+        findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'published', createdBy: 2,
+          createdAt: new Date(), updatedAt: new Date(),
+        }),
+      });
+
+      const response = await agent
+        .delete(`${BASE}/1`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('已发布的文章不能删除');
+    });
+
+    it('should delete manual_writing article as sysadmin', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+            images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+          update: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'A', status: 'manual_writing', createdBy: 1,
+            deletedAt: new Date(),
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+        },
+      });
+
+      const response = await agent
+        .delete(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(200);
+    });
+  });
 });
