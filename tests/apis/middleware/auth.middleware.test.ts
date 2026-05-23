@@ -1,0 +1,371 @@
+/**
+ * @jest-environment node
+ */
+import { Request, Response, NextFunction } from 'express';
+
+// Helper: 创建 mock request
+function createMockReq(overrides: { authorization?: string; user?: any } = {}) {
+  const req: any = {
+    headers: {
+      authorization: overrides.authorization,
+    },
+    user: overrides.user,
+  };
+  return req as Partial<Request>;
+}
+
+// Helper: 创建 mock response（与 anti-crawl 测试一致的模式）
+function createMockRes() {
+  const jsonFn = jest.fn();
+  const statusFn = jest.fn().mockReturnValue({ json: jsonFn });
+  return { status: statusFn, json: jsonFn } as Partial<Response>;
+}
+
+describe('authMiddleware', () => {
+  let authMiddleware: (req: Request, res: Response, next: NextFunction) => void;
+  let mockReq: any;
+  let mockRes: Partial<Response>;
+  let mockNext: NextFunction;
+  let jsonFn: jest.Mock;
+  let statusFn: jest.Mock;
+
+  beforeEach(() => {
+    jest.resetModules();
+    process.env.JWT_SECRET = 'test-secret-key-for-auth';
+    authMiddleware = require('../../../apis/middleware/auth.middleware').authMiddleware;
+
+    jsonFn = jest.fn();
+    statusFn = jest.fn().mockReturnValue({ json: jsonFn });
+    mockReq = createMockReq();
+    mockRes = { status: statusFn } as Partial<Response>;
+    mockNext = jest.fn();
+  });
+
+  afterEach(() => {
+    delete process.env.JWT_SECRET;
+  });
+
+  // =========================================================
+  // 1. authMiddleware — 无 authorization header
+  // =========================================================
+  describe('无 authorization header', () => {
+    it('应该返回 401 当 authorization header 缺失时', () => {
+      authMiddleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(jsonFn).toHaveBeenCalledWith({ code: 401, message: '未登录，请先登录' });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('应该返回 401 当 authorization header 为空字符串时', () => {
+      mockReq = createMockReq({ authorization: '' });
+
+      authMiddleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================
+  // 2. authMiddleware — authorization header 格式错误
+  // =========================================================
+  describe('authorization header 格式错误', () => {
+    it('应该返回 401 当 header 以 Basic 开头', () => {
+      mockReq = createMockReq({ authorization: 'Basic abc123' });
+
+      authMiddleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(jsonFn).toHaveBeenCalledWith({ code: 401, message: '未登录，请先登录' });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('应该返回 401 当 header 是 Bearer 但没有空格分隔', () => {
+      mockReq = createMockReq({ authorization: 'Bearer' });
+
+      authMiddleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('应该返回 401 当 header 是 Token xxx 格式', () => {
+      mockReq = createMockReq({ authorization: 'Token abc123' });
+
+      authMiddleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================
+  // 3. authMiddleware — 无效 token
+  // =========================================================
+  describe('无效 token', () => {
+    it('应该返回 401 当 token 完全无效时', () => {
+      mockReq = createMockReq({ authorization: 'Bearer invalid.token.here' });
+
+      authMiddleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(jsonFn).toHaveBeenCalledWith({ code: 401, message: '登录已过期，请重新登录' });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('应该返回 401 当 token 已过期时', () => {
+      const jwt = require('jsonwebtoken');
+      const expiredToken = jwt.sign(
+        { userId: 1, username: 'test', role: 'admin' },
+        process.env.JWT_SECRET!,
+        { expiresIn: '1ms' }
+      );
+
+      mockReq = createMockReq({ authorization: `Bearer ${expiredToken}` });
+
+      authMiddleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(jsonFn).toHaveBeenCalledWith({ code: 401, message: '登录已过期，请重新登录' });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('应该返回 401 当 token 用错误密钥签名时', () => {
+      const jwt = require('jsonwebtoken');
+      const wrongSecretToken = jwt.sign(
+        { userId: 1, username: 'test', role: 'admin' },
+        'wrong-secret-key',
+        { expiresIn: '1h' }
+      );
+
+      mockReq = createMockReq({ authorization: `Bearer ${wrongSecretToken}` });
+
+      authMiddleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(jsonFn).toHaveBeenCalledWith({ code: 401, message: '登录已过期，请重新登录' });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('应该返回 401 当 Bearer 后跟空 token 时', () => {
+      mockReq = createMockReq({ authorization: 'Bearer ' });
+
+      authMiddleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(jsonFn).toHaveBeenCalledWith({ code: 401, message: '登录已过期，请重新登录' });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================
+  // 4. authMiddleware — 有效 token
+  // =========================================================
+  describe('有效 token', () => {
+    it('应该调用 next() 并设置 req.user 当 token 有效时', () => {
+      const jwt = require('jsonwebtoken');
+      const payload = { userId: 1, username: 'admin', role: 'admin', companyId: 10 };
+      const token = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '2h' });
+
+      mockReq = createMockReq({ authorization: `Bearer ${token}` });
+
+      authMiddleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(statusFn).not.toHaveBeenCalled();
+      expect(mockReq.user).toMatchObject({
+        userId: 1,
+        username: 'admin',
+        role: 'admin',
+        companyId: 10,
+      });
+    });
+
+    it('应该正确解析包含 companyId 为 null 的 payload', () => {
+      const jwt = require('jsonwebtoken');
+      const payload = { userId: 2, username: 'sysadmin', role: 'sysadmin', companyId: null };
+      const token = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '2h' });
+
+      mockReq = createMockReq({ authorization: `Bearer ${token}` });
+
+      authMiddleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(mockReq.user).toMatchObject({
+        userId: 2,
+        username: 'sysadmin',
+        role: 'sysadmin',
+        companyId: null,
+      });
+    });
+
+    it('应该正确解析不包含 companyId 的 payload', () => {
+      const jwt = require('jsonwebtoken');
+      const payload = { userId: 3, username: 'viewer', role: 'view' };
+      const token = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '2h' });
+
+      mockReq = createMockReq({ authorization: `Bearer ${token}` });
+
+      authMiddleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(mockReq.user).toMatchObject({
+        userId: 3,
+        username: 'viewer',
+        role: 'view',
+      });
+    });
+  });
+});
+
+describe('roleMiddleware', () => {
+  let roleMiddleware: (...allowedRoles: string[]) => (req: Request, res: Response, next: NextFunction) => void;
+  let mockReq: any;
+  let mockRes: Partial<Response>;
+  let mockNext: NextFunction;
+  let jsonFn: jest.Mock;
+  let statusFn: jest.Mock;
+
+  beforeEach(() => {
+    jest.resetModules();
+    process.env.JWT_SECRET = 'test-secret-key-for-auth';
+    roleMiddleware = require('../../../apis/middleware/auth.middleware').roleMiddleware;
+
+    jsonFn = jest.fn();
+    statusFn = jest.fn().mockReturnValue({ json: jsonFn });
+    mockRes = { status: statusFn } as Partial<Response>;
+    mockNext = jest.fn();
+  });
+
+  afterEach(() => {
+    delete process.env.JWT_SECRET;
+  });
+
+  // =========================================================
+  // 5. roleMiddleware — req.user 不存在
+  // =========================================================
+  describe('req.user 不存在', () => {
+    it('应该返回 401 当 req.user 未设置时', () => {
+      mockReq = createMockReq();
+      const middleware = roleMiddleware('admin');
+
+      middleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(jsonFn).toHaveBeenCalledWith({ code: 401, message: '未登录，请先登录' });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('应该返回 401 当 req.user 为 undefined 时', () => {
+      mockReq = { headers: {}, user: undefined };
+      const middleware = roleMiddleware('admin');
+
+      middleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================
+  // 6. roleMiddleware — 角色不匹配
+  // =========================================================
+  describe('角色不匹配', () => {
+    it('应该返回 403 当用户角色不在允许列表中', () => {
+      mockReq = createMockReq({ user: { userId: 1, username: 'viewer', role: 'view' } });
+      const middleware = roleMiddleware('admin', 'sysadmin');
+
+      middleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(403);
+      expect(jsonFn).toHaveBeenCalledWith({ code: 403, message: '无权限访问' });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('应该返回 403 当用户角色为 view 但只允许 admin', () => {
+      mockReq = createMockReq({ user: { userId: 1, username: 'viewer', role: 'view' } });
+      const middleware = roleMiddleware('admin');
+
+      middleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(403);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('应该返回 403 当允许列表为空时（任何角色都不匹配）', () => {
+      mockReq = createMockReq({ user: { userId: 1, username: 'admin', role: 'admin' } });
+      const middleware = roleMiddleware();
+
+      middleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(403);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================
+  // 7. roleMiddleware — 角色匹配
+  // =========================================================
+  describe('角色匹配', () => {
+    it('应该调用 next() 当用户角色匹配单个允许角色', () => {
+      mockReq = createMockReq({ user: { userId: 1, username: 'admin', role: 'admin' } });
+      const middleware = roleMiddleware('admin');
+
+      middleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(statusFn).not.toHaveBeenCalled();
+    });
+
+    it('应该调用 next() 当用户角色匹配多个允许角色之一', () => {
+      mockReq = createMockReq({ user: { userId: 1, username: 'admin', role: 'admin' } });
+      const middleware = roleMiddleware('sysadmin', 'admin', 'view');
+
+      middleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(statusFn).not.toHaveBeenCalled();
+    });
+
+    it('应该调用 next() 当用户角色为 sysadmin 且允许 sysadmin', () => {
+      mockReq = createMockReq({ user: { userId: 1, username: 'sysadmin', role: 'sysadmin' } });
+      const middleware = roleMiddleware('sysadmin');
+
+      middleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+    });
+
+    it('应该调用 next() 当用户角色为 view 且允许 view', () => {
+      mockReq = createMockReq({ user: { userId: 1, username: 'viewer', role: 'view' } });
+      const middleware = roleMiddleware('view');
+
+      middleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================
+  // 8. AuthPayload 接口验证（通过 authMiddleware + roleMiddleware 集成）
+  // =========================================================
+  describe('AuthPayload 集成验证', () => {
+    it('应该正确携带 userId, username, role, companyId 字段', () => {
+      const jwt = require('jsonwebtoken');
+      const payload = { userId: 99, username: 'testuser', role: 'admin', companyId: 42 };
+      const token = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '2h' });
+
+      mockReq = createMockReq({ authorization: `Bearer ${token}` });
+      const { authMiddleware } = require('../../../apis/middleware/auth.middleware');
+
+      authMiddleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockReq.user).toBeDefined();
+      expect(mockReq.user.userId).toBe(99);
+      expect(mockReq.user.username).toBe('testuser');
+      expect(mockReq.user.role).toBe('admin');
+      expect(mockReq.user.companyId).toBe(42);
+    });
+  });
+});
