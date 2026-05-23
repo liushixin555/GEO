@@ -351,7 +351,7 @@ const KnowledgePage: React.FC = () => {
         <Row gutter={[16, 16]} className="knowledge-stat-cards">
           <Col xs={12} sm={6}>
             <Card className="stat-card" styles={{ body: { padding: '16px 24px' } }}>
-              <Statistic title="全部" value={invStats.total} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
+              <Statistic title="总资产数" value={invStats.total} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
