@@ -336,6 +336,14 @@ export async function createImage(req: Request, res: Response): Promise<void> {
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
+    // 检查标题重复
+    const prisma = getPrisma();
+    const dupTitle = await prisma.knowledgeImage.findFirst({ where: { baseId, title } });
+    if (dupTitle) { fail(res, 400, '该知识库已存在相同标题的图片'); return; }
+    // 检查图片URL重复
+    const dupUrl = await prisma.knowledgeImage.findFirst({ where: { baseId, imageUrl: image_url } });
+    if (dupUrl) { fail(res, 400, '该知识库已存在相同的图片'); return; }
+
     const item = await imageService.create(baseId, req.body, userId);
     res.status(201).json({ code: 0, message: '创建图片成功', data: item });
   } catch (err: any) {
@@ -358,6 +366,14 @@ export async function updateImage(req: Request, res: Response): Promise<void> {
     if (role !== 'sysadmin' && existing.created_by !== userId) {
       fail(res, 403, '只能修改自己创建的图片');
       return;
+    }
+
+    // 检查标题重复（排除自身）
+    const newTitle = req.body.title;
+    if (newTitle && newTitle !== existing.title) {
+      const prisma = getPrisma();
+      const dup = await prisma.knowledgeImage.findFirst({ where: { baseId, title: newTitle, id: { not: id } } });
+      if (dup) { fail(res, 400, '该知识库已存在相同标题的图片'); return; }
     }
 
     const item = await imageService.update(id, req.body);
@@ -444,6 +460,14 @@ export async function createDocument(req: Request, res: Response): Promise<void>
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
+    // 检查标题重复
+    const prisma = getPrisma();
+    const dupTitle = await prisma.knowledgeDocument.findFirst({ where: { baseId, title } });
+    if (dupTitle) { fail(res, 400, '该知识库已存在相同标题的文档'); return; }
+    // 检查文件URL重复
+    const dupUrl = await prisma.knowledgeDocument.findFirst({ where: { baseId, fileUrl: file_url } });
+    if (dupUrl) { fail(res, 400, '该知识库已存在相同的文档'); return; }
+
     const item = await documentService.create(baseId, req.body, userId);
     res.status(201).json({ code: 0, message: '创建文档成功', data: item });
   } catch (err: any) {
@@ -466,6 +490,14 @@ export async function updateDocument(req: Request, res: Response): Promise<void>
     if (role !== 'sysadmin' && existing.created_by !== userId) {
       fail(res, 403, '只能修改自己创建的文档');
       return;
+    }
+
+    // 检查标题重复（排除自身）
+    const newTitle = req.body.title;
+    if (newTitle && newTitle !== existing.title) {
+      const prisma = getPrisma();
+      const dup = await prisma.knowledgeDocument.findFirst({ where: { baseId, title: newTitle, id: { not: id } } });
+      if (dup) { fail(res, 400, '该知识库已存在相同标题的文档'); return; }
     }
 
     const item = await documentService.update(id, req.body);
