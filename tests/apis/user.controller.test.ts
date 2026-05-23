@@ -175,6 +175,38 @@ describe('User Controller', () => {
 
       expect(response.status).toBe(500);
     });
+
+    it('should return 500 with fallback message when error has no message', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockRejectedValue(new Error());
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get('/api/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取用户列表失败');
+    });
+
+    it('should support status=false filter', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get('/api/users?status=false')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ status: false }),
+        })
+      );
+    });
   });
 
   describe('GET /api/users/:id', () => {
@@ -227,6 +259,19 @@ describe('User Controller', () => {
 
       expect(response.status).toBe(500);
     });
+
+    it('should return 500 with fallback message when error has no message', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockRejectedValue(new Error());
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .get('/api/users/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取用户详情失败');
+    });
   });
 
   describe('POST /api/users', () => {
@@ -255,6 +300,26 @@ describe('User Controller', () => {
         .send({ username: 'test', password: 'pass', cn_name: 'Test' });
 
       expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when cn_name is missing', async () => {
+      const response = await agent
+        .post('/api/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: 'test', password: 'pass', role: 'admin' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('用户名、密码、姓名、角色不能为空');
+    });
+
+    it('should return 400 with correct message when required fields missing', async () => {
+      const response = await agent
+        .post('/api/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: 'test' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('用户名、密码、姓名、角色不能为空');
     });
 
     it('should create user successfully', async () => {
@@ -298,6 +363,20 @@ describe('User Controller', () => {
         .send({ username: 'test', password: 'pass', cn_name: 'Test', role: 'admin' });
 
       expect(response.status).toBe(500);
+    });
+
+    it('should return 500 with fallback message when create error has no message', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindUnique = jest.fn().mockRejectedValue(new Error());
+      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } });
+
+      const response = await agent
+        .post('/api/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: 'test', password: 'pass', cn_name: 'Test', role: 'admin' });
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('创建用户失败');
     });
   });
 
@@ -409,6 +488,20 @@ describe('User Controller', () => {
 
       expect(response.status).toBe(200);
     });
+
+    it('should return 500 with fallback message when update error has no message', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockRejectedValue(new Error());
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .put('/api/users/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ cn_name: '新名称' });
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('更新用户失败');
+    });
   });
 
   describe('Admin permission denied (sysadmin-only)', () => {
@@ -516,6 +609,19 @@ describe('User Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
+    });
+
+    it('should return 500 with fallback message when delete error has no message', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockRejectedValue(new Error());
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .delete('/api/users/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('删除用户失败');
     });
   });
 });
