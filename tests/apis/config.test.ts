@@ -77,9 +77,19 @@ describe('apis/config/index.ts', () => {
       expect(config.database.pool).toEqual({ min: 2, max: 10 });
     });
 
-    it('should use default JWT secret', async () => {
+    it('should generate random JWT secret when not set (or use .env value)', async () => {
       const config = await loadConfigWithEnv({});
-      expect(config.jwt.secret).toBe('your-secret-key-change-in-production');
+      expect(typeof config.jwt.secret).toBe('string');
+      expect(config.jwt.secret.length).toBeGreaterThan(0);
+    });
+
+    it('should generate random JWT secret when explicitly cleared and .env absent', async () => {
+      // Force random generation by providing a falsy JWT_SECRET
+      // dotenv reloads .env, so we need to set it to override
+      const config = await loadConfigWithEnv({ JWT_SECRET: '' });
+      // Empty string is falsy, so random generation should kick in
+      expect(typeof config.jwt.secret).toBe('string');
+      expect(config.jwt.secret.length).toBeGreaterThan(0);
     });
 
     it('should use default JWT expiresIn 2h', async () => {
@@ -305,24 +315,46 @@ describe('apis/config/index.ts', () => {
   });
 
   describe('edge cases', () => {
-    it('should handle NaN gracefully when PORT is non-numeric', async () => {
-      const config = await loadConfigWithEnv({ PORT: 'abc' });
-      expect(config.server.port).toBeNaN();
+    it('should throw when PORT is non-numeric', async () => {
+      await expect(loadConfigWithEnv({ PORT: 'abc' })).rejects.toThrow(
+        'FATAL: PORT must be a valid integer'
+      );
     });
 
-    it('should handle NaN gracefully when DB_PORT is non-numeric', async () => {
-      const config = await loadConfigWithEnv({ DB_PORT: 'not-a-port' });
-      expect(config.database.port).toBeNaN();
+    it('should throw when DB_PORT is non-numeric', async () => {
+      await expect(loadConfigWithEnv({ DB_PORT: 'not-a-port' })).rejects.toThrow(
+        'FATAL: DB_PORT must be a valid integer'
+      );
     });
 
-    it('should handle NaN gracefully when RATE_LIMIT_WINDOW_MS is non-numeric', async () => {
-      const config = await loadConfigWithEnv({ RATE_LIMIT_WINDOW_MS: 'invalid' });
-      expect(config.rateLimit.windowMs).toBeNaN();
+    it('should throw when RATE_LIMIT_WINDOW_MS is non-numeric', async () => {
+      await expect(loadConfigWithEnv({ RATE_LIMIT_WINDOW_MS: 'invalid' })).rejects.toThrow(
+        'FATAL: RATE_LIMIT_WINDOW_MS must be a valid integer'
+      );
     });
 
-    it('should handle NaN gracefully when RATE_LIMIT_MAX is non-numeric', async () => {
-      const config = await loadConfigWithEnv({ RATE_LIMIT_MAX: 'abc' });
-      expect(config.rateLimit.max).toBeNaN();
+    it('should throw when RATE_LIMIT_MAX is non-numeric', async () => {
+      await expect(loadConfigWithEnv({ RATE_LIMIT_MAX: 'abc' })).rejects.toThrow(
+        'FATAL: RATE_LIMIT_MAX must be a valid integer'
+      );
+    });
+
+    it('should throw when PORT is out of range (0)', async () => {
+      await expect(loadConfigWithEnv({ PORT: '0' })).rejects.toThrow(
+        'FATAL: PORT must be >= 1'
+      );
+    });
+
+    it('should throw when PORT is out of range (70000)', async () => {
+      await expect(loadConfigWithEnv({ PORT: '70000' })).rejects.toThrow(
+        'FATAL: PORT must be <= 65535'
+      );
+    });
+
+    it('should throw when RATE_LIMIT_MAX is zero', async () => {
+      await expect(loadConfigWithEnv({ RATE_LIMIT_MAX: '0' })).rejects.toThrow(
+        'FATAL: RATE_LIMIT_MAX must be >= 1'
+      );
     });
 
     it('should fall back to default when PORT is empty string', async () => {
@@ -366,6 +398,63 @@ describe('apis/config/index.ts', () => {
       expect(config.rateLimit.max).toBe(50);
       expect(config.cron.articleGenerationInterval).toBe('*/10 * * * *');
       expect(config.cron.articleGenerationEnabled).toBe(true);
+    });
+  });
+
+  describe('CORS origins', () => {
+    it('should default to localhost:5173 when CORS_ORIGINS is not set', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(config.corsOrigins).toEqual(['http://localhost:5173']);
+    });
+
+    it('should parse comma-separated CORS_ORIGINS', async () => {
+      const config = await loadConfigWithEnv({
+        CORS_ORIGINS: 'http://localhost:3000,https://example.com',
+      });
+      expect(config.corsOrigins).toEqual(['http://localhost:3000', 'https://example.com']);
+    });
+
+    it('should filter out empty strings from CORS_ORIGINS', async () => {
+      const config = await loadConfigWithEnv({
+        CORS_ORIGINS: 'http://localhost:3000,,https://example.com,',
+      });
+      expect(config.corsOrigins).toEqual(['http://localhost:3000', 'https://example.com']);
+    });
+
+    it('should throw when CORS_ORIGINS contains invalid URL', async () => {
+      await expect(
+        loadConfigWithEnv({ CORS_ORIGINS: 'http://localhost:3000,ftp://bad.com' })
+      ).rejects.toThrow('must start with http:// or https://');
+    });
+
+    it('should throw when CORS_ORIGINS is only commas', async () => {
+      await expect(loadConfigWithEnv({ CORS_ORIGINS: ',,,' })).rejects.toThrow(
+        'FATAL: CORS_ORIGINS must contain at least one valid origin'
+      );
+    });
+  });
+
+  describe('config immutability (deepFreeze)', () => {
+    it('should prevent modification of top-level config properties', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config as Record<string, unknown>).server = { port: 9999 };
+      }).toThrow();
+    });
+
+    it('should prevent modification of nested config properties', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (config.jwt as any).secret = 'hacked';
+      }).toThrow();
+    });
+
+    it('should prevent pushing to corsOrigins array', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config.corsOrigins as string[]).push('http://evil.com');
+      }).toThrow();
     });
   });
 

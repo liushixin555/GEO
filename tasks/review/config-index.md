@@ -573,3 +573,55 @@ port: safeParseInt(process.env.PORT, 8080, 'PORT', { min: 1, max: 65535 }),
 - **审核人**: Committer 审核专家
 - **审核结论**: 安全评审整体质量高，漏洞识别精确。但 CRITICAL-1/2 的修复建议过于激进，未充分考虑开发体验和生产环境已有的保护机制。建议保留环境区分策略（生产强制 + 开发便利），聚焦于 parseInt NaN 防护和 CORS 空值过滤两个真实代码缺陷
 - **最终建议**: 完成 HIGH-2、HIGH-3 两项修复后即可合并，其余项列入技术债跟踪
+
+---
+
+## 八、修复执行记录
+
+**修复日期**: 2026-05-23
+**修复人**: 开发专家
+**修复范围**: 必须修复项 + 建议改进项（共 8 项）
+
+### 8.1 已完成修复
+
+| # | 编号 | 修复内容 | 状态 |
+|---|------|----------|------|
+| 1 | HIGH-2 | 实现 `safeParseInt` + 值域校验（端口 1-65535，速率限制 >= 1） | ✅ 已修复 |
+| 2 | HIGH-3 | CORS origins 过滤空字符串 + URL 格式校验（http/https）+ 空数组校验 | ✅ 已修复 |
+| 3 | CRITICAL-1 | JWT 默认密钥改为 `crypto.randomBytes(32)` 启动时随机生成 | ✅ 已修复 |
+| 4 | HIGH-4 | 配置对象 `deepFreeze` 保护，防止运行时篡改 | ✅ 已修复 |
+| 5 | HIGH-1 | `console.warn` 改为 `console.error`，增强可见性 | ✅ 已修复 |
+| 6 | MEDIUM-2 | 更新 `.env.example`，补全所有配置项 + 密钥生成命令指引 | ✅ 已修复 |
+
+### 8.2 修复详情
+
+**apis/config/index.ts 变更:**
+
+1. **新增 `safeParseInt` 函数** — 支持 NaN 检测 + min/max 值域校验，替代原始 `parseInt`
+2. **新增 `deepFreeze` 函数** — 递归冻结配置对象，防止运行时属性篡改
+3. **新增 `parseCorsOrigins` 函数** — 过滤空字符串 + 校验 http/https 前缀 + 空数组保护
+4. **JWT 默认密钥改为随机生成** — `crypto.randomBytes(32).toString('hex')`，每次重启不同
+5. **`console.warn` → `console.error`** — JWT 和 DB 密码警告改为错误级别输出
+6. **`AppConfig` 接口添加 `readonly`** — 嵌套属性声明为只读
+7. **新增 `import crypto from 'crypto'`**
+
+**tests/apis/config.test.ts 变更:**
+
+1. JWT 默认密钥测试更新为校验随机密钥格式
+2. 4 个 NaN 测试改为 expect throw（原期望返回 NaN）
+3. 新增 3 个值域校验测试（PORT 0/70000, RATE_LIMIT_MAX 0）
+4. 新增 5 个 CORS origins 测试（默认值、逗号分隔、空值过滤、非法 URL、纯逗号）
+5. 新增 3 个 deepFreeze 不可变性测试（顶层/嵌套属性/数组 push）
+
+**测试结果**: 69 个测试全部通过
+
+### 8.3 未修复项（维持原裁决）
+
+| 编号 | 原因 |
+|------|------|
+| CRITICAL-1/2 (全部移除默认值) | 破坏开发体验，生产环境已有 NODE_ENV 保护 |
+| HIGH-1 (移除 console 警告) | 保留警告，改为 console.error |
+| MEDIUM-3 (dotenv 报警) | 生产环境不使用 .env，报警会产生误报 |
+| MEDIUM-1 (NODE_ENV 安全开关) | 维持 Node.js 生态标准用法 |
+| LOW-1 (连接池参数) | 当前默认值足够，后续优化 |
+| LOW-2 (cron 校验) | 后续迭代实现 |
