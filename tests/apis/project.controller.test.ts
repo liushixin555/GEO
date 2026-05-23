@@ -232,6 +232,64 @@ describe('Project Controller', () => {
       expect(response.status).toBe(500);
       expect(response.body.message).toBe('获取项目列表失败');
     });
+
+    it('should use default page=1 and pageSize=10 when no query params', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get('/api/projects')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.page).toBe(1);
+      expect(response.body.data.pageSize).toBe(10);
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 0, take: 10 })
+      );
+    });
+
+    it('should support combined filters (search + company_id + status)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get('/api/projects?search=Test&company_id=1&status=true')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            companyId: 1,
+            status: true,
+            OR: [
+              { shortName: { contains: 'Test', mode: 'insensitive' } },
+              { fullName: { contains: 'Test', mode: 'insensitive' } },
+            ],
+          }),
+        })
+      );
+    });
+
+    it('should exclude status filter when status param is absent', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get('/api/projects')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      const whereClause = mockFindMany.mock.calls[0][0].where;
+      expect(whereClause.status).toBeUndefined();
+    });
   });
 
   // ========== GET /api/projects/:id (getProject) ==========
@@ -331,6 +389,39 @@ describe('Project Controller', () => {
 
       expect(response.status).toBe(500);
       expect(response.body.message).toBe('获取项目详情失败');
+    });
+
+    it('should return full project detail with all mapped fields', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const fullProject = {
+        ...mockProjectRow,
+        description: 'Test description',
+        company: { shortName: 'Test Company' },
+        operators: [
+          { userId: 2, user: { cnName: '张三', id: 2 } },
+          { userId: 4, user: { cnName: '赵六', id: 4 } },
+        ],
+        viewers: [
+          { userId: 3, user: { cnName: '李四', id: 3 } },
+        ],
+      };
+      const mockFindFirst = jest.fn().mockResolvedValue(fullProject);
+      getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .get('/api/projects/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.short_name).toBe('P1');
+      expect(response.body.data.full_name).toBe('Project 1');
+      expect(response.body.data.description).toBe('Test description');
+      expect(response.body.data.company_name).toBe('Test Company');
+      expect(response.body.data.operator_ids).toEqual([2, 4]);
+      expect(response.body.data.operator_names).toEqual(['张三', '赵六']);
+      expect(response.body.data.viewer_ids).toEqual([3]);
+      expect(response.body.data.viewer_names).toEqual(['李四']);
+      expect(response.body.data.status).toBe(true);
     });
   });
 
@@ -478,6 +569,89 @@ describe('Project Controller', () => {
 
       expect(response.status).toBe(500);
       expect(response.body.message).toBe('创建项目失败');
+    });
+
+    it('should create project with all optional fields including viewer_ids', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      let callCount = 0;
+      const mockUserFindMany = jest.fn().mockImplementation((args: any) => {
+        callCount++;
+        // First call: operator check
+        if (callCount === 1) return Promise.resolve([{ id: 2, companyId: 1, role: 'admin' }]);
+        // Second call: viewer check
+        return Promise.resolve([{ id: 3, companyId: 1, role: 'view' }]);
+      });
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        description: 'A test project',
+        viewers: [{ userId: 3, user: { cnName: '李四' } }],
+      });
+      getPrisma.mockReturnValue({
+        project: { create: mockCreate },
+        user: { findMany: mockUserFindMany },
+      });
+
+      const response = await agent
+        .post('/api/projects')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'P1',
+          full_name: 'Project 1',
+          description: 'A test project',
+          company_id: 1,
+          operator_ids: [2],
+          viewer_ids: [3],
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.code).toBe(0);
+      expect(response.body.message).toBe('创建项目成功');
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            shortName: 'P1',
+            fullName: 'Project 1',
+            description: 'A test project',
+            companyId: 1,
+            operators: { create: [{ userId: 2 }] },
+            viewers: { create: [{ userId: 3 }] },
+          }),
+        })
+      );
+    });
+
+    it('should create project with only required fields (no operators/viewers)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue(mockProjectRow);
+      getPrisma.mockReturnValue({
+        project: { create: mockCreate },
+        user: { findMany: jest.fn().mockResolvedValue([]) },
+      });
+
+      const response = await agent
+        .post('/api/projects')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ short_name: 'P1', full_name: 'Project 1', company_id: 1 });
+
+      expect(response.status).toBe(201);
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            operators: { create: [] },
+            viewers: { create: [] },
+          }),
+        })
+      );
+    });
+
+    it('should return 400 when all three required fields are missing', async () => {
+      const response = await agent
+        .post('/api/projects')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ description: 'no required fields' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
     });
   });
 
@@ -661,6 +835,195 @@ describe('Project Controller', () => {
       expect(response.status).toBe(500);
       expect(response.body.message).toBe('更新项目失败');
     });
+
+    it('should update status field', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        status: false,
+      });
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const response = await agent
+        .put('/api/projects/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: false });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe(false);
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: false }),
+        })
+      );
+    });
+
+    it('should update description field', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        description: 'New description',
+      });
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const response = await agent
+        .put('/api/projects/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ description: 'New description' });
+
+      expect(response.status).toBe(200);
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ description: 'New description' }),
+        })
+      );
+    });
+
+    it('should update with valid operator_ids replacement', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
+      const mockUserFindMany = jest.fn().mockResolvedValue([{ id: 2, companyId: 1 }]);
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        operators: [{ userId: 2, user: { cnName: '张三' } }],
+      });
+      const mockOperatorUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+        user: { findMany: mockUserFindMany },
+        projectOperator: { updateMany: mockOperatorUpdateMany },
+      });
+
+      const response = await agent
+        .put('/api/projects/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ operator_ids: [2] });
+
+      expect(response.status).toBe(200);
+      expect(mockOperatorUpdateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { projectId: 1, deletedAt: null },
+          data: { deletedAt: expect.any(Date) },
+        })
+      );
+      expect(mockUpdate).toHaveBeenCalled();
+    });
+
+    it('should update with valid viewer_ids replacement', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
+      let userCallCount = 0;
+      const mockUserFindMany = jest.fn().mockImplementation(() => {
+        userCallCount++;
+        if (userCallCount === 1) return Promise.resolve([{ id: 2 }]);
+        return Promise.resolve([{ id: 3 }]);
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        viewers: [{ userId: 3, user: { cnName: '李四' } }],
+      });
+      const mockOperatorUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
+      const mockViewerUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+        user: { findMany: mockUserFindMany },
+        projectOperator: { updateMany: mockOperatorUpdateMany },
+        projectViewer: { updateMany: mockViewerUpdateMany },
+      });
+
+      const response = await agent
+        .put('/api/projects/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ operator_ids: [2], viewer_ids: [3] });
+
+      expect(response.status).toBe(200);
+      expect(mockViewerUpdateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { projectId: 1, deletedAt: null },
+          data: { deletedAt: expect.any(Date) },
+        })
+      );
+    });
+
+    it('should allow admin to update project they are operator of', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const adminProject = {
+        ...mockProjectRow,
+        companyId: 2,
+        operators: [{ userId: 2, user: { cnName: '张三' } }],
+      };
+      const mockFindFirst = jest.fn().mockResolvedValue(adminProject);
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...adminProject,
+        shortName: 'P1-Updated',
+      });
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const response = await agent
+        .put('/api/projects/1')
+        .set('Authorization', `Bearer ${adminToken(2)}`)
+        .send({ short_name: 'P1-Updated' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.short_name).toBe('P1-Updated');
+    });
+
+    it('should strip company_id from body before calling service', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
+      const mockUpdate = jest.fn().mockResolvedValue(mockProjectRow);
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      await agent
+        .put('/api/projects/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ company_id: 1, short_name: 'P1-Updated' });
+
+      // The update call should NOT contain company_id
+      const updateCall = mockUpdate.mock.calls[0][0];
+      expect(updateCall.data).not.toHaveProperty('companyId');
+      expect(updateCall.data).toHaveProperty('shortName', 'P1-Updated');
+    });
+
+    it('should handle empty operator_ids array on update', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        operators: [],
+      });
+      const mockOperatorUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+        user: { findMany: jest.fn().mockResolvedValue([]) },
+        projectOperator: { updateMany: mockOperatorUpdateMany },
+      });
+
+      const response = await agent
+        .put('/api/projects/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ operator_ids: [] });
+
+      expect(response.status).toBe(200);
+      expect(mockOperatorUpdateMany).toHaveBeenCalled();
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            operators: { create: [] },
+          }),
+        })
+      );
+    });
   });
 
   // ========== DELETE /api/projects/:id (deleteProject) ==========
@@ -772,6 +1135,34 @@ describe('Project Controller', () => {
 
       expect(response.status).toBe(500);
       expect(response.body.message).toBe('删除项目失败');
+    });
+
+    it('should allow sysadmin to delete without operator check', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
+      const mockUpdate = jest.fn().mockResolvedValue(mockProjectRow);
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const response = await agent
+        .delete('/api/projects/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.code).toBe(0);
+      expect(response.body.message).toBe('删除项目成功');
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 1 },
+          data: { deletedAt: expect.any(Date) },
+        })
+      );
+    });
+
+    it('should return 401 without token on delete', async () => {
+      const response = await agent.delete('/api/projects/1');
+      expect(response.status).toBe(401);
     });
   });
 });
