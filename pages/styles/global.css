@@ -1146,3 +1146,41 @@ a:hover {
     min-width: 140px;
   }
 }
+
+/* ========================================
+   Knowledge Page — Card / Table Responsive
+   ======================================== */
+
+.knowledge-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md, 12px);
+}
+
+.knowledge-cards-empty {
+  text-align: center;
+  color: var(--color-ink-subtle);
+  padding: var(--spacing-xxl) 0;
+  font-size: 14px;
+}
+
+.knowledge-card-footer {
+  margin-top: var(--spacing-sm, 8px);
+  padding-top: var(--spacing-sm, 8px);
+  border-top: 1px solid var(--color-hairline, #e0e0e0);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.knowledge-table-wrapper {
+  display: none;
+}
+
+@media (min-width: 1280px) {
+  .knowledge-cards {
+    display: none;
+  }
+  .knowledge-table-wrapper {
+    display: block;
+  }
+}

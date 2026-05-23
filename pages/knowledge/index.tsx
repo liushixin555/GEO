@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Input, Select, Typography, Spin, Pagination, App, Breadcrumb, Tag } from 'antd';
-import { EditOutlined, PlusOutlined, StopOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Input, Select, Tag, Spin, Pagination, App, Breadcrumb, Button, Descriptions, Table } from 'antd';
+import { EditOutlined, PlusOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import axios from 'axios';
 import KnowledgeBaseForm from './KnowledgeBaseForm';
 
@@ -30,6 +31,14 @@ const scopeLabels: Record<string, { text: string; color: string }> = {
   project: { text: '项目私有', color: 'orange' },
 };
 
+function formatDate(value: string): string {
+  const d = new Date(value);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 const KnowledgePage: React.FC = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const navigate = useNavigate();
@@ -41,7 +50,6 @@ const KnowledgePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [filterScope, setFilterScope] = useState<string | undefined>(undefined);
-  const [filterStatus, setFilterStatus] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<KnowledgeBaseItem | null>(null);
 
@@ -49,7 +57,7 @@ const KnowledgePage: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const params: any = { page, pageSize };
+      const params: Record<string, unknown> = { page, pageSize };
       if (search) params.search = search;
       if (filterScope) params.scope = filterScope;
 
@@ -78,6 +86,74 @@ const KnowledgePage: React.FC = () => {
     navigate(`/knowledge/${item.id}`);
   };
 
+  const tableColumns: ColumnsType<KnowledgeBaseItem> = [
+    {
+      title: '名称',
+      dataIndex: 'name',
+      key: 'name',
+      ellipsis: { showTitle: true },
+      render: (text: string, record: KnowledgeBaseItem) => (
+        <a onClick={() => navigate(`/knowledge/${record.id}`)} style={{ color: 'var(--color-primary, #0f62fe)' }}>
+          {text}
+        </a>
+      ),
+    },
+    {
+      title: '范围',
+      dataIndex: 'scope',
+      key: 'scope',
+      width: 100,
+      render: (scope: string) => {
+        const cfg = scopeLabels[scope];
+        return <Tag color={cfg?.color}>{cfg?.text}</Tag>;
+      },
+    },
+    {
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: { showTitle: true },
+      render: (text: string | null) => text || '-',
+    },
+    {
+      title: '统计',
+      key: 'stats',
+      width: 200,
+      render: (_: unknown, record: KnowledgeBaseItem) =>
+        `关键词 ${record.keyword_count} | 画像 ${record.portrait_count} | 图片 ${record.image_count}`,
+    },
+    {
+      title: '创建者',
+      dataIndex: 'creator_name',
+      key: 'creator_name',
+      width: 100,
+      render: (text: string | null) => text || '-',
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 120,
+      render: (val: string) => formatDate(val),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 100,
+      render: (_: unknown, record: KnowledgeBaseItem) => (
+        <Button
+          type="link"
+          size="small"
+          icon={<EditOutlined />}
+          disabled={!canModify(record)}
+          onClick={() => { setEditItem(record); setShowForm(true); }}
+        >
+          编辑
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <div className="page-container">
       <div className="page-breadcrumb"><Breadcrumb items={[{ title: 'AI知识库' }]} /></div>
@@ -104,49 +180,65 @@ const KnowledgePage: React.FC = () => {
             ]}
           />
         </Col>
+        <Col xs={24} sm={8} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditItem(null); setShowForm(true); }}>添加知识库</Button>
+        </Col>
       </Row>
 
       <Spin spinning={loading}>
-        <Row gutter={[16, 16]}>
-          {data.map((item) => (
-            <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
-              <Card hoverable styles={{ body: { padding: 24 } }} style={{ height: '100%' }}
+        {/* 卡片视图：<1280px */}
+        <div className="knowledge-cards">
+          {data.length === 0 && (
+            <Card>
+              <div className="knowledge-cards-empty">暂无数据</div>
+            </Card>
+          )}
+          {data.map((item) => {
+            const scopeCfg = scopeLabels[item.scope];
+            return (
+              <Card
+                key={item.id}
+                size="small"
+                title={item.name}
+                extra={<Tag color={scopeCfg?.color}>{scopeCfg?.text}</Tag>}
+                hoverable
                 onClick={() => handleCardClick(item)}
+                style={{ cursor: 'pointer' }}
               >
-                <div className="item-card-header">
-                  <Typography.Title level={3} className="item-card-title" ellipsis={{ tooltip: item.name }}>{item.name}</Typography.Title>
-                  {canModify(item) && (
-                    <div className="item-card-actions">
-                      <EditOutlined className="item-card-edit" onClick={(e) => { e.stopPropagation(); setEditItem(item); setShowForm(true); }} />
-                    </div>
-                  )}
-                </div>
-                <div className="item-card-row">
-                  <Tag color={scopeLabels[item.scope]?.color}>{scopeLabels[item.scope]?.text}</Tag>
-                  {item.company_name && <span className="item-card-username">{item.company_name}</span>}
-                  {item.project_name && <span className="item-card-username">{item.project_name}</span>}
-                </div>
-                {item.description && (
-                  <div className="item-card-row">
-                    <Typography.Paragraph className="item-card-desc" ellipsis={{ rows: 2 }}>{item.description}</Typography.Paragraph>
+                <Descriptions column={2} size="small" colon={false}>
+                  <Descriptions.Item label="描述">{item.description || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="创建者">{item.creator_name || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="统计">关键词 {item.keyword_count} | 画像 {item.portrait_count} | 图片 {item.image_count}</Descriptions.Item>
+                  <Descriptions.Item label="创建时间">{formatDate(item.created_at)}</Descriptions.Item>
+                </Descriptions>
+                {canModify(item) && (
+                  <div className="knowledge-card-footer">
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={<EditOutlined />}
+                      onClick={(e) => { e.stopPropagation(); setEditItem(item); setShowForm(true); }}
+                    >
+                      编辑
+                    </Button>
                   </div>
                 )}
-                <div className="item-card-row">
-                  <span className="item-card-username">关键词 {item.keyword_count} | 画像 {item.portrait_count} | 图片 {item.image_count}</span>
-                </div>
-                <div className="item-card-row">
-                  {item.creator_name && <span className="item-card-username">{item.creator_name}</span>}
-                </div>
               </Card>
-            </Col>
-          ))}
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <Card hoverable onClick={() => { setEditItem(null); setShowForm(true); }} className="company-add-card">
-              <PlusOutlined className="company-add-icon" />
-              <Typography.Text className="company-add-text">添加知识库</Typography.Text>
-            </Card>
-          </Col>
-        </Row>
+            );
+          })}
+        </div>
+
+        {/* 表格视图：>=1280px */}
+        <div className="knowledge-table-wrapper">
+          <Table
+            columns={tableColumns}
+            dataSource={data}
+            rowKey="id"
+            size="middle"
+            pagination={false}
+            locale={{ emptyText: '暂无数据' }}
+          />
+        </div>
       </Spin>
 
       {total > pageSize && (
