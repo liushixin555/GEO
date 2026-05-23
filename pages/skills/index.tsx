@@ -155,7 +155,7 @@ const SkillPage: React.FC = () => {
                 {item.description || '-'}
               </div>
               <div className="skill-card-meta">
-                <span>{item.creator_name || '-'}</span>
+                <span>添加者：{item.creator_name || '-'}</span>
                 <span>{formatDateTime(item.created_at)}</span>
               </div>
               {canModify(item) && (
