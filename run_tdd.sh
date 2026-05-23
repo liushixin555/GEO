@@ -10,7 +10,7 @@ mapfile -t tasks < <(find . -type f \( -name "*.ts" -o -name "*.tsx" \) | sort)
 for ((i=0; i<100; i++)); do
 for f in "${tasks[@]}"; do
 
-  claude -p "@$f 根据此文件代码补全测试用例，进行测试，输出测试结果，并分析测试覆盖率。注意任务结束铁律每次任务结束后必须执行"
+  claude -p "@$f 根据此文件代码补全测试用例，进行测试，输出测试结果，并分析测试覆盖率。每完成一个任务，在tasks/tdd目录建一个文件写入该文件的tdd执行情况。注意任务结束铁律每次任务结束后必须执行"
   echo "休眠 10秒..."
   sleep 10
 done
