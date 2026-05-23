@@ -8,7 +8,7 @@ process.env.JWT_SECRET = 'test-secret';
 process.env.JWT_EXPIRES_IN = '2h';
 process.env.SWAGGER_ENABLED = 'false';
 process.env.RATE_LIMIT_WINDOW_MS = '60000';
-process.env.RATE_LIMIT_MAX = '100';
+process.env.RATE_LIMIT_MAX = '500';
 
 jest.mock('../../apis/utils/db.util', () => ({
   getPrisma: jest.fn(),
@@ -139,7 +139,7 @@ describe('Article Controller', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             projectId: 1,
-            title: { contains: 'test', mode: 'insensitive' },
+            keywords: { contains: 'test', mode: 'insensitive' },
             status: 'draft',
           }),
         })
@@ -166,6 +166,44 @@ describe('Article Controller', () => {
         .set('Authorization', `Bearer ${adminToken(2, 2)}`);
 
       expect(response.status).toBe(403);
+    });
+
+    it('should return 500 on server error', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findMany: jest.fn().mockRejectedValue(new Error('DB error')),
+          count: jest.fn().mockRejectedValue(new Error('DB error')),
+        },
+      });
+
+      const response = await agent
+        .get(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(500);
+    });
+
+    it('should return articles list for admin operator', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        article: { findMany: mockFindMany, count: mockCount },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 2, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Company A' },
+            operators: [{ userId: 2, user: { cnName: '张三' } }],
+            viewers: [],
+          }),
+        },
+      });
+
+      const response = await agent
+        .get(BASE)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(200);
     });
   });
 
@@ -225,15 +263,93 @@ describe('Article Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(404);
     });
+
+    it('should return article detail for admin operator', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'Article 1', keywords: ['seo'], portrait: null,
+            images: null, platforms: null, status: 'draft', createdBy: 2,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+        },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 2, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Company A' },
+            operators: [{ userId: 2, user: { cnName: '张三' } }],
+            viewers: [],
+          }),
+        },
+      });
+
+      const response = await agent
+        .get(`${BASE}/1`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.title).toBe('Article 1');
+    });
+
+    it('should return 403 when admin is not operator on getArticle', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
+            images: null, platforms: null, status: 'draft', createdBy: 2,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+        },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 999, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Other' },
+            operators: [{ userId: 5 }],
+            viewers: [],
+          }),
+        },
+      });
+
+      const response = await agent
+        .get(`${BASE}/1`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 500 on server error for getArticle', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockRejectedValue(new Error('DB error')) },
+      });
+
+      const response = await agent
+        .get(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(500);
+    });
   });
 
   describe('POST /api/projects/:projectId/articles', () => {
-    it('should return 400 when title is missing', async () => {
+    it('should create article with empty title when not provided', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        id: 5, projectId: 1, title: '', keywords: ['test'], portrait: null,
+        images: null, platforms: null, status: 'draft', createdBy: 1,
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ article: { create: mockCreate } });
+
       const response = await agent
         .post(BASE)
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ keywords: ['test'] });
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(201);
+      expect(response.body.data.title).toBe('');
     });
 
     it('should create article successfully', async () => {
@@ -390,12 +506,11 @@ describe('Article Controller', () => {
       expect(response.body.message).toBe('当前文章状态不可编辑');
     });
 
-    it('should allow editing in generate_failed status', async () => {
+    it('should return 400 when editing in generate_failed status', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       getPrisma.mockReturnValue({
         article: {
           findFirst: jest.fn().mockResolvedValue({ ...existingDraft, status: 'generate_failed' }),
-          update: jest.fn().mockResolvedValue({ ...existingDraft, status: 'generate_failed', title: 'Updated' }),
         },
       });
 
@@ -404,15 +519,15 @@ describe('Article Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ title: 'Updated' });
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('当前文章状态不可编辑');
     });
 
-    it('should allow editing in publish_failed status', async () => {
+    it('should return 400 when editing in publish_failed status', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       getPrisma.mockReturnValue({
         article: {
           findFirst: jest.fn().mockResolvedValue({ ...existingDraft, status: 'publish_failed' }),
-          update: jest.fn().mockResolvedValue({ ...existingDraft, status: 'publish_failed', title: 'Updated' }),
         },
       });
 
@@ -421,7 +536,8 @@ describe('Article Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ title: 'Updated' });
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('当前文章状态不可编辑');
     });
   });
 
@@ -437,7 +553,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: {
           findFirst: jest.fn().mockResolvedValue(existingDraft),
-          delete: jest.fn().mockResolvedValue(existingDraft),
+          update: jest.fn().mockResolvedValue({ ...existingDraft, deletedAt: new Date() }),
         },
       });
 
@@ -452,7 +568,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       mockPrismaWithProjectAccess({
         findFirst: jest.fn().mockResolvedValue(existingDraft),
-        delete: jest.fn().mockResolvedValue(existingDraft),
+        update: jest.fn().mockResolvedValue({ ...existingDraft, deletedAt: new Date() }),
       });
 
       const response = await agent
@@ -496,7 +612,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: {
           findFirst: jest.fn().mockResolvedValue({ ...existingDraft, status: 'generating' }),
-          delete: jest.fn().mockResolvedValue({ ...existingDraft, status: 'generating' }),
+          update: jest.fn().mockResolvedValue({ ...existingDraft, status: 'generating', deletedAt: new Date() }),
         },
       });
 
@@ -511,7 +627,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       mockPrismaWithProjectAccess({
         findFirst: jest.fn().mockResolvedValue({ ...existingDraft, status: 'generate_failed' }),
-        delete: jest.fn().mockResolvedValue({ ...existingDraft, status: 'generate_failed' }),
+        update: jest.fn().mockResolvedValue({ ...existingDraft, status: 'generate_failed', deletedAt: new Date() }),
       });
 
       const response = await agent
@@ -525,7 +641,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       mockPrismaWithProjectAccess({
         findFirst: jest.fn().mockResolvedValue({ ...existingDraft, status: 'pending_review' }),
-        delete: jest.fn().mockResolvedValue({ ...existingDraft, status: 'pending_review' }),
+        update: jest.fn().mockResolvedValue({ ...existingDraft, status: 'pending_review', deletedAt: new Date() }),
       });
 
       const response = await agent
@@ -540,7 +656,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: {
           findFirst: jest.fn().mockResolvedValue({ ...existingDraft, status: 'publishing' }),
-          delete: jest.fn().mockResolvedValue({ ...existingDraft, status: 'publishing' }),
+          update: jest.fn().mockResolvedValue({ ...existingDraft, status: 'publishing', deletedAt: new Date() }),
         },
       });
 
@@ -555,7 +671,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       mockPrismaWithProjectAccess({
         findFirst: jest.fn().mockResolvedValue({ ...existingDraft, status: 'publish_failed' }),
-        delete: jest.fn().mockResolvedValue({ ...existingDraft, status: 'publish_failed' }),
+        update: jest.fn().mockResolvedValue({ ...existingDraft, status: 'publish_failed', deletedAt: new Date() }),
       });
 
       const response = await agent
@@ -649,6 +765,1052 @@ describe('Article Controller', () => {
         .send({ approved: true });
 
       expect(response.status).toBe(200);
+    });
+  });
+
+  // ============= Additional edge cases for existing endpoints =============
+
+  describe('POST /api/projects/:projectId/articles - additional', () => {
+    it('should return 400 for invalid initial status', async () => {
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Test', status: 'published' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的初始状态');
+    });
+
+    it('should create article with manual_writing status', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        id: 3, projectId: 1, title: 'Manual', keywords: null, portrait: null,
+        images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ article: { create: mockCreate } });
+
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Manual', status: 'manual_writing' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.status).toBe('manual_writing');
+    });
+
+    it('should create article with generating status', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        id: 4, projectId: 1, title: 'Gen', keywords: null, portrait: null,
+        images: null, platforms: null, status: 'generating', createdBy: 1,
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ article: { create: mockCreate } });
+
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Gen', status: 'generating' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.status).toBe('generating');
+    });
+
+    it('should return 500 on database error', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { create: jest.fn().mockRejectedValue(new Error('DB error')) },
+      });
+
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Test' });
+
+      expect(response.status).toBe(500);
+    });
+  });
+
+  describe('PUT /api/projects/:projectId/articles/:id - additional', () => {
+    const existingDraft = {
+      id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
+      images: null, platforms: null, status: 'draft', createdBy: 2,
+      createdAt: new Date(), updatedAt: new Date(),
+    };
+
+    it('should submit article for AI generation (status=generating)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(existingDraft),
+          update: jest.fn().mockResolvedValue({ ...existingDraft, status: 'generating' }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: 'generating' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe('generating');
+      expect(response.body.message).toBe('已提交AI生成');
+    });
+
+    it('should return 404 when article not found on update', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(null) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/999`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Updated' });
+
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 400 for invalid projectId on update', async () => {
+      const response = await agent
+        .put('/api/projects/abc/articles/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Updated' });
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 403 when admin is not operator on update', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({ ...existingDraft, createdBy: 1 }) },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 999, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Other' },
+            operators: [{ userId: 5 }],
+            viewers: [],
+          }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`)
+        .send({ title: 'Updated' });
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 404 when article belongs to different project on update', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            ...existingDraft, projectId: 999,
+          }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Updated' });
+
+      expect(response.status).toBe(404);
+      expect(response.body.message).toBe('文章不存在');
+    });
+
+    it('should return 500 on server error during update', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockRejectedValue(new Error('DB error')) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Updated' });
+
+      expect(response.status).toBe(500);
+    });
+  });
+
+  describe('DELETE /api/projects/:projectId/articles/:id - additional', () => {
+    it('should return 400 for invalid projectId on delete', async () => {
+      const response = await agent
+        .delete('/api/projects/abc/articles/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 404 when article not found on delete', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(null) },
+      });
+
+      const response = await agent
+        .delete(`${BASE}/999`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 404 when article belongs to different project on delete', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 999, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'draft', createdBy: 1,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+      });
+
+      const response = await agent
+        .delete(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 403 when admin is not operator on delete', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'draft', createdBy: 2,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 999, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Other' },
+            operators: [{ userId: 5 }],
+            viewers: [],
+          }),
+        },
+      });
+
+      const response = await agent
+        .delete(`${BASE}/1`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 when admin operator is not creator on delete', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'draft', createdBy: 2,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 2, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Company A' },
+            operators: [{ userId: 4, user: { cnName: 'Admin4' } }],
+            viewers: [],
+          }),
+        },
+      });
+
+      const response = await agent
+        .delete(`${BASE}/1`)
+        .set('Authorization', `Bearer ${adminToken(4, 2)}`);
+
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('只能删除自己创建的文章');
+    });
+
+    it('should return 500 on server error during delete', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+            images: null, platforms: null, status: 'draft', createdBy: 1,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+          update: jest.fn().mockRejectedValue(new Error('DB error')),
+        },
+      });
+
+      const response = await agent
+        .delete(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+    });
+  });
+
+  describe('PUT /api/projects/:projectId/articles/:id/review - additional', () => {
+    const pendingArticle = {
+      id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
+      images: null, platforms: null, status: 'pending_review', createdBy: 2,
+      createdAt: new Date(), updatedAt: new Date(),
+    };
+
+    it('should return 400 for invalid projectId on review', async () => {
+      const response = await agent
+        .put('/api/projects/abc/articles/1/review')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ approved: true });
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 404 when article not found on review', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(null) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/999/review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ approved: true });
+
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 404 when article belongs to different project on review', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({ ...pendingArticle, projectId: 999 }) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ approved: true });
+
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 403 when admin is not operator on review', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(pendingArticle) },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 999, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Other' },
+            operators: [{ userId: 5 }],
+            viewers: [],
+          }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/review`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`)
+        .send({ approved: true });
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 500 on server error during review', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockRejectedValue(new Error('DB error')) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ approved: true });
+
+      expect(response.status).toBe(500);
+    });
+  });
+
+  // ============= New endpoint tests =============
+
+  describe('PUT /api/projects/:projectId/articles/:id/content', () => {
+    const existingArticle = {
+      id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
+      images: null, platforms: null, status: 'draft', createdBy: 1,
+      content: 'old content', version: 1,
+      createdAt: new Date(), updatedAt: new Date(),
+    };
+
+    it('should return 400 for invalid projectId', async () => {
+      const response = await agent
+        .put('/api/projects/abc/articles/1/content')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'new content' });
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 for invalid id', async () => {
+      const response = await agent
+        .put(`${BASE}/abc/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'new content' });
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when content is not string', async () => {
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 123 });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('content参数无效');
+    });
+
+    it('should return 400 when content is missing', async () => {
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({});
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 404 when article not found', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(null) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/999/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'new' });
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 404 when article belongs to different project', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({ ...existingArticle, projectId: 999 }) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'new' });
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 403 when admin is not operator', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(existingArticle) },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 999, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Other' },
+            operators: [{ userId: 5 }],
+            viewers: [],
+          }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`)
+        .send({ content: 'new' });
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 when non-creator tries to edit content', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(existingArticle) },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 2, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Company A' },
+            operators: [{ userId: 4, user: { cnName: 'Admin4' } }],
+            viewers: [],
+          }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${adminToken(4, 2)}`)
+        .send({ content: 'new' });
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('只能修改自己创建的文章');
+    });
+
+    it('should return 400 when status is not content-editable (published)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({ ...existingArticle, status: 'published' }) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'new' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('当前文章状态不可编辑正文');
+    });
+
+    it('should return 400 when status is generating', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({ ...existingArticle, status: 'generating' }) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'new' });
+      expect(response.status).toBe(400);
+    });
+
+    it('should update content for draft article as sysadmin', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(existingArticle),
+          update: jest.fn().mockResolvedValue({ ...existingArticle, content: 'new content', version: 2 }),
+        },
+        articleVersion: { create: jest.fn().mockResolvedValue({}) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'new content' });
+      expect(response.status).toBe(200);
+      expect(response.body.data.content).toBe('new content');
+    });
+
+    it('should update content for manual_writing article', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({ ...existingArticle, status: 'manual_writing' }),
+          update: jest.fn().mockResolvedValue({ ...existingArticle, status: 'manual_writing', content: 'new content', version: 2 }),
+        },
+        articleVersion: { create: jest.fn().mockResolvedValue({}) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'new content' });
+      expect(response.status).toBe(200);
+    });
+
+    it('should update content for generate_failed article', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({ ...existingArticle, status: 'generate_failed' }),
+          update: jest.fn().mockResolvedValue({ ...existingArticle, status: 'generate_failed', content: 'new content', version: 2 }),
+        },
+        articleVersion: { create: jest.fn().mockResolvedValue({}) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'new content' });
+      expect(response.status).toBe(200);
+    });
+
+    it('should update content for publish_failed article', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({ ...existingArticle, status: 'publish_failed' }),
+          update: jest.fn().mockResolvedValue({ ...existingArticle, status: 'publish_failed', content: 'new content', version: 2 }),
+        },
+        articleVersion: { create: jest.fn().mockResolvedValue({}) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'new content' });
+      expect(response.status).toBe(200);
+    });
+
+    it('should update content as admin creator + operator', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const adminArticle = { ...existingArticle, createdBy: 2 };
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(adminArticle),
+          update: jest.fn().mockResolvedValue({ ...adminArticle, content: 'new content', version: 2 }),
+        },
+        articleVersion: { create: jest.fn().mockResolvedValue({}) },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 2, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Company A' },
+            operators: [{ userId: 2, user: { cnName: '张三' } }],
+            viewers: [],
+          }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`)
+        .send({ content: 'new content' });
+      expect(response.status).toBe(200);
+    });
+
+    it('should return 500 on server error', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockRejectedValue(new Error('DB error')) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'new' });
+      expect(response.status).toBe(500);
+    });
+  });
+
+  describe('PUT /api/projects/:projectId/articles/:id/regenerate', () => {
+    const pendingArticle = {
+      id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
+      images: null, platforms: null, status: 'pending_review', createdBy: 2,
+      content: 'content', version: 1,
+      createdAt: new Date(), updatedAt: new Date(),
+    };
+
+    it('should return 400 for invalid projectId', async () => {
+      const response = await agent
+        .put('/api/projects/abc/articles/1/regenerate')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 for invalid id', async () => {
+      const response = await agent
+        .put(`${BASE}/abc/regenerate`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 404 when article not found', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(null) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/999/regenerate`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 404 when article belongs to different project', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({ ...pendingArticle, projectId: 999 }) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/regenerate`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 403 when admin is not operator', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(pendingArticle) },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 999, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Other' },
+            operators: [{ userId: 5 }],
+            viewers: [],
+          }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/regenerate`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should regenerate successfully as sysadmin', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(pendingArticle),
+          update: jest.fn().mockResolvedValue({ ...pendingArticle, status: 'generating' }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/regenerate`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe('generating');
+      expect(response.body.message).toBe('已重新提交AI生成');
+    });
+
+    it('should return 400 when article status does not support regeneration', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({ ...pendingArticle, status: 'draft' }),
+          update: jest.fn().mockResolvedValue({}),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/regenerate`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('文章当前状态不支持重新生成');
+    });
+
+    it('should regenerate as admin operator', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(pendingArticle),
+          update: jest.fn().mockResolvedValue({ ...pendingArticle, status: 'generating' }),
+        },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 2, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Company A' },
+            operators: [{ userId: 2, user: { cnName: '张三' } }],
+            viewers: [],
+          }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/regenerate`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(200);
+    });
+
+    it('should return 500 on server error', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockRejectedValue(new Error('DB error')) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/regenerate`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(500);
+    });
+  });
+
+  describe('PUT /api/projects/:projectId/articles/:id/submit-review', () => {
+    const manualArticle = {
+      id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
+      images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+      content: 'manual content', version: 1,
+      createdAt: new Date(), updatedAt: new Date(),
+    };
+
+    it('should return 400 for invalid projectId', async () => {
+      const response = await agent
+        .put('/api/projects/abc/articles/1/submit-review')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 for invalid id', async () => {
+      const response = await agent
+        .put(`${BASE}/abc/submit-review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 404 when article not found', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(null) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/999/submit-review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 404 when article belongs to different project', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({ ...manualArticle, projectId: 999 }) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 403 when admin is not operator', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(manualArticle) },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 999, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Other' },
+            operators: [{ userId: 5 }],
+            viewers: [],
+          }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 when non-creator tries to submit', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(manualArticle) },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 2, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Company A' },
+            operators: [{ userId: 4, user: { cnName: 'Admin4' } }],
+            viewers: [],
+          }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${adminToken(4, 2)}`);
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('只能操作自己创建的文章');
+    });
+
+    it('should return 400 when article is not in manual_writing status', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({ ...manualArticle, status: 'draft' }) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('只有手工编写中的文章可以提交审核');
+    });
+
+    it('should submit for review successfully as sysadmin creator', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(manualArticle),
+          update: jest.fn().mockResolvedValue({ ...manualArticle, status: 'pending_review' }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe('pending_review');
+      expect(response.body.message).toBe('已提交审核');
+    });
+
+    it('should submit for review as admin creator + operator', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const adminArticle = { ...manualArticle, createdBy: 2 };
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(adminArticle),
+          update: jest.fn().mockResolvedValue({ ...adminArticle, status: 'pending_review' }),
+        },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 2, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Company A' },
+            operators: [{ userId: 2, user: { cnName: '张三' } }],
+            viewers: [],
+          }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(200);
+    });
+
+    it('should return 500 on server error', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockRejectedValue(new Error('DB error')) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(500);
+    });
+  });
+
+  describe('GET /api/projects/:projectId/articles/:id/versions', () => {
+    const existingArticle = {
+      id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
+      images: null, platforms: null, status: 'draft', createdBy: 1,
+      content: 'content', version: 2,
+      createdAt: new Date(), updatedAt: new Date(),
+    };
+
+    it('should return 400 for invalid projectId', async () => {
+      const response = await agent
+        .get('/api/projects/abc/articles/1/versions')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 for invalid id', async () => {
+      const response = await agent
+        .get(`${BASE}/abc/versions`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 404 when article not found', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(null) },
+      });
+
+      const response = await agent
+        .get(`${BASE}/999/versions`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 404 when article belongs to different project', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({ ...existingArticle, projectId: 999 }) },
+      });
+
+      const response = await agent
+        .get(`${BASE}/1/versions`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 403 when admin is not operator', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(existingArticle) },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 999, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Other' },
+            operators: [{ userId: 5 }],
+            viewers: [],
+          }),
+        },
+      });
+
+      const response = await agent
+        .get(`${BASE}/1/versions`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should return versions list as sysadmin', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(existingArticle) },
+        articleVersion: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 2, articleId: 1, version: 2, content: 'v2', createdBy: 1, createdAt: new Date(), deletedAt: null },
+            { id: 1, articleId: 1, version: 1, content: 'v1', createdBy: 1, createdAt: new Date(), deletedAt: null },
+          ]),
+        },
+      });
+
+      const response = await agent
+        .get(`${BASE}/1/versions`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(2);
+      expect(response.body.data[0].content).toBe('v2');
+    });
+
+    it('should return empty versions list', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(existingArticle) },
+        articleVersion: {
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+      });
+
+      const response = await agent
+        .get(`${BASE}/1/versions`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(0);
+    });
+
+    it('should return versions list as admin operator', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(existingArticle) },
+        articleVersion: {
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 2, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Company A' },
+            operators: [{ userId: 2, user: { cnName: '张三' } }],
+            viewers: [],
+          }),
+        },
+      });
+
+      const response = await agent
+        .get(`${BASE}/1/versions`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(200);
+    });
+
+    it('should return 500 on server error', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockRejectedValue(new Error('DB error')) },
+      });
+
+      const response = await agent
+        .get(`${BASE}/1/versions`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(500);
     });
   });
 });
