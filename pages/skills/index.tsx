@@ -113,15 +113,13 @@ const SkillPage: React.FC = () => {
     <div className="page-container">
       <div className="page-breadcrumb"><Breadcrumb items={[{ title: '技能管理' }]} /></div>
       <Row gutter={[16, 12]} className="toolbar">
-        <Col xs={24} sm={12} style={{ display: 'flex', gap: 8 }}>
+        <Col xs={24} sm={8}>
           <Input.Search
             placeholder="搜索技能名称..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             allowClear
-            style={{ flex: 1 }}
           />
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditItem(null); setShowForm(true); }}>添加技能</Button>
         </Col>
         <Col xs={24} sm={6}>
           <Select
@@ -145,6 +143,9 @@ const SkillPage: React.FC = () => {
             ]}
             style={{ width: '100%' }}
           />
+        </Col>
+        <Col xs={24} sm={4} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditItem(null); setShowForm(true); }}>添加技能</Button>
         </Col>
       </Row>
 
