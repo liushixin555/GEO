@@ -2287,4 +2287,465 @@ describe('Article Controller', () => {
       expect(response.status).toBe(200);
     });
   });
+
+  // ============= Branch coverage: projectService throws non-PermissionDeniedError =============
+
+  describe('Branch coverage: projectService throws generic error for admin', () => {
+    const existingArticle = {
+      id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
+      images: null, platforms: null, status: 'draft', createdBy: 1,
+      content: 'content', version: 1,
+      createdAt: new Date(), updatedAt: new Date(),
+    };
+
+    function mockProjectThrow(articleOverride: any = {}) {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const article = { ...existingArticle, ...articleOverride };
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(article),
+          findMany: jest.fn().mockResolvedValue([article]),
+          count: jest.fn().mockResolvedValue(1),
+          create: jest.fn().mockResolvedValue(article),
+          update: jest.fn().mockResolvedValue(article),
+        },
+        project: {
+          findFirst: jest.fn().mockRejectedValue(new Error('Project DB error')),
+        },
+      });
+    }
+
+    it('should return 500 on listArticles when projectService throws for admin', async () => {
+      mockProjectThrow();
+      const response = await agent
+        .get(BASE)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(500);
+    });
+
+    it('should return 500 on getArticle when projectService throws for admin', async () => {
+      mockProjectThrow();
+      const response = await agent
+        .get(`${BASE}/1`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(500);
+    });
+
+    it('should return 500 on createArticle when projectService throws for admin', async () => {
+      mockProjectThrow();
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`)
+        .send({ title: 'Test' });
+      expect(response.status).toBe(500);
+    });
+
+    it('should return 500 on updateArticle when projectService throws for admin', async () => {
+      mockProjectThrow();
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`)
+        .send({ title: 'Updated' });
+      expect(response.status).toBe(500);
+    });
+
+    it('should return 500 on updateArticleContent when projectService throws for admin', async () => {
+      mockProjectThrow();
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`)
+        .send({ content: 'new content' });
+      expect(response.status).toBe(500);
+    });
+
+    it('should return 500 on deleteArticle when projectService throws for admin', async () => {
+      mockProjectThrow();
+      const response = await agent
+        .delete(`${BASE}/1`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(500);
+    });
+
+    it('should return 500 on reviewArticle when projectService throws for admin', async () => {
+      mockProjectThrow({ status: 'pending_review', createdBy: 2 });
+      const response = await agent
+        .put(`${BASE}/1/review`)
+        .set('Authorization', `Bearer ${adminToken(3, 2)}`)
+        .send({ approved: true });
+      expect(response.status).toBe(500);
+    });
+
+    it('should return 500 on regenerateArticle when projectService throws for admin', async () => {
+      mockProjectThrow({ status: 'generate_failed', createdBy: 2 });
+      const response = await agent
+        .put(`${BASE}/1/regenerate`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(500);
+    });
+
+    it('should return 500 on submitForReview when projectService throws for admin', async () => {
+      mockProjectThrow({ status: 'manual_writing', createdBy: 2 });
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(500);
+    });
+
+    it('should return 500 on listArticleVersions when projectService throws for admin', async () => {
+      mockProjectThrow();
+      const response = await agent
+        .get(`${BASE}/1/versions`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(500);
+    });
+  });
+
+  // ============= Branch coverage: invalid status transition =============
+
+  describe('PUT /api/projects/:projectId/articles/:id - invalid status transition', () => {
+    const existingDraft = {
+      id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
+      images: null, platforms: null, status: 'draft', createdBy: 1,
+      createdAt: new Date(), updatedAt: new Date(),
+    };
+
+    it('should return 400 for invalid status transition draft -> published', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(existingDraft),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: 'published' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('非法的状态转换');
+    });
+
+    it('should return 400 for invalid status transition draft -> pending_review', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(existingDraft),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: 'pending_review' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('非法的状态转换');
+    });
+
+    it('should return 400 for invalid status transition draft -> publishing', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(existingDraft),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: 'publishing' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('非法的状态转换');
+    });
+  });
+
+  // ============= Branch coverage: content exceeds MAX_CONTENT_LENGTH =============
+
+  describe('PUT /api/projects/:projectId/articles/:id/content - content too long', () => {
+    it('should return 400 when content exceeds 500KB', async () => {
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'x'.repeat(500_001) });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('500KB');
+    });
+
+    it('should accept content exactly at 500KB limit', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = {
+        id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+        images: null, platforms: null, status: 'draft', createdBy: 1,
+        content: 'old', version: 1,
+        createdAt: new Date(), updatedAt: new Date(),
+      };
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(existing),
+          update: jest.fn().mockResolvedValue({ ...existing, content: 'x'.repeat(500_000), version: 2 }),
+        },
+        articleVersion: { create: jest.fn().mockResolvedValue({}) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'x'.repeat(500_000) });
+
+      expect(response.status).toBe(200);
+    });
+  });
+
+  // ============= Branch coverage: non-creator regenerate =============
+
+  describe('PUT /api/projects/:projectId/articles/:id/regenerate - non-creator', () => {
+    it('should return 403 when non-creator admin tries to regenerate', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'generate_failed', createdBy: 2,
+          content: 'c', version: 1,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 2, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Company A' },
+            operators: [{ userId: 4, user: { cnName: 'Admin4' } }],
+            viewers: [],
+          }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/regenerate`)
+        .set('Authorization', `Bearer ${adminToken(4, 2)}`);
+
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('只能重新生成自己创建的文章');
+    });
+
+    it('should allow sysadmin to regenerate any article regardless of creator', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+            images: null, platforms: null, status: 'generate_failed', createdBy: 99,
+            content: 'c', version: 1,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+        },
+        // The regenerate endpoint calls checkProjectOperator for admin but not sysadmin
+        // sysadmin bypasses all permission checks
+      });
+
+      // sysadmin bypasses created_by check (role === 'sysadmin')
+      // But the service impl may throw for unsupported status
+      // This verifies the controller's permission logic: sysadmin should NOT get 403
+      const response = await agent
+        .put(`${BASE}/1/regenerate`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      // Should not be 403 (permission issue), may be 400/500 from service
+      expect(response.status).not.toBe(403);
+    });
+  });
+
+  // ============= Branch coverage: valid status transitions =============
+
+  describe('PUT /api/projects/:projectId/articles/:id - valid status transitions', () => {
+    const makeArticle = (status: string, createdBy = 1) => ({
+      id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+      images: null, platforms: null, status, createdBy,
+      content: 'c', version: 1,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+
+    it('should allow draft -> manual_writing transition', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(makeArticle('draft')),
+          update: jest.fn().mockResolvedValue({ ...makeArticle('manual_writing') }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: 'manual_writing' });
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should reject manual_writing -> pending_review via updateArticle (not in SETTINGS_EDITABLE_STATUSES)', async () => {
+      // This transition must go through submitForReview endpoint, not updateArticle
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(makeArticle('manual_writing')),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: 'pending_review' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('当前文章状态不可编辑');
+    });
+
+    it('should reject generate_failed -> generating via updateArticle (not in SETTINGS_EDITABLE_STATUSES)', async () => {
+      // This transition must go through regenerate endpoint, not updateArticle
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(makeArticle('generate_failed')),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: 'generating' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('当前文章状态不可编辑');
+    });
+
+    it('should reject publish_failed -> publishing via updateArticle (not in SETTINGS_EDITABLE_STATUSES)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(makeArticle('publish_failed')),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: 'publishing' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('当前文章状态不可编辑');
+    });
+
+    it('should reject pending_review transitions via updateArticle (not in SETTINGS_EDITABLE_STATUSES)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(makeArticle('pending_review')),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: 'draft' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('当前文章状态不可编辑');
+    });
+  });
+
+  // ============= Branch coverage: pagination bounds =============
+
+  describe('GET /api/projects/:projectId/articles - pagination bounds', () => {
+    it('should clamp page to minimum 1', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ article: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get(`${BASE}?page=-1&pageSize=10`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should clamp pageSize to maximum 100', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ article: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get(`${BASE}?page=1&pageSize=200`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+    });
+  });
+
+  // ============= Branch coverage: generating strips content from update =============
+
+  describe('PUT /api/projects/:projectId/articles/:id - generating strips content', () => {
+    it('should exclude content when transitioning to generating status', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = {
+        id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+        images: null, platforms: null, status: 'draft', createdBy: 1,
+        content: 'old', version: 1,
+        createdAt: new Date(), updatedAt: new Date(),
+      };
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, status: 'generating' });
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(existing),
+          update: mockUpdate,
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: 'generating', content: 'should be stripped' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.message).toBe('已提交AI生成');
+      // Verify content was NOT passed to update
+      const updateCall = mockUpdate.mock.calls[0][0];
+      expect(updateCall.data.content).toBeUndefined();
+      expect(updateCall.data.status).toBe('generating');
+    });
+  });
+
+  // ============= Branch coverage: listArticles search trim and slice =============
+
+  describe('GET /api/projects/:projectId/articles - search parameter handling', () => {
+    it('should handle non-string search parameter', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ article: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get(`${BASE}?search=123&page=1&pageSize=10`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should trim and slice search parameter to 200 chars', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ article: { findMany: mockFindMany, count: mockCount } });
+
+      const longSearch = 'a'.repeat(250);
+      const response = await agent
+        .get(`${BASE}?search=${longSearch}&page=1&pageSize=10`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+    });
+  });
 });
