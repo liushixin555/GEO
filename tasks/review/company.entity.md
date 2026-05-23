@@ -1,161 +1,326 @@
-# apis/entity/company.entity.ts — 软件质量专家评审报告
+# apis/entity/company.entity.ts — 软件架构专家评审报告
 
 **评审日期**: 2026-05-24
-**评审角色**: 软件质量专家（类型安全、设计模式、代码规范、可维护性、安全防御纵深）
+**评审角色**: 软件架构专家（分层架构、领域模型、数据流、关联关系、一致性、可扩展性）
 **文件路径**: `apis/entity/company.entity.ts`
 **代码行数**: 39 行
-**关联文件**: `apis/controller/company.controller.ts`, `apis/service/impl/company.service.impl.ts`, `prisma/schema.prisma`
-**严重级别**: CRITICAL(1) / HIGH(3) / MEDIUM(4) / LOW(2)
+**关联文件**: `apis/controller/company.controller.ts`, `apis/service/company.service.ts`, `apis/service/impl/company.service.impl.ts`, `apis/map/index.ts`, `prisma/schema.prisma`
+**严重级别**: CRITICAL(2) / HIGH(2) / MEDIUM(3) / LOW(2)
 
 ---
 
-## 一、评审总览
+## 一、架构评审总览
 
-`company.entity.ts` 是公司模块的类型契约层，定义了 4 个接口（`Company`、`CreateCompanyRequest`、`UpdateCompanyRequest`、`CompanyDetail`）。文件结构清晰，字段命名统一使用 snake_case 与 API 契约保持一致，接口设计基本遵循了项目的分层模式。
+`company.entity.ts` 是公司模块的**类型契约层**，承担 Prisma ORM → API 响应的数据映射定义。该项目采用经典的**三层架构**：
 
-但从软件质量视角审视，该文件存在**类型约束不足、缺少 Zod Schema、设计冗余、类型不一致**等问题。核心质量问题集中在：**缺少运行时验证机制、Create/Update 请求接口完全重复、CompanyDetail 内联对象类型未提取、Entity 与 Prisma Schema 之间存在字段映射缺失**。
+```
+Controller (路由/验证) → Service (业务逻辑) → Prisma (数据访问)
+                ↑                          ↑
+           Entity (类型契约)            Map (字段转换)
+```
 
-| 质量维度 | 评分 | 说明 |
+Company 模块在该架构中具有**枢纽地位**：它是 User、Project、KnowledgeBase、Todo 等模块的**上游聚合根**。Prisma Schema 显示 Company 被 6 个关联引用（`users`, `projects`, `knowledgeBases`, `selectedByUsers`, `todos`），是系统中关联关系最密集的实体之一。
+
+### 架构质量评分
+
+| 架构维度 | 评分 | 说明 |
 |----------|------|------|
-| 类型安全 | 4/10 | `as number[]` 强制断言绕过类型检查，ID 数组无正整数约束 |
-| 设计模式 | 5/10 | Create/Update 接口完全重复，违反 DRY 原则 |
-| 数据完整性 | 5/10 | `address` 字段 `undefined` vs `null` 语义不一致，缺少 Prisma `deleted_at` 字段 |
-| 安全防御 | 4/10 | 无 Zod Schema，Controller 层使用不安全的 `as` 类型断言 |
-| 可维护性 | 6/10 | 结构清晰但内联类型过多，变更时需同步修改多处 |
-| 规范一致性 | 5/10 | 与同项目 User/Todo 模块相比缺少 Zod Schema，`contact_phone` 无格式约束 |
+| 分层职责 | 4/10 | Entity 层承载了不应有的 DTO 职责，Controller 侵入 Entity 的验证逻辑 |
+| 领域建模 | 3/10 | Company 作为聚合根，其与 User 的多对多关系通过 `operator_ids` 平面化表达，丢失领域语义 |
+| 数据一致性 | 3/10 | Company ↔ User 关联通过逐条 `user.update()` 循环实现，无批量操作，事务内 N+1 问题 |
+| 关联关系建模 | 4/10 | 与 Project 模块的关联表达方式不同（ID 数组 vs 关联表），缺乏统一范式 |
+| 横切一致性 | 4/10 | Entity/Request/Detail 接口模式与同项目其他模块存在显著差异 |
+| 可扩展性 | 5/10 | 新增关联角色（如"审核者"）需改动 Entity + Service + Controller + 前端四层 |
 
 ---
 
-## 二、质量问题清单
+## 二、架构问题清单
 
-### CRITICAL-1: 缺少 Zod Schema 验证，Controller 层使用不安全的 `as` 类型断言
+### CRITICAL-1: Company ↔ User 关联关系建模违反聚合根原则，Service 层循环 N+1 更新
 
-**位置**: 整个文件 + `apis/schema/` 目录缺失 `company.schema.ts`
+**位置**: `company.entity.ts` 第 19-20 行 + `company.service.impl.ts` 第 50-64 行
 
-**问题**: 同项目中 `user.schema.ts` 和 `todo.schema.ts` 均使用 Zod 定义了严格的输入校验 schema，但公司模块**完全没有 Zod Schema**。Controller 层的 `buildCompanyRequest()` 函数使用 `as` 类型断言：
+**架构问题**: Company 与 User 的关联关系（运营者/查看者）通过 `operator_ids: number[]` 和 `viewer_ids: number[]` 平面化表达。这种设计将**多对多关系的语义**（谁是什么角色）压缩为 ID 数组，导致：
+
+1. **领域语义丢失**: `operator_ids` 中的 ID 代表"角色为 admin 的用户"，但 Entity 类型中完全没有表达这层语义。仅看类型定义 `operator_ids: number[]`，无法知道这些用户是"运营者"——角色信息隐含在 Service 实现中（`role: { in: ['admin', 'view'] }`）。
+
+2. **Service 层循环更新**: 创建/更新公司时，Service 逐条执行 `user.update()`：
 
 ```typescript
-// company.controller.ts 第 30-40 行
-function buildCompanyRequest(body: Record<string, unknown>): CreateCompanyRequest {
-  return {
-    short_name: body.short_name as string,           // ← 不安全断言
-    full_name: body.full_name as string,             // ← 不安全断言
-    contact_person: body.contact_person as string,   // ← 不安全断言
-    contact_phone: body.contact_phone as string,     // ← 不安全断言
-    operator_ids: body.operator_ids as number[],     // ← 不安全断言，可注入任意类型
-    viewer_ids: body.viewer_ids as number[] | undefined, // ← 不安全断言
-  };
+// company.service.impl.ts 第 50-55 行
+for (const operatorId of request.operator_ids) {
+  await tx.user.update({
+    where: { id: operatorId },
+    data: { companyId: company.id },  // ← 每个用户一次 SQL
+  });
 }
 ```
 
-`as` 断言**不提供任何运行时保护**。攻击者可以构造以下请求：
+如果 `operator_ids` 有 20 个用户，就产生 20 次 SQL UPDATE。加上 viewer_ids，一次创建操作可能产生 **40+ 次 SQL**。
 
-```bash
-# operator_ids 传入字符串数组，绕过类型检查
-curl -X POST /api/companies \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{"short_name":"test","full_name":"test","contact_person":"a","contact_phone":"1","operator_ids":["abc","def"]}'
-```
+3. **角色信息分散**: 用户的"角色"同时存在于 Prisma `User.role` 字段和 Company Entity 的 `operator_ids`/`viewer_ids` 语义中。这种双重表达容易导致数据不一致。
 
-Controller 的 `validateCompanyBody()` 仅检查 `Array.isArray(operator_ids)` 和 `operator_ids.length === 0`，**不检查数组元素类型**。字符串 `"abc"` 会通过验证，直到 Prisma 层的 `where: { id: operatorId }` 才会因类型不匹配报错。
+**建议**: 使用 Prisma 的 `updateMany` 批量操作，或引入关联表：
 
-**建议**: 创建 `apis/schema/company.schema.ts`，使用 Zod 定义完整的输入校验：
-
+**方案 A — 批量更新（最小改动）**:
 ```typescript
-import { z } from 'zod';
-
-export const createCompanySchema = z.object({
-  short_name: z.string().min(1).max(50),
-  full_name: z.string().min(1).max(200),
-  address: z.string().max(500).optional(),
-  contact_person: z.string().min(1).max(100),
-  contact_phone: z.string().min(1).max(20),
-  operator_ids: z.array(z.number().int().positive()).min(1),
-  viewer_ids: z.array(z.number().int().positive()).optional(),
-}).strict();
-
-export const updateCompanySchema = createCompanySchema;
-
-export type CreateCompanyInput = z.infer<typeof createCompanySchema>;
-export type UpdateCompanyInput = z.infer<typeof updateCompanySchema>;
+// 批量设置 operators
+await tx.user.updateMany({
+  where: { id: { in: request.operator_ids } },
+  data: { companyId: company.id },
+});
 ```
+
+**方案 B — 关联表（推荐，长期）**:
+```prisma
+model CompanyUser {
+  company_id  Int
+  user_id     Int
+  role        Role  // admin / view
+  company     Company @relation(fields: [company_id], references: [id])
+  user        User    @relation(fields: [user_id], references: [id])
+  @@id([company_id, user_id])
+}
+```
+
+关联表将角色信息从 User 表解耦，Company ↔ User 的多对多关系获得明确的结构化表达。
 
 ---
 
-### HIGH-1: CreateCompanyRequest 与 UpdateCompanyRequest 完全重复，违反 DRY 原则
+### CRITICAL-2: Company 模块的关联关系表达范式与 Project 模块不一致
 
-**位置**: 第 13-21 行（CreateCompanyRequest）与 第 23-31 行（UpdateCompanyRequest）
+**位置**: `company.entity.ts` vs `project.entity.ts`
 
-```typescript
-// CreateCompanyRequest — 8 个字段
-export interface CreateCompanyRequest {
-  short_name: string;
-  full_name: string;
-  address?: string;
-  contact_person: string;
-  contact_phone: string;
-  operator_ids: number[];
-  viewer_ids?: number[];
-}
+**架构问题**: Company 和 Project 都涉及"运营者/查看者"的关联关系，但两者使用了**完全不同的建模方式**：
 
-// UpdateCompanyRequest — 完全相同的 8 个字段
-export interface UpdateCompanyRequest {
-  short_name: string;
-  full_name: string;
-  address?: string;
-  contact_person: string;
-  contact_phone: string;
-  operator_ids: number[];
-  viewer_ids?: number[];
-}
-```
-
-两个接口**字段名、类型、可选性完全一致**。Controller 层也使用同一个 `buildCompanyRequest()` 函数构建两种请求对象，`validateCompanyBody()` 也复用于 Create 和 Update。这明确表明两个接口在业务逻辑上没有差异。
-
-**风险**: 未来修改字段时容易遗漏其中一个接口，导致 Create 和 Update 行为不一致。
-
-**建议**: 使用类型别名消除重复：
+| 维度 | Company 模块 | Project 模块 |
+|------|-------------|-------------|
+| 关联方式 | User.companyId 外键（1 对多） | ProjectOperator/ProjectViewer 关联表（多对多） |
+| ID 存储 | `operator_ids: number[]` 平面数组 | `operator_ids: number[]` 从关联表映射 |
+| 名称存储 | `operators: { id, cn_name, username }[]` | `operator_names: string[]` 仅名称 |
+| 角色判断 | User.role 字段 (`admin`/`view`) | 关联表显式区分 |
+| 详情查询 | 二次查询 `user.findMany` | Prisma include 关联表 |
 
 ```typescript
-export interface CompanyRequest {
-  short_name: string;
-  full_name: string;
-  address?: string;
-  contact_person: string;
-  contact_phone: string;
-  operator_ids: number[];
-  viewer_ids?: number[];
-}
+// Company 模块 — 用户通过 companyId + role 关联
+// company.service.impl.ts 第 20-23 行
+const users = await prisma.user.findMany({
+  where: { companyId: id, status: true, role: { in: ['admin', 'view'] } },
+});
 
-export type CreateCompanyRequest = CompanyRequest;
-export type UpdateCompanyRequest = CompanyRequest;
+// Project 模块 — 通过显式关联表
+// project.entity.ts — operators/viewers 独立关联
 ```
 
-如果未来 Create 和 Update 需要分化（如 Update 允许部分字段可选），只需修改对应的类型别名即可。
+**影响**:
+1. **开发者认知负担**: 新成员需要理解两套不同的关联模式
+2. **查询性能差异**: Company 的 `getById` 需要**两次查询**（先查 Company 再查 User），Project 的详情通过 Prisma `include` 一次完成
+3. **业务语义矛盾**: 同一个用户可以同时属于多个 Project（多对多），但只能属于一个 Company（一对多）。如果业务上用户需要关联多个公司，当前架构不支持
+
+**建议**: 统一关联范式。如果 Company-User 确实是一对多关系（用户只属于一个公司），应在 Entity 中明确表达 `company_id` 的外键语义；如果未来需要多公司关联，应迁移到关联表模式。
 
 ---
 
-### HIGH-2: CompanyDetail 内联对象类型未提取，可维护性差
+### HIGH-1: CompanyDetail 聚合了跨领域查询结果，违反 Entity 层单一职责
 
-**位置**: 第 33-38 行
+**位置**: `company.entity.ts` 第 33-38 行
 
 ```typescript
 export interface CompanyDetail extends Company {
   operator_ids: number[];
-  operators: { id: number; cn_name: string; username: string }[];  // ← 内联对象
+  operators: { id: number; cn_name: string; username: string }[];
   viewer_ids: number[];
-  viewers: { id: number; cn_name: string; username: string }[];    // ← 内联对象
+  viewers: { id: number; cn_name: string; username: string }[];
 }
 ```
 
-`operators` 和 `viewers` 使用了完全相同的内联对象结构 `{ id: number; cn_name: string; username: string }`。
+**架构问题**: `CompanyDetail` 继承 `Company`，但混入了属于 **User 领域**的数据（`operators`、`viewers`）。在 DDD 术语中，这是一个**贫血的聚合**——它把两个聚合根（Company 和 User）的数据扁平化到一个接口中。
 
-**问题**:
-1. **重复定义**: 相同结构出现了 2 次，违反 DRY 原则
-2. **与 Service 层不同步风险**: Service 层手动构建 `{ id: u.id, cn_name: u.cnName, username: u.username }`，如果需要新增字段（如 `role`），需同时修改 Entity 类型 + Service 实现
-3. **不可复用**: 其他模块如果也需要展示"用户简要信息"（如 Project 详情），必须重新定义相同的内联结构
+对比同项目其他模块：
+- `Project` Entity 直接在主接口中包含 `operator_ids/operator_names`（无 Detail 变体）
+- `Todo` Entity 直接在主接口中包含 `company_name/project_name/assignee_name`
+- `User` 模块有 `UserListItem` 但不引入跨领域聚合
 
-**建议**: 提取为命名的共享类型：
+Company 模块的 Entity 层实际上定义了**两种视图**：
+- `Company` — 列表视图（无用户关联）
+- `CompanyDetail` — 详情视图（含用户关联）
+
+这种"列表/详情双接口"模式在项目中仅 Company 模块使用，其他模块要么统一（Project 在主接口中包含关联数据），要么不区分。
+
+**建议**: 选择以下方案之一保持一致性：
+
+**方案 A — 与 Project 对齐（推荐）**:
+```typescript
+export interface Company {
+  id: number;
+  short_name: string;
+  // ...
+  operator_ids: number[];
+  operator_names: string[];
+  viewer_ids: number[];
+  viewer_names: string[];
+}
+```
+
+**方案 B — 保留 Detail 但明确分层**:
+```typescript
+// Company 保留纯净字段
+export interface Company { /* 仅自身字段 */ }
+
+// CompanyDetail 作为 DTO 独立存在，不继承
+export interface CompanyDetailDTO {
+  company: Company;
+  operators: UserSummary[];
+  viewers: UserSummary[];
+}
+```
+
+---
+
+### HIGH-2: Map 层 `mapCompany` 的输入类型为 `any`，丧失 Prisma 类型安全的架构优势
+
+**位置**: `apis/map/index.ts` 第 3 行
+
+```typescript
+export function mapCompany(prismaCompany: any): Company {
+```
+
+**架构问题**: 整个 Map 层使用 `any` 作为 Prisma 输入类型。Prisma 的核心价值之一是**类型安全的查询结果**——当你写 `prisma.company.findUnique()` 时，返回类型是精确的 Prisma Company 类型。但 `mapCompany(prismaCompany: any)` 将这个类型信息完全丢弃。
+
+对比理想架构：
+```typescript
+// 期望
+import { Company as PrismaCompany } from '@prisma/client';
+export function mapCompany(prismaCompany: PrismaCompany): Company { ... }
+
+// 实际
+export function mapCompany(prismaCompany: any): Company { ... }
+```
+
+**影响**:
+1. **重构风险**: 如果 Prisma Schema 修改了字段名（如 `shortName` → `name`），TypeScript 不会在 Map 层报错，只能在运行时发现 `undefined` 值
+2. **Map 层字段遗漏**: `mapCompany` 缺少 `deleted_at` 字段映射，但因为输入是 `any`，编译器无法提示缺失
+3. **IDE 补全失效**: `prismaCompany.` 无法触发智能提示，增加手动输入错误概率
+
+**建议**: 引入 Prisma 类型参数：
+```typescript
+import { Company as PrismaCompany } from '@prisma/client';
+export function mapCompany(prismaCompany: PrismaCompany): Company { ... }
+```
+
+此改动影响全模块 Map 函数，建议统一处理。
+
+---
+
+### MEDIUM-1: `getById` 使用 `findUnique` 不排除软删除记录
+
+**位置**: `company.service.impl.ts` 第 15 行
+
+```typescript
+const company = await prisma.company.findUnique({ where: { id } });
+```
+
+**架构问题**: Prisma Schema 定义了 `deletedAt DateTime?`，但 Service 层的 `findUnique` 不检查 `deleted_at`。如果公司已被软删除（`deleted_at` 不为 null），`getById` 仍会返回该公司的详情，包括其关联的运营者/查看者。
+
+Entity 层的 `Company` 接口缺少 `deleted_at` 字段，使得**类型系统无法表达"已删除的公司"这一状态**。API 消费者（前端）无法区分"公司禁用"和"公司已删除"。
+
+对比 `list()` 方法——如果 list 也不排除已删除记录，前端会看到已删除的公司出现在列表中。
+
+**建议**:
+1. 在 Company 接口中添加 `deleted_at: Date | null`
+2. Service 层查询添加 `where: { id, deletedAt: null }` 过滤条件
+3. 或在 Prisma 中间件层实现全局软删除过滤
+
+---
+
+### MEDIUM-2: `CreateCompanyRequest` 和 `UpdateCompanyRequest` 完全重复，无法表达更新语义差异
+
+**位置**: `company.entity.ts` 第 13-31 行
+
+**架构问题**: 两个接口字段完全一致。从 API 设计角度看，Create 和 Update 的语义通常不同：
+- **Create**: 所有必填字段必须提供
+- **Update**: 通常允许部分更新（PATCH 语义），仅需提供要修改的字段
+
+当前设计要求 Update 时必须提供**全部字段**（包括不变的），这与 RESTful API 的 PUT 语义对应，但：
+1. Controller 的 `validateCompanyBody()` 对 Create 和 Update 使用**同一验证逻辑**，无法针对 Update 放宽约束
+2. 前端必须发送完整对象，即使只修改一个字段
+3. 与同项目 User/Article/Todo 模块的 Update 接口模式不一致（它们的 Update 接口字段均为可选）
+
+| 模块 | Update 接口字段 |
+|------|---------------|
+| User | 全部可选 (`cn_name?`, `role?`, `status?`, `password?`) |
+| Article | 全部可选 (`title?`, `content?`, ...) |
+| Todo | 部分可选 (`title?`, `action?`, `priority?`) |
+| **Company** | **全部必填**（与 Create 相同） |
+
+**建议**: 如果业务要求 Update 必须提供全部字段（PUT 语义），应添加注释说明；如果允许部分更新，应将 Update 接口的字段改为可选。
+
+---
+
+### MEDIUM-3: `operator_ids` 和 `viewer_ids` 作为请求接口字段直接表达数据库操作意图
+
+**位置**: `company.entity.ts` 第 19-20 行
+
+**架构问题**: `operator_ids: number[]` 和 `viewer_ids: number[]` 在 Request 接口中的语义是"将这些用户关联到公司"。这是**命令式**的 API 设计——客户端需要知道"运营者是角色为 admin 的 User，通过 companyId 外键关联"。
+
+在分层架构中，Entity 层的 Request 接口应该表达**业务意图**而非数据操作细节。当前设计将 Prisma 的关联策略（User.companyId 外键）泄漏到了 API 契约层。
+
+如果未来将 Company-User 关系迁移到关联表（如 CRITICAL-2 建议），`operator_ids` 的语义不变，但 Service 实现完全不同——这正是"接口稳定、实现可变"的理想状态。但当前的问题是 **Entity 没有定义操作的行为边界**——是替换所有运营者？还是追加？还是差异更新？
+
+当前 Service 实现是**全量替换**模式（先解绑旧用户，再绑定新用户），这应该在 Entity 或文档中明确。
+
+**建议**: 在接口中添加 JSDoc 明确操作语义：
+```typescript
+/** 运营者用户 ID 列表（全量替换，传入空数组将清空所有运营者） */
+operator_ids: number[];
+```
+
+---
+
+### LOW-1: Entity 层缺少统一的 `BaseEntity` 或泛型模式
+
+**位置**: 全文件
+
+**架构问题**: `Company`、`User`、`Article`、`Todo` 等所有 Entity 都包含 `id: number`, `created_at: Date`, `updated_at: Date` 字段，但每个接口都独立声明：
+
+```typescript
+export interface Company {
+  id: number;           // 重复声明
+  created_at: Date;     // 重复声明
+  updated_at: Date;     // 重复声明
+}
+```
+
+**建议**: 定义通用接口（仅当项目中有 3+ 个 Entity 使用相同模式时）：
+```typescript
+export interface BaseEntity {
+  id: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface Company extends BaseEntity {
+  short_name: string;
+  // ...
+}
+```
+
+**注意**: 这不是强需求——当字段少且稳定时，重复声明是可接受的。仅当团队认为统一性更重要时才引入。
+
+---
+
+### LOW-2: `CompanyDetail` 中 `operators`/`viewers` 内联对象未提取为共享类型
+
+**位置**: `company.entity.ts` 第 35-37 行
+
+```typescript
+operators: { id: number; cn_name: string; username: string }[];
+viewers: { id: number; cn_name: string; username: string }[];
+```
+
+**架构问题**: 该结构在 Project、Todo、KnowledgeBase 等模块的关联用户场景中也需要。当前每个模块独立定义，缺乏跨模块的类型复用。
+
+**建议**: 提取为 `UserSummary` 共享类型，放置在 `apis/entity/common.entity.ts` 或 `user.entity.ts` 中：
 
 ```typescript
 /** 用户简要信息（用于关联展示） */
@@ -164,304 +329,105 @@ export interface UserSummary {
   cn_name: string;
   username: string;
 }
-
-export interface CompanyDetail extends Company {
-  operator_ids: number[];
-  operators: UserSummary[];
-  viewer_ids: number[];
-  viewers: UserSummary[];
-}
 ```
 
 ---
 
-### HIGH-3: `operator_ids` 和 `viewer_ids` 类型为 `number[]` 但无正整数约束
+## 三、架构依赖关系图
 
-**位置**: 第 19 行、第 29 行
-
-```typescript
-operator_ids: number[];
-viewer_ids?: number[];
 ```
-
-**问题**: TypeScript 的 `number` 类型允许负数、零、浮点数和 `NaN`。作为用户 ID 数组（Prisma `Int` 外键），这些值在 Entity 层无法被拦截：
-
-```typescript
-// 以下值都能通过 TypeScript 类型检查
-const request: CreateCompanyRequest = {
-  operator_ids: [-1, 0, 3.14, NaN],  // ← 全部合法！
-  // ...
-};
-```
-
-Service 层将这些 ID 直接传入 Prisma 的 `where: { id: operatorId }`，负数和零会查不到用户（静默失败），浮点数和 `NaN` 会导致 Prisma 运行时错误。
-
-**建议**: 在 Zod Schema 中使用 `z.number().int().positive()` 约束，同时在 Entity 类型中添加 JSDoc：
-
-```typescript
-/** 用户 ID 列表（正整数） */
-operator_ids: number[];
-```
-
----
-
-### MEDIUM-1: `address` 字段在 Entity 与 Request 中 `undefined` vs `null` 语义不一致
-
-**位置**: 第 5 行（Entity）vs 第 16 行（CreateCompanyRequest）
-
-```typescript
-// Company Entity
-address: string | null;       // ← null 表示无地址
-
-// CreateCompanyRequest
-address?: string;              // ← undefined 表示未传值
-
-// Service 实现 (company.service.impl.ts 第 44 行)
-address: request.address || null,  // ← 空字符串也被转为 null
-```
-
-**问题**: 三层语义不一致：
-1. **Entity**: `string | null` — 数据库中地址要么有值，要么为 null
-2. **Request**: `string | undefined` — 请求中可能不传此字段
-3. **Service**: `request.address || null` — 空字符串 `""` 也被转为 `null`，这可能是无意行为
-
-如果业务要求地址为空字符串是合法值，当前 Service 的 `|| null` 会错误地将其转为 null。
-
-**建议**: 使用空值合并运算符替代逻辑或，明确语义：
-
-```typescript
-// Service 层
-address: request.address ?? null,  // 仅当 undefined/null 时回退，保留空字符串
-```
-
-同时考虑在 Request 接口中统一使用 `string | null | undefined` 或添加 JSDoc 说明可选字段的含义。
-
----
-
-### MEDIUM-2: Company Entity 缺少 Prisma `deleted_at` 软删除字段
-
-**位置**: 第 1-11 行（Company 接口）
-
-```typescript
-export interface Company {
-  id: number;
-  short_name: string;
-  // ... 其他字段
-  updated_at: Date;
-  // ← 缺少 deleted_at
-}
-```
-
-Prisma Schema 定义了 `deletedAt DateTime? @map("deleted_at")`（第 26 行），表明 Company 使用了软删除模式。但 Entity 类型完全未暴露此字段。
-
-**问题**:
-1. **Service 层无法判断公司是否已软删除**: `getById()` 查询 `findUnique` 时不会自动排除已软删除的记录（除非有全局 scope）
-2. **API 响应可能暴露已删除的公司**: 如果 `deleted_at` 有值，前端无法从 Entity 类型判断公司状态
-3. **类型不完整**: Entity 是 Prisma 记录到 API 响应的映射契约，缺少字段意味着映射不完整
-
-**建议**: 在 Company 接口中添加 `deleted_at` 字段，或明确说明为何不暴露：
-
-```typescript
-export interface Company {
-  // ... 现有字段
-  /** 软删除时间（null 表示未删除） */
-  deleted_at: Date | null;
-}
+┌──────────────────────────────────────────────────────┐
+│                    prisma/schema.prisma               │
+│  Company { users[], projects[], knowledgeBases[],     │
+│            selectedByUsers[], todos[], deletedAt }    │
+└─────────────┬────────────────────────────────────────┘
+              │
+              ▼
+┌─────────────────────────────────────────┐
+│  apis/map/index.ts                      │
+│  mapCompany(prismaCompany: any): Company│  ← 输入类型 any，丢失 Prisma 类型安全
+│  (缺失 deleted_at 映射)                  │
+└─────────────┬───────────────────────────┘
+              │
+              ▼
+┌─────────────────────────────────────────┐
+│  apis/entity/company.entity.ts          │
+│  Company          → 列表视图            │  ← 缺少 deleted_at
+│  CreateRequest    → 与 Update 完全重复  │  ← 违反 DRY
+│  UpdateRequest    → 与 Create 完全重复  │
+│  CompanyDetail    → 跨领域聚合          │  ← 混入 User 领域数据
+└─────────────┬───────────────────────────┘
+              │
+        ┌─────┴─────┐
+        ▼           ▼
+┌──────────┐  ┌──────────────────────────┐
+│controller│  │  service/impl            │
+│验证+断言 │  │  循环 updateMany (N+1)   │  ← 性能隐患
+│(无 Zod)  │  │  二次查询 User 表        │  ← 非关联表查询
+└──────────┘  └──────────────────────────┘
 ```
 
 ---
 
-### MEDIUM-3: `contact_phone` 字段无格式约束，可接受任意字符串
+## 四、与同项目其他模块的架构一致性对比
 
-**位置**: 第 7 行、第 18 行、第 27 行
-
-```typescript
-contact_phone: string;  // ← 任意字符串均可
-```
-
-**问题**: 联系电话是结构化数据，当前允许传入任意字符串（如 `"abc"`、`"<script>alert(1)</script>"`）。Controller 层的 `validateCompanyBody()` 仅检查 `!contact_phone`（空值检查），不验证格式。
-
-**风险**:
-1. **数据质量**: 数据库中可能存储无效的电话号码
-2. **XSS 风险**: 虽然当前前端使用 Ant Design 组件渲染（默认安全），但电话号码中的 HTML 标签是不合理的数据
-3. **国际号码支持**: Prisma `VarChar(20)` 可能不足以支持国际号码格式（如 `+86-138-0000-0000` = 16 字符，OK；但部分国家号码可能更长）
-
-**建议**: 在 Zod Schema 中添加手机号格式校验：
-
-```typescript
-contact_phone: z.string().min(1).max(20).regex(
-  /^[\d\-+().\s]+$/,
-  '联系电话格式不正确'
-),
-```
+| 架构特性 | User | Project | Article | Todo | **Company** |
+|----------|------|---------|---------|------|-------------|
+| Entity 接口数量 | 5 | 3 | 5 | 4 | **4** |
+| 列表/详情分离 | `UserListItem` | 无 | 无 | 无 | **`CompanyDetail`（唯一）** |
+| 关联用户表达 | — | `operator_ids` + `operator_names` | — | `assignee_id` + `assignee_name` | **`operator_ids` + `operators` 对象数组** |
+| 关联表模式 | — | Prisma 关联表 | — | — | **User.companyId 外键** |
+| Update 接口 | 部分可选 | 部分可选 | 部分可选 | 部分可选 | **全部必填（异常）** |
+| Map 函数类型安全 | `any` | `any` | `any` | `any` | **`any`（全模块问题）** |
+| 软删除字段 | 无 | 无 | 无 | 无 | **Prisma 有但 Entity 缺失** |
 
 ---
 
-### MEDIUM-4: CompanyDetail 中 `operator_ids` 与 `operators` / `viewer_ids` 与 `viewers` 数据冗余
+## 五、改进优先级
 
-**位置**: 第 33-38 行
-
-```typescript
-export interface CompanyDetail extends Company {
-  operator_ids: number[];     // ← ID 列表
-  operators: { id: number; cn_name: string; username: string }[];  // ← 完整信息（含 id）
-  viewer_ids: number[];       // ← ID 列表
-  viewers: { id: number; cn_name: string; username: string }[];    // ← 完整信息（含 id）
-}
-```
-
-**问题**: `operator_ids` 中的每个 ID 都在 `operators` 数组中的对应对象的 `id` 字段中重复出现。前端可以从 `operators.map(o => o.id)` 获得 `operator_ids`，反之亦然。
-
-**风险**:
-1. **数据一致性**: 如果 service 层实现有 bug 导致 `operator_ids` 和 `operators` 的 ID 不一致，前端可能出现行为异常
-2. **响应体积膨胀**: 每个公司详情响应中，ID 数组是完全多余的
-3. **维护成本**: Service 层需要同时维护两份相关联的数据
-
-**建议**: 评估前端是否实际使用 `operator_ids` / `viewer_ids`。如果前端仅使用 `operators` / `viewers`，可以考虑移除 ID 数组。如果确实需要（如提交表单），至少应在文档中说明两者的关联关系。
-
----
-
-### LOW-1: `Company` 接口缺少 JSDoc 文档注释
-
-**位置**: 第 1-11 行
-
-```typescript
-export interface Company {
-  id: number;
-  short_name: string;
-  // ...
-}
-```
-
-**问题**: 同项目的 `article.entity.ts` 已为关键字段添加了 JSDoc 注释（如 `/** 文章正文（纯文本，禁止 HTML） */`），但 `company.entity.ts` 没有任何注释。
-
-**建议**: 为非自描述字段添加 JSDoc：
-
-```typescript
-export interface Company {
-  id: number;
-  /** 公司名称简称（最多 50 字符） */
-  short_name: string;
-  /** 公司名称全称（最多 200 字符） */
-  full_name: string;
-  /** 公司地址（最多 500 字符，可选） */
-  address: string | null;
-  /** 联系人姓名 */
-  contact_person: string;
-  /** 联系电话（最多 20 字符） */
-  contact_phone: string;
-  /** 公司状态（true=启用, false=禁用） */
-  status: boolean;
-  created_at: Date;
-  updated_at: Date;
-}
-```
-
----
-
-### LOW-2: Entity 字段命名使用 snake_case 与 TypeScript 惯例不一致
-
-**位置**: 全文件
-
-```typescript
-export interface Company {
-  short_name: string;    // ← snake_case
-  full_name: string;     // ← snake_case
-  contact_person: string; // ← snake_case
-  // ...
-}
-```
-
-**问题**: TypeScript 惯例推荐接口属性使用 `camelCase`（如 `shortName`、`fullName`）。但本项目使用 `snake_case` 是为了与 API 请求/响应的 JSON 字段名保持一致，这在 Controller → Entity → Service 的映射链中减少了转换成本。
-
-**说明**: 这不是 bug，而是项目的**有意设计决策**。`mapCompany()` 函数负责 Prisma `camelCase` → Entity `snake_case` 的转换。此条目仅作为评审记录，**不要求修改**。
-
----
-
-## 三、与同项目其他模块的质量对比
-
-| 质量特性 | User 模块 | Todo 模块 | Article 模块 | Company 模块 |
-|----------|-----------|-----------|-------------|-------------|
-| Zod Schema | ✅ `user.schema.ts` | ✅ `todo.schema.ts` | ❌ 缺失 | ❌ **缺失** |
-| 字段 JSDoc | ❌ 无 | ❌ 无 | ✅ 关键字段有 | ❌ 无 |
-| 类型安全（枚举/字面量） | ✅ `UserRole` 类型 | — | ✅ `ArticleStatus` | ⚠️ 仅 `boolean` status |
-| Create/Update 分化 | ✅ 有差异 | ✅ 有差异 | ✅ 有差异 | ❌ **完全相同** |
-| 内联对象提取 | ✅ `UserListItem` | — | — | ❌ 内联 `{ id, cn_name, username }` |
-| Prisma 字段对齐 | ✅ | ✅ | ⚠️ skills 不匹配 | ⚠️ 缺少 `deleted_at` |
-
-Company 模块在 Zod Schema 和 Create/Update 差异化方面与 User/Todo 模块存在差距。
-
----
-
-## 四、改进优先级
-
-### P0 — 立即修复（影响数据安全和类型安全）
+### P0 — 架构级改进（影响系统整体一致性）
 
 | 措施 | 工作量 | 解决的问题 |
 |------|--------|-----------|
-| 创建 `company.schema.ts` Zod Schema | 中 | CRITICAL-1: 运行时验证空白 |
-| Controller 使用 Zod `parse()` 替代 `as` 断言 | 小 | CRITICAL-1: 不安全类型断言 |
-| `operator_ids`/`viewer_ids` 添加正整数约束 | 小 | HIGH-3: ID 数组类型约束 |
+| Company-User 关联表迁移或统一批量操作 | 大 | CRITICAL-1: N+1 更新 |
+| 统一 Company/Project 关联表达范式 | 大 | CRITICAL-2: 范式不一致 |
+| Map 层引入 Prisma 类型参数 | 中 | HIGH-2: 类型安全 |
 
-### P1 — 短期修复（1 周内）
-
-| 措施 | 工作量 | 解决的问题 |
-|------|--------|-----------|
-| 合并 `CreateCompanyRequest`/`UpdateCompanyRequest` | 小 | HIGH-1: DRY 违反 |
-| 提取 `UserSummary` 共享类型 | 小 | HIGH-2: 内联对象重复 |
-| Company 接口添加 `deleted_at` 字段 | 小 | MEDIUM-2: Prisma 字段对齐 |
-| 添加 JSDoc 文档注释 | 小 | LOW-1: 文档缺失 |
-
-### P2 — 中期改进
+### P1 — 设计级改进（影响可维护性）
 
 | 措施 | 工作量 | 解决的问题 |
 |------|--------|-----------|
-| `contact_phone` 添加格式校验 | 小 | MEDIUM-3: 数据质量 |
-| `address` 统一 `null`/`undefined` 语义 | 小 | MEDIUM-1: 类型不一致 |
-| 评估 `operator_ids`/`viewer_ids` 冗余 | 中 | MEDIUM-4: 数据冗余 |
+| 合并或重新定义 `CompanyDetail` | 中 | HIGH-1: 跨领域聚合 |
+| `CreateCompanyRequest`/`UpdateCompanyRequest` 分化 | 小 | MEDIUM-2: 语义差异 |
+| Company 接口补全 `deleted_at` + Service 过滤 | 小 | MEDIUM-1: 软删除 |
+
+### P2 — 代码级改进
+
+| 措施 | 工作量 | 解决的问题 |
+|------|--------|-----------|
+| 添加 JSDoc 说明操作语义 | 小 | MEDIUM-3: 命令语义 |
+| 提取 `UserSummary` 共享类型 | 小 | LOW-2: 内联对象 |
+| 评估 `BaseEntity` 泛型 | 小 | LOW-1: 字段重复 |
 
 ---
 
-## 五、综合评分与总结
+## 六、综合评分与总结
 
-**综合质量评分: 5.0/10**
+**综合架构评分: 4.0/10**
 
-`company.entity.ts` 的**基本结构合理**，字段命名与 API 契约一致，接口分层清晰。但作为类型契约层，其在以下方面存在不足：
+`company.entity.ts` 作为系统核心聚合根的类型契约，存在以下**架构级问题**：
 
-1. **最严重问题**: 缺少 Zod Schema，导致 Controller 层使用不安全的 `as` 类型断言，这是与同项目其他模块（User、Todo）的最大差距
-2. **设计冗余**: Create/Update 接口完全重复，`operators`/`viewers` 内联对象未提取
-3. **类型完整性**: 缺少 `deleted_at` 字段、ID 数组无正整数约束、`address` 语义不一致
+1. **关联关系建模缺陷（CRITICAL）**: Company ↔ User 的关系通过 `operator_ids`/`viewer_ids` 平面化表达，丢失了领域语义。Service 层的循环更新产生 N+1 SQL，在大数据量场景下性能不可接受。
 
-从防御纵深角度，当前安全验证完全依赖 Controller 层的 `validateCompanyBody()`（仅做非空和数组类型检查），缺少值类型、格式、长度的运行时校验。Prisma 的 `VarChar` 约束提供了最终防线，但错误处理不够优雅（返回 500 而非 400）。
+2. **范式不一致（CRITICAL）**: 与 Project 模块使用完全不同的关联模式，增加维护成本和开发者认知负担。
 
-**建议**: 优先实施 P0 措施（创建 Zod Schema + 替换 `as` 断言），预计工作量 2-3 小时，可将质量评分提升至 7/10 以上。
+3. **职责混淆（HIGH）**: `CompanyDetail` 跨领域聚合了 User 数据，违反了 Entity 层的单一职责。同时缺少统一的"列表/详情"分离策略。
+
+4. **类型安全断裂（HIGH）**: Map 层 `any` 输入类型使 Prisma 的类型安全优势在 Entity 边界处断裂。
+
+**核心建议**: 优先解决 CRITICAL-1（N+1 更新）和 CRITICAL-2（范式统一），这两个问题会在业务增长后成为系统的性能瓶颈和维护痛点。如果团队资源有限，至少应将 Service 层的循环 `update` 改为 `updateMany` 批量操作（工作量约 1 小时），即可将 SQL 次数从 N 次降为 2 次。
 
 ---
 
-## 六、Committer 裁决
-
-**审核结论**: ✅ **通过（附条件）** — Entity 文件结构合理可保留，但 CRITICAL-1 和 HIGH-1 应在下次提交前修复。
-
-### 裁定严重级别汇总
-
-| 编号 | 原始级别 | 说明 |
-|------|---------|------|
-| CRITICAL-1 | CRITICAL | 缺少 Zod Schema + 不安全 `as` 断言，运行时类型安全空白 |
-| HIGH-1 | HIGH | Create/Update 接口完全重复，违反 DRY |
-| HIGH-2 | HIGH | 内联对象类型未提取，可维护性差 |
-| HIGH-3 | HIGH | ID 数组无正整数约束 |
-| MEDIUM-1 | MEDIUM | `address` undefined/null 语义不一致 |
-| MEDIUM-2 | MEDIUM | 缺少 Prisma `deleted_at` 字段 |
-| MEDIUM-3 | MEDIUM | `contact_phone` 无格式约束 |
-| MEDIUM-4 | MEDIUM | operator_ids/operators 数据冗余 |
-| LOW-1 | LOW | 缺少 JSDoc 文档注释 |
-| LOW-2 | LOW | snake_case 命名（有意设计，不要求修改） |
-
-### 行动计划
-
-1. **本次迭代**: 创建 `company.schema.ts` Zod Schema + 合并 Create/Update 接口 — 预计 1-2 小时
-2. **下次迭代**: 提取 `UserSummary` 共享类型 + 添加 JSDoc + 补全 `deleted_at` — 预计 1 小时
-3. **后续迭代**: 电话格式校验、address 语义统一、评估数据冗余
-
-**审核人**: 软件质量专家
+**审核人**: 软件架构专家
 **审核时间**: 2026-05-24
