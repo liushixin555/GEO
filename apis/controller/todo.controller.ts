@@ -12,6 +12,12 @@ export async function listTodos(req: Request, res: Response): Promise<void> {
     const priority = req.query.priority as string | undefined;
     const search = req.query.search as string | undefined;
 
+    // 全部待办/全部已办仅 sysadmin 可访问
+    if ((tab === 'all_open' || tab === 'all_closed') && req.user!.role !== 'sysadmin') {
+      fail(res, 403, '无权访问全部待办');
+      return;
+    }
+
     const { list, total } = await todoService.list({
       page,
       pageSize,

@@ -287,7 +287,25 @@ describe('Todo Controller', () => {
       );
     });
 
-    it('should apply company filter for admin in all_open tab', async () => {
+    it('should deny admin access to all_open tab', async () => {
+      const response = await agent
+        .get('/api/todos?tab=all_open')
+        .set('Authorization', `Bearer ${adminToken(5, 10)}`);
+
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('无权访问全部待办');
+    });
+
+    it('should deny admin access to all_closed tab', async () => {
+      const response = await agent
+        .get('/api/todos?tab=all_closed')
+        .set('Authorization', `Bearer ${adminToken(5, 10)}`);
+
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('无权访问全部待办');
+    });
+
+    it('should allow sysadmin access to all_open tab', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindMany = jest.fn().mockResolvedValue([]);
       const mockCount = jest.fn().mockResolvedValue(0);
@@ -297,16 +315,24 @@ describe('Todo Controller', () => {
 
       const response = await agent
         .get('/api/todos?tab=all_open')
-        .set('Authorization', `Bearer ${adminToken(5, 10)}`);
+        .set('Authorization', `Bearer ${sysadminToken(1)}`);
 
       expect(response.status).toBe(200);
-      expect(mockFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            companyId: 10,
-          }),
-        })
-      );
+    });
+
+    it('should allow sysadmin access to all_closed tab', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const response = await agent
+        .get('/api/todos?tab=all_closed')
+        .set('Authorization', `Bearer ${sysadminToken(1)}`);
+
+      expect(response.status).toBe(200);
     });
 
     it('should return 500 on database error', async () => {
