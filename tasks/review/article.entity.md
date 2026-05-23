@@ -1,33 +1,69 @@
-# apis/entity/article.entity.ts — 软件质量专家评审报告
+# apis/entity/article.entity.ts — 软件架构专家评审报告
 
 **评审日期**: 2026-05-24
-**评审角色**: 软件质量专家（类型安全、接口设计、领域模型一致性、可维护性、健壮性）
+**评审角色**: 软件架构专家（分层架构、领域建模、接口契约、演进性、跨模块一致性）
 **文件路径**: `apis/entity/article.entity.ts`
 **代码行数**: 63 行
-**关联文件**: `apis/entity/index.ts`, `apis/service/impl/article.service.impl.ts`, `tests/apis/article.entity.test.ts`, `prisma/schema.prisma`
-**严重级别**: HIGH(3) / MEDIUM(4) / LOW(2)
+**关联文件**: `apis/entity/index.ts`, `apis/service/article.service.ts`, `apis/service/impl/article.service.impl.ts`, `apis/controller/article.controller.ts`, `prisma/schema.prisma`
+**严重级别**: CRITICAL(1) / HIGH(3) / MEDIUM(3) / LOW(2)
 
 ---
 
-## 一、质量评价总览
+## 一、架构评价总览
 
-`article.entity.ts` 定义了文章模块的 5 个接口：`Article`、`ArticleVersion`、`CreateArticleRequest`、`UpdateArticleRequest`、`ReviewArticleRequest`。作为数据传输对象（DTO）层，该文件承担了数据库模型与业务逻辑之间的类型桥梁作用。
+`article.entity.ts` 是文章模块的 Entity 层，定义了 5 个接口：`Article`、`ArticleVersion`、`CreateArticleRequest`、`UpdateArticleRequest`、`ReviewArticleRequest`。从架构视角审视，该文件承担了**领域模型**与**传输对象（DTO）**的双重职责，但缺乏明确的职责边界划分。
 
-从软件质量视角审视，该文件存在 **Prisma schema 不同步、类型安全缺失、接口设计不一致、缺少文档约束** 四大质量问题。
+从软件架构视角审视，核心问题集中在：**Entity-DTO 职责混淆、类型契约不完整、领域概念泄漏、与同项目其他模块设计不一致**。
 
-| 质量维度 | 评分 | 说明 |
+| 架构维度 | 评分 | 说明 |
 |----------|------|------|
-| 类型安全 | 5/10 | 核心字段使用 `string` 代替字面量联合类型，编译期无法捕获非法值 |
-| Schema 一致性 | 4/10 | 与 Prisma schema 存在 4 处显著差异，运行时可能产生数据不一致 |
-| 接口设计 | 6/10 | CRUD 接口与同项目其他 entity 模式基本一致，但细节处存在偏差 |
-| 可维护性 | 7/10 | 文件简洁，但缺少字段注释和类型约束，后续维护依赖阅读 schema |
-| 测试覆盖 | 8/10 | 测试文件覆盖率良好，包含边界值、空值、字段完整性检查 |
+| 职责分离 | 4/10 | Entity 与 DTO 混于同一文件，领域模型与传输对象无边界 |
+| 类型契约 | 3/10 | 核心枚举字段退化为 `string`，类型契约形同虚设 |
+| Schema 同步 | 3/10 | 与 Prisma schema 存在 6 处显著差异，`deletedAt` 字段完全缺失 |
+| 模块一致性 | 5/10 | 与 Project/Knowledge 等模块的 DTO 模式存在设计偏差 |
+| 领域建模 | 5/10 | 状态机概念隐含在 service 层，Entity 层未表达领域规则 |
+| 演进性 | 4/10 | 缺少版本化策略、类型扩展点、JSON 字段无结构约束 |
+| 安全架构 | 5/10 | 白名单在 controller 层，但 Entity 层类型约束缺位导致防御纵深不足 |
 
 ---
 
-## 二、问题清单
+## 二、架构问题清单
 
-### HIGH-1: `Article.status` 使用 `string` 类型，与 Prisma `ArticleStatus` 枚举不同步
+### CRITICAL-1: Entity 与 DTO 职责混淆，缺少分层边界
+
+**位置**: 整个文件（第 1-63 行）
+
+**问题**: 文件同时包含领域实体（`Article`、`ArticleVersion`）和请求传输对象（`CreateArticleRequest`、`UpdateArticleRequest`、`ReviewArticleRequest`）。在分层架构中，Entity 和 DTO 承担不同职责：
+
+| 类型 | 职责 | 消费者 |
+|------|------|--------|
+| Entity（`Article`） | 领域模型，反映数据全貌 | Service、Repository、前端 |
+| DTO（`CreateArticleRequest`） | 入站传输契约，定义 API 接受什么 | Controller、Validation |
+| DTO（`UpdateArticleRequest`） | 入站传输契约，部分更新语义 | Controller、Validation |
+
+**当前设计导致的问题**：
+1. 修改 DTO（如添加验证规则）会影响 Entity 的导入方
+2. Entity 无法包含仅面向领域层的计算属性或方法
+3. 与同项目 `project.entity.ts` 的模式一致（也混合了），但这不代表架构正确——这是全项目的系统性问题
+
+**建议**: 考虑将 DTO 拆分到 `apis/dto/article.dto.ts` 或至少在文件中用注释分区：
+
+```typescript
+// ── 领域模型 ─────────────────────────────
+export interface Article { ... }
+export interface ArticleVersion { ... }
+
+// ── 请求传输对象 ──────────────────────────
+export interface CreateArticleRequest { ... }
+export interface UpdateArticleRequest { ... }
+export interface ReviewArticleRequest { ... }
+```
+
+> **注**: 此问题在项目所有 entity 文件中普遍存在，属于系统级架构债务。当前阶段可通过注释分区改善，不建议立即大规模重构。
+
+---
+
+### HIGH-1: `Article.status` 缺少枚举类型，状态机概念在架构层泄漏
 
 **位置**: 第 15 行
 
@@ -35,28 +71,43 @@
 status: string;
 ```
 
-**问题**: Prisma schema 定义了 `ArticleStatus` 枚举（draft / manual_writing / generating / generate_failed / pending_review / publishing / publish_failed / published），但 entity 接口将 `status` 声明为宽泛的 `string`。这意味着：
+**问题**: Prisma 定义了 `ArticleStatus` 枚举（8 种状态），controller 定义了状态转换白名单，service 实现了状态转换逻辑——这是一个完整的**有限状态机（FSM）**领域概念。但 Entity 层将 `status` 声明为 `string`，导致：
 
-1. 编译期无法阻止非法状态值（如 `typo_status`）通过
-2. `service.impl.ts` 第 60 行和第 97 行需要手动类型断言 `(request.status as ArticleStatus)`，绕过了类型检查
-3. 前端无法获得状态值的类型提示，容易拼错
+1. **架构防御纵深断裂**: controller 有白名单，但 Entity 无类型约束。若绕过 controller 直接操作 service，非法状态值无编译期拦截
+2. **状态机隐式实现**: 状态转换规则散落在 controller（白名单）和 service（if/else）中，Entity 未承载领域知识
+3. **与 Project 模块对比**: `Project.status` 使用 `boolean`（激活/停用），语义简单。Article 有 8 种状态 + 复杂转换规则，需要更强的类型表达
 
-**建议**: 定义状态字面量联合类型：
+**建议**: 在 Entity 层定义状态类型，作为架构级别的领域契约：
 
 ```typescript
-export type ArticleStatus = 'draft' | 'manual_writing' | 'generating' | 'generate_failed'
-  | 'pending_review' | 'publishing' | 'publish_failed' | 'published';
+export type ArticleStatus =
+  | 'draft'           // 草稿
+  | 'manual_writing'  // 手动编写
+  | 'generating'      // AI 生成中
+  | 'generate_failed' // 生成失败
+  | 'pending_review'  // 待审核
+  | 'publishing'      // 发布中
+  | 'publish_failed'  // 发布失败
+  | 'published';      // 已发布
 
-export interface Article {
-  // ...
-  status: ArticleStatus;
-  // ...
-}
+/** 合法的状态转换路径 */
+export const ARTICLE_STATUS_TRANSITIONS: Record<ArticleStatus, ArticleStatus[]> = {
+  draft: ['manual_writing', 'generating'],
+  manual_writing: ['pending_review', 'draft'],
+  generating: ['generate_failed', 'pending_review'],
+  generate_failed: ['generating', 'draft'],
+  pending_review: ['publishing', 'draft'],
+  publishing: ['publish_failed', 'published'],
+  publish_failed: ['publishing'],
+  published: [],
+};
 ```
+
+将状态机从 service/controller 的实现细节提升为 Entity 层的领域知识，是 DDD 战术设计的基本实践。
 
 ---
 
-### HIGH-2: `Article.skills` 类型为 `number | null`，但 Prisma schema 中为 `Json?`
+### HIGH-2: `Article.skills` 类型 `number | null` 与 Prisma `Json?` 不匹配，领域语义模糊
 
 **位置**: 第 11 行
 
@@ -64,202 +115,191 @@ export interface Article {
 skills: number | null;
 ```
 
-**问题**: Prisma schema 第 233 行定义 `skills Json?`，`Json` 类型在 Prisma 中可以是任意 JSON 值（对象、数组、字符串等）。entity 接口将其声明为 `number | null`，与数据库实际存储能力不匹配。
+**问题**: Prisma schema 定义 `skills Json?`，`Json` 类型可存储任意 JSON 值。Entity 声明为 `number | null`，存在架构层面的语义歧义：
 
-- 若数据库中 `skills` 实际存储的确实是数字，应考虑将 schema 改为 `Int?` 以获得类型安全
-- 若 `skills` 可能存储复杂数据（如技能列表），entity 类型定义过窄
+1. **领域概念不明**: "skills" 是关联 ID？评分？技能列表？`number` 类型无法回答这个问题
+2. **与关联模块不一致**: 同项目中 `Project.operator_ids: number[]` 使用数组表达关联关系，`KnowledgeKeyword` 使用独立关联表。`skills` 的 `number` 类型既不像关联 ID（应该是数组），也不像外键（应该是 `llm_model_id` 那样的命名）
+3. **JSON 字段无结构约束**: Prisma 的 `Json?` 类型配合 `number | null` 的 Entity 类型，等于放弃了类型安全
 
-**建议**: 确认业务需求后，统一 schema 与 entity 的类型定义。若始终为数字，schema 改 `Int?`；若有扩展需求，entity 改为 `unknown | null`。
+**建议**: 确认业务语义后统一架构决策：
+- 若 `skills` 是技能评分 → schema 改 `Int?`，保持 `number | null`
+- 若 `skills` 是技能 ID 列表 → Entity 改 `number[] | null`，与 `images`/`platforms` 模式一致
+- 若 `skills` 是复杂结构 → 定义 `SkillConfig` 接口，使用 Zod 做运行时校验
 
 ---
 
-### HIGH-3: `Article.version` 类型为 `number`，但 Prisma schema 为 `Float`
+### HIGH-3: `Article` 和 `ArticleVersion` 缺少 `deleted_at` 字段，软删除架构不完整
 
-**位置**: 第 14 行
+**位置**: 整个文件
+
+**问题**: Prisma schema 中 `Article` 和 `ArticleVersion` 均有 `deletedAt DateTime?` 用于软删除。service.impl 通过 `where: { deletedAt: null }` 过滤已删除记录。但 Entity 接口完全省略了此字段：
+
+1. **架构层信息丢失**: Prisma 查询返回的 `deletedAt` 值在 TypeScript 类型层面不可访问，service 层必须使用 `as any` 或忽略类型错误
+2. **API 响应泄漏风险**: 若 service 返回完整 Article 对象（含 deletedAt），前端会收到 Entity 类型未定义的幽灵字段
+3. **与架构意图矛盾**: 软删除是项目的架构级决策（所有核心模型都有 `deletedAt`），Entity 层不表达等于架空了这个决策
+
+**建议**: 在两个接口中添加：
 
 ```typescript
-version: number;
+export interface Article {
+  // ...
+  deleted_at: Date | null;
+}
+
+export interface ArticleVersion {
+  // ...
+  deleted_at: Date | null;
+}
 ```
 
-**问题**: Prisma schema 第 236 行定义 `version Float @default(1.0)`，默认值为浮点数 `1.0`。entity 接口声明为 `number`，虽然 TypeScript 的 `number` 兼容浮点，但存在语义不一致：
-
-1. 测试用例中版本号使用整数（1, 2, 100），未测试浮点版本号（1.5）
-2. 如果业务意图是整数版本号，schema 应改为 `Int @default(1)`
-3. 如果确实需要浮点版本号，entity 应添加注释说明
-
-**建议**: 与业务方确认版本号语义，统一为 `Int` 或在 entity 中添加注释。
-
 ---
 
-### MEDIUM-1: `UpdateArticleRequest.status` 为 `string`，缺少类型约束
+### MEDIUM-1: `CreateArticleRequest.status` 与 `UpdateArticleRequest.status` 类型约束不对称
 
-**位置**: 第 56 行
+**位置**: 第 42 行 vs 第 56 行
 
 ```typescript
+// CreateArticleRequest
+status?: 'draft' | 'generating' | 'manual_writing';
+
+// UpdateArticleRequest
 status?: string;
 ```
 
-**问题**: `CreateArticleRequest.status` 使用了字面量联合类型 `'draft' | 'generating' | 'manual_writing'`，但 `UpdateArticleRequest.status` 退化为 `string`。这种不一致意味着：
+**问题**: 架构层面的防御不一致：
+- 创建时约束 3 种状态（合理：新建只能从这 3 种开始）
+- 更新时退化为 `string`（不合理：更新应允许全部合法状态转换，但不应该是任意字符串）
 
-1. 创建时只能选合法状态，更新时可以传入任意字符串
-2. 攻击者可通过更新接口将状态设为非法值（与 article.controller.security 审计的 HIGH-1 问题联动）
-3. 两个接口的约束力度不同，违反最小惊讶原则
+这是**最小权限原则**在 API 契约设计中的违反：更新接口的权限应不大于创建接口。
 
-**建议**: 将 `UpdateArticleRequest.status` 也改为字面量联合类型，且应包含全部 ArticleStatus 值：
+**建议**:
 
 ```typescript
 export interface UpdateArticleRequest {
   // ...
-  status?: ArticleStatus;
-  // ...
+  status?: ArticleStatus;  // 允许全部合法状态，由 controller/service 校验转换路径
 }
 ```
 
 ---
 
-### MEDIUM-2: `UpdateArticleRequest.scheduled_publish_at` 类型为 `string | null`，与 `Article` 的 `Date | null` 不一致
+### MEDIUM-2: `Article` 接口缺少 `project` 关联的表达
 
-**位置**: 第 57 行
+**位置**: `Article` 接口（第 1-20 行）
 
+**问题**: Prisma schema 定义了 `Article → Project` 的多对一关联（`project Project @relation(...)`），且 controller 使用嵌套路由 `/api/projects/:projectId/articles`。但 Entity 接口只暴露了 `project_id: number`，未表达关联关系。
+
+对比 `Project` 的 Entity 设计：
 ```typescript
-scheduled_publish_at?: string | null;
-```
-
-**问题**: `Article.scheduled_publish_at` 类型为 `Date | null`，但 `UpdateArticleRequest.scheduled_publish_at` 为 `string | null`。虽然 HTTP 请求以字符串传递日期是常见做法，但：
-
-1. 缺少格式约束（ISO 8601? 时间戳? 自定义格式?）
-2. service 层需要手动解析，增加了出错风险
-3. 同一语义字段在不同接口中类型不同，增加心智负担
-
-**建议**: 使用模板字面量类型或注释标注日期格式：
-
-```typescript
-/** ISO 8601 日期字符串，如 "2026-12-31T00:00:00Z" */
-scheduled_publish_at?: string | null;
-```
-
----
-
-### MEDIUM-3: `CreateArticleRequest` 缺少 `project_id` 字段
-
-**位置**: 第 31-43 行
-
-```typescript
-export interface CreateArticleRequest {
-  title?: string;
-  // ... 无 project_id
+interface Project {
+  company_id: number;
+  company_name: string;  // ← 冗余字段，表达关联的展示名称
 }
 ```
 
-**问题**: `Article` 的必填字段 `project_id`（对应 Prisma `projectId Int`，非可选）未出现在 `CreateArticleRequest` 中。查看 `article.service.impl.ts` 第 46-66 行，`project_id` 通过控制器参数单独传入：
+`Project` 通过冗余字段 `company_name` 解决了 N+1 查询问题。`Article` 没有类似的 `project_name` 或关联表达，意味着前端列表页如需显示项目名称，必须额外查询。
+
+**建议**: 评估是否需要添加冗余字段或在 service 的 `list()` 返回中包含项目信息：
 
 ```typescript
-async create(projectId: number, request: CreateArticleRequest, userId: number, role: string)
-```
-
-虽然这种模式在 RESTful 设计中常见（`projectId` 来自 URL 路径参数），但 `CreateArticleRequest` 缺少文档说明这一设计决策，且 `CreateProjectRequest` 同项目的做法是直接在请求体中包含 `company_id`。两种模式不一致。
-
-**建议**: 添加注释说明 `project_id` 由路由参数提供：
-
-```typescript
-/** 创建文章请求 — project_id 由路由参数提供，不在此接口中 */
-export interface CreateArticleRequest {
+export interface ArticleListItem extends Article {
+  project_name?: string;  // 列表页显示用
+}
 ```
 
 ---
 
-### MEDIUM-4: entity 缺少 `deletedAt` 软删除字段
+### MEDIUM-3: JSON 字段（`images`、`platforms`）缺少结构契约
 
-**位置**: 整个文件
-
-**问题**: Prisma schema 中 `Article` 和 `ArticleVersion` 都有 `deletedAt DateTime?` 字段用于软删除，但 entity 接口中完全省略了该字段。这意味着：
-
-1. 从数据库查询到的 `deletedAt` 值在 TypeScript 类型层面不可访问
-2. 若 service 层需要判断是否已软删除，无法通过类型系统获得帮助
-3. 与 schema 不同步，增加维护成本
-
-**建议**: 在 `Article` 和 `ArticleVersion` 接口中添加：
+**位置**: 第 9-10 行
 
 ```typescript
-deleted_at: Date | null;
+images: string[] | null;
+platforms: string[] | null;
 ```
+
+**问题**: Prisma 中这两个字段是 `Json?` 类型，Entity 声明为 `string[] | null`。虽然比 `any` 好，但缺少运行时校验：
+1. Prisma 不会验证 JSON 内容是否为字符串数组
+2. 数据库直接操作可能写入非数组 JSON
+3. 无 Zod schema 或运行时校验确保结构
+
+在项目架构中，这是 JSON 字段的通用问题。建议在架构层面统一 JSON 字段的校验策略。
 
 ---
 
-### LOW-1: `ArticleVersion.id` 和 `ArticleVersion.article_id` 之间缺少关联注释
+### LOW-1: `ArticleVersion` 缺少关联表达和软删除字段
 
 **位置**: 第 22-29 行
 
-**问题**: `ArticleVersion` 接口字段没有 JSDoc 注释说明字段间关系（如 `article_id` 是 `Article.id` 的外键）。虽然命名规范暗示了关联，但缺乏显式文档对于新成员理解数据模型不友好。
+**问题**: `ArticleVersion` 接口：
+1. 未表达与 `Article` 的外键关系（`article_id` 无 JSDoc 说明）
+2. 缺少 `deleted_at: Date | null`（Prisma 有此字段）
+3. 缺少与 `User` 的创建者关联（`created_by` 无关联表达）
 
-**建议**: 对关键字段添加 JSDoc：
+**建议**: 添加注释和缺失字段。
+
+---
+
+### LOW-2: `ReviewArticleRequest` 接口过于简单，未表达审核领域知识
+
+**位置**: 第 60-62 行
 
 ```typescript
-export interface ArticleVersion {
-  id: number;
-  /** 关联的 Article.id */
-  article_id: number;
-  // ...
+export interface ReviewArticleRequest {
+  approved: boolean;
 }
 ```
 
----
-
-### LOW-2: `CreateArticleRequest` 和 `UpdateArticleRequest` 存在大量重复字段定义
-
-**位置**: 第 31-58 行
-
-**问题**: 两个接口有 10 个相同字段（title, article_type, write_mode, keywords, portrait, images, platforms, skills, llm_model_id, content），仅 `status` 类型和 `scheduled_publish_at` 有差异。使用 `Omit` 或 `Partial` 工具类型可以减少重复：
-
-```typescript
-type ArticleEditableFields = 'title' | 'article_type' | 'write_mode' | 'keywords'
-  | 'portrait' | 'images' | 'platforms' | 'skills' | 'llm_model_id' | 'content';
-
-export interface CreateArticleRequest extends Pick<Article, ArticleEditableFields> {
-  status?: 'draft' | 'generating' | 'manual_writing';
-}
-
-export interface UpdateArticleRequest extends Partial<Pick<Article, ArticleEditableFields>> {
-  status?: ArticleStatus;
-  scheduled_publish_at?: string | null;
-}
-```
-
-但鉴于当前文件仅 63 行且字段不多，这是低优先级的改进。
+**问题**: 审核是一个重要的业务操作，当前接口仅传递 `approved: boolean`。在架构层面，缺少审核意见、审核原因（拒绝时）等字段的扩展点。虽然当前业务可能不需要，但建议预留。
 
 ---
 
-## 三、与 Prisma Schema 差异汇总
+## 三、与 Prisma Schema 差异矩阵
 
-| 字段 | Entity 类型 | Prisma 类型 | 差异说明 |
-|------|------------|-------------|----------|
-| `status` | `string` | `ArticleStatus` (enum) | 缺少枚举约束 |
-| `skills` | `number \| null` | `Json?` | 类型不匹配 |
-| `version` | `number` | `Float` | 语义不明（整数 vs 浮点） |
-| `deletedAt` | 缺失 | `DateTime?` | 软删除字段未暴露 |
-| `images` | `string[] \| null` | `Json?` | Json 类型无结构约束 |
-| `platforms` | `string[] \| null` | `Json?` | 同上 |
+| 字段 | Entity 类型 | Prisma 类型 | 差异等级 | 架构影响 |
+|------|------------|-------------|----------|----------|
+| `status` | `string` | `ArticleStatus` (enum) | **严重** | 状态机领域概念未表达 |
+| `skills` | `number \| null` | `Json?` | **严重** | 领域语义不明 |
+| `version` | `number` | `Float` | 中等 | 整数 vs 浮点语义未定义 |
+| `deletedAt` | **缺失** | `DateTime?` | **严重** | 软删除架构不完整 |
+| `images` | `string[] \| null` | `Json?` | 低 | 无运行时结构校验 |
+| `platforms` | `string[] \| null` | `Json?` | 低 | 同上 |
 
 ---
 
-## 四、修复优先级建议
+## 四、架构改进路线图
 
-| 优先级 | 问题编号 | 修复工作量 | 说明 |
-|--------|---------|-----------|------|
-| P0 | HIGH-1 | 低 | 定义 `ArticleStatus` 联合类型，替换 `string` |
-| P0 | HIGH-2 | 中 | 确认 skills 业务语义，统一 schema 与 entity |
-| P1 | HIGH-3 | 低 | 确认 version 语义，统一为 Int 或注释说明 |
-| P1 | MEDIUM-1 | 低 | UpdateArticleRequest.status 使用联合类型 |
-| P1 | MEDIUM-4 | 低 | 添加 deleted_at 字段 |
-| P2 | MEDIUM-2 | 低 | 添加日期格式注释 |
-| P2 | MEDIUM-3 | 低 | 添加接口设计说明注释 |
-| P3 | LOW-1 | 低 | 添加字段 JSDoc |
-| P3 | LOW-2 | 中 | 提取公共字段（可选） |
+### 短期（低风险、高价值）
+
+| 步骤 | 工作量 | 影响 |
+|------|--------|------|
+| 定义 `ArticleStatus` 联合类型，替换 `string` | 低 | 编译期捕获非法状态值 |
+| 添加 `deleted_at` 字段 | 低 | 补全软删除架构 |
+| 统一 `UpdateArticleRequest.status` 类型约束 | 低 | 防御一致性 |
+| 添加 `scheduled_publish_at` 日期格式注释 | 低 | API 契约清晰 |
+
+### 中期（中风险、中价值）
+
+| 步骤 | 工作量 | 影响 |
+|------|--------|------|
+| 确认 `skills` 业务语义，统一 Entity/Schema | 中 | 消除类型不匹配 |
+| 确认 `version` 语义（Int vs Float） | 低 | 语义精确性 |
+| 将状态转换规则提升为 Entity 层常量 | 中 | 领域知识集中化 |
+
+### 长期（高价值、需协调）
+
+| 步骤 | 工作量 | 影响 |
+|------|--------|------|
+| Entity/DTO 分层（全项目级） | 高 | 架构职责清晰 |
+| JSON 字段统一 Zod 校验策略 | 中 | 运行时安全 |
+| 引入领域事件（审核通过 → 触发发布） | 高 | 解耦业务流程 |
 
 ---
 
 ## 五、总结
 
-`article.entity.ts` 作为文章模块的核心类型定义，文件结构清晰、测试覆盖良好。但与 Prisma schema 存在多处不一致，尤其是 `status` 字段缺少枚举约束和 `skills` 字段类型不匹配，可能在运行时引发数据一致性问题。建议优先修复 HIGH 级别问题，将类型安全从"运行时断言"提升为"编译期保证"。
+`article.entity.ts` 作为文章模块的核心类型定义，在 API 契约层面基本可用，但在架构层面存在显著改进空间。最关键的问题是**状态机概念未在类型层表达**和**Entity 与 Prisma Schema 不同步**，前者导致领域知识泄漏到 service/controller 实现，后者导致类型安全防线存在缺口。
 
-**综合质量评分: 6.2/10**
+从架构演进角度，建议优先解决 **Entity-Schema 同步**和**状态类型化**两个问题，它们风险低但收益高——将隐式的业务规则变为显式的类型契约，是从"能跑"到"可靠"的关键一步。
+
+**综合架构评分: 5.5/10**
