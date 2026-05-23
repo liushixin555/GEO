@@ -7,8 +7,8 @@
 `apis/service/impl/llm-model.service.impl.ts`
 
 ## 测试结果
-- **测试数量**: 41 个测试
-- **通过**: 41 个
+- **测试数量**: 57 个测试
+- **通过**: 57 个
 - **失败**: 0 个
 - **状态**: ✅ 全部通过
 
@@ -74,9 +74,42 @@
 - update 传入 undefined 值的字段不应被包含在 data 中
 - create 应正确处理不同 provider 的模型（5个 provider 循环测试）
 
+### Prisma 异常传播 — 6 个测试
+- list 应传播 Prisma 数据库错误
+- listEnabled 应传播 Prisma 数据库错误
+- getById 应传播 Prisma 数据库错误
+- create 应传播 Prisma 唯一约束错误
+- update 应传播 Prisma update 错误
+- delete 应传播 Prisma update 错误
+
+### update 全字段更新 — 2 个测试
+- 应同时更新所有5个字段
+- 应将 false 值的 status 正确包含在 data 中（不是 undefined）
+
+### delete 详细验证 — 2 个测试
+- deletedAt 时间应接近当前时间
+- 应对不同 id 的模型执行软删除
+
+### list 混合状态 — 2 个测试
+- 应正确返回混合启用/禁用状态的模型
+- 应正确映射所有字段（多个模型逐一验证）
+
+### listEnabled 单条结果 — 1 个测试
+- 应正确返回单条启用的模型
+
+### create 特殊字符 — 2 个测试
+- 应正确处理包含特殊字符的 API key
+- 应正确处理包含中文的 base_url
+
+### 服务实例复用 — 1 个测试
+- 同一服务实例应可连续调用多个方法
+
 ## 测试策略
 - 使用 `jest.mock` mock `getPrisma` 和 `db.util`
 - 使用工厂函数 `makePrismaModel()` 和 `createMockPrisma()` 创建测试数据
 - 覆盖正常路径、异常路径、边界情况
 - 验证字段映射（snake_case ↔ camelCase）的正确性
 - 验证 Prisma 调用参数的正确性
+- 新增 Prisma 异常传播测试确保错误不被吞掉
+- 新增特殊字符测试确保字段值正确传递
+- 新增服务实例复用测试确保多次调用不互相干扰
