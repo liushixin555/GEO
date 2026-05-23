@@ -1422,6 +1422,561 @@ describe('knowledge.entity', () => {
   });
 
   // ============================================================
+  // 字段数量验证
+  // ============================================================
+  describe('field count verification', () => {
+    it('KnowledgeKeyword should have 8 required fields', () => {
+      const obj: KnowledgeKeyword = {
+        id: 1, base_id: 1, keyword: 'K', seed_word: null,
+        group_id: null, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Object.keys(obj)).toHaveLength(8);
+    });
+
+    it('KnowledgeKeyword with expanded_words should have 9 fields', () => {
+      const obj: KnowledgeKeyword = {
+        id: 1, base_id: 1, keyword: 'K', seed_word: null,
+        group_id: null, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+        expanded_words: [],
+      };
+      expect(Object.keys(obj)).toHaveLength(9);
+    });
+
+    it('KeywordExpandedWord should have 6 fields', () => {
+      const obj: KeywordExpandedWord = {
+        id: 1, keyword_id: 1, word: 'w', selected: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Object.keys(obj)).toHaveLength(6);
+    });
+
+    it('KnowledgePortrait should have 7 fields', () => {
+      const obj: KnowledgePortrait = {
+        id: 1, base_id: 1, title: 'T', content: null,
+        created_by: null, created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Object.keys(obj)).toHaveLength(7);
+    });
+
+    it('KnowledgeImage should have 8 fields', () => {
+      const obj: KnowledgeImage = {
+        id: 1, base_id: 1, title: 'T', description: null,
+        image_url: 'url', created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Object.keys(obj)).toHaveLength(8);
+    });
+
+    it('KnowledgeDocument should have 11 fields', () => {
+      const obj: KnowledgeDocument = {
+        id: 1, base_id: 1, title: 'T', description: null,
+        file_url: 'url', file_name: 'f', file_type: 't',
+        file_size: 0, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Object.keys(obj)).toHaveLength(11);
+    });
+
+    it('MinedKeyword should have 6 fields', () => {
+      const obj: MinedKeyword = {
+        id: 1, base_id: 1, keyword: 'K', selected: false,
+        created_by: null, created_at: new Date(),
+      };
+      expect(Object.keys(obj)).toHaveLength(6);
+    });
+
+    it('CreateKeywordRequest should have 1-2 fields', () => {
+      const min: CreateKeywordRequest = { keyword: 'K' };
+      const max: CreateKeywordRequest = { keyword: 'K', expanded_words: [] };
+      expect(Object.keys(min)).toHaveLength(1);
+      expect(Object.keys(max)).toHaveLength(2);
+    });
+
+    it('CreateDocumentRequest should have 5-6 fields', () => {
+      const min: CreateDocumentRequest = {
+        title: 'T', file_url: 'u', file_name: 'f',
+        file_type: 't', file_size: 0,
+      };
+      const max: CreateDocumentRequest = {
+        title: 'T', description: 'd', file_url: 'u',
+        file_name: 'f', file_type: 't', file_size: 0,
+      };
+      expect(Object.keys(min)).toHaveLength(5);
+      expect(Object.keys(max)).toHaveLength(6);
+    });
+
+    it('UpdateDocumentRequest should have 0-2 fields', () => {
+      const empty: UpdateDocumentRequest = {};
+      const full: UpdateDocumentRequest = { title: 'T', description: 'd' };
+      expect(Object.keys(empty)).toHaveLength(0);
+      expect(Object.keys(full)).toHaveLength(2);
+    });
+
+    it('UpdatePortraitRequest should have 0-2 fields', () => {
+      const empty: UpdatePortraitRequest = {};
+      const full: UpdatePortraitRequest = { title: 'T', content: 'c' };
+      expect(Object.keys(empty)).toHaveLength(0);
+      expect(Object.keys(full)).toHaveLength(2);
+    });
+
+    it('UpdateImageRequest should have 0-2 fields', () => {
+      const empty: UpdateImageRequest = {};
+      const full: UpdateImageRequest = { title: 'T', description: 'd' };
+      expect(Object.keys(empty)).toHaveLength(0);
+      expect(Object.keys(full)).toHaveLength(2);
+    });
+  });
+
+  // ============================================================
+  // 不可变性测试（spread 模式）
+  // ============================================================
+  describe('immutability (spread pattern)', () => {
+    it('KnowledgeKeyword spread should not affect original', () => {
+      const original: KnowledgeKeyword = {
+        id: 1, base_id: 1, keyword: '原始', seed_word: null,
+        group_id: null, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const modified = { ...original, keyword: '修改后' };
+      expect(original.keyword).toBe('原始');
+      expect(modified.keyword).toBe('修改后');
+    });
+
+    it('KnowledgePortrait spread should not affect original', () => {
+      const original: KnowledgePortrait = {
+        id: 1, base_id: 1, title: '原始', content: null,
+        created_by: null, created_at: new Date(), updated_at: new Date(),
+      };
+      const modified = { ...original, title: '修改后' };
+      expect(original.title).toBe('原始');
+      expect(modified.title).toBe('修改后');
+    });
+
+    it('KnowledgeImage spread should not affect original', () => {
+      const original: KnowledgeImage = {
+        id: 1, base_id: 1, title: '原始', description: null,
+        image_url: 'url1', created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const modified = { ...original, image_url: 'url2' };
+      expect(original.image_url).toBe('url1');
+      expect(modified.image_url).toBe('url2');
+    });
+
+    it('KnowledgeDocument spread should not affect original', () => {
+      const original: KnowledgeDocument = {
+        id: 1, base_id: 1, title: '原始', description: null,
+        file_url: 'url1', file_name: 'f1.pdf', file_type: 'application/pdf',
+        file_size: 100, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const modified = { ...original, title: '修改后' };
+      expect(original.title).toBe('原始');
+      expect(modified.title).toBe('修改后');
+    });
+
+    it('MinedKeyword spread should not affect original', () => {
+      const original: MinedKeyword = {
+        id: 1, base_id: 1, keyword: '原始', selected: false,
+        created_by: null, created_at: new Date(),
+      };
+      const modified = { ...original, selected: true };
+      expect(original.selected).toBe(false);
+      expect(modified.selected).toBe(true);
+    });
+
+    it('KeywordExpandedWord spread should not affect original', () => {
+      const original: KeywordExpandedWord = {
+        id: 1, keyword_id: 1, word: '原始', selected: false,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const modified = { ...original, word: '修改后', selected: true };
+      expect(original.word).toBe('原始');
+      expect(original.selected).toBe(false);
+      expect(modified.word).toBe('修改后');
+      expect(modified.selected).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // 跨接口交互测试
+  // ============================================================
+  describe('cross-interface interaction', () => {
+    it('should create KnowledgeKeyword from CreateKeywordRequest fields', () => {
+      const createReq: CreateKeywordRequest = {
+        keyword: '新建关键词',
+        expanded_words: [{ word: '扩展1', selected: true }],
+      };
+      const keyword: KnowledgeKeyword = {
+        id: 1,
+        base_id: 1,
+        keyword: createReq.keyword,
+        seed_word: null,
+        group_id: null,
+        created_by: 1,
+        created_at: new Date(),
+        updated_at: new Date(),
+        expanded_words: createReq.expanded_words?.map((ew, i) => ({
+          id: i + 1,
+          keyword_id: 1,
+          word: ew.word,
+          selected: ew.selected,
+          created_at: new Date(),
+          updated_at: new Date(),
+        })),
+      };
+      expect(keyword.keyword).toBe('新建关键词');
+      expect(keyword.expanded_words).toHaveLength(1);
+      expect(keyword.expanded_words![0].word).toBe('扩展1');
+    });
+
+    it('should update KnowledgeKeyword via UpdateKeywordRequest spread', () => {
+      const original: KnowledgeKeyword = {
+        id: 1, base_id: 1, keyword: '原始', seed_word: '种子',
+        group_id: 1, created_by: 1,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const updateReq: UpdateKeywordRequest = { keyword: '更新后' };
+      const updated: KnowledgeKeyword = {
+        ...original,
+        keyword: updateReq.keyword,
+        updated_at: new Date(),
+      };
+      expect(updated.keyword).toBe('更新后');
+      expect(updated.id).toBe(original.id);
+      expect(updated.base_id).toBe(original.base_id);
+      expect(updated.seed_word).toBe('种子');
+    });
+
+    it('should preserve non-updated fields in KnowledgeKeyword', () => {
+      const original: KnowledgeKeyword = {
+        id: 1, base_id: 5, keyword: '保留', seed_word: '种子',
+        group_id: 10, created_by: 3,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const updateReq: UpdateKeywordRequest = { keyword: '新词' };
+      const updated: KnowledgeKeyword = {
+        ...original,
+        keyword: updateReq.keyword,
+      };
+      expect(updated.keyword).toBe('新词');
+      expect(updated.base_id).toBe(5);
+      expect(updated.seed_word).toBe('种子');
+      expect(updated.group_id).toBe(10);
+      expect(updated.created_by).toBe(3);
+    });
+
+    it('should create KnowledgePortrait from CreatePortraitRequest fields', () => {
+      const createReq: CreatePortraitRequest = {
+        title: '新建画像',
+        content: '画像内容',
+      };
+      const portrait: KnowledgePortrait = {
+        id: 1,
+        base_id: 1,
+        title: createReq.title,
+        content: createReq.content ?? null,
+        created_by: 1,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(portrait.title).toBe('新建画像');
+      expect(portrait.content).toBe('画像内容');
+    });
+
+    it('should update KnowledgePortrait via UpdatePortraitRequest spread', () => {
+      const original: KnowledgePortrait = {
+        id: 1, base_id: 1, title: '原始画像', content: '原始内容',
+        created_by: 1, created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const updateReq: UpdatePortraitRequest = { content: '更新内容' };
+      const updated: KnowledgePortrait = { ...original, ...updateReq, updated_at: new Date() };
+      expect(updated.content).toBe('更新内容');
+      expect(updated.title).toBe('原始画像');
+      expect(updated.id).toBe(original.id);
+    });
+
+    it('should create KnowledgeImage from CreateImageRequest fields', () => {
+      const createReq: CreateImageRequest = {
+        title: '新建图片',
+        description: '图片描述',
+        image_url: 'https://example.com/img.jpg',
+      };
+      const image: KnowledgeImage = {
+        id: 1,
+        base_id: 1,
+        title: createReq.title,
+        description: createReq.description ?? null,
+        image_url: createReq.image_url,
+        created_by: 1,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(image.title).toBe('新建图片');
+      expect(image.description).toBe('图片描述');
+      expect(image.image_url).toBe('https://example.com/img.jpg');
+    });
+
+    it('should update KnowledgeImage via UpdateImageRequest spread', () => {
+      const original: KnowledgeImage = {
+        id: 1, base_id: 1, title: '原始', description: '原始描述',
+        image_url: 'https://old.com/img.jpg', created_by: 1,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const updateReq: UpdateImageRequest = { description: '新描述' };
+      const updated: KnowledgeImage = { ...original, ...updateReq, updated_at: new Date() };
+      expect(updated.description).toBe('新描述');
+      expect(updated.title).toBe('原始');
+      expect(updated.image_url).toBe('https://old.com/img.jpg');
+    });
+
+    it('should create KnowledgeDocument from CreateDocumentRequest fields', () => {
+      const createReq: CreateDocumentRequest = {
+        title: '新建文档',
+        description: '文档描述',
+        file_url: '/uploads/doc.pdf',
+        file_name: 'doc.pdf',
+        file_type: 'application/pdf',
+        file_size: 2048,
+      };
+      const doc: KnowledgeDocument = {
+        id: 1,
+        base_id: 1,
+        title: createReq.title,
+        description: createReq.description ?? null,
+        file_url: createReq.file_url,
+        file_name: createReq.file_name,
+        file_type: createReq.file_type,
+        file_size: createReq.file_size,
+        created_by: 1,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(doc.title).toBe('新建文档');
+      expect(doc.file_name).toBe('doc.pdf');
+      expect(doc.file_size).toBe(2048);
+    });
+
+    it('should update KnowledgeDocument via UpdateDocumentRequest spread', () => {
+      const original: KnowledgeDocument = {
+        id: 1, base_id: 1, title: '原始', description: '原始描述',
+        file_url: '/uploads/old.pdf', file_name: 'old.pdf',
+        file_type: 'application/pdf', file_size: 100,
+        created_by: 1, created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const updateReq: UpdateDocumentRequest = { title: '更新标题' };
+      const updated: KnowledgeDocument = { ...original, ...updateReq, updated_at: new Date() };
+      expect(updated.title).toBe('更新标题');
+      expect(updated.file_url).toBe('/uploads/old.pdf');
+      expect(updated.file_name).toBe('old.pdf');
+      expect(updated.file_size).toBe(100);
+    });
+
+    it('should handle empty UpdateRequests gracefully', () => {
+      const originalKeyword: KnowledgeKeyword = {
+        id: 1, base_id: 1, keyword: 'K', seed_word: null,
+        group_id: null, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const emptyUpdate: UpdateKeywordRequest = { keyword: 'K' };
+      const updated = { ...originalKeyword, ...emptyUpdate };
+      expect(updated.keyword).toBe('K');
+
+      const originalPortrait: KnowledgePortrait = {
+        id: 1, base_id: 1, title: 'T', content: null,
+        created_by: null, created_at: new Date(), updated_at: new Date(),
+      };
+      const emptyPortraitUpdate: UpdatePortraitRequest = {};
+      const updatedPortrait = { ...originalPortrait, ...emptyPortraitUpdate };
+      expect(updatedPortrait).toEqual(originalPortrait);
+    });
+
+    it('should support full lifecycle: create → update → verify for keyword', () => {
+      // Create
+      const createReq: CreateKeywordRequest = { keyword: '生命周期', expanded_words: [{ word: '扩展', selected: true }] };
+      const created: KnowledgeKeyword = {
+        id: 1, base_id: 1,
+        keyword: createReq.keyword,
+        seed_word: null, group_id: null, created_by: 1,
+        created_at: new Date(), updated_at: new Date(),
+        expanded_words: createReq.expanded_words?.map((ew, i) => ({
+          id: i + 1, keyword_id: 1, word: ew.word, selected: ew.selected,
+          created_at: new Date(), updated_at: new Date(),
+        })),
+      };
+      expect(created.keyword).toBe('生命周期');
+      expect(created.expanded_words).toHaveLength(1);
+
+      // Update
+      const updateReq: UpdateKeywordRequest = { keyword: '更新生命周期' };
+      const updated: KnowledgeKeyword = {
+        ...created,
+        keyword: updateReq.keyword,
+        updated_at: new Date(),
+      };
+      expect(updated.keyword).toBe('更新生命周期');
+      expect(updated.id).toBe(created.id);
+      expect(updated.base_id).toBe(created.base_id);
+    });
+
+    it('should support full lifecycle: create → update → verify for document', () => {
+      const createReq: CreateDocumentRequest = {
+        title: '新文档', file_url: '/uploads/doc.pdf',
+        file_name: 'doc.pdf', file_type: 'application/pdf', file_size: 1024,
+      };
+      const created: KnowledgeDocument = {
+        id: 1, base_id: 1,
+        ...createReq,
+        description: null,
+        created_by: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(created.title).toBe('新文档');
+
+      const updateReq: UpdateDocumentRequest = { title: '更新文档', description: '添加描述' };
+      const updated: KnowledgeDocument = { ...created, ...updateReq, updated_at: new Date() };
+      expect(updated.title).toBe('更新文档');
+      expect(updated.description).toBe('添加描述');
+      expect(updated.file_name).toBe('doc.pdf');
+      expect(updated.file_size).toBe(1024);
+    });
+  });
+
+  // ============================================================
+  // 边界情况测试
+  // ============================================================
+  describe('edge cases', () => {
+    it('KnowledgeKeyword should handle very long keyword', () => {
+      const longKeyword = '很长的关键词'.repeat(100);
+      const keyword: KnowledgeKeyword = {
+        id: 1, base_id: 1, keyword: longKeyword, seed_word: null,
+        group_id: null, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(keyword.keyword.length).toBeGreaterThan(100);
+    });
+
+    it('KnowledgeKeyword should handle special characters in keyword', () => {
+      const keyword: KnowledgeKeyword = {
+        id: 1, base_id: 1, keyword: '测试<title>&"引号"特殊字符',
+        seed_word: '<script>', group_id: null, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(keyword.keyword).toContain('<title>');
+      expect(keyword.seed_word).toBe('<script>');
+    });
+
+    it('KeywordExpandedWord should handle very long word', () => {
+      const longWord = '很长的扩展词'.repeat(50);
+      const word: KeywordExpandedWord = {
+        id: 1, keyword_id: 1, word: longWord, selected: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(word.word.length).toBeGreaterThan(100);
+    });
+
+    it('KnowledgeDocument should handle large file_size (exactly MAX_SAFE_INTEGER)', () => {
+      const doc: KnowledgeDocument = {
+        id: 1, base_id: 1, title: 'T', description: null,
+        file_url: 'url', file_name: 'f', file_type: 't',
+        file_size: Number.MAX_SAFE_INTEGER,
+        created_by: null, created_at: new Date(), updated_at: new Date(),
+      };
+      expect(doc.file_size).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('MinedKeyword should have no updated_at field', () => {
+      const mined: MinedKeyword = {
+        id: 1, base_id: 1, keyword: 'K', selected: false,
+        created_by: null, created_at: new Date(),
+      };
+      expect((mined as unknown as Record<string, unknown>)['updated_at']).toBeUndefined();
+    });
+
+    it('CreateKeywordRequest should handle many expanded_words', () => {
+      const req: CreateKeywordRequest = {
+        keyword: '大量扩展',
+        expanded_words: Array.from({ length: 100 }, (_, i) => ({
+          word: `扩展词${i}`, selected: i % 2 === 0,
+        })),
+      };
+      expect(req.expanded_words).toHaveLength(100);
+      expect(req.expanded_words![0].selected).toBe(true);
+      expect(req.expanded_words![1].selected).toBe(false);
+    });
+
+    it('UpdateKeywordRequest should allow replacing expanded_words', () => {
+      const req: UpdateKeywordRequest = {
+        keyword: '替换',
+        expanded_words: [{ word: '全新扩展', selected: true }],
+      };
+      expect(req.expanded_words).toHaveLength(1);
+      expect(req.expanded_words![0].word).toBe('全新扩展');
+    });
+
+    it('CreateImageRequest should handle various URL schemes', () => {
+      const urls = ['https://img.com/a.jpg', 'http://img.com/b.png', '/local/c.webp', 'blob:abc123'];
+      urls.forEach((url) => {
+        const req: CreateImageRequest = { title: 'T', image_url: url };
+        expect(req.image_url).toBe(url);
+      });
+    });
+
+    it('CreateDocumentRequest should support all common file types', () => {
+      const fileTypes = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'text/plain',
+        'text/csv',
+        'application/zip',
+        'application/json',
+      ];
+      fileTypes.forEach((ft) => {
+        const req: CreateDocumentRequest = {
+          title: 'T', file_url: 'u', file_name: 'f', file_type: ft, file_size: 0,
+        };
+        expect(req.file_type).toBe(ft);
+      });
+    });
+
+    it('should handle KnowledgeKeyword with empty expanded_words array', () => {
+      const keyword: KnowledgeKeyword = {
+        id: 1, base_id: 1, keyword: 'K', seed_word: null,
+        group_id: null, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+        expanded_words: [],
+      };
+      expect(keyword.expanded_words).toEqual([]);
+    });
+
+    it('should handle simultaneous null for all nullable fields in KnowledgeDocument', () => {
+      const doc: KnowledgeDocument = {
+        id: 1, base_id: 1, title: 'T', description: null,
+        file_url: 'u', file_name: 'f', file_type: 't',
+        file_size: 0, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(doc.description).toBeNull();
+      expect(doc.created_by).toBeNull();
+    });
+
+    it('should handle simultaneous non-null for all nullable fields in KnowledgeDocument', () => {
+      const doc: KnowledgeDocument = {
+        id: 1, base_id: 1, title: 'T', description: '描述',
+        file_url: 'u', file_name: 'f', file_type: 't',
+        file_size: 100, created_by: 5,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(doc.description).toBe('描述');
+      expect(doc.created_by).toBe(5);
+    });
+  });
+
+  // ============================================================
   // 重新导出验证
   // ============================================================
   describe('re-exports from index', () => {
