@@ -808,5 +808,234 @@ describe('ProjectServiceImpl', () => {
 
       expect(mockUpdate).toHaveBeenCalled();
     });
+
+    it('should soft delete and return void', async () => {
+      const existing = makePrismaProject();
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.delete(1);
+
+      expect(result).toBeUndefined();
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  Edge Cases & Boundary Tests
+  // ──────────────────────────────────────
+  describe('Edge Cases', () => {
+    it('create: empty string description should become null', async () => {
+      const mockCreate = jest.fn().mockResolvedValue(makePrismaProject({
+        description: null,
+        operators: [],
+        viewers: [],
+      }));
+      mockedGetPrisma.mockReturnValue({ project: { create: mockCreate } } as any);
+
+      const result = await service.create({
+        short_name: 'P1',
+        full_name: 'Project One',
+        description: '',
+        company_id: 1,
+      });
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ description: null }),
+        }),
+      );
+      expect(result).toBeDefined();
+    });
+
+    it('create: explicit empty operator_ids and viewer_ids arrays', async () => {
+      const mockCreate = jest.fn().mockResolvedValue(makePrismaProject({
+        operators: [],
+        viewers: [],
+      }));
+      mockedGetPrisma.mockReturnValue({ project: { create: mockCreate } } as any);
+
+      const result = await service.create({
+        short_name: 'P1',
+        full_name: 'Project One',
+        company_id: 1,
+        operator_ids: [],
+        viewer_ids: [],
+      });
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            operators: { create: [] },
+            viewers: { create: [] },
+          }),
+        }),
+      );
+      expect(result.operator_ids).toEqual([]);
+      expect(result.viewer_ids).toEqual([]);
+    });
+
+    it('list: non-admin role should not add admin filter', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } } as any);
+
+      await service.list(1, 10, undefined, undefined, undefined, 2, 'view');
+
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where).not.toHaveProperty('operators');
+      expect(where).not.toHaveProperty('company');
+    });
+
+    it('list: sysadmin role should not add admin filter', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } } as any);
+
+      await service.list(1, 10, undefined, undefined, undefined, 1, 'sysadmin');
+
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where).not.toHaveProperty('operators');
+      expect(where).not.toHaveProperty('company');
+    });
+
+    it('list: company_id=0 should not add companyId filter (falsy)', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } } as any);
+
+      await service.list(1, 10, undefined, 0);
+
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where).not.toHaveProperty('companyId');
+    });
+
+    it('update: set description to empty string', async () => {
+      const existing = makePrismaProject();
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, description: '' });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.update(1, { description: '' });
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ description: '' }),
+        }),
+      );
+    });
+
+    it('update: update both operators and viewers in a single call', async () => {
+      const existing = makePrismaProject();
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      let callCount = 0;
+      const mockUserFindMany = jest.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve([makePrismaUser(5, 1, 'admin', '赵六')]);
+        return Promise.resolve([makePrismaUser(6, 1, 'view', '孙七')]);
+      });
+      const mockOperatorUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+      const mockViewerUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...existing,
+        operators: [{ userId: 5, user: { id: 5, cnName: '赵六' } }],
+        viewers: [{ userId: 6, user: { id: 6, cnName: '孙七' } }],
+      });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+        user: { findMany: mockUserFindMany },
+        projectOperator: { updateMany: mockOperatorUpdateMany },
+        projectViewer: { updateMany: mockViewerUpdateMany },
+      } as any);
+
+      const result = await service.update(1, { operator_ids: [5], viewer_ids: [6] });
+
+      expect(mockOperatorUpdateMany).toHaveBeenCalled();
+      expect(mockViewerUpdateMany).toHaveBeenCalled();
+      expect(result.operator_ids).toEqual([5]);
+      expect(result.viewer_ids).toEqual([6]);
+    });
+
+    it('update: update status=false with operators and viewers', async () => {
+      const existing = makePrismaProject();
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUserFindMany = jest.fn().mockResolvedValue([makePrismaUser(5, 1, 'admin', '赵六')]);
+      const mockOperatorUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...existing,
+        status: false,
+        operators: [{ userId: 5, user: { id: 5, cnName: '赵六' } }],
+      });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+        user: { findMany: mockUserFindMany },
+        projectOperator: { updateMany: mockOperatorUpdateMany },
+      } as any);
+
+      const result = await service.update(1, { status: false, operator_ids: [5] });
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: false,
+            operators: { create: [{ userId: 5 }] },
+          }),
+        }),
+      );
+      expect(result.status).toBe(false);
+    });
+
+    it('getById: should return correct mapped fields including timestamps', async () => {
+      const createdAt = new Date('2025-01-15T10:30:00Z');
+      const updatedAt = new Date('2025-06-20T14:45:00Z');
+      const mockFindFirst = jest.fn().mockResolvedValue(makePrismaProject({
+        createdAt,
+        updatedAt,
+      }));
+      mockedGetPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } } as any);
+
+      const result = await service.getById(1);
+
+      expect(result.created_at).toBe(createdAt);
+      expect(result.updated_at).toBe(updatedAt);
+    });
+
+    it('create: should handle description as undefined (maps to null)', async () => {
+      const mockCreate = jest.fn().mockResolvedValue(makePrismaProject({
+        description: null,
+        operators: [],
+        viewers: [],
+      }));
+      mockedGetPrisma.mockReturnValue({ project: { create: mockCreate } } as any);
+
+      await service.create({
+        short_name: 'P1',
+        full_name: 'Project One',
+        company_id: 1,
+      });
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ description: null }),
+        }),
+      );
+    });
+
+    it('list: page 3 with pageSize 5 should skip 10', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(50);
+      mockedGetPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } } as any);
+
+      await service.list(3, 5);
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 10, take: 5 }),
+      );
+    });
+
   });
 });
