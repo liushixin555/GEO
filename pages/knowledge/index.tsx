@@ -318,7 +318,7 @@ const KnowledgePage: React.FC = () => {
                 style={{ cursor: 'pointer' }}
               >
                 <Descriptions column={2} size="small" colon={false}>
-                  <Descriptions.Item label="描述">{item.description || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="描述"><Typography.Text ellipsis style={{ maxWidth: '100%' }}>{item.description || '-'}</Typography.Text></Descriptions.Item>
                   <Descriptions.Item label="创建者">{item.creator_name || '-'}</Descriptions.Item>
                   <Descriptions.Item label="统计"><Space size={12}><Space size={4}><TagsOutlined /> {item.keyword_count}</Space><Space size={4}><UserOutlined /> {item.portrait_count}</Space><Space size={4}><FileImageOutlined /> {item.image_count}</Space><Space size={4}><FileTextOutlined /> {item.document_count}</Space></Space></Descriptions.Item>
                   <Descriptions.Item label="创建时间">{formatDate(item.created_at)}</Descriptions.Item>
