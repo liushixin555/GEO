@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Input, Select, Tag, Typography, Spin, Pagination, Empty, Popconfirm, App, Breadcrumb, Button, Descriptions, Table } from 'antd';
+import { Row, Col, Card, Input, Select, Tag, Typography, Spin, Pagination, Empty, Popconfirm, App, Breadcrumb, Button, Table, Flex } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import axios from 'axios';
@@ -201,13 +201,11 @@ const ArticlePage: React.FC = () => {
                 onClick={() => navigate(`/article/${item.id}`)}
                 style={{ cursor: 'pointer' }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, whiteSpace: 'nowrap' }}>
-                  <span>ID: {item.id}</span>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
-                    关键词: {item.keywords || '-'}
-                  </span>
-                  <span>创建时间: {formatDate(item.created_at)}</span>
-                </div>
+                <Flex align="center" gap="middle" style={{ whiteSpace: 'nowrap' }}>
+                  <Typography.Text>ID: {item.id}</Typography.Text>
+                  <Typography.Text ellipsis style={{ flex: 1, minWidth: 0 }}>关键词: {item.keywords || '-'}</Typography.Text>
+                  <Typography.Text>创建时间: {formatDate(item.created_at)}</Typography.Text>
+                </Flex>
                 {canDelete(item) && (
                   <div className="article-card-footer">
                     <Popconfirm
