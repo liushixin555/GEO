@@ -144,8 +144,8 @@ const CompanyForm: React.FC = () => {
             disabled={companyDisabled}
           >
             {users.filter(u => u.role === 'admin' && u.status !== false).map(u => (
-              <Select.Option key={u.id} value={u.id} label={`${u.cn_name}（${u.username}）`}>
-                {u.cn_name}（{u.username}）
+              <Select.Option key={u.id} value={u.id} label={u.username}>
+                {u.username}
               </Select.Option>
             ))}
           </Select>
@@ -160,8 +160,8 @@ const CompanyForm: React.FC = () => {
             disabled={companyDisabled}
           >
             {users.filter(u => u.role === 'view' && u.status !== false).map(u => (
-              <Select.Option key={u.id} value={u.id} label={`${u.cn_name}（${u.username}）`}>
-                {u.cn_name}（{u.username}）
+              <Select.Option key={u.id} value={u.id} label={u.username}>
+                {u.username}
               </Select.Option>
             ))}
           </Select>

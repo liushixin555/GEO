@@ -149,7 +149,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ item, companies, onClose, onS
             showSearch
             optionFilterProp="label"
             disabled={isDisabled}
-            options={operators.map(o => ({ value: o.id, label: `${o.cn_name}（${o.username}）` }))}
+            options={operators.map(o => ({ value: o.id, label: o.username }))}
           />
         </Form.Item>
         <Form.Item name="viewer_ids" label="项目查看者">
@@ -160,7 +160,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ item, companies, onClose, onS
             showSearch
             optionFilterProp="label"
             disabled={isDisabled}
-            options={viewers.map(v => ({ value: v.id, label: `${v.cn_name}（${v.username}）` }))}
+            options={viewers.map(v => ({ value: v.id, label: v.username }))}
           />
         </Form.Item>
         <div className="form-actions">
