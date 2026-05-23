@@ -290,10 +290,41 @@ describe('Project Controller', () => {
       const whereClause = mockFindMany.mock.calls[0][0].where;
       expect(whereClause.status).toBeUndefined();
     });
+
+    it('should return 400 for invalid status parameter', async () => {
+      const response = await agent
+        .get('/api/projects?status=invalid')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的 status 参数');
+    });
+
+    it('should cap pageSize at 100', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get('/api/projects?pageSize=9999')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.pageSize).toBe(100);
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 100 })
+      );
+    });
   });
 
   // ========== GET /api/projects/:id (getProject) ==========
   describe('GET /api/projects/:id', () => {
+    it('should return 401 without token', async () => {
+      const response = await agent.get('/api/projects/1');
+      expect(response.status).toBe(401);
+    });
+
     it('should return 400 for invalid id', async () => {
       const response = await agent
         .get('/api/projects/abc')
@@ -652,6 +683,30 @@ describe('Project Controller', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.message).toContain('不能为空');
+    });
+
+    it('should allow admin to create project without providing company_id', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        companyId: 2,
+      });
+      getPrisma.mockReturnValue({
+        project: { create: mockCreate },
+        user: { findMany: jest.fn().mockResolvedValue([]) },
+      });
+
+      const response = await agent
+        .post('/api/projects')
+        .set('Authorization', `Bearer ${adminToken(2)}`)
+        .send({ short_name: 'P1', full_name: 'Project 1' });
+
+      expect(response.status).toBe(201);
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: 2 }),
+        })
+      );
     });
   });
 

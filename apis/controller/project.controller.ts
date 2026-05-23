@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
+import { IProjectService } from '../service/project.service';
 import { ProjectServiceImpl } from '../service/impl/project.service.impl';
-import { success, fail, paginate } from '../utils';
+import { success, fail, paginate, created } from '../utils';
 
-const projectService = new ProjectServiceImpl();
+const projectService: IProjectService = new ProjectServiceImpl();
 
 /**
  * @swagger
@@ -39,11 +40,19 @@ const projectService = new ProjectServiceImpl();
  */
 export async function listProjects(req: Request, res: Response): Promise<void> {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const page = parseInt(req.query.page as string, 10) || 1;
+    const pageSize = Math.min(100, parseInt(req.query.pageSize as string, 10) || 10);
     const search = req.query.search as string | undefined;
-    const company_id = req.query.company_id ? parseInt(req.query.company_id as string) : undefined;
-    const status = req.query.status === undefined ? undefined : req.query.status === 'true';
+    const company_id = req.query.company_id ? parseInt(req.query.company_id as string, 10) : undefined;
+    const statusParam = req.query.status as string | undefined;
+    let status: boolean | undefined;
+    if (statusParam !== undefined) {
+      if (statusParam !== 'true' && statusParam !== 'false') {
+        fail(res, 400, '无效的 status 参数');
+        return;
+      }
+      status = statusParam === 'true';
+    }
 
     const { userId, role } = req.user!;
     const { list, total } = await projectService.list(page, pageSize, search, company_id, status, userId, role);
@@ -140,19 +149,30 @@ export async function getProject(req: Request, res: Response): Promise<void> {
  */
 export async function createProject(req: Request, res: Response): Promise<void> {
   try {
-    const { short_name, full_name, company_id } = req.body;
-    if (!short_name || !full_name || !company_id) {
+    const { short_name, full_name } = req.body;
+
+    // Admin users don't need to provide company_id; it's set automatically
+    const effectiveCompanyId = req.user?.role === 'admin'
+      ? req.user.companyId
+      : req.body.company_id;
+
+    if (!short_name || !full_name || !effectiveCompanyId) {
       fail(res, 400, '项目短名、项目全名、所属公司不能为空');
       return;
     }
 
-    // Admin can only create projects for their own company
-    if (req.user?.role === 'admin') {
-      req.body.company_id = req.user.companyId;
-    }
+    // Construct a clean data object instead of mutating req.body
+    const data = {
+      short_name,
+      full_name,
+      description: req.body.description,
+      company_id: effectiveCompanyId,
+      operator_ids: req.body.operator_ids,
+      viewer_ids: req.body.viewer_ids,
+    };
 
-    const item = await projectService.create(req.body);
-    res.status(201).json({ code: 0, message: '创建项目成功', data: item });
+    const item = await projectService.create(data);
+    created(res, item, '创建项目成功');
   } catch (err: any) {
     if (err.message === '运营者不属于指定公司' || err.message === '查看者不属于指定公司') {
       fail(res, 400, err.message);
@@ -228,9 +248,9 @@ export async function updateProject(req: Request, res: Response): Promise<void> 
     }
 
     // Strip company_id to prevent service from processing it
-    delete req.body.company_id;
+    const { company_id: _, ...updateData } = req.body;
 
-    const item = await projectService.update(id, req.body, userId, role);
+    const item = await projectService.update(id, updateData, userId, role);
     success(res, item, '更新项目成功');
   } catch (err: any) {
     if (err.message === '项目不存在') {
@@ -277,6 +297,9 @@ export async function deleteProject(req: Request, res: Response): Promise<void> 
         fail(res, 403, '无权操作该项目');
         return;
       }
+    } else if (role !== 'sysadmin') {
+      fail(res, 403, '无权删除项目');
+      return;
     }
 
     await projectService.delete(id, userId, role);
