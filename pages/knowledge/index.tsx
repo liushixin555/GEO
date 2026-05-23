@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Row, Col, Card, Input, Select, Tag, Spin, Pagination, App, Breadcrumb, Button, Descriptions, Table, Statistic, Typography, Space } from 'antd';
-import { EditOutlined, PlusOutlined, TagsOutlined, UserOutlined, PictureOutlined, FileTextOutlined, AppstoreOutlined } from '@ant-design/icons';
+import { EditOutlined, PlusOutlined, TagsOutlined, SolutionOutlined, PictureOutlined, FileTextOutlined, AppstoreOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import axios from 'axios';
 import KnowledgeBaseForm from './KnowledgeBaseForm';
@@ -194,7 +194,7 @@ const KnowledgePage: React.FC = () => {
       render: (_: unknown, record: KnowledgeBaseItem) => (
         <Space size={12}>
           <Space size={4}><TagsOutlined /> {record.keyword_count}</Space>
-          <Space size={4}><UserOutlined /> {record.portrait_count}</Space>
+          <Space size={4}><SolutionOutlined /> {record.portrait_count}</Space>
           <Space size={4}><PictureOutlined /> {record.image_count}</Space>
           <Space size={4}><FileTextOutlined /> {record.document_count}</Space>
         </Space>
@@ -320,7 +320,7 @@ const KnowledgePage: React.FC = () => {
                 <Descriptions column={2} size="small" colon={false}>
                   <Descriptions.Item label="描述"><Typography.Text ellipsis style={{ maxWidth: '100%' }}>{item.description || '-'}</Typography.Text></Descriptions.Item>
                   <Descriptions.Item label="创建者">{item.creator_name || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="统计"><Space size={12}><Space size={4}><TagsOutlined /> {item.keyword_count}</Space><Space size={4}><UserOutlined /> {item.portrait_count}</Space><Space size={4}><PictureOutlined /> {item.image_count}</Space><Space size={4}><FileTextOutlined /> {item.document_count}</Space></Space></Descriptions.Item>
+                  <Descriptions.Item label="统计"><Space size={12}><Space size={4}><TagsOutlined /> {item.keyword_count}</Space><Space size={4}><SolutionOutlined /> {item.portrait_count}</Space><Space size={4}><PictureOutlined /> {item.image_count}</Space><Space size={4}><FileTextOutlined /> {item.document_count}</Space></Space></Descriptions.Item>
                   <Descriptions.Item label="创建时间">{formatDate(item.created_at)}</Descriptions.Item>
                 </Descriptions>
                 {canModify(item) && (
@@ -372,7 +372,7 @@ const KnowledgePage: React.FC = () => {
           </Col>
           <Col xs={12} sm={6}>
             <Card className="stat-card" styles={{ body: { padding: '16px 24px' } }}>
-              <Statistic title={<Space><UserOutlined /> 画像</Space>} value={invStats.portrait} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
+              <Statistic title={<Space><SolutionOutlined /> 画像</Space>} value={invStats.portrait} valueStyle={{ fontSize: 24, fontWeight: 600, color: 'var(--color-ink, #161616)' }} />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
