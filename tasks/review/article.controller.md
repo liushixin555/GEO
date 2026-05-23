@@ -1,300 +1,429 @@
-# apis/controller/article.controller.ts — 软件架构专家评审报告
+# apis/controller/article.controller.ts — 代码安全专家评审报告
 
 **评审日期**: 2026-05-23
-**评审角色**: 软件架构专家（分层架构 + 关注点分离 + 可扩展性 + 可测试性）
+**评审角色**: 代码安全专家（OWASP Top 10 + 认证授权 + 注入防护 + 数据泄露 + 输入验证）
 **文件路径**: `apis/controller/article.controller.ts`
 **代码行数**: 426 行
-**关联文件**: `apis/service/impl/article.service.impl.ts`, `apis/service/impl/project.service.impl.ts`, `apis/utils/response.util.ts`, `apis/middleware/`
-**严重级别**: CRITICAL(1) / HIGH(3) / MEDIUM(4) / LOW(3)
+**关联文件**: `apis/service/impl/article.service.impl.ts`, `apis/service/impl/project.service.impl.ts`, `apis/middleware/auth.middleware.ts`, `apis/app.ts`
+**严重级别**: CRITICAL(2) / HIGH(4) / MEDIUM(5) / LOW(4)
 
 ---
 
-## 一、架构评价总览
+## 一、安全评价总览
 
-文章控制器承载了 9 个 HTTP 端点处理函数，职责包括参数解析、权限控制、业务编排和响应格式化。从分层架构视角审视，该文件存在 **控制器层职责过重、横切关注点未抽取、依赖注入缺失** 三大架构问题。
+文章控制器包含 9 个 HTTP 端点处理函数，处理文章的 CRUD、审核、AI 生成和版本查询等核心业务。从安全视角审视，该文件存在 **输入验证不足、权限控制缺陷、信息泄露风险、请求体无限制** 四大安全问题。
 
-| 架构维度 | 评分 | 说明 |
+虽然 Express 中间件链提供了 JWT 认证 + 角色检查 + 速率限制 + anti-crawl 基础防护，但控制器内部的安全防护层存在多处漏洞。
+
+| 安全维度 | 评分 | 说明 |
 |----------|------|------|
-| 分层清晰度 | 3/10 | 控制器承担了本属于中间件/守卫层的权限、校验逻辑 |
-| 关注点分离 | 3/10 | 参数解析、授权、业务规则、响应格式全部混在 handler 内 |
-| 可扩展性 | 3/10 | 新增端点需复制粘贴大量重复模式，无复用基础设施 |
-| 可测试性 | 4/10 | 模块级单例 + 无 DI，单元测试只能通过 jest.mock 模拟 |
-| 依赖管理 | 3/10 | 硬编码依赖具体实现类，违反依赖倒置原则 |
-| 一致性 | 6/10 | 9 个 handler 结构相似但存在不一致（如 createArticle 返回格式不同） |
+| 认证与授权 | 5/10 | JWT 基础认证存在，但控制器内部授权逻辑存在绕过风险 |
+| 输入验证 | 3/10 | 仅做了 ID 解析检查，请求体字段无 schema 验证 |
+| 注入防护 | 6/10 | 使用 Prisma ORM 防止 SQL 注入，但存在 NoSQL/JSON 注入风险 |
+| 数据泄露 | 4/10 | 500 错误返回 `err.message` 可能泄露内部实现细节 |
+| CSRF/点击劫持 | 7/10 | helmet + CORS 配置较好，API 场景下风险较低 |
+| 拒绝服务 | 3/10 | 请求体大小和字段无限制，存在资源滥用风险 |
+| 审计追踪 | 5/10 | 有操作日志基础，但缺少安全事件日志 |
 
 ---
 
 ## 二、问题清单
 
-### CRITICAL-1: 控制器层职责严重越界，违反分层架构原则
+### CRITICAL-1: `updateArticle` 请求体无白名单过滤，允许任意字段注入
 
-**位置**: 全文 9 个 handler 函数
-**问题**: 控制器承担了以下本不属于 HTTP 层的职责：
+**位置**: 第 114-168 行 `updateArticle` 函数
 
-1. **授权逻辑**（第 33-40, 65-72, 98-105 行等）— admin 角色的项目操作员检查在 9 个 handler 中重复出现 9 次
-2. **业务规则校验**（第 146-149, 204-207, 252-254, 376-379 行）— 状态可编辑性检查、文章状态转换规则属于 Service 层
-3. **所有权检查**（第 140-143, 198-201, 246-249, 371-374 行）— `created_by !== userId` 检查是业务规则
+```typescript
+// 第 159 行: req.body 直接传递给 service
+const item = await articleService.update(id, req.body, userId, role);
+```
 
-**影响**: 控制器 426 行中有约 200 行是重复的授权/校验逻辑，真正的请求编排只占约一半。任何权限规则变更需要修改 9 个函数。
+**问题**: `req.body` 未经过任何字段白名单过滤，直接传递给 `articleService.update()`。攻击者可以在请求体中注入任意字段：
+
+```json
+{
+  "title": "正常标题",
+  "id": 999,
+  "projectId": 1,
+  "createdBy": 2,
+  "status": "published",
+  "version": 1
+}
+```
+
+查看 `article.service.impl.ts` 第 87-100 行，update 方法会逐一检查字段并赋值：
+
+```typescript
+if (request.title !== undefined) data.title = request.title;
+// ... 但没有对 request 的 key 做白名单限制
+```
+
+虽然 Prisma `update` 只会更新 `data` 对象中存在的字段，且 `where` 使用了固定 `id`，但 **status 字段可以通过此漏洞被任意修改**（第 97 行 `if (request.status !== undefined) data.status = request.status`），攻击者可以绕过状态机直接将文章设置为任意状态（如 `published`），**完全绕过审核流程**。
+
+**影响**: 严重 — 攻击者可以绕过业务规则，直接修改文章状态、伪造创建者、篡改版本号等。
 
 **建议**:
 
+```typescript
+// 方案: 控制器层做字段白名单过滤
+export async function updateArticle(req: Request, res: Response): Promise<void> {
+  // 白名单提取，丢弃非法字段
+  const allowedFields = ['title', 'article_type', 'write_mode', 'keywords',
+                         'portrait', 'images', 'platforms', 'skills',
+                         'llm_model_id', 'content', 'status', 'scheduled_publish_at'];
+  const body: Record<string, unknown> = {};
+  for (const key of allowedFields) {
+    if (req.body[key] !== undefined) {
+      body[key] = req.body[key];
+    }
+  }
+
+  // ...后续使用 body 替代 req.body
+  const item = await articleService.update(id, body as UpdateArticleRequest, userId, role);
+}
 ```
-方案: 引入 Express 中间件链，按职责分层
 
-路由层定义:
-  router.get('/:projectId/articles',
-    authMiddleware,           // JWT 解析
-    projectAccessGuard,       // 项目访问权限（含 admin 操作员检查）
-    articleOwnerGuard,        // 文章所有权检查（写操作）
-    validate(listArticleSchema), // 请求参数校验
-    articleController.list    // 纯粹的请求编排
-  )
+**更好的方案**: 使用 Zod schema 验证（同时解决类型安全和输入验证）：
 
-控制器职责收窄为:
-  1. 从 req 提取已验证的参数
-  2. 调用 service 方法
-  3. 格式化响应
+```typescript
+import { z } from 'zod';
+
+const updateArticleSchema = z.object({
+  title: z.string().max(500).optional(),
+  article_type: z.string().max(50).optional(),
+  keywords: z.string().max(2000).optional(),
+  content: z.string().max(500000).optional(),
+  status: z.enum(['draft', 'generating']).optional(), // 仅允许合法的状态转换
+  // ... 其他字段
+}).strict(); // strict() 拒绝未定义的字段
+
+const validated = updateArticleSchema.parse(req.body);
 ```
 
 ---
 
-### HIGH-1: 无依赖注入，模块级硬编码单例
+### CRITICAL-2: `updateArticle` 中 status 状态转换未做合法性校验，可绕过审核流程
 
-**位置**: 第 6-7 行
-
-```typescript
-const articleService = new ArticleServiceImpl();
-const projectService = new ProjectServiceImpl();
-```
-
-**问题**:
-- 控制器直接依赖具体实现类（`ArticleServiceImpl`），违反依赖倒置原则（DIP）
-- 模块加载时创建实例，生命周期不可控
-- 单元测试必须使用 `jest.mock()` 替换整个模块，无法注入 mock 实例
-- Service 构造函数参数变化时，控制器必须同步修改
-
-**建议**: 使用工厂函数或简单的 DI 容器：
+**位置**: 第 145-161 行
 
 ```typescript
-// 方案 A: 工厂函数（最小改动）
-export function createArticleController(
-  articleService: IArticleService,
-  projectService: IProjectService
-) {
-  return {
-    listArticles: async (req, res) => { /* ... */ },
-    // ...
-  }
+// 第 146-149 行: 仅检查当前状态是否为 draft（设置编辑）
+if (!SETTINGS_EDITABLE_STATUSES.includes(existing.status)) {
+  fail(res, 400, '当前文章状态不可编辑');
+  return;
 }
 
-// 方案 B: 类 + 构造注入
-export class ArticleController {
-  constructor(
-    private articleService: IArticleService,
-    private projectService: IProjectService
-  ) {}
+// 第 152-157 行: 仅检查目标状态是否为 generating
+const targetStatus = req.body.status;
+if (targetStatus && targetStatus === 'generating') {
+  const item = await articleService.update(id, { ...req.body, status: 'generating' }, userId, role);
+  success(res, item, '已提交AI生成');
+  return;
 }
+
+// 第 159 行: 其他状态直接传递给 service！
+const item = await articleService.update(id, req.body, userId, role);
 ```
 
----
+**问题**: 状态转换逻辑存在以下安全漏洞：
 
-### HIGH-2: 横切关注点未抽取为中间件/守卫
+1. **非 generating 状态的转换未校验**: 第 159 行的 `update` 调用会将 `req.body.status`（如果存在）直接传递给 service，可以设置为任意状态值（如 `published`、`publishing`）
+2. **状态校验顺序错误**: 先检查了"当前状态是否 draft"（第 146 行），但 generating 转换路径绕过了这个检查（第 153 行的 `targetStatus === 'generating'` 分支在编辑性检查之后，但在 draft 检查之后仍可能被利用）
+3. **Service 层也不校验状态转换合法性**: `article.service.impl.ts` 第 97 行直接赋值 `data.status = request.status`
 
-**位置**: 每个函数中重复出现的以下模式
+**攻击场景**: 攻击者（admin 角色）发送：
 
-**模式 1 — 参数解析 + 校验**（出现 9 次）:
-```typescript
-const projectId = parseInt(req.params.projectId as string, 10);
-const id = parseInt(req.params.id as string, 10);
-if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
-if (isNaN(id)) { fail(res, 400, '无效的文章ID'); return; }
+```json
+PUT /api/projects/1/articles/5
+{ "status": "published" }
 ```
 
-**模式 2 — 项目操作员权限检查**（出现 9 次）:
+虽然当前状态检查会阻止非 draft 文章的编辑，但如果文章处于 draft 状态，此请求会绕过审核流程直接将文章标记为 published。
+
+**建议**: 引入状态机定义，所有状态转换必须通过白名单校验：
+
 ```typescript
-if (role === 'admin') {
-  try {
-    await checkProjectOperator(projectId, userId, role);
-  } catch {
-    fail(res, 403, '无权操作该项目');
-    return;
-  }
+// 定义合法的状态转换规则
+const STATUS_TRANSITIONS: Record<string, string[]> = {
+  'draft':            ['generating', 'manual_writing'],
+  'manual_writing':   ['pending_review'],
+  'generate_failed':  ['generating'],
+  'publish_failed':   ['publishing'],
+  'pending_review':   ['publishing', 'draft', 'manual_writing'],
+};
+
+function isValidStatusTransition(from: string, to: string): boolean {
+  return STATUS_TRANSITIONS[from]?.includes(to) ?? false;
 }
-```
 
-**模式 3 — 项目归属校验**（出现 7 次）:
-```typescript
-const existing = await articleService.getById(id, userId, role);
-if (existing.project_id !== projectId) {
-  fail(res, 404, '文章不存在');
+// 在 updateArticle 中使用:
+if (targetStatus && !isValidStatusTransition(existing.status, targetStatus)) {
+  fail(res, 400, '非法的状态转换');
   return;
 }
 ```
 
-**建议**: 每个模式抽取为独立中间件或参数装饰器：
+---
+
+### HIGH-1: `createArticle` 请求体无 schema 验证
+
+**位置**: 第 84-112 行 `createArticle` 函数
 
 ```typescript
-// middleware/paramParser.ts
-export function parseIds(...names: string[]) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    for (const name of names) {
-      const val = parseInt(req.params[name], 10);
-      if (isNaN(val)) { fail(res, 400, `无效的${labelMap[name]}`); return; }
-      res.locals[name] = val;
-    }
-    next();
-  };
+// 第 89-93 行: 仅校验了 status 字段
+const { status } = req.body;
+if (status && !['draft', 'manual_writing', 'generating'].includes(status)) {
+  fail(res, 400, '无效的初始状态');
+  return;
 }
 
-// middleware/projectAccess.ts
-export function requireProjectAccess() {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    const { userId, role } = req.user!;
-    const projectId = res.locals.projectId;
-    if (role === 'sysadmin') return next();
-    if (role === 'admin') {
-      try {
-        await checkProjectOperator(projectId, userId, role);
-        return next();
-      } catch { return fail(res, 403, '无权操作该项目'); }
-    }
-    next(); // view role — service 层通过 where 过滤
-  };
+// 第 107 行: req.body 整体传递
+const item = await articleService.create(projectId, req.body, userId);
+```
+
+**问题**:
+1. **无字段白名单**: 攻击者可以注入 `id`、`createdBy`、`version`、`updatedAt` 等本应由系统控制的字段
+2. **无类型验证**: `title`、`keywords`、`content` 等字段可以是任意类型（数组、对象），可能导致数据库写入异常或下游处理错误
+3. **无长度限制**: `content` 字段可以传入超大数据（如 100MB 字符串），虽然有 `express.json({ limit: '10mb' })` 全局限制，但 10MB 对单篇文章内容仍然过大
+4. **无格式验证**: `images`、`platforms` 应该是字符串数组，但未验证
+
+**建议**: 使用 Zod 定义完整的创建请求 schema：
+
+```typescript
+const createArticleSchema = z.object({
+  title: z.string().max(500).optional(),
+  article_type: z.string().max(50).optional(),
+  write_mode: z.enum(['manual', 'ai']).optional(),
+  keywords: z.string().max(2000).optional(),
+  portrait: z.string().max(5000).optional(),
+  images: z.array(z.string().max(500)).max(20).optional(),
+  platforms: z.array(z.string().max(100)).max(10).optional(),
+  skills: z.number().int().positive().optional(),
+  llm_model_id: z.number().int().positive().optional(),
+  content: z.string().max(500000).optional(),
+  status: z.enum(['draft', 'manual_writing', 'generating']).optional(),
+}).strict();
+```
+
+---
+
+### HIGH-2: `reviewArticle` 缺少审核权限隔离 — 创建者可审核自己的文章
+
+**位置**: 第 268-307 行 `reviewArticle` 函数
+
+```typescript
+export async function reviewArticle(req: Request, res: Response): Promise<void> {
+  // ... 参数校验 ...
+
+  const { userId, role } = req.user!;
+  const existing = await articleService.getById(id, userId, role);
+
+  // ... 项目归属和操作员检查 ...
+
+  // ❌ 没有检查审核者是否与创建者相同！
+  const item = await articleService.review(id, approved, userId, role);
+  success(res, item, approved ? '审核通过' : '审核不通过');
+}
+```
+
+**问题**: 文章创建者可以审核自己提交的文章。这违反了基本的 **职责分离（Segregation of Duties）** 原则。虽然 `sysadmin` 角色可能需要此能力，但 `admin` 角色的用户不应同时是文章的创建者和审核者。
+
+**影响**: 内部人员可以自行创建文章并审核通过，绕过审核流程。
+
+**建议**:
+
+```typescript
+// 添加创建者/审核者分离检查
+if (role !== 'sysadmin' && existing.created_by === userId) {
+  fail(res, 403, '不能审核自己创建的文章');
+  return;
 }
 ```
 
 ---
 
-### HIGH-3: 业务规则泄漏到控制器层
+### HIGH-3: 错误响应泄露内部实现细节
 
-**位置**: 多处硬编码的业务状态规则
-
-```typescript
-// 第 9-10 行: 状态常量应来源于 Service/Domain 层
-const SETTINGS_EDITABLE_STATUSES = ['draft'];
-const CONTENT_EDITABLE_STATUSES = ['draft', 'manual_writing', 'generate_failed', 'publish_failed'];
-
-// 第 90-93 行: 创建时的有效状态列表
-if (status && !['draft', 'manual_writing', 'generating'].includes(status))
-
-// 第 146-149 行: 设置可编辑性
-if (!SETTINGS_EDITABLE_STATUSES.includes(existing.status))
-
-// 第 204-207 行: 正文可编辑性
-if (!CONTENT_EDITABLE_STATUSES.includes(existing.status))
-
-// 第 376-379 行: 状态转换规则
-if (existing.status !== 'manual_writing')
-```
-
-**问题**: 状态机规则分散在控制器中，与 Service 层的状态逻辑形成双重维护点。未来新增状态时，需要同时修改控制器常量和 Service 方法。
-
-**建议**: 状态机规则收敛到 Service/Domain 层，控制器仅传递意图：
+**位置**: 多个 catch 块
 
 ```typescript
-// Service 层提供意图驱动方法
-articleService.updateSettings(id, data, userId, role)  // 内部校验 status 可编辑性
-articleService.updateContent(id, content, userId, role) // 内部校验 content 可编辑性
-articleService.submitForReview(id, userId, role)        // 内部校验状态前置条件
-```
-
----
-
-### MEDIUM-1: 响应格式不一致
-
-**位置**: 第 108 行 vs 其他所有 handler
-
-```typescript
-// createArticle — 自定义格式，不使用 success()
-res.status(201).json({ code: 0, message: '创建文章成功', data: item });
-
-// 其他所有 handler — 使用 success()
-success(res, item, '更新文章成功');
-```
-
-**问题**: `success()` 工具函数内部可能设置 `code: 0`，但 `createArticle` 手动构造响应对象，存在格式不一致风险。如果 `success()` 的格式变更，`createArticle` 不会同步更新。
-
-**建议**: 统一使用 `success()` 或 `created()` 工具函数：
-
-```typescript
-// 添加 created 响应工具
-export function created(res: Response, data: any, message = '创建成功') {
-  res.status(201).json({ code: 0, message, data });
-}
-```
-
----
-
-### MEDIUM-2: 错误处理策略不统一
-
-**位置**: 各 handler 的 catch 块
-
-**问题**: 9 个 handler 的错误处理策略各不相同：
-
-| Handler | 特殊错误处理 |
-|---------|-------------|
-| listArticles | 仅通用 500 |
-| getArticle | 区分 '文章不存在' → 404 |
-| createArticle | 仅通用 500 |
-| updateArticle | 区分 '文章不存在' → 404 |
-| updateArticleContent | 区分 '文章不存在' → 404 |
-| deleteArticle | 区分 '文章不存在' → 404 |
-| reviewArticle | 区分 '文章不存在' → 404 + 状态不支持 → 400 |
-| regenerateArticle | 区分 '文章不存在' → 404 + 状态不支持 → 400 |
-| submitForReview | 区分 '文章不存在' → 404 |
-
-**建议**: 使用集中式错误映射或自定义错误类：
-
-```typescript
-// 方案: 自定义业务异常
-class BusinessError extends Error {
-  constructor(message: string, public statusCode: number) {
-    super(message);
-  }
+// 第 44-46 行
+} catch (err: any) {
+  fail(res, 500, err.message || '获取文章列表失败');
 }
 
-// Service 层抛出
-throw new BusinessError('文章不存在', 404);
-throw new BusinessError('文章当前状态不支持审核操作', 400);
+// 第 109-111 行
+} catch (err: any) {
+  fail(res, 500, err.message || '创建文章失败');
+}
 
-// 控制器统一处理
-} catch (err) {
-  if (err instanceof BusinessError) {
-    fail(res, err.statusCode, err.message);
+// 第 161-167 行
+} catch (err: any) {
+  if (err.message === '文章不存在') {
+    fail(res, 404, err.message);
   } else {
-    fail(res, 500, err.message || '操作失败');
+    fail(res, 500, err.message || '更新文章失败');
+  }
+}
+```
+
+**问题**:
+1. **`err.message` 直接返回客户端**: 500 错误的 `err.message` 可能包含数据库错误、Prisma 内部错误、堆栈信息片段等敏感信息。例如 Prisma 的 `P2002` 错误可能暴露数据库约束名称。
+2. **`catch (err: any)` 类型不安全**: 使用 `any` 类型绕过了 TypeScript 的类型检查，且没有对 error 进行类型窄化。
+3. **错误消息可枚举**: 通过不同输入触发不同的错误消息，攻击者可以探测系统内部逻辑。
+
+**建议**:
+
+```typescript
+// 安全的错误处理模式
+import { Prisma } from '@prisma/client';
+
+} catch (err: unknown) {
+  // 记录完整错误到服务器日志
+  logger.error('Article operation failed', { error: err, userId, articleId: id });
+
+  // 对客户端返回通用消息
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    fail(res, 500, '操作失败，请稍后重试');
+  } else if (err instanceof Error && err.message === '文章不存在') {
+    fail(res, 404, err.message);
+  } else {
+    fail(res, 500, '操作失败'); // 不泄露 err.message
   }
 }
 ```
 
 ---
 
-### MEDIUM-3: `req.user!` 非空断言不安全
+### HIGH-4: `updateArticleContent` 无 content 大小限制
 
-**位置**: 第 30, 56, 95, 121 行等（9 处）
+**位置**: 第 170-218 行 `updateArticleContent` 函数
+
+```typescript
+const { content } = req.body;
+if (typeof content !== 'string') { fail(res, 400, 'content参数无效'); return; }
+// ❌ 无长度限制检查
+const item = await articleService.update(id, { content }, userId, role);
+```
+
+**问题**: 虽然全局有 `express.json({ limit: '10mb' })` 限制，但单篇文章的 `content` 字段没有独立的大小限制。攻击者可以：
+1. 发送接近 10MB 的 content，导致数据库写入大量数据
+2. 通过大量请求消耗数据库存储
+3. 触发 `articleVersion` 版本快照的级联膨胀（每次更新都会创建版本记录，参见 `article.service.impl.ts` 第 115-123 行）
+
+**建议**:
+
+```typescript
+const MAX_CONTENT_LENGTH = 500_000; // 500KB
+
+const { content } = req.body;
+if (typeof content !== 'string') { fail(res, 400, 'content参数无效'); return; }
+if (content.length > MAX_CONTENT_LENGTH) {
+  fail(res, 400, `正文内容不能超过${MAX_CONTENT_LENGTH / 1000}KB`);
+  return;
+}
+```
+
+---
+
+### MEDIUM-1: `deleteArticle` 使用软删除但无恢复机制，存在不可逆操作风险
+
+**位置**: 第 220-266 行
+
+```typescript
+await articleService.delete(id, userId, role);
+success(res, null, '删除文章成功');
+```
+
+**问题**:
+1. **无二次确认**: 删除操作通过单一 HTTP 请求完成，没有要求确认步骤
+2. **无审计日志**: 删除操作仅由 service 层设置 `deletedAt` 字段，没有记录谁在什么时间删除了什么
+3. **无恢复接口**: 软删除后没有提供恢复端点，如果误删需要直接操作数据库
+
+**建议**: 添加审计日志记录：
+
+```typescript
+await articleService.delete(id, userId, role);
+logger.info('Article deleted', { articleId: id, projectId, operatorId: userId, role });
+```
+
+---
+
+### MEDIUM-2: `listArticles` 分页参数无上限限制
+
+**位置**: 第 25-26 行
+
+```typescript
+const page = parseInt(req.query.page as string) || 1;
+const pageSize = parseInt(req.query.pageSize as string) || 10;
+```
+
+**问题**:
+1. `pageSize` 无上限：攻击者可以设置 `pageSize=100000`，一次请求拉取大量数据，消耗数据库和内存资源
+2. `page` 无下限验证：负数或 0 会导致 Prisma `skip` 产生负值
+3. 无类型检查：`req.query.page` 可能是数组（如 `?page=1&page=2`），`parseInt` 会取第一个元素
+
+**建议**:
+
+```typescript
+const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize as string, 10) || 10));
+```
+
+---
+
+### MEDIUM-3: `regenerateArticle` 和 `reviewArticle` 缺少所有权检查
+
+**位置**: 第 309-345 行 `regenerateArticle`
+
+```typescript
+export async function regenerateArticle(req: Request, res: Response): Promise<void> {
+  // ... 参数和项目归属校验 ...
+
+  // Admin 操作员检查 ✓
+  if (role === 'admin') {
+    await checkProjectOperator(projectId, userId, role);
+  }
+
+  // ❌ 没有检查操作者是否是文章创建者！
+  // 任何 admin 角色的项目操作员都可以重新生成任意文章
+  const item = await articleService.regenerate(id, userId, role);
+}
+```
+
+**问题**: `regenerateArticle` 不检查操作者是否是文章创建者。同项目的其他 admin 操作员可以触发文章的 AI 重新生成，可能覆盖原作者的内容。同理，`reviewArticle` 也缺少此检查（见 HIGH-2）。
+
+而 `updateArticle`（第 140-143 行）和 `deleteArticle`（第 246-249 行）都有创建者检查，但 `regenerate` 和 `review` 没有，存在 **权限检查不一致** 的问题。
+
+**建议**: 统一所有写操作的权限检查策略，明确哪些操作需要创建者权限，哪些只需要项目操作员权限。
+
+---
+
+### MEDIUM-4: `req.user!` 非空断言可能导致不明确的错误响应
+
+**位置**: 第 30, 56, 95, 121, 180, 227, 278, 317, 355 行（共 9 处）
 
 ```typescript
 const { userId, role } = req.user!;
 ```
 
-**问题**: 非空断言 `!` 绕过了 TypeScript 的空值检查。如果认证中间件未正确挂载（如路由配置错误），运行时会抛出 `Cannot destructure property 'userId' of undefined`，错误信息不明确。
+**问题**: 非空断言 `!` 在 TypeScript 层面假定 `req.user` 已被 auth 中间件赋值。但如果路由配置错误（中间件未挂载），运行时会抛出 `TypeError: Cannot destructure property 'userId' of undefined`。这个错误会被 catch 块捕获，返回 500 错误和 `err.message`，泄露了内部变量名。
 
-**建议**: 在控制器入口添加防御性检查或使用类型守卫：
+**建议**: 使用防御性检查：
 
 ```typescript
-// 方案: auth 中间件保证 req.user 存在后，扩展 Express Request 类型
-// types/express.d.ts 已声明 user 为可选，中间件应确保赋值
-// 控制器中可添加:
-if (!req.user) { fail(res, 401, '未认证'); return; }
+if (!req.user) {
+  fail(res, 401, '未认证');
+  return;
+}
 const { userId, role } = req.user;
 ```
 
 ---
 
-### MEDIUM-4: `checkProjectOperator` 额外查询数据库
+### MEDIUM-5: `checkProjectOperator` 的错误通过 try-catch 吞没，信息丢失
 
-**位置**: 第 12-18 行
+**位置**: 第 12-18 行 + 多处调用
 
 ```typescript
 async function checkProjectOperator(projectId: number, userId: number, role: string): Promise<void> {
@@ -306,168 +435,208 @@ async function checkProjectOperator(projectId: number, userId: number, role: str
 }
 ```
 
-**问题**: 此函数在每次请求中额外调用 `projectService.getById()`，而后续 handler 中的 `articleService.getById()` 也会触发数据库查询。对于 getArticle、updateArticle 等已有 `articleService.getById` 调用的 handler，`checkProjectOperator` 产生了一次冗余的数据库查询。
-
-**建议**: 在一次查询中获取 project + article 数据，或在中间件层缓存 project 信息：
+调用方：
 
 ```typescript
-// 方案: 中间件层一次性获取 project 并挂载到 res.locals
-export async function loadProjectContext(req: Request, res: Response, next: NextFunction) {
-  const project = await projectService.getById(res.locals.projectId, req.user!.userId, req.user!.role);
-  res.locals.project = project;
-  next();
+try {
+  await checkProjectOperator(projectId, userId, role);
+} catch {
+  fail(res, 403, '无权操作该项目');
+  return;
+}
+```
+
+**问题**:
+1. **`catch` 块吞没所有异常**: 如果 `projectService.getById()` 抛出数据库错误，也会被捕获并返回 403，掩盖了真实的 500 错误
+2. **安全事件丢失**: 权限拒绝事件没有被记录，无法追踪潜在的攻击行为
+
+**建议**:
+
+```typescript
+// 方案: 区分权限拒绝和系统错误
+try {
+  await checkProjectOperator(projectId, userId, role);
+} catch (err) {
+  if (err instanceof Error && err.message === '无权操作该项目') {
+    logger.warn('Project access denied', { projectId, userId, role });
+    fail(res, 403, '无权操作该项目');
+  } else {
+    throw err; // 重新抛出非权限错误，由外层 catch 处理
+  }
+  return;
 }
 ```
 
 ---
 
-### LOW-1: 魔法字符串硬编码
+### LOW-1: `search` 参数未做 HTML/XSS 清理
+
+**位置**: 第 27 行
+
+```typescript
+const search = req.query.search as string | undefined;
+```
+
+**问题**: 搜索关键词直接传递给 `articleService.list()`，虽然 Prisma 的 `contains` 查询会参数化处理防止 SQL 注入，但如果搜索结果被前端以不安全方式渲染（如 `dangerouslySetInnerHTML`），可能导致反射型 XSS。不过风险较低，因为后端返回的是 JSON 数据。
+
+**建议**: 对搜索参数做基本清理：
+
+```typescript
+const search = typeof req.query.search === 'string'
+  ? req.query.search.trim().slice(0, 200)
+  : undefined;
+```
+
+---
+
+### LOW-2: 缺少 CSRF Token 机制
+
+**位置**: 全局（虽然不是 controller 特定问题）
+
+**问题**: API 使用 Bearer Token 认证，不依赖 Cookie，因此 CSRF 风险较低。但如果前端将 token 存储在 localStorage 中（根据 CLAUDE.md 描述），且存在 XSS 漏洞，攻击者可以窃取 token 发起跨站请求。
+
+**建议**: 这是全局性问题，建议：
+1. 确保所有输入输出都做 XSS 清理
+2. 考虑使用 `httpOnly` Cookie 替代 localStorage 存储 token
+3. 添加自定义请求头验证（如 `X-Requested-With`）
+
+---
+
+### LOW-3: 魔法字符串角色和状态值未使用常量
 
 **位置**: 多处
 
 ```typescript
-// 角色字符串
-role === 'sysadmin'  // 第 13, 140, 198, 246 行
-role === 'admin'     // 第 33, 65, 98 行
-
-// 状态字符串
-status === 'generating'     // 第 153 行
-existing.status === 'published' // 第 252 行
-existing.status !== 'manual_writing' // 第 376 行
+if (role === 'sysadmin')  // 第 13, 140, 198, 246 行
+if (role === 'admin')     // 第 33, 65, 98, 130, 188, 237, 288, 326, 362, 408 行
 ```
 
-**建议**: 使用 Prisma 生成的枚举常量或统一常量文件：
+**问题**: 角色字符串硬编码，如果 Prisma schema 中的 Role enum 值变更，需要手动查找所有字符串。更重要的是，拼写错误不会在编译时被捕获。
+
+**建议**:
 
 ```typescript
 import { Role, ArticleStatus } from '@prisma/client';
 if (role === Role.sysadmin) { /* ... */ }
-if (existing.status === ArticleStatus.published) { /* ... */ }
 ```
 
 ---
 
-### LOW-2: 函数签名过长且参数类型不明确
+### LOW-4: `parseInt` 未指定基数的潜在问题
 
-**位置**: 所有 handler 函数
-
-```typescript
-export async function listArticles(req: Request, res: Response): Promise<void> {
-```
-
-**问题**: 所有函数签名相同（`(req, res) => void`），无法从签名看出需要哪些参数、返回什么数据。Express 的 `Request/Response` 是通用的 HTTP 类型，不携带业务语义。
-
-**建议**: 虽然这是 Express 的固有模式，但可以通过扩展 Request 类型改善：
+**位置**: 第 22, 25, 26, 28 行等
 
 ```typescript
-interface ArticleRequest extends Request {
-  params: { projectId: string; id: string };
-  query: { page?: string; pageSize?: string; search?: string; status?: string };
-  user: { userId: number; role: string };
-}
+const projectId = parseInt(req.params.projectId as string, 10);  // ✓ 指定了 10
+const page = parseInt(req.query.page as string) || 1;             // ❌ 未指定基数
 ```
+
+**问题**: 部分解析未指定基数（第 25, 26 行），虽然 `parseInt` 默认基数为 10，但如果输入以 `0x` 开头可能被解析为十六进制。
+
+**建议**: 统一使用 `parseInt(value, 10)`。
 
 ---
 
-### LOW-3: 缺少 Handler 函数的统一导出契约
+## 三、安全问题汇总矩阵
 
-**位置**: 文件末尾
+| 编号 | 严重级别 | 问题 | CWE 编号 | OWASP 分类 |
+|------|----------|------|----------|------------|
+| CRITICAL-1 | CRITICAL | 请求体无白名单过滤 | CWE-915 | A01:2021 Broken Access Control |
+| CRITICAL-2 | CRITICAL | 状态转换未校验，可绕过审核 | CWE-863 | A01:2021 Broken Access Control |
+| HIGH-1 | HIGH | 创建请求无 schema 验证 | CWE-20 | A03:2021 Injection |
+| HIGH-2 | HIGH | 审核缺少职责分离 | CWE-272 | A01:2021 Broken Access Control |
+| HIGH-3 | HIGH | 错误响应泄露内部信息 | CWE-209 | A05:2021 Security Misconfiguration |
+| HIGH-4 | HIGH | Content 无大小限制 | CWE-770 | A05:2021 Security Misconfiguration |
+| MEDIUM-1 | MEDIUM | 删除无审计日志 | CWE-778 | A09:2021 Security Logging Failures |
+| MEDIUM-2 | MEDIUM | 分页参数无上限 | CWE-770 | A05:2021 Security Misconfiguration |
+| MEDIUM-3 | MEDIUM | 权限检查不一致 | CWE-863 | A01:2021 Broken Access Control |
+| MEDIUM-4 | MEDIUM | 非空断言掩盖认证缺失 | CWE-754 | A07:2021 Identification/Auth Failures |
+| MEDIUM-5 | MEDIUM | 权限异常被吞没 | CWE-390 | A09:2021 Security Logging Failures |
+| LOW-1 | LOW | 搜索参数未清理 | CWE-79 | A03:2021 Injection |
+| LOW-2 | LOW | 无 CSRF Token | CWE-352 | A01:2021 Broken Access Control |
+| LOW-3 | LOW | 魔法字符串未用常量 | CWE-1068 | A05:2021 Security Misconfiguration |
+| LOW-4 | LOW | parseInt 未指定基数 | CWE-1047 | A05:2021 Security Misconfiguration |
 
-**问题**: 9 个 handler 函数独立导出，路由注册时需要逐个引用。没有统一的控制器对象或命名空间，增加了路由配置的维护成本。
+---
 
-**建议**: 聚合为控制器对象或使用类：
+## 四、安全加固路线图
+
+### 立即修复（阻断攻击路径）
+
+1. **CRITICAL-1 + CRITICAL-2**: 引入 Zod schema 验证 + 状态机白名单 — 阻止任意字段注入和状态绕过
+2. **HIGH-3**: 错误响应统一处理，500 错误不返回 `err.message`
+
+### 短期加固（1-2 周内）
+
+3. **HIGH-1**: `createArticle` 添加完整的 Zod schema 验证
+4. **HIGH-2**: `reviewArticle` 添加创建者/审核者分离检查
+5. **HIGH-4**: `content` 字段添加大小限制
+6. **MEDIUM-5**: 区分权限拒绝和系统错误，重新抛出非权限异常
+
+### 中期加固（1 个月内）
+
+7. **MEDIUM-1**: 添加安全审计日志（谁在什么时候做了什么）
+8. **MEDIUM-2**: 分页参数添加上下限限制
+9. **MEDIUM-3**: 统一所有写操作的权限检查策略
+10. **MEDIUM-4**: 替换 `req.user!` 为防御性检查
+
+### 长期改进
+
+11. **LOW-1~4**: 搜索参数清理、CSRF 防护、常量替换、parseInt 规范化
+
+---
+
+## 五、推荐的 Zod Schema 定义
 
 ```typescript
-export const articleController = {
-  list: listArticles,
-  get: getArticle,
-  create: createArticle,
-  update: updateArticle,
-  updateContent: updateArticleContent,
-  delete: deleteArticle,
-  review: reviewArticle,
-  regenerate: regenerateArticle,
-  submitForReview: submitForReview,
-  listVersions: listArticleVersions,
+import { z } from 'zod';
+
+// 共享字段定义
+const articleFields = {
+  title: z.string().max(500).optional(),
+  article_type: z.string().max(50).optional(),
+  write_mode: z.enum(['manual', 'ai']).optional(),
+  keywords: z.string().max(2000).optional(),
+  portrait: z.string().max(5000).optional(),
+  images: z.array(z.string().url().max(500)).max(20).optional(),
+  platforms: z.array(z.string().max(100)).max(10).optional(),
+  skills: z.number().int().positive().optional(),
+  llm_model_id: z.number().int().positive().optional(),
+  content: z.string().max(500_000).optional(),
 };
+
+// 创建 schema
+export const createArticleSchema = z.object({
+  ...articleFields,
+  status: z.enum(['draft', 'manual_writing', 'generating']).default('draft'),
+}).strict();
+
+// 更新 schema — status 仅允许安全的状态值
+export const updateArticleSchema = z.object({
+  ...articleFields,
+  status: z.enum(['generating']).optional(), // 仅允许从 draft 转为 generating
+  scheduled_publish_at: z.string().datetime().nullable().optional(),
+}).strict();
+
+// 内容更新 schema
+export const updateContentSchema = z.object({
+  content: z.string().min(1).max(500_000),
+}).strict();
+
+// 审核schema
+export const reviewArticleSchema = z.object({
+  approved: z.boolean(),
+}).strict();
 ```
 
 ---
 
-## 三、架构改进路线图
+## 六、总结
 
-### 短期（低风险，可立即执行）
+该控制器的核心安全风险集中在 **输入验证缺失** 和 **权限控制不完整** 两个维度：
 
-1. **统一响应格式** — `createArticle` 改用 `created()` 工具函数
-2. **替换魔法字符串** — 引用 Prisma 枚举常量
-3. **添加 `req.user` 防御检查** — 替代非空断言
+1. **最紧急**: `updateArticle` 的请求体无白名单过滤（CRITICAL-1）和状态转换无校验（CRITICAL-2），这两个问题组合使用可以绕过整个审核流程
+2. **影响面最广**: 所有 9 个端点都存在 `err.message` 直接返回客户端的问题（HIGH-3），可能泄露数据库结构和内部逻辑
+3. **最易修复**: 添加 Zod schema 验证可以在一个 PR 中解决 CRITICAL-1、CRITICAL-2、HIGH-1、HIGH-4 四个问题
 
-### 中期（中等风险，需测试覆盖）
-
-4. **抽取中间件链** — 参数解析、项目访问、文章归属各为独立中间件
-5. **引入自定义错误类** — 统一错误映射策略
-6. **状态机规则下沉到 Service** — 控制器仅传递意图
-
-### 长期（需架构评审）
-
-7. **引入依赖注入** — 控制器通过构造函数接收 Service 实例
-8. **请求验证层** — 使用 Zod schema 定义请求/响应类型，替代手动校验
-9. **控制器类化** — 聚合 handler 为 ArticleController 类，支持方法级中间件
-
----
-
-## 四、推荐重构后的控制器结构
-
-```
-apis/
-├── controller/
-│   └── article.controller.ts          ← 纯编排层（~100行）
-├── middleware/
-│   ├── auth.ts                         ← 已有
-│   ├── paramParser.ts                  ← 新增: ID 解析 + 校验
-│   ├── projectAccess.ts                ← 新增: 项目访问权限守卫
-│   └── articleOwner.ts                 ← 新增: 文章所有权守卫
-├── routes/
-│   └── article.routes.ts              ← 新增: 路由定义 + 中间件组合
-├── errors/
-│   └── business.ts                     ← 新增: BusinessError 类
-└── service/
-    └── impl/
-        └── article.service.impl.ts     ← 承接状态机规则
-```
-
-**重构后的 handler 示例**:
-
-```typescript
-// article.controller.ts — 重构后
-export async function listArticles(req: Request, res: Response): Promise<void> {
-  const { projectId } = res.locals;
-  const { page, pageSize, search, status } = req.query;
-  const { userId, role } = req.user!;
-
-  const { list, total } = await articleService.list(
-    projectId, page, pageSize, search, status, userId, role
-  );
-  paginate(res, list, total, page, pageSize);
-}
-
-export async function updateArticle(req: Request, res: Response): Promise<void> {
-  const { id } = res.locals;
-  const { userId, role } = req.user!;
-
-  const item = await articleService.update(id, req.body, userId, role);
-  success(res, item, '更新文章成功');
-}
-```
-
----
-
-## 五、总结
-
-该控制器当前的架构问题是典型的 **"胖控制器"反模式** — 426 行代码中约 50% 是重复的横切关注点（参数解析、权限检查、错误处理），仅 50% 是真正的请求编排逻辑。
-
-核心改进方向:
-1. **控制器瘦身**: 通过中间件链消除重复代码，目标降至 ~150 行
-2. **依赖倒置**: 依赖接口而非实现，提升可测试性
-3. **规则下沉**: 业务规则（状态机、可编辑性）归属 Service 层
-
-按优先级排序: CRITICAL-1 > HIGH-2 > HIGH-3 > HIGH-1 > MEDIUM-1~4 > LOW-1~3
+**安全加固优先级**: CRITICAL-1 + CRITICAL-2 > HIGH-3 > HIGH-1 > HIGH-2 > HIGH-4 > MEDIUM > LOW
