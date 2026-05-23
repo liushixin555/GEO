@@ -101,7 +101,7 @@ const ArticlePage: React.FC = () => {
       ellipsis: { showTitle: true },
       render: (text: string, record: ArticleItem) => (
         <a onClick={() => navigate(`/article/${record.id}`)} style={{ color: 'var(--color-primary, #0f62fe)' }}>
-          {record.id}. {text || '待生成'}
+          {record.id}. {text || '<还没有标题，待生成>'}
         </a>
       ),
     },
@@ -191,7 +191,7 @@ const ArticlePage: React.FC = () => {
               <Card
                 key={item.id}
                 size="small"
-                title={`${item.id}. ${item.title || '待生成'}`}
+                title={`${item.id}. ${item.title || '<还没有标题，待生成>'}`}
                 extra={<Tag color={statusCfg.color}>{statusCfg.label}</Tag>}
                 hoverable
                 onClick={() => navigate(`/article/${item.id}`)}
