@@ -411,24 +411,67 @@ describe('Upload Document Controller - Integration', () => {
 // ==================== Unit Tests: uploadDocumentMiddleware ====================
 
 describe('uploadDocumentMiddleware - Unit', () => {
-  let req: Partial<Request>;
-  let res: Partial<Response>;
-  let next: NextFunction;
-
-  beforeEach(() => {
-    req = {};
-    const json = jest.fn();
-    const status = jest.fn().mockReturnValue({ json });
-    res = { status, json } as unknown as Partial<Response>;
-    next = jest.fn();
+  it('should verify middleware function exists and is callable', () => {
+    expect(typeof uploadDocumentMiddleware).toBe('function');
   });
 
-  it('should call next() when no multer error occurs', (done) => {
-    // We test the middleware by checking it calls next when upload succeeds
-    // This is tested through integration tests since multer is complex to mock
-    // Here we verify the middleware function exists and is callable
-    expect(typeof uploadDocumentMiddleware).toBe('function');
-    done();
+  it('should return 500 for generic multer error (not LIMIT_FILE_SIZE, not format error)', () => {
+    jest.isolateModules(() => {
+      // Mock multer to inject a generic error via the callback
+      jest.doMock('multer', () => {
+        const mockMulter: any = jest.fn().mockReturnValue({
+          single: () => (_req: any, _res: any, cb: any) => {
+            cb(new Error('Internal multer error'));
+          },
+        });
+        mockMulter.diskStorage = jest.fn().mockReturnValue({});
+        return mockMulter;
+      });
+
+      const { uploadDocumentMiddleware: mockedMiddleware } =
+        require('../../apis/controller/upload-document.controller');
+
+      const json = jest.fn();
+      const status = jest.fn().mockReturnValue({ json });
+      const res = { status, json } as unknown as Response;
+      const next = jest.fn();
+
+      mockedMiddleware({} as Request, res, next);
+
+      expect(status).toHaveBeenCalledWith(500);
+      expect(json).toHaveBeenCalledWith({ code: 500, message: 'Internal multer error' });
+      expect(next).not.toHaveBeenCalled();
+    });
+  });
+
+  it('should return 500 with fallback message when error has no message', () => {
+    jest.isolateModules(() => {
+      jest.doMock('multer', () => {
+        const mockMulter: any = jest.fn().mockReturnValue({
+          single: () => (_req: any, _res: any, cb: any) => {
+            const err = new Error('');
+            err.message = '';
+            cb(err);
+          },
+        });
+        mockMulter.diskStorage = jest.fn().mockReturnValue({});
+        return mockMulter;
+      });
+
+      const { uploadDocumentMiddleware: mockedMiddleware } =
+        require('../../apis/controller/upload-document.controller');
+
+      const json = jest.fn();
+      const status = jest.fn().mockReturnValue({ json });
+      const res = { status, json } as unknown as Response;
+      const next = jest.fn();
+
+      mockedMiddleware({} as Request, res, next);
+
+      expect(status).toHaveBeenCalledWith(500);
+      expect(json).toHaveBeenCalledWith({ code: 500, message: '上传失败' });
+      expect(next).not.toHaveBeenCalled();
+    });
   });
 });
 
@@ -598,6 +641,156 @@ describe('uploadDocumentFile - Unit', () => {
     expect(fs.existsSync(tempPath)).toBe(false);
 
     DocumentValidator.validateContent = originalValidate;
+    try { fs.unlinkSync(tempPath); } catch {}
+  });
+
+  it('should handle error gracefully when file already deleted on error path', async () => {
+    // Simulate a file that doesn't exist on disk (already deleted)
+    const req = {
+      file: {
+        path: path.join(uploadsDir, '_nonexistent_file.json'),
+        originalname: 'test.json',
+        filename: 'nonexistent.json',
+        size: 10,
+      },
+    } as unknown as Request;
+
+    const originalValidate = DocumentValidator.validateContent;
+    DocumentValidator.validateContent = jest.fn().mockRejectedValue(new Error('some error'));
+
+    const json = jest.fn();
+    const status = jest.fn().mockReturnValue({ json });
+    const res = { status } as unknown as Response;
+
+    // Should not throw even though file doesn't exist for cleanup
+    await expect(uploadDocumentFile(req, res)).resolves.not.toThrow();
+
+    expect(status).toHaveBeenCalledWith(500);
+
+    DocumentValidator.validateContent = originalValidate;
+  });
+
+  it('should upload valid XML document successfully via unit test', async () => {
+    const tempPath = path.join(uploadsDir, '_unit_test_valid.xml');
+    fs.writeFileSync(tempPath, '<?xml version="1.0"?><root><item>test</item></root>');
+
+    const req = {
+      file: {
+        path: tempPath,
+        originalname: 'document.xml',
+        filename: 'uuid-xml.xml',
+        size: 52,
+      },
+    } as unknown as Request;
+    const json = jest.fn();
+    const res = { json } as unknown as Response;
+
+    await uploadDocumentFile(req, res);
+
+    expect(json).toHaveBeenCalledWith({
+      code: 0,
+      message: '上传成功',
+      data: {
+        url: '/uploads/uuid-xml.xml',
+        originalName: 'document.xml',
+        fileType: 'xml',
+        fileSize: 52,
+      },
+    });
+
+    try { fs.unlinkSync(tempPath); } catch {}
+  });
+
+  it('should upload valid Markdown document via unit test', async () => {
+    const tempPath = path.join(uploadsDir, '_unit_test_valid.md');
+    fs.writeFileSync(tempPath, '# Title\n\nSome **bold** text.');
+
+    const req = {
+      file: {
+        path: tempPath,
+        originalname: 'doc.md',
+        filename: 'uuid-md.md',
+        size: 26,
+      },
+    } as unknown as Request;
+    const json = jest.fn();
+    const res = { json } as unknown as Response;
+
+    await uploadDocumentFile(req, res);
+
+    expect(json).toHaveBeenCalledWith({
+      code: 0,
+      message: '上传成功',
+      data: {
+        url: '/uploads/uuid-md.md',
+        originalName: 'doc.md',
+        fileType: 'md',
+        fileSize: 26,
+      },
+    });
+
+    try { fs.unlinkSync(tempPath); } catch {}
+  });
+
+  it('should upload valid CSV document via unit test', async () => {
+    const tempPath = path.join(uploadsDir, '_unit_test_valid.csv');
+    fs.writeFileSync(tempPath, 'name,age\nAlice,30');
+
+    const req = {
+      file: {
+        path: tempPath,
+        originalname: 'data.csv',
+        filename: 'uuid-csv.csv',
+        size: 18,
+      },
+    } as unknown as Request;
+    const json = jest.fn();
+    const res = { json } as unknown as Response;
+
+    await uploadDocumentFile(req, res);
+
+    expect(json).toHaveBeenCalledWith({
+      code: 0,
+      message: '上传成功',
+      data: {
+        url: '/uploads/uuid-csv.csv',
+        originalName: 'data.csv',
+        fileType: 'csv',
+        fileSize: 18,
+      },
+    });
+
+    try { fs.unlinkSync(tempPath); } catch {}
+  });
+
+  it('should upload valid YAML document via unit test', async () => {
+    const tempPath = path.join(uploadsDir, '_unit_test_valid.yaml');
+    fs.writeFileSync(tempPath, 'name: test\nvalue: 123');
+
+    const req = {
+      file: {
+        path: tempPath,
+        originalname: 'config.yaml',
+        filename: 'uuid-yaml.yaml',
+        size: 21,
+      },
+    } as unknown as Request;
+    const json = jest.fn();
+    const res = { json } as unknown as Response;
+
+    await uploadDocumentFile(req, res);
+
+    expect(json).toHaveBeenCalledWith({
+      code: 0,
+      message: '上传成功',
+      data: {
+        url: '/uploads/uuid-yaml.yaml',
+        originalName: 'config.yaml',
+        fileType: 'yaml',
+        fileSize: 21,
+      },
+    });
+
     try { fs.unlinkSync(tempPath); } catch {}
   });
 });
