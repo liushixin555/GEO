@@ -1,70 +1,100 @@
-# TDD 执行报告：article-generation.scheduler.test.ts
+# TDD 执行记录：article-generation.scheduler.test.ts
 
-## 源文件
-`apis/scheduler/article-generation.scheduler.ts`
+## 文件路径
+- 源码：`apis/scheduler/article-generation.scheduler.ts`
+- 测试：`tests/apis/scheduler/article-generation.scheduler.test.ts`
+- 类型声明：`dist/apis/apis/scheduler/article-generation.scheduler.d.ts`
 
-## 测试文件
-`tests/apis/article-generation.test.ts`
+## 执行时间
+2026-05-24（更新）
 
-## 执行日期
-2026-05-23
+## 测试框架
+Jest + @jest-environment node
 
-## 测试概览
-| 指标 | 数值 |
-|------|------|
-| 总测试数 | 19 |
-| 通过 | 19 |
-| 失败 | 0 |
-| 跳过 | 0 |
+## 测试结果
+- **测试套件**: 1 passed
+- **测试用例**: 39 passed, 0 failed
+- **耗时**: ~5s
 
 ## 覆盖率
-### article-generation.scheduler.ts
-| 类型 | 覆盖率 |
+| 指标 | 覆盖率 |
 |------|--------|
-| 语句 | 98.63% |
-| 分支 | 94.44% |
-| 函数 | 88.88% |
-| 行 | 98.5% |
+| Statements | 100% |
+| Branch | 100% |
+| Functions | 100% |
+| Lines | 100% |
 
-**未覆盖行**: 第25行 — `cron.schedule` 回调函数体（因 mock cron.schedule 导致回调不会执行，但回调内的 `processNextGeneratingArticle` 已被直接测试覆盖）
+## 测试用例清单
 
-## 测试覆盖的功能点（19个）
+### 1. startArticleGenerationCron (5个)
+- 应在启用时启动定时任务
+- 应在禁用时不启动定时任务
+- 应在无效cron表达式时不启动定时任务
+- 应使用配置的cron表达式
+- 定时回调应调用 processNextGeneratingArticle
 
-### startArticleGenerationCron（3个）
-1. **应在启用且表达式有效时启动定时任务** — 验证 cron.validate 和 cron.schedule 被正确调用
-2. **应在禁用时不启动定时任务** — 验证 config.cron.articleGenerationEnabled=false 时跳过启动
-3. **应在cron表达式无效时不启动** — 验证 cron.validate 返回 false 时不启动
+### 2. stopArticleGenerationCron (3个)
+- 应在任务存在时停止定时任务
+- 应在任务不存在时不报错
+- 应能正确停止后重新启动
 
-### stopArticleGenerationCron（2个）
-4. **应停止运行中的定时任务** — 验证 task.stop() 被调用
-5. **应在没有运行中的任务时不执行任何操作** — 验证无 task 时不报错
+### 3. processNextGeneratingArticle - 基本流程 (3个)
+- 应在没有待处理文章时直接返回
+- 应正确查询状态为 generating 的文章
+- 应在正在运行时跳过调度（并发控制）
 
-### processNextGeneratingArticle — 并发控制（2个）
-6. **应在上一批次仍在执行时跳过** — 验证 isRunning=true 时跳过并输出日志
-7. **应完成处理后重置isRunning标志** — 验证 finally 块正确重置标志
+### 4. processNextGeneratingArticle - 成功处理 (11个)
+- 应成功处理单篇文章
+- 应查询项目的知识库
+- 应查询知识库的图片
+- 应调用 LLM 生成文章并传递正确参数
+- 应使用事务保存文章版本和更新状态
+- 应正确递增版本号
+- 应在没有标题时从内容提取标题
+- 应正确处理技能字段（对象格式）
+- 应正确处理技能字段（数字格式）
+- 应处理空知识库的情况
+- 应处理图片没有描述的情况
 
-### processNextGeneratingArticle — 批次处理（5个）
-8. **应在没有待生成文章时直接返回** — findMany 返回空数组
-9. **应成功处理单篇文章的完整流程** — 覆盖知识库查找、图片获取、LLM调用、事务保存全流程
-10. **应按顺序处理多篇文章** — 验证多篇文章逐篇处理和成功计数
-11. **应在文章处理失败时标记为generate_failed并继续处理下一篇** — 验证错误隔离和状态标记
-12. **应在更新失败状态也出错时处理异常** — 验证双重错误处理
-13. **应处理findMany的批次级错误** — 验证外层 try-catch
+### 5. processNextGeneratingArticle - 批量处理 (2个)
+- 应顺序处理多篇文章
+- 应限制每批最多10篇文章
 
-### processSingleArticle 分支覆盖（7个）
-14. **应在没有知识库时使用空图片列表** — knowledgeBase.findMany 返回空数组
-15. **应在skills为对象时查找技能名称** — skills={id:42} 分支
-16. **应在skills为数字ID时查找技能名称** — skills=99 分支
-17. **应在skillsID查不到记录时使用空字符串** — skills 查无记录
-18. **应在文章标题为空时从内容中提取标题** — title 提取逻辑
-19. **应正确递增版本号** — version 计算逻辑
+### 6. processNextGeneratingArticle - 错误处理 (5个)
+- 应在文章处理失败时标记为 generate_failed
+- 应在更新失败状态也失败时不抛出异常
+- 应在部分文章失败时继续处理其他文章
+- 应在查询文章失败时不抛出异常
+- 应在错误后重置 isRunning 标志
+
+### 7. 技能字段边界情况 (3个)
+- 应处理 skills 为 null 的情况
+- 应处理 skills 对象但 id 为 null 的情况
+- 应处理 skills 记录不存在的情况
+
+### 8. 标题提取边界情况 (3个)
+- 应在内容以 ## 开头时正确提取标题
+- 应在内容只有空行时不修改原始标题
+- 应在文章已有标题时保留原标题
+
+### 9. 版本号处理 (2个)
+- 应正确处理版本号为0的文章
+- 应正确处理版本号为5的文章
+
+### 10. 默认 portrait 处理 (2个)
+- 应在 portrait 为空时使用默认值 通用读者
+- 应在 portrait 为 null 时使用默认值 通用读者
 
 ## Mock 策略
-- **config**: mock `../../apis/config`，可动态修改 cron 配置
-- **node-cron**: mock `cron.validate` 和 `cron.schedule`
-- **getPrisma**: mock `../../apis/utils/db.util`
-- **LlmServiceImpl**: mock `../../apis/service/impl/llm.service.impl`，提供 `mockGenerateArticle`
-- **console**: spy + mockImplementation 抑制测试输出
+- **node-cron**: mock schedule/validate 方法，模拟定时任务调度
+- **prisma**: mock article/knowledgeBase/knowledgeImage/skills/articleVersion 模型
+- **LlmServiceImpl**: mock generateArticle 方法
+- **utils**: mock getPrisma 返回 mockPrisma 对象
 
-## 辅助函数
-- `createDefaultPrisma(overrides)`: 创建包含所有必要 mock 的 prisma 对象，支持子属性级别覆盖（不会因顶层 spread 覆盖默认值）
+## 关键测试场景
+1. **并发控制**: isRunning 标志防止并发执行
+2. **错误容错**: 单篇文章失败不影响其他文章处理
+3. **事务完整性**: 文章版本创建和状态更新在同一事务中
+4. **标题提取**: 从生成内容中提取标题，支持 markdown 标题格式
+5. **技能字段**: 兼容对象和数字两种格式
+6. **版本递增**: 正确计算新版本号
