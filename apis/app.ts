@@ -1,4 +1,4 @@
-import express, { Express } from 'express';
+import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import swaggerJSDoc from 'swagger-jsdoc';
@@ -24,20 +24,44 @@ import * as todoController from './controller/todo.controller';
 
 const app: Express = express();
 
-// Security middleware
+// Trust first proxy (Nginx etc.) — required for correct req.ip behind reverse proxy
+app.set('trust proxy', 1);
+
+// Health check — before security middleware to avoid rate-limit interference
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok' });
+});
+
+// Security middleware — helmet with enhanced configuration
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
-app.use(cors());
-app.use(express.json());
+
+// CORS — whitelist-based configuration
+app.use(cors({
+  origin: (origin, callback) => {
+    const allowed = config.corsOrigins;
+    if (!origin || allowed.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+// Request body parsing with explicit size limit
+app.use(express.json({ limit: '10mb' }));
 
 // Static files — allow cross-origin image loading
-app.use('/uploads', (req, res, next) => {
+app.use('/uploads', (_req, res, next) => {
   res.set('Cross-Origin-Resource-Policy', 'cross-origin');
   next();
 }, express.static(path.resolve(process.cwd(), 'uploads')));
 
-// Anti-crawl & rate limiting
+// Anti-crawl & rate limiting — intentionally placed before login route to prevent brute force
 app.use(antiCrawlMiddleware);
 app.use(rateLimitMiddleware);
 
@@ -63,7 +87,7 @@ const swaggerSpec = swaggerJSDoc({
   apis: ['./apis/controller/*.ts'],
 });
 
-if (config.swagger.enabled) {
+if (config.swagger.enabled && process.env.NODE_ENV !== 'production') {
   app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
   app.get('/api-docs.json', (_req, res) => res.json(swaggerSpec));
 }
@@ -201,9 +225,15 @@ app.post('/api/knowledge-bases/:baseId/documents', authMiddleware, roleMiddlewar
 app.put('/api/knowledge-bases/:baseId/documents/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.updateDocument);
 app.delete('/api/knowledge-bases/:baseId/documents/:id', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.deleteDocument);
 
-// Health check
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// 404 fallback — must be after all routes
+app.use((_req, res) => {
+  res.status(404).json({ code: 404, message: '接口不存在' });
+});
+
+// Global error handler — Express identifies by 4-parameter signature
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('[Unhandled Error]', err);
+  res.status(500).json({ code: 500, message: '服务器内部错误' });
 });
 
 export default app;

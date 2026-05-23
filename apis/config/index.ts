@@ -34,6 +34,7 @@ export interface AppConfig {
   swagger: { enabled: boolean };
   rateLimit: RateLimitConfig;
   cron: CronConfig;
+  corsOrigins: string[];
 }
 
 const config: AppConfig = {
@@ -45,11 +46,26 @@ const config: AppConfig = {
     port: parseInt(process.env.DB_PORT || '5432', 10),
     name: process.env.DB_NAME || 'geo_ts',
     user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || 'postgres',
+    password: (() => {
+      const pwd = process.env.DB_PASSWORD;
+      if (!pwd && process.env.NODE_ENV === 'production') {
+        throw new Error('FATAL: DB_PASSWORD is required in production');
+      }
+      return pwd || 'postgres';
+    })(),
     pool: { min: 2, max: 10 },
   },
   jwt: {
-    secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+    secret: (() => {
+      const secret = process.env.JWT_SECRET;
+      if (!secret && process.env.NODE_ENV === 'production') {
+        throw new Error('FATAL: JWT_SECRET is required in production');
+      }
+      if (!secret) {
+        console.warn('WARNING: Using default JWT_SECRET. Set JWT_SECRET in production.');
+      }
+      return secret || 'dev-only-secret-key';
+    })(),
     expiresIn: process.env.JWT_EXPIRES_IN || '2h',
   },
   swagger: {
@@ -63,6 +79,9 @@ const config: AppConfig = {
     articleGenerationInterval: process.env.CRON_ARTICLE_INTERVAL || '*/5 * * * *',
     articleGenerationEnabled: process.env.CRON_ARTICLE_ENABLED !== 'false',
   },
+  corsOrigins: process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
+    : ['http://localhost:5173'],
 };
 
 export default config;

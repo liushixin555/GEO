@@ -727,3 +727,47 @@ secret: (() => {
 - **审核人**: Committer 审核专家
 - **审核结论**: 报告整体质量高，漏洞识别准确，但部分严重度评级偏高，修复方案需结合实际场景调整
 - **最终建议**: 完成 P0 四项修复后可合并，P1/P2 项列入下个迭代计划
+
+---
+
+## 10. 修复记录
+
+**修复日期**: 2026-05-23
+**修复人**: 软件开发专家
+
+### 已修复项
+
+| 编号 | 修复内容 | 修改文件 | 状态 |
+|------|----------|----------|------|
+| SEC-01 | CORS 白名单配置，新增 `corsOrigins` 配置项 | `apis/app.ts`, `apis/config/index.ts` | ✅ 已修复 |
+| SEC-02 | JWT Secret 生产环境强制验证，开发环境允许默认值+警告 | `apis/config/index.ts` | ✅ 已修复 |
+| SEC-03 | 显式设置请求体大小限制 `10mb` | `apis/app.ts` | ✅ 已修复 |
+| SEC-04 | Helmet 增加 `referrerPolicy` 配置 | `apis/app.ts` | ✅ 已修复 |
+| SEC-05 | 添加 404 fallback + 全局错误处理中间件 | `apis/app.ts` | ✅ 已修复 |
+| SEC-07 | 添加 `trust proxy` 设置，解决反向代理下 IP 获取问题 | `apis/app.ts` | ✅ 已修复 |
+| SEC-08 | 反爬虫 Map 容量限制（MAX_ENTRIES=10000）+ 定期清理 | `apis/middleware/anti-crawl.middleware.ts` | ✅ 已修复 |
+| SEC-10 | 数据库密码生产环境强制验证 | `apis/config/index.ts` | ✅ 已修复 |
+| SEC-11 | Swagger 仅在非生产环境启用 | `apis/app.ts` | ✅ 已修复 |
+| SEC-12 | Health check 移到安全中间件之前 | `apis/app.ts` | ✅ 已修复 |
+
+### 未修复项（设计决策）
+
+| 编号 | 原因 |
+|------|------|
+| SEC-04 CSP 部分 | 纯 API 服务器无需 CSP，前端 SPA 应在 Nginx/CDN 层配置 |
+| SEC-06 上传文件认证 | 浏览器 `<img>` 不支持自定义 Authorization 头，需签名 URL 方案（架构变更） |
+| SEC-09 Refresh Token | B 端管理系统 2h 过期可接受，属架构优化，不阻塞合并 |
+
+### 新增环境变量
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `CORS_ORIGINS` | 允许的跨域来源，逗号分隔 | `http://localhost:5173` |
+
+### 测试更新
+
+- `tests/apis/app.test.ts`: 更新 health check 测试（移除 timestamp 断言），更新反爬虫中间件测试（改用受保护路由验证）
+
+### 安全评级变更
+
+修复前：**C** → 修复后：**B+**（P0 全部修复，P1/P2 大部分修复，剩余项为架构优化）

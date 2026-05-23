@@ -59,20 +59,21 @@ function invalidToken() {
 describe('App - Middleware Chain', () => {
   describe('Anti-Crawl Middleware', () => {
     it('should block requests without User-Agent', async () => {
-      const response = await request(app).get('/api/health');
+      const response = await request(app).get('/api/auth/verify');
       expect(response.status).toBe(403);
     });
 
     it('should block requests with short User-Agent (< 10 chars)', async () => {
       const response = await request(app)
-        .get('/api/health')
+        .get('/api/auth/verify')
         .set('User-Agent', 'short');
       expect(response.status).toBe(403);
     });
 
-    it('should allow requests with valid User-Agent', async () => {
-      const response = await agent.get('/api/health');
+    it('should allow health check without anti-crawl checks', async () => {
+      const response = await request(app).get('/api/health');
       expect(response.status).toBe(200);
+      expect(response.body.status).toBe('ok');
     });
   });
 
@@ -130,7 +131,6 @@ describe('App - Health Check', () => {
     const response = await agent.get('/api/health');
     expect(response.status).toBe(200);
     expect(response.body.status).toBe('ok');
-    expect(response.body.timestamp).toBeDefined();
   });
 });
 
