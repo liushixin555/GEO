@@ -2,7 +2,7 @@
 
 **文件**: `tests/apis/article.service.test.ts`
 **源文件**: `apis/service/article.service.ts` + `apis/service/impl/article.service.impl.ts`
-**执行时间**: 2026-05-23
+**执行时间**: 2026-05-24
 
 ## 测试结果
 
