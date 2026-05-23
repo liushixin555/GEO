@@ -599,5 +599,247 @@ describe('UserServiceImpl', () => {
 
       await expect(service.delete(1, null)).rejects.toThrow('系统管理员不可删除');
     });
+
+    it('应成功删除 admin 角色用户', async () => {
+      const admin = makePrismaUser({ id: 2, role: 'admin' });
+      const mockFindFirst = jest.fn().mockResolvedValue(admin);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...admin, deletedAt: new Date() });
+
+      mockedGetPrisma.mockReturnValue({
+        user: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.delete(2, null);
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 2 },
+        data: { deletedAt: expect.any(Date) },
+      });
+    });
+
+    it('应成功删除 view 角色用户', async () => {
+      const viewer = makePrismaUser({ id: 3, role: 'view' });
+      const mockFindFirst = jest.fn().mockResolvedValue(viewer);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...viewer, deletedAt: new Date() });
+
+      mockedGetPrisma.mockReturnValue({
+        user: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.delete(3, null);
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 3 },
+        data: { deletedAt: expect.any(Date) },
+      });
+    });
+
+    it('软删除应使用 update 而非 delete 方法', async () => {
+      const user = makePrismaUser({ id: 1, role: 'admin' });
+      const mockFindFirst = jest.fn().mockResolvedValue(user);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...user, deletedAt: new Date() });
+      const mockDelete = jest.fn();
+
+      mockedGetPrisma.mockReturnValue({
+        user: { findFirst: mockFindFirst, update: mockUpdate, delete: mockDelete },
+      } as any);
+
+      await service.delete(1, null);
+
+      expect(mockUpdate).toHaveBeenCalled();
+      expect(mockDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  边界场景与 mapUser 映射
+  // ──────────────────────────────────────
+  describe('边界场景', () => {
+    it('list - companyId 为 0 时不添加 companyId 过滤', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+
+      mockedGetPrisma.mockReturnValue({
+        user: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(0, 1, 10);
+
+      const callArgs = mockFindMany.mock.calls[0][0];
+      expect(callArgs.where).not.toHaveProperty('companyId');
+    });
+
+    it('list - search 为空字符串时不添加 OR 条件', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+
+      mockedGetPrisma.mockReturnValue({
+        user: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(null, 1, 10, '');
+
+      const callArgs = mockFindMany.mock.calls[0][0];
+      expect(callArgs.where).not.toHaveProperty('OR');
+    });
+
+    it('list - page=3, pageSize=5 时偏移量应为 10', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(30);
+
+      mockedGetPrisma.mockReturnValue({
+        user: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list(null, 3, 5);
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 10, take: 5 }),
+      );
+    });
+
+    it('list - 用户无 company 关联时 company_name 应为空字符串', async () => {
+      const userNoCompany = makePrismaUser({ company: null });
+      const mockFindMany = jest.fn().mockResolvedValue([userNoCompany]);
+      const mockCount = jest.fn().mockResolvedValue(1);
+
+      mockedGetPrisma.mockReturnValue({
+        user: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const result = await service.list(null, 1, 10);
+
+      expect(result.list[0].company_name).toBe('');
+    });
+
+    it('create - company_id 为 0 时不包含 companyId', async () => {
+      const newUser = makePrismaUser({ id: 4, companyId: null });
+      const mockFindUnique = jest.fn().mockResolvedValue(null);
+      const mockCreate = jest.fn().mockResolvedValue(newUser);
+
+      mockedGetPrisma.mockReturnValue({
+        user: { findUnique: mockFindUnique, create: mockCreate },
+      } as any);
+
+      await service.create({
+        username: 'user0',
+        password: 'pass',
+        cn_name: '零公司',
+        role: 'view',
+        company_id: 0,
+      });
+
+      const createData = mockCreate.mock.calls[0][0].data;
+      expect(createData).not.toHaveProperty('companyId');
+    });
+
+    it('create - 创建 sysadmin 角色用户', async () => {
+      const sysadminUser = makePrismaUser({ id: 5, role: 'sysadmin' });
+      const mockFindUnique = jest.fn().mockResolvedValue(null);
+      const mockCreate = jest.fn().mockResolvedValue(sysadminUser);
+
+      mockedGetPrisma.mockReturnValue({
+        user: { findUnique: mockFindUnique, create: mockCreate },
+      } as any);
+
+      const result = await service.create({
+        username: 'newsysadmin',
+        password: 'adminpass',
+        cn_name: '新管理员',
+        role: 'sysadmin',
+      });
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ role: 'sysadmin' }),
+        }),
+      );
+      expect(result.role).toBe('sysadmin');
+    });
+
+    it('update - sysadmin 角色设为 sysadmin 应允许（同角色）', async () => {
+      const sysadmin = makePrismaUser({ id: 1, role: 'sysadmin' });
+      const updated = makePrismaUser({ id: 1, role: 'sysadmin' });
+      const mockFindFirst = jest.fn().mockResolvedValue(sysadmin);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+
+      mockedGetPrisma.mockReturnValue({
+        user: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.update(1, null, { role: 'sysadmin' });
+
+      expect(mockUpdate).toHaveBeenCalled();
+      expect(result.role).toBe('sysadmin');
+    });
+
+    it('update - 仅更新密码字段', async () => {
+      const existing = makePrismaUser({ id: 1 });
+      const updated = makePrismaUser({ id: 1 });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+
+      mockedGetPrisma.mockReturnValue({
+        user: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      mockedBcryptHash.mockResolvedValue('$2b$10$onlypass');
+
+      await service.update(1, null, { password: 'onlypass' });
+
+      const updateData = mockUpdate.mock.calls[0][0].data;
+      expect(Object.keys(updateData)).toEqual(['passwordHash']);
+      expect(updateData.passwordHash).toBe('$2b$10$onlypass');
+    });
+
+    it('update - status 为 false 时应正确更新', async () => {
+      const existing = makePrismaUser({ id: 1, status: true });
+      const updated = makePrismaUser({ id: 1, status: false });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+
+      mockedGetPrisma.mockReturnValue({
+        user: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.update(1, null, { status: false });
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: false },
+      });
+    });
+
+    it('update - cn_name 为空字符串时应更新', async () => {
+      const existing = makePrismaUser({ id: 1, cnName: '旧名' });
+      const updated = makePrismaUser({ id: 1, cnName: '' });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+
+      mockedGetPrisma.mockReturnValue({
+        user: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.update(1, null, { cn_name: '' });
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { cnName: '' },
+      });
+    });
+
+    it('getById - 应正确映射 company_id 为 null', async () => {
+      const prismaUser = makePrismaUser({ companyId: null, company: null });
+      const mockFindFirst = jest.fn().mockResolvedValue(prismaUser);
+
+      mockedGetPrisma.mockReturnValue({
+        user: { findFirst: mockFindFirst },
+      } as any);
+
+      const result = await service.getById(1, null);
+
+      expect(result.company_id).toBeNull();
+      expect(result.company_name).toBe('');
+    });
   });
 });
