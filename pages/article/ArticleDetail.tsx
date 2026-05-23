@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Form, Input, Select, Button, Alert, Segmented, Upload, Image, Collapse, Typography, Spin, Tag, App, Popconfirm, Table, Modal, Radio } from 'antd';
-import { ArrowLeftOutlined, InboxOutlined, LinkOutlined, DeleteOutlined, CheckOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Form, Input, Select, Button, Alert, Segmented, Upload, Image, Collapse, Typography, Spin, Tag, App, Popconfirm, Table, Modal, Radio, Space } from 'antd';
+import { ArrowLeftOutlined, InboxOutlined, LinkOutlined, DeleteOutlined, CheckOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined, ImportOutlined } from '@ant-design/icons';
 import MDEditor from '@uiw/react-md-editor';
 import axios from 'axios';
+import mammoth from 'mammoth';
 import { useAppContext } from '../context/AppContext';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -426,6 +427,60 @@ const ArticleDetail: React.FC = () => {
     }
   };
 
+  const handleImportDocument = async (file: File) => {
+    try {
+      let markdown = '';
+      const ext = file.name.toLowerCase().split('.').pop();
+
+      if (ext === 'md') {
+        // Markdown: read as text directly
+        markdown = await file.text();
+      } else if (ext === 'docx' || ext === 'doc') {
+        // docx: use mammoth to convert to HTML, then extract text
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.convertToHtml({ arrayBuffer });
+        // Simple HTML to text: strip tags, preserve line breaks
+        const html = result.value;
+        markdown = html
+          .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n')
+          .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n')
+          .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n')
+          .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<[^>]+>/g, '')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .trim();
+      } else {
+        message.error('仅支持 .md、.doc、.docx 格式');
+        return;
+      }
+
+      if (!markdown.trim()) {
+        message.warning('文档内容为空');
+        return;
+      }
+
+      // Extract first-level heading (# title) as article title
+      const titleMatch = markdown.match(/^#\s+(.+)$/m);
+
+      if (titleMatch) {
+        // Has first-level heading: fill title and remove heading from body
+        form.setFieldValue('title', titleMatch[1].trim());
+        markdown = markdown.replace(/^#\s+.+\n?/, '').trim();
+      }
+
+      // Always fill content
+      setContent(markdown);
+      message.success(`已导入文档「${file.name}」`);
+    } catch (err: any) {
+      message.error('文档解析失败：' + (err.message || '未知错误'));
+    }
+    return false;
+  };
+
   const handleUpload = async (file: File) => {
     setUploading(true);
     try {
@@ -479,8 +534,12 @@ const ArticleDetail: React.FC = () => {
         />
       </Form.Item>
       {writeMode === 'manual' && (
-      <Form.Item name="title" label="标题" rules={[{ required: true, message: '标题不能为空' }]}>
-        <Input placeholder="请输入文章标题" disabled={!isSettingsEditable} />
+      <Form.Item
+        name="title"
+        label={<Space size={8}><span>标题</span><Upload accept=".md,.doc,.docx" showUploadList={false} beforeUpload={(file) => { handleImportDocument(file); return false; }}><Button type="link" size="small" icon={<ImportOutlined />} style={{ padding: 0, height: 'auto', fontSize: 12, verticalAlign: 'middle' }}>导入</Button></Upload></Space>}
+        rules={[{ required: true, message: '标题不能为空' }]}
+      >
+        <Input placeholder="请输入文章标题，或点击「导入」从文档自动填充" disabled={!isSettingsEditable} />
       </Form.Item>
       )}
       <Form.Item name="article_type" label="文章类型" rules={[{ required: true, message: '请选择文章类型' }]}>
