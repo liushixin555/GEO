@@ -4,12 +4,14 @@ import path from 'path';
 import fs from 'fs';
 import AdmZip from 'adm-zip';
 import { SkillsServiceImpl } from '../service/impl/skills.service.impl';
-import { success, fail, paginate } from '../utils';
+import { success, fail, paginate, created } from '../utils';
 
 const skillsService = new SkillsServiceImpl();
 
 const SKILLS_DIR = path.resolve(process.cwd(), 'skills');
 const TMP_DIR = path.resolve(process.cwd(), 'tmp', 'uploads');
+const MAX_ENTRY_SIZE = 100 * 1024 * 1024; // 100MB per entry
+const MAX_TOTAL_EXTRACTED_SIZE = 500 * 1024 * 1024; // 500MB total extracted
 
 // Ensure directories exist
 if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
@@ -28,10 +30,16 @@ const upload = multer({
   },
 });
 
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return '操作失败';
+}
+
 export function uploadSkillMiddleware(req: Request, res: Response, next: () => void): void {
-  upload.single('file')(req, res, (err: any) => {
+  upload.single('file')(req, res, (err: unknown) => {
     if (err) {
-      fail(res, 400, err.message || '上传失败');
+      const msg = err instanceof Error ? err.message : '上传失败';
+      fail(res, 400, msg);
       return;
     }
     next();
@@ -64,14 +72,14 @@ function parseSkillMd(content: string): { name: string; description: string } {
 
 export async function listSkills(req: Request, res: Response): Promise<void> {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize as string) || 10));
     const search = req.query.search as string | undefined;
 
     const { list, total } = await skillsService.list(page, pageSize, search);
     paginate(res, list, total, page, pageSize);
-  } catch (err: any) {
-    fail(res, 500, err.message || '获取技能列表失败');
+  } catch (err: unknown) {
+    fail(res, 500, '获取技能列表失败');
   }
 }
 
@@ -82,25 +90,35 @@ export async function getSkills(req: Request, res: Response): Promise<void> {
 
     const item = await skillsService.getById(id);
     success(res, item);
-  } catch (err: any) {
-    if (err.message === '技能不存在') {
-      fail(res, 404, err.message);
+  } catch (err: unknown) {
+    const message = getErrorMessage(err);
+    if (message === '技能不存在') {
+      fail(res, 404, message);
     } else {
-      fail(res, 500, err.message || '获取技能详情失败');
+      fail(res, 500, '获取技能详情失败');
     }
   }
 }
 
 export async function createSkills(req: Request, res: Response): Promise<void> {
   const tmpPath = req.file?.path;
+  let extractedDir: string | null = null;
   try {
     if (!req.file) { fail(res, 400, '请选择技能 zip 包'); return; }
+    if (!req.user) { fail(res, 401, '未登录'); return; }
+
+    // Validate zip magic bytes (PK header: 0x50 0x4B)
+    const fileBuffer = fs.readFileSync(req.file.path);
+    if (fileBuffer[0] !== 0x50 || fileBuffer[1] !== 0x4B) {
+      fail(res, 400, '文件不是有效的 zip 格式');
+      return;
+    }
 
     const zip = new AdmZip(req.file.path);
     const zipEntries = zip.getEntries();
 
     // Find SKILL.md in zip (may be at root or inside a directory)
-    let skillMdEntry = zipEntries.find(e => !e.isDirectory && e.entryName.endsWith('SKILL.md'));
+    const skillMdEntry = zipEntries.find(e => !e.isDirectory && e.entryName.endsWith('SKILL.md'));
     if (!skillMdEntry) {
       fail(res, 400, 'zip 包中未找到 SKILL.md 文件');
       return;
@@ -111,20 +129,18 @@ export async function createSkills(req: Request, res: Response): Promise<void> {
     const { name, description } = parseSkillMd(skillMdContent);
 
     // Determine the top-level directory in the zip
-    // e.g., "ant-design/SKILL.md" → base dir is "ant-design"
     const entryPath = skillMdEntry.entryName;
     const topDir = entryPath.includes('/') ? entryPath.split('/')[0] : name;
 
     // Target directory
     const skillDir = path.join(SKILLS_DIR, topDir);
     if (fs.existsSync(skillDir)) {
-      fail(res, 400, `技能目录「${topDir}」已存在，请先删除同名技能或使用不同的目录名`);
+      fail(res, 400, `技能「${name}」已存在，请先删除同名技能`);
       return;
     }
 
-    // Validate zip entries for path traversal (Zip Slip) and zip bomb
+    // Validate zip entries for path traversal (Zip Slip) and size limits
     const resolvedSkillsDir = path.resolve(SKILLS_DIR);
-    const MAX_ENTRY_SIZE = 100 * 1024 * 1024; // 100MB per entry
     for (const entry of zipEntries) {
       const entryResolved = path.resolve(resolvedSkillsDir, entry.entryName);
       if (!entryResolved.startsWith(resolvedSkillsDir + path.sep) && entryResolved !== resolvedSkillsDir) {
@@ -137,19 +153,49 @@ export async function createSkills(req: Request, res: Response): Promise<void> {
       }
     }
 
-    // Extract to skills directory
-    fs.mkdirSync(SKILLS_DIR, { recursive: true });
-    zip.extractAllTo(SKILLS_DIR, true);
+    // Extract entries one by one (Zip Slip safe + Zip Bomb protection)
+    let totalExtractedSize = 0;
+    for (const entry of zipEntries) {
+      if (entry.isDirectory) {
+        const dirPath = path.join(SKILLS_DIR, entry.entryName);
+        const resolvedDir = path.resolve(dirPath);
+        if (resolvedDir.startsWith(resolvedSkillsDir + path.sep) || resolvedDir === resolvedSkillsDir) {
+          fs.mkdirSync(dirPath, { recursive: true });
+        }
+        continue;
+      }
+      const targetPath = path.join(SKILLS_DIR, entry.entryName);
+      const resolved = path.resolve(targetPath);
+      if (!resolved.startsWith(resolvedSkillsDir + path.sep)) {
+        throw new Error('zip 包包含非法路径');
+      }
+      const data = entry.getData();
+      totalExtractedSize += data.length;
+      if (totalExtractedSize > MAX_TOTAL_EXTRACTED_SIZE) {
+        throw new Error('zip 包解压后总大小超过限制');
+      }
+      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+      fs.writeFileSync(targetPath, data);
+    }
+    extractedDir = skillDir;
 
     // Verify SKILL.md exists after extraction
     const extractedSkillMd = path.join(skillDir, 'SKILL.md');
-    if (!fs.existsSync(extractedSkillMd) && entryPath.includes('/')) {
-      // The SKILL.md was inside a subdirectory - check if zip was flat
+    if (!fs.existsSync(extractedSkillMd)) {
+      // Flat zip: SKILL.md extracted to skills/SKILL.md, need to move into skillDir
       const altPath = path.join(SKILLS_DIR, 'SKILL.md');
       if (fs.existsSync(altPath)) {
-        // Flat zip - create directory and move files
         fs.mkdirSync(skillDir, { recursive: true });
-        fs.renameSync(altPath, path.join(skillDir, 'SKILL.md'));
+        // Move all flat-extracted files (not just SKILL.md)
+        const flatFiles = fs.readdirSync(SKILLS_DIR);
+        for (const file of flatFiles) {
+          if (file === topDir) continue; // skip the new skillDir itself
+          const src = path.join(SKILLS_DIR, file);
+          const stat = fs.statSync(src);
+          if (stat.isDirectory()) continue;
+          const dest = path.join(skillDir, file);
+          fs.renameSync(src, dest);
+        }
       }
     }
 
@@ -158,13 +204,21 @@ export async function createSkills(req: Request, res: Response): Promise<void> {
       name,
       description,
       skill_dir: topDir,
-      created_by: req.user!.userId,
+      created_by: req.user.userId,
     });
 
-    res.status(201).json({ code: 0, message: '技能创建成功', data: item });
-  } catch (err: any) {
-    // Clean up on failure
-    fail(res, 500, err.message || '创建技能失败');
+    created(res, item, '技能创建成功');
+  } catch (err: unknown) {
+    // Rollback: clean up extracted directory on failure
+    if (extractedDir && fs.existsSync(extractedDir)) {
+      fs.rmSync(extractedDir, { recursive: true, force: true });
+    }
+    const message = getErrorMessage(err);
+    if (message.startsWith('已存在同名技能')) {
+      fail(res, 409, message);
+    } else {
+      fail(res, 500, '创建技能失败');
+    }
   } finally {
     // Clean up temp file
     if (tmpPath && fs.existsSync(tmpPath)) {
@@ -185,13 +239,15 @@ export async function updateSkills(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const item = await skillsService.update(id, req.body);
+    const { name, description } = req.body;
+    const item = await skillsService.update(id, { name, description });
     success(res, item, '更新技能成功');
-  } catch (err: any) {
-    if (err.message === '技能不存在') {
-      fail(res, 404, err.message);
+  } catch (err: unknown) {
+    const message = getErrorMessage(err);
+    if (message === '技能不存在') {
+      fail(res, 404, message);
     } else {
-      fail(res, 500, err.message || '更新技能失败');
+      fail(res, 500, '更新技能失败');
     }
   }
 }
@@ -208,9 +264,15 @@ export async function deleteSkills(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // Remove skill directory
+    // Remove skill directory with path validation
     if (existing.skill_dir) {
       const skillDir = path.join(SKILLS_DIR, existing.skill_dir);
+      const resolvedSkillDir = path.resolve(skillDir);
+      const resolvedSkillsBase = path.resolve(SKILLS_DIR);
+      if (!resolvedSkillDir.startsWith(resolvedSkillsBase + path.sep)) {
+        fail(res, 400, '非法的技能目录路径');
+        return;
+      }
       if (fs.existsSync(skillDir)) {
         fs.rmSync(skillDir, { recursive: true, force: true });
       }
@@ -218,11 +280,12 @@ export async function deleteSkills(req: Request, res: Response): Promise<void> {
 
     await skillsService.delete(id);
     success(res, null, '删除技能成功');
-  } catch (err: any) {
-    if (err.message === '技能不存在') {
-      fail(res, 404, err.message);
+  } catch (err: unknown) {
+    const message = getErrorMessage(err);
+    if (message === '技能不存在') {
+      fail(res, 404, message);
     } else {
-      fail(res, 500, err.message || '删除技能失败');
+      fail(res, 500, '删除技能失败');
     }
   }
 }

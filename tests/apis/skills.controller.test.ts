@@ -621,7 +621,7 @@ describe('Skills Controller', () => {
         .attach('file', zip.toBuffer(), 'skill.zip');
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toContain('frontmatter');
+      expect(response.body.message).toBe('创建技能失败');
     });
 
     it('should return 500 when SKILL.md has no name field', async () => {
@@ -634,7 +634,7 @@ describe('Skills Controller', () => {
         .attach('file', zip.toBuffer(), 'skill.zip');
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toContain('name');
+      expect(response.body.message).toBe('创建技能失败');
     });
 
     it('should return 500 on database error during create (service throws)', async () => {
@@ -651,7 +651,7 @@ describe('Skills Controller', () => {
         .attach('file', zipBuffer, 'skill.zip');
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('DB create error');
+      expect(response.body.message).toBe('创建技能失败');
     });
 
     it('should return 500 with default message when create error has no message', async () => {
@@ -948,7 +948,7 @@ describe('Skills Controller', () => {
         .send({ name: 'Vue' });
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('Update DB error');
+      expect(response.body.message).toBe('更新技能失败');
     });
 
     it('should return 500 with default message when update error has no message', async () => {
@@ -1223,7 +1223,7 @@ describe('Skills Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('Delete DB error');
+      expect(response.body.message).toBe('删除技能失败');
     });
 
     it('should return 500 with default message when delete error has no message', async () => {
