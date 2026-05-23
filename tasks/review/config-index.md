@@ -353,3 +353,223 @@ CORS 空字符串开放跨域            → CSRF/XSS 放大            中
 2. **安全机制可被运行时绕过**（HIGH-2/3/4）— `parseInt` 产生 NaN 可导致速率限制失效，CORS 白名单可被注入空值，配置对象可被篡改。
 
 建议立即修复 2 个 CRITICAL + 4 个 HIGH 问题，总工作量约 40 分钟。MEDIUM 和 LOW 问题可在后续迭代中解决。
+
+---
+
+## 六、Committer 审核意见
+
+**审核日期**: 2026-05-23
+**审核角色**: 代码 Committer 审核专家（代码合并审查 + 技术可行性验证 + 最终裁决）
+**审核对象**: 上述代码安全专家评审报告（第一至第五章）
+
+### 6.1 评审报告质量评价
+
+| 评价维度 | 评分 | 说明 |
+|----------|------|------|
+| 漏洞识别准确性 | 9/10 | 11 个发现全部与源码对应，定位精确 |
+| 代码定位精确度 | 10/10 | 行号引用准确，代码片段与源码一字不差 |
+| 修复方案可行性 | 7/10 | 部分方案过于理想化，未考虑开发体验和实际部署场景 |
+| CWE 映射正确性 | 9/10 | CWE 编号映射合理，攻击链分析到位 |
+| 优先级划分 | 8/10 | 总体合理，但 CRITICAL-1/2 的修复建议需权衡开发便利性 |
+
+### 6.2 逐项审核裁决
+
+#### CRITICAL-1: JWT 默认密钥 — ⚠️ 降级为 HIGH
+
+**验证**: 确认第 59-68 行代码与评审描述一致。
+
+**审核意见**: 漏洞识别准确，但 **CRITICAL 评级偏重**，建议降级为 HIGH。理由：
+
+1. **环境区分已存在**: 当前代码已对 `NODE_ENV === 'production'` 做了强制校验（第 62 行 `throw new Error`），生产环境不会使用默认密钥
+2. **开发便利性需求**: 评审建议"所有环境必须设置 JWT_SECRET"会导致本地开发体验极差——克隆项目后必须先生成密钥才能启动，增加上手门槛
+3. **实际攻击条件苛刻**: 需同时满足"获取源码" + "开发/测试环境暴露网络" + "知道默认密钥"三个条件
+4. **密钥可预测但不等于公开**: `'dev-only-secret-key'` 虽出现在源码中，但非生产环境通常在内网，且代码仓库访问受控
+
+**裁决**: 保持现有代码逻辑（生产环境强制验证 + 开发环境警告 + 默认值），但需改进：
+- 默认密钥改为随机生成（启动时 `crypto.randomBytes(32).toString('hex')`），每次重启密钥不同，防止持久化攻击
+- `console.warn` 改为 `console.error` 并包含启动时间戳，增强可追溯性
+- 在 `.env.example` 中添加密钥生成命令指引
+
+#### CRITICAL-2: 数据库密码默认值 — ⚠️ 降级为 HIGH
+
+**验证**: 确认第 49-55 行代码与评审描述一致。
+
+**审核意见**: 与 CRITICAL-1 同理，建议降级为 HIGH。理由：
+
+1. **生产环境已有保护**: 第 51-53 行在生产环境会 throw，不会使用默认密码
+2. **本地开发 PostgreSQL 默认无需密码**: 许多开发者的本地 PostgreSQL 确实使用 `postgres/postgres`，这是 PostgreSQL 的默认安装配置
+3. **评审修复方案过于激进**: "所有环境强制设置 DB_PASSWORD" 会破坏开发者的一键启动体验
+
+**裁决**: 保持现有代码逻辑，与 CRITICAL-1 一致，仅生产环境强制验证。改进建议：
+- 在 `console.warn` 中添加更明确的警告信息
+- `.env.example` 中添加密码安全指引
+
+#### HIGH-1: console.warn 泄露安全配置状态 — ❌ 不同意
+
+**审核意见**: 评审对此项的评级**过度**。理由：
+
+1. `console.warn('WARNING: Using default JWT_SECRET...')` 是**标准的开发警告实践**，几乎所有框架（Express、Django、Rails）都有类似机制
+2. 能查看应用日志的人通常已有服务器访问权限，此时 JWT 密钥是否默认已不重要
+3. 评审引用的 CWE-532（日志注入敏感信息）适用于将**实际密钥值**写入日志，而此处仅输出"使用默认密钥"的状态信息
+4. 如果移除此警告，开发者更难发现配置缺失
+
+**裁决**: **保留 console.warn**，这是有价值的开发辅助。建议改为 `console.error` 提高可见性，但不必移除。
+
+#### HIGH-2: parseInt 返回 NaN — ✅ 同意，需修复
+
+**审核意见**: 发现准确，这是一个真实的代码缺陷。补充：
+
+1. `safeParseInt` 函数设计合理，但建议扩展为通用函数放入 `utils/` 目录
+2. 评审未提到：`PORT` 的 NaN 还会导致 `app.listen(NaN)` 抛出不明确的错误
+3. 建议对端口号增加**值域校验**（1-65535），对速率限制参数增加**正数校验**
+4. 修复工作量 15min 评估合理
+
+**修复建议调整**:
+```typescript
+function safeParseInt(value: string | undefined, defaultValue: number, name: string, opts?: { min?: number; max?: number }): number {
+  if (!value) return defaultValue;
+  const parsed = parseInt(value, 10);
+  if (isNaN(parsed)) {
+    throw new Error(`FATAL: ${name} must be a valid integer, got: "${value}"`);
+  }
+  if (opts?.min !== undefined && parsed < opts.min) {
+    throw new Error(`FATAL: ${name} must be >= ${opts.min}, got: ${parsed}`);
+  }
+  if (opts?.max !== undefined && parsed > opts.max) {
+    throw new Error(`FATAL: ${name} must be <= ${opts.max}, got: ${parsed}`);
+  }
+  return parsed;
+}
+
+// 使用
+port: safeParseInt(process.env.PORT, 8080, 'PORT', { min: 1, max: 65535 }),
+```
+
+#### HIGH-3: CORS split 未过滤空字符串 — ✅ 同意，需修复
+
+**审核意见**: 发现准确，修复方案完全正确。`.filter(s => s.length > 0)` 是标准做法。
+
+- 工作量 2min 评估准确
+- 建议额外校验每个 origin 是否为合法 URL 格式（以 `http://` 或 `https://` 开头）
+
+#### HIGH-4: 配置对象未冻结 — ⚠️ 部分同意
+
+**审核意见**: 发现方向正确，但实际风险评估偏高：
+
+1. **攻击前提不现实**: `config.jwt.secret = 'attacker-controlled-key'` 需要攻击者能在服务器端执行代码。如果能执行任意 JS 代码，安全问题远不止配置篡改
+2. **TypeScript 类型保护**: 虽然运行时可改，但 TypeScript 编译器会标记对 `config.jwt.secret` 的赋值为类型错误（`readonly` 属性）
+3. **deepFreeze 的副作用**: 冻结后无法在测试中 mock 配置，需额外处理
+
+**裁决**: **同意修复，但优先级降为 MEDIUM**。`deepFreeze` 是防御性编程的好实践，但不构成实际安全漏洞。建议：
+- 使用 `as const` 断言 + `Readonly<AppConfig>` 类型，编译期保护
+- 测试环境中提供 unfreeze 工具函数
+
+#### MEDIUM-1: NODE_ENV 作为唯一安全开关 — ⚠️ 部分同意
+
+**审核意见**: 理论分析正确，但实际场景中：
+
+1. `NODE_ENV` 是 Node.js 生态的**事实标准**，几乎所有框架（Express、Koa、NestJS）都依赖它
+2. "拼写错误"问题可以通过 CI/CD 的环境变量验证解决
+3. "所有环境强制安全配置"的建议与 CRITICAL-1/2 的审核意见冲突——开发环境需要便利性
+
+**裁决**: 维持现状，不改变 NODE_ENV 的使用方式。建议在 CI/CD 中添加环境变量校验步骤。
+
+#### MEDIUM-2: .env.example 模板化 — ✅ 同意
+
+**审核意见**: 建议合理。`.env.example` 应作为开发文档，需包含所有配置项说明和密钥生成指引。
+
+#### MEDIUM-3: dotenv.config 静默失败 — ⚠️ 部分同意
+
+**审核意见**: `dotenv.config()` 的静默行为是**设计意图**——生产环境通常不使用 `.env` 文件，而是通过 Docker/Kubernetes 环境变量注入。如果 `.env` 文件不存在就报警，会在生产环境产生误报。
+
+**裁决**: 维持现状。如果需要改进，建议仅在开发环境（`NODE_ENV !== 'production'`）且 `.env` 文件不存在时输出信息级日志。
+
+#### LOW-1: 连接池参数硬编码 — ✅ 同意
+
+**审核意见**: 合理建议，但当前阶段 `min: 2, max: 10` 对 B 端应用足够。列入后续优化。
+
+#### LOW-2: cron 表达式未校验 — ✅ 同意
+
+**审核意见**: 合理建议。`cron.validate()` 应在配置层调用，避免延迟到使用时才发现错误。
+
+### 6.3 评审报告未覆盖的问题
+
+作为 Committer 审查，补充安全评审未涉及的问题：
+
+#### REV-01: dotenv.config 路径使用 process.cwd()，模块化部署时可能失败
+
+**位置**: 第 4 行
+**问题**: `path.resolve(process.cwd(), '.env')` 依赖进程工作目录。当使用 PM2 或 Docker 以不同工作目录启动时，`.env` 文件可能找不到。
+
+**建议**: 改为 `path.resolve(__dirname, '../../.env')`（从配置文件位置向上查找），或使用 `dotenv.config()` 不带参数（默认行为相同但更简洁）。
+
+#### REV-02: 缺少 Redis/外部服务配置，架构扩展受限
+
+**问题**: 当前配置仅包含数据库和 JWT。随着项目增长，可能需要 Redis（会话/缓存）、OpenAI API Key、邮件服务等配置。建议设计可扩展的配置模式。
+
+**建议**: 当前不阻塞，列入技术债。
+
+#### REV-03: 类型定义与实际值可能不一致
+
+**位置**: 第 6-38 行
+**问题**: 接口 `AppConfig` 中 `corsOrigins: string[]` 是必填字段，但实际值可能来自 `process.env.CORS_ORIGINS` 的动态解析。如果环境变量格式错误（如非逗号分隔），类型系统无法捕获。
+
+**建议**: 使用 Zod schema 替代手动解析，同时获得运行时校验和类型推导。
+
+### 6.4 修复方案汇总调整
+
+| 原编号 | 原评级 | 审核调整 | 审核裁决 | 修复建议 |
+|--------|--------|----------|----------|----------|
+| CRITICAL-1 | CRITICAL | → HIGH | 保留默认值机制，改进默认密钥生成方式 | 改为启动时随机生成默认密钥 |
+| CRITICAL-2 | CRITICAL | → HIGH | 保留默认值机制，加强警告 | 改进 console.warn 信息 |
+| HIGH-1 | HIGH | → 保留 | 保留 console.warn，改为 console.error | 不移除警告 |
+| HIGH-2 | HIGH | → 保持 | 同意修复，增加值域校验 | 实现 safeParseInt + 值域校验 |
+| HIGH-3 | HIGH | → 保持 | 同意修复 | 添加 .filter + URL 格式校验 |
+| HIGH-4 | HIGH | → MEDIUM | 降级，优先使用 TypeScript 类型保护 | 添加 Readonly + as const |
+| MEDIUM-1 | MEDIUM | → 保持 | 维持 NODE_ENV 标准用法 | CI/CD 环境变量校验 |
+| MEDIUM-2 | MEDIUM | → 保持 | 同意改进 .env.example | 更新文档 |
+| MEDIUM-3 | MEDIUM | → LOW | dotenv 静默行为是设计意图 | 仅开发环境日志 |
+| LOW-1 | LOW | → 保持 | 后续优化 | — |
+| LOW-2 | LOW | → 保持 | 同意，后续实现 | — |
+
+---
+
+## 七、最终裁决
+
+### 7.1 裁决结果
+
+| 裁决项 | 结论 |
+|--------|------|
+| **合并状态** | ⚠️ **有条件通过 — 需完成 HIGH 级别修复后合并** |
+| **评审报告质量** | 良好（8.5/10），漏洞识别准确，但部分严重度偏高，修复方案需结合实际场景调整 |
+| **实际风险等级** | 中等 — 生产环境已有 NODE_ENV 保护，主要风险在开发/测试环境 |
+
+### 7.2 合并前必须修复
+
+| # | 编号 | 修复内容 | 工作量 |
+|---|------|----------|--------|
+| 1 | HIGH-2 | 实现 `safeParseInt` + 值域校验（端口 1-65535，速率限制 > 0） | 15min |
+| 2 | HIGH-3 | CORS origins 添加空字符串过滤 + URL 格式校验 | 5min |
+
+### 7.3 建议改进（不阻塞合并）
+
+| 优先级 | 编号 | 改进内容 | 工作量 |
+|--------|------|----------|--------|
+| 高 | CRITICAL-1 | JWT 默认密钥改为启动时随机生成 | 10min |
+| 高 | HIGH-4 | 配置对象添加 `Readonly` 类型保护 | 10min |
+| 中 | MEDIUM-2 | 更新 .env.example 文档 | 10min |
+| 低 | REV-01 | dotenv 路径使用 `__dirname` 相对路径 | 5min |
+
+### 7.4 不建议修复的项
+
+| 编号 | 原因 |
+|------|------|
+| CRITICAL-1/2 (全部移除默认值) | 破坏开发体验，生产环境已有保护 |
+| HIGH-1 (移除 console.warn) | 标准开发警告，有实际价值 |
+| MEDIUM-3 (dotenv 报警) | 生产环境不使用 .env，报警会产生误报 |
+
+### 7.5 Committer 签署
+
+- **审核人**: Committer 审核专家
+- **审核结论**: 安全评审整体质量高，漏洞识别精确。但 CRITICAL-1/2 的修复建议过于激进，未充分考虑开发体验和生产环境已有的保护机制。建议保留环境区分策略（生产强制 + 开发便利），聚焦于 parseInt NaN 防护和 CORS 空值过滤两个真实代码缺陷
+- **最终建议**: 完成 HIGH-2、HIGH-3 两项修复后即可合并，其余项列入技术债跟踪
