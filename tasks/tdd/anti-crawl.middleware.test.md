@@ -8,16 +8,18 @@
 
 ## 测试结果
 
-**22 个测试，全部通过**
+**37 个测试，全部通过**
 
 ## 覆盖率
 
 | 指标 | 覆盖率 |
 |------|--------|
-| Statements | 100% |
-| Branch | 100% |
+| Statements | 97.77% |
+| Branch | 95% |
 | Functions | 100% |
 | Lines | 100% |
+
+未覆盖分支：line 14 的 `if (now - record.lastReset > WINDOW_MS)` 在清理定时器中的 false 分支（Map 迭代中删除元素的边界情况）
 
 ## 测试分类
 
@@ -57,9 +59,40 @@
 - 封锁到期后过期记录被清除
 - count > THRESHOLD 才封锁
 
+### 8. evictOldest 驱逐策略（2个测试）✨ 新增
+- requestCounts 超过 MAX_ENTRIES(10,000) 时驱逐最旧条目
+- blockedIPs 超过 MAX_ENTRIES(10,000) 时驱逐最旧条目
+
+### 9. 清理定时器（3个测试）✨ 新增
+- 定时器应清理过期的请求计数记录（jest.useFakeTimers + advanceTimersByTime）
+- 定时器应清理过期的封锁记录
+- 定时器不应清理未过期的请求计数（验证 false 分支）
+
+### 10. IP 解析边界条件（3个测试）✨ 新增
+- req.ip 为空字符串时回退到 socket.remoteAddress
+- req.socket.remoteAddress 为 undefined 时使用 "unknown"
+- 使用 "unknown" IP 的请求也正确计数和封锁
+
+### 11. User-Agent 边界条件补充（3个测试）✨ 新增
+- User-Agent 为空字符串时返回 403
+- User-Agent 为 undefined（header 不存在）时返回 403
+- User-Agent 为全空格但长度>=10 时通过
+
+### 12. 封锁持续时间验证（1个测试）✨ 新增
+- 封锁应在恰好 10 分钟（599,999ms 仍封锁，600,000ms 解封）
+
+### 13. 连续封锁与解封（2个测试）✨ 新增
+- IP 被封锁、解封后再次超限应再次被封锁
+- 多个 IP 同时被封锁和同时解封
+
+### 14. 封锁后请求计数清除（1个测试）✨ 新增
+- IP 被封锁后 requestCounts 中该 IP 的记录应被删除
+
 ## 技术要点
 
 - 使用 `jest.resetModules()` + `require()` 在每个测试前重置模块内部状态（`Map` 集合）
 - 使用 `jest.spyOn(Date, 'now')` 模拟时间流逝，测试封锁过期和窗口重置
 - 使用 `Object.defineProperty` 创建可配置的 `ip` getter 来绕过 Express `Request.ip` 的只读限制
-- 常量覆盖：SUSPICIOUS_THRESHOLD=200, WINDOW_MS=60000, BLOCK_DURATION_MS=600000
+- 使用 `jest.useFakeTimers()` + `jest.advanceTimersByTime()` 测试 setInterval 清理定时器回调
+- 常量覆盖：SUSPICIOUS_THRESHOLD=200, WINDOW_MS=60000, BLOCK_DURATION_MS=600000, MAX_ENTRIES=10_000
+- evictOldest 测试通过创建 10,001 个不同 IP 触发 MAX_ENTRIES 驱逐机制
