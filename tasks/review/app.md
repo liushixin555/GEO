@@ -1,212 +1,330 @@
-# 代码评审：apis/app.ts
+# 架构评审：apis/app.ts
 
 **评审日期**: 2026-05-23
-**评审角色**: 软件质量专家
+**评审角色**: 软件架构专家
 **评审范围**: Express 应用入口文件 `apis/app.ts`（209 行）
-**关联文件**: `apis/config/index.ts`, `apis/middleware/*.ts`
+**关联文件**: `apis/server.ts`, `apis/config/index.ts`, `apis/middleware/*.ts`, `apis/controller/*.ts`
 
 ---
 
-## 1. 总体评分：B（良好，有改进空间）
+## 1. 架构总体评级：B+（结构合理，存在架构级改进空间）
 
-文件结构清晰，中间件链顺序合理，路由分组有注释说明。但存在 **2 个高优先级问题** 和 **5 个中优先级问题**，建议尽快处理。
+`app.ts` 作为 Express 应用的组装层（Composition Root），职责定位清晰——中间件注册 + 路由挂载。整体结构在中小型项目中可接受，但随着业务域增长（当前已有 16 个 controller、52 条路由），面临模块化和扩展性挑战。
 
 ---
 
-## 2. 评审发现
+## 2. 架构视图分析
 
-### CRITICAL（关键）— 0 项
+### 2.1 分层架构
 
-无关键安全漏洞或数据丢失风险。
+```
+server.ts (进程管理)
+  └─ app.ts (组装层 / Composition Root)
+       ├─ middleware/ (横切关注点)
+       │   ├─ helmet → cors → json → static
+       │   ├─ antiCrawlMiddleware (内存级 IP 封禁)
+       │   ├─ rateLimitMiddleware (express-rate-limit)
+       │   └─ authMiddleware + roleMiddleware (JWT + RBAC)
+       └─ controller/*.ts (16 个，直接挂载到 app)
+```
 
-### HIGH（高优先级）— 2 项
+**评价**: 分层结构存在，但组装层（app.ts）直接耦合了所有 controller，缺少路由层抽象。
 
-#### H1: 缺少全局错误处理中间件
+### 2.2 中间件管道
 
-**位置**: 文件末尾（缺少）
+```
+请求 → helmet → cors → express.json → static(/uploads) → antiCrawl → rateLimit → [路由匹配] → authMiddleware → roleMiddleware → controller
+```
 
-**问题**: 没有注册全局错误处理中间件（error handler middleware）和 404 fallback handler。如果任何 controller 或 service 抛出未捕获异常，Express 默认返回 HTML 格式的错误栈，可能泄露内部实现细节。
+**评价**: 中间件顺序正确——安全头部 → 跨域 → 解析 → 限流 → 认证 → 授权。但存在以下问题：
 
-**影响**:
-- 未处理异常时向客户端暴露 Express 版本和调用栈
-- 404 路由返回 HTML 而非 JSON，前端无法正确处理
+| 环节 | 问题 | 风险 |
+|------|------|------|
+| helmet | 配置合理 | 无 |
+| cors | 无 origin 白名单 | **高** |
+| static | `/uploads` 路径经过 antiCrawl + rateLimit | 健康检查和静态资源被不必要限流 |
+| antiCrawl | 内存 Map 存储，进程重启丢失 | 中 |
+| rateLimit | 使用 `express-rate-limit`（默认内存存储） | 中 |
+
+---
+
+## 3. 架构级发现
+
+### ARCH-1: 缺少路由模块化层（架构债务）
+
+**严重度**: HIGH
+**位置**: 第 71-202 行
+
+**现状**: 52 条路由全部在 `app.ts` 中线性注册，直接引用 16 个 controller 模块。
+
+**问题**:
+- 违反**关注点分离**原则——app.ts 同时承担路由注册和中间件配置两个职责
+- 路由无法独立测试（必须启动完整 Express 实例）
+- 不同业务域（auth、article、knowledge）的路由混杂在一起
+- 新增路由只能追加到文件末尾，无法按领域隔离
+
+**建议架构**:
+
+```
+apis/
+├─ app.ts              (仅中间件配置 + 路由挂载)
+├─ routes/
+│   ├─ index.ts        (汇总导出)
+│   ├─ auth.routes.ts
+│   ├─ company.routes.ts
+│   ├─ article.routes.ts
+│   ├─ knowledge.routes.ts
+│   └─ ...
+└─ controller/
+    └─ ...
+```
+
+```typescript
+// routes/article.routes.ts
+import { Router } from 'express';
+import { authMiddleware, roleMiddleware } from '../middleware';
+import * as articleController from '../controller/article.controller';
+
+const router = Router();
+
+router.get('/:projectId/articles', authMiddleware, roleMiddleware('sysadmin', 'admin'), articleController.listArticles);
+// ...
+
+export default router;
+
+// app.ts
+import articleRoutes from './routes/article.routes';
+app.use('/api/projects', articleRoutes);
+```
+
+**收益**: 路由可独立测试、按域隔离、app.ts 从 209 行缩减至 ~60 行。
+
+---
+
+### ARCH-2: 缺少全局错误处理层（架构缺陷）
+
+**严重度**: HIGH
+**位置**: 文件末尾（缺失）
+
+**现状**: 没有 error handler middleware 和 404 fallback。
+
+**问题**:
+- 未捕获异常由 Express 默认处理，返回 HTML 格式错误栈（泄露内部实现）
+- 404 路由由 Express 默认处理（HTML 响应），前端 JSON 解析失败
+- 没有统一的错误响应格式，各 controller 各自处理错误
 
 **建议**:
 ```typescript
-// 404 fallback — 放在所有路由之后
+// 必须放在所有路由之后
 app.use((_req, res) => {
   res.status(404).json({ code: 404, message: '接口不存在' });
 });
 
-// 全局错误处理 — 必须放在最后，4 个参数
+// 全局错误处理 — Express 通过 4 参数签名识别
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('[Unhandled Error]', err);
+  logger.error('Unhandled exception', err);
   res.status(500).json({ code: 500, message: '服务器内部错误' });
 });
 ```
 
-#### H2: CORS 配置完全开放
+---
 
-**位置**: 第 31 行 `app.use(cors())`
+### ARCH-3: CORS 安全策略缺失（安全架构问题）
 
-**问题**: `cors()` 不带任何配置参数，表示 **允许任何来源的跨域请求**。在生产环境中，这会导致 CSRF 攻击面扩大。
+**严重度**: HIGH
+**位置**: 第 31 行
 
-**影响**:
-- 恶意网站可以代替用户向 API 发起请求
-- 浏览器不会拦截跨域请求
+**现状**: `app.use(cors())` — 允许任意来源的跨域请求。
 
-**建议**:
+**问题**:
+- 任何域名都可以向此 API 发起请求
+- 浏览器不会拦截来自恶意网站的请求
+- 与 JWT 认证组合使用时，若前端存储 token 在 cookie 中，构成 CSRF 攻击面
+
+**建议**: 配置化 CORS 白名单：
 ```typescript
 app.use(cors({
-  origin: config.corsOrigins, // 从配置读取允许的域名列表
+  origin: (origin, callback) => {
+    const allowed = config.corsOrigins || ['http://localhost:5173'];
+    if (!origin || allowed.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS not allowed'));
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
 }));
 ```
 
-### MEDIUM（中优先级）— 5 项
+---
 
-#### M1: 缺少 API 版本控制
+### ARCH-4: 静态资源与 API 共享中间件链（架构耦合）
 
-**位置**: 所有路由前缀 `/api/`
+**严重度**: MEDIUM
+**位置**: 第 35-38 行 vs 第 41-42 行
 
-**问题**: 所有 API 都使用 `/api/` 前缀，没有版本号（如 `/api/v1/`）。一旦需要做不兼容变更，无法平滑过渡。
+**现状**: `/uploads` 静态文件路由注册在 antiCrawl/rateLimit 之前，但 health check 端点（第 205 行）在其之后。
 
-**建议**: 引入版本前缀 `/api/v1/`，通过 Express Router 隔离不同版本的 handler。
+**问题**:
+- `/api/health` 经过 antiCrawl 和 rateLimit 中间件，可能被限流
+- 生产环境健康检查（负载均衡器探测）可能被误封 IP
+- 静态资源请求被 antiCrawl 检查 User-Agent，影响 CDN 回源
 
-#### M2: 路由定义过于集中
-
-**位置**: 第 71-202 行
-
-**问题**: 所有 50+ 条路由集中在一个文件中（约 130 行路由定义），耦合了 16 个 controller。随着业务增长，维护成本高。
-
-**建议**: 将路由拆分到 `routes/` 目录，每个领域一个路由文件（如 `auth.routes.ts`、`article.routes.ts`），在 `app.ts` 中只负责挂载：
+**建议**: 分离公共端点和受保护端点的中间件链：
 ```typescript
-import authRoutes from './routes/auth.routes';
-app.use('/api/v1/auth', authRoutes);
+// 公共端点 — 不经过限流
+app.get('/api/health', healthHandler);
+app.use('/uploads', staticMiddleware);
+
+// 受限端点 — 经过完整中间件链
+app.use(antiCrawlMiddleware);
+app.use(rateLimitMiddleware);
+// ... 所有 API 路由
 ```
 
-#### M3: Swagger 规格每次请求重新生成
+---
 
+### ARCH-5: Anti-Crawl 内存存储限制扩展性（部署架构问题）
+
+**严重度**: MEDIUM
+**位置**: `apis/middleware/anti-crawl.middleware.ts`
+
+**现状**: IP 封禁数据存储在进程内存 `Map` 中。
+
+**问题**:
+- **多实例部署不共享**: 如果使用 PM2 cluster 或容器编排，每个实例独立计数，攻击者可分散到不同实例绕过限制
+- **进程重启数据丢失**: 封禁记录全部清空
+- **无 LRU 淘汰**: Map 无限增长，长时间运行可能内存泄漏
+
+**建议**: 对于单实例部署，当前可接受。若需横向扩展：
+- 短期：给 Map 添加定期清理和最大容量限制
+- 长期：迁移到 Redis 存储，使用 `rate-limit-redis`
+
+---
+
+### ARCH-6: 缺少 API 版本化策略（演进架构问题）
+
+**严重度**: MEDIUM
+**位置**: 所有路由 `/api/` 前缀
+
+**现状**: 所有 API 使用 `/api/` 前缀，无版本号。
+
+**问题**:
+- 不兼容变更（如删除字段、修改 URL 结构）无法平滑过渡
+- 前后端必须同时发布
+- 没有版本策略意味着 v1 隐式存在，后续无法引入 v2
+
+**建议**: 引入 URL 版本前缀 + Express Router：
+```typescript
+import v1Routes from './routes/v1';
+app.use('/api/v1', v1Routes);
+```
+
+---
+
+### ARCH-7: Swagger 规格无条件初始化（资源浪费）
+
+**严重度**: LOW
 **位置**: 第 45-64 行
 
-**问题**: `swaggerJSDoc()` 在模块加载时执行一次，这本身没问题。但 `swaggerSpec` 对象是一个闭包变量，当 `config.swagger.enabled` 为 false 时仍然执行了 `swaggerJSDoc()` 的文件扫描。
+**现状**: `swaggerJSDoc()` 在模块加载时执行，即使 `config.swagger.enabled` 为 false。
 
-**建议**: 延迟初始化 Swagger：
+**问题**: 生产环境执行了不必要的文件 I/O（扫描 `controller/*.ts`）。
+
+**建议**: 延迟到条件分支内：
 ```typescript
 if (config.swagger.enabled) {
   const swaggerSpec = swaggerJSDoc({ ... });
   app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
-  app.get('/api-docs.json', (_req, res) => res.json(swaggerSpec));
 }
 ```
 
-#### M4: 静态文件服务缺少安全限制
+---
 
-**位置**: 第 35-38 行
+## 4. 架构质量属性评估
 
-**问题**: `/uploads` 路径直接映射到文件系统目录，没有：
-- 文件类型白名单（可下载任意上传的文件）
-- 目录遍历防护（Express 默认已处理，但建议显式确认）
-- 缓存头设置（大文件每次都重新传输）
+### 4.1 可维护性 — 6/10
 
-**建议**:
-```typescript
-app.use('/uploads', (req, res, next) => {
-  res.set('Cross-Origin-Resource-Policy', 'cross-origin');
-  res.set('Cache-Control', 'public, max-age=86400'); // 1 天缓存
-  next();
-}, express.static(path.resolve(process.cwd(), 'uploads'), {
-  dotfiles: 'deny',      // 禁止访问 .env 等隐藏文件
-  maxAge: '1d',
-}));
-```
+| 维度 | 评分 | 说明 |
+|------|------|------|
+| 模块化 | 5 | 路由未拆分，controller 直接耦合到 app |
+| 可读性 | 8 | 注释清晰，路由分组明确 |
+| 可测试性 | 5 | 路由无法独立测试，需完整启动 |
+| 代码量 | 7 | 209 行可接受，但路由部分占 130 行 |
 
-#### M5: 缺少请求体大小限制
+### 4.2 安全性 — 6/10
 
-**位置**: 第 32 行 `app.use(express.json())`
+| 维度 | 评分 | 说明 |
+|------|------|------|
+| 认证 | 9 | JWT + roleMiddleware，设计良好 |
+| CORS | 3 | 完全开放，生产环境不可接受 |
+| 错误暴露 | 4 | 缺少全局错误处理，可能泄露栈信息 |
+| 输入验证 | 7 | express.json + 各 controller 验证 |
 
-**问题**: 没有设置 `express.json()` 的 `limit` 参数，默认限制为 100kb。建议显式设置以便团队了解限制值，并根据业务需要调整。
+### 4.3 可扩展性 — 5/10
 
-**建议**:
-```typescript
-app.use(express.json({ limit: '10mb' })); // 显式声明
-```
+| 维度 | 评分 | 说明 |
+|------|------|------|
+| 横向扩展 | 4 | antiCrawl/rateLimit 内存存储不共享 |
+| 功能扩展 | 6 | 新增路由需修改 app.ts，但模式一致 |
+| API 演进 | 4 | 无版本化策略 |
 
-### LOW（低优先级）— 3 项
+### 4.4 运维友好度 — 7/10
 
-#### L1: 缺少请求压缩中间件
-
-**问题**: 没有使用 `compression` 中间件，JSON 响应未压缩传输，带宽利用率低。
-
-**建议**: `app.use(compression())` 放在路由之前。
-
-#### L2: 缺少请求 ID 追踪
-
-**问题**: 没有生成请求 ID（`X-Request-Id` header），日志中无法关联同一请求的多条记录。
-
-**建议**: 使用 `uuid` 或 `nanoid` 为每个请求生成唯一 ID，并附加到 `req` 对象上。
-
-#### L3: 健康检查端点位置不佳
-
-**位置**: 第 205 行
-
-**问题**: `/api/health` 放在所有路由最后，但经过 anti-crawl 和 rate-limit 中间件后可能被拦截。建议将其移到中间件链之前，或者使用单独的 Express 实例。
+| 维度 | 评分 | 说明 |
+|------|------|------|
+| 健康检查 | 5 | 端点存在但可能被限流 |
+| 优雅关闭 | 9 | server.ts 处理完善 |
+| 配置管理 | 8 | config 模块集中管理 |
+| 日志 | 6 | 缺少请求 ID 追踪 |
 
 ---
 
-## 3. 架构评估
+## 5. 架构改进路线图
 
-### 优点
+### Phase 1: 安全加固（优先级 P0，预估 2h）
 
-| 方面 | 评价 |
-|------|------|
-| 中间件顺序 | helmet → cors → json → anti-crawl → rate-limit → auth，顺序合理 |
-| 路由分组 | 有注释说明（Company/Skills/User/Article 等），可读性好 |
-| 角色控制 | 每个路由都显式声明允许的角色，权限边界清晰 |
-| 配置驱动 | Swagger 开关、端口、JWT 配置均来自 config，便于环境切换 |
+| 编号 | 改进项 | 工作量 |
+|------|--------|--------|
+| ARCH-2 | 添加全局错误处理 + 404 fallback | 1h |
+| ARCH-3 | 配置 CORS 白名单 | 0.5h |
+| ARCH-4 | 分离公共/受保护中间件链 | 0.5h |
 
-### 不足
+### Phase 2: 模块化重构（优先级 P1，预估 4h）
 
-| 方面 | 评价 |
-|------|------|
-| 模块化 | 路由和 app 耦合，建议拆分路由模块 |
-| 错误处理 | 缺少全局错误兜底 |
-| 可测试性 | 路由注册难以独立测试 |
-| 横向扩展 | anti-crawl 使用内存 Map，多实例部署时 IP 封禁不共享 |
+| 编号 | 改进项 | 工作量 |
+|------|--------|--------|
+| ARCH-1 | 路由拆分到 `routes/` 目录 | 3h |
+| ARCH-7 | Swagger 延迟初始化 | 0.5h |
+| ARCH-4 | 请求体大小限制显式设置 | 0.5h |
 
----
+### Phase 3: 扩展性优化（优先级 P2，按需）
 
-## 4. 度量统计
-
-| 指标 | 值 | 标准 | 评级 |
-|------|-----|------|------|
-| 文件行数 | 209 | < 800 | 合格 |
-| 导入数量 | 22 | < 30 | 合格 |
-| 路由数量 | 52 | — | — |
-| 嵌套深度 | 最大 1 层 | < 4 | 合格 |
-| 硬编码密钥 | 0 | 0 | 合格 |
-| console.log | 0 | 0 | 合格 |
+| 编号 | 改进项 | 工作量 |
+|------|--------|--------|
+| ARCH-6 | API 版本前缀 `/api/v1/` | 2h |
+| ARCH-5 | antiCrawl 添加清理机制/迁移 Redis | 2h |
 
 ---
 
-## 5. 改进建议优先级
+## 6. 与已有质量评审的对照
 
-| 优先级 | 编号 | 改进项 | 预估工作量 |
-|--------|------|--------|------------|
-| **P0** | H1 | 添加全局错误处理 + 404 fallback | 0.5h |
-| **P0** | H2 | 配置 CORS 白名单 | 0.5h |
-| P1 | M1 | API 版本前缀 | 2h（需同步改前端） |
-| P1 | M2 | 路由拆分到 routes/ | 3h |
-| P1 | M4 | uploads 安全加固 | 1h |
-| P2 | M3 | Swagger 延迟初始化 | 0.5h |
-| P2 | M5 | 显式设置请求体限制 | 0.2h |
-| P3 | L1-L3 | 压缩/请求ID/健康检查 | 1h |
-
-**总计预估工作量**: 约 8.7h
+| 维度 | 质量评审结论 | 架构评审补充 |
+|------|-------------|-------------|
+| 全局错误处理 | HIGH — 安全风险 | **架构缺陷** — 影响所有 controller 的错误传播模式 |
+| CORS 开放 | HIGH — 安全风险 | **安全架构** — 需纳入部署架构规范 |
+| 路由集中 | MEDIUM — 可维护性 | **架构债务** — 阻碍独立测试和模块化演进 |
+| API 版本 | MEDIUM — 建议 | **演进架构** — 影响前后端发布策略 |
+| antiCrawl 内存 | 未涉及 | **部署架构** — 影响横向扩展决策 |
 
 ---
 
-## 6. 结论
+## 7. 结论
 
-`app.ts` 作为 Express 应用入口，结构清晰、中间件链合理、角色权限控制到位。主要风险在于 **缺少全局错误处理**（可能导致错误栈泄露）和 **CORS 完全开放**（安全风险）。建议优先处理 H1 和 H2，然后逐步推进路由模块化拆分。
+`app.ts` 在中小型单体应用中表现合格，中间件管道设计合理，认证授权架构（JWT + RBAC）清晰。核心架构问题集中在三个方面：
+
+1. **缺少错误处理层** — 影响系统的健壮性和安全性，应立即修复
+2. **路由与组装层耦合** — 阻碍模块化演进和独立测试，应在功能稳定后重构
+3. **无 API 版本策略** — 影响长期演进能力，建议在 v2 需求出现前建立
+
+建议按 Phase 1 → Phase 2 → Phase 3 的顺序推进改进，优先解决安全相关的架构缺陷。
