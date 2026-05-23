@@ -752,19 +752,49 @@ describe('Article Controller', () => {
       expect(response.status).toBe(400);
     });
 
-    it('should allow admin operator to review', async () => {
+    it('should allow admin operator to review (non-creator)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const { mockPrismaWithProjectAccess: _mock } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(pendingArticle),
+          update: jest.fn().mockResolvedValue({ ...pendingArticle, status: 'publishing' }),
+        },
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 2, status: true,
+            createdAt: new Date(), updatedAt: new Date(),
+            company: { shortName: 'Company A' },
+            operators: [{ userId: 3, user: { cnName: '李四' } }],
+            viewers: [],
+          }),
+        },
+      });
+
+      // admin operator userId=3, different from createdBy=2
+      const response = await agent
+        .put(`${BASE}/1/review`)
+        .set('Authorization', `Bearer ${adminToken(3, 2)}`)
+        .send({ approved: true });
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should reject creator reviewing own article (HIGH-2 SoD)', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       mockPrismaWithProjectAccess({
         findFirst: jest.fn().mockResolvedValue(pendingArticle),
         update: jest.fn().mockResolvedValue({ ...pendingArticle, status: 'publishing' }),
       });
 
+      // admin operator userId=2, same as createdBy=2
       const response = await agent
         .put(`${BASE}/1/review`)
         .set('Authorization', `Bearer ${adminToken(2, 2)}`)
         .send({ approved: true });
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('不能审核自己创建的文章');
     });
   });
 
