@@ -859,7 +859,7 @@ export async function saveMinedKeywords(req: Request, res: Response): Promise<vo
     const { keywords } = req.body;
     if (!Array.isArray(keywords) || keywords.length === 0) { fail(res, 400, '请选择至少一个关键词'); return; }
 
-    const result = await keywordService.batchCreate(baseId, keywords, userId);
+    const result = await keywordService.batchCreate(baseId, keywords, userId, '关键词挖掘');
 
     // Delete saved keywords from mined list
     const prisma = getPrisma();

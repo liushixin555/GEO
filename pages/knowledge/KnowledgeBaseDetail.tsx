@@ -16,6 +16,7 @@ interface KeywordItem {
   id: number;
   base_id: number;
   keyword: string;
+  seed_word: string | null;
   created_by: number | null;
   created_at: string;
 }
@@ -239,7 +240,7 @@ const KnowledgeBaseDetail: React.FC = () => {
     try {
       const token = localStorage.getItem('token');
       const res = await axios.post(`/api/knowledge-bases/${baseId}/keywords/batch`,
-        { keywords: unique },
+        { keywords: unique, seed_word: '手工输入' },
         { headers: { Authorization: `Bearer ${token}` } },
       );
       message.success(res.data.message || `成功添加 ${unique.length} 个关键词`);
@@ -435,6 +436,17 @@ const KnowledgeBaseDetail: React.FC = () => {
       ellipsis: { showTitle: true },
     },
     {
+      title: '来源',
+      dataIndex: 'seed_word',
+      key: 'seed_word',
+      width: 120,
+      render: (val: string | null) => {
+        if (!val) return <Tag>手工输入</Tag>;
+        if (val === '关键词挖掘') return <Tag color="purple">关键词挖掘</Tag>;
+        return <Tag color="blue">{val}</Tag>;
+      },
+    },
+    {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
@@ -489,6 +501,8 @@ const KnowledgeBaseDetail: React.FC = () => {
                   </div>
                   <div className="item-card-row">
                     <span className="item-card-username">{formatDate(item.created_at)}</span>
+                    {item.seed_word && <Tag style={{ marginLeft: 8 }} color={item.seed_word === '关键词挖掘' ? 'purple' : 'blue'}>{item.seed_word}</Tag>}
+                    {!item.seed_word && <Tag style={{ marginLeft: 8 }}>手工输入</Tag>}
                   </div>
                 </Card>
               </Col>
