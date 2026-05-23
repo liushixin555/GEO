@@ -817,6 +817,10 @@ a:hover {
   width: 100px;
 }
 
+.publishing-table .col-author {
+  width: 90px;
+}
+
 .publishing-table .col-schedule {
   width: 140px;
 }
