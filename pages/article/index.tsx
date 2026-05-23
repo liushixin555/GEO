@@ -136,10 +136,10 @@ const ArticlePage: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 120,
+      width: 60,
       render: (_: unknown, record: ArticleItem) => (
-        <Popconfirm title="确定删除此文章？" onConfirm={() => handleDelete(record)} okText="删除" cancelText="取消">
-          <Button type="link" size="small" danger disabled={!canDelete(record)}>删除</Button>
+        <Popconfirm title="确定删除此文章？" onConfirm={() => handleDelete(record)} okText="删除" cancelText="取消" disabled={!canDelete(record)}>
+          <Button type="text" size="small" icon={<DeleteOutlined />} danger={canDelete(record)} disabled={!canDelete(record)} />
         </Popconfirm>
       ),
     },
@@ -206,17 +206,16 @@ const ArticlePage: React.FC = () => {
                   <Typography.Text ellipsis style={{ flex: 1, minWidth: 0 }}>关键词: {item.keywords || '-'}</Typography.Text>
                   <Typography.Text>创建时间: {formatDate(item.created_at)}</Typography.Text>
                 </Flex>
-                {canDelete(item) && (
-                  <div className="article-card-footer">
-                    <Popconfirm
-                      title="确定删除此文章？"
-                      onConfirm={(e) => { e?.stopPropagation(); handleDelete(item); }}
-                      okText="删除" cancelText="取消"
-                    >
-                      <Button type="link" size="small" danger onClick={(e) => e.stopPropagation()}>删除</Button>
-                    </Popconfirm>
-                  </div>
-                )}
+                <div className="article-card-footer">
+                  <Popconfirm
+                    title="确定删除此文章？"
+                    onConfirm={(e) => { e?.stopPropagation(); handleDelete(item); }}
+                    okText="删除" cancelText="取消"
+                    disabled={!canDelete(item)}
+                  >
+                    <Button type="text" size="small" icon={<DeleteOutlined />} danger={canDelete(item)} disabled={!canDelete(item)} onClick={(e) => e.stopPropagation()} />
+                  </Popconfirm>
+                </div>
               </Card>
             );
           })}

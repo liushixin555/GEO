@@ -217,9 +217,9 @@ const KnowledgePage: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 100,
+      width: 60,
       render: (_: unknown, record: KnowledgeBaseItem) => (
-        <Button type="link" size="small" icon={<EditOutlined />} disabled={!canModify(record)} onClick={() => { setEditItem(record); setShowForm(true); }}>编辑</Button>
+        <Button type="text" size="small" icon={<EditOutlined />} disabled={!canModify(record)} onClick={() => { setEditItem(record); setShowForm(true); }} style={{ color: canModify(record) ? 'var(--color-primary, #0f62fe)' : undefined }} />
       ),
     },
   ];
@@ -323,9 +323,13 @@ const KnowledgePage: React.FC = () => {
                   <Descriptions.Item label="统计"><Space size={12}><Space size={0}><FileTextOutlined />{item.document_count}</Space><Space size={0}><SolutionOutlined />{item.portrait_count}</Space><Space size={0}><PictureOutlined />{item.image_count}</Space><Space size={0}><TagsOutlined />{item.keyword_count}</Space></Space></Descriptions.Item>
                   <Descriptions.Item label="创建时间">{formatDate(item.created_at)}</Descriptions.Item>
                 </Descriptions>
-                {canModify(item) && (
+                {canModify(item) ? (
                   <div className="knowledge-card-footer">
-                    <Button type="link" size="small" icon={<EditOutlined />} onClick={(e) => { e.stopPropagation(); setEditItem(item); setShowForm(true); }}>编辑</Button>
+                    <Button type="text" size="small" icon={<EditOutlined />} onClick={(e) => { e.stopPropagation(); setEditItem(item); setShowForm(true); }} style={{ color: 'var(--color-primary, #0f62fe)' }} />
+                  </div>
+                ) : (
+                  <div className="knowledge-card-footer">
+                    <Button type="text" size="small" icon={<EditOutlined />} disabled style={{ color: undefined }} />
                   </div>
                 )}
               </Card>

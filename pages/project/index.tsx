@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Row, Col, Card, Input, Select, Switch, Tag, Spin, Pagination, Breadcrumb, Button, Descriptions, Table, App } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import axios from 'axios';
 import ProjectForm from './ProjectForm';
@@ -138,9 +138,9 @@ const ProjectPage: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 80,
+      width: 60,
       render: (_: unknown, record: ProjectItem) => (
-        <Button type="link" size="small" onClick={() => { setEditItem(record); setShowForm(true); }}>编辑</Button>
+        <Button type="text" size="small" icon={<EditOutlined />} onClick={() => { setEditItem(record); setShowForm(true); }} style={{ color: 'var(--color-primary, #0f62fe)' }} />
       ),
     },
   ];
@@ -214,7 +214,7 @@ const ProjectPage: React.FC = () => {
                 <Descriptions.Item label="运营者">{item.operator_names.length > 0 ? item.operator_names.join(', ') : '-'}</Descriptions.Item>
               </Descriptions>
               <div className="project-card-footer">
-                <Button type="link" size="small" onClick={() => { setEditItem(item); setShowForm(true); }}>编辑</Button>
+                <Button type="text" size="small" icon={<EditOutlined />} onClick={() => { setEditItem(item); setShowForm(true); }} style={{ color: 'var(--color-primary, #0f62fe)' }} />
               </div>
             </Card>
           ))}

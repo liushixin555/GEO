@@ -117,10 +117,10 @@ const SkillPage: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 80,
+      width: 60,
       render: (_: unknown, record: SkillsItem) => (
-        <Popconfirm title="确定删除此技能？" onConfirm={() => handleDelete(record)} okText="删除" cancelText="取消">
-          <Button type="link" size="small" danger disabled={!canModify(record)}>删除</Button>
+        <Popconfirm title="确定删除此技能？" onConfirm={() => handleDelete(record)} okText="删除" cancelText="取消" disabled={!canModify(record)}>
+          <Button type="text" size="small" icon={<DeleteOutlined />} danger={canModify(record)} disabled={!canModify(record)} />
         </Popconfirm>
       ),
     },
@@ -158,13 +158,11 @@ const SkillPage: React.FC = () => {
                 <span>添加者：{item.creator_name || '-'}</span>
                 <span>{formatDateTime(item.created_at)}</span>
               </div>
-              {canModify(item) && (
-                <div className="skills-card-footer">
-                  <Popconfirm title="确定删除此技能？" onConfirm={() => handleDelete(item)} okText="删除" cancelText="取消">
-                    <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
-                  </Popconfirm>
-                </div>
-              )}
+              <div className="skills-card-footer">
+                <Popconfirm title="确定删除此技能？" onConfirm={() => handleDelete(item)} okText="删除" cancelText="取消" disabled={!canModify(item)}>
+                  <Button type="text" size="small" icon={<DeleteOutlined />} danger={canModify(item)} disabled={!canModify(item)} />
+                </Popconfirm>
+              </div>
             </Card>
           ))}
         </div>
