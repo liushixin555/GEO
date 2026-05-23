@@ -2,6 +2,7 @@ import { getPrisma } from '../../utils';
 import { Todo, TodoLog, CreateTodoRequest, UpdateTodoRequest, TransferTodoRequest } from '../../entity';
 import { mapTodo, mapTodoLog } from '../../map';
 import { ITodoService } from '../todo.service';
+import { NotFoundError, BusinessError, ForbiddenError } from '../../errors';
 
 export class TodoServiceImpl implements ITodoService {
   async list(params: {
@@ -19,11 +20,6 @@ export class TodoServiceImpl implements ITodoService {
 
     const where: any = { deletedAt: null };
 
-    // Tab-based filtering
-    // my_open: 我的待办 (assignee = me, status = open/draft)
-    // my_closed: 我的已办 (assignee = me, status = closed)
-    // all_open: 全部待办 (status = open/draft)
-    // all_closed: 全部已办 (status = closed)
     switch (tab) {
       case 'my_open':
         where.assigneeId = userId;
@@ -44,7 +40,6 @@ export class TodoServiceImpl implements ITodoService {
         where.status = { in: ['open', 'draft'] };
     }
 
-    // Role-based company filtering for "all" tabs
     if ((tab === 'all_open' || tab === 'all_closed') && role !== 'sysadmin') {
       if (companyId) {
         where.companyId = companyId;
@@ -81,7 +76,7 @@ export class TodoServiceImpl implements ITodoService {
     return { list: items.map(mapTodo), total };
   }
 
-  async getById(id: number): Promise<Todo> {
+  async getById(id: number, userId: number, role: string, companyId: number | null): Promise<Todo> {
     const prisma = getPrisma();
     const item = await prisma.todo.findFirst({
       where: { id, deletedAt: null },
@@ -92,7 +87,12 @@ export class TodoServiceImpl implements ITodoService {
         createdBy: true,
       },
     });
-    if (!item) throw new Error('待办不存在');
+    if (!item) throw new NotFoundError('待办');
+
+    if (role !== 'sysadmin' && item.companyId !== companyId) {
+      throw new ForbiddenError('无权访问该待办');
+    }
+
     return mapTodo(item);
   }
 
@@ -122,7 +122,6 @@ export class TodoServiceImpl implements ITodoService {
       },
     });
 
-    // Create log
     await prisma.todoLog.create({
       data: {
         todoId: item.id,
@@ -138,14 +137,14 @@ export class TodoServiceImpl implements ITodoService {
     const prisma = getPrisma();
 
     const existing = await prisma.todo.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('待办不存在');
+    if (!existing) throw new NotFoundError('待办');
 
     if (existing.status === 'closed') {
-      throw new Error('已关闭的待办不能修改');
+      throw new BusinessError('已关闭的待办不能修改');
     }
 
     if (role !== 'sysadmin' && existing.assigneeId !== userId) {
-      throw new Error('只能修改自己负责的待办');
+      throw new BusinessError('只能修改自己负责的待办');
     }
 
     const data: any = {};
@@ -174,13 +173,13 @@ export class TodoServiceImpl implements ITodoService {
     const prisma = getPrisma();
 
     const existing = await prisma.todo.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('待办不存在');
+    if (!existing) throw new NotFoundError('待办');
     if (existing.status !== 'open') {
-      throw new Error('只有处理中的待办可以关闭');
+      throw new BusinessError('只有处理中的待办可以关闭');
     }
 
     if (role !== 'sysadmin' && existing.assigneeId !== userId) {
-      throw new Error('只能关闭自己负责的待办');
+      throw new BusinessError('只能关闭自己负责的待办');
     }
 
     const updated = await prisma.todo.update({
@@ -209,13 +208,13 @@ export class TodoServiceImpl implements ITodoService {
     const prisma = getPrisma();
 
     const existing = await prisma.todo.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('待办不存在');
+    if (!existing) throw new NotFoundError('待办');
     if (existing.status !== 'closed') {
-      throw new Error('只有已关闭的待办可以重新打开');
+      throw new BusinessError('只有已关闭的待办可以重新打开');
     }
 
     if (role !== 'sysadmin' && existing.assigneeId !== userId) {
-      throw new Error('只能重新打开自己负责的待办');
+      throw new BusinessError('只能重新打开自己负责的待办');
     }
 
     const updated = await prisma.todo.update({
@@ -244,18 +243,17 @@ export class TodoServiceImpl implements ITodoService {
     const prisma = getPrisma();
 
     const existing = await prisma.todo.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('待办不存在');
+    if (!existing) throw new NotFoundError('待办');
     if (existing.status !== 'open') {
-      throw new Error('只有处理中的待办可以转交');
+      throw new BusinessError('只有处理中的待办可以转交');
     }
 
     if (role !== 'sysadmin' && existing.assigneeId !== userId) {
-      throw new Error('只能转交自己负责的待办');
+      throw new BusinessError('只能转交自己负责的待办');
     }
 
-    // Verify target user exists
     const targetUser = await prisma.user.findFirst({ where: { id: request.assignee_id, deletedAt: null } });
-    if (!targetUser) throw new Error('目标用户不存在');
+    if (!targetUser) throw new BusinessError('目标用户不存在');
 
     const updated = await prisma.todo.update({
       where: { id },
@@ -287,21 +285,19 @@ export class TodoServiceImpl implements ITodoService {
       where: { id, deletedAt: null },
       include: { createdBy: true },
     });
-    if (!existing) throw new Error('待办不存在');
+    if (!existing) throw new NotFoundError('待办');
     if (existing.status !== 'open') {
-      throw new Error('只有处理中的待办可以驳回');
+      throw new BusinessError('只有处理中的待办可以驳回');
     }
 
     if (role !== 'sysadmin') {
-      throw new Error('只有系统管理员可以驳回待办');
+      throw new ForbiddenError('只有系统管理员可以驳回待办');
     }
 
-    // Determine new assignee: user-created → creator, system-created → sysadmin
     let newAssigneeId: number;
     if (existing.source === 'manual') {
       newAssigneeId = existing.createdById;
     } else {
-      // Find sysadmin user
       const sysadmin = await prisma.user.findFirst({
         where: { role: 'sysadmin', deletedAt: null },
         orderBy: { id: 'asc' },
@@ -335,11 +331,15 @@ export class TodoServiceImpl implements ITodoService {
     return mapTodo(updated);
   }
 
-  async getLogs(todoId: number): Promise<TodoLog[]> {
+  async getLogs(todoId: number, userId: number, role: string, companyId: number | null): Promise<TodoLog[]> {
     const prisma = getPrisma();
 
     const todo = await prisma.todo.findFirst({ where: { id: todoId, deletedAt: null } });
-    if (!todo) throw new Error('待办不存在');
+    if (!todo) throw new NotFoundError('待办');
+
+    if (role !== 'sysadmin' && todo.companyId !== companyId) {
+      throw new ForbiddenError('无权访问该待办');
+    }
 
     const logs = await prisma.todoLog.findMany({
       where: { todoId },
@@ -348,5 +348,85 @@ export class TodoServiceImpl implements ITodoService {
     });
 
     return logs.map(mapTodoLog);
+  }
+
+  async getObjectOptions(params: {
+    projectId: number;
+    objectType: string;
+    action?: string;
+  }): Promise<{ id: number; name: string }[]> {
+    const prisma = getPrisma();
+    const { projectId, objectType, action } = params;
+    const showDeleted = action === 'restore';
+
+    if (objectType === 'article') {
+      const where: any = { projectId };
+      where.deletedAt = showDeleted ? { not: null } : null;
+
+      const items = await prisma.article.findMany({
+        where,
+        select: { id: true, title: true },
+        orderBy: { id: 'desc' },
+      });
+      return items.map(i => ({ id: i.id, name: i.title }));
+    }
+
+    if (objectType === 'keyword') {
+      const kbs = await prisma.knowledgeBase.findMany({
+        where: { projectId, deletedAt: null },
+        select: { id: true },
+      });
+      const baseIds = kbs.map(kb => kb.id);
+      if (baseIds.length === 0) return [];
+
+      const kwWhere: any = { baseId: { in: baseIds } };
+      kwWhere.deletedAt = showDeleted ? { not: null } : null;
+
+      const items = await prisma.knowledgeKeyword.findMany({
+        where: kwWhere,
+        select: { id: true, keyword: true },
+        orderBy: { id: 'desc' },
+      });
+      return items.map(i => ({ id: i.id, name: i.keyword }));
+    }
+
+    return [];
+  }
+
+  async getAssigneeCandidates(projectId: number): Promise<{
+    id: number;
+    username: string;
+    cn_name: string;
+    role: string;
+  }[]> {
+    const prisma = getPrisma();
+
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: { operators: { select: { userId: true } } },
+    });
+    if (!project) throw new NotFoundError('项目');
+
+    const operatorIds = project.operators.map(o => o.userId);
+
+    const users = await prisma.user.findMany({
+      where: {
+        OR: [
+          { id: { in: operatorIds } },
+          { role: 'sysadmin' },
+        ],
+        status: true,
+        deletedAt: null,
+      },
+      select: { id: true, username: true, cnName: true, role: true },
+      orderBy: { id: 'asc' },
+    });
+
+    const seen = new Set<number>();
+    return users.filter(u => {
+      if (seen.has(u.id)) return false;
+      seen.add(u.id);
+      return true;
+    }).map(u => ({ id: u.id, username: u.username, cn_name: u.cnName, role: u.role }));
   }
 }

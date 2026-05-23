@@ -339,3 +339,13 @@
 - 前端测试：ts-jest 需要内联 `tsconfig: { jsx: 'react-jsx' }`
 - 单文件测试：`npx jest --config jest.config.ts --no-cache --testPathPattern="tests/apis/auth"`
 - 全量测试：`npx jest --config jest.config.ts --no-cache`
+
+
+## 本次变更（2026-05-24 todo.controller 评审修复）
+- [x] 安全修复：IDOR 越权（SEC-C-01）
+- [x] 架构修复：Controller 直接操作 Prisma（C-1）
+- [x] 自定义异常体系 apis/errors.ts
+- [x] 输入验证 apis/schema/todo.schema.ts（Zod）
+- [x] 错误处理统一 handleError
+- [x] 164 个测试全部通过
+- [x] 安装 zod@4.4.3

@@ -226,20 +226,30 @@ describe('rateLimitMiddleware', () => {
   // 5. 边界情况
   // =========================================================
   describe('边界情况', () => {
-    test('windowMs 为 0 时应正确传递', () => {
+    test('windowMs 为最小值 1 时应正确传递', () => {
+      process.env.RATE_LIMIT_WINDOW_MS = '1';
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+
+      const callArgs = mockedRateLimit.mock.calls[0][0];
+      expect(callArgs.windowMs).toBe(1);
+    });
+
+    test('windowMs 为 0 时应抛出配置错误', () => {
       process.env.RATE_LIMIT_WINDOW_MS = '0';
       jest.resetModules();
       jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
 
-      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
-      require('../../../apis/middleware/rate-limit.middleware');
-
-      const callArgs = mockedRateLimit.mock.calls[0][0];
-      expect(callArgs.windowMs).toBe(0);
+      expect(() => {
+        require('../../../apis/middleware/rate-limit.middleware');
+      }).toThrow('RATE_LIMIT_WINDOW_MS must be >= 1, got: 0');
     });
 
-    test('max 为 0 时应正确传递（完全禁止请求）', () => {
-      process.env.RATE_LIMIT_MAX = '0';
+    test('max 为最小值 1 时应正确传递', () => {
+      process.env.RATE_LIMIT_MAX = '1';
       jest.resetModules();
       jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
 
@@ -247,7 +257,17 @@ describe('rateLimitMiddleware', () => {
       require('../../../apis/middleware/rate-limit.middleware');
 
       const callArgs = mockedRateLimit.mock.calls[0][0];
-      expect(callArgs.max).toBe(0);
+      expect(callArgs.max).toBe(1);
+    });
+
+    test('max 为 0 时应抛出配置错误', () => {
+      process.env.RATE_LIMIT_MAX = '0';
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      expect(() => {
+        require('../../../apis/middleware/rate-limit.middleware');
+      }).toThrow('RATE_LIMIT_MAX must be >= 1, got: 0');
     });
 
     test('极大的 max 值应正确传递', () => {

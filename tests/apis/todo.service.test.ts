@@ -328,7 +328,7 @@ describe('TodoServiceImpl', () => {
         todo: { findFirst: mockFindFirst },
       } as any);
 
-      const result = await service.getById(5);
+      const result = await service.getById(5, 1, 'sysadmin', 1);
 
       expect(result.id).toBe(5);
       expect(result.title).toBe('待办5');
@@ -345,7 +345,42 @@ describe('TodoServiceImpl', () => {
         todo: { findFirst: mockFindFirst },
       } as any);
 
-      await expect(service.getById(999)).rejects.toThrow('待办不存在');
+      await expect(service.getById(999, 1, 'sysadmin', 1)).rejects.toThrow('待办不存在');
+    });
+
+    it('非 sysadmin 访问其他公司的待办应抛出 ForbiddenError', async () => {
+      const item = makePrismaTodo({ id: 1, companyId: 99 });
+      const mockFindFirst = jest.fn().mockResolvedValue(item);
+
+      mockedGetPrisma.mockReturnValue({
+        todo: { findFirst: mockFindFirst },
+      } as any);
+
+      await expect(service.getById(1, 2, 'admin', 1)).rejects.toThrow('无权访问该待办');
+    });
+
+    it('sysadmin 可以访问任何公司的待办', async () => {
+      const item = makePrismaTodo({ id: 1, companyId: 99 });
+      const mockFindFirst = jest.fn().mockResolvedValue(item);
+
+      mockedGetPrisma.mockReturnValue({
+        todo: { findFirst: mockFindFirst },
+      } as any);
+
+      const result = await service.getById(1, 1, 'sysadmin', 1);
+      expect(result.id).toBe(1);
+    });
+
+    it('admin 可以访问自己公司的待办', async () => {
+      const item = makePrismaTodo({ id: 1, companyId: 5 });
+      const mockFindFirst = jest.fn().mockResolvedValue(item);
+
+      mockedGetPrisma.mockReturnValue({
+        todo: { findFirst: mockFindFirst },
+      } as any);
+
+      const result = await service.getById(1, 2, 'admin', 5);
+      expect(result.id).toBe(1);
     });
   });
 
@@ -1061,7 +1096,7 @@ describe('TodoServiceImpl', () => {
         todoLog: { findMany: mockLogFindMany },
       } as any);
 
-      const result = await service.getLogs(1);
+      const result = await service.getLogs(1, 1, 'sysadmin', 1);
 
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual({
@@ -1085,7 +1120,18 @@ describe('TodoServiceImpl', () => {
         todo: { findFirst: mockTodoFindFirst },
       } as any);
 
-      await expect(service.getLogs(999)).rejects.toThrow('待办不存在');
+      await expect(service.getLogs(999, 1, 'sysadmin', 1)).rejects.toThrow('待办不存在');
+    });
+
+    it('非 sysadmin 访问其他公司的待办日志应抛出 ForbiddenError', async () => {
+      const todo = makePrismaTodo({ id: 1, companyId: 99 });
+      const mockTodoFindFirst = jest.fn().mockResolvedValue(todo);
+
+      mockedGetPrisma.mockReturnValue({
+        todo: { findFirst: mockTodoFindFirst },
+      } as any);
+
+      await expect(service.getLogs(1, 2, 'admin', 1)).rejects.toThrow('无权访问该待办');
     });
 
     it('应按 createdAt 降序排列日志', async () => {
@@ -1098,7 +1144,7 @@ describe('TodoServiceImpl', () => {
         todoLog: { findMany: mockLogFindMany },
       } as any);
 
-      await service.getLogs(1);
+      await service.getLogs(1, 1, 'sysadmin', 1);
 
       expect(mockLogFindMany).toHaveBeenCalledWith(
         expect.objectContaining({

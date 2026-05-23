@@ -528,3 +528,65 @@ interface AuthenticatedRequest extends Request {
 ---
 
 *软件质量专家评审完成 — 2026-05-24*
+
+---
+
+## 修复记录（2026-05-24）
+
+根据软件质量专家、软件架构专家、代码安全专家、Committer 四方评审意见，已完成以下修复：
+
+### P0 修复（安全 + 一致性）
+
+| 编号 | 问题 | 修复方案 |
+|------|------|----------|
+| SEC-C-01 | IDOR 越权 — getTodo/getTodoLogs 缺少资源所有权校验 | `getById` 和 `getLogs` 新增 `userId/role/companyId` 参数，Service 层增加 `companyId` 校验，非 sysadmin 只能查看本公司待办 |
+| H-1 | createTodo 响应格式不一致 | 使用 `created()` 工具函数替代手动构造 201 响应 |
+| H-3 | catch 使用 `err: any` 且 err.message 泄露 | 统一改为 `err: unknown`，引入 `handleError` 统一处理函数，未知错误返回通用消息 |
+| H-5/SEC-L-02 | 字符串匹配异常检测 | 创建 `apis/errors.ts`（NotFoundError/BusinessError/ForbiddenError），Service 层全面替换 `throw new Error(...)` |
+| SEC-M-01 | catch 块 err.message 泄露 | `handleError` 函数统一处理，Prisma/未知错误返回通用消息 |
+
+### P1 修复（架构 + 验证）
+
+| 编号 | 问题 | 修复方案 |
+|------|------|----------|
+| C-1 | Controller 直接操作 Prisma | `getObjectOptions` 和 `getAssigneeCandidates` 数据访问逻辑下沉到 `TodoServiceImpl`，Controller 仅做 HTTP 适配 |
+| M-1 | ITodoService 接口不完整 | 新增 `getObjectOptions` 和 `getAssigneeCandidates` 接口方法 |
+| H-4/SEC-H-02 | 输入验证缺失 | 创建 `apis/schema/todo.schema.ts`（Zod schema），所有端点添加 Zod 验证 |
+| M-1 | page/pageSize 无边界 | Zod schema 限制 `page >= 1`、`1 <= pageSize <= 100` |
+| M-2 | tab 无白名单 | Zod schema 限制为 `my_open/my_closed/all_open/all_closed` 枚举 |
+| H-4 | getAssigneeCandidates 重复查询 | 合并为 Service 层单次查询 |
+
+### P2 修复（代码质量）
+
+| 编号 | 问题 | 修复方案 |
+|------|------|----------|
+| SEC-L-01 | ID 边界检查 | `isNaN(id) \|\| id <= 0` 双重校验 |
+| M-3 | req.body 整体传入 | Controller 层显式构造 DTO 对象 |
+| M-4 | parseInt 缺少基数 | 统一使用 `parseInt(value as string, 10)` |
+| L-1 | 错误消息魔法字符串 | 提取到 `handleError` 统一处理 |
+| H-1(arch) | 依赖倒置违反 | `const todoService: ITodoService = new TodoServiceImpl()` |
+| SEC-C-01(续) | reject 非管理员错误码 | `ForbiddenError` 返回 403（原为 400） |
+
+### 新增文件
+
+| 文件 | 说明 |
+|------|------|
+| `apis/errors.ts` | NotFoundError / BusinessError / ForbiddenError 异常类 |
+| `apis/schema/todo.schema.ts` | Zod 验证 schema（listTodos/createTodo/updateTodo/transferTodo/objectOptions/assigneeCandidates） |
+
+### 修改文件
+
+| 文件 | 变更说明 |
+|------|----------|
+| `apis/controller/todo.controller.ts` | 全面重写：统一错误处理、Zod 验证、DTO 构造、接口类型依赖、IDOR 修复、分层架构修复 |
+| `apis/service/todo.service.ts` | 接口扩展：getById/getLogs 增加 auth 参数，新增 getObjectOptions/getAssigneeCandidates |
+| `apis/service/impl/todo.service.impl.ts` | 实现扩展：自定义异常、IDOR 校验、新增两个方法、消除重复查询 |
+| `tests/apis/todo.controller.test.ts` | 更新 reject 状态码(400→403)、getTodoLogs 错误消息、objectType 验证 |
+| `tests/apis/todo.service.test.ts` | 更新 getById/getLogs 签名、新增 IDOR 测试 |
+
+### 测试结果
+
+- Todo 相关测试：164 个全部通过
+- 构建：前后端构建成功
+
+*修复完成 — 2026-05-24*

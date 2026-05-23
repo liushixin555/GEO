@@ -987,7 +987,7 @@ describe('Todo Controller', () => {
         .post('/api/todos/1/reject')
         .set('Authorization', `Bearer ${adminToken()}`);
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(403);
       expect(response.body.message).toBe('只有系统管理员可以驳回待办');
     });
 
@@ -1154,8 +1154,8 @@ describe('Todo Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
-      // controller uses err.message when truthy
-      expect(response.body.message).toBe('DB Error');
+      // handleError returns generic message for unknown errors
+      expect(response.body.message).toBe('获取操作日志失败');
     });
   });
 
@@ -1277,13 +1277,13 @@ describe('Todo Controller', () => {
       expect(response.body.data).toHaveLength(0);
     });
 
-    it('should return empty for unknown objectType', async () => {
+    it('should return 400 for unknown objectType', async () => {
       const response = await agent
         .get('/api/todos/object-options?projectId=1&objectType=unknown_type')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(response.body.data).toHaveLength(0);
+      // Zod validation rejects invalid objectType values
+      expect(response.status).toBe(400);
     });
 
     it('should deny admin access to project they are not operator of', async () => {
