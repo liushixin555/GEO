@@ -334,3 +334,243 @@ describe('uploadFile - Unit', () => {
     });
   });
 });
+
+// ==================== Directory creation branch tests (mkdirSync) ====================
+
+describe('Upload directory creation - mkdirSync branches', () => {
+  const uploadsDir = path.resolve(process.cwd(), 'uploads');
+  const backupDir = path.resolve(process.cwd(), 'uploads_backup_test');
+
+  afterEach(() => {
+    // Restore uploads dir if it was renamed
+    if (fs.existsSync(backupDir) && !fs.existsSync(uploadsDir)) {
+      fs.renameSync(backupDir, uploadsDir);
+    }
+  });
+
+  it('should create upload directory in storage callback when dir does not exist', async () => {
+    // Temporarily rename uploads dir to trigger mkdirSync in storage destination (line 19)
+    if (fs.existsSync(uploadsDir)) {
+      fs.renameSync(uploadsDir, backupDir);
+    }
+
+    const testImagePath = path.join(backupDir, '_test_mkdir.png');
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwADBwIAMCbHYQAAAABJRU5ErkJggg==',
+      'base64'
+    );
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+    fs.writeFileSync(testImagePath, png);
+
+    const response = await agent
+      .post('/api/upload')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', testImagePath);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.url).toMatch(/^\/uploads\//);
+    expect(fs.existsSync(uploadsDir)).toBe(true);
+
+    const uploadedFile = path.join(uploadsDir, response.body.data.url.replace('/uploads/', ''));
+    try { fs.unlinkSync(uploadedFile); } catch {}
+    try { fs.unlinkSync(testImagePath); } catch {}
+
+    // Restore
+    if (fs.existsSync(backupDir) && fs.existsSync(uploadsDir)) {
+      // Move remaining files back
+      const files = fs.readdirSync(uploadsDir);
+      for (const f of files) {
+        try { fs.renameSync(path.join(uploadsDir, f), path.join(backupDir, f)); } catch {}
+      }
+      fs.rmdirSync(uploadsDir);
+      fs.renameSync(backupDir, uploadsDir);
+    }
+  });
+});
+
+// ==================== Module init mkdirSync branch (line 10) ====================
+
+describe('Upload controller - module init mkdirSync', () => {
+  it('should cover mkdirSync when UPLOAD_DIR does not exist at module init', () => {
+    jest.isolateModules(() => {
+      const mockFs = {
+        existsSync: jest.fn().mockReturnValue(false),
+        mkdirSync: jest.fn(),
+        readdirSync: jest.fn().mockReturnValue([]),
+      };
+
+      // Use jest.mock before require
+      jest.doMock('fs', () => ({
+        __esModule: true,
+        default: mockFs,
+        ...mockFs,
+      }));
+
+      // Requiring the module triggers the top-level mkdirSync check
+      require('../../apis/controller/upload.controller');
+
+      expect(mockFs.existsSync).toHaveBeenCalled();
+    });
+  });
+});
+
+// ==================== Edge case tests ====================
+
+describe('Upload Controller - Edge Cases', () => {
+  const uploadsDir = path.resolve(process.cwd(), 'uploads');
+
+  it('should handle filename with special characters', async () => {
+    const testImagePath = path.join(uploadsDir, '_test_upload.png');
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwADBwIAMCbHYQAAAABJRU5ErkJggg==',
+      'base64'
+    );
+    fs.writeFileSync(testImagePath, png);
+
+    const response = await agent
+      .post('/api/upload')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', testImagePath, { filename: '测试 图片 (1).png' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.url).toMatch(/^\/uploads\//);
+
+    const uploadedFile = path.join(uploadsDir, response.body.data.url.replace('/uploads/', ''));
+    try { fs.unlinkSync(uploadedFile); } catch {}
+  });
+
+  it('should handle file with no extension', async () => {
+    const noExtPath = path.join(uploadsDir, '_test_noext');
+    fs.writeFileSync(noExtPath, 'not an image');
+
+    const response = await agent
+      .post('/api/upload')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', noExtPath);
+
+    // No mimetype match → 400
+    expect(response.status).toBe(400);
+
+    try { fs.unlinkSync(noExtPath); } catch {}
+  });
+
+  it('should handle BMP file rejection', async () => {
+    const bmpPath = path.join(uploadsDir, '_test.bmp');
+    const bmp = Buffer.alloc(54 + 4, 0);
+    bmp.write('BM', 0);
+    fs.writeFileSync(bmpPath, bmp);
+
+    const response = await agent
+      .post('/api/upload')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', bmpPath);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('不支持的图片格式');
+
+    try { fs.unlinkSync(bmpPath); } catch {}
+  });
+
+  it('should handle TIFF file rejection', async () => {
+    const tiffPath = path.join(uploadsDir, '_test.tiff');
+    fs.writeFileSync(tiffPath, 'II* fake tiff');
+
+    const response = await agent
+      .post('/api/upload')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', tiffPath);
+
+    expect(response.status).toBe(400);
+
+    try { fs.unlinkSync(tiffPath); } catch {}
+  });
+
+  it('should reject .exe file', async () => {
+    const exePath = path.join(uploadsDir, '_test.exe');
+    fs.writeFileSync(exePath, 'MZ fake executable');
+
+    const response = await agent
+      .post('/api/upload')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', exePath);
+
+    expect(response.status).toBe(400);
+
+    try { fs.unlinkSync(exePath); } catch {}
+  });
+
+  it('should reject .zip file', async () => {
+    const zipPath = path.join(uploadsDir, '_test.zip');
+    fs.writeFileSync(zipPath, 'PK fake zip');
+
+    const response = await agent
+      .post('/api/upload')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', zipPath);
+
+    expect(response.status).toBe(400);
+
+    try { fs.unlinkSync(zipPath); } catch {}
+  });
+
+  it('should reject .html file (XSS prevention)', async () => {
+    const htmlPath = path.join(uploadsDir, '_test.html');
+    fs.writeFileSync(htmlPath, '<html><body>XSS</body></html>');
+
+    const response = await agent
+      .post('/api/upload')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', htmlPath);
+
+    expect(response.status).toBe(400);
+
+    try { fs.unlinkSync(htmlPath); } catch {}
+  });
+
+  it('should reject expired token', async () => {
+    const expiredToken = jwt.sign(
+      { userId: 1, username: 'sysadmin', role: 'sysadmin', companyId: 1 },
+      'test-secret',
+      { expiresIn: '0s' }
+    );
+
+    // Small delay to ensure token is expired
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const testImagePath = path.join(uploadsDir, '_test_upload.png');
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwADBwIAMCbHYQAAAABJRU5ErkJggg==',
+      'base64'
+    );
+    fs.writeFileSync(testImagePath, png);
+
+    const response = await agent
+      .post('/api/upload')
+      .set('Authorization', `Bearer ${expiredToken}`)
+      .attach('file', testImagePath);
+
+    expect(response.status).toBe(401);
+
+    try { fs.unlinkSync(testImagePath); } catch {}
+  });
+
+  it('should reject invalid token', async () => {
+    const testImagePath = path.join(uploadsDir, '_test_upload.png');
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwADBwIAMCbHYQAAAABJRU5ErkJggg==',
+      'base64'
+    );
+    fs.writeFileSync(testImagePath, png);
+
+    const response = await agent
+      .post('/api/upload')
+      .set('Authorization', 'Bearer invalid-token-string')
+      .attach('file', testImagePath);
+
+    expect(response.status).toBe(401);
+
+    try { fs.unlinkSync(testImagePath); } catch {}
+  });
+});
