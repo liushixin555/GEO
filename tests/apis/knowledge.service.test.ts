@@ -1733,3 +1733,253 @@ describe('MinedKeywordServiceImpl', () => {
     });
   });
 });
+
+// ══════════════════════════════════════════
+//  Supplementary Edge-Case Tests
+// ══════════════════════════════════════════
+
+describe('KeywordServiceImpl – edge cases', () => {
+  let service: KeywordServiceImpl;
+  beforeEach(() => {
+    service = new KeywordServiceImpl();
+    jest.clearAllMocks();
+  });
+
+  it('list should return empty result with zero total', async () => {
+    const mockFindMany = jest.fn().mockResolvedValue([]);
+    const mockCount = jest.fn().mockResolvedValue(0);
+    mockedGetPrisma.mockReturnValue({
+      knowledgeKeyword: { findMany: mockFindMany, count: mockCount },
+    } as any);
+
+    const result = await service.list(999, 1, 10);
+    expect(result).toEqual({ list: [], total: 0 });
+  });
+
+  it('batchCreate with empty keywords array should return zeros', async () => {
+    const mockFindMany = jest.fn().mockResolvedValue([]);
+    const mockCreateMany = jest.fn().mockResolvedValue({ count: 0 });
+    mockedGetPrisma.mockReturnValue({
+      knowledgeKeyword: { findMany: mockFindMany, createMany: mockCreateMany },
+    } as any);
+
+    const result = await service.batchCreate(10, [], 1);
+    expect(result).toEqual({ created: 0, duplicates: 0 });
+  });
+
+  it('getById should handle null rows response', async () => {
+    const mockQueryRaw = jest.fn().mockResolvedValue(null);
+    mockedGetPrisma.mockReturnValue({ $queryRaw: mockQueryRaw } as any);
+
+    await expect(service.getById(1)).rejects.toThrow('关键词不存在');
+  });
+});
+
+describe('PortraitServiceImpl – edge cases', () => {
+  let service: PortraitServiceImpl;
+  beforeEach(() => {
+    service = new PortraitServiceImpl();
+    jest.clearAllMocks();
+  });
+
+  it('list should return empty result', async () => {
+    const mockFindMany = jest.fn().mockResolvedValue([]);
+    const mockCount = jest.fn().mockResolvedValue(0);
+    mockedGetPrisma.mockReturnValue({
+      knowledgePortrait: { findMany: mockFindMany, count: mockCount },
+    } as any);
+
+    const result = await service.list(999, 1, 10);
+    expect(result).toEqual({ list: [], total: 0 });
+  });
+
+  it('listByProject should use accessible base IDs correctly', async () => {
+    const mockKbService = (service as any).kbService;
+    mockKbService.getAccessibleBaseIds.mockResolvedValue([10, 20]);
+    const mockFindMany = jest.fn().mockResolvedValue([makePrismaPortrait()]);
+    const mockCount = jest.fn().mockResolvedValue(1);
+    mockedGetPrisma.mockReturnValue({
+      knowledgePortrait: { findMany: mockFindMany, count: mockCount },
+    } as any);
+
+    const result = await service.listByProject(1, 1, 10);
+    expect(result.list).toHaveLength(1);
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { baseId: { in: [10, 20] }, deletedAt: null },
+      }),
+    );
+  });
+
+  it('create should correctly map returned portrait fields', async () => {
+    const created = makePrismaPortrait({ id: 99, title: '映射测试', content: '内容X', baseId: 5 });
+    const mockCreate = jest.fn().mockResolvedValue(created);
+    mockedGetPrisma.mockReturnValue({
+      knowledgePortrait: { create: mockCreate },
+    } as any);
+
+    const result = await service.create(5, { title: '映射测试', content: '内容X' }, 2);
+
+    expect(result.id).toBe(99);
+    expect(result.base_id).toBe(5);
+    expect(result.title).toBe('映射测试');
+    expect(result.content).toBe('内容X');
+    expect(result.created_by).toBe(1);
+  });
+});
+
+describe('ImageServiceImpl – edge cases', () => {
+  let service: ImageServiceImpl;
+  beforeEach(() => {
+    service = new ImageServiceImpl();
+    jest.clearAllMocks();
+  });
+
+  it('update should update both title and description simultaneously', async () => {
+    const existing = makePrismaImage({ id: 1 });
+    const updated = makePrismaImage({ id: 1, title: '双更新', description: '双描述' });
+    const mockFindFirst = jest.fn().mockResolvedValue(existing);
+    const mockUpdate = jest.fn().mockResolvedValue(updated);
+    mockedGetPrisma.mockReturnValue({
+      knowledgeImage: { findFirst: mockFindFirst, update: mockUpdate },
+    } as any);
+
+    const result = await service.update(1, { title: '双更新', description: '双描述' });
+
+    expect(result.title).toBe('双更新');
+    expect(result.description).toBe('双描述');
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { title: '双更新', description: '双描述' },
+    });
+  });
+
+  it('list should return empty result', async () => {
+    const mockFindMany = jest.fn().mockResolvedValue([]);
+    const mockCount = jest.fn().mockResolvedValue(0);
+    mockedGetPrisma.mockReturnValue({
+      knowledgeImage: { findMany: mockFindMany, count: mockCount },
+    } as any);
+
+    const result = await service.list(999, 1, 10);
+    expect(result).toEqual({ list: [], total: 0 });
+  });
+
+  it('delete should verify findFirst uses deletedAt filter', async () => {
+    const existing = makePrismaImage({ id: 1 });
+    const mockFindFirst = jest.fn().mockResolvedValue(existing);
+    const mockUpdate = jest.fn().mockResolvedValue({});
+    mockedGetPrisma.mockReturnValue({
+      knowledgeImage: { findFirst: mockFindFirst, update: mockUpdate },
+    } as any);
+
+    await service.delete(1);
+
+    expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 1, deletedAt: null } });
+  });
+});
+
+describe('DocumentServiceImpl – edge cases', () => {
+  let service: DocumentServiceImpl;
+  beforeEach(() => {
+    service = new DocumentServiceImpl();
+    jest.clearAllMocks();
+  });
+
+  it('update should update both title and description simultaneously', async () => {
+    const existing = makePrismaDocument({ id: 1 });
+    const updated = makePrismaDocument({ id: 1, title: '双更新', description: '双描述' });
+    const mockFindFirst = jest.fn().mockResolvedValue(existing);
+    const mockUpdate = jest.fn().mockResolvedValue(updated);
+    mockedGetPrisma.mockReturnValue({
+      knowledgeDocument: { findFirst: mockFindFirst, update: mockUpdate },
+    } as any);
+
+    const result = await service.update(1, { title: '双更新', description: '双描述' });
+
+    expect(result.title).toBe('双更新');
+    expect(result.description).toBe('双描述');
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { title: '双更新', description: '双描述' },
+    });
+  });
+
+  it('update should not update fields that are undefined', async () => {
+    const existing = makePrismaDocument({ id: 1 });
+    const updated = makePrismaDocument({ id: 1 });
+    const mockFindFirst = jest.fn().mockResolvedValue(existing);
+    const mockUpdate = jest.fn().mockResolvedValue(updated);
+    mockedGetPrisma.mockReturnValue({
+      knowledgeDocument: { findFirst: mockFindFirst, update: mockUpdate },
+    } as any);
+
+    await service.update(1, {});
+
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: {},
+    });
+  });
+
+  it('delete should verify findFirst uses deletedAt filter', async () => {
+    const existing = makePrismaDocument({ id: 1 });
+    const mockFindFirst = jest.fn().mockResolvedValue(existing);
+    const mockUpdate = jest.fn().mockResolvedValue({});
+    mockedGetPrisma.mockReturnValue({
+      knowledgeDocument: { findFirst: mockFindFirst, update: mockUpdate },
+    } as any);
+
+    await service.delete(1);
+
+    expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 1, deletedAt: null } });
+  });
+});
+
+describe('MinedKeywordServiceImpl – edge cases', () => {
+  let service: MinedKeywordServiceImpl;
+  beforeEach(() => {
+    service = new MinedKeywordServiceImpl();
+    jest.clearAllMocks();
+  });
+
+  it('deleteByIds with empty ids array should still call updateMany', async () => {
+    const mockUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
+    mockedGetPrisma.mockReturnValue({
+      minedKeyword: { updateMany: mockUpdateMany },
+    } as any);
+
+    await service.deleteByIds(10, []);
+
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { id: { in: [] }, baseId: 10, deletedAt: null },
+      data: { deletedAt: expect.any(Date) },
+    });
+  });
+
+  it('toggleSelectBatch with empty ids array should still call updateMany', async () => {
+    const mockUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
+    mockedGetPrisma.mockReturnValue({
+      minedKeyword: { updateMany: mockUpdateMany },
+    } as any);
+
+    await service.toggleSelectBatch(10, [], true);
+
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { id: { in: [] }, baseId: 10, deletedAt: null },
+      data: { selected: true },
+    });
+  });
+
+  it('addMinedKeywords with empty array should return zeros', async () => {
+    const mockFindMany = jest.fn().mockResolvedValue([]);
+    const mockCreateMany = jest.fn().mockResolvedValue({ count: 0 });
+    mockedGetPrisma.mockReturnValue({
+      minedKeyword: { findMany: mockFindMany, createMany: mockCreateMany },
+    } as any);
+
+    const result = await service.addMinedKeywords(10, [], 1);
+    expect(result).toEqual({ added: 0, duplicates: 0 });
+    expect(mockCreateMany).not.toHaveBeenCalled();
+  });
+});
