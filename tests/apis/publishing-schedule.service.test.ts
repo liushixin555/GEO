@@ -497,6 +497,91 @@ describe('PublishingScheduleServiceImpl', () => {
         status: true,
       });
     });
+
+    it('should not add search filter when search is empty string', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        article: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list({ page: 1, pageSize: 10, search: '' });
+
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where).not.toHaveProperty('OR');
+    });
+
+    it('should keep default status filter when status is empty string', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        article: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list({ page: 1, pageSize: 10, status: '' });
+
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where.status).toEqual({ in: ['publishing', 'published', 'publish_failed'] });
+    });
+
+    it('should not add projectId filter when projectId is 0', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        article: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list({ page: 1, pageSize: 10, projectId: 0 });
+
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where).not.toHaveProperty('projectId');
+    });
+
+    it('should apply view role with combined search and projectId', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        article: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list({
+        page: 1,
+        pageSize: 10,
+        search: '测试',
+        projectId: 5,
+        userId: 99,
+        role: 'view',
+      });
+
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where.OR).toBeDefined();
+      expect(where.projectId).toBe(5);
+      expect(where.project).toEqual({
+        viewers: { some: { userId: 99 } },
+        company: { status: true },
+        status: true,
+      });
+    });
+
+    it('should map multiple articles with different statuses correctly', async () => {
+      const articles = [
+        makeArticle({ id: 1, status: 'publishing', title: '文章1' }),
+        makeArticle({ id: 2, status: 'published', title: '文章2' }),
+        makeArticle({ id: 3, status: 'publish_failed', title: '文章3' }),
+      ];
+      const mockFindMany = jest.fn().mockResolvedValue(articles);
+      const mockCount = jest.fn().mockResolvedValue(3);
+      mockedGetPrisma.mockReturnValue({
+        article: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const result = await service.list({ page: 1, pageSize: 10 });
+
+      expect(result.list).toHaveLength(3);
+      expect(result.list[0].status).toBe('publishing');
+      expect(result.list[1].status).toBe('published');
+      expect(result.list[2].status).toBe('publish_failed');
+    });
   });
 
   // ──────────────────────────────────────
@@ -759,6 +844,93 @@ describe('PublishingScheduleServiceImpl', () => {
       const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', 999, 'sysadmin');
       expect(result.id).toBe(1);
       expect(mockUpdate).toHaveBeenCalled();
+    });
+
+    it('should treat empty string scheduledPublishAt as null', async () => {
+      const existing = makeArticle({ status: 'publishing' });
+      const updated = makeUpdatedArticle({ scheduledPublishAt: null });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.updateSchedule(1, '' as any);
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { scheduledPublishAt: null },
+        }),
+      );
+    });
+
+    it('should reject non-sysadmin when article has null project', async () => {
+      const existing = makeArticle({
+        status: 'publishing',
+        project: null,
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn();
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await expect(service.updateSchedule(1, '2025-08-01T10:00:00Z', 2, 'admin'))
+        .rejects.toThrow('无权操作此文章');
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('should allow update when role is undefined and userId is undefined', async () => {
+      const existing = makeArticle({ status: 'publishing' });
+      const updated = makeUpdatedArticle();
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      // No role, no userId → skips permission check entirely
+      const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z');
+      expect(result.id).toBe(1);
+      expect(mockUpdate).toHaveBeenCalled();
+    });
+
+    it('should allow admin without userId to bypass permission check (current behavior)', async () => {
+      const existing = makeArticle({ status: 'publishing' });
+      const updated = makeUpdatedArticle();
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      // role !== 'sysadmin' is true, but userId is undefined (falsy) → skips permission check
+      // This confirms current behavior: admin without userId bypasses permission
+      const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', undefined, 'admin');
+      expect(mockUpdate).toHaveBeenCalled();
+      expect(result.id).toBe(1);
+    });
+
+    it('should reject view role user who is not in operators', async () => {
+      const existing = makeArticle({
+        status: 'publishing',
+        project: {
+          id: 10,
+          shortName: '项目A',
+          company: { shortName: '公司A' },
+          operators: [{ userId: 1 }],
+        },
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn();
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      // view role user not in operators list
+      await expect(service.updateSchedule(1, '2025-08-01T10:00:00Z', 99, 'view'))
+        .rejects.toThrow('无权操作此文章');
+      expect(mockUpdate).not.toHaveBeenCalled();
     });
   });
 });

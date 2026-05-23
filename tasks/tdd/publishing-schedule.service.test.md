@@ -10,8 +10,8 @@
 
 | 指标 | 值 |
 |------|-----|
-| 测试总数 | 37 |
-| 通过 | 37 |
+| 测试总数 | 47 |
+| 通过 | 47 |
 | 失败 | 0 |
 | 跳过 | 0 |
 | 测试套件 | 1 |
@@ -27,7 +27,7 @@
 
 ## 测试分类
 
-### list() 方法 — 23 个测试
+### list() 方法 — 28 个测试
 
 | # | 测试用例 | 说明 |
 |---|---------|------|
@@ -54,8 +54,13 @@
 | 21 | should pass same where clause to findMany and count | where一致性验证 |
 | 22 | should include project with company in findMany | include结构验证（project.company + creator） |
 | 23 | should apply admin permission with other filters combined | admin权限+组合过滤 |
+| 24 | should not add search filter when search is empty string | 空字符串搜索不添加OR过滤（falsy值） |
+| 25 | should keep default status filter when status is empty string | 空字符串status保留默认的{ in: PUBLISH_STATUSES } |
+| 26 | should not add projectId filter when projectId is 0 | projectId为0（falsy值）不添加过滤 |
+| 27 | should apply view role with combined search and projectId | view角色+搜索+projectId组合过滤 |
+| 28 | should map multiple articles with different statuses correctly | 多文章不同状态映射验证 |
 
-### updateSchedule() 方法 — 14 个测试
+### updateSchedule() 方法 — 19 个测试
 
 | # | 测试用例 | 说明 |
 |---|---------|------|
@@ -73,19 +78,51 @@
 | 12 | should allow admin user with access to update | admin用户在operators列表中可更新 |
 | 13 | should reject admin user without access | 水平越权防护（admin不在operators列表中拒绝） |
 | 14 | should allow sysadmin to update any article regardless of operators | sysadmin绕过operators检查 |
+| 15 | should treat empty string scheduledPublishAt as null | 空字符串scheduledPublishAt转为null |
+| 16 | should reject non-sysadmin when article has null project | 文章project为null时非sysadmin用户被拒绝 |
+| 17 | should allow update when role is undefined and userId is undefined | 无角色和用户ID时跳过权限检查 |
+| 18 | should allow admin without userId to bypass permission check (current behavior) | admin角色但无userId时跳过权限检查（当前行为） |
+| 19 | should reject view role user who is not in operators | view角色用户不在operators列表中被拒绝 |
+
+## 本次新增测试用例（10个）
+
+### list() 新增 5 个
+
+| # | 测试用例 | 新增原因 |
+|---|---------|------|
+| 24 | should not add search filter when search is empty string | 边界值：空字符串是falsy，不应添加OR过滤 |
+| 25 | should keep default status filter when status is empty string | 边界值：空字符串status不覆盖默认{ in: PUBLISH_STATUSES } |
+| 26 | should not add projectId filter when projectId is 0 | 边界值：projectId=0是falsy，不应添加过滤 |
+| 27 | should apply view role with combined search and projectId | 组合条件：view角色+搜索+projectId联合过滤 |
+| 28 | should map multiple articles with different statuses correctly | 多结果映射：验证不同状态文章的批量映射 |
+
+### updateSchedule() 新增 5 个
+
+| # | 测试用例 | 新增原因 |
+|---|---------|------|
+| 15 | should treat empty string scheduledPublishAt as null | 边界值：空字符串应被视为null |
+| 16 | should reject non-sysadmin when article has null project | 安全：project为null时的权限处理 |
+| 17 | should allow update when role is undefined and userId is undefined | 边界条件：无认证信息时的行为 |
+| 18 | should allow admin without userId to bypass permission check | 行为验证：admin角色+无userId的权限检查跳过 |
+| 19 | should reject view role user who is not in operators | 权限：view角色用户在update中的权限检查 |
 
 ## 关键测试场景
 
 1. **权限过滤（list）**：验证 admin（operators）和 view（viewers）两种角色的数据隔离
 2. **权限检查（updateSchedule）**：admin需在operators中，sysadmin绕过检查，越权防护
 3. **组合过滤**：search + status + projectId + 权限 的组合条件
-4. **边界条件**：null 值处理、空结果、缺失关联数据
+4. **边界条件**：null 值、空字符串、0值、undefined 的处理
 5. **错误处理**：文章不存在、状态不允许编辑（draft/published/publish_failed）
 6. **数据映射**：所有字段 snake_case 转换和空值默认值
 7. **并行执行**：findMany和count使用Promise.all并行执行
+8. **安全边界**：project为null时的权限拒绝、view角色在update中的权限验证
+
+## 发现的潜在问题
+
+1. **admin角色+无userId可绕过权限**：当role='admin'但userId为undefined时，权限检查被跳过。建议控制器层确保userId始终传入。
 
 ## 执行时间
-7.329s
+5.182s
 
 ## 执行日期
 2026-05-24
