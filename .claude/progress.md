@@ -349,3 +349,8 @@
 - [x] 错误处理统一 handleError
 - [x] 164 个测试全部通过
 - [x] 安装 zod@4.4.3
+
+## 本次变更（2026-05-24 upload.controller 评审）
+- [x] 软件质量专家评审 upload.controller.ts
+- [x] 发现 HIGH×3（SVG XSS、MIME 伪造、错误泄露）、MEDIUM×4、LOW×3
+- [x] 评审报告 tasks/review/upload.controller.md
