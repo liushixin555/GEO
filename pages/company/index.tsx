@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Button, Typography, Spin, Alert, Breadcrumb, Switch, Tag, App } from 'antd';
-import { PlusOutlined, EditOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Button, Spin, Alert, Breadcrumb, Switch, Tag, App, Table, Descriptions } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import axios from 'axios';
 
 interface Company {
@@ -22,11 +23,7 @@ const CompanyPage: React.FC = () => {
   const navigate = useNavigate();
   const { message } = App.useApp();
 
-  useEffect(() => {
-    fetchCompanies();
-  }, []);
-
-  const fetchCompanies = async () => {
+  const fetchCompanies = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -39,7 +36,11 @@ const CompanyPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchCompanies();
+  }, [fetchCompanies]);
 
   const handleToggleStatus = async (id: number, status: boolean) => {
     setTogglingId(id);
@@ -57,59 +58,122 @@ const CompanyPage: React.FC = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <Spin size="large" />
-      </div>
-    );
-  }
+  const tableColumns: ColumnsType<Company> = [
+    {
+      title: '简称',
+      dataIndex: 'short_name',
+      key: 'short_name',
+      render: (text: string, record: Company) => (
+        <a onClick={() => record.status && navigate(`/company/edit/${record.id}`)} style={{ color: record.status ? 'var(--color-primary, #0f62fe)' : 'var(--color-ink-subtle, #8c8c8c)' }}>
+          {text}
+        </a>
+      ),
+    },
+    {
+      title: '全称',
+      dataIndex: 'full_name',
+      key: 'full_name',
+      ellipsis: { showTitle: true },
+    },
+    {
+      title: '地址',
+      dataIndex: 'address',
+      key: 'address',
+      ellipsis: { showTitle: true },
+      render: (text: string | null) => text || '-',
+    },
+    {
+      title: '联系人',
+      dataIndex: 'contact_person',
+      key: 'contact_person',
+      width: 100,
+    },
+    {
+      title: '联系电话',
+      dataIndex: 'contact_phone',
+      key: 'contact_phone',
+      width: 130,
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (status: boolean, record: Company) => (
+        <Switch
+          size="small"
+          checked={status}
+          loading={togglingId === record.id}
+          onChange={(checked) => handleToggleStatus(record.id, checked)}
+        />
+      ),
+    },
+  ];
 
   if (error) {
-    return <Alert type="error" title={error} className="page-alert" />;
+    return <Alert type="error" message={error} className="page-alert" />;
   }
 
   return (
     <div className="page-container">
       <div className="page-breadcrumb"><Breadcrumb items={[{ title: '公司管理' }]} /></div>
-      <Row gutter={[16, 16]}>
-        {companies.map((company) => (
-          <Col key={company.id} xs={24} sm={12} lg={8} xl={6}>
+      <Row gutter={[16, 12]} className="toolbar">
+        <Col xs={24} sm={12} />
+        <Col xs={24} sm={12} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/company/add')}>添加公司</Button>
+        </Col>
+      </Row>
+
+      <Spin spinning={loading}>
+        {/* 卡片视图：<1280px */}
+        <div className="company-cards">
+          {companies.length === 0 && !loading && (
+            <Card>
+              <div className="company-cards-empty">暂无数据</div>
+            </Card>
+          )}
+          {companies.map((company) => (
             <Card
-              hoverable={company.status}
-              onClick={() => company.status && navigate(`/company/edit/${company.id}`)}
-              styles={{ body: { padding: 24 } }}
-              style={{ opacity: company.status ? 1 : 0.6 }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                <Typography.Title level={3} className="company-card-title">{company.short_name}</Typography.Title>
+              key={company.id}
+              size="small"
+              title={company.short_name}
+              extra={
                 <Switch
                   size="small"
                   checked={company.status}
                   loading={togglingId === company.id}
                   onChange={(checked) => handleToggleStatus(company.id, checked)}
-                  onClick={(_, e) => e.stopPropagation()}
                 />
-              </div>
-              <Typography.Text type="secondary" className="company-card-subtitle">
-                {company.full_name} {!company.status && <Tag color="red" style={{ marginLeft: 8 }}>已禁用</Tag>}
-              </Typography.Text>
-              {company.address && (
-                <Typography.Text type="secondary" className="company-card-info">{company.address}</Typography.Text>
+              }
+              hoverable={company.status}
+              onClick={() => company.status && navigate(`/company/edit/${company.id}`)}
+              style={{ cursor: company.status ? 'pointer' : 'default', opacity: company.status ? 1 : 0.6 }}
+            >
+              <Descriptions column={2} size="small" colon={false}>
+                <Descriptions.Item label="全称">{company.full_name}</Descriptions.Item>
+                <Descriptions.Item label="地址">{company.address || '-'}</Descriptions.Item>
+                <Descriptions.Item label="联系人">{company.contact_person}</Descriptions.Item>
+                <Descriptions.Item label="联系电话">{company.contact_phone}</Descriptions.Item>
+              </Descriptions>
+              {!company.status && (
+                <Tag color="red" style={{ marginTop: 4 }}>已禁用</Tag>
               )}
-              <Typography.Text type="secondary" className="company-card-info">
-                {company.contact_person} {company.contact_phone}
-              </Typography.Text>
             </Card>
-          </Col>
-        ))}
-        <Col xs={24} sm={12} lg={8} xl={6}>
-          <Card hoverable onClick={() => navigate('/company/add')} className="company-add-card">
-            <PlusOutlined className="company-add-icon" />
-            <Typography.Text className="company-add-text">添加公司</Typography.Text>
-          </Card>
-        </Col>
-      </Row>
+          ))}
+        </div>
+
+        {/* 表格视图：>=1280px */}
+        <div className="company-table-wrapper">
+          <Table
+            columns={tableColumns}
+            dataSource={companies}
+            rowKey="id"
+            size="middle"
+            pagination={false}
+            locale={{ emptyText: '暂无数据' }}
+          />
+        </div>
+      </Spin>
     </div>
   );
 };
