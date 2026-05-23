@@ -1037,5 +1037,155 @@ describe('ProjectServiceImpl', () => {
       );
     });
 
+    it('list: empty string search should not add OR filter', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } } as any);
+
+      await service.list(1, 10, '');
+
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where).not.toHaveProperty('OR');
+    });
+
+    it('getById: project with no operators or viewers should return empty arrays', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(makePrismaProject({
+        operators: [],
+        viewers: [],
+      }));
+      mockedGetPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } } as any);
+
+      const result = await service.getById(1);
+
+      expect(result.operator_ids).toEqual([]);
+      expect(result.operator_names).toEqual([]);
+      expect(result.viewer_ids).toEqual([]);
+      expect(result.viewer_names).toEqual([]);
+    });
+
+    it('update: setting description to null explicitly', async () => {
+      const existing = makePrismaProject();
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, description: null });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.update(1, { description: null as any });
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ description: null }),
+        }),
+      );
+      expect(result.description).toBeNull();
+    });
+
+    it('update: update with status=true', async () => {
+      const existing = makePrismaProject({ status: false });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, status: true });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.update(1, { status: true });
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: true }),
+        }),
+      );
+      expect(result.status).toBe(true);
+    });
+
+    it('create: operator with no user object should use userId as fallback via mapProject', async () => {
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...makePrismaProject(),
+        operators: [{ userId: 7, user: null }],
+        viewers: [],
+      });
+      mockedGetPrisma.mockReturnValue({ project: { create: mockCreate } } as any);
+
+      const result = await service.create({
+        short_name: 'P1',
+        full_name: 'Project One',
+        company_id: 1,
+      });
+
+      // mapProject uses op.user?.id ?? op.userId fallback
+      expect(result.operator_ids).toEqual([7]);
+      // op.user is null, so cnName fallback to ''
+      expect(result.operator_names).toEqual(['']);
+    });
+
+    it('list: count and findMany use the same where clause', async () => {
+      const rows = [makePrismaProject()];
+      const mockFindMany = jest.fn().mockResolvedValue(rows);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      mockedGetPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } } as any);
+
+      await service.list(1, 10, 'test', 1, true);
+
+      const findWhere = mockFindMany.mock.calls[0][0].where;
+      const countWhere = mockCount.mock.calls[0][0].where;
+      expect(findWhere).toEqual(countWhere);
+    });
+
+    it('delete: should use findFirst with deletedAt: null filter', async () => {
+      const existing = makePrismaProject();
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.delete(1);
+
+      expect(mockFindFirst).toHaveBeenCalledWith({
+        where: { id: 1, deletedAt: null },
+      });
+    });
+
+    it('create: with long operator and viewer lists', async () => {
+      const opIds = [10, 11, 12, 13, 14];
+      const viewerIds = [20, 21, 22];
+      const mockUserFindMany = jest.fn()
+        .mockResolvedValueOnce(opIds.map(id => makePrismaUser(id, 1, 'admin', `op${id}`)))
+        .mockResolvedValueOnce(viewerIds.map(id => makePrismaUser(id, 1, 'view', `v${id}`)));
+      const mockCreate = jest.fn().mockResolvedValue(makePrismaProject({
+        operators: opIds.map(id => ({ userId: id, user: { id, cnName: `op${id}` } })),
+        viewers: viewerIds.map(id => ({ userId: id, user: { id, cnName: `v${id}` } })),
+      }));
+      mockedGetPrisma.mockReturnValue({
+        project: { create: mockCreate },
+        user: { findMany: mockUserFindMany },
+      } as any);
+
+      const result = await service.create({
+        short_name: 'P1',
+        full_name: 'Project One',
+        company_id: 1,
+        operator_ids: opIds,
+        viewer_ids: viewerIds,
+      });
+
+      expect(result.operator_ids).toEqual(opIds);
+      expect(result.viewer_ids).toEqual(viewerIds);
+      expect(result.operator_names).toEqual(['op10', 'op11', 'op12', 'op13', 'op14']);
+      expect(result.viewer_names).toEqual(['v20', 'v21', 'v22']);
+    });
+
+    it('list: company_name should fallback to empty string when company is null', async () => {
+      const rows = [makePrismaProject({ company: null })];
+      const mockFindMany = jest.fn().mockResolvedValue(rows);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      mockedGetPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } } as any);
+
+      const result = await service.list(1, 10);
+
+      expect(result.list[0].company_name).toBe('');
+    });
+
   });
 });
