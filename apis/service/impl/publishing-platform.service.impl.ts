@@ -3,8 +3,29 @@ import { getRmToken, getAllRmResources } from '../../utils/rmapi.utils';
 import { PublishingPlatform } from '../../entity';
 import { mapPublishingPlatform } from '../../map';
 import { IPublishingPlatformService } from '../publishing-platform.service';
+import type { ISystemConfigService } from '../system-config.service';
+import { SystemConfigServiceImpl } from './system-config.service.impl';
 
 export class PublishingPlatformServiceImpl implements IPublishingPlatformService {
+  private systemConfigService: ISystemConfigService;
+
+  constructor() {
+    this.systemConfigService = new SystemConfigServiceImpl();
+  }
+
+  async syncFromSystemConfig(): Promise<number> {
+    const configs = await this.systemConfigService.getAll();
+    const configMap = new Map(configs.map((c) => [c.config_key, c.config_value]));
+    const username = configMap.get('ruanmeng_username');
+    const password = configMap.get('ruanmeng_password');
+
+    if (!username || !password) {
+      throw new Error('请先配置软盟账号和密码');
+    }
+
+    return this.syncFromRm(username, password);
+  }
+
   async syncFromRm(username: string, password: string): Promise<number> {
     // 1. Authenticate with RM API
     const token = await getRmToken({ mobile: username, password });

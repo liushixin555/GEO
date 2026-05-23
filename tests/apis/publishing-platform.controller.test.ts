@@ -11,13 +11,14 @@ process.env.RATE_LIMIT_WINDOW_MS = '60000';
 process.env.RATE_LIMIT_MAX = '100';
 
 // Mock the service implementations before importing app
+const mockSyncFromSystemConfig = jest.fn();
 const mockSyncFromRm = jest.fn();
 const mockListAll = jest.fn();
 const mockList = jest.fn();
-const mockGetAllConfigs = jest.fn();
 
 jest.mock('../../apis/service/impl/publishing-platform.service.impl', () => ({
   PublishingPlatformServiceImpl: jest.fn().mockImplementation(() => ({
+    syncFromSystemConfig: mockSyncFromSystemConfig,
     syncFromRm: mockSyncFromRm,
     listAll: mockListAll,
     list: mockList,
@@ -25,9 +26,7 @@ jest.mock('../../apis/service/impl/publishing-platform.service.impl', () => ({
 }));
 
 jest.mock('../../apis/service/impl/system-config.service.impl', () => ({
-  SystemConfigServiceImpl: jest.fn().mockImplementation(() => ({
-    getAll: mockGetAllConfigs,
-  })),
+  SystemConfigServiceImpl: jest.fn().mockImplementation(() => ({})),
 }));
 
 jest.mock('../../apis/utils/db.util', () => ({
@@ -62,24 +61,6 @@ function viewToken() {
     { expiresIn: '2h' }
   );
 }
-
-const mockConfigRows = (username = 'rmuser', password = 'rmpass') => [
-  { config_key: 'ruanmeng_username', config_value: username },
-  { config_key: 'ruanmeng_password', config_value: password },
-];
-
-const mockPlatformRow = {
-  id: 1,
-  rm_resource_id: 100,
-  name: '新浪',
-  taxonomy: '门户网站',
-  price: 500,
-  remark: '优质资源',
-  include_rate: 95,
-  publish_rate: 90,
-  created_at: new Date('2025-01-01'),
-  updated_at: new Date('2025-01-02'),
-};
 
 const mappedPlatform = {
   id: 1,
@@ -120,45 +101,8 @@ describe('PublishingPlatform Controller', () => {
       expect(response.status).toBe(403);
     });
 
-    it('should return 400 when ruanmeng_username is not configured', async () => {
-      mockGetAllConfigs.mockResolvedValue([
-        { config_key: 'ruanmeng_password', config_value: 'pass' },
-      ]);
-
-      const response = await agent
-        .post('/api/publishing-platforms/sync')
-        .set('Authorization', `Bearer ${sysadminToken()}`);
-
-      expect(response.status).toBe(400);
-      expect(response.body.message).toBe('请先配置软盟账号和密码');
-    });
-
-    it('should return 400 when ruanmeng_password is not configured', async () => {
-      mockGetAllConfigs.mockResolvedValue([
-        { config_key: 'ruanmeng_username', config_value: 'user' },
-      ]);
-
-      const response = await agent
-        .post('/api/publishing-platforms/sync')
-        .set('Authorization', `Bearer ${sysadminToken()}`);
-
-      expect(response.status).toBe(400);
-      expect(response.body.message).toBe('请先配置软盟账号和密码');
-    });
-
-    it('should return 400 when both username and password are empty strings', async () => {
-      mockGetAllConfigs.mockResolvedValue(mockConfigRows('', ''));
-
-      const response = await agent
-        .post('/api/publishing-platforms/sync')
-        .set('Authorization', `Bearer ${sysadminToken()}`);
-
-      expect(response.status).toBe(400);
-      expect(response.body.message).toBe('请先配置软盟账号和密码');
-    });
-
-    it('should return 400 when config list is empty', async () => {
-      mockGetAllConfigs.mockResolvedValue([]);
+    it('should return 400 when credentials not configured', async () => {
+      mockSyncFromSystemConfig.mockRejectedValue(new Error('请先配置软盟账号和密码'));
 
       const response = await agent
         .post('/api/publishing-platforms/sync')
@@ -169,8 +113,7 @@ describe('PublishingPlatform Controller', () => {
     });
 
     it('should sync successfully and return count', async () => {
-      mockGetAllConfigs.mockResolvedValue(mockConfigRows('rmuser', 'rmpass'));
-      mockSyncFromRm.mockResolvedValue(42);
+      mockSyncFromSystemConfig.mockResolvedValue(42);
 
       const response = await agent
         .post('/api/publishing-platforms/sync')
@@ -181,24 +124,11 @@ describe('PublishingPlatform Controller', () => {
       expect(response.body.data.count).toBe(42);
       expect(response.body.message).toContain('同步成功');
       expect(response.body.message).toContain('42');
-      expect(mockSyncFromRm).toHaveBeenCalledWith('rmuser', 'rmpass');
+      expect(mockSyncFromSystemConfig).toHaveBeenCalled();
     });
 
-    it('should return 500 when sync service throws error with message', async () => {
-      mockGetAllConfigs.mockResolvedValue(mockConfigRows());
-      mockSyncFromRm.mockRejectedValue(new Error('网络超时'));
-
-      const response = await agent
-        .post('/api/publishing-platforms/sync')
-        .set('Authorization', `Bearer ${sysadminToken()}`);
-
-      expect(response.status).toBe(500);
-      expect(response.body.message).toBe('网络超时');
-    });
-
-    it('should return 500 with default message when sync error has no message', async () => {
-      mockGetAllConfigs.mockResolvedValue(mockConfigRows());
-      mockSyncFromRm.mockRejectedValue(new Error());
+    it('should return 500 with sanitized message when sync throws error', async () => {
+      mockSyncFromSystemConfig.mockRejectedValue(new Error('网络超时'));
 
       const response = await agent
         .post('/api/publishing-platforms/sync')
@@ -208,20 +138,19 @@ describe('PublishingPlatform Controller', () => {
       expect(response.body.message).toBe('同步发布平台失败');
     });
 
-    it('should return 500 when config service throws error', async () => {
-      mockGetAllConfigs.mockRejectedValue(new Error('配置读取失败'));
+    it('should return 500 with default message when sync error has no message', async () => {
+      mockSyncFromSystemConfig.mockRejectedValue(new Error());
 
       const response = await agent
         .post('/api/publishing-platforms/sync')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('配置读取失败');
+      expect(response.body.message).toBe('同步发布平台失败');
     });
 
     it('should return 500 with default message when non-Error is thrown', async () => {
-      mockGetAllConfigs.mockResolvedValue(mockConfigRows());
-      mockSyncFromRm.mockRejectedValue('string error');
+      mockSyncFromSystemConfig.mockRejectedValue('string error');
 
       const response = await agent
         .post('/api/publishing-platforms/sync')
@@ -232,8 +161,7 @@ describe('PublishingPlatform Controller', () => {
     });
 
     it('should sync successfully with count 0', async () => {
-      mockGetAllConfigs.mockResolvedValue(mockConfigRows());
-      mockSyncFromRm.mockResolvedValue(0);
+      mockSyncFromSystemConfig.mockResolvedValue(0);
 
       const response = await agent
         .post('/api/publishing-platforms/sync')
@@ -243,36 +171,6 @@ describe('PublishingPlatform Controller', () => {
       expect(response.body.data.count).toBe(0);
       expect(response.body.message).toContain('同步成功');
       expect(response.body.message).toContain('0');
-    });
-
-    it('should ignore extra config keys and still find credentials', async () => {
-      mockGetAllConfigs.mockResolvedValue([
-        { config_key: 'other_config', config_value: 'irrelevant' },
-        { config_key: 'ruanmeng_username', config_value: 'rmuser' },
-        { config_key: 'ruanmeng_password', config_value: 'rmpass' },
-        { config_key: 'third_config', config_value: 'noise' },
-      ]);
-      mockSyncFromRm.mockResolvedValue(10);
-
-      const response = await agent
-        .post('/api/publishing-platforms/sync')
-        .set('Authorization', `Bearer ${sysadminToken()}`);
-
-      expect(response.status).toBe(200);
-      expect(response.body.data.count).toBe(10);
-      expect(mockSyncFromRm).toHaveBeenCalledWith('rmuser', 'rmpass');
-    });
-
-    it('should pass whitespace username to sync service as-is', async () => {
-      mockGetAllConfigs.mockResolvedValue(mockConfigRows('   ', 'rmpass'));
-      mockSyncFromRm.mockResolvedValue(5);
-
-      const response = await agent
-        .post('/api/publishing-platforms/sync')
-        .set('Authorization', `Bearer ${sysadminToken()}`);
-
-      expect(response.status).toBe(200);
-      expect(mockSyncFromRm).toHaveBeenCalledWith('   ', 'rmpass');
     });
   });
 
@@ -290,7 +188,7 @@ describe('PublishingPlatform Controller', () => {
       expect(response.status).toBe(403);
     });
 
-    it('should return all platforms without pagination params', async () => {
+    it('should return all platforms without pagination params (deprecated backward-compat)', async () => {
       mockListAll.mockResolvedValue([mappedPlatform]);
 
       const response = await agent
@@ -529,7 +427,107 @@ describe('PublishingPlatform Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
-      // parseInt('abc') returns NaN, NaN || 1 => 1; parseInt('xyz') returns NaN, NaN || 10 => 10
+      expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, undefined, undefined);
+    });
+
+    // ========== 新增：参数校验测试 ==========
+
+    it('should cap pageSize at 100', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/publishing-platforms?page=1&pageSize=999')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 100, undefined, undefined, undefined, undefined);
+    });
+
+    it('should return 400 when search exceeds max length', async () => {
+      const response = await agent
+        .get('/api/publishing-platforms?page=1&pageSize=10&search=' + 'a'.repeat(101))
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('搜索关键词不能超过');
+    });
+
+    it('should allow search at max length boundary', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/publishing-platforms?page=1&pageSize=10&search=' + 'a'.repeat(100))
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, 'a'.repeat(100), undefined, undefined, undefined);
+    });
+
+    it('should return 400 when sortBy is invalid', async () => {
+      const response = await agent
+        .get('/api/publishing-platforms?page=1&pageSize=10&sortBy=invalid_field')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的排序字段');
+    });
+
+    it('should return 400 when sortOrder is invalid', async () => {
+      const response = await agent
+        .get('/api/publishing-platforms?page=1&pageSize=10&sortOrder=invalid')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的排序方向');
+    });
+
+    it('should accept all valid sort fields', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      for (const field of ['name', 'taxonomy', 'price', 'include_rate', 'publish_rate']) {
+        jest.clearAllMocks();
+        const response = await agent
+          .get(`/api/publishing-platforms?page=1&pageSize=10&sortBy=${field}`)
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, field, undefined);
+      }
+    });
+
+    it('should accept both asc and desc sort orders', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      for (const order of ['asc', 'desc']) {
+        jest.clearAllMocks();
+        const response = await agent
+          .get(`/api/publishing-platforms?page=1&pageSize=10&sortOrder=${order}`)
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, undefined, order);
+      }
+    });
+
+    it('should handle negative page by defaulting to 1', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/publishing-platforms?page=-1&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, undefined, undefined);
+    });
+
+    it('should handle zero pageSize by defaulting to 10', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/publishing-platforms?page=1&pageSize=0')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
       expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, undefined, undefined);
     });
   });

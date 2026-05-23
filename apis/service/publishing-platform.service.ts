@@ -1,6 +1,8 @@
 import { PublishingPlatform } from '../entity';
 
 export interface IPublishingPlatformService {
+  /** 从系统配置读取凭证并同步软盟发布平台资源 */
+  syncFromSystemConfig(): Promise<number>;
   /** 全量同步软盟发布平台资源到本地表 */
   syncFromRm(username: string, password: string): Promise<number>;
   /** 获取所有发布平台 */
