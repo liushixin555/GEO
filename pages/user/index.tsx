@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Row, Col, Card, Input, Select, Switch, Tag, Spin, Pagination, Breadcrumb, Button, Descriptions } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import UserForm from './UserForm';
 
@@ -144,17 +144,16 @@ const UserPage: React.FC = () => {
                   }
                 </Descriptions.Item>
               </Descriptions>
-              {item.role !== 'sysadmin' && (
-                <div className="user-card-footer">
-                  <Button
-                    type="primary"
-                    size="small"
-                    onClick={() => { setEditItem(item); setShowForm(true); }}
-                  >
-                    编辑
-                  </Button>
-                </div>
-              )}
+              <div className="user-card-footer">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<EditOutlined />}
+                  disabled={item.role === 'sysadmin'}
+                  onClick={() => { setEditItem(item); setShowForm(true); }}
+                  style={{ color: item.role !== 'sysadmin' ? 'var(--color-primary, #0f62fe)' : undefined }}
+                />
+              </div>
             </Card>
           ))}
         </div>
@@ -189,15 +188,14 @@ const UserPage: React.FC = () => {
                     }
                   </td>
                   <td className="col-action">
-                    {item.role !== 'sysadmin' && (
-                      <Button
-                        type="link"
-                        size="small"
-                        onClick={() => { setEditItem(item); setShowForm(true); }}
-                      >
-                        编辑
-                      </Button>
-                    )}
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<EditOutlined />}
+                      disabled={item.role === 'sysadmin'}
+                      onClick={() => { setEditItem(item); setShowForm(true); }}
+                      style={{ color: item.role !== 'sysadmin' ? 'var(--color-primary, #0f62fe)' : undefined }}
+                    />
                   </td>
                 </tr>
               ))}
