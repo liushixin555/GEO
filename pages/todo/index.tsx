@@ -340,7 +340,7 @@ const TodoPage: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 240,
+      width: 120,
       render: (_: unknown, record: TodoItem) => getActionButtons(record),
     },
   ];

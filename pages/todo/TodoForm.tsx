@@ -141,11 +141,14 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
   useEffect(() => {
     if (!visible) return;
     form.resetFields();
+    setObjectOptions([]);
+    setAssignees([]);
     if (todo) {
       form.setFieldsValue({
         company_id: todo.company_id,
         project_id: todo.project_id,
         object_type: todo.object_type,
+        object_id: todo.object_id,
         action: todo.action,
         priority: todo.priority,
       });
@@ -158,9 +161,14 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
       const res = await axios.get('/api/auth/companies', { headers: authHeaders() });
       const list = res.data.data || [];
       setCompanies(list.map((c: any) => ({ id: c.id, name: c.short_name || c.full_name })));
-      // If editing, load downstream data
       if (todo?.company_id) {
-        loadProjects(todo.company_id);
+        const projList = await loadProjects(todo.company_id);
+        if (todo.project_id) {
+          await Promise.all([
+            loadObjectOptions(todo.project_id, todo.object_type, todo.action),
+            loadAssignees(todo.project_id),
+          ]);
+        }
       }
     } catch {
       setCompanies([]);
@@ -175,8 +183,10 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
       });
       const list = res.data.data || [];
       setProjects(list.map((p: any) => ({ id: p.id, name: p.short_name || p.full_name })));
+      return list;
     } catch {
       setProjects([]);
+      return [];
     }
   };
 
