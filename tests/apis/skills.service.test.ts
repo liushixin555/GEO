@@ -247,6 +247,28 @@ describe('SkillsServiceImpl', () => {
       expect(result.list[0].created_by).toBeNull();
       expect(result.list[0].creator_name).toBeNull();
     });
+
+    it('findMany 抛出错误时应向上传播', async () => {
+      const mockFindMany = jest.fn().mockRejectedValue(new Error('DB连接失败'));
+      const mockCount = jest.fn().mockResolvedValue(0);
+
+      mockedGetPrisma.mockReturnValue({
+        skills: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await expect(service.list(1, 10)).rejects.toThrow('DB连接失败');
+    });
+
+    it('count 抛出错误时应向上传播', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockRejectedValue(new Error('Count失败'));
+
+      mockedGetPrisma.mockReturnValue({
+        skills: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await expect(service.list(1, 10)).rejects.toThrow('Count失败');
+    });
   });
 
   // ──────────────────────────────────────
@@ -324,6 +346,16 @@ describe('SkillsServiceImpl', () => {
         created_at: new Date('2025-03-01'),
         updated_at: new Date('2025-07-01'),
       });
+    });
+
+    it('findFirst 抛出错误时应向上传播', async () => {
+      const mockFindFirst = jest.fn().mockRejectedValue(new Error('DB查询失败'));
+
+      mockedGetPrisma.mockReturnValue({
+        skills: { findFirst: mockFindFirst },
+      } as any);
+
+      await expect(service.getById(1)).rejects.toThrow('DB查询失败');
     });
   });
 
@@ -503,6 +535,49 @@ describe('SkillsServiceImpl', () => {
           data: expect.objectContaining({ skillDir: '/skills/advanced' }),
         }),
       );
+    });
+
+    it('description 为空字符串时应转为 null（falsy 值）', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      const mockCreate = jest.fn().mockResolvedValue(makePrismaSkill());
+
+      mockedGetPrisma.mockReturnValue({
+        skills: { findFirst: mockFindFirst, create: mockCreate },
+      } as any);
+
+      await service.create({ name: '测试', description: '', skill_dir: '/test' });
+
+      // '' || null === null — 空字符串被视为 falsy
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ description: null }),
+        }),
+      );
+    });
+
+    it('findFirst 检查重名抛出错误时应向上传播', async () => {
+      const mockFindFirst = jest.fn().mockRejectedValue(new Error('DB连接失败'));
+
+      mockedGetPrisma.mockReturnValue({
+        skills: { findFirst: mockFindFirst },
+      } as any);
+
+      await expect(
+        service.create({ name: '测试', skill_dir: '/test' }),
+      ).rejects.toThrow('DB连接失败');
+    });
+
+    it('create 操作抛出错误时应向上传播', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      const mockCreate = jest.fn().mockRejectedValue(new Error('写入失败'));
+
+      mockedGetPrisma.mockReturnValue({
+        skills: { findFirst: mockFindFirst, create: mockCreate },
+      } as any);
+
+      await expect(
+        service.create({ name: '测试', skill_dir: '/test' }),
+      ).rejects.toThrow('写入失败');
     });
   });
 
@@ -694,6 +769,36 @@ describe('SkillsServiceImpl', () => {
         expect.objectContaining({ where: { id: 7 } }),
       );
     });
+
+    it('description 设为 null 时应更新 description 为 null', async () => {
+      const existing = makePrismaSkill({ description: '旧描述' });
+      const updated = makePrismaSkill({ description: null });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+
+      mockedGetPrisma.mockReturnValue({
+        skills: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.update(1, { description: null as any });
+
+      // description: null is not undefined, so it should be in data
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ description: null }) }),
+      );
+    });
+
+    it('update 操作抛出错误时应向上传播', async () => {
+      const existing = makePrismaSkill();
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockRejectedValue(new Error('更新失败'));
+
+      mockedGetPrisma.mockReturnValue({
+        skills: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await expect(service.update(1, { name: '更新' })).rejects.toThrow('更新失败');
+    });
   });
 
   // ──────────────────────────────────────
@@ -768,6 +873,18 @@ describe('SkillsServiceImpl', () => {
       const result = await service.delete(1);
 
       expect(result).toBeUndefined();
+    });
+
+    it('软删除操作抛出错误时应向上传播', async () => {
+      const existing = makePrismaSkill({ id: 1 });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockRejectedValue(new Error('删除失败'));
+
+      mockedGetPrisma.mockReturnValue({
+        skills: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await expect(service.delete(1)).rejects.toThrow('删除失败');
     });
   });
 });

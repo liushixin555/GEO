@@ -8,8 +8,8 @@
 | 测试文件 | `tests/apis/skills.service.test.ts` |
 | 执行日期 | 2026-05-24 |
 | 测试框架 | Jest + ts-jest |
-| 测试数 | 42 个 |
-| 结果 | **全部通过 (42/42)** |
+| 测试数 | 51 个 |
+| 结果 | **全部通过 (51/51)** |
 
 ## 覆盖率
 
@@ -22,7 +22,7 @@
 
 ## 测试用例明细
 
-### list() — 12 个测试
+### list() — 14 个测试
 
 | # | 测试用例 | 说明 |
 |---|---------|------|
@@ -38,8 +38,10 @@
 | 10 | Promise.all 应并行执行 findMany 和 count | 并行执行验证 |
 | 11 | mapSkills 应正确映射 skillDir → skill_dir | 字段映射 |
 | 12 | creator 为 null 时 creator_name 应为 null | null 关联处理 |
+| 13 | findMany 抛出错误时应向上传播 | 错误传播 |
+| 14 | count 抛出错误时应向上传播 | 错误传播 |
 
-### getById() — 4 个测试
+### getById() — 5 个测试
 
 | # | 测试用例 | 说明 |
 |---|---------|------|
@@ -47,8 +49,9 @@
 | 2 | 技能不存在时应抛出错误 | 异常：不存在 |
 | 3 | 应包含 creator 关联数据 | 关联数据 |
 | 4 | mapSkills 应正确映射所有字段 | 全字段映射验证 |
+| 5 | findFirst 抛出错误时应向上传播 | 错误传播 |
 
-### create() — 10 个测试
+### create() — 13 个测试
 
 | # | 测试用例 | 说明 |
 |---|---------|------|
@@ -62,8 +65,11 @@
 | 8 | created_by 为 undefined 时不应包含在 data 中 | 未传创建人 |
 | 9 | 创建时应包含 creator 关联查询 | include 验证 |
 | 10 | skillDir 应正确映射为 skill_dir | 字段映射 |
+| 11 | description 为空字符串时应转为 null（falsy 值） | 空字符串边缘场景 |
+| 12 | findFirst 检查重名抛出错误时应向上传播 | 错误传播 |
+| 13 | create 操作抛出错误时应向上传播 | 错误传播 |
 
-### update() — 11 个测试
+### update() — 13 个测试
 
 | # | 测试用例 | 说明 |
 |---|---------|------|
@@ -78,8 +84,10 @@
 | 9 | 字段值为 undefined 时不应包含在 data 中 | undefined 过滤 |
 | 10 | 更新时应包含 creator 关联查询 | include 验证 |
 | 11 | update 应使用 where: { id } 定位记录 | where 条件 |
+| 12 | description 设为 null 时应更新 description 为 null | null 值更新 |
+| 13 | update 操作抛出错误时应向上传播 | 错误传播 |
 
-### delete() — 5 个测试
+### delete() — 6 个测试
 
 | # | 测试用例 | 说明 |
 |---|---------|------|
@@ -88,6 +96,7 @@
 | 3 | 查找时应检查 deletedAt 为 null | 防止重复删除 |
 | 4 | 已软删除的技能再次删除应抛出错误 | 重复删除保护 |
 | 5 | 删除后返回值应为 void（undefined） | 返回值验证 |
+| 6 | 软删除操作抛出错误时应向上传播 | 错误传播 |
 
 ## 关键测试策略
 
@@ -96,3 +105,20 @@
 3. **分支覆盖**: 针对 if (search)、if (existing)、if (!item)、if (request.name !== undefined) 等所有分支均编写测试
 4. **字段映射**: 验证 Prisma camelCase → entity snake_case 的映射（skillDir → skill_dir, createdBy → created_by）
 5. **边界值**: 空字符串 search、null created_by、空 update 请求等
+6. **错误传播**: 每个方法均测试 Prisma 操作抛出异常时的错误传播行为
+
+## 本次补全内容（42 → 51）
+
+新增 9 个测试用例：
+
+| 方法 | 新增测试 | 说明 |
+|------|---------|------|
+| list | findMany 抛出错误时应向上传播 | 错误传播 |
+| list | count 抛出错误时应向上传播 | 错误传播 |
+| getById | findFirst 抛出错误时应向上传播 | 错误传播 |
+| create | description 为空字符串时应转为 null | 空字符串 falsy 行为 |
+| create | findFirst 检查重名抛出错误时应向上传播 | 错误传播 |
+| create | create 操作抛出错误时应向上传播 | 错误传播 |
+| update | description 设为 null 时应更新 description 为 null | null 值显式更新 |
+| update | update 操作抛出错误时应向上传播 | 错误传播 |
+| delete | 软删除操作抛出错误时应向上传播 | 错误传播 |
