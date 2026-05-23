@@ -172,6 +172,40 @@ describe('server.ts', () => {
         expect.stringContaining('Swagger docs')
       );
     });
+
+    test('NODE_ENV 未设置时环境日志显示 development', () => {
+      delete process.env.NODE_ENV;
+
+      jest.isolateModules(() => {
+        require('../../apis/server');
+      });
+
+      if (mockListenCallback) {
+        mockListenCallback();
+      }
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        '[薄云商机倍增服务] Environment: development'
+      );
+    });
+
+    test('NODE_ENV 设置为 production 时环境日志显示 production', () => {
+      process.env.NODE_ENV = 'production';
+
+      jest.isolateModules(() => {
+        require('../../apis/server');
+      });
+
+      if (mockListenCallback) {
+        mockListenCallback();
+      }
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        '[薄云商机倍增服务] Environment: production'
+      );
+
+      delete process.env.NODE_ENV;
+    });
   });
 
   describe('SIGINT 信号处理', () => {
