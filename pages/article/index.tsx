@@ -201,11 +201,13 @@ const ArticlePage: React.FC = () => {
                 onClick={() => navigate(`/article/${item.id}`)}
                 style={{ cursor: 'pointer' }}
               >
-                <Descriptions column={3} size="small" colon={false}>
-                  <Descriptions.Item label="ID">{item.id}</Descriptions.Item>
-                  <Descriptions.Item label="关键词">{item.keywords || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="创建时间">{formatDate(item.created_at)}</Descriptions.Item>
-                </Descriptions>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, whiteSpace: 'nowrap' }}>
+                  <span>ID: {item.id}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+                    关键词: {item.keywords || '-'}
+                  </span>
+                  <span>创建时间: {formatDate(item.created_at)}</span>
+                </div>
                 {canDelete(item) && (
                   <div className="article-card-footer">
                     <Popconfirm
