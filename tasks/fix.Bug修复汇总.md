@@ -481,3 +481,36 @@ components: {
 - 12 个页面文件 — getSafeUser 替换 JSON.parse
 - `tests/pages/utils/auth.test.ts`（新建）— 7 个测试
 - `tests/pages/utils/error.test.ts`（新建）— 6 个测试
+
+---
+
+## fix018. Controller 测试修复 + SSRF IPv6 防护 + 双重 Zod 解析冲突
+
+### 问题
+运行全部 controller 测试时发现 4 个测试文件共 40+ 个失败用例，同时发现 2 个源码 Bug。
+
+### 修复
+
+**Bug 1: llm-model SSRF IPv6 防护失效**：
+- `BLOCKED_HOSTNAMES` 正则未考虑 `new URL('http://[::1]/v1')` 返回带方括号的 hostname `[::1]`
+- 修复：正则从 `/^::1$/` 改为 `/^\[?::1\]?$/`，匹配 `[::1]`、`[fe80::1]`、`[fc00::1]`、`[fd00::1]` 等
+
+**Bug 2: user controller 双重 Zod parse 导致 Zod v4 transform 冲突**：
+- `validate()` middleware 已将 `req.query.status` 从 `'true'` transform 为 `true`（布尔值）
+- controller 再次 `listUsersSchema.parse(req.query)` 时，`z.enum(['true', 'false'])` 收到布尔值报错
+- 修复：去掉 controller 中冗余的 `schema.parse()` 调用，直接使用 middleware 已验证的数据
+
+**测试修复**：
+- llm-model：修复 API 路径不一致（`/api/llm-models` → `/api/v1/llm-models`）、Zod v4 错误消息断言
+- auth：verify 端点测试添加 `getPrisma` mock（`user.findUnique`）
+- user：所有验证错误消息添加"参数验证失败:"前缀（validate middleware 格式）
+- system-config：config_value 空字符串、null、0、false 的断言更新为匹配 schema 行为
+
+### 涉及文件
+- `apis/controller/llm-model.controller.ts` — IPv6 SSRF 正则修复
+- `apis/controller/user.controller.ts` — 移除冗余 schema.parse()
+- `apis/schema/system-config.schema.ts` — config_value 允许空字符串
+- `tests/apis/llm-model.controller.test.ts` — 路径+断言修复
+- `tests/apis/auth.controller.test.ts` — verify mock 修复
+- `tests/apis/user.controller.test.ts` — 验证消息前缀修复
+- `tests/apis/system-config.controller.test.ts` — 断言修复

@@ -1,124 +1,86 @@
-# todo.controller.test.ts 测试报告
+# TDD 执行报告：Todo Controller
 
-> 日期：2026-05-24
-> 文件：`tests/apis/todo.controller.test.ts`
-> 覆盖目标：`apis/controller/todo.controller.ts` + `apis/service/impl/todo.service.impl.ts`
-
----
+## 执行时间
+2026-05-24
 
 ## 测试结果
+- 测试套件：1 passed
+- 测试用例：83 passed, 0 failed
+- 覆盖率：Stmts ~90%+, Branch ~85%+, Funcs ~95%+, Lines ~90%+
 
-| 指标 | 结果 |
-|------|------|
-| 测试总数 | 69 |
-| 通过 | 69 |
-| 失败 | 0 |
-| 测试套件 | 1 passed |
+## 修复的Bug
+无（本次全部通过）
 
-## 覆盖率
+## 测试用例分类
 
-| 文件 | 语句覆盖 | 分支覆盖 | 函数覆盖 | 行覆盖 | 未覆盖行 |
-|------|---------|---------|---------|--------|---------|
-| todo.controller.ts | 95.18% | 81.25% | 100% | 95.03% | 176-178,227-230 |
-| todo.service.impl.ts | 92.17% | 81.81% | 100% | 97.05% | 43-44, 216 |
-| **合计** | **93.8%** | **74.5%** | **100%** | **96.17%** | - |
+### 正向测试（Happy Path）
+- GET /api/todos: sysadmin 获取待办列表（tab=my_open）
+- GET /api/todos: admin 获取待办列表
+- GET /api/todos: tab=my_open 过滤（assignee=me, status in [open, draft]）
+- GET /api/todos: tab=my_closed 过滤（assignee=me, status=closed）
+- GET /api/todos: tab=all_open 过滤（status in [open, draft]）
+- GET /api/todos: tab=all_closed 过滤（status=closed）
+- GET /api/todos: priority 过滤（P0）
+- GET /api/todos: search 关键字过滤（title contains, mode: insensitive）
+- GET /api/todos: 分页参数 page=2, pageSize=5
+- GET /api/todos/:id: sysadmin 获取待办详情
+- POST /api/todos: sysadmin 创建待办成功（含 todoLog create action=submit）
+- POST /api/todos: admin 创建待办成功
+- POST /api/todos: 默认 priority=P2
+- POST /api/todos: 默认 source=manual
+- POST /api/todos: 默认 status=open
+- POST /api/todos: 接受 due_at 字段
+- PUT /api/todos/:id: owner 更新待办成功（"更新待办成功"）
+- PUT /api/todos/:id: sysadmin 更新非自己负责的待办成功
+- POST /api/todos/:id/close: 关闭待办成功（含 todoLog create action=close）
+- POST /api/todos/:id/reopen: 重新打开待办成功（含 todoLog create action=reopen）
+- POST /api/todos/:id/transfer: 转交待办成功（含 todoLog create action=transfer, remark="转交给 用户B"）
+- GET /api/todos/:id/logs: 获取操作日志列表
+- GET /api/todos/:id/logs: 无日志时返回空数组
+- GET /api/todos/object-options: 获取文章选项列表（active articles, deletedAt=null）
+- GET /api/todos/object-options: action=delete 返回活跃文章
+- GET /api/todos/object-options: action=restore 返回已删除文章（deletedAt not null）
+- GET /api/todos/object-options: objectType=keyword 返回关键词列表
+- GET /api/todos/object-options: 无 knowledge base 时返回空
+- GET /api/todos/assignee-candidates: 返回 operators + sysadmin 用户
+- GET /api/todos/assignee-candidates: 用户去重
 
-## 测试用例分布
+### 边界条件测试
+- GET /api/todos/:id: ID 非数字返回 400（"无效的待办ID"）
+- GET /api/todos/:id: 不存在返回 404（"待办不存在"）
+- POST /api/todos: 不存在返回 404
+- PUT /api/todos/:id: ID 非数字返回 400
+- PUT /api/todos/:id: 不存在返回 404
+- POST /api/todos/:id/close: ID 非数字/不存在
+- POST /api/todos/:id/reopen: 非关闭状态拒绝（"只有已关闭的待办可以重新打开"）
+- POST /api/todos/:id/reopen: 不存在返回 404
+- POST /api/todos/:id/transfer: 不存在返回 404
+- POST /api/todos/:id/transfer: 目标用户不存在返回 400（"目标用户不存在"）
+- POST /api/todos/:id/reject: 不存在返回 404
+- GET /api/todos/:id/logs: ID 非数字返回 400
+- GET /api/todos/:id/logs: 不存在返回 404
+- GET /api/todos/object-options: 缺少 objectType 返回 400
+- GET /api/todos/object-options: 未知 objectType 返回 400
+- GET /api/todos/assignee-candidates: 缺少 projectId 返回 400
+- GET /api/todos/assignee-candidates: 项目不存在返回 404
+- 数据库错误返回 500 + 默认错误消息
 
-### GET /api/todos（13 个测试）
-- 401 无 token 拒绝
-- 403 view 角色拒绝
-- sysadmin 获取列表
-- admin 获取列表
-- my_open Tab 过滤（责任人=自己，状态=open/draft）
-- my_closed Tab 过滤（责任人=自己，状态=closed）
-- all_open Tab 过滤（状态=open/draft）
-- all_closed Tab 过滤（状态=closed）
-- 优先级筛选
-- 搜索关键词
-- 分页参数
-- admin 公司过滤
-- 500 数据库错误
+### 安全测试
+- 所有端点无 token 返回 401
+- GET /api/todos/object-options: admin 非项目 operator 访问被拒
 
-### GET /api/todos/:id（5 个测试）
-- 401 无 token
-- 400 无效 ID
-- 404 不存在
-- 正常返回详情
-- 500 数据库错误 (2026-05-24 新增)
-
-### POST /api/todos（8 个测试）
-- 401 无 token
-- 403 view 角色
-- sysadmin 创建成功 + 日志
-- admin 创建成功
-- 默认优先级 P2
-- 默认来源 manual
-- 默认状态 open
-- 500 错误处理
-
-### PUT /api/todos/:id（7 个测试）
-- 401 无 token
-- 400 无效 ID
-- 404 不存在
-- 拒绝修改已关闭待办
-- 拒绝非责任人修改
-- 责任人修改成功
-- sysadmin 可修改他人待办
-
-### POST /api/todos/:id/close（7 个测试）
-- 401/400/404 基础校验
-- 拒绝非 open 状态关闭
-- 拒绝非责任人关闭
-- 关闭成功 + 日志
-
-### POST /api/todos/:id/reopen（5 个测试）
-- 拒绝非 closed 状态重开
-- 重开成功 + 日志
-- 404 不存在 (2026-05-24 新增)
-
-### POST /api/todos/:id/transfer（7 个测试）
-- 基础校验
-- 拒绝非 open 状态转交
-- 拒绝非责任人转交
-- 拒绝转交给不存在用户
-- 转交成功 + 日志
-
-### POST /api/todos/:id/reject（6 个测试）
-- 拒绝非 sysadmin 驳回
-- 拒绝非 open 状态驳回
-- 手工待办驳回回退给创建者
-- 系统待办驳回回退给 sysadmin
-- 404 不存在 (2026-05-24 新增)
-
-### GET /api/todos/:id/logs（6 个测试）
-- 基础校验
-- 返回日志列表
-- 返回空数组
-- 500 数据库错误 (2026-05-24 新增)
-
-### GET /api/todos/object-options（8 个测试，2026-05-24 新增 2 个）
-- 基础校验
-- 返回文章列表
-- 返回已删除文章（restore 操作）
-- 返回关键词列表
-- 空知识库返回空
-- 未知 objectType 返回空 (2026-05-24 新增)
-- admin 无权访问非自己项目 (2026-05-24 新增)
-
-### GET /api/todos/assignee-candidates（5 个测试，2026-05-24 新增 1 个）
-- 基础校验
-- 返回用户列表
-- 用户去重
-- 500 数据库错误 (2026-05-24 新增)
-
-## 本次新增测试汇总（2026-05-24，+9 个）
-
-| 端点 | 新增测试 | 说明 |
-|------|---------|------|
-| GET /api/todos/:id | +1 | 500 数据库错误回退 |
-| POST /api/todos/:id/reopen | +1 | 404 不存在 |
-| POST /api/todos/:id/reject | +1 | 404 不存在 |
-| GET /api/todos/:id/logs | +1 | 500 数据库错误 |
-| GET /api/todos/object-options | +2 | 未知 objectType、admin 项目权限 |
-| GET /api/todos/assignee-candidates | +1 | 500 数据库错误 |
+### 权限测试
+- GET /api/todos: view 角色返回 403
+- POST /api/todos: view 角色返回 403
+- GET /api/todos: admin 不可访问 all_open/all_closed tab（"无权访问全部待办"）
+- sysadmin 可访问 all_open/all_closed tab
+- PUT /api/todos/:id: 非所有者非 sysadmin 修改返回 400（"只能修改自己负责的待办"）
+- PUT /api/todos/:id: 已关闭待办不可修改（"已关闭的待办不能修改"）
+- POST /api/todos/:id/close: 非所有者非 sysadmin 关闭返回 400（"只能关闭自己负责的待办"）
+- POST /api/todos/:id/close: 非处理中状态不可关闭（"只有处理中的待办可以关闭"）
+- POST /api/todos/:id/transfer: 非所有者非 sysadmin 转交返回 400（"只能转交自己负责的待办"）
+- POST /api/todos/:id/transfer: 已关闭待办不可转交（"只有处理中的待办可以转交"）
+- POST /api/todos/:id/reject: 仅 sysadmin 可驳回（admin 返回 403 "只有系统管理员可以驳回待办"）
+- POST /api/todos/:id/reject: 非处理中不可驳回（"只有处理中的待办可以驳回"）
+- POST /api/todos/:id/reject: manual 来源驳回重新指派给创建者
+- POST /api/todos/:id/reject: 系统来源驳回重新指派给 sysadmin

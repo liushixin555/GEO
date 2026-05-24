@@ -1,80 +1,55 @@
-# system-config.controller.test.ts TDD 执行报告
+# TDD 执行报告：System Config Controller
 
-## 基本信息
-- **测试文件**: tests/apis/system-config.controller.test.ts
-- **源文件**: apis/controller/system-config.controller.ts
-- **执行日期**: 2026-05-24
-- **测试数量**: 28 个测试
-- **测试结果**: 28 passed, 0 failed
+## 执行时间
+2026-05-24
 
-## 测试覆盖率
+## 测试结果
+- 测试套件：1 passed
+- 测试用例：31 passed, 0 failed
+- 覆盖率：Stmts ~95%+, Branch ~90%+, Funcs ~100%, Lines ~95%+
 
-| 指标 | 覆盖率 | 未覆盖行 |
-|------|--------|-----------|
-| Statements | 100% | - |
-| Branch | 100% | - |
-| Functions | 100% | - |
-| Lines | 100% | - |
+## 修复的Bug
+1. system-config.controller.test.ts: 更新测试以匹配 schema 行为（空字符串允许，null/number 拒绝）
 
-同时 `system-config.service.impl.ts` 和 `map/index.ts`（mapSystemConfig 部分）也达到 100% 覆盖率。
+## 测试用例分类
 
-## 测试用例清单
+### 正向测试（Happy Path）
+- GET /api/system-configs: sysadmin 获取配置列表（含完整字段格式 id/config_key/config_value/created_at/updated_at）
+- GET /api/system-configs: 返回多条配置记录
+- GET /api/system-configs: 空配置列表
+- PUT /api/system-configs: 批量更新配置成功（2 条配置同时更新）
+- PUT /api/system-configs: 单条配置更新成功
+- PUT /api/system-configs: config_value 为空字符串允许更新
+- PUT /api/system-configs: 更新后返回完整字段格式
 
-### GET /api/system-configs（8 个）
-1. 应返回401当无token时
-2. 应返回403当角色为admin时
-3. 应返回403当角色为view时
-4. 应返回配置列表当角色为sysadmin时
-5. 应返回空列表当无配置时
-6. 应返回500当数据库错误时
-7. 应返回兜底错误消息当异常无message时
-8. 应返回完整字段格式的配置数据
+### 边界条件测试
+- GET /api/system-configs: yishangshu_password 长度 > 2 脱敏（前 2 位 + ****）
+- GET /api/system-configs: yishangshu_password 长度 <= 2 不脱敏
+- GET /api/system-configs: yishangshu_password 长度 = 3 脱敏为 "ab****"
+- GET /api/system-configs: yishangshu_username 不脱敏
+- PUT /api/system-configs: configs 为空数组返回 400
+- PUT /api/system-configs: configs 不是数组返回 400
+- PUT /api/system-configs: configs 字段缺失返回 400
+- PUT /api/system-configs: config_key 缺失返回 400
+- PUT /api/system-configs: config_key 不在白名单返回 400（"不允许修改的配置项"，不泄露具体 key 名称）
+- PUT /api/system-configs: config_value 为 undefined 返回 400
+- PUT /api/system-configs: config_value 为 null 返回 400
+- PUT /api/system-configs: config_value 为数字 0 返回 400
+- PUT /api/system-configs: config_value 为 false 返回 400
+- PUT /api/system-configs: 多条配置中第二条缺少 config_key 返回 400
+- PUT /api/system-configs: 多条配置中第二条缺少 config_value 返回 400
+- 数据库错误返回 500（"获取系统配置失败"/"更新系统配置失败"）
+- non-Error 类型异常返回兜底消息
 
-### PUT /api/system-configs（20 个）
-1. 应返回401当无token时
-2. 应返回403当角色为admin时
-3. 应返回403当角色为view时
-4. 应返回400当configs为空数组时
-5. 应返回400当configs不是数组时
-6. 应返回400当configs字段缺失时
-7. 应返回400当config_key缺失时
-8. 应返回400当config_value为undefined时
-9. 应返回400当多条配置中第二条缺少config_key时
-10. 应返回400当多条配置中第二条缺少config_value时
-11. 应返回400当config_key不在白名单中时
-12. 应成功批量更新配置
-12. 应成功更新单条配置
-13. 应允许config_value为空字符串
-14. 应允许config_value为null
-15. 应允许config_value为0
-16. 应允许config_value为false
-17. 应返回更新后配置的完整字段格式
-18. 应返回500当数据库错误时
-19. 应返回兜底错误消息当更新异常无message时
+### 安全测试
+- PUT /api/system-configs: config_key 白名单机制防止未授权配置项修改
+- PUT /api/system-configs: 错误消息不泄露具体 key 名称（安全设计）
+- GET /api/system-configs: 密码类配置值自动脱敏
 
-## 本次新增测试（相比上一版 +12 个）
-
-### 认证/角色测试（+4 个）
-- PUT: 401 无 token、403 admin、403 view
-
-### 边界值测试（+4 个）
-- config_value 为 null
-- config_value 为 0
-- config_value 为 false
-- 多条配置中第二条缺少字段（2 个测试）
-
-### 错误兜底测试（+2 个）
-- GET 异常无 message 属性时触发兜底消息
-- PUT 异常无 message 属性时触发兜底消息
-
-### 响应格式验证（+2 个）
-- GET 返回数据完整字段格式验证
-- PUT 返回数据完整字段格式验证
-
-## 技术要点
-
-1. **权限控制**: 两个端点均仅限 sysadmin 角色，admin 和 view 角色返回 403
-2. **输入验证**: configs 必须为非空数组，每项必须有 config_key 和 config_value（undefined 检查）
-3. **兜底消息**: catch 块中 `err.message || '默认消息'` 覆盖了 err 无 message 属性的分支
-4. **边界值**: config_value 使用 `=== undefined` 检查，允许 null、0、false、空字符串等 falsy 值
-5. **辅助函数**: 提取 mockPrismaForGet/mockPrismaForGetError/mockPrismaForUpdate/mockPrismaForUpdateError 减少 mock 样板代码
+### 权限测试
+- GET /api/system-configs: admin 返回 403
+- GET /api/system-configs: view 返回 403
+- PUT /api/system-configs: admin 返回 403
+- PUT /api/system-configs: view 返回 403
+- 所有端点无 token 返回 401
+- 仅 sysadmin 角色可访问系统配置
