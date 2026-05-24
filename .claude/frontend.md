@@ -73,6 +73,13 @@
       - LOW-03: selection 越界无显式校验；Array(n+1).join 晦涩；SVG 可访问性不一致（unorderedList 缺 role="img"）
       - 安全优势：全部操作在 textarea.value 纯文本域，天然免疫 XSS/HTML 注入；SVG 硬编码无动态注入点；无网络请求/敏感数据访问
       - 若需自定义列表命令，建议传入字符串前缀而非函数，避免 checkedList 的参数忽略问题
+      - **list.tsx UI评审**（CONDITIONAL APPROVE 3.9/10，攻击面极小）：
+        - P1-UX-01: checkedListCommand 回调完全忽略 item/index 参数，任务列表无法正确处理已勾选项 `- [x] `，多行场景 toggle 行为异常
+        - P1-UX-02: `makeList` 中 `state.command.prefix!` 非空断言，外部调用可能运行时崩溃
+        - P2-A-01: unorderedListCommand SVG 缺少 `role="img"`（同文件 ordered/checked 均有此属性，作者疏忽）
+        - P2-I18N-01: 三个命令 aria-label/title 硬编码英文，需封装层动态替换为中文
+        - P2-UX-03: Ctrl+Shift+C 快捷键与 Chrome 开发者工具/VS Code 冲突
+        - 正面：makeList 共享函数设计优于同级命令，有序列表自动编号正确实现
 - antd 主题通过 `main.tsx` 的 `ConfigProvider` 配置，全局覆盖 border-radius: 0 等 Carbon 风格
 - **Switch 组件不参与全局 border-radius: 0 覆盖**，保持 antd 默认椭圆胶囊样式
 - **Switch 使用 checkedChildren/unCheckedChildren** 显示"启用"/"禁用"文字，增强可读性

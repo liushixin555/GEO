@@ -173,6 +173,7 @@
 | 2026-05-25 | progress_tasks/2026-05-25-image-tsx-review-fix.md | image.tsx 评审封装层修复——P1×4快捷键Ctrl+Shift+K+URL正则白名单消除XSS+SVG aria-hidden+16px图标+P2×4非空断言防御+alt转义+选区边界+try-catch+中文ARIA，16项新增测试全通过 |
 | 2026-05-25 | tasks/review/issue.tsx.committer.md | issue.tsx Committer审核专家评审——无条件通过（命令未注册到默认工具栏，零实际影响，不建议注册使用因#语义碰撞不可根治） |
 | 2026-05-25 | progress_tasks/2026-05-25-publishing-schedule-controller-fix-verify.md | publishing-schedule.controller.ts 评审修复验证——12项修复全部确认已应用，213测试全通过 |
+| 2026-05-25 | tasks/review/list.tsx.ui.md | list.tsx UI专家评审——⚠️CONDITIONAL APPROVE 3.9/10（P1×2 checkedList回调忽略参数+prefix!非空断言，P2×3 Ctrl+Shift+C冲突+unorderedList缺role="img"+英文硬编码，P3×3 图标偏小+风格不一致+触摸不足） |
 | 2026-05-25 | progress_tasks/2026-05-25-skills-controller-security-fix.md | skills.controller.ts 安全评审修复——C-4 parseSkillMd ReDoS修复（js-yaml替代正则），其余13项已修复，419测试全通过 |
 | 2026-05-25 | progress_tasks/2026-05-25-italic-tsx-review-fix.md | italic.tsx 评审封装层修复——SEC-M1 prefix!非空断言+SEC-M2输入边界+QUAL-L2错误处理，覆盖italic/bold/strikethrough三命令，+22测试（81总） |
 | 2026-05-25 | tasks/review/link.tsx.ui.md | link.tsx UI专家评审——⚠️CONDITIONAL APPROVE 2.5/10（P1×4 Ctrl+L非标准+data-name="italic"复制错误+空链接文本WCAG违规+12px图标；P2×6 URL检测粗放+非空断言+双占位符+aria-hidden缺失+图标不合规+原生title；P3×4 let重赋值+魔法字符串+英文文案+selectWord语义混淆） |
