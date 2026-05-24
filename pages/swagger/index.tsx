@@ -12,7 +12,7 @@ const ApiDocsPage: React.FC = memo(() => {
   useEffect(() => {
     const controller = new AbortController();
     fetch('/api-docs/', { method: 'HEAD', signal: controller.signal })
-      .then(res => setApiDocsAvailable(res.ok))
+      .then(res => setApiDocsAvailable(res.status !== 404 && res.status !== 502 && res.status !== 503))
       .catch(() => setApiDocsAvailable(false));
     return () => controller.abort();
   }, []);

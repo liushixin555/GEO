@@ -647,3 +647,19 @@ components: {
 - `apis/service/impl/knowledge-base.service.impl.ts` — 导入 AppError 子类，替换所有 throw new Error
 - `apis/controller/knowledge-base.controller.ts` — 导入 AppError，统一 catch 块
 - `tests/apis/knowledge-base.controller.test.ts` — mock 错误类型替换 + 断言更新
+
+---
+
+## fix022. CompanyForm 用户下拉无数据（pageSize 超限 400 错误）
+
+### 问题
+编辑公司页面 `/company/edit/:id` 的运营者/查看者下拉框无数据可选。控制台报 `GET /api/v1/users?page=1&pageSize=999&status=true` 返回 400，错误消息：`参数验证失败: Too big: expected number to be <=100`。
+
+### 原因
+`CompanyForm.tsx` 使用 `pageSize: 999` 请求用户列表，但 `user.schema.ts` 中 `pageSize` 的 Zod 校验限制为 `max(100)`。
+
+### 修复
+`pageSize: 999` → `pageSize: 100`。
+
+### 涉及文件
+- `pages/company/CompanyForm.tsx` — 修正 pageSize 参数

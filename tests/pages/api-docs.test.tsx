@@ -24,7 +24,7 @@ describe('ApiDocsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     document.title = '';
-    mockFetch.mockResolvedValue({ ok: true });
+    mockFetch.mockResolvedValue({ ok: true, status: 200 });
   });
 
   it('should set document title', () => {
@@ -74,7 +74,7 @@ describe('ApiDocsPage', () => {
   });
 
   it('should show alert when API docs returns not ok', async () => {
-    mockFetch.mockResolvedValue({ ok: false });
+    mockFetch.mockResolvedValue({ ok: false, status: 404 });
     renderWithRouter();
     await waitFor(() => {
       expect(document.querySelector('alert')).toBeTruthy();
@@ -82,6 +82,14 @@ describe('ApiDocsPage', () => {
     const alert = document.querySelector('alert');
     expect(alert?.getAttribute('message')).toBe('API 文档服务当前不可用');
     expect(alert?.getAttribute('description')).toContain('API 文档服务未启用');
+  });
+
+  it('should show button when API docs returns 401 (needs auth)', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 401 });
+    renderWithRouter();
+    await waitFor(() => {
+      expect(screen.getByText('打开 API 文档')).toBeInTheDocument();
+    });
   });
 
   it('should show alert when fetch fails', async () => {

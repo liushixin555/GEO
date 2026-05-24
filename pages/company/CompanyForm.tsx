@@ -44,7 +44,7 @@ const CompanyForm: React.FC = () => {
         const token = localStorage.getItem('token');
         const res = await axios.get('/api/v1/users', {
           headers: { Authorization: `Bearer ${token}` },
-          params: { page: 1, pageSize: 999, status: 'true' },
+          params: { page: 1, pageSize: 100, status: 'true' },
         });
         setUsers(res.data.data.list);
       } catch {
