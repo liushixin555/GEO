@@ -22,7 +22,7 @@ import React, { useCallback, useEffect, forwardRef, useImperativeHandle, useRef,
 import MDEditor from '@uiw/react-md-editor/nohighlight';
 import DOMPurify from 'dompurify';
 import { Empty } from 'antd';
-import { FullscreenOutlined } from '@ant-design/icons';
+import { FullscreenOutlined, FontSizeOutlined } from '@ant-design/icons';
 import { safeUrlTransform, SAFE_TAGS } from './MarkdownViewer';
 import '../styles/markdown-editor.css';
 
@@ -206,6 +206,20 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
         preview.setAttribute('aria-live', 'polite');
         preview.setAttribute('aria-label', 'Markdown 预览区');
       }
+
+      // P1: group 下拉菜单 ARIA——role="menu" + role="menuitem" + aria-expanded
+      container.querySelectorAll('.w-md-editor-toolbar-child').forEach((dropdown) => {
+        const ul = dropdown.querySelector('ul');
+        if (ul && !ul.getAttribute('role')) {
+          ul.setAttribute('role', 'menu');
+          ul.setAttribute('aria-label', '标题级别选项');
+        }
+        dropdown.querySelectorAll('li').forEach((li) => {
+          if (!li.getAttribute('role')) {
+            li.setAttribute('role', 'menuitem');
+          }
+        });
+      });
     };
 
     // 立即执行一次
@@ -269,6 +283,20 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
   const commandsFilter = useCallback(
     (command: any, isExtra: boolean) => {
       if (command.name === 'help') return false;
+
+      // P1: 修复 group 命令——12px SVG 替换为 antd 16px 图标 + 中文 ARIA + Carbon 合规
+      if (command.keyCommand === 'group') {
+        return {
+          ...command,
+          icon: <FontSizeOutlined style={{ fontSize: 16 }} />,
+          buttonProps: {
+            ...(command.buttonProps ?? {}),
+            'aria-label': '选择标题级别',
+            'aria-haspopup': 'menu',
+            title: '选择标题级别',
+          },
+        };
+      }
 
       // P0/P1/P2: 修复 fullscreen 命令——按钮点击失效 + 快捷键冲突 + 中文标注 + antd 图标
       if (command.name === 'fullscreen') {

@@ -1,7 +1,8 @@
 # TDD 执行报告：llm-model.service.impl.ts
 
 ## 执行日期
-2026-05-24
+- 首次：2026-05-24（57用例）
+- 第2轮补充：2026-05-25（81用例，+24新增）
 
 ## 测试文件
 `tests/apis/llm-model.service.test.ts`
@@ -10,8 +11,8 @@
 `apis/service/impl/llm-model.service.impl.ts`
 
 ## 测试结果
-- **测试数量**: 57 个测试
-- **通过**: 57 个
+- **测试数量**: 81 个测试
+- **通过**: 81 个
 - **失败**: 0 个
 - **状态**: ✅ 全部通过
 
@@ -31,12 +32,13 @@
 - 应正确映射单个模型
 - 应正确映射 status 为 false 的模型
 
-### listEnabled() — 5 个测试
+### listEnabled() — 6 个测试
 - 应返回所有启用的模型（仅 id、provider、model_name）
 - 应返回空数组当没有启用的模型时
 - 应只查询 status: true 的模型
 - 应只选择 id、provider、modelName 字段
 - 应将 modelName 映射为 model_name
+- 【第2轮新增】应按 id 升序排列（orderBy 验证）
 
 ### getById() — 3 个测试
 - 应返回指定 id 的模型
@@ -106,6 +108,57 @@
 
 ### 服务实例复用 — 1 个测试
 - 同一服务实例应可连续调用多个方法
+
+### 【第2轮新增】NotFoundError 类型验证 — 3 个测试
+- getById 不存在时应抛出 NotFoundError 实例（验证 name/statusCode/message）
+- update 不存在时应抛出 NotFoundError 实例
+- delete 不存在时应抛出 NotFoundError 实例
+
+### 【第2轮新增】findFirst 抛异常 — 3 个测试
+- getById 应传播 findFirst 数据库异常
+- update 应传播 findFirst 数据库异常（不调用 update）
+- delete 应传播 findFirst 数据库异常（不调用 update）
+
+### 【第2轮新增】mapLlmModel falsy apiKey — 4 个测试
+- list 应将空字符串 apiKey 映射为空字符串
+- getById 应将 null apiKey 映射为空字符串
+- create 应将 null apiKey 映射为空字符串
+- update 应将 null apiKey 映射为空字符串
+
+### 【第2轮新增】API key 掩码边界值 — 3 个测试
+- 极短 apiKey（5字符）应正确掩码
+- 刚好4字符 apiKey 应正确掩码
+- 超长 apiKey 应正确掩码
+
+### 【第2轮新增】update 空字符串 vs undefined — 4 个测试
+- 空字符串 provider 应被包含在 data 中（非 undefined）
+- 空字符串 base_url 应被包含在 data 中
+- 空字符串 api_key 应被包含在 data 中
+- 空字符串 model_name 应被包含在 data 中
+
+### 【第2轮新增】update findFirst 参数验证 — 2 个测试
+- findFirst 应传入正确的 where 条件
+- findFirst 应在 update 之前被调用
+
+### 【第2轮新增】delete findFirst 参数验证 — 1 个测试
+- findFirst 应传入正确的 where 条件
+
+### 【第2轮新增】update status 布尔值 — 2 个测试
+- 应将 status=true 正确包含在 data 中
+- 应将 status=false 正确包含在 data 中
+
+### 【第2轮新增】list orderBy 验证 — 1 个测试
+- 应传递 orderBy: { id: asc } 给 Prisma
+
+## 第2轮新增测试策略（+24用例）
+1. **NotFoundError 类型验证** — 验证抛出的错误是正确的 NotFoundError 实例（name/statusCode/message 三个维度）
+2. **findFirst 抛异常** — 覆盖 findFirst 方法本身抛异常（非返回 null）的场景，确保 update/delete 不继续执行
+3. **mapLlmModel falsy apiKey** — 覆盖 apiKey 为空字符串或 null 时的映射分支
+4. **API key 掩码边界值** — 测试极短（5字符）、刚好（4字符）、超长 key 的掩码行为
+5. **空字符串 vs undefined** — 验证 update 中空字符串值被正确包含在 data 中（!== undefined）
+6. **findFirst 参数和调用顺序** — 验证 findFirst 的 where 条件正确，且在 update 之前被调用
+7. **listEnabled orderBy** — 验证排序参数传递
+8. **status 布尔值** — 验证 true/false 值在 update data 中的正确处理
 
 ## 测试策略
 - 使用 `jest.mock` mock `getPrisma` 和 `db.util`

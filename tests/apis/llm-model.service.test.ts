@@ -959,4 +959,302 @@ describe('LlmModelServiceImpl', () => {
       expect(mockPrisma.llmModel.update).toHaveBeenCalledTimes(2);
     });
   });
+
+  // ──────────────────────────────────────
+  //  NotFoundError 类型验证
+  // ──────────────────────────────────────
+
+  describe('NotFoundError 类型验证', () => {
+    it('getById 不存在时应抛出 NotFoundError 实例', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(null);
+
+      try {
+        await service.getById(999);
+        fail('应抛出错误');
+      } catch (error: any) {
+        expect(error.name).toBe('NotFoundError');
+        expect(error.statusCode).toBe(404);
+        expect(error.message).toBe('LLM模型不存在');
+      }
+    });
+
+    it('update 不存在时应抛出 NotFoundError 实例', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(null);
+
+      try {
+        await service.update(999, { provider: 'test' });
+        fail('应抛出错误');
+      } catch (error: any) {
+        expect(error.name).toBe('NotFoundError');
+        expect(error.statusCode).toBe(404);
+      }
+    });
+
+    it('delete 不存在时应抛出 NotFoundError 实例', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(null);
+
+      try {
+        await service.delete(999);
+        fail('应抛出错误');
+      } catch (error: any) {
+        expect(error.name).toBe('NotFoundError');
+        expect(error.statusCode).toBe(404);
+      }
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  findFirst 抛异常（非返回 null）
+  // ──────────────────────────────────────
+
+  describe('findFirst 抛异常', () => {
+    it('getById 应传播 findFirst 数据库异常', async () => {
+      const dbError = new Error('Connection refused');
+      mockPrisma.llmModel.findFirst.mockRejectedValue(dbError);
+
+      await expect(service.getById(1)).rejects.toThrow('Connection refused');
+    });
+
+    it('update 应传播 findFirst 数据库异常（不调用 update）', async () => {
+      const dbError = new Error('Prisma findFirst error');
+      mockPrisma.llmModel.findFirst.mockRejectedValue(dbError);
+
+      await expect(service.update(1, { provider: 'x' })).rejects.toThrow('Prisma findFirst error');
+      expect(mockPrisma.llmModel.update).not.toHaveBeenCalled();
+    });
+
+    it('delete 应传播 findFirst 数据库异常（不调用 update）', async () => {
+      const dbError = new Error('Prisma findFirst timeout');
+      mockPrisma.llmModel.findFirst.mockRejectedValue(dbError);
+
+      await expect(service.delete(1)).rejects.toThrow('Prisma findFirst timeout');
+      expect(mockPrisma.llmModel.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  mapLlmModel falsy apiKey 分支
+  // ──────────────────────────────────────
+
+  describe('mapLlmModel falsy apiKey', () => {
+    it('list 应将空字符串 apiKey 映射为空字符串', async () => {
+      const item = makePrismaModel({ apiKey: '' });
+      mockPrisma.llmModel.findMany.mockResolvedValue([item]);
+
+      const result = await service.list();
+
+      expect(result[0].api_key).toBe('');
+    });
+
+    it('getById 应将 null apiKey 映射为空字符串', async () => {
+      const item = makePrismaModel({ apiKey: null });
+      mockPrisma.llmModel.findFirst.mockResolvedValue(item);
+
+      const result = await service.getById(1);
+
+      expect(result.api_key).toBe('');
+    });
+
+    it('create 应将 null apiKey 映射为空字符串', async () => {
+      const item = makePrismaModel({ apiKey: null });
+      mockPrisma.llmModel.create.mockResolvedValue(item);
+
+      const result = await service.create({
+        provider: 'test',
+        base_url: 'https://test.com',
+        api_key: '',
+        model_name: 'test-model',
+      });
+
+      expect(result.api_key).toBe('');
+    });
+
+    it('update 应将 null apiKey 映射为空字符串', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      const updated = makePrismaModel({ apiKey: null });
+      mockPrisma.llmModel.update.mockResolvedValue(updated);
+
+      const result = await service.update(1, { api_key: '' });
+
+      expect(result.api_key).toBe('');
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  API key 掩码边界值
+  // ──────────────────────────────────────
+
+  describe('API key 掩码边界值', () => {
+    it('极短 apiKey（5字符）应正确掩码', async () => {
+      const item = makePrismaModel({ apiKey: 'abcde' });
+      mockPrisma.llmModel.findMany.mockResolvedValue([item]);
+
+      const result = await service.list();
+
+      expect(result[0].api_key).toBe('abcd****bcde');
+    });
+
+    it('刚好4字符 apiKey 应正确掩码', async () => {
+      const item = makePrismaModel({ apiKey: 'abcd' });
+      mockPrisma.llmModel.findMany.mockResolvedValue([item]);
+
+      const result = await service.list();
+
+      expect(result[0].api_key).toBe('abcd****abcd');
+    });
+
+    it('超长 apiKey 应正确掩码', async () => {
+      const longKey = 'sk-proj-abcdefghijklmnop-1234567890-XYZ';
+      const item = makePrismaModel({ apiKey: longKey });
+      mockPrisma.llmModel.findMany.mockResolvedValue([item]);
+
+      const result = await service.list();
+
+      expect(result[0].api_key).toBe('sk-p****-XYZ');
+      expect(result[0].api_key).toContain('****');
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  listEnabled orderBy 验证
+  // ──────────────────────────────────────
+
+  describe('listEnabled orderBy 验证', () => {
+    it('应按 id 升序排列', async () => {
+      mockPrisma.llmModel.findMany.mockResolvedValue([]);
+
+      await service.listEnabled();
+
+      const callArgs = mockPrisma.llmModel.findMany.mock.calls[0][0] as any;
+      expect(callArgs.orderBy).toEqual({ id: 'asc' });
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  update 空字符串 vs undefined
+  // ──────────────────────────────────────
+
+  describe('update 空字符串 vs undefined', () => {
+    it('空字符串 provider 应被包含在 data 中（非 undefined）', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockPrisma.llmModel.update.mockResolvedValue(makePrismaModel());
+
+      await service.update(1, { provider: '' });
+
+      const callArgs = mockPrisma.llmModel.update.mock.calls[0][0] as any;
+      expect(callArgs.data.provider).toBe('');
+      expect(Object.keys(callArgs.data)).toContain('provider');
+    });
+
+    it('空字符串 base_url 应被包含在 data 中', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockPrisma.llmModel.update.mockResolvedValue(makePrismaModel());
+
+      await service.update(1, { base_url: '' });
+
+      const callArgs = mockPrisma.llmModel.update.mock.calls[0][0] as any;
+      expect(callArgs.data.baseUrl).toBe('');
+    });
+
+    it('空字符串 api_key 应被包含在 data 中', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockPrisma.llmModel.update.mockResolvedValue(makePrismaModel());
+
+      await service.update(1, { api_key: '' });
+
+      const callArgs = mockPrisma.llmModel.update.mock.calls[0][0] as any;
+      expect(callArgs.data.apiKey).toBe('');
+    });
+
+    it('空字符串 model_name 应被包含在 data 中', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockPrisma.llmModel.update.mockResolvedValue(makePrismaModel());
+
+      await service.update(1, { model_name: '' });
+
+      const callArgs = mockPrisma.llmModel.update.mock.calls[0][0] as any;
+      expect(callArgs.data.modelName).toBe('');
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  update findFirst 参数验证
+  // ──────────────────────────────────────
+
+  describe('update findFirst 参数验证', () => {
+    it('findFirst 应传入正确的 where 条件', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockPrisma.llmModel.update.mockResolvedValue(makePrismaModel());
+
+      await service.update(42, { provider: 'test' });
+
+      expect(mockPrisma.llmModel.findFirst).toHaveBeenCalledWith({ where: { id: 42 } });
+    });
+
+    it('findFirst 应在 update 之前被调用', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockPrisma.llmModel.update.mockResolvedValue(makePrismaModel());
+
+      await service.update(1, { provider: 'x' });
+
+      const findFirstOrder = mockPrisma.llmModel.findFirst.mock.invocationCallOrder[0];
+      const updateOrder = mockPrisma.llmModel.update.mock.invocationCallOrder[0];
+      expect(findFirstOrder).toBeLessThan(updateOrder);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  delete findFirst 参数验证
+  // ──────────────────────────────────────
+
+  describe('delete findFirst 参数验证', () => {
+    it('findFirst 应传入正确的 where 条件', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockPrisma.llmModel.update.mockResolvedValue(makePrismaModel());
+
+      await service.delete(42);
+
+      expect(mockPrisma.llmModel.findFirst).toHaveBeenCalledWith({ where: { id: 42 } });
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  update 传入 true 值的 status
+  // ──────────────────────────────────────
+
+  describe('update status 布尔值', () => {
+    it('应将 status=true 正确包含在 data 中', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel({ status: false }));
+      mockPrisma.llmModel.update.mockResolvedValue(makePrismaModel({ status: true }));
+
+      await service.update(1, { status: true });
+
+      const callArgs = mockPrisma.llmModel.update.mock.calls[0][0] as any;
+      expect(callArgs.data.status).toBe(true);
+    });
+
+    it('应将 status=false 正确包含在 data 中', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel({ status: true }));
+      mockPrisma.llmModel.update.mockResolvedValue(makePrismaModel({ status: false }));
+
+      await service.update(1, { status: false });
+
+      const callArgs = mockPrisma.llmModel.update.mock.calls[0][0] as any;
+      expect(callArgs.data.status).toBe(false);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  list orderBy 验证
+  // ──────────────────────────────────────
+
+  describe('list orderBy 验证', () => {
+    it('应传递 orderBy: { id: asc } 给 Prisma', async () => {
+      mockPrisma.llmModel.findMany.mockResolvedValue([]);
+
+      await service.list();
+
+      expect(mockPrisma.llmModel.findMany).toHaveBeenCalledWith({ orderBy: { id: 'asc' } });
+    });
+  });
 });

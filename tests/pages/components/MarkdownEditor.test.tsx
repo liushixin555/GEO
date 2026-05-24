@@ -60,6 +60,9 @@ jest.mock('@ant-design/icons', () => ({
   FullscreenOutlined: ({ style }: { style?: React.CSSProperties }) => (
     <svg data-testid="antd-fullscreen-icon" style={style} />
   ),
+  FontSizeOutlined: ({ style }: { style?: React.CSSProperties }) => (
+    <svg data-testid="antd-fontsize-icon" style={style} />
+  ),
 }));
 
 // Mock CSS import
@@ -218,6 +221,63 @@ describe('MarkdownEditor', () => {
     it('should pass through unknown commands unchanged', () => {
       render(<MarkdownEditor value="" />);
       const cmd = { name: 'bold', shortcuts: 'ctrlcmd+b' };
+      const result = commandsFilterFn!(cmd, false);
+      expect(result).toBe(cmd);
+    });
+  });
+
+  describe('commandsFilter — group command override', () => {
+    it('should detect group command by keyCommand', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(
+        { keyCommand: 'group', name: 'title', groupName: 'title', children: [] },
+        false,
+      );
+      expect(result).toBeTruthy();
+      expect(result).not.toBe(false);
+    });
+
+    it('should replace icon with antd FontSizeOutlined', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(
+        { keyCommand: 'group', name: 'title', groupName: 'title', children: [] },
+        false,
+      );
+      expect(result.icon).toBeTruthy();
+      expect(React.isValidElement(result.icon)).toBe(true);
+    });
+
+    it('should inject Chinese ARIA labels', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(
+        { keyCommand: 'group', name: 'title', groupName: 'title', children: [] },
+        false,
+      );
+      expect(result.buttonProps['aria-label']).toBe('选择标题级别');
+      expect(result.buttonProps['aria-haspopup']).toBe('menu');
+      expect(result.buttonProps.title).toBe('选择标题级别');
+    });
+
+    it('should preserve existing buttonProps when adding ARIA', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(
+        {
+          keyCommand: 'group',
+          name: 'title',
+          groupName: 'title',
+          children: [],
+          buttonProps: { 'data-custom': 'value', className: 'my-btn' },
+        },
+        false,
+      );
+      expect(result.buttonProps['data-custom']).toBe('value');
+      expect(result.buttonProps.className).toBe('my-btn');
+      expect(result.buttonProps['aria-label']).toBe('选择标题级别');
+    });
+
+    it('should not affect non-group commands with children', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = { name: 'list', keyCommand: 'unorderedList', children: [] };
       const result = commandsFilterFn!(cmd, false);
       expect(result).toBe(cmd);
     });

@@ -153,3 +153,4 @@
 
 | 2026-05-25 | progress_tasks/2026-05-25-props-ui-review-verify.md | Props.tsx UI评审验证——所有P1/P2项已在MarkdownViewer+CSS中实现确认，79测试全通过，build/lint通过 |
 | 2026-05-25 | tasks/review/group.tsx.committer.md | group.tsx Committer审核专家评审——5.5/10 CONDITIONAL APPROVE（as any类型绕过C-01+循环引用C-02+冗余展开C-03+options覆盖歧义C-04，需封装层P1 ARIA注入+P2图标替换） |
+| 2026-05-25 | progress_tasks/2026-05-25-group-tsx-review-fix.md | group.tsx 评审封装层修复——P1 ARIA注入+P2 antd FontSizeOutlined图标替换+下拉菜单Carbon CSS覆盖+触摸设备48px+17测试全通过 |

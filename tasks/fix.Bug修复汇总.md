@@ -792,3 +792,37 @@ components: {
 - `pages/components/MarkdownEditor.tsx` — commandsFilter 添加 fullscreen 命令覆盖
 - `tests/pages/components/MarkdownEditor.test.tsx`（新建）— 12 个测试用例
 - `tasks/fix.fullscreen命令评审修复.md`（新建）— 修复文档
+
+---
+
+## fix028. group.tsx 评审封装层问题修复（图标替换 + ARIA 无障碍 + 下拉菜单 Carbon 合规）
+
+### 问题
+根据 `tasks/review/` 目录下 5 份评审报告（质量评审 5.0/10、安全评审 3.2/10 FAIL、架构评审 4.5/10、UI 评审 不合规、Committer 审核 5.5/10 CONDITIONAL APPROVE），`@uiw/react-md-editor` 的 `group.tsx` 是命令体系中质量最低、安全问题最多的模块。由于是第三方库文件无法直接修改，所有修复在项目封装层实施。
+
+### 修复
+
+**SEC-UI-01（P2）SVG 图标 12px 不符 Carbon 16px 规范**：
+- `commandsFilter` 检测 `keyCommand === 'group'` 的命令，替换 12px 内联 SVG 为 antd `FontSizeOutlined`（fontSize: 16）
+
+**SEC-UI-02（P1）零 ARIA 无障碍属性**：
+- `commandsFilter` 注入中文 ARIA：`aria-label: '选择标题级别'`、`aria-haspopup: 'menu'`、`title: '选择标题级别'`
+- `annotateToolbar` MutationObserver 为下拉菜单注入 `role="menu"`、`role="menuitem"`
+
+**SEC-UI-03（P1）触摸目标不足 48px**：
+- `markdown-editor.css` 添加 `@media (pointer: coarse)` 规则，工具栏按钮和下拉菜单项 min-height: 48px
+
+**SEC-UI-04（P2）下拉菜单视觉不合规**：
+- `markdown-editor.css` 添加 `.w-md-editor-toolbar-child` Carbon 覆盖：flat border-radius: 0、Carbon shadow、背景色、焦点环
+
+**C-01/H-01/H-02（node_modules 不可修改，通过封装层缓解）**：
+- `as any` 类型绕过、循环引用、冗余展开等问题在本项目调用场景下不触发（参数硬编码、不序列化），通过 CSS 和 commandsFilter 缓解可观测问题
+
+### 测试
+- 新增 5 个 group 命令测试用例（检测、图标替换、ARIA 注入、保留现有 buttonProps、非 group 命令不受影响）
+- 全部 17 个 MarkdownEditor 测试通过
+
+### 涉及文件
+- `pages/components/MarkdownEditor.tsx` — commandsFilter 添加 group 命令处理 + annotateToolbar 添加下拉菜单 ARIA
+- `pages/styles/markdown-editor.css` — Carbon 下拉菜单样式 + 触摸设备 48px 规则
+- `tests/pages/components/MarkdownEditor.test.tsx` — 5 个新增 group 测试

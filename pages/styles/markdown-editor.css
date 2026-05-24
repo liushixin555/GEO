@@ -310,3 +310,60 @@
     padding: 8px 12px !important;
   }
 }
+
+/* ========================================
+   Group 下拉菜单 — Carbon Design 覆盖
+   修复 group.tsx 评审问题：
+   - SEC-UI-01: SVG 12px → Carbon 16px（图标已在 commandsFilter 替换）
+   - SEC-UI-02: 零 ARIA → 注入 role="menu"/"menuitem"（已在 annotateToolbar）
+   - SEC-UI-03: 触摸目标不足 48px → CSS 覆盖
+   - SEC-UI-04: 非 antd Dropdown → Carbon 视觉对齐
+   ======================================== */
+
+/* 下拉菜单容器 — Carbon flat-square + 阴影 */
+.markdown-editor-wrapper .w-md-editor-toolbar-child {
+  border-radius: 0 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
+  border: 1px solid var(--color-hairline) !important;
+  background-color: var(--color-canvas) !important;
+}
+
+.markdown-editor-wrapper .w-md-editor-toolbar-child .w-md-editor-toolbar {
+  border-radius: 0 !important;
+  background-color: var(--color-canvas) !important;
+  padding: 4px !important;
+}
+
+/* 下拉菜单项 — Carbon 最小触控目标 32px */
+.markdown-editor-wrapper .w-md-editor-toolbar-child .w-md-editor-toolbar ul > li button {
+  min-height: 32px !important;
+  padding: 4px 12px !important;
+  border-radius: 0 !important;
+  color: var(--color-ink) !important;
+  transition: background-color var(--transition-fast) !important;
+  text-align: left !important;
+}
+
+.markdown-editor-wrapper .w-md-editor-toolbar-child .w-md-editor-toolbar ul > li button:hover {
+  background-color: var(--color-surface-2) !important;
+  color: var(--color-ink) !important;
+}
+
+/* 下拉菜单项焦点环 — Carbon 签名式焦点 */
+.markdown-editor-wrapper .w-md-editor-toolbar-child .w-md-editor-toolbar ul > li button:focus-visible {
+  outline: 2px solid var(--color-primary) !important;
+  outline-offset: -2px !important;
+}
+
+/* 触摸设备 — 下拉菜单项触控目标增大至 48px（Carbon SEC-UI-03） */
+@media (pointer: coarse) {
+  .markdown-editor-wrapper .w-md-editor-toolbar button {
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  .markdown-editor-wrapper .w-md-editor-toolbar-child .w-md-editor-toolbar ul > li button {
+    min-height: 48px !important;
+    padding: 8px 16px !important;
+  }
+}
