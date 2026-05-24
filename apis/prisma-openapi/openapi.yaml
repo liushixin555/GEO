@@ -1,0 +1,1011 @@
+openapi: 3.1.0
+info:
+  title: 薄云商机倍增服务 API
+  description: ""
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Company:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        shortName:
+          type: string
+        fullName:
+          type: string
+        address:
+          type: string
+        contactPerson:
+          type: string
+        contactPhone:
+          type: string
+        status:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        projects:
+          type: array
+          items:
+            $ref: "#/components/schemas/Project"
+        knowledgeBases:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeBase"
+        selectedByUsers:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        todos:
+          type: array
+          items:
+            $ref: "#/components/schemas/Todo"
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - shortName
+        - fullName
+        - contactPerson
+        - contactPhone
+        - status
+        - createdAt
+        - updatedAt
+        - users
+        - projects
+        - knowledgeBases
+        - selectedByUsers
+        - todos
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        username:
+          type: string
+        passwordHash:
+          type: string
+        cnName:
+          type: string
+        role:
+          $ref: "#/components/schemas/Role"
+        status:
+          type: boolean
+        companyId:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        company:
+          $ref: "#/components/schemas/Company"
+        selectedCompanyId:
+          type: integer
+          format: int32
+        selectedProjectId:
+          type: integer
+          format: int32
+        selectedCompany:
+          $ref: "#/components/schemas/Company"
+        selectedProject:
+          $ref: "#/components/schemas/Project"
+        operatedProjects:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectOperator"
+        viewedProjects:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectViewer"
+        createdSkills:
+          type: array
+          items:
+            $ref: "#/components/schemas/Skills"
+        createdArticles:
+          type: array
+          items:
+            $ref: "#/components/schemas/Article"
+        articleVersions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArticleVersion"
+        createdKeywords:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeKeyword"
+        createdPortraits:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgePortrait"
+        createdImages:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeImage"
+        createdDocuments:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeDocument"
+        createdKnowledgeBases:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeBase"
+        assignedTodos:
+          type: array
+          items:
+            $ref: "#/components/schemas/Todo"
+        createdTodos:
+          type: array
+          items:
+            $ref: "#/components/schemas/Todo"
+        todoLogOperations:
+          type: array
+          items:
+            $ref: "#/components/schemas/TodoLog"
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - username
+        - passwordHash
+        - cnName
+        - role
+        - status
+        - createdAt
+        - updatedAt
+        - operatedProjects
+        - viewedProjects
+        - createdSkills
+        - createdArticles
+        - articleVersions
+        - createdKeywords
+        - createdPortraits
+        - createdImages
+        - createdDocuments
+        - createdKnowledgeBases
+        - assignedTodos
+        - createdTodos
+        - todoLogOperations
+    Skills:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        name:
+          type: string
+        description:
+          type: string
+        skillDir:
+          type: string
+        createdBy:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        creator:
+          $ref: "#/components/schemas/User"
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - skillDir
+        - createdAt
+        - updatedAt
+    LlmModel:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        provider:
+          type: string
+        baseUrl:
+          type: string
+        apiKey:
+          type: string
+        modelName:
+          type: string
+        status:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/Article"
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - provider
+        - baseUrl
+        - apiKey
+        - modelName
+        - status
+        - createdAt
+        - updatedAt
+        - articles
+    PublishingPlatform:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        rmResourceId:
+          type: integer
+          format: int32
+        name:
+          type: string
+        taxonomy:
+          type: string
+        price:
+          type: number
+          format: double
+        remark:
+          type: string
+        includeRate:
+          type: number
+          format: double
+        publishRate:
+          type: number
+          format: double
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - rmResourceId
+        - name
+        - taxonomy
+        - price
+        - includeRate
+        - publishRate
+        - createdAt
+        - updatedAt
+    SystemConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        configKey:
+          type: string
+        configValue:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - configKey
+        - configValue
+        - createdAt
+        - updatedAt
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        shortName:
+          type: string
+        fullName:
+          type: string
+        description:
+          type: string
+        companyId:
+          type: integer
+          format: int32
+        status:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        company:
+          $ref: "#/components/schemas/Company"
+        operators:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectOperator"
+        viewers:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectViewer"
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/Article"
+        selectedByUsers:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        knowledgeBases:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeBase"
+        todos:
+          type: array
+          items:
+            $ref: "#/components/schemas/Todo"
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - shortName
+        - fullName
+        - companyId
+        - status
+        - createdAt
+        - updatedAt
+        - company
+        - operators
+        - viewers
+        - articles
+        - selectedByUsers
+        - knowledgeBases
+        - todos
+    ProjectOperator:
+      type: object
+      properties:
+        projectId:
+          type: integer
+          format: int32
+        userId:
+          type: integer
+          format: int32
+        project:
+          $ref: "#/components/schemas/Project"
+        user:
+          $ref: "#/components/schemas/User"
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - projectId
+        - userId
+        - project
+        - user
+    ProjectViewer:
+      type: object
+      properties:
+        projectId:
+          type: integer
+          format: int32
+        userId:
+          type: integer
+          format: int32
+        project:
+          $ref: "#/components/schemas/Project"
+        user:
+          $ref: "#/components/schemas/User"
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - projectId
+        - userId
+        - project
+        - user
+    KnowledgeBase:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        name:
+          type: string
+        description:
+          type: string
+        scope:
+          $ref: "#/components/schemas/KnowledgeScope"
+        companyId:
+          type: integer
+          format: int32
+        projectId:
+          type: integer
+          format: int32
+        status:
+          type: boolean
+        createdBy:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        company:
+          $ref: "#/components/schemas/Company"
+        project:
+          $ref: "#/components/schemas/Project"
+        creator:
+          $ref: "#/components/schemas/User"
+        keywords:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeKeyword"
+        portraits:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgePortrait"
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeImage"
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeDocument"
+        minedKeywords:
+          type: array
+          items:
+            $ref: "#/components/schemas/MinedKeyword"
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - scope
+        - status
+        - createdAt
+        - updatedAt
+        - keywords
+        - portraits
+        - images
+        - documents
+        - minedKeywords
+    Article:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        projectId:
+          type: integer
+          format: int32
+        title:
+          type: string
+        articleType:
+          type: string
+        writeMode:
+          type: string
+        keywords:
+          type: string
+        portrait:
+          type: string
+        images:
+          type: object
+        platforms:
+          type: object
+        skills:
+          type: object
+        llmModelId:
+          type: integer
+          format: int32
+        content:
+          type: string
+        version:
+          type: number
+          format: double
+        status:
+          $ref: "#/components/schemas/ArticleStatus"
+        scheduledPublishAt:
+          type: string
+          format: date-time
+        scheduleType:
+          type: string
+        createdBy:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        project:
+          $ref: "#/components/schemas/Project"
+        creator:
+          $ref: "#/components/schemas/User"
+        llmModel:
+          $ref: "#/components/schemas/LlmModel"
+        versions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArticleVersion"
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - projectId
+        - title
+        - version
+        - status
+        - createdAt
+        - updatedAt
+        - project
+        - versions
+    ArticleVersion:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        articleId:
+          type: integer
+          format: int32
+        version:
+          type: number
+          format: double
+        content:
+          type: string
+        createdBy:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        article:
+          $ref: "#/components/schemas/Article"
+        creator:
+          $ref: "#/components/schemas/User"
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - articleId
+        - version
+        - content
+        - createdAt
+        - article
+    KnowledgeKeyword:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        baseId:
+          type: integer
+          format: int32
+        keyword:
+          type: string
+        seedWord:
+          type: string
+        groupId:
+          type: integer
+          format: int32
+        createdBy:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        base:
+          $ref: "#/components/schemas/KnowledgeBase"
+        creator:
+          $ref: "#/components/schemas/User"
+        expandedWords:
+          type: array
+          items:
+            $ref: "#/components/schemas/KeywordExpandedWord"
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - baseId
+        - keyword
+        - createdAt
+        - updatedAt
+        - base
+        - expandedWords
+    KeywordExpandedWord:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        keywordId:
+          type: integer
+          format: int32
+        word:
+          type: string
+        selected:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        keyword:
+          $ref: "#/components/schemas/KnowledgeKeyword"
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - keywordId
+        - word
+        - selected
+        - createdAt
+        - updatedAt
+        - keyword
+    MinedKeyword:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        baseId:
+          type: integer
+          format: int32
+        keyword:
+          type: string
+        selected:
+          type: boolean
+        createdBy:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        base:
+          $ref: "#/components/schemas/KnowledgeBase"
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - baseId
+        - keyword
+        - selected
+        - createdAt
+        - base
+    KnowledgePortrait:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        baseId:
+          type: integer
+          format: int32
+        title:
+          type: string
+        content:
+          type: string
+        createdBy:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        base:
+          $ref: "#/components/schemas/KnowledgeBase"
+        creator:
+          $ref: "#/components/schemas/User"
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - baseId
+        - title
+        - createdAt
+        - updatedAt
+        - base
+    KnowledgeImage:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        baseId:
+          type: integer
+          format: int32
+        title:
+          type: string
+        description:
+          type: string
+        imageUrl:
+          type: string
+        createdBy:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        base:
+          $ref: "#/components/schemas/KnowledgeBase"
+        creator:
+          $ref: "#/components/schemas/User"
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - baseId
+        - title
+        - imageUrl
+        - createdAt
+        - updatedAt
+        - base
+    KnowledgeDocument:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        baseId:
+          type: integer
+          format: int32
+        title:
+          type: string
+        description:
+          type: string
+        fileUrl:
+          type: string
+        fileName:
+          type: string
+        fileType:
+          type: string
+        fileSize:
+          type: integer
+          format: int32
+        createdBy:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        base:
+          $ref: "#/components/schemas/KnowledgeBase"
+        creator:
+          $ref: "#/components/schemas/User"
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - baseId
+        - title
+        - fileUrl
+        - fileName
+        - fileType
+        - fileSize
+        - createdAt
+        - updatedAt
+        - base
+    Todo:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        title:
+          type: string
+        companyId:
+          type: integer
+          format: int32
+        projectId:
+          type: integer
+          format: int32
+        objectType:
+          type: string
+        objectId:
+          type: integer
+          format: int32
+        action:
+          type: string
+        source:
+          $ref: "#/components/schemas/TodoSource"
+        priority:
+          $ref: "#/components/schemas/TodoPriority"
+        assigneeId:
+          type: integer
+          format: int32
+        status:
+          $ref: "#/components/schemas/TodoStatus"
+        dueAt:
+          type: string
+          format: date-time
+        createdById:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+        company:
+          $ref: "#/components/schemas/Company"
+        project:
+          $ref: "#/components/schemas/Project"
+        assignee:
+          $ref: "#/components/schemas/User"
+        createdBy:
+          $ref: "#/components/schemas/User"
+        logs:
+          type: array
+          items:
+            $ref: "#/components/schemas/TodoLog"
+      required:
+        - id
+        - title
+        - companyId
+        - objectType
+        - action
+        - source
+        - priority
+        - assigneeId
+        - status
+        - createdById
+        - createdAt
+        - updatedAt
+        - company
+        - assignee
+        - createdBy
+        - logs
+    TodoLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        todoId:
+          type: integer
+          format: int32
+        operatorId:
+          type: integer
+          format: int32
+        action:
+          $ref: "#/components/schemas/TodoLogAction"
+        objectType:
+          type: string
+        objectId:
+          type: integer
+          format: int32
+        remark:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        todo:
+          $ref: "#/components/schemas/Todo"
+        operator:
+          $ref: "#/components/schemas/User"
+      required:
+        - id
+        - todoId
+        - operatorId
+        - action
+        - createdAt
+        - todo
+        - operator
+    Role:
+      type: string
+      enum:
+        - sysadmin
+        - admin
+        - view
+    ArticleStatus:
+      type: string
+      enum:
+        - draft
+        - manual_writing
+        - generating
+        - generate_failed
+        - pending_review
+        - publishing
+        - publish_failed
+        - published
+    KnowledgeScope:
+      type: string
+      enum:
+        - platform
+        - company
+        - project
+    TodoSource:
+      type: string
+      enum:
+        - manual
+        - content_iteration
+        - smart_link
+        - daily_check
+        - risk_warning
+    TodoPriority:
+      type: string
+      enum:
+        - P0
+        - P1
+        - P2
+        - P3
+        - P4
+    TodoStatus:
+      type: string
+      enum:
+        - open
+        - closed
+        - draft
+    TodoLogAction:
+      type: string
+      enum:
+        - submit
+        - close
+        - reopen
+        - transfer
+        - reject
+  responses: {}
+  parameters: {}
+  examples: {}
+  requestBodies: {}
+  headers: {}
+  securitySchemes: {}
+  links: {}
+  callbacks: {}
+tags: []
+servers: []

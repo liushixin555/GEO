@@ -3,7 +3,7 @@ import { Typography, Button, Card, Space, Breadcrumb, Alert, Spin, Divider } fro
 import { LinkOutlined, ApiOutlined, SafetyCertificateOutlined, GlobalOutlined } from '@ant-design/icons';
 
 const ApiDocsPage: React.FC = memo(() => {
-  const [swaggerAvailable, setSwaggerAvailable] = useState<boolean | null>(null);
+  const [apiDocsAvailable, setApiDocsAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {
     document.title = 'API 文档 - 薄云商机倍增服务';
@@ -12,8 +12,8 @@ const ApiDocsPage: React.FC = memo(() => {
   useEffect(() => {
     const controller = new AbortController();
     fetch('/api-docs/', { method: 'HEAD', signal: controller.signal })
-      .then(res => setSwaggerAvailable(res.ok))
-      .catch(() => setSwaggerAvailable(false));
+      .then(res => setApiDocsAvailable(res.ok))
+      .catch(() => setApiDocsAvailable(false));
     return () => controller.abort();
   }, []);
 
@@ -22,14 +22,14 @@ const ApiDocsPage: React.FC = memo(() => {
       <div className="page-breadcrumb">
         <Breadcrumb items={[{ title: 'API 文档' }]} />
       </div>
-      <Card bordered={false} style={{ maxWidth: 600 }}>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Card variant="borderless" style={{ maxWidth: 600 }}>
+        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
           <Typography.Title level={3} style={{ margin: 0 }}>
             <ApiOutlined style={{ marginRight: 8, color: 'var(--color-primary)' }} />
-            Swagger API 文档
+            API 文档
           </Typography.Title>
           <Typography.Text type="secondary">
-            通过 Swagger UI 查看、测试和管理所有 API 接口。
+            查看、测试和管理所有 API 接口。
             支持在线调试、参数说明和响应示例查看。
           </Typography.Text>
           <div className="api-docs-info">
@@ -43,25 +43,25 @@ const ApiDocsPage: React.FC = memo(() => {
               认证方式：JWT Bearer Token
             </Typography.Text>
           </div>
-          {swaggerAvailable === null && <Spin size="small" />}
-          {swaggerAvailable === true && (
+          {apiDocsAvailable === null && <Spin size="small" />}
+          {apiDocsAvailable === true && (
             <Button
               type="primary"
               icon={<LinkOutlined />}
               href="/api-docs/"
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="在新窗口打开 Swagger API 文档"
+              aria-label="在新窗口打开 API 文档"
               style={{ whiteSpace: 'nowrap' }}
             >
-              打开 Swagger 文档
+              打开 API 文档
             </Button>
           )}
-          {swaggerAvailable === false && (
+          {apiDocsAvailable === false && (
             <Alert
               type="info"
               message="API 文档服务当前不可用"
-              description="Swagger 文档服务未启用，请联系系统管理员或在开发环境中访问。"
+              description="API 文档服务未启用，请联系系统管理员或在开发环境中访问。"
               showIcon
             />
           )}

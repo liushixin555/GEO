@@ -2,6 +2,13 @@ generator client {
   provider = "prisma-client-js"
 }
 
+generator openapi {
+  provider = "node node_modules/prisma-openapi/dist/index.js"
+  output   = "../apis/prisma-openapi"
+  title    = "薄云商机倍增服务 API"
+  version  = "1.0.0"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")

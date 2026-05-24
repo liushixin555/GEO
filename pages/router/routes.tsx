@@ -20,7 +20,7 @@ const DocumentDetail = lazy(() => import('../knowledge/DocumentDetail'));
 const KeywordMine = lazy(() => import('../knowledge/KeywordMine'));
 const PublishingSchedulePage = lazy(() => import('../publish'));
 const TodoPage = lazy(() => import('../todo'));
-const ApiDocsPage = lazy(() => import('../api-docs'));
+const ApiDocsPage = lazy(() => import('../swagger'));
 
 interface RouteDef {
   path: string;

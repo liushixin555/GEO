@@ -9,7 +9,7 @@ const server = app.listen(PORT, () => {
   console.log(`[薄云商机倍增服务] Server running on port ${PORT}`);
   console.log(`[薄云商机倍增服务] Environment: ${process.env.NODE_ENV || 'development'}`);
   if (config.swagger.enabled) {
-    console.log(`[薄云商机倍增服务] Swagger docs: http://localhost:${PORT}/api-docs`);
+    console.log(`[薄云商机倍增服务] API docs: http://localhost:${PORT}/api-docs`);
   }
   startArticleGenerationCron();
 });
