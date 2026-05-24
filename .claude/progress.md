@@ -1092,3 +1092,12 @@
   - 遗留问题均为 P2/P3 级别或项目级技术债务：TOCTOU 竞态、权限检查重复、skills z.unknown()、版本列表无分页
   - 项目规范最佳：10/10 响应工具函数、5/5 Zod Schema、类型化异常处理——项目标杆控制器
   - 评审报告 tasks/review/article.controller.ts.committer.md
+
+## 本次变更（2026-05-24 @uiw/react-markdown-preview nohighlight.tsx 软件架构专家评审）
+- [x] **软件架构专家评审 @uiw/react-markdown-preview/src/nohighlight.tsx（23 行）**
+  - 综合评分 5.3/10（变体通过复制实现，违反开闭原则；功能正确但架构结构性缺陷）
+  - 架构定位分析：三个入口变体（index/common/nohighlight）共享渲染引擎 preview.tsx，nohighlight 排除 rehypeRaw + rehypePrism，最轻量
+  - 7 项架构发现：A1🔴高（三变体复制实现违反OCP，80%代码重复）、A2🟡中（入口层与配置层职责未分离）、A3🟡中（props透传导致数据流模糊/幽灵prop）、A4🟡中（缺少useMemo触发AST重解析）、A5🟡中（插件顺序依赖未文档化无保护）、A6🟢低（缺displayName）、A7🟢低（rehypeAttrs配置硬编码分散）
+  - 提出策略工厂模式替代复制方案：createMarkdownEntry(config) 工厂函数 + buildRehypePipeline 纯函数
+  - 本项目影响评估：MarkdownViewer 使用 common 入口（非 nohighlight），React.memo + DOMPurify 防御已到位，性能风险已缓解
+  - 评审报告 tasks/review/nohighlight.tsx.architecture.md
