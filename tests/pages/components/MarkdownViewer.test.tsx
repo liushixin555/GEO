@@ -107,6 +107,7 @@ describe('MarkdownViewer', () => {
 
     const region = screen.getByRole('region');
     expect(region).toHaveAttribute('aria-label', 'Markdown 内容预览');
+    expect(region).toHaveAttribute('tabindex', '0');
   });
 
   it('applies markdown-viewer class name', () => {
@@ -198,20 +199,34 @@ describe('MarkdownViewer', () => {
     expect(preview.textContent).toContain('Content');
   });
 
-  it('passes disallowedElements to MarkdownPreview', () => {
+  it('passes allowElement whitelist to MarkdownPreview', () => {
     render(<MarkdownViewer content="test" />);
-    const disallowed = mockProps.disallowedElements as string[];
-    expect(Array.isArray(disallowed)).toBe(true);
-    expect(disallowed).toContain('script');
-    expect(disallowed).toContain('iframe');
-    expect(disallowed).toContain('object');
-    expect(disallowed).toContain('form');
-    expect(disallowed).toContain('svg');
-    expect(disallowed).toContain('math');
-    expect(disallowed).toContain('base');
-    expect(disallowed).toContain('meta');
-    expect(disallowed).toContain('style');
-    expect(disallowed).toContain('template');
+    const allowElement = mockProps.allowElement as (element: { tagName: string }) => boolean;
+    expect(typeof allowElement).toBe('function');
+    expect(allowElement({ tagName: 'p' })).toBe(true);
+    expect(allowElement({ tagName: 'div' })).toBe(true);
+    expect(allowElement({ tagName: 'a' })).toBe(true);
+    expect(allowElement({ tagName: 'code' })).toBe(true);
+    expect(allowElement({ tagName: 'table' })).toBe(true);
+    expect(allowElement({ tagName: 'script' })).toBe(false);
+    expect(allowElement({ tagName: 'iframe' })).toBe(false);
+    expect(allowElement({ tagName: 'object' })).toBe(false);
+    expect(allowElement({ tagName: 'form' })).toBe(false);
+    expect(allowElement({ tagName: 'svg' })).toBe(false);
+    expect(allowElement({ tagName: 'math' })).toBe(false);
+    expect(allowElement({ tagName: 'style' })).toBe(false);
+    expect(allowElement({ tagName: 'base' })).toBe(false);
+    expect(allowElement({ tagName: 'meta' })).toBe(false);
+    expect(allowElement({ tagName: 'link' })).toBe(false);
+  });
+
+  it('allowElement handles case-insensitive tag names', () => {
+    render(<MarkdownViewer content="test" />);
+    const allowElement = mockProps.allowElement as (element: { tagName: string }) => boolean;
+    expect(allowElement({ tagName: 'P' })).toBe(true);
+    expect(allowElement({ tagName: 'DIV' })).toBe(true);
+    expect(allowElement({ tagName: 'SCRIPT' })).toBe(false);
+    expect(allowElement({ tagName: 'IFRAME' })).toBe(false);
   });
 
   it('passes urlTransform prop to MarkdownPreview', () => {

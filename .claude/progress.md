@@ -61,6 +61,8 @@
 | 2026-05-24 | `tasks/review/Props.tsx.ui.md` | Props.tsx UI 评审修复——a11y可配置/Empty组件/forwardRef命令式API/事件处理props，+12测试（48总） |
 | 2026-05-24 | `progress_tasks/2026-05-24-fix-company-project-switcher.md` | 修复登录后右下角公司/项目选择不显示——login()补充写入selected_company/selected_project到localStorage |
 | 2026-05-24 | `tasks/tdd/video-presentation-useStepper.test.md` | useStepper hook TDD——68 项用例、98.91% Stmts/97.05% Branch/100% Lines + 修复空 chapters 崩溃 |
+| 2026-05-24 | `progress_tasks/2026-05-24-project-controller-tdd.md` | project.controller.ts TDD 补全——修复 schema+9个失败测试+1个新增用例，65用例 Stmts/Branch/Lines 100% |
+| 2026-05-24 | `tasks/review/rehypePlugins.tsx.md` | @uiw/react-markdown-preview rehypePlugins.tsx 质量评审——CONDITIONAL ACCEPT 5.8分，P0×3（正则误判/类型断言不安全/XSS攻击面）+ P1×3 |
 
 ## 已知问题
 - `apis/service/impl/auth.service.impl.ts` Prisma 类型错误（待 schema 同步）
