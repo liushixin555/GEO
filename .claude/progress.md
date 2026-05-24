@@ -487,3 +487,13 @@
   - SEC-2.05: 错误日志增加请求上下文（method/url/ip/userId/role）
   - SEC-2.06: 新增请求级安全审计日志中间件（4xx/5xx 日志）
   - TypeScript 编译通过、156 个测试全部通过
+
+## 本次变更（2026-05-24 pages/api-docs/index.tsx UI专家评审）
+- [x] **软件UI专家评审 pages/api-docs/index.tsx（24 行）**
+  - 综合评分 4/10（功能可用，但UI/UX存在多项缺陷）
+  - 13 项 UI 发现：🔴严重×2（page-container padding仅6px、路由冲突循环跳转）、🟡中等×8（Typography.Paragraph语义误用、面包屑标题层级不足、间距不符合Carbon规范、缺少结构化容器、无Swagger降级处理、信息密度极低、无h1标题）、🟢低×3（图标颜色、document.title缺失、响应式处理）
+  - DESIGN.md 合规性审计：色彩6/10、字体4/10、圆角8/10、间距3/10
+  - antd 组件使用：Typography.Paragraph 语义误用、单项 Breadcrumb 无导航意义、缺少 Card/Space/Typography.Title
+  - 可访问性：无 h1 标题、无 aria-label、无 document.title、target="_blank" 缺少 rel
+  - 提供完整重构方案代码示例
+  - 评审报告 tasks/review/api-docs.index.tsx.ui.md
