@@ -1511,7 +1511,7 @@ describe('Article Controller', () => {
         .put(`${BASE}/1/regenerate`)
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('文章当前状态不支持重新生成');
+      expect(response.body.message).toBe('当前文章状态不支持重新生成');
     });
 
     it('should regenerate as admin operator', async () => {
@@ -2195,7 +2195,7 @@ describe('Article Controller', () => {
           portrait: '',
           images: null,
           platforms: null,
-          skills: 0,
+          skills: [],
           llm_model_id: 0,
         });
 
@@ -2211,7 +2211,7 @@ describe('Article Controller', () => {
             ...existingDraft,
             title: 'New Title', articleType: 'blog', writeMode: 'manual',
             keywords: 'new kw', portrait: 'new p', images: ['img1'], platforms: ['p1'],
-            skills: 2, llmModelId: 3, status: 'draft',
+            skills: [2], llmModelId: 3, status: 'draft',
           }),
         },
       });
@@ -2227,7 +2227,7 @@ describe('Article Controller', () => {
           portrait: 'new p',
           images: ['img1'],
           platforms: ['p1'],
-          skills: 2,
+          skills: [2],
           llm_model_id: 3,
         });
 
@@ -2806,7 +2806,7 @@ describe('Article Controller', () => {
           portrait: 'portrait-url',
           images: ['img1.jpg'],
           platforms: ['wechat'],
-          skills: 5,
+          skills: [5],
           llm_model_id: 2,
           content: 'article content',
           status: 'draft',
@@ -2819,7 +2819,7 @@ describe('Article Controller', () => {
       expect(createData.writeMode).toBe('ai');
       expect(createData.keywords).toBe('kw1,kw2');
       expect(createData.portrait).toBe('portrait-url');
-      expect(createData.skills).toBe(5);
+      expect(createData.skills).toEqual([5]);
       expect(createData.llmModelId).toBe(2);
       expect(createData.content).toBe('article content');
       expect(createData.status).toBe('draft');
@@ -2900,7 +2900,7 @@ describe('Article Controller', () => {
           portrait: 'new p',
           images: ['img1'],
           platforms: ['p1'],
-          skills: 2,
+          skills: [2],
           llm_model_id: 3,
           scheduled_publish_at: '2026-07-01T10:00:00Z',
         });
@@ -3589,7 +3589,7 @@ describe('Article Controller', () => {
       expect(response.body.message).toBe('文章不存在');
     });
 
-    it('should return 400 when regenerate service throws 文章当前状态不支持重新生成', async () => {
+    it('should return 400 when regenerate service throws 当前文章状态不支持重新生成', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       getPrisma.mockReturnValue({
         article: {
@@ -3599,7 +3599,7 @@ describe('Article Controller', () => {
             content: 'c', version: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
-          update: jest.fn().mockRejectedValue(new BusinessError('文章当前状态不支持重新生成')),
+          update: jest.fn().mockRejectedValue(new BusinessError('当前文章状态不支持重新生成')),
         },
       });
 
@@ -3607,10 +3607,10 @@ describe('Article Controller', () => {
         .put(`${BASE}/1/regenerate`)
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('文章当前状态不支持重新生成');
+      expect(response.body.message).toBe('当前文章状态不支持重新生成');
     });
 
-    it('should return 400 when submit-review service throws 文章当前状态不支持审核操作', async () => {
+    it('should return 400 when submit-review service throws 当前文章状态不支持审核操作', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       getPrisma.mockReturnValue({
         article: {
@@ -3984,7 +3984,7 @@ describe('Article Controller', () => {
             content: 'c', version: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
-          update: jest.fn().mockRejectedValue(new BusinessError('文章当前状态不支持重新生成')),
+          update: jest.fn().mockRejectedValue(new BusinessError('当前文章状态不支持重新生成')),
         },
       });
 
@@ -3992,7 +3992,7 @@ describe('Article Controller', () => {
         .put(`${BASE}/1/regenerate`)
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('文章当前状态不支持重新生成');
+      expect(response.body.message).toBe('当前文章状态不支持重新生成');
     });
 
     it('should return 404 when regenerate service throws NotFoundError', async () => {
@@ -4125,6 +4125,357 @@ describe('Article Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
       expect(response.body.message).toBe('提交审核校验失败');
+    });
+  });
+
+  // ============= 第五轮补全：覆盖 Zod 验证失败分支 + submitForReview 空内容 =============
+
+  describe('GET /api/v1/projects/:projectId/articles - Zod fail path', () => {
+    it('should return 400 when page is zero (Zod min(1) fail)', async () => {
+      const response = await agent
+        .get(`${BASE}?page=0&pageSize=10`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
+    });
+
+    it('should return 400 when pageSize is zero (Zod min(1) fail)', async () => {
+      const response = await agent
+        .get(`${BASE}?page=1&pageSize=0`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
+    });
+
+    it('should return 400 when page is not integer (Zod int() fail)', async () => {
+      const response = await agent
+        .get(`${BASE}?page=1.5&pageSize=10`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
+    });
+  });
+
+  describe('POST /api/v1/projects/:projectId/articles - Zod fail path', () => {
+    it('should return 400 when body has unrecognized key (Zod strict fail)', async () => {
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Test', unknown_field: 'value' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
+    });
+
+    it('should return 400 when status is not in enum (Zod enum fail)', async () => {
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Test', status: 'published' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
+    });
+  });
+
+  describe('PUT /api/v1/projects/:projectId/articles/:id - Zod fail path', () => {
+    const existingDraft = {
+      id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+      images: null, platforms: null, status: 'draft', createdBy: 1,
+      createdAt: new Date(), updatedAt: new Date(),
+    };
+
+    it('should return 400 when update body has unrecognized key (Zod strict fail)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(existingDraft) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Test', extra_field: 'value' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
+    });
+
+    it('should return 400 when skills is string instead of array (Zod fail)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(existingDraft) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ skills: 'not-array' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
+    });
+  });
+
+  describe('PUT /api/v1/projects/:projectId/articles/:id/content - Zod fail path', () => {
+    it('should return 400 when body has unrecognized key alongside content', async () => {
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'test', extra: 'value' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
+    });
+  });
+
+  describe('PUT /api/v1/projects/:projectId/articles/:id/review - Zod fail path', () => {
+    it('should return 400 when body has extra field alongside approved', async () => {
+      const response = await agent
+        .put(`${BASE}/1/review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ approved: true, extra: 'value' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
+    });
+  });
+
+  // ============= submitForReview content empty checks =============
+
+  describe('PUT /api/v1/projects/:projectId/articles/:id/submit-review - content empty', () => {
+    it('should return 400 when content is null', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+          content: null, version: 1,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('文章内容不能为空');
+    });
+
+    it('should return 400 when content is empty string', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+          content: '', version: 1,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('文章内容不能为空');
+    });
+
+    it('should return 400 when content is whitespace only', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+          content: '   \n\t  ', version: 1,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('文章内容不能为空');
+    });
+  });
+});
+
+// ============= 直接调用控制器函数的单元测试（覆盖路由中间件拦截的 Zod 验证分支） =============
+
+describe('Article Controller - direct unit tests (Zod validation bypass middleware)', () => {
+  // 直接导入控制器函数（已通过 app 导入加载）
+  const {
+    listArticles, createArticle, updateArticle,
+    updateArticleContent, reviewArticle,
+  } = require('../../apis/controller/article.controller');
+
+  function mockRes() {
+    let body: any = null;
+    let statusCode = 200;
+    const res: any = {
+      get body() { return body; },
+      get statusCode() { return statusCode; },
+      status(code: number) { statusCode = code; return res; },
+      json(data: any) { body = data; return res; },
+    };
+    return res;
+  }
+
+  function mockReq(overrides: any = {}): any {
+    return {
+      params: { projectId: '1', id: '1', ...overrides.params },
+      query: { ...overrides.query },
+      body: { ...overrides.body },
+      user: overrides.user ?? { userId: 1, role: 'sysadmin' },
+    };
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // ---- listArticles Zod 验证失败 (line 93-94) ----
+  describe('listArticles direct - Zod validation failure', () => {
+    it('should return 400 when page=0 (Zod min(1) fail)', async () => {
+      const req = mockReq({ query: { page: '0', pageSize: '10' } });
+      const res = mockRes();
+      await listArticles(req, res);
+      expect(res.body.code).toBe(400);
+      expect(res.body.message).toMatch(/参数验证失败/);
+    });
+
+    it('should return 400 when pageSize=200 (Zod max(100) fail)', async () => {
+      const req = mockReq({ query: { page: '1', pageSize: '200' } });
+      const res = mockRes();
+      await listArticles(req, res);
+      expect(res.body.code).toBe(400);
+      expect(res.body.message).toMatch(/参数验证失败/);
+    });
+
+    it('should return 400 when status is invalid enum value', async () => {
+      const req = mockReq({ query: { page: '1', pageSize: '10', status: 'invalid' } });
+      const res = mockRes();
+      await listArticles(req, res);
+      expect(res.body.code).toBe(400);
+      expect(res.body.message).toMatch(/参数验证失败/);
+    });
+  });
+
+  // ---- createArticle Zod 验证失败 (line 148-149) ----
+  describe('createArticle direct - Zod validation failure', () => {
+    it('should return 400 when body has unrecognized key', async () => {
+      const req = mockReq({ body: { title: 'Test', extra_field: 'val' } });
+      const res = mockRes();
+      await createArticle(req, res);
+      expect(res.body.code).toBe(400);
+      expect(res.body.message).toMatch(/参数验证失败/);
+    });
+
+    it('should return 400 when status is not in allowed enum', async () => {
+      const req = mockReq({ body: { title: 'Test', status: 'published' } });
+      const res = mockRes();
+      await createArticle(req, res);
+      expect(res.body.code).toBe(400);
+      expect(res.body.message).toMatch(/参数验证失败/);
+    });
+
+    it('should return 400 when title exceeds 500 chars', async () => {
+      const req = mockReq({ body: { title: 'x'.repeat(501) } });
+      const res = mockRes();
+      await createArticle(req, res);
+      expect(res.body.code).toBe(400);
+      expect(res.body.message).toMatch(/参数验证失败/);
+    });
+  });
+
+  // ---- updateArticle Zod 验证失败 (line 204-205) ----
+  describe('updateArticle direct - Zod validation failure', () => {
+    it('should return 400 when body has unrecognized key', async () => {
+      // 需要模拟 Prisma 使 getById 返回 draft 文章
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, status: 'draft', createdBy: 1,
+            title: 'A', keywords: null, portrait: null,
+            images: null, platforms: null,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+        },
+      });
+
+      const req = mockReq({ body: { title: 'Test', unknown: 'val' } });
+      const res = mockRes();
+      await updateArticle(req, res);
+      expect(res.body.code).toBe(400);
+      expect(res.body.message).toMatch(/参数验证失败/);
+    });
+
+    it('should return 400 when skills is not array', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, status: 'draft', createdBy: 1,
+            title: 'A', keywords: null, portrait: null,
+            images: null, platforms: null,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+        },
+      });
+
+      const req = mockReq({ body: { skills: 'not-array' } });
+      const res = mockRes();
+      await updateArticle(req, res);
+      expect(res.body.code).toBe(400);
+      expect(res.body.message).toMatch(/参数验证失败/);
+    });
+  });
+
+  // ---- updateArticleContent Zod 验证失败 (line 243-244) ----
+  describe('updateArticleContent direct - Zod validation failure', () => {
+    it('should return 400 when content is missing', async () => {
+      const req = mockReq({ body: {} });
+      const res = mockRes();
+      await updateArticleContent(req, res);
+      expect(res.body.code).toBe(400);
+      expect(res.body.message).toMatch(/参数验证失败/);
+    });
+
+    it('should return 400 when content is empty string', async () => {
+      const req = mockReq({ body: { content: '' } });
+      const res = mockRes();
+      await updateArticleContent(req, res);
+      expect(res.body.code).toBe(400);
+      expect(res.body.message).toMatch(/参数验证失败/);
+    });
+
+    it('should return 400 when body has extra field', async () => {
+      const req = mockReq({ body: { content: 'test', extra: 'val' } });
+      const res = mockRes();
+      await updateArticleContent(req, res);
+      expect(res.body.code).toBe(400);
+      expect(res.body.message).toMatch(/参数验证失败/);
+    });
+  });
+
+  // ---- reviewArticle Zod 验证失败 (line 330-331) ----
+  describe('reviewArticle direct - Zod validation failure', () => {
+    it('should return 400 when approved is missing', async () => {
+      const req = mockReq({ body: {} });
+      const res = mockRes();
+      await reviewArticle(req, res);
+      expect(res.body.code).toBe(400);
+      expect(res.body.message).toMatch(/参数验证失败/);
+    });
+
+    it('should return 400 when approved is string', async () => {
+      const req = mockReq({ body: { approved: 'yes' } });
+      const res = mockRes();
+      await reviewArticle(req, res);
+      expect(res.body.code).toBe(400);
+      expect(res.body.message).toMatch(/参数验证失败/);
+    });
+
+    it('should return 400 when body has extra field', async () => {
+      const req = mockReq({ body: { approved: true, extra: 'val' } });
+      const res = mockRes();
+      await reviewArticle(req, res);
+      expect(res.body.code).toBe(400);
+      expect(res.body.message).toMatch(/参数验证失败/);
     });
   });
 });
