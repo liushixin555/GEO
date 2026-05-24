@@ -826,3 +826,27 @@
   - 新发现 10 项质量改进：MEDIUM×3（uploadDir 缺 readonly、uploadDir 未纳入 DEFAULTS、IIFE 提取为命名函数）、LOW×4（parseCorsOrigins filter 副作用、CRON_ARTICLE_ENABLED 双重否定、dotenv 缺失文件警告、cron 表达式未校验）、INFO×2（console.error 策略合理、deepFreeze 注释已到位）、MEDIUM×1（模块副作用不可延迟，长期建议）
   - 测试覆盖：约 120 个用例，覆盖率 100%/97.29%/100%/100%
   - 评审报告 tasks/review/index.ts.md
+
+## 本次变更（2026-05-24 @uiw/react-markdown-preview common.tsx 评审修复）
+- [x] **MarkdownViewer 安全加固**（P0）
+  - 添加 DOMPurify 客户端消毒，FORBID_TAGS 移除 script/iframe/object/embed/form/input/textarea/select/button
+  - FORBID_ATTR 移除 onerror/onload/onclick/onmouseover/onfocus/onblur 等事件属性
+- [x] **MarkdownViewer 性能优化**（P1）
+  - 包裹 React.memo，防止父组件状态变更触发无效重渲染
+  - useMemo 缓存 safeSource，依赖 [content]
+  - 添加 displayName = 'MarkdownViewer'
+- [x] **行内代码颜色修复**（P1）
+  - 从 `var(--color-error)`（语义红色）改为 `var(--color-blue-80)`，消除色彩语义误用
+  - markdown-viewer.css 和 global.css 同步修复
+- [x] **CSS 重复规则合并**（P2）
+  - global.css 中 `.article-content-preview .wmde-markdown` 重复规则迁移至 markdown-viewer.css
+  - markdown-viewer.css 选择器同时覆盖 `.markdown-viewer` 和 `.article-content-preview`
+  - global.css 仅保留注释占位
+- [x] **表格响应式支持**（P2）
+  - Markdown 表格添加 `display: block; overflow-x: auto`，防止移动端表格溢出
+- [x] **评审报告** — 5份评审：质量(B/3.55)、架构(5.4/10)、安全(B+/中高风险)、UI(5.3/10)、Committer(5.0/10)
+  - tasks/review/common.tsx.quality.md
+  - tasks/review/common.tsx.architecture.md
+  - tasks/review/common.tsx.security.md
+  - tasks/review/common.tsx.ui.md
+  - tasks/review/common.tsx.committer.md（含修复记录）

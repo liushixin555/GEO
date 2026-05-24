@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
-import { Empty, Spin, Typography } from 'antd';
+import { Spin, Typography } from 'antd';
+import DOMPurify from 'dompurify';
 import type { CSSProperties } from 'react';
 import '../styles/markdown-viewer.css';
 
@@ -21,7 +22,7 @@ interface MarkdownViewerProps {
   className?: string;
 }
 
-const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
+const MarkdownViewer: React.FC<MarkdownViewerProps> = React.memo(({
   content,
   loading,
   error,
@@ -29,6 +30,17 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   style,
   className,
 }) => {
+  const safeSource = useMemo(() => {
+    if (!content) return '';
+    const truncated = content.length > MAX_SOURCE_LENGTH
+      ? content.slice(0, MAX_SOURCE_LENGTH)
+      : content;
+    return DOMPurify.sanitize(truncated, {
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'textarea', 'select', 'button'],
+      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
+    });
+  }, [content]);
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 48 }}>
@@ -49,11 +61,6 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
     );
   }
 
-  const safeSource =
-    content.length > MAX_SOURCE_LENGTH
-      ? content.slice(0, MAX_SOURCE_LENGTH)
-      : content;
-
   return (
     <div
       role="region"
@@ -67,6 +74,8 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
       />
     </div>
   );
-};
+});
+
+MarkdownViewer.displayName = 'MarkdownViewer';
 
 export default MarkdownViewer;

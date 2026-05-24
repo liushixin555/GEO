@@ -345,3 +345,17 @@ export default React.forwardRef<MarkdownPreviewRef, MarkdownPreviewProps>((props
 | 综合评分 | 5.0/10 |
 | 最终裁决 | ⚠️ 有条件通过（CONDITIONAL APPROVE） |
 | 前置条件 | COND-1: 客户端 DOMPurify 消毒 · COND-2: 服务端消毒确认 |
+
+---
+
+## 十、修复记录（2026-05-24）
+
+基于5份评审报告的综合修复：
+
+| 评审问题编号 | 优先级 | 修复措施 | 状态 |
+|-------------|--------|---------|------|
+| SEC-1 / C-01 / Q-02 | P0 | MarkdownViewer 添加 DOMPurify 消毒，FORBID_TAGS 移除 script/iframe/object 等，FORBID_ATTR 移除 on* 事件属性 | ✅ 已修复 |
+| PERF-1 / C-02 / Q-01 | P1 | MarkdownViewer 包裹 React.memo + useMemo 缓存 safeSource，减少无效重渲染 | ✅ 已修复 |
+| CSS-02 / A-03 | P1 | 行内代码颜色从 `var(--color-error)` 改为 `var(--color-blue-80)`，消除语义红色误用 | ✅ 已修复 |
+| CSS-01 | P2 | global.css 中 `.article-content-preview .wmde-markdown` 重复规则迁移至 markdown-viewer.css 统一维护 | ✅ 已修复 |
+| R-02 | P2 | Markdown 表格添加 `display: block; overflow-x: auto` 实现移动端响应式 | ✅ 已修复 |

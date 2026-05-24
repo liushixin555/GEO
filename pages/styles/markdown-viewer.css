@@ -2,6 +2,7 @@
    Markdown Viewer — Carbon Design System
    封装组件 MarkdownViewer 专用样式
    使用 CSS 变量引用 Carbon Token
+   同时覆盖 .markdown-viewer 和 .article-content-preview 容器
    ======================================== */
 
 /* 编辑器基础样式 */
@@ -21,7 +22,8 @@
 }
 
 /* Markdown 预览 — 阅读模式 */
-.markdown-viewer .wmde-markdown {
+.markdown-viewer .wmde-markdown,
+.article-content-preview .wmde-markdown {
   font-family: var(--font-family) !important;
   font-size: 15px !important;
   line-height: 1.8 !important;
@@ -35,7 +37,13 @@
 .markdown-viewer .wmde-markdown h3,
 .markdown-viewer .wmde-markdown h4,
 .markdown-viewer .wmde-markdown h5,
-.markdown-viewer .wmde-markdown h6 {
+.markdown-viewer .wmde-markdown h6,
+.article-content-preview .wmde-markdown h1,
+.article-content-preview .wmde-markdown h2,
+.article-content-preview .wmde-markdown h3,
+.article-content-preview .wmde-markdown h4,
+.article-content-preview .wmde-markdown h5,
+.article-content-preview .wmde-markdown h6 {
   font-family: var(--font-family) !important;
   color: var(--color-ink) !important;
   border-bottom-color: var(--color-hairline) !important;
@@ -44,15 +52,20 @@
   font-weight: 600 !important;
 }
 
-.markdown-viewer .wmde-markdown h1 { font-size: 1.75em !important; }
-.markdown-viewer .wmde-markdown h2 { font-size: 1.45em !important; }
-.markdown-viewer .wmde-markdown h3 { font-size: 1.2em !important; }
+.markdown-viewer .wmde-markdown h1,
+.article-content-preview .wmde-markdown h1 { font-size: 1.75em !important; }
+.markdown-viewer .wmde-markdown h2,
+.article-content-preview .wmde-markdown h2 { font-size: 1.45em !important; }
+.markdown-viewer .wmde-markdown h3,
+.article-content-preview .wmde-markdown h3 { font-size: 1.2em !important; }
 
-.markdown-viewer .wmde-markdown p {
+.markdown-viewer .wmde-markdown p,
+.article-content-preview .wmde-markdown p {
   margin-bottom: 1em !important;
 }
 
-.markdown-viewer .wmde-markdown blockquote {
+.markdown-viewer .wmde-markdown blockquote,
+.article-content-preview .wmde-markdown blockquote {
   border-left: 3px solid var(--color-primary) !important;
   background: var(--color-surface-1) !important;
   padding: 8px 16px !important;
@@ -60,66 +73,82 @@
   color: var(--color-ink-muted) !important;
 }
 
-.markdown-viewer .wmde-markdown code {
+.markdown-viewer .wmde-markdown code,
+.article-content-preview .wmde-markdown code {
   background: var(--color-surface-1) !important;
-  color: var(--color-error) !important;
+  color: var(--color-blue-80) !important;
   padding: 2px 6px !important;
   border-radius: 2px !important;
   font-size: 0.9em !important;
 }
 
-.markdown-viewer .wmde-markdown pre {
+.markdown-viewer .wmde-markdown pre,
+.article-content-preview .wmde-markdown pre {
   background: var(--color-inverse-canvas) !important;
   border-radius: 2px !important;
   padding: 16px !important;
 }
 
-.markdown-viewer .wmde-markdown pre code {
+.markdown-viewer .wmde-markdown pre code,
+.article-content-preview .wmde-markdown pre code {
   background: transparent !important;
   color: var(--color-inverse-ink) !important;
 }
 
-.markdown-viewer .wmde-markdown table {
+.markdown-viewer .wmde-markdown table,
+.article-content-preview .wmde-markdown table {
   border: 1px solid var(--color-hairline) !important;
   border-radius: 0 !important;
+  display: block !important;
+  overflow-x: auto !important;
 }
 
 .markdown-viewer .wmde-markdown table th,
-.markdown-viewer .wmde-markdown table td {
+.markdown-viewer .wmde-markdown table td,
+.article-content-preview .wmde-markdown table th,
+.article-content-preview .wmde-markdown table td {
   border: 1px solid var(--color-hairline) !important;
   padding: 8px 12px !important;
 }
 
-.markdown-viewer .wmde-markdown table th {
+.markdown-viewer .wmde-markdown table th,
+.article-content-preview .wmde-markdown table th {
   background: var(--color-surface-1) !important;
   font-weight: 600 !important;
 }
 
-.markdown-viewer .wmde-markdown img {
+.markdown-viewer .wmde-markdown img,
+.article-content-preview .wmde-markdown img {
   border-radius: 2px !important;
   max-width: 100% !important;
 }
 
-.markdown-viewer .wmde-markdown a {
+.markdown-viewer .wmde-markdown a,
+.article-content-preview .wmde-markdown a {
   color: var(--color-primary) !important;
 }
 
-.markdown-viewer .wmde-markdown a:hover {
+.markdown-viewer .wmde-markdown a:hover,
+.article-content-preview .wmde-markdown a:hover {
   color: var(--color-blue-60) !important;
 }
 
-.markdown-viewer .wmde-markdown hr {
+.markdown-viewer .wmde-markdown hr,
+.article-content-preview .wmde-markdown hr {
   border: none !important;
   border-top: 1px solid var(--color-hairline) !important;
   margin: 2em 0 !important;
 }
 
 .markdown-viewer .wmde-markdown ul,
-.markdown-viewer .wmde-markdown ol {
+.markdown-viewer .wmde-markdown ol,
+.article-content-preview .wmde-markdown ul,
+.article-content-preview .wmde-markdown ol {
   padding-left: 1.8em !important;
   margin-bottom: 1em !important;
 }
 
-.markdown-viewer .wmde-markdown li {
+.markdown-viewer .wmde-markdown li,
+.article-content-preview .wmde-markdown li {
   margin-bottom: 0.3em !important;
 }
