@@ -96,6 +96,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = useCallback((token: string, userData: UserData) => {
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(USER_KEY, JSON.stringify(userData));
+    if (userData.selected_company && !localStorage.getItem('selected_company')) {
+      localStorage.setItem('selected_company', JSON.stringify(userData.selected_company));
+    }
+    if (userData.selected_project && !localStorage.getItem('selected_project')) {
+      localStorage.setItem('selected_project', JSON.stringify(userData.selected_project));
+    }
     setUser(userData);
   }, []);
 
