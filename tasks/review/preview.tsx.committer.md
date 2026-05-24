@@ -239,17 +239,17 @@ by_geo 项目 Markdown 渲染链路：
 
 ### 前置条件（Blocking — 封装层安全加固完成前不可新增 Markdown 渲染场景）
 
-- [ ] MarkdownViewer 传入安全 `urlTransform`（使用 react-markdown 内置过滤或自定义白名单）
-- [ ] MarkdownViewer 传入自定义 `allowElement`（显式标签白名单 Set）
-- [ ] 确认 DOMPurify 消毒覆盖所有渲染路径，添加"安全关键"注释
-- [ ] 文档化 preview.tsx 的安全风险和封装层防护措施
-- [ ] 确认 `react-markdown` 版本 ≥ 9.0
+- [x] MarkdownViewer 传入安全 `urlTransform`（使用 react-markdown 内置过滤或自定义白名单）✅ 已实现 safeUrlTransform 白名单协议过滤
+- [x] MarkdownViewer 传入自定义 `allowElement`（显式标签白名单 Set）✅ 已实现 SAFE_TAGS 显式白名单
+- [x] 确认 DOMPurify 消毒覆盖所有渲染路径，添加"安全关键"注释 ✅ 已添加注释标注
+- [x] 文档化 preview.tsx 的安全风险和封装层防护措施 ✅ 文件头部已有完整安全缺陷 + 防护措施注释
+- [x] 确认 `react-markdown` 版本 ≥ 9.0 ✅ @uiw/react-markdown-preview@~5.2.1 内含 react-markdown ≥ 9.0
 
 ### 后续优化（Non-blocking — 排期改进）
 
-- [ ] MarkdownViewer 使用 `React.memo` 阻断无关渲染
-- [ ] 导入 `nohighlight` 入口减少 Bundle 体积
-- [ ] 版本锁定到 minor 版本（`~4.x.x`）
+- [x] MarkdownViewer 使用 `React.memo` 阻断无关渲染 ✅ 已实现（50bb704）
+- [x] 导入 `nohighlight` 入口减少 Bundle 体积 ✅ 已使用 @uiw/react-markdown-preview/nohighlight
+- [x] 版本锁定到 minor 版本（`~5.x.x`）✅ 已锁定 @uiw/react-markdown-preview@~5.2.1
 - [ ] 关注 `@uiw/react-markdown-preview` v5 版本更新，评估是否修复 S1/S2/S3
 - [ ] 在项目的可访问性声明中标注 Markdown 预览组件的局限性
 
