@@ -8,7 +8,7 @@ process.env.JWT_SECRET = 'test-secret';
 process.env.JWT_EXPIRES_IN = '2h';
 process.env.SWAGGER_ENABLED = 'false';
 process.env.RATE_LIMIT_WINDOW_MS = '60000';
-process.env.RATE_LIMIT_MAX = '100';
+process.env.RATE_LIMIT_MAX = '500';
 
 // Mock the service implementations before importing app
 const mockSyncFromSystemConfig = jest.fn();
@@ -710,6 +710,588 @@ describe('PublishingPlatform Controller', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.message).toBe('无效的排序方向');
+    });
+  });
+
+  // ========== Round 2: Token 异常测试 ==========
+
+  describe('Token 异常', () => {
+    it('should reject expired JWT token on sync', async () => {
+      const token = jwt.sign(
+        { userId: 1, username: 'sysadmin', role: 'sysadmin', companyId: 1 },
+        'test-secret',
+        { expiresIn: '-1s' }
+      );
+
+      const response = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should reject expired JWT token on list', async () => {
+      const token = jwt.sign(
+        { userId: 1, username: 'sysadmin', role: 'sysadmin', companyId: 1 },
+        'test-secret',
+        { expiresIn: '-1s' }
+      );
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should reject malformed JWT token on sync', async () => {
+      const response = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', 'Bearer invalid.jwt.token');
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should reject malformed JWT token on list', async () => {
+      const response = await agent
+        .get('/api/v1/publishing-platforms')
+        .set('Authorization', 'Bearer invalid.jwt.token');
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should reject request with empty Authorization header', async () => {
+      const response = await agent
+        .get('/api/v1/publishing-platforms')
+        .set('Authorization', '');
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should reject request with Bearer but no token', async () => {
+      const response = await agent
+        .get('/api/v1/publishing-platforms')
+        .set('Authorization', 'Bearer ');
+
+      expect(response.status).toBe(401);
+    });
+  });
+
+  // ========== Round 2: sync 审计日志完整性测试 ==========
+
+  describe('sync 审计日志完整性', () => {
+    it('should log operator userId on sync start', async () => {
+      mockSyncFromSystemConfig.mockResolvedValue(10);
+
+      await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      const startCall = mockLoggerInfo.mock.calls.find(
+        (c: any[]) => c[0] === 'publishing-platform.sync.start'
+      );
+      expect(startCall).toBeDefined();
+      expect(startCall[1]).toEqual(expect.objectContaining({ userId: 1 }));
+    });
+
+    it('should log operator ip on sync start', async () => {
+      mockSyncFromSystemConfig.mockResolvedValue(10);
+
+      await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      const startCall = mockLoggerInfo.mock.calls.find(
+        (c: any[]) => c[0] === 'publishing-platform.sync.start'
+      );
+      expect(startCall).toBeDefined();
+      expect(startCall[1].ip).toBeDefined();
+    });
+
+    it('should log success with count and operator on sync success', async () => {
+      mockSyncFromSystemConfig.mockResolvedValue(77);
+
+      await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      const successCall = mockLoggerInfo.mock.calls.find(
+        (c: any[]) => c[0] === 'publishing-platform.sync.success'
+      );
+      expect(successCall).toBeDefined();
+      expect(successCall[1]).toEqual(
+        expect.objectContaining({ count: 77, userId: 1, username: 'sysadmin' })
+      );
+    });
+
+    it('should log error with String(err) when non-Error object is thrown', async () => {
+      mockSyncFromSystemConfig.mockRejectedValue({ code: 'TIMEOUT' });
+
+      await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      const errorCall = mockLoggerError.mock.calls.find(
+        (c: any[]) => c[0] === 'publishing-platform.sync.failed'
+      );
+      expect(errorCall).toBeDefined();
+      expect(errorCall[1].err).toBe('[object Object]');
+    });
+
+    it('should log error with err.message when Error is thrown', async () => {
+      mockSyncFromSystemConfig.mockRejectedValue(new Error('网络超时'));
+
+      await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      const errorCall = mockLoggerError.mock.calls.find(
+        (c: any[]) => c[0] === 'publishing-platform.sync.failed'
+      );
+      expect(errorCall).toBeDefined();
+      expect(errorCall[1].err).toBe('网络超时');
+    });
+  });
+
+  // ========== Round 2: sync 异常类型多样性测试 ==========
+
+  describe('sync 异常类型多样性', () => {
+    it('should handle TypeError and return 500', async () => {
+      mockSyncFromSystemConfig.mockRejectedValue(new TypeError('Cannot read property'));
+
+      const response = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('同步发布平台失败');
+    });
+
+    it('should handle RangeError and return 500', async () => {
+      mockSyncFromSystemConfig.mockRejectedValue(new RangeError('Maximum call stack'));
+
+      const response = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('同步发布平台失败');
+    });
+
+    it('should handle null thrown and return 500', async () => {
+      mockSyncFromSystemConfig.mockRejectedValue(null);
+
+      const response = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('同步发布平台失败');
+    });
+
+    it('should handle undefined thrown and return 500', async () => {
+      mockSyncFromSystemConfig.mockRejectedValue(undefined);
+
+      const response = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('同步发布平台失败');
+    });
+
+    it('should handle number thrown and return 500', async () => {
+      mockSyncFromSystemConfig.mockRejectedValue(42);
+
+      const response = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('同步发布平台失败');
+    });
+
+    it('should return 400 when error message contains 请先配置 as substring', async () => {
+      mockSyncFromSystemConfig.mockRejectedValue(new Error('请先配置系统参数后再同步'));
+
+      const response = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('请先配置系统参数后再同步');
+    });
+  });
+
+  // ========== Round 2: sync 响应结构验证 ==========
+
+  describe('sync 响应结构验证', () => {
+    it('should return exact response structure on sync success', async () => {
+      mockSyncFromSystemConfig.mockResolvedValue(123);
+
+      const response = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        code: 0,
+        message: '同步成功，共 123 个发布平台',
+        data: { count: 123 },
+      });
+    });
+
+    it('should handle very large count value', async () => {
+      mockSyncFromSystemConfig.mockResolvedValue(999999);
+
+      const response = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.count).toBe(999999);
+      expect(response.body.message).toContain('999999');
+    });
+  });
+
+  // ========== Round 2: list 响应结构深度验证 ==========
+
+  describe('list 响应结构深度验证', () => {
+    it('should return correct listAll response with all entity fields', async () => {
+      const fullItem = {
+        id: 1,
+        rm_resource_id: 100,
+        name: '新浪',
+        taxonomy: '门户网站',
+        price: 500.5,
+        remark: '优质资源，价格可议',
+        include_rate: 95.5,
+        publish_rate: 90.3,
+        created_at: '2025-01-01T00:00:00.000Z',
+        updated_at: '2025-01-02T00:00:00.000Z',
+      };
+      mockListAll.mockResolvedValue([fullItem]);
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.code).toBe(0);
+      expect(response.body.message).toBe('操作成功');
+      const item = response.body.data[0];
+      expect(item.id).toBe(1);
+      expect(item.rm_resource_id).toBe(100);
+      expect(item.name).toBe('新浪');
+      expect(item.taxonomy).toBe('门户网站');
+      expect(item.price).toBe(500.5);
+      expect(item.remark).toBe('优质资源，价格可议');
+      expect(item.include_rate).toBe(95.5);
+      expect(item.publish_rate).toBe(90.3);
+    });
+
+    it('should return null remark when platform has no remark', async () => {
+      const noRemark = { ...mappedPlatform, remark: null };
+      mockListAll.mockResolvedValue([noRemark]);
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data[0].remark).toBeNull();
+    });
+
+    it('should return platforms with decimal price values', async () => {
+      const decimalPlatform = { ...mappedPlatform, price: 0.01 };
+      mockListAll.mockResolvedValue([decimalPlatform]);
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data[0].price).toBe(0.01);
+    });
+
+    it('should return platforms with zero rates', async () => {
+      const zeroPlatform = { ...mappedPlatform, include_rate: 0, publish_rate: 0, price: 0 };
+      mockListAll.mockResolvedValue([zeroPlatform]);
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data[0].include_rate).toBe(0);
+      expect(response.body.data[0].publish_rate).toBe(0);
+      expect(response.body.data[0].price).toBe(0);
+    });
+
+    it('should return correct paginated response structure with all fields', async () => {
+      const fullItem = { ...mappedPlatform };
+      mockList.mockResolvedValue({ list: [fullItem], total: 50 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=3&pageSize=20')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.code).toBe(0);
+      expect(response.body.data).toEqual({
+        list: [expect.objectContaining({ name: '新浪' })],
+        total: 50,
+        page: 3,
+        pageSize: 20,
+      });
+    });
+  });
+
+  // ========== Round 2: list 特殊字符与搜索测试 ==========
+
+  describe('list 特殊字符与搜索测试', () => {
+    it('should handle unicode characters in search', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&search=搜索')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, '搜索', undefined, undefined, undefined);
+    });
+
+    it('should handle SQL injection pattern in search safely', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get("/api/v1/publishing-platforms?page=1&pageSize=10&search=' OR 1=1--")
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, "' OR 1=1--", undefined, undefined, undefined);
+    });
+
+    it('should handle XSS pattern in search safely', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&search=<script>alert(1)</script>')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, '<script>alert(1)</script>', undefined, undefined, undefined);
+    });
+
+    it('should handle special characters in taxonomy filter', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&taxonomy=' + encodeURIComponent('门户/行业&新媒体'))
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, undefined, '门户/行业&新媒体', undefined, undefined);
+    });
+
+    it('should handle URL-encoded search parameter', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&search=%E6%96%B0%E6%B5%AA')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, '新浪', undefined, undefined, undefined);
+    });
+
+    it('should handle very long valid search (100 unicode chars)', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+      const search = '新'.repeat(100);
+
+      const response = await agent
+        .get(`/api/v1/publishing-platforms?page=1&pageSize=10&search=${search}`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, search, undefined, undefined, undefined);
+    });
+  });
+
+  // ========== Round 2: list 排序组合测试 ==========
+
+  describe('list 排序组合测试', () => {
+    it('should pass sortBy without sortOrder (sortOrder=undefined)', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&sortBy=name')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, 'name', undefined);
+    });
+
+    it('should pass sortOrder without sortBy (sortBy=undefined)', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&sortOrder=asc')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, undefined, 'asc');
+    });
+
+    it('should accept sortBy=include_rate with underscore', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&sortBy=include_rate&sortOrder=desc')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, 'include_rate', 'desc');
+    });
+
+    it('should accept sortBy=publish_rate with underscore', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&sortBy=publish_rate&sortOrder=asc')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, 'publish_rate', 'asc');
+    });
+
+    it('should reject sortBy with uppercase variation', async () => {
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&sortBy=Name')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的排序字段');
+    });
+
+    it('should reject sortOrder with uppercase variation', async () => {
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&sortOrder=ASC')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的排序方向');
+    });
+  });
+
+  // ========== Round 2: list 异常类型多样性 ==========
+
+  describe('list 异常类型多样性', () => {
+    it('should handle TypeError thrown from listAll', async () => {
+      mockListAll.mockRejectedValue(new TypeError('Cannot read property'));
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('Cannot read property');
+    });
+
+    it('should handle null thrown from listAll', async () => {
+      mockListAll.mockRejectedValue(null);
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取发布平台失败');
+    });
+
+    it('should handle undefined thrown from paginated list', async () => {
+      mockList.mockRejectedValue(undefined);
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取发布平台失败');
+    });
+
+    it('should handle number thrown from paginated list', async () => {
+      mockList.mockRejectedValue(500);
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取发布平台失败');
+    });
+  });
+
+  // ========== Round 2: list 混合参数组合测试 ==========
+
+  describe('list 混合参数组合测试', () => {
+    it('should use admin token for paginated list path', async () => {
+      mockList.mockResolvedValue({ list: [mappedPlatform], total: 1 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10')
+        .set('Authorization', `Bearer ${adminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.list).toHaveLength(1);
+    });
+
+    it('should return multiple platforms with different taxonomies', async () => {
+      const portal = { ...mappedPlatform, id: 1, name: '新浪', taxonomy: '门户网站' };
+      const weMedia = { ...mappedPlatform, id: 2, name: '微信公众号', taxonomy: '自媒体', rm_resource_id: 200 };
+      mockListAll.mockResolvedValue([portal, weMedia]);
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(2);
+      expect(response.body.data[0].taxonomy).toBe('门户网站');
+      expect(response.body.data[1].taxonomy).toBe('自媒体');
+    });
+  });
+
+  // ========== Round 2: list 验证顺序测试 ==========
+
+  describe('list 验证顺序测试', () => {
+    it('should validate search length before sortBy validation', async () => {
+      const longSearch = 'a'.repeat(101);
+
+      const response = await agent
+        .get(`/api/v1/publishing-platforms?page=1&pageSize=10&search=${longSearch}&sortBy=invalid`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('搜索关键词不能超过');
+    });
+
+    it('should validate sortBy before calling service', async () => {
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&sortBy=nonexistent')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(mockList).not.toHaveBeenCalled();
+    });
+
+    it('should validate sortOrder before calling service', async () => {
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&sortOrder=random')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(mockList).not.toHaveBeenCalled();
     });
   });
 });

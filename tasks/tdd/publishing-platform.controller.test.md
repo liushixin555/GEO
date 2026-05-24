@@ -1,5 +1,7 @@
 # publishing-platform.controller.test.md — TDD 执行报告
 
+> Round 2 详情见 [publishing-platform.controller.test.round2.md](./publishing-platform.controller.test.round2.md)
+
 ## 测试文件
 `tests/apis/publishing-platform.controller.test.ts`
 
@@ -7,10 +9,10 @@
 `apis/controller/publishing-platform.controller.ts`
 
 ## 测试结果
-- **测试数量**: 52 个
-- **通过**: 52 个
+- **测试数量**: 100 个（Round 1: 55 + Round 2: 45）
+- **通过**: 100 个
 - **失败**: 0 个
-- **执行时间**: ~6.4s
+- **执行时间**: ~10s
 
 ## 覆盖率
 
