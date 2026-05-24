@@ -907,6 +907,7 @@ components: {
 
 ---
 
+<<<<<<< HEAD
 ## fix030. issue.tsx 评审封装层问题修复（#语义碰撞防护 + prefix非空断言 + 错误边界 + SVG无障碍）
 
 ### 问题
@@ -943,3 +944,37 @@ components: {
 ### 涉及文件
 - `pages/components/MarkdownEditor.tsx` — commandsFilter 添加 issue 命令防御性覆盖
 - `tests/pages/components/MarkdownEditor.test.tsx` — 13 个新增 issue 测试
+
+---
+
+## fix031. skills.controller.ts 安全评审修复（C-4 parseSkillMd ReDoS）
+
+### 问题
+根据 `tasks/review/skills.controller.security.md` 安全评审报告（C+ 级 60/100），`skills.controller.ts` 存在 4 个 CRITICAL、5 个 HIGH、4 个 MEDIUM、3 个 LOW 级安全漏洞。
+
+### 修复状态
+
+14 项问题中 13 项已在之前重构（抽取 `skills-file.service.ts`）中修复：
+- C-1 Zip Slip → 逐条目解压 + 路径校验
+- C-2 Zip Bomb → 500MB 总大小限制
+- C-3 创建失败清理 → catch 块回滚已解压目录
+- H-1 updateSkills 白名单 → 仅允许 name/description
+- H-2 deleteSkills 路径校验 → validateSkillDirPath()
+- H-3 req.user 防御性检查 → if (!req.user) return 401
+- H-4 magic bytes → PK header 0x50 0x4B 校验
+- H-5 错误信息 → 显示技能名而非目录名
+- M-1 模块级副作用 → 惰性初始化
+- M-2 pageSize 上限 → Math.min(100, ...)
+- M-4 extractAllTo 覆盖 → 逐条目写入
+- L-1 catch(err:any) → unknown
+- L-2 multer 错误类型 → unknown
+
+本次修复最后一项 CRITICAL：
+
+**C-4 parseSkillMd ReDoS**：
+- `apis/utils/skill-md.util.ts`：使用 `js-yaml` 库替代正则表达式解析 YAML frontmatter
+- 消除 `[\s\S]*?` 正则回溯攻击风险
+- 支持多行值、特殊字符等 YAML 完整语法
+
+### 涉及文件
+- `apis/utils/skill-md.util.ts` — js-yaml 替代正则解析
