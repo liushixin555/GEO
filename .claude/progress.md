@@ -603,3 +603,13 @@
   - 安全评分提升：输入验证 3→7、认证授权 5→8、数据泄露 4→8
   - 评审结论：✅ 通过（附建议），核心安全问题已修复，剩余为改进项
   - 评审报告 tasks/review/article.controller.ts.md
+
+## 本次变更（2026-05-24 ArticleDetail.tsx Committer审核专家评审）
+- [x] **Committer审核专家评审 pages/article/ArticleDetail.tsx（889 行）**
+  - 综合判定：❌ 拒绝合并（REJECT）— 5项致命问题 + 4项高危问题
+  - 致命问题 BLK-01~05：零测试覆盖、缺少删除功能（规格要求）、待审核状态正文不可编辑（EDITABLE_STATUSES 缺 pending_review）、generate_failed/publish_failed 状态无法重新提交（handleRegenerate 死代码）、Alert title prop 错误（应为 message）
+  - 高危问题 HIG-01~04：JSON.parse 无防护（白屏风险）、存储型 XSS（Markdown 无消毒）、自动保存定时器竞态、13+ 处重复 localStorage 读取
+  - 中等问题 MED-01~05：Collapse 替代 Tabs（规格偏差）、无版本历史浏览、any 类型滥用、操作按钮条件过严、未保存提示缺失
+  - 规格符合度：14/20 通过（70%），3 项功能缺失/Bug
+  - 交叉审核四份已有评审（质量C+/安全D+/UI 4.2/架构D+），诊断均认同
+  - 评审报告 tasks/review/ArticleDetail.tsx.committer.md
