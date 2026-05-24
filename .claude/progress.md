@@ -881,6 +881,7 @@
   - 评分明细：功能正确性17/20、性能8/15、安全性9/15、类型安全8/10、可读性13/15、可维护性11/15、最佳实践7/10
   - 评审报告 tasks/review/react-markdown-preview.index.tsx.md
 
+<<<<<<< HEAD
 ## 本次变更（2026-05-24 App.tsx UI 评审问题修复）
 - [x] **fix016: App.tsx UI 评审问题修复（12 项）** — 基于 tasks/review/App.tsx.ui.md（5.5/10）
   - UI-09（P0 BUG）：Alert `title` → `message`，修复错误信息不显示
@@ -896,3 +897,15 @@
   - UI-20：加载页添加品牌信息
   - UI-21：PlaceholderPage 用 Result 组件
   - 涉及文件：login/index.tsx, Layout.tsx, Sidebar.tsx, AuthGuard.tsx, routes.tsx, global.css
+=======
+## 本次变更（2026-05-24 apis/config/index.ts 代码安全专家评审）
+- [x] **代码安全专家评审 apis/config/index.ts（175 行）**
+  - 综合安全评级 B+/8.4（安全基线良好，存在可加固项）
+  - STRIDE 威胁建模：Spoofing 中、Tampering 低、Information Disclosure 中、EoP 中
+  - 9 项安全发现：🟠HIGH×1（SEC-CFG-01 硬编码默认数据库密码 CWE-798）、🟡MEDIUM×4（JWT_SECRET自动生成会话持久性、JWT_EXPIRES_IN缺格式校验、CRON_ARTICLE_INTERVAL缺格式校验、uploadDir目录遍历 CWE-22）、🟢LOW×4（dotenv模块副作用、DB_POOL_MAX无上限、错误消息泄露配置结构、CORS格式校验不充分）
+  - 6 项安全亮点（值得保持）：生产环境强制安全检查、deepFreeze防篡改、safeParseInt范围校验、JWT强度警告、CORS协议白名单、接口readonly声明
+  - 修复优先级：P1×1（移除默认密码）、P2×3（uploadDir校验/JWT显式设置/时间格式校验）、P3×1（cron校验）、P4×4
+  - 安全合规对照：OWASP A02✅/A04⚠️/A05✅/A07⚠️、CWE-798⚠️/CWE-20⚠️/CWE-22⚠️/CWE-330✅/CWE-374✅
+  - 评审结论：✅ 有条件通过（Conditional Approve），发布前修复 SEC-CFG-01
+  - 评审报告 tasks/review/config-index.security.md
+>>>>>>> c38cef7 (docs: 代码安全专家评审 apis/config/index.ts（B+/8.4，9项发现：1项HIGH硬编码密码+4项MEDIUM+4项LOW）)
