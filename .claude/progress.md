@@ -449,6 +449,18 @@
   - 提出三个替代方案：A. 删除文件 + Sidebar 外链（推荐）/ B. 保留跳板页需完整集成 / C. 升级为 API 文档首页
   - 评审报告 tasks/review/index.tsx.architecture.md
 
+## 本次变更（2026-05-24 apis/config/index.ts TDD 测试补全）
+- [x] **apis/config/index.ts 测试用例补全** — 从 82 个增加到 114 个测试用例
+  - 新增 safeParseInt 边界值（9个）：PORT/DB_PORT 最小最大值、浮点字符串截断、负数、无上限
+  - 新增 console 警告输出（4个）：DB_PASSWORD/JWT_SECRET 未设置时验证 console.error
+  - 新增 deepFreeze 深层不可变（4个）：server.port/cron/swagger 等属性冻结验证
+  - 新增 parseCorsOrigins 额外边界（6个）：无协议、双斜杠、纯空格、http/https、多 entry
+  - 新增配置重载一致性（2个）：auto-generated secret 随机性、显式值一致性
+  - 新增 CRON_ARTICLE_ENABLED 边界（3个）：非标准值和空字符串行为
+  - 新增生产环境额外校验（4个）：空字符串密码/密钥、development/test 环境
+  - 覆盖率：Stmts 100%, Branch 97.29%, Funcs 100%, Lines 100%
+  - TDD 报告：tasks/tdd/config.test.md
+
 ## 本次变更（2026-05-24 apis/app.ts Committer审核专家评审）
 - [x] **Committer审核专家评审 apis/app.ts（239 行）**
   - 综合判定：通过（APPROVE）— 安全基础优秀 + 测试覆盖充分 + 功能完整

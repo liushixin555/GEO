@@ -2,7 +2,7 @@
 
 **测试文件**: `tests/apis/config.test.ts`
 **目标文件**: `apis/config/index.ts`
-**执行日期**: 2026-05-24（更新）
+**执行日期**: 2026-05-24（第二轮更新）
 
 ---
 
@@ -11,9 +11,9 @@
 | 指标 | 值 |
 |------|------|
 | 测试套件 | 1 passed |
-| 测试用例 | 82 passed |
+| 测试用例 | 114 passed |
 | 失败 | 0 |
-| 执行时间 | ~4.6s |
+| 执行时间 | ~5.8s |
 
 ## 覆盖率
 
@@ -26,38 +26,57 @@
 
 ### 未覆盖分支
 
-- **第 128 行**: `parseCorsOrigins` 中 `origins.length === 0` 分支的一个边缘路径，受 dotenv 重新加载 .env 影响。
+- **第 128 行**: `process.env.JWT_EXPIRES_IN || '2h'` 回退分支。由于 `.env` 文件中设置了 `JWT_EXPIRES_IN=2h`，dotenv 在模块导入时总是先加载该值，回退路径无法被触发。
 
 ---
 
-## 本次新增测试用例（18 个）
+## 本轮新增测试用例（32 个）
 
-### 1. DB_PORT 范围校验（2 个）
-- DB_PORT = '0' → 抛出 `FATAL: DB_PORT must be >= 1`
-- DB_PORT = '70000' → 抛出 `FATAL: DB_PORT must be <= 65535`
+### 1. safeParseInt 边界值（9 个）
+- PORT=1（最小有效端口）→ 通过
+- PORT=65535（最大有效端口）→ 通过
+- DB_PORT=1（最小有效）→ 通过
+- DB_PORT=65535（最大有效）→ 通过
+- PORT='8080.9'（浮点字符串）→ parseInt 截断为 8080
+- RATE_LIMIT_WINDOW_MS=999999999（无上限约束）→ 通过
+- RATE_LIMIT_WINDOW_MS='-100'（负数）→ 抛出 `must be >= 1`
+- RATE_LIMIT_MAX=1（最小有效）→ 通过
+- RATE_LIMIT_MAX=10000（大值）→ 通过
 
-### 2. RATE_LIMIT 范围校验（2 个）
-- RATE_LIMIT_WINDOW_MS = '0' → 抛出 `FATAL: RATE_LIMIT_WINDOW_MS must be >= 1`
-- RATE_LIMIT_MAX = '-5' → 抛出 `FATAL: RATE_LIMIT_MAX must be >= 1`
+### 2. console 警告输出（4 个）
+- DB_PASSWORD 未设置（非生产）→ console.error 输出 `Using default DB_PASSWORD`
+- JWT_SECRET 未设置（非生产）→ console.error 输出 `JWT_SECRET not set`
+- DB_PASSWORD 已设置 → 无警告
+- JWT_SECRET 已设置 → 无警告
 
-### 3. PORT 负数校验（1 个）
-- PORT = '-1' → 抛出 `FATAL: PORT must be >= 1`
+### 3. deepFreeze 深层不可变（4 个）
+- server.port 不可修改
+- cron.articleGenerationInterval 不可修改
+- swagger.enabled 不可修改
+- Object.keys 在冻结对象上正常工作
 
-### 4. JWT 自动生成 secret 格式（1 个）
-- JWT_SECRET 未设置时生成 64 位十六进制字符串（32 bytes → 64 hex chars）
+### 4. parseCorsOrigins 额外边界（6 个）
+- 'www.example.com'（无协议）→ 抛出 `must start with http:// or https://`
+- '//example.com'（双斜杠开头）→ 抛出协议错误
+- '   '（纯空格）→ 抛出 `must contain at least one valid origin`
+- 'http://192.168.1.1:3000'（http 协议）→ 正确解析
+- 'https://secure.example.com'（https 协议）→ 正确解析
+- 多个 origin 逗号分隔（5 个）→ 全部正确解析
 
-### 5. 生产环境校验（3 个）
-- NODE_ENV=production + 无 DB_PASSWORD → 抛出 `FATAL: DB_PASSWORD is required in production`
-- NODE_ENV=production + 无 JWT_SECRET → 抛出 `FATAL: JWT_SECRET is required in production`
-- NODE_ENV=production + DB_PASSWORD + JWT_SECRET 均设置 → 正常工作
+### 5. 配置重载一致性（2 个）
+- 两次加载（JWT_SECRET 为空）→ 生成不同的 auto-generated secret
+- 两次加载（相同显式 env）→ 配置值一致
 
-### 6. CORS origins 边界（2 个）
-- 逗号前后有空格 → 正确 trim
-- 单个有效 origin → 正确解析
+### 6. CRON_ARTICLE_ENABLED 边界（3 个）
+- CRON_ARTICLE_ENABLED='yes' → enabled=true
+- CRON_ARTICLE_ENABLED='1' → enabled=true
+- CRON_ARTICLE_ENABLED=''（空字符串）→ enabled=true
 
-### 7. deepFreeze 深层不可变（2 个）
-- database.pool 不可修改
-- rateLimit 属性不可修改
+### 7. 生产环境额外校验（4 个）
+- production + DB_PASSWORD='' → 抛出 `FATAL: DB_PASSWORD is required`
+- production + DB_PASSWORD='pwd' + JWT_SECRET='' → 抛出 `FATAL: JWT_SECRET is required`
+- NODE_ENV='development'（无密钥）→ 正常工作
+- NODE_ENV='test'（无密钥）→ 正常工作
 
 ---
 
@@ -70,11 +89,15 @@
 | 配置对象结构 | 5 | 属性和嵌套结构验证 |
 | 类型正确性 | 9 | number/string/boolean 类型断言 |
 | 边界情况 | 15 | NaN、范围、空字符串、多变量覆盖 |
-| CORS origins | 7 | 默认值、逗号分隔、空值、无效协议、空格 |
-| 配置不可变性 | 5 | 顶层/嵌套对象/数组的 deepFreeze |
-| 生产环境 | 3 | NODE_ENV=production 的安全校验 |
+| CORS origins | 13 | 默认值、逗号分隔、空值、无效协议、空格、无协议 |
+| 配置不可变性 | 9 | 顶层/嵌套对象/数组/深层属性 deepFreeze |
+| 生产环境 | 7 | NODE_ENV=production 的安全校验 |
+| safeParseInt 边界 | 9 | 端口范围、浮点截断、负数、无上限 |
+| console 警告 | 4 | DB_PASSWORD/JWT_SECRET 警告输出 |
+| 配置重载一致性 | 2 | 重载后 secret 随机性、配置一致性 |
+| CRON 边界 | 3 | 非标准值和空字符串行为 |
 | 接口导出 | 4 | 结构匹配类型接口 |
-| **合计** | **82** | |
+| **合计** | **114** | |
 
 ---
 
@@ -84,4 +107,4 @@
 
 ## 改进建议
 
-- 分支覆盖率 97.29%，仅剩第 128 行一个边缘分支未覆盖。如需 100% 分支覆盖率，需在无 .env 环境下运行测试。
+- 分支覆盖率 97.29%，仅剩第 128 行 `JWT_EXPIRES_IN || '2h'` 回退分支未覆盖。由于 `.env` 文件始终提供该值，此分支在当前测试环境下无法触发。如需 100% 分支覆盖率，需在临时移除 .env 的环境下运行测试。
