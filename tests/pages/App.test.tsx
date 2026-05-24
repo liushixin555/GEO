@@ -3,18 +3,22 @@
  */
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter } from 'react-router-dom';
+import axios from 'axios';
 import App from '../../pages/App';
 
-jest.mock('axios', () => ({
-  get: jest.fn(),
-  post: jest.fn(),
-  create: jest.fn(() => ({
-    get: jest.fn(),
-    post: jest.fn(),
-    interceptors: { request: { use: jest.fn() }, response: { use: jest.fn() } },
-  })),
-}));
+jest.mock('axios', () => {
+  const mockAxios = {
+    get: jest.fn(() => Promise.resolve({ data: { data: { user: null } } })),
+    post: jest.fn(() => Promise.resolve({})),
+    create: jest.fn(() => ({
+      get: jest.fn(() => Promise.resolve({ data: { data: { user: null } } })),
+      post: jest.fn(() => Promise.resolve({})),
+      interceptors: { request: { use: jest.fn() }, response: { use: jest.fn() } },
+    })),
+  };
+  return mockAxios;
+});
 
 jest.mock('../../pages/components/Layout', () => {
   return function MockLayout() {
@@ -27,6 +31,16 @@ jest.mock('../../pages/login', () => {
     return <div data-testid="mock-login">LoginPage</div>;
   };
 });
+
+const mockUser = {
+  id: 1,
+  username: 'admin',
+  cn_name: '管理员',
+  role: 'admin',
+  company_id: 1,
+  selected_company: null,
+  selected_project: null,
+};
 
 const renderWithRouter = (initialPath = '/') => {
   window.history.pushState({}, '', initialPath);
@@ -43,30 +57,76 @@ describe('App.tsx', () => {
     localStorage.clear();
   });
 
-  describe('路由匹配', () => {
+  describe('路由匹配 — 未认证状态', () => {
     it('/login 应渲染 LoginPage', () => {
       renderWithRouter('/login');
       expect(screen.getByTestId('mock-login')).toBeInTheDocument();
     });
 
-    it('根路径 / 应由 Layout 处理', async () => {
+    it('根路径 / 未认证应重定向到 /login', async () => {
       renderWithRouter('/');
-      // React Router v6.30 的 /* 路由匹配行为：根路径 / 应由通配路由接管
       await waitFor(() => {
-        const layout = screen.queryByTestId('mock-layout');
-        const login = screen.queryByTestId('mock-login');
-        expect(layout || login).toBeTruthy();
+        expect(screen.getByTestId('mock-login')).toBeInTheDocument();
       });
     });
 
-    it('未知路径 /nonexistent 应由 Layout 处理', () => {
+    it('未知路径 /nonexistent 未认证应重定向到 /login', async () => {
       renderWithRouter('/nonexistent');
-      expect(screen.getByTestId('mock-layout')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('mock-login')).toBeInTheDocument();
+      });
     });
 
-    it('/publish 应由 Layout 处理', () => {
+    it('/publish 未认证应重定向到 /login', async () => {
       renderWithRouter('/publish');
-      expect(screen.getByTestId('mock-layout')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('mock-login')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('路由匹配 — 已认证状态', () => {
+    beforeEach(() => {
+      localStorage.setItem('token', 'fake-jwt-token');
+      (axios.get as jest.Mock).mockResolvedValue({
+        data: { data: { user: mockUser } },
+      });
+    });
+
+    it('根路径 / 已认证应渲染 Layout', async () => {
+      renderWithRouter('/');
+      await waitFor(() => {
+        expect(screen.getByTestId('mock-layout')).toBeInTheDocument();
+      });
+    });
+
+    it('/publish 已认证应渲染 Layout', async () => {
+      renderWithRouter('/publish');
+      await waitFor(() => {
+        expect(screen.getByTestId('mock-layout')).toBeInTheDocument();
+      });
+    });
+
+    it('未知路径 /nonexistent 已认证应渲染 Layout', async () => {
+      renderWithRouter('/nonexistent');
+      await waitFor(() => {
+        expect(screen.getByTestId('mock-layout')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('认证失败处理', () => {
+    it('token 无效应清除 token 并重定向到 /login', async () => {
+      localStorage.setItem('token', 'invalid-token');
+      (axios.get as jest.Mock).mockRejectedValue(new Error('Unauthorized'));
+
+      renderWithRouter('/publish');
+
+      await waitFor(() => {
+        expect(screen.getByTestId('mock-login')).toBeInTheDocument();
+      });
+
+      expect(localStorage.getItem('token')).toBeNull();
     });
   });
 
@@ -108,9 +168,8 @@ describe('App.tsx', () => {
       expect(screen.getByTestId('normal')).toBeInTheDocument();
     });
 
-    it('错误后可通过重置 state 恢复', () => {
-      const ErrorBoundaryModule = require('../../pages/components/ErrorBoundary');
-      const ErrorBoundary = ErrorBoundaryModule.default;
+    it('错误后 state 保持错误状态', () => {
+      const ErrorBoundary = require('../../pages/components/ErrorBoundary').default;
 
       const ThrowingComponent = () => {
         throw new Error('crash');
@@ -126,7 +185,6 @@ describe('App.tsx', () => {
 
       expect(document.querySelector('result')?.getAttribute('status')).toBe('error');
 
-      // Rerender with normal component should still show error (state is sticky)
       const NormalComponent = () => <div data-testid="normal">ok</div>;
       rerender(
         <ErrorBoundary>
@@ -134,7 +192,7 @@ describe('App.tsx', () => {
         </ErrorBoundary>
       );
 
-      // Error boundary keeps showing error until page reload
+      // Error boundary keeps showing error until state is reset
       expect(document.querySelector('result')).toBeTruthy();
 
       spy.mockRestore();
