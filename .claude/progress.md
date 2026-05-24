@@ -113,3 +113,4 @@
 | 2026-05-24 | tasks/review/Editor.nohighlight.tsx.architecture.md | @uiw/react-md-editor Editor.nohighlight.tsx 架构专家评审——✅通过 8.8/10（工厂+策略注入教科书级OCP，7行零逻辑冗余，上游传导6项风险ARCH-1~6） |
 | 2026-05-24 | tasks/review/Editor.nohighlight.tsx.security.md | @uiw/react-md-editor Editor.nohighlight.tsx 代码安全专家评审——B-/7.0分（nohighlight变体安全基线显著优于标准版，H×3传导+M×4传导+L×2传导，项目MarkdownEditor.tsx多层缓解） |
 | 2026-05-24 | tasks/review/Editor.nohighlight.tsx.ui.md | @uiw/react-md-editor Editor.nohighlight.tsx UI 专家评审——⚠️有条件通过 4.6/10（nohighlight变体代码高亮缺失但bundle/安全/无障碍更优，本项目以文本内容为主建议采用） |
+| 2026-05-24 | tasks/review/Editor.nohighlight.tsx.committer.md | @uiw/react-md-editor Editor.nohighlight.tsx Committer 审核专家评审——✅通过（APPROVE），nohighlight变体三变体最优，建议从标准版迁移 |
