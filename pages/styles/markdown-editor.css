@@ -210,4 +210,50 @@
 /* 全屏模式 */
 .markdown-editor-wrapper .w-md-editor-fullscreen {
   z-index: 1000 !important;
+  background-color: var(--color-canvas) !important;
+}
+
+.markdown-editor-wrapper .w-md-editor-fullscreen .w-md-editor-toolbar {
+  background-color: var(--color-surface-1) !important;
+  border-bottom: 1px solid var(--color-hairline) !important;
+}
+
+/* 工具栏按钮焦点样式 — Carbon 签名式焦点处理（CSS-01 / A-03） */
+.markdown-editor-wrapper .w-md-editor-toolbar button:focus-visible {
+  outline: 2px solid var(--color-primary) !important;
+  outline-offset: -2px !important;
+}
+
+/* 工具栏移动端横向滚动（R-01） */
+.markdown-editor-wrapper .w-md-editor-toolbar {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* 拖拽条视觉样式（CSS-02） */
+.markdown-editor-wrapper .w-md-editor-drag {
+  height: 6px !important;
+  background-color: var(--color-surface-1) !important;
+  border-top: 1px solid var(--color-hairline) !important;
+  transition: background-color var(--transition-fast) !important;
+}
+
+.markdown-editor-wrapper .w-md-editor-drag:hover {
+  background-color: var(--color-surface-2) !important;
+}
+
+.markdown-editor-wrapper .w-md-editor-drag::after {
+  content: '' !important;
+  display: block !important;
+  width: 24px !important;
+  height: 2px !important;
+  background-color: var(--color-ink-subtle) !important;
+  border-radius: 1px !important;
+  margin: 2px auto 0 !important;
+}
+
+/* textarea 焦点样式（A-03） */
+.markdown-editor-wrapper .w-md-editor-text-input:focus {
+  outline: 2px solid var(--color-primary) !important;
+  outline-offset: -2px !important;
 }
