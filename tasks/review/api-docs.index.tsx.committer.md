@@ -380,3 +380,47 @@ Vite 代理:           无 /api-docs 代理规则
 - `tests/apis/app.test.ts`: ✅ 156/156 通过
 
 **状态**: ✅ 已完成
+
+### 第三轮：修复 Committer 评审遗留问题
+
+**处理日期**: 2026-05-24
+
+#### 执行操作
+
+1. 修复 **HIG-02（Swagger 端点无前端状态感知）**：
+   - 添加 `useState<boolean | null>` 跟踪 Swagger 可用性状态（null=检测中, true=可用, false=不可用）
+   - 组件挂载时通过 `fetch('/api-docs/', { method: 'HEAD' })` 检测后端 Swagger 端点是否可用
+   - 使用 `AbortController` 在卸载时取消请求，避免内存泄漏
+   - 检测中显示 `Spin` 加载指示器
+   - 可用时显示"打开 Swagger 文档"按钮
+   - 不可用时显示 `Alert` 提示用户"Swagger 文档服务未启用"
+2. 更新测试文件 `tests/pages/api-docs.test.tsx`（7→10 个测试用例）：
+   - 新增 `should show alert when Swagger returns not ok` 测试
+   - 新增 `should show alert when fetch fails` 测试
+   - 新增 `should show spinner while checking Swagger availability` 测试
+   - 修复按钮相关测试使用 `waitFor` 适配异步状态更新
+   - 修复 Alert 测试使用 `document.querySelector('alert')` 替代 `screen.getByText`（因 antd mock 不渲染 props 为可见文本）
+
+#### Committer 评审问题修复覆盖
+
+| 评审 ID | 修复状态 | 说明 |
+|---------|---------|------|
+| BLK-01 | ✅ 第一轮已修复 | 死代码 → 路由+菜单已注册 |
+| BLK-02 | ✅ 第二轮已修复 | 路由改为 /swagger |
+| BLK-03 | ✅ 第二轮已修复 | 测试文件已创建 |
+| HIG-01 | ✅ 第二轮已修复 | rel="noopener noreferrer" |
+| HIG-02 | ✅ 第三轮已修复 | 运行时检测 Swagger 可用性 + 降级提示 |
+| MED-01 | ✅ 第二轮已修复 | Typography.Text type="secondary" |
+| MED-02 | — 保留 | 单项面包屑为项目通用模式（所有页面一致） |
+| MED-03 | ✅ 第二轮已修复 | aria-label + document.title |
+| MED-04 | — 保留 | 项目无路由常量管理机制，硬编码路径为项目统一模式 |
+| LOW-01 | — 保留 | 信息密度与项目定位一致 |
+| LOW-02 | — 保留 | 纯展示组件，memo 优化收益极低 |
+| LOW-03 | ✅ 第二轮已修复 | antd Button type="primary" 自动处理图标色 |
+
+#### 测试结果
+
+- `pnpm build`: ✅ 构建通过
+- `tests/pages/api-docs.test.tsx`: ✅ 10/10 通过
+
+**状态**: ✅ 已完成
