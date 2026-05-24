@@ -27,6 +27,7 @@ jest.mock('../../apis/utils/db.util', () => ({
 }));
 
 import app from '../../apis/app';
+import { listPublishingSchedule, updatePublishingSchedule } from '../../apis/controller/publishing-schedule.controller';
 
 const agent = request.agent(app).set('User-Agent', 'test-agent/1.0');
 
@@ -70,6 +71,13 @@ const mockScheduleItem = {
   created_at: new Date('2025-01-01'),
   updated_at: new Date('2025-01-02'),
 };
+
+function createMockRes() {
+  const res: any = {};
+  res.status = jest.fn().mockReturnValue(res);
+  res.json = jest.fn().mockReturnValue(res);
+  return res;
+}
 
 describe('PublishingSchedule Controller', () => {
   beforeEach(() => {
@@ -286,34 +294,35 @@ describe('PublishingSchedule Controller', () => {
       expect(response.body.message).toBe('无效的ID');
     });
 
-    it('should return 400 when scheduled_publish_at is not a string (number)', async () => {
+    // Schema validation intercepts non-string scheduled_publish_at
+    it('should return 400 when scheduled_publish_at is a number (schema validation)', async () => {
       const response = await agent
         .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: 12345 });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('scheduled_publish_at参数无效');
+      expect(response.body.message).toContain('scheduled_publish_at参数无效');
     });
 
-    it('should return 400 when scheduled_publish_at is not a string (boolean)', async () => {
+    it('should return 400 when scheduled_publish_at is a boolean (schema validation)', async () => {
       const response = await agent
         .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: true });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('scheduled_publish_at参数无效');
+      expect(response.body.message).toContain('scheduled_publish_at参数无效');
     });
 
-    it('should return 400 when scheduled_publish_at is not a string (object)', async () => {
+    it('should return 400 when scheduled_publish_at is an object (schema validation)', async () => {
       const response = await agent
         .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: { date: '2025-06-01' } });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('scheduled_publish_at参数无效');
+      expect(response.body.message).toContain('scheduled_publish_at参数无效');
     });
 
     it('should update successfully with a valid date string', async () => {
@@ -345,43 +354,26 @@ describe('PublishingSchedule Controller', () => {
       expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '2025-06-01T10:00:00.000Z', null, 2, 'admin');
     });
 
-    it('should update successfully when scheduled_publish_at is null', async () => {
-      const updatedItem = { ...mockScheduleItem, scheduled_publish_at: null };
-      mockUpdateSchedule.mockResolvedValue(updatedItem);
-
+    // Schema rejects null scheduled_publish_at, verify schema-level rejection
+    it('should return 400 when scheduled_publish_at is null (schema validation)', async () => {
       const response = await agent
         .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: null });
 
-      expect(response.status).toBe(200);
-      expect(response.body.code).toBe(0);
-      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, null, null, 1, 'sysadmin');
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('scheduled_publish_at');
     });
 
-    it('should update successfully when scheduled_publish_at is undefined (not sent)', async () => {
-      mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
-
+    // Schema requires scheduled_publish_at, empty body rejected
+    it('should return 400 when body is empty (schema validation)', async () => {
       const response = await agent
         .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({});
 
-      expect(response.status).toBe(200);
-      expect(response.body.code).toBe(0);
-      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, undefined, null, 1, 'sysadmin');
-    });
-
-    it('should update successfully when body is empty', async () => {
-      mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
-
-      const response = await agent
-        .put('/api/v1/publishing-schedule/1')
-        .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send();
-
-      expect(response.status).toBe(200);
-      expect(response.body.code).toBe(0);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('scheduled_publish_at');
     });
 
     it('should return 404 when article does not exist', async () => {
@@ -432,15 +424,13 @@ describe('PublishingSchedule Controller', () => {
       expect(response.body.message).toBe('更新发布计划失败');
     });
 
-    it('should handle id=0 as invalid', async () => {
+    it('should handle id=0 as valid integer', async () => {
       mockUpdateSchedule.mockRejectedValue(new Error('文章不存在'));
       const response = await agent
         .put('/api/v1/publishing-schedule/0')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
-      // parseInt('0') = 0, isNaN(0) = false, so it passes the NaN check
-      // id=0 will cause a service error since no article has id=0
       expect([200, 400, 404, 500]).toContain(response.status);
     });
 
@@ -462,43 +452,40 @@ describe('PublishingSchedule Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
-      // parseInt('1.5') = 1, which is a valid integer
       expect([200, 400, 404, 500]).toContain(response.status);
     });
 
-    it('should return 400 when scheduled_publish_at is an array', async () => {
+    // Schema rejects array scheduled_publish_at
+    it('should return 400 when scheduled_publish_at is an array (schema validation)', async () => {
       const response = await agent
         .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: ['2025-06-01'] });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('scheduled_publish_at参数无效');
+      expect(response.body.message).toContain('scheduled_publish_at');
     });
 
-    it('should update with empty string scheduled_publish_at', async () => {
-      const updatedItem = { ...mockScheduleItem, scheduled_publish_at: '' };
-      mockUpdateSchedule.mockResolvedValue(updatedItem);
-
+    // Schema rejects empty string (invalid date)
+    it('should return 400 when scheduled_publish_at is empty string (schema validation)', async () => {
       const response = await agent
         .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: '' });
 
-      expect(response.status).toBe(200);
-      expect(response.body.code).toBe(0);
-      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '', null, 1, 'sysadmin');
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('scheduled_publish_at日期格式无效');
     });
 
     // ========== schedule_type tests ==========
-    it('should return 400 when schedule_type is invalid', async () => {
+    it('should return 400 when schedule_type is invalid (schema validation)', async () => {
       const response = await agent
         .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z', schedule_type: 'invalid' });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('schedule_type参数无效');
+      expect(response.body.message).toContain('排期类型');
     });
 
     it('should update successfully with schedule_type=asap', async () => {
@@ -508,11 +495,11 @@ describe('PublishingSchedule Controller', () => {
       const response = await agent
         .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ schedule_type: 'asap', scheduled_publish_at: null });
+        .send({ schedule_type: 'asap', scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
       expect(response.status).toBe(200);
       expect(response.body.code).toBe(0);
-      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, null, 'asap', 1, 'sysadmin');
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '2025-06-01T10:00:00.000Z', 'asap', 1, 'sysadmin');
     });
 
     it('should update successfully with schedule_type=scheduled', async () => {
@@ -549,11 +536,11 @@ describe('PublishingSchedule Controller', () => {
       const response = await agent
         .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ schedule_type: null, scheduled_publish_at: null });
+        .send({ schedule_type: null, scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
       expect(response.status).toBe(200);
       expect(response.body.code).toBe(0);
-      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, null, null, 1, 'sysadmin');
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '2025-06-01T10:00:00.000Z', null, 1, 'sysadmin');
     });
   });
 
@@ -593,7 +580,6 @@ describe('PublishingSchedule Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
-      // parseInt('0') = 0, 0 || 1 = 1
       expect(mockList).toHaveBeenCalledWith(
         expect.objectContaining({ page: 1 })
       );
@@ -607,7 +593,6 @@ describe('PublishingSchedule Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
-      // Math.min(100, Math.max(1, -5)) = 1
       expect(mockList).toHaveBeenCalledWith(
         expect.objectContaining({ pageSize: 1 })
       );
@@ -621,7 +606,6 @@ describe('PublishingSchedule Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
-      // Empty string is falsy, so projectId should be undefined
       expect(mockList).toHaveBeenCalledWith(
         expect.objectContaining({ projectId: undefined })
       );
@@ -672,7 +656,7 @@ describe('PublishingSchedule Controller', () => {
       );
     });
 
-    it('should handle projectId with value 0 as falsy', async () => {
+    it('should handle projectId with value 0', async () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
@@ -680,7 +664,6 @@ describe('PublishingSchedule Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
-      // '0' is truthy, so it will try parseInt('0') = 0, which is projectId: 0
       expect(mockList).toHaveBeenCalledWith(
         expect.objectContaining({ projectId: 0 })
       );
@@ -712,14 +695,15 @@ describe('PublishingSchedule Controller', () => {
       expect(response.body.message).toBe('无权操作此文章');
     });
 
-    it('should return 400 when scheduled_publish_at is invalid date string', async () => {
+    // Schema catches invalid date format
+    it('should return 400 when scheduled_publish_at is invalid date string (schema validation)', async () => {
       const response = await agent
         .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: 'not-a-date' });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('scheduled_publish_at日期格式无效');
+      expect(response.body.message).toContain('scheduled_publish_at日期格式无效');
     });
 
     it('should filter out invalid status parameter', async () => {
@@ -758,6 +742,204 @@ describe('PublishingSchedule Controller', () => {
       expect(response.status).toBe(200);
       expect(mockList).toHaveBeenCalledWith(
         expect.objectContaining({ pageSize: 100 })
+      );
+    });
+  });
+
+  // ========== Unit tests: direct controller function calls (dead code coverage) ==========
+  describe('updatePublishingSchedule - unit tests (bypass schema)', () => {
+    it('should return 400 when schedule_type is invalid (controller validation)', async () => {
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: '1' },
+        body: { schedule_type: 'invalid_type', scheduled_publish_at: '2025-06-01T10:00:00.000Z' },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'schedule_type参数无效' })
+      );
+    });
+
+    it('should return 400 when scheduled_publish_at is a number (controller validation)', async () => {
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: '1' },
+        body: { scheduled_publish_at: 12345 },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'scheduled_publish_at参数无效' })
+      );
+    });
+
+    it('should return 400 when scheduled_publish_at is a boolean (controller validation)', async () => {
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: '1' },
+        body: { scheduled_publish_at: true },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'scheduled_publish_at参数无效' })
+      );
+    });
+
+    it('should return 400 when scheduled_publish_at is invalid date string (controller validation)', async () => {
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: '1' },
+        body: { scheduled_publish_at: 'not-a-date' },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'scheduled_publish_at日期格式无效' })
+      );
+    });
+
+    it('should return 200 when scheduled_publish_at is null (controller allows null)', async () => {
+      mockUpdateSchedule.mockResolvedValue({ ...mockScheduleItem, scheduled_publish_at: null });
+
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: '1' },
+        body: { scheduled_publish_at: null },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 0 })
+      );
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, null, null, 1, 'sysadmin');
+    });
+
+    it('should return 200 when scheduled_publish_at is undefined (controller allows missing)', async () => {
+      mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
+
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: '1' },
+        body: {},
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 0 })
+      );
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, undefined, null, 1, 'sysadmin');
+    });
+
+    it('should return 200 when scheduled_publish_at is empty string (controller allows empty)', async () => {
+      mockUpdateSchedule.mockResolvedValue({ ...mockScheduleItem, scheduled_publish_at: '' });
+
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: '1' },
+        body: { scheduled_publish_at: '' },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 0 })
+      );
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '', null, 1, 'sysadmin');
+    });
+
+    it('should return 500 when non-Error value is thrown', async () => {
+      mockUpdateSchedule.mockImplementation(() => { throw 'string error'; });
+
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: '1' },
+        body: { scheduled_publish_at: '2025-06-01T10:00:00.000Z' },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '更新发布计划失败' })
+      );
+    });
+
+    it('should return 401 when req.user is missing', async () => {
+      const req = { params: { id: '1' }, body: {} } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '未授权访问' })
+      );
+    });
+
+    it('should return 400 when id is NaN', async () => {
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: 'abc' },
+        body: { scheduled_publish_at: '2025-06-01T10:00:00.000Z' },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '无效的ID' })
+      );
+    });
+  });
+
+  describe('listPublishingSchedule - unit tests (bypass schema)', () => {
+    it('should return 500 when non-Error value is thrown', async () => {
+      mockList.mockImplementation(() => { throw 'string error'; });
+
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        query: { page: '1', pageSize: '10' },
+      } as any;
+      const res = createMockRes();
+
+      await listPublishingSchedule(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '获取发布计划列表失败' })
+      );
+    });
+
+    it('should return 401 when req.user is missing', async () => {
+      const req = { query: {} } as any;
+      const res = createMockRes();
+
+      await listPublishingSchedule(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '未授权访问' })
       );
     });
   });

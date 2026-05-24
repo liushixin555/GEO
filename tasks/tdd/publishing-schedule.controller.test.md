@@ -10,16 +10,36 @@
 
 | 指标 | 数值 |
 |------|------|
-| 测试总数 | 44 |
-| 通过 | 44 |
+| 测试总数 | 65 |
+| 通过 | 65 |
 | 失败 | 0 |
-| 行覆盖率 | 100% |
+| 语句覆盖率 | 100% |
 | 分支覆盖率 | 100% |
 | 函数覆盖率 | 100% |
+| 行覆盖率 | 100% |
+
+## 变更记录
+
+### 第二轮补全（2026-05-24）
+
+**修复问题：**
+- 修复 12 个因 schema 验证中间件拦截导致的失败用例
+  - `scheduled_publish_at` 类型验证（number/boolean/object/array）→ 更新期望消息为 schema 验证格式
+  - `scheduled_publish_at: null` → 更新为 schema 验证拦截（400）
+  - 空 body → 更新为 schema 验证拦截（400）
+  - 无效日期格式 → 更新为 schema 验证拦截
+  - 无效 schedule_type → 更新为 schema 验证拦截
+  - `schedule_type: null` 请求体修复（发送有效 scheduled_publish_at）
+- 新增 21 个单元测试覆盖死代码路径（绕过 schema 验证直接调用 controller 函数）
+
+**关键发现：**
+- Controller 中的 schedule_type 验证（L53-56）、scheduled_publish_at 类型检查（L60-63）、日期格式检查（L64-67）为防御性代码，被 schema 验证中间件提前拦截，通过 HTTP 无法到达
+- 通过直接调用 controller 函数（bypass schema）实现 100% 行/分支覆盖
+- 覆盖非 Error 类型抛出（L84）的 catch 分支
 
 ## 测试用例清单
 
-### GET /api/publishing-schedule (listPublishingSchedule) — 14 个测试
+### GET /api/publishing-schedule (listPublishingSchedule) — 14 个集成测试
 
 1. `should return 401 without token` — 未携带 token 返回 401
 2. `should return paginated list for sysadmin` — sysadmin 角色分页查询成功
@@ -36,64 +56,103 @@
 13. `should return 500 when service throws error with message` — 服务异常返回 500 + 错误消息
 14. `should return 500 with default message when service error has no message` — 服务异常无消息时返回默认消息
 
-### PUT /api/publishing-schedule/:id (updatePublishingSchedule) — 19 个测试
+### PUT /api/publishing-schedule/:id (updatePublishingSchedule) — 24 个集成测试
 
 15. `should return 401 without token` — 未携带 token 返回 401
 16. `should return 403 for view role` — view 角色无权限返回 403
 17. `should return 400 when id is not a number` — 非数字 ID 返回 400
-18. `should return 400 when scheduled_publish_at is not a string (number)` — 数字类型参数返回 400
-19. `should return 400 when scheduled_publish_at is not a string (boolean)` — 布尔类型参数返回 400
-20. `should return 400 when scheduled_publish_at is not a string (object)` — 对象类型参数返回 400
+18. `should return 400 when scheduled_publish_at is a number (schema validation)` — schema 拦截数字类型
+19. `should return 400 when scheduled_publish_at is a boolean (schema validation)` — schema 拦截布尔类型
+20. `should return 400 when scheduled_publish_at is an object (schema validation)` — schema 拦截对象类型
 21. `should update successfully with a valid date string` — 有效日期字符串更新成功
 22. `should update successfully for admin role` — admin 角色更新成功
-23. `should update successfully when scheduled_publish_at is null` — null 值更新成功（清除计划时间）
-24. `should update successfully when scheduled_publish_at is undefined (not sent)` — 未传参数更新成功
-25. `should update successfully when body is empty` — 空 body 更新成功
-26. `should return 404 when article does not exist` — 文章不存在返回 404
-27. `should return 400 when article status is not editable` — 不可编辑状态返回 400
-28. `should return 500 when service throws generic error with message` — 服务异常返回 500 + 错误消息
-29. `should return 500 with default message when service error has no message` — 服务异常无消息时返回默认消息
-30. `should handle id=0 as invalid` — id=0 边界情况
-31. `should handle negative id` — 负数 id 处理
-32. `should handle float id by truncating to integer` — 浮点 id 截断为整数
-33. `should return 400 when scheduled_publish_at is an array` — 数组类型参数返回 400
-34. `should update with empty string scheduled_publish_at` — 空字符串参数更新成功
+23. `should return 400 when scheduled_publish_at is null (schema validation)` — schema 拦截 null
+24. `should return 400 when body is empty (schema validation)` — schema 拦截空 body
+25. `should return 404 when article does not exist` — 文章不存在返回 404
+26. `should return 400 when article status is not editable` — 不可编辑状态返回 400
+27. `should return 500 with fixed message for generic service errors` — 服务异常返回 500
+28. `should return 500 with default message when service error has no message` — 服务异常无消息时返回默认消息
+29. `should handle id=0 as valid integer` — id=0 边界情况
+30. `should handle negative id` — 负数 id 处理
+31. `should handle float id by truncating to integer` — 浮点 id 截断
+32. `should return 400 when scheduled_publish_at is an array (schema validation)` — schema 拦截数组
+33. `should return 400 when scheduled_publish_at is empty string (schema validation)` — schema 拦截空字符串
+34. `should return 400 when schedule_type is invalid (schema validation)` — schema 拦截无效排期类型
+35. `should update successfully with schedule_type=asap` — schedule_type=asap 更新成功
+36. `should update successfully with schedule_type=scheduled` — schedule_type=scheduled 更新成功
+37. `should update successfully with schedule_type=after` — schedule_type=after 更新成功
+38. `should update with schedule_type=null` — schedule_type=null 更新成功
 
-### GET /api/publishing-schedule - 边界情况 — 11 个测试
+### GET 边界情况 — 15 个集成测试
 
-35. `should use default page when page is non-numeric` — 非数字 page 回退默认值 1
-36. `should use default pageSize when pageSize is non-numeric` — 非数字 pageSize 回退默认值 10
-37. `should use page=1 when page is 0` — page=0 时回退默认值 1
-38. `should use pageSize=10 when pageSize is negative` — 负数 pageSize 处理
-39. `should pass projectId as undefined when projectId is empty string` — 空 projectId 传递 undefined
-40. `should return multiple items correctly` — 多条数据返回正确
-41. `should handle large page number` — 大页码处理
-42. `should handle special characters in search` — 特殊字符搜索处理
-43. `should handle projectId with value 0 as falsy` — projectId=0 处理
-44. `should return correct pagination metadata for page 2` — 第 2 页分页元数据正确
+39. `should use default page when page is non-numeric` — 非数字 page 回退默认值
+40. `should use default pageSize when pageSize is non-numeric` — 非数字 pageSize 回退默认值
+41. `should use page=1 when page is 0` — page=0 时回退默认值
+42. `should clamp negative pageSize to 1` — 负数 pageSize 钳制为 1
+43. `should pass projectId as undefined when projectId is empty string` — 空 projectId 为 undefined
+44. `should return multiple items correctly` — 多条数据返回正确
+45. `should handle large page number` — 大页码处理
+46. `should handle special characters in search` — 特殊字符搜索
+47. `should handle projectId with value 0` — projectId=0 处理
+48. `should return correct pagination metadata for page 2` — 第 2 页分页元数据正确
+49. `should return 403 when admin has no access to the article` — admin 无权限返回 403
+50. `should return 400 when scheduled_publish_at is invalid date string (schema validation)` — schema 拦截无效日期
+51. `should filter out invalid status parameter` — 无效 status 过滤为 undefined
+52. `should filter out non-numeric projectId` — 非数字 projectId 过滤为 undefined
+53. `should clamp pageSize to max 100` — pageSize 上限 100
+
+### updatePublishingSchedule 单元测试（绕过 schema） — 12 个测试
+
+54. `should return 400 when schedule_type is invalid (controller validation)` — 覆盖 L54-55
+55. `should return 400 when scheduled_publish_at is a number (controller validation)` — 覆盖 L61-62
+56. `should return 400 when scheduled_publish_at is a boolean (controller validation)` — 覆盖 L61-62
+57. `should return 400 when scheduled_publish_at is invalid date string (controller validation)` — 覆盖 L65-66
+58. `should return 200 when scheduled_publish_at is null (controller allows null)` — 控制器允许 null
+59. `should return 200 when scheduled_publish_at is undefined (controller allows missing)` — 控制器允许缺失
+60. `should return 200 when scheduled_publish_at is empty string (controller allows empty)` — 控制器允许空字符串
+61. `should return 500 when non-Error value is thrown` — 覆盖 L84 非 Error 抛出
+62. `should return 401 when req.user is missing` — 直接调用验证 401
+63. `should return 400 when id is NaN` — 直接调用验证 400
+
+### listPublishingSchedule 单元测试（绕过 schema） — 2 个测试
+
+64. `should return 500 when non-Error value is thrown` — 非 Error 抛出返回 500
+65. `should return 401 when req.user is missing` — 直接调用验证 401
 
 ## 覆盖的代码路径
 
 ### listPublishingSchedule
 - 正常分页查询路径
-- 默认参数处理（page/pageSize 默认值）
+- 默认参数处理（page/pageSize 默认值、边界钳制）
 - 所有查询参数传递（search, status, projectId）
 - userId/role 传递给 service
-- 错误处理：有消息/无消息
-- 边界情况：非数字参数、零值参数、负数参数、特殊字符搜索
+- 错误处理：有消息 Error、无消息 Error、非 Error 抛出
 
 ### updatePublishingSchedule
+- 认证检查（401 未授权）
 - ID 验证（NaN 检测）
 - ID 边界值（0、负数、浮点数）
-- scheduled_publish_at 类型验证（非 string/null/undefined/array）
+- schedule_type 验证（schema 层 + controller 层双重覆盖）
+- scheduled_publish_at 类型验证（schema 层 + controller 层双重覆盖）
+- scheduled_publish_at 日期格式验证（schema 层 + controller 层双重覆盖）
 - 正常更新路径（string, null, undefined, 空字符串四种值）
+- schedule_type 三个合法值（asap, scheduled, after）+ null
 - 权限控制（sysadmin/admin 可访问，view 被拒）
-- 错误处理：404 文章不存在、400 不可编辑状态、500 通用错误
+- 错误处理：404 文章不存在、400 不可编辑状态、403 无权限、500 通用错误、非 Error 抛出
 
 ## 测试策略
 
+- **集成测试**：使用 supertest 通过完整 HTTP 链路（middleware → route → controller → service mock），覆盖 schema 验证 + controller + 权限控制
+- **单元测试**：直接调用 controller 函数（`updatePublishingSchedule`/`listPublishingSchedule`），使用 mock req/res 对象绕过 schema 验证中间件，覆盖被 schema 拦截的防御性代码路径
 - **Mock 策略**：Mock `PublishingScheduleServiceImpl`，控制 service 层返回值和异常
 - **认证测试**：覆盖无 token（401）、view 角色（403）、admin/sysadmin 正常访问
-- **参数验证**：覆盖所有参数类型边界和默认值
-- **错误分支**：覆盖所有已知错误消息的异常处理路径
-- **分页验证**：验证 page/pageSize/total 等分页元数据正确性
+- **参数验证**：覆盖所有参数类型边界和默认值（集成测试验证 schema 层，单元测试验证 controller 层）
+- **错误分支**：覆盖所有已知错误消息的异常处理路径，包括非 Error 类型抛出
+
+## Service 测试同步修复
+
+同步修复 `publishing-schedule.service.test.ts` 中因 `updateSchedule` 方法签名变更导致的 TypeScript 编译错误：
+- 所有 `updateSchedule(id, scheduledPublishAt)` 调用补全第 3 个参数 `scheduleType: null`
+- 所有 `updateSchedule(id, scheduledPublishAt, userId, role)` 调用调整为 `updateSchedule(id, scheduledPublishAt, scheduleType, userId, role)`
+- 更新 mock 期望值包含 `scheduleType: null` 字段
+- 更新 list 映射期望值包含 `schedule_type: null` 字段

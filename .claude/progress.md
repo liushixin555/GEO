@@ -70,6 +70,8 @@
 | 2026-05-24 | `tasks/review/rehypePlugins.tsx.security.md` | @uiw/react-markdown-preview rehypePlugins.tsx 代码安全专家评审——REJECT 3.5分（data-code XSS+属性注入+DoS+URL消毒禁用） |
 | 2026-05-24 | `tasks/review/rehypePlugins.tsx.ui.md` | @uiw/react-markdown-preview rehypePlugins.tsx UI 专家评审——REJECT 2.5分（GitHub Octicon冲突Carbon设计系统/复制按钮div非antd Button/零可访问性/触控目标16x16） |
 | 2026-05-24 | `progress_tasks/2026-05-24-controller-index-barrel-delete.md` | controller/index.ts barrel file 删除——采纳 Committer 方案 B，消除死代码（零引用+65%遗漏） |
+| 2026-05-24 | `tasks/review/rehypePlugins.tsx.committer.md` | @uiw/react-markdown-preview rehypePlugins.tsx Committer 评审——有条件通过 5.5/10（nohighlight安全面收窄+DOMPurify缓解+隐式契约版本锁定） |
+| 2026-05-24 | `tasks/tdd/publishing-schedule.controller.test.md` | publishing-schedule.controller TDD 补全——修复12失败用例+21单元测试（65总），Stmts/Branch/Funcs/Lines 100% |
 
 ## 已知问题
 - `apis/service/impl/auth.service.impl.ts` Prisma 类型错误（待 schema 同步）
