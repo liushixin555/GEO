@@ -163,3 +163,4 @@
 | 2026-05-25 | tasks/tdd/publishing-schedule.service.test.round2.md | publishing-schedule.service TDD 第2轮——70用例100%覆盖率（+23新增：字段映射null/有值8个+错误类型statusCode消息3个+操作符边界3个+权限边界4个+综合映射5个） |
 | 2026-05-25 | tasks/review/hr.tsx.security.md | hr.tsx 代码安全专家评审——6.5/10 APPROVE（H×2 prefix非空断言4次CWE-476+Ctrl+H冲突浏览器历史致数据丢失，M×3 selectWord语义不匹配+选区状态不一致+选区丢弃，L×3 SVG膨胀+aria-label泄露+无错误边界） |
 | 2026-05-25 | tasks/tdd/skills.service.test.round2.md | skills.service.impl TDD 第2轮——102用例100%覆盖率（+18新增：错误类型验证NotFoundError/ConflictError+statusCode+数据一致性+字符串边界+数值边界） |
+| 2026-05-25 | tasks/review/hr.tsx.ui.md | hr.tsx UI 专家评审——REJECT 3.2/10（P1×3 SVG字母HR语义错位+Ctrl+H冲突浏览器历史+选区丢弃；P2×3 tooltip语义+无role=img+focus缺失；P3×4 触摸+移动端+i18n+aria） |
