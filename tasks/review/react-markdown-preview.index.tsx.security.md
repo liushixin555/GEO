@@ -241,6 +241,19 @@ export function useCopied(container: React.RefObject<HTMLDivElement>) {
 | FORBID_ATTR 事件处理器黑名单 | `MarkdownViewer.tsx:40` | #3, #4 (部分) |
 | 内容长度限制 1MB | `MarkdownViewer.tsx:8,35` | DoS |
 
+### 2026-05-25 封装层修复记录
+
+| 发现编号 | 修复措施 | 修复文件 | 状态 |
+|----------|---------|---------|------|
+| #2 HIGH | DOMPurify 增加 `FORBID_TAGS` 显式黑名单（script/iframe/object/embed/applet/form/textarea/select/button/meta/base/link/style/svg/math/noscript/template） | `MarkdownViewer.tsx` | 已修复 |
+| #3 MEDIUM | `rehypeRewrite` 增加危险属性清理（on* 事件处理器 + URL 属性危险协议） | `MarkdownViewer.tsx` | 已修复 |
+| #4 MEDIUM | `allowElement` 增加 URL 属性危险协议检查（href/src/action 等属性中检测 javascript:/data:/vbscript:） | `MarkdownViewer.tsx` | 已修复 |
+| #1 HIGH | 已有 `safeUrlTransform` 白名单协议过滤 | `MarkdownViewer.tsx` | 已有缓解 |
+| #5 MEDIUM | 第三方代码内部问题，无法从封装层修复 | — | 需上游修复 |
+| #6 LOW | 未传 `pluginsFilter`，无移除安全插件风险 | — | 风险可接受 |
+| #7 LOW | 使用 `nohighlight` 变体，rehypePrism 不适用 | — | 不适用 |
+| #8 LOW | 第三方代码内部问题，无法从封装层修复 | — | 需上游修复 |
+
 **评估**: DOMPurify 缓解措施对 #1（javascript: URL）和 #2（HTML 注入）提供了有效防护，但依赖于 DOMPurify 的规则集完整性。建议在 `MarkdownViewer.tsx` 中显式配置 `ALLOWED_URI_REGEXP` 限制链接协议，作为深度防御。
 
 ---

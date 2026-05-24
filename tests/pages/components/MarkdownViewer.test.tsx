@@ -755,3 +755,330 @@ describe('MarkdownViewer — A-01 architecture fix: stable callback/memo referen
     expect(mockProps.urlTransform).toBe(safeUrlTransform);
   });
 });
+
+// ==========================================
+// 安全评审修复测试（react-markdown-preview security review）
+// ==========================================
+
+describe('MarkdownViewer — security review #2: FORBID_TAGS in DOMPurify', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockProps = {};
+    mockMatchMediaResult = { matches: false, addEventListener: jest.fn(), removeEventListener: jest.fn() };
+    (window.matchMedia as jest.Mock).mockReturnValue(mockMatchMediaResult);
+    mockToken = { colorBgBase: '#ffffff' };
+  });
+
+  it('strips embed tag via DOMPurify FORBID_TAGS', () => {
+    const xssContent = '<embed src="https://evil.com/payload.swf">Content';
+    render(<MarkdownViewer content={xssContent} />);
+    const preview = screen.getByTestId('markdown-preview');
+    expect(preview.textContent).not.toContain('<embed');
+    expect(preview.textContent).toContain('Content');
+  });
+
+  it('strips object tag via DOMPurify FORBID_TAGS', () => {
+    const xssContent = '<object data="https://evil.com/payload.swf">Content</object>';
+    render(<MarkdownViewer content={xssContent} />);
+    const preview = screen.getByTestId('markdown-preview');
+    expect(preview.textContent).not.toContain('<object');
+    expect(preview.textContent).toContain('Content');
+  });
+
+  it('strips applet tag via DOMPurify FORBID_TAGS', () => {
+    const xssContent = '<applet code="Evil.class">Content</applet>';
+    render(<MarkdownViewer content={xssContent} />);
+    const preview = screen.getByTestId('markdown-preview');
+    expect(preview.textContent).not.toContain('<applet');
+  });
+
+  it('strips style tag via DOMPurify FORBID_TAGS', () => {
+    const xssContent = '<style>body{display:none}</style>Content';
+    render(<MarkdownViewer content={xssContent} />);
+    const preview = screen.getByTestId('markdown-preview');
+    expect(preview.textContent).not.toContain('<style');
+    expect(preview.textContent).toContain('Content');
+  });
+
+  it('strips noscript tag via DOMPurify FORBID_TAGS', () => {
+    const xssContent = '<noscript><img src=x onerror=alert(1)></noscript>Content';
+    render(<MarkdownViewer content={xssContent} />);
+    const preview = screen.getByTestId('markdown-preview');
+    expect(preview.textContent).not.toContain('<noscript');
+    expect(preview.textContent).toContain('Content');
+  });
+
+  it('strips template tag via DOMPurify FORBID_TAGS', () => {
+    const xssContent = '<template><img src=x onerror=alert(1)></template>Content';
+    render(<MarkdownViewer content={xssContent} />);
+    const preview = screen.getByTestId('markdown-preview');
+    expect(preview.textContent).not.toContain('<template');
+    expect(preview.textContent).toContain('Content');
+  });
+
+  it('strips textarea tag via DOMPurify FORBID_TAGS', () => {
+    const xssContent = '<textarea>evil content</textarea>Content';
+    render(<MarkdownViewer content={xssContent} />);
+    const preview = screen.getByTestId('markdown-preview');
+    expect(preview.textContent).not.toContain('<textarea');
+    expect(preview.textContent).toContain('Content');
+  });
+
+  it('strips select tag via DOMPurify FORBID_TAGS', () => {
+    const xssContent = '<select><option>evil</option></select>Content';
+    render(<MarkdownViewer content={xssContent} />);
+    const preview = screen.getByTestId('markdown-preview');
+    expect(preview.textContent).not.toContain('<select');
+    expect(preview.textContent).toContain('Content');
+  });
+});
+
+describe('MarkdownViewer — security review #4: allowElement URL property check', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockProps = {};
+    mockMatchMediaResult = { matches: false, addEventListener: jest.fn(), removeEventListener: jest.fn() };
+    (window.matchMedia as jest.Mock).mockReturnValue(mockMatchMediaResult);
+    mockToken = { colorBgBase: '#ffffff' };
+  });
+
+  it('blocks a element with javascript: href', () => {
+    render(<MarkdownViewer content="test" />);
+    const allowElement = mockProps.allowElement as (element: { tagName: string; properties?: Record<string, unknown> }) => boolean;
+    expect(allowElement({ tagName: 'a', properties: { href: 'javascript:alert(1)' } })).toBe(false);
+  });
+
+  it('blocks a element with data: href', () => {
+    render(<MarkdownViewer content="test" />);
+    const allowElement = mockProps.allowElement as (element: { tagName: string; properties?: Record<string, unknown> }) => boolean;
+    expect(allowElement({ tagName: 'a', properties: { href: 'data:text/html,<script>alert(1)</script>' } })).toBe(false);
+  });
+
+  it('blocks a element with vbscript: href', () => {
+    render(<MarkdownViewer content="test" />);
+    const allowElement = mockProps.allowElement as (element: { tagName: string; properties?: Record<string, unknown> }) => boolean;
+    expect(allowElement({ tagName: 'a', properties: { href: 'vbscript:msgbox(1)' } })).toBe(false);
+  });
+
+  it('blocks img element with javascript: src', () => {
+    render(<MarkdownViewer content="test" />);
+    const allowElement = mockProps.allowElement as (element: { tagName: string; properties?: Record<string, unknown> }) => boolean;
+    expect(allowElement({ tagName: 'img', properties: { src: 'javascript:alert(1)' } })).toBe(false);
+  });
+
+  it('allows a element with https: href', () => {
+    render(<MarkdownViewer content="test" />);
+    const allowElement = mockProps.allowElement as (element: { tagName: string; properties?: Record<string, unknown> }) => boolean;
+    expect(allowElement({ tagName: 'a', properties: { href: 'https://example.com' } })).toBe(true);
+  });
+
+  it('allows img element with https: src', () => {
+    render(<MarkdownViewer content="test" />);
+    const allowElement = mockProps.allowElement as (element: { tagName: string; properties?: Record<string, unknown> }) => boolean;
+    expect(allowElement({ tagName: 'img', properties: { src: 'https://example.com/image.png' } })).toBe(true);
+  });
+
+  it('allows element without properties', () => {
+    render(<MarkdownViewer content="test" />);
+    const allowElement = mockProps.allowElement as (element: { tagName: string; properties?: Record<string, unknown> }) => boolean;
+    expect(allowElement({ tagName: 'p' })).toBe(true);
+  });
+
+  it('allows element with non-URL properties', () => {
+    render(<MarkdownViewer content="test" />);
+    const allowElement = mockProps.allowElement as (element: { tagName: string; properties?: Record<string, unknown> }) => boolean;
+    expect(allowElement({ tagName: 'p', properties: { className: 'test', id: 'para' } })).toBe(true);
+  });
+
+  it('blocks element with javascript: in case-insensitive href', () => {
+    render(<MarkdownViewer content="test" />);
+    const allowElement = mockProps.allowElement as (element: { tagName: string; properties?: Record<string, unknown> }) => boolean;
+    expect(allowElement({ tagName: 'a', properties: { href: 'JaVaScRiPt:alert(1)' } })).toBe(false);
+    expect(allowElement({ tagName: 'a', properties: { href: 'DATA:text/html,test' } })).toBe(false);
+  });
+});
+
+describe('MarkdownViewer — security review #3: rehypeRewrite dangerous attribute cleanup', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockProps = {};
+    mockMatchMediaResult = { matches: false, addEventListener: jest.fn(), removeEventListener: jest.fn() };
+    (window.matchMedia as jest.Mock).mockReturnValue(mockMatchMediaResult);
+    mockToken = { colorBgBase: '#ffffff' };
+  });
+
+  it('removes onclick attribute from any element', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+
+    const node = {
+      type: 'element',
+      tagName: 'div',
+      properties: { onclick: 'alert(1)', className: 'test' } as Record<string, any>,
+    };
+    rewrite(node, 0, null);
+    expect(node.properties.onclick).toBeUndefined();
+    expect(node.properties.className).toBe('test');
+  });
+
+  it('removes onmouseover attribute from any element', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+
+    const node = {
+      type: 'element',
+      tagName: 'span',
+      properties: { onmouseover: 'alert(1)', id: 'my-span' } as Record<string, any>,
+    };
+    rewrite(node, 0, null);
+    expect(node.properties.onmouseover).toBeUndefined();
+    expect(node.properties.id).toBe('my-span');
+  });
+
+  it('removes onload attribute', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+
+    const node = {
+      type: 'element',
+      tagName: 'img',
+      properties: { onload: 'alert(1)', src: 'https://example.com/img.png' } as Record<string, any>,
+    };
+    rewrite(node, 0, null);
+    expect(node.properties.onload).toBeUndefined();
+    expect(node.properties.src).toBe('https://example.com/img.png');
+  });
+
+  it('removes href with javascript: protocol from rehype-attr injected elements', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+
+    const node = {
+      type: 'element',
+      tagName: 'a',
+      properties: { href: 'javascript:alert(1)', className: 'test-link' } as Record<string, any>,
+    };
+    rewrite(node, 0, null);
+    expect(node.properties.href).toBeUndefined();
+    expect(node.properties.className).toBe('test-link');
+  });
+
+  it('removes src with data: protocol from rehype-attr injected elements', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+
+    const node = {
+      type: 'element',
+      tagName: 'img',
+      properties: { src: 'data:text/html,<script>alert(1)</script>' } as Record<string, any>,
+    };
+    rewrite(node, 0, null);
+    expect(node.properties.src).toBeUndefined();
+  });
+
+  it('preserves data-code attribute (used by copy button)', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+
+    const node = {
+      type: 'element',
+      tagName: 'div',
+      properties: { 'data-code': 'console.log("test")', className: 'copied' } as Record<string, any>,
+    };
+    rewrite(node, 0, null);
+    expect(node.properties['data-code']).toBe('console.log("test")');
+  });
+
+  it('preserves safe href values', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+
+    const node = {
+      type: 'element',
+      tagName: 'a',
+      properties: { href: 'https://example.com' } as Record<string, any>,
+    };
+    rewrite(node, 0, null);
+    expect(node.properties.href).toBe('https://example.com');
+  });
+
+  it('handles elements without properties gracefully', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+
+    const node = {
+      type: 'element',
+      tagName: 'div',
+    };
+    expect(() => rewrite(node, 0, null)).not.toThrow();
+  });
+
+  it('removes multiple dangerous attributes at once', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+
+    const node = {
+      type: 'element',
+      tagName: 'div',
+      properties: {
+        onclick: 'alert(1)',
+        onmouseover: 'alert(2)',
+        id: 'safe-id',
+        className: 'safe-class',
+        href: 'javascript:void(0)',
+      } as Record<string, any>,
+    };
+    rewrite(node, 0, null);
+    expect(node.properties.onclick).toBeUndefined();
+    expect(node.properties.onmouseover).toBeUndefined();
+    expect(node.properties.id).toBe('safe-id');
+    expect(node.properties.className).toBe('safe-class');
+    expect(node.properties.href).toBeUndefined();
+  });
+});
+
+describe('MarkdownViewer — security review combined: DOMPurify + allowElement defense-in-depth', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockProps = {};
+    mockMatchMediaResult = { matches: false, addEventListener: jest.fn(), removeEventListener: jest.fn() };
+    (window.matchMedia as jest.Mock).mockReturnValue(mockMatchMediaResult);
+    mockToken = { colorBgBase: '#ffffff' };
+  });
+
+  it('strips button tag via DOMPurify FORBID_TAGS', () => {
+    const xssContent = '<button formaction="https://evil.com">Click</button>Content';
+    render(<MarkdownViewer content={xssContent} />);
+    const preview = screen.getByTestId('markdown-preview');
+    expect(preview.textContent).not.toContain('<button');
+    expect(preview.textContent).toContain('Content');
+  });
+
+  it('strips form tag via DOMPurify FORBID_TAGS', () => {
+    const xssContent = '<form action="https://evil.com"><input type="text"></form>Content';
+    render(<MarkdownViewer content={xssContent} />);
+    const preview = screen.getByTestId('markdown-preview');
+    expect(preview.textContent).not.toContain('<form');
+    expect(preview.textContent).toContain('Content');
+  });
+
+  it('allowElement rejects form, select, button, textarea tags', () => {
+    render(<MarkdownViewer content="test" />);
+    const allowElement = mockProps.allowElement as (element: { tagName: string }) => boolean;
+    expect(allowElement({ tagName: 'form' })).toBe(false);
+    expect(allowElement({ tagName: 'select' })).toBe(false);
+    expect(allowElement({ tagName: 'button' })).toBe(false);
+    expect(allowElement({ tagName: 'textarea' })).toBe(false);
+  });
+
+  it('allowElement rejects embed, object, applet, style, noscript, template tags', () => {
+    render(<MarkdownViewer content="test" />);
+    const allowElement = mockProps.allowElement as (element: { tagName: string }) => boolean;
+    expect(allowElement({ tagName: 'embed' })).toBe(false);
+    expect(allowElement({ tagName: 'object' })).toBe(false);
+    expect(allowElement({ tagName: 'applet' })).toBe(false);
+    expect(allowElement({ tagName: 'style' })).toBe(false);
+    expect(allowElement({ tagName: 'noscript' })).toBe(false);
+    expect(allowElement({ tagName: 'template' })).toBe(false);
+  });
+});

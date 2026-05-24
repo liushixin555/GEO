@@ -6,13 +6,15 @@
  *   S2: skipHtml={!skipHtml} — 语义反转，配置意图与实际行为矛盾
  *   S3: allowElement 正则 /^[A-Za-z0-9]+$/ — 标签白名单过宽，允许 script/iframe 等
  *   S4: rehype-raw 无二次过滤 — 事件处理器属性可通过
+ *   S5: rehype-attr 允许通过代码块元信息注入任意 HTML 属性（#3 修复）
  *
  * 封装层防护措施（纵深防御）：
  *   1. safeUrlTransform — 安全 URL 过滤，白名单协议 (http/https/mailto/tel)
- *   2. SAFE_TAGS allowElement — 显式标签白名单，仅允许安全 HTML 标签
- *   3. DOMPurify 消毒 — 消毒所有 HTML 标签和属性，过滤事件处理器（安全关键 — 不可删除）
- *   4. source 长度截断 — 防止超长内容导致 DoS
- *   5. MarkdownErrorBoundary — 防止渲染异常导致页面白屏
+ *   2. SAFE_TAGS allowElement — 显式标签白名单 + URL 属性危险协议检查（#4 修复）
+ *   3. DOMPurify 消毒 — FORBID_TAGS 显式黑名单 + FORBID_ATTR 事件处理器（#2 修复增强）
+ *   4. rehypeRewrite 属性清理 — 清理 rehype-attr 注入的 on* 事件属性和危险 URL（#3 修复）
+ *   5. source 长度截断 — 防止超长内容导致 DoS
+ *   6. MarkdownErrorBoundary — 防止渲染异常导致页面白屏
  *
  * ⚠️ skipHtml 语义陷阱：
  *   preview.tsx 内部使用 skipHtml={!skipHtml}（双重否定），导致：
@@ -61,6 +63,27 @@ const DANGEROUS_ATTRS = [
   ...EVENT_ATTRS,
   'formaction', 'xlink:href', 'srcdoc', 'action',
 ];
+
+// #2/#3/#4 修复增强：危险标签黑名单（DOMPurify FORBID_TAGS 纵深防御）
+const FORBID_TAGS_ARR = [
+  'script', 'iframe', 'object', 'embed', 'applet',
+  'form', 'textarea', 'select', 'button',
+  'meta', 'base', 'link', 'style',
+  'svg', 'math',
+  'noscript', 'template',
+];
+
+// #4 修复增强：危险 URL 协议正则
+const DANGEROUS_URL_RE = /^(javascript|data|vbscript):/i;
+
+// #3/#4 修复增强：事件处理器属性正则
+const DANGEROUS_ATTR_RE = /^on/i;
+
+// #4 修复增强：可能包含 URL 的属性名
+const URL_PROPERTIES = new Set([
+  'href', 'src', 'action', 'formaction', 'xlink:href',
+  'poster', 'background', 'dynsrc', 'lowsrc',
+]);
 
 // S3/A-03 修复：显式标签白名单（白名单方式比黑名单更安全）
 export const SAFE_TAGS = new Set([
@@ -197,12 +220,14 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
       : content;
     return DOMPurify.sanitize(truncated, {
       FORBID_ATTR: DANGEROUS_ATTRS,
+      FORBID_TAGS: FORBID_TAGS_ARR,
       ALLOW_DATA_ATTR: false,
       ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|telnet):|[^a-z]|[a+][a-z+.]+(?:\.|%20|\/))+$/i,
     });
   }, [content]);
 
   // A-01 架构修复：useCallback 稳定引用，防止 MarkdownPreview 不必要管线重建
+  // #4 修复增强：标签白名单 + URL 属性危险协议检查
   const allowElement = useCallback(
     (element: { tagName: string; properties?: Record<string, unknown> }) => {
       const tag = element.tagName.toLowerCase();
@@ -211,6 +236,14 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
         const type = element.properties?.type;
         return typeof type === 'string' && SAFE_INPUT_TYPES.has(type);
       }
+      // #4 修复：检查 URL 属性中的危险协议（javascript:/data:/vbscript:）
+      if (element.properties) {
+        for (const [key, value] of Object.entries(element.properties)) {
+          if (URL_PROPERTIES.has(key) && typeof value === 'string' && DANGEROUS_URL_RE.test(value)) {
+            return false;
+          }
+        }
+      }
       return true;
     },
     [],
@@ -218,10 +251,25 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
 
   // P2-a11y + SEC-03: 为复制按钮注入 ARIA 属性 + 超长代码块跳过复制按钮
   // B-1: 锚点链接 aria-label + 代码块 role="region" aria-label
+  // #3 修复：清理 rehype-attr 注入的危险属性（事件处理器 + 危险 URL）
   const rehypeRewrite = useCallback(
     (node: any, index: number | undefined, parent: any) => {
       if (node.type !== 'element') return;
       const props = node.properties;
+
+      // #3 修复增强：清理 rehype-attr 注入的危险属性
+      if (props && typeof props === 'object') {
+        for (const key of Object.keys(props)) {
+          // 清理事件处理器属性（on*）
+          if (DANGEROUS_ATTR_RE.test(key)) {
+            delete props[key];
+          }
+          // 清理包含危险 URL 协议的属性（保留 data-code 用于复制按钮）
+          else if (key !== 'data-code' && typeof props[key] === 'string' && URL_PROPERTIES.has(key) && DANGEROUS_URL_RE.test(props[key])) {
+            delete props[key];
+          }
+        }
+      }
 
       // 复制按钮 — 注入 ARIA 属性
       if (node.tagName === 'div') {

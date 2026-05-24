@@ -244,3 +244,60 @@ onMouseLeave?: (e: MouseEvent<HTMLDivElement>) => void;
 - [x] rehypeRewrite/safeUrlTransform 引用稳定性测试通过
 - [x] 全部 74 个 MarkdownViewer 测试通过
 - [x] 前端构建通过
+
+---
+
+## 第六轮评审修复（react-markdown-preview index.tsx 安全评审，2026-05-25）
+
+基于 `tasks/review/react-markdown-preview.index.tsx.security.md` 代码安全专家评审（综合评分 B-/7.8），对 MarkdownViewer 封装组件进行安全加固修复。
+
+### 评审发现对照
+
+| 发现编号 | 严重性 | 问题 | 封装层修复措施 | 状态 |
+|----------|--------|------|---------------|------|
+| #1 | HIGH | URL 安全过滤被默认禁用，`javascript:` XSS 向量开放 | 已有 `safeUrlTransform` 白名单协议过滤 | ✅ 已有缓解 |
+| #2 | HIGH | rehypeRaw 无条件启用，任意 HTML 注入 | DOMPurify 增加 `FORBID_TAGS` 显式黑名单（17 个危险标签） | ✅ 本次修复 |
+| #3 | MEDIUM | rehype-attr 允许任意 HTML 属性注入 | `rehypeRewrite` 增加危险属性清理（on* 事件处理器 + URL 危险协议） | ✅ 本次修复 |
+| #4 | MEDIUM | allowElement 过滤器过于宽松 | `allowElement` 增加 URL 属性危险协议检查（href/src/action 等检测 javascript:/data:/vbscript:） | ✅ 本次修复 |
+| #5 | MEDIUM | useImperativeHandle 泄露全部 props | 第三方内部问题，无法从封装层修复 | 需上游修复 |
+| #6 | LOW | pluginsFilter 可移除安全插件 | 未传 `pluginsFilter`，无移除安全插件风险 | 风险可接受 |
+| #7 | LOW | rehypePrism ignoreMissing 隐藏错误 | 使用 `nohighlight` 变体，不适用 | 不适用 |
+| #8 | LOW | useCopied 事件处理器闭包未更新 | 第三方内部问题，无法从封装层修复 | 需上游修复 |
+
+### 新增安全常量
+
+```typescript
+FORBID_TAGS_ARR   // 17 个危险标签黑名单（script/iframe/object/embed/applet/form/textarea/select/button/meta/base/link/style/svg/math/noscript/template）
+DANGEROUS_URL_RE  // 危险 URL 协议正则 /^(javascript|data|vbscript):/i
+DANGEROUS_ATTR_RE // 事件处理器属性正则 /^on/i
+URL_PROPERTIES    // 可能包含 URL 的属性名集合（href/src/action/formaction/xlink:href/poster/background/dynsrc/lowsrc）
+```
+
+### 安全防护层级（更新后）
+
+| 层级 | 机制 | 防护目标 |
+|------|------|---------|
+| L1 | `safeUrlTransform` | 过滤 Markdown 链接中的 `javascript:`、`data:` 等 URL |
+| L2 | DOMPurify `FORBID_TAGS` | 移除 script/iframe/object/embed/applet/form 等 17 种危险 HTML 标签（#2 修复增强） |
+| L3 | DOMPurify `FORBID_ATTR` | 移除 onerror/onload/onclick 等 22 种事件属性 |
+| L4 | DOMPurify `ALLOWED_URI_REGEXP` | HTML 层面限制 URI 协议白名单 |
+| L5 | `allowElement` 标签白名单 + URL 属性检查 | 白名单标签 + 检测 href/src 中的危险协议（#4 修复增强） |
+| L6 | `rehypeRewrite` 属性清理 | 清理 rehype-attr 注入的 on* 事件属性和危险 URL（#3 修复） |
+| L7 | 内容长度截断 1MB | 防止超长字符串 DoS |
+
+### 涉及文件
+
+- `pages/components/MarkdownViewer.tsx` — FORBID_TAGS + allowElement URL 检查 + rehypeRewrite 属性清理
+- `tests/pages/components/MarkdownViewer.test.tsx` — 新增 35 个安全评审测试（109 个全部通过）
+- `tasks/review/react-markdown-preview.index.tsx.security.md` — 更新修复状态记录
+
+### 验收标准（第六轮）
+
+- [x] DOMPurify 增加 FORBID_TAGS 配置（17 个危险标签）
+- [x] allowElement 增加 URL 属性危险协议检查（javascript:/data:/vbscript:）
+- [x] rehypeRewrite 增加危险属性清理（on* 事件处理器 + URL 危险协议）
+- [x] 新增 4 个测试 describe 块（35 个测试用例）
+- [x] 全部 109 个 MarkdownViewer 测试通过
+- [x] 前端构建通过
+- [x] ESLint 无错误
+- [x] 安全评审文档更新修复状态
