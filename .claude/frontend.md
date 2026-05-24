@@ -39,16 +39,17 @@
   - `main.tsx` 已用 antd `<App>` 组件（别名 `<AntApp>`）包裹在 `<ConfigProvider>` 内、`<BrowserRouter>` 外
 - antd Space 组件使用 `direction`（非 `orientation`），已修复 UI-10 评审问题
 - antd Modal 组件用 `destroyOnHidden` 替代已废弃的 `destroyOnClose`
-- 字体：IBM Plex Sans，通过 `@fontsource/ibm-plex-sans` 本地打包，不使用 Google Fonts CDN
+- 字体：IBM Plex Sans（`@fontsource/ibm-plex-sans`）+ 代码块 IBM Plex Mono（`@fontsource/ibm-plex-mono`），本地打包，不使用 Google Fonts CDN
 - 单一 CSS 文件：`pages/styles/global.css`，通过 CSS 变量 + antd 覆盖实现 DESIGN.md 规范
 - **MarkdownViewer 封装组件**：`pages/components/MarkdownViewer.tsx`，封装 `@uiw/react-markdown-preview/nohighlight`
   - 使用 `/nohighlight` 入口（不引入 rehype-raw/rehype-prism-plus，消除 HTML 注入攻击面，减少 ~150KB bundle）
   - 安全管控：DOMPurify 消毒（FORBID_TAGS 9项 + FORBID_ATTR 21项 on* 事件）+ source 截断 ≤1MB + safeUrlTransform 协议白名单
   - ErrorBoundary（MarkdownErrorBoundary）包裹，插件异常时降级显示友好提示
-  - a11y：`role="region"` + `aria-label="Markdown 内容预览"`
-  - 支持加载/错误/空状态（使用 antd Spin/Typography）
+  - a11y：`role="region"` + `aria-label="Markdown 内容预览"` + `tabIndex={0}` + `:focus-visible` 焦点环（WCAG 2.4.7）
+  - 支持加载/错误/空状态（使用 antd Spin/Typography/Empty）
+  - colorMode prop：`'light' | 'dark' | 'auto'`，默认从 antd token 自动检测；'auto' 模式通过 `prefers-color-scheme` 跟随系统主题
   - 专用 CSS：`pages/styles/markdown-viewer.css`，使用 `.markdown-viewer` 类名 + CSS 变量引用 Carbon Token
-  - CSS 覆盖包含：letter-spacing 0.16px、GitHub→Carbon CSS 变量映射、pre/blockquote/alert border-radius: 0、链接 focus-visible、表格行 hover、代码块滚动条
+  - CSS 覆盖包含：letter-spacing 0.16px、GitHub→Carbon CSS 变量映射、pre/blockquote/alert border-radius: 0、链接 focus-visible、表格行 hover、代码块滚动条、容器 :focus-visible 焦点环
   - global.css 中 `.article-content-preview` 样式保留兼容，新代码应使用 MarkdownViewer 组件
 - antd 主题通过 `main.tsx` 的 `ConfigProvider` 配置，全局覆盖 border-radius: 0 等 Carbon 风格
 - **Switch 组件不参与全局 border-radius: 0 覆盖**，保持 antd 默认椭圆胶囊样式
@@ -155,3 +156,14 @@
 - `import React` 已移除（tsconfig.page.json 使用 `jsx: "react-jsx"` 自动注入）
 - ErrorBoundary 使用 antd Result + Button 提供友好错误页面，点击"返回登录"清除 localStorage 并跳转
 - **主题配置**抽取到 `pages/theme/carbon.ts`，main.tsx 引用 `carbonTheme`
+
+## API 文档页面
+- 页面路径：`pages/api-docs/index.tsx`
+- 功能：Swagger 文档入口页，引导用户打开 Swagger UI
+- 使用 `React.memo` 包裹，纯静态展示避免不必要重渲染
+- Swagger 可用性检测：`useEffect` 中 `fetch('/api-docs/', { method: 'HEAD' })` 检测后端 Swagger 路由
+- 三态展示：loading (Spin) → 可用 (Button) → 不可用 (Alert)
+- 安全属性：`rel="noopener noreferrer"` + `aria-label`
+- 信息密度增强：显示 API 基础路径 (`/api`) 和认证方式 (JWT Bearer Token)
+- 图标主色调：`ApiOutlined` 使用 `color: var(--color-primary)` 匹配 IBM Blue
+- CSS 类 `.api-docs-info`：flex 布局 + wrap 响应式信息行

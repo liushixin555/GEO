@@ -157,3 +157,49 @@ onMouseLeave?: (e: MouseEvent<HTMLDivElement>) => void;
 - [x] 新增 12 个测试用例（TDD 红灯-绿灯通过）
 - [x] 全部 48 个 MarkdownViewer 测试通过
 - [x] 前端构建通过
+
+---
+
+## 第四轮评审修复（react-markdown-preview index.tsx UI 评审，2026-05-24）
+
+基于 `tasks/review/react-markdown-preview.index.tsx.ui.md` UI 专家评审（综合评分 2.9/10），对 MarkdownViewer 封装组件进行第四轮对照检查与修复。
+
+### 评审问题对照状态
+
+| 评审问题 | 优先级 | 修复措施 | 状态 |
+|---------|--------|---------|------|
+| UI-P1-01 rehypePrism 强制 GitHub 主题 | P1 | 使用 nohighlight 入口，避免 rehypePrism 主题冲突 | ✅ 已有 |
+| UI-P1-02 rehypeRaw 始终启用 | P1 | DOMPurify 消毒 + SAFE_TAGS 标签白名单 + FORBID_ATTR | ✅ 已有 |
+| UI-P1-03 rehypeAttrs 允许任意属性注入 | P1 | DOMPurify ALLOW_DATA_ATTR: false + FORBID_ATTR | ✅ 已有 |
+| UI-P2-01 插件数组每次渲染重建 | P2 | 使用 nohighlight 入口 + React.memo | ✅ 已有 |
+| UI-P2-02 用户插件插入位置固定 | P2 | 使用 nohighlight 入口，无硬编码插件管线 | ✅ 已有 |
+| UI-P2-03 与 preview.tsx rehypeRaw 重复 | P2 | 使用 nohighlight 入口，无 rehypeRaw | ✅ 已有 |
+| UI-P2-04 forwardRef 无 displayName | P2 | MarkdownViewerBase.displayName + MarkdownViewer.displayName | ✅ 已有 |
+| UI-P2-05 ignoreMissing 静默吞错 | P2 | 使用 nohighlight 入口，无 rehypePrism | ✅ 已有 |
+| UI-P2-06 export * 污染 API | P2 | 通过 wrapper 封装隔离，消费者只使用 MarkdownViewer | ✅ 已有 |
+| UI-P3-01 rehypeRewriteHandle 闭包 | P3 | useCallback 包裹 rehypeRewrite | ✅ 已有 |
+| UI-P3-03 meta 插件分散 | P3 | 使用 nohighlight 入口 | ✅ 已有 |
+| UI-P3-04 无错误边界 | P3 | MarkdownErrorBoundary 组件 | ✅ 已有 |
+| **S-1 代码块字体缺少 IBM Plex Mono** | **P1** | **安装 `@fontsource/ibm-plex-mono`，更新 CSS font-family** | **✅ 本次修复** |
+
+### 本次修复内容
+
+1. **安装 `@fontsource/ibm-plex-mono@5.2.7`** — Carbon Design System 代码块等宽字体
+2. **`pages/main.tsx`** — 新增 `import '@fontsource/ibm-plex-mono/400.css'`
+3. **`pages/styles/markdown-viewer.css`** — 代码块 font-family 从 `'IBM Plex Sans', monospace` 更新为 `'IBM Plex Mono', 'IBM Plex Sans', monospace`
+
+### 涉及文件
+
+- `package.json` — 新增 `@fontsource/ibm-plex-mono` 依赖
+- `pages/main.tsx` — 新增 IBM Plex Mono 字体导入
+- `pages/styles/markdown-viewer.css` — 代码块 font-family 更新
+- `tasks/fix.MarkdownViewer评审修复.md` — 任务文档更新
+
+### 验收标准（第四轮）
+
+- [x] 安装 @fontsource/ibm-plex-mono
+- [x] main.tsx 导入 IBM Plex Mono 400.css
+- [x] markdown-viewer.css 代码块字体更新为 IBM Plex Mono
+- [x] 全部 67 个 MarkdownViewer 测试通过
+- [x] 前端构建通过
+- [x] TypeScript 类型检查通过

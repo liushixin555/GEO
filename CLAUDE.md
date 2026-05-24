@@ -60,7 +60,7 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 - Role-based sidebar in `components/Sidebar.tsx`
 - Single CSS file `styles/global.css` implementing DESIGN.md via CSS variables
 - Uses `tsconfig.page.json`, built by Vite
-- Font: IBM Plex Sans loaded via `@fontsource/ibm-plex-sans` (bundled locally, not Google Fonts CDN)
+- Font: IBM Plex Sans loaded via `@fontsource/ibm-plex-sans` (bundled locally, not Google Fonts CDN); code blocks use IBM Plex Mono via `@fontsource/ibm-plex-mono`
 
 **Database** (`prisma/`)
 - Schema: `prisma/schema.prisma` — Company, User models; Role enum (sysadmin/admin/view)
