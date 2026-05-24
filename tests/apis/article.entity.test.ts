@@ -185,6 +185,104 @@ describe('article.entity', () => {
          'updated_at'].sort()
       );
     });
+
+    // === 新增测试用例 ===
+
+    it('should support skills as JSON object (unknown type)', () => {
+      const article: Article = { ...baseArticle, skills: { model: 'gpt-4', temperature: 0.7 } };
+      expect(typeof article.skills).toBe('object');
+      expect((article.skills as Record<string, unknown>).model).toBe('gpt-4');
+    });
+
+    it('should support skills as JSON array (unknown type)', () => {
+      const article: Article = { ...baseArticle, skills: [1, 2, 3] };
+      expect(Array.isArray(article.skills)).toBe(true);
+    });
+
+    it('should support skills as string (unknown type)', () => {
+      const article: Article = { ...baseArticle, skills: 'skill-name' };
+      expect(article.skills).toBe('skill-name');
+    });
+
+    it('should support skills as boolean (unknown type)', () => {
+      const article: Article = { ...baseArticle, skills: true };
+      expect(article.skills).toBe(true);
+    });
+
+    it('should support schedule_type as "asap"', () => {
+      const article: Article = { ...baseArticle, schedule_type: 'asap', scheduled_publish_at: null };
+      expect(article.schedule_type).toBe('asap');
+    });
+
+    it('should support schedule_type as "scheduled"', () => {
+      const scheduledDate = new Date('2026-06-01T10:00:00Z');
+      const article: Article = { ...baseArticle, schedule_type: 'scheduled', scheduled_publish_at: scheduledDate };
+      expect(article.schedule_type).toBe('scheduled');
+      expect(article.scheduled_publish_at).toBeInstanceOf(Date);
+    });
+
+    it('should support schedule_type as "after"', () => {
+      const afterDate = new Date('2026-07-15T08:30:00Z');
+      const article: Article = { ...baseArticle, schedule_type: 'after', scheduled_publish_at: afterDate };
+      expect(article.schedule_type).toBe('after');
+    });
+
+    it('should support scheduled_publish_at as past date', () => {
+      const pastDate = new Date('2020-01-01T00:00:00Z');
+      const article: Article = { ...baseArticle, scheduled_publish_at: pastDate, schedule_type: 'scheduled' };
+      expect(article.scheduled_publish_at!.getFullYear()).toBe(2020);
+    });
+
+    it('should support negative version numbers (Prisma Float edge case)', () => {
+      const article: Article = { ...baseArticle, version: -1 };
+      expect(article.version).toBe(-1);
+    });
+
+    it('should support fractional version (Prisma Float)', () => {
+      const article: Article = { ...baseArticle, version: 1.5 };
+      expect(article.version).toBe(1.5);
+    });
+
+    it('should support very large id values', () => {
+      const article: Article = { ...baseArticle, id: Number.MAX_SAFE_INTEGER };
+      expect(article.id).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('should support very large project_id', () => {
+      const article: Article = { ...baseArticle, project_id: 999999 };
+      expect(article.project_id).toBe(999999);
+    });
+
+    it('should support unicode content', () => {
+      const content = '这是中文内容 🎉 émojis àccënts';
+      const article: Article = { ...baseArticle, content };
+      expect(article.content).toContain('中文内容');
+    });
+
+    it('should support very long title', () => {
+      const longTitle = '很长的标题'.repeat(100);
+      const article: Article = { ...baseArticle, title: longTitle };
+      expect(article.title.length).toBeGreaterThan(500);
+    });
+
+    it('should support images with URL paths', () => {
+      const article: Article = { ...baseArticle, images: ['https://example.com/img1.jpg', '/uploads/img2.png'] };
+      expect(article.images![0]).toContain('https://');
+      expect(article.images![1]).toContain('/uploads/');
+    });
+
+    it('should support content with multi-line text', () => {
+      const multiLine = '第一段\n第二段\n第三段';
+      const article: Article = { ...baseArticle, content: multiLine };
+      expect(article.content!.split('\n')).toHaveLength(3);
+    });
+
+    it('should support created_at as Date with specific time', () => {
+      const createdAt = new Date('2026-05-24T08:30:00.000Z');
+      const article: Article = { ...baseArticle, created_at: createdAt, updated_at: createdAt };
+      expect(article.created_at.toISOString()).toBe('2026-05-24T08:30:00.000Z');
+      expect(article.updated_at.toISOString()).toBe('2026-05-24T08:30:00.000Z');
+    });
   });
 
   describe('ArticleVersion interface', () => {
@@ -273,6 +371,83 @@ describe('article.entity', () => {
         ['id', 'article_id', 'version', 'content', 'created_by', 'created_at'].sort()
       );
     });
+
+    // === 新增测试用例 ===
+
+    it('should support unicode and special characters in content', () => {
+      const version: ArticleVersion = {
+        id: 7,
+        article_id: 1,
+        version: 1,
+        content: '内容包含 <b>HTML</b> 标签 &amp; 特殊字符 ©️',
+        created_by: 1,
+        created_at: new Date(),
+      };
+      expect(version.content).toContain('&amp;');
+      expect(version.content).toContain('©️');
+    });
+
+    it('should support large article_id', () => {
+      const version: ArticleVersion = {
+        id: 8,
+        article_id: Number.MAX_SAFE_INTEGER,
+        version: 1,
+        content: 'c',
+        created_by: 1,
+        created_at: new Date(),
+      };
+      expect(version.article_id).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('should support negative version numbers (Prisma Float edge case)', () => {
+      const version: ArticleVersion = {
+        id: 9,
+        article_id: 1,
+        version: -1,
+        content: 'c',
+        created_by: null,
+        created_at: new Date(),
+      };
+      expect(version.version).toBe(-1);
+    });
+
+    it('should support content with only whitespace', () => {
+      const version: ArticleVersion = {
+        id: 10,
+        article_id: 1,
+        version: 1,
+        content: '   \n\t  ',
+        created_by: null,
+        created_at: new Date(),
+      };
+      expect(version.content).toBe('   \n\t  ');
+    });
+
+    it('should support content with markdown formatting', () => {
+      const version: ArticleVersion = {
+        id: 11,
+        article_id: 1,
+        version: 1,
+        content: '# 标题\n\n- 列表项1\n- 列表项2\n\n**加粗文本**',
+        created_by: 1,
+        created_at: new Date(),
+      };
+      expect(version.content).toContain('# 标题');
+      expect(version.content).toContain('**加粗文本**');
+    });
+
+    it('should preserve created_at timestamp precision', () => {
+      const ts = new Date('2026-05-24T15:30:45.123Z');
+      const version: ArticleVersion = {
+        id: 12,
+        article_id: 1,
+        version: 1,
+        content: 'c',
+        created_by: 1,
+        created_at: ts,
+      };
+      expect(version.created_at.getMilliseconds()).toBe(123);
+    });
   });
 
   describe('CreateArticleRequest interface', () => {
@@ -356,6 +531,85 @@ describe('article.entity', () => {
       };
       expect(Object.keys(req)).toHaveLength(11);
     });
+
+    // === 新增测试用例 ===
+
+    it('should allow skills with large number of IDs', () => {
+      const req: CreateArticleRequest = { skills: Array.from({ length: 50 }, (_, i) => i + 1) };
+      expect(req.skills).toHaveLength(50);
+    });
+
+    it('should allow llm_model_id as 0', () => {
+      const req: CreateArticleRequest = { llm_model_id: 0 };
+      expect(req.llm_model_id).toBe(0);
+    });
+
+    it('should allow very large llm_model_id', () => {
+      const req: CreateArticleRequest = { llm_model_id: Number.MAX_SAFE_INTEGER };
+      expect(req.llm_model_id).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('should allow unicode title', () => {
+      const req: CreateArticleRequest = { title: '中文标题🚀émoji' };
+      expect(req.title).toContain('🚀');
+    });
+
+    it('should allow keywords with various separators', () => {
+      const req: CreateArticleRequest = { keywords: '关键词1, 关键词2; 关键词3' };
+      expect(req.keywords).toContain(',');
+      expect(req.keywords).toContain(';');
+    });
+
+    it('should allow very long content', () => {
+      const longContent = '内容'.repeat(10000);
+      const req: CreateArticleRequest = { content: longContent };
+      expect(req.content!.length).toBeGreaterThan(20000);
+    });
+
+    it('should allow empty string title', () => {
+      const req: CreateArticleRequest = { title: '' };
+      expect(req.title).toBe('');
+    });
+
+    it('should allow empty string content', () => {
+      const req: CreateArticleRequest = { content: '' };
+      expect(req.content).toBe('');
+    });
+
+    it('should allow only keywords', () => {
+      const req: CreateArticleRequest = { keywords: 'SEO优化' };
+      expect(Object.keys(req)).toEqual(['keywords']);
+    });
+
+    it('should allow only llm_model_id', () => {
+      const req: CreateArticleRequest = { llm_model_id: 42 };
+      expect(req.llm_model_id).toBe(42);
+    });
+
+    it('should allow only portrait', () => {
+      const req: CreateArticleRequest = { portrait: '目标受众画像' };
+      expect(req.portrait).toBe('目标受众画像');
+    });
+
+    it('should allow status "generating" for auto-generation flow', () => {
+      const req: CreateArticleRequest = { title: 'AI生成文章', status: 'generating' };
+      expect(req.status).toBe('generating');
+    });
+
+    it('should allow status "manual_writing" for manual writing flow', () => {
+      const req: CreateArticleRequest = { title: '手动撰写', status: 'manual_writing' };
+      expect(req.status).toBe('manual_writing');
+    });
+
+    it('should have exactly 11 fields in the interface', () => {
+      const allFields = ['title', 'article_type', 'write_mode', 'keywords', 'portrait',
+        'images', 'platforms', 'skills', 'llm_model_id', 'content', 'status'];
+      const req: CreateArticleRequest = {
+        title: 't', article_type: 'a', write_mode: 'w', keywords: 'k', portrait: 'p',
+        images: [], platforms: [], skills: [], llm_model_id: 0, content: 'c', status: 'draft',
+      };
+      expect(Object.keys(req).sort()).toEqual(allFields.sort());
+    });
   });
 
   describe('UpdateArticleRequest interface', () => {
@@ -423,6 +677,79 @@ describe('article.entity', () => {
       };
       expect(Object.keys(req)).toHaveLength(12);
     });
+
+    // === 新增测试用例 ===
+
+    it('should support schedule_type as "asap"', () => {
+      const req: UpdateArticleRequest = { schedule_type: 'asap', scheduled_publish_at: null };
+      expect(req.schedule_type).toBe('asap');
+    });
+
+    it('should support schedule_type as "scheduled"', () => {
+      const req: UpdateArticleRequest = { schedule_type: 'scheduled', scheduled_publish_at: '2026-12-31T10:00:00Z' };
+      expect(req.schedule_type).toBe('scheduled');
+    });
+
+    it('should support schedule_type as "after"', () => {
+      const req: UpdateArticleRequest = { schedule_type: 'after', scheduled_publish_at: '2026-07-01T00:00:00Z' };
+      expect(req.schedule_type).toBe('after');
+    });
+
+    it('should allow schedule_type to be null', () => {
+      const req: UpdateArticleRequest = { schedule_type: null };
+      expect(req.schedule_type).toBeNull();
+    });
+
+    it('should allow updating all ArticleStatus values', () => {
+      const statuses: ArticleStatus[] = ['draft', 'manual_writing', 'generating', 'generate_failed',
+        'pending_review', 'publishing', 'publish_failed', 'published'];
+      statuses.forEach((status) => {
+        const req: UpdateArticleRequest = { status };
+        expect(req.status).toBe(status);
+      });
+    });
+
+    it('should allow updating only schedule_type', () => {
+      const req: UpdateArticleRequest = { schedule_type: 'asap' };
+      expect(Object.keys(req)).toEqual(['schedule_type']);
+    });
+
+    it('should allow updating only keywords', () => {
+      const req: UpdateArticleRequest = { keywords: '新关键词1,新关键词2' };
+      expect(req.keywords).toBe('新关键词1,新关键词2');
+    });
+
+    it('should allow updating only portrait', () => {
+      const req: UpdateArticleRequest = { portrait: '更新后的画像' };
+      expect(req.portrait).toBe('更新后的画像');
+    });
+
+    it('should allow updating only skills', () => {
+      const req: UpdateArticleRequest = { skills: { model: 'gpt-4' } };
+      expect(typeof req.skills).toBe('object');
+    });
+
+    it('should allow updating only llm_model_id', () => {
+      const req: UpdateArticleRequest = { llm_model_id: 42 };
+      expect(req.llm_model_id).toBe(42);
+    });
+
+    it('should allow scheduled_publish_at as ISO string with milliseconds', () => {
+      const req: UpdateArticleRequest = { scheduled_publish_at: '2026-06-15T10:30:00.123Z' };
+      expect(req.scheduled_publish_at).toContain('.123');
+    });
+
+    it('should have exactly 13 fields in the interface', () => {
+      const allFields = ['title', 'article_type', 'write_mode', 'keywords', 'portrait',
+        'images', 'platforms', 'skills', 'llm_model_id', 'content', 'status',
+        'scheduled_publish_at', 'schedule_type'];
+      const req: UpdateArticleRequest = {
+        title: 't', article_type: 'a', write_mode: 'w', keywords: 'k', portrait: 'p',
+        images: [], platforms: [], skills: null, llm_model_id: 0, content: 'c',
+        status: 'draft', scheduled_publish_at: null, schedule_type: null,
+      };
+      expect(Object.keys(req).sort()).toEqual(allFields.sort());
+    });
   });
 
   describe('ReviewArticleRequest interface', () => {
@@ -439,6 +766,123 @@ describe('article.entity', () => {
     it('should have exactly one field', () => {
       const req: ReviewArticleRequest = { approved: true };
       expect(Object.keys(req)).toEqual(['approved']);
+    });
+
+    // === 新增测试用例 ===
+
+    it('should treat approved=true as truthy for conditional checks', () => {
+      const req: ReviewArticleRequest = { approved: true };
+      expect(req.approved).toBeTruthy();
+    });
+
+    it('should treat approved=false as falsy for conditional checks', () => {
+      const req: ReviewArticleRequest = { approved: false };
+      expect(req.approved).toBeFalsy();
+    });
+
+    it('should preserve boolean type strictly', () => {
+      const approve: ReviewArticleRequest = { approved: true };
+      const reject: ReviewArticleRequest = { approved: false };
+      expect(typeof approve.approved).toBe('boolean');
+      expect(typeof reject.approved).toBe('boolean');
+    });
+  });
+
+  describe('ArticleStatus type coverage', () => {
+    it('should cover all 8 ArticleStatus values', () => {
+      const allStatuses: ArticleStatus[] = [
+        'draft',
+        'manual_writing',
+        'generating',
+        'generate_failed',
+        'pending_review',
+        'publishing',
+        'publish_failed',
+        'published',
+      ];
+      expect(allStatuses).toHaveLength(8);
+      const unique = [...new Set(allStatuses)];
+      expect(unique).toHaveLength(8);
+    });
+
+    it('should have draft as initial status', () => {
+      const article: Article = {
+        id: 1, project_id: 1, title: 'T', article_type: null, write_mode: null,
+        keywords: null, portrait: null, images: null, platforms: null,
+        skills: null, llm_model_id: null, content: null, version: 0,
+        status: 'draft', scheduled_publish_at: null, schedule_type: null, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(article.status).toBe('draft');
+    });
+
+    it('should represent generation lifecycle: draft -> generating -> generate_failed', () => {
+      const statuses: ArticleStatus[] = ['draft', 'generating', 'generate_failed'];
+      expect(statuses[0]).toBe('draft');
+      expect(statuses[1]).toBe('generating');
+      expect(statuses[2]).toBe('generate_failed');
+    });
+
+    it('should represent publish lifecycle: pending_review -> publishing -> publish_failed/published', () => {
+      const statuses: ArticleStatus[] = ['pending_review', 'publishing', 'published'];
+      expect(statuses[0]).toBe('pending_review');
+      expect(statuses[2]).toBe('published');
+    });
+
+    it('should represent manual writing status', () => {
+      const article: Article = {
+        id: 1, project_id: 1, title: '手动文章', article_type: null, write_mode: 'manual',
+        keywords: null, portrait: null, images: null, platforms: null,
+        skills: null, llm_model_id: null, content: null, version: 0,
+        status: 'manual_writing', scheduled_publish_at: null, schedule_type: null, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(article.status).toBe('manual_writing');
+      expect(article.write_mode).toBe('manual');
+    });
+  });
+
+  describe('ScheduleType type coverage', () => {
+    it('should cover all 3 ScheduleType values', () => {
+      const types: ScheduleType[] = ['asap', 'scheduled', 'after'];
+      expect(types).toHaveLength(3);
+    });
+
+    it('should support "asap" for immediate scheduling', () => {
+      const article: Article = {
+        id: 1, project_id: 1, title: 'T', article_type: null, write_mode: null,
+        keywords: null, portrait: null, images: null, platforms: null,
+        skills: null, llm_model_id: null, content: null, version: 1,
+        status: 'draft', scheduled_publish_at: null, schedule_type: 'asap', created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(article.schedule_type).toBe('asap');
+      expect(article.scheduled_publish_at).toBeNull();
+    });
+
+    it('should support "scheduled" for fixed-time scheduling', () => {
+      const date = new Date('2026-06-01T10:00:00+08:00');
+      const article: Article = {
+        id: 1, project_id: 1, title: 'T', article_type: null, write_mode: null,
+        keywords: null, portrait: null, images: null, platforms: null,
+        skills: null, llm_model_id: null, content: null, version: 1,
+        status: 'draft', scheduled_publish_at: date, schedule_type: 'scheduled', created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(article.schedule_type).toBe('scheduled');
+      expect(article.scheduled_publish_at).toBeInstanceOf(Date);
+    });
+
+    it('should support "after" for relative-time scheduling', () => {
+      const date = new Date('2026-07-01T00:00:00Z');
+      const article: Article = {
+        id: 1, project_id: 1, title: 'T', article_type: null, write_mode: null,
+        keywords: null, portrait: null, images: null, platforms: null,
+        skills: null, llm_model_id: null, content: null, version: 1,
+        status: 'draft', scheduled_publish_at: date, schedule_type: 'after', created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(article.schedule_type).toBe('after');
     });
   });
 

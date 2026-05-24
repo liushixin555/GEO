@@ -90,3 +90,4 @@
 | 2026-05-24 | tasks/tdd/upload.controller.test.md | upload.controller.ts TDD 补全——+10 用例（39总），Stmts 96.55% Branch 84.21% Funcs 100% Lines 96.42% |
 | 2026-05-24 | tasks/review/Context.tsx.architecture.md | @uiw/react-md-editor Context.tsx 架构专家评审——3.0/10（P0×3：索引签名any/Reducer无Action/DOM混入Context + P1×2 + P2×2） |
 | 2026-05-24 | tasks/review/Context.tsx.security.md | @uiw/react-md-editor Context.tsx 代码安全专家评审——1.6/10（P0×2：索引签名破坏类型安全+Reducer无Action区分，P1×2：DOM引用暴露+dispatch混入state，P2×1：默认值不完整） |
+| 2026-05-24 | tasks/tdd/company.entity.test.md | company.entity.ts TDD 补全——77 用例全通过（+43新增），覆盖 4 接口全部字段/边界值/跨接口集成 |
