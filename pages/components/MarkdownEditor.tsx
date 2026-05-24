@@ -16,7 +16,7 @@
  *   5. Carbon Design System 样式对齐
  */
 import React, { useCallback, useEffect, forwardRef, useImperativeHandle, useRef, memo } from 'react';
-import MDEditor from '@uiw/react-md-editor';
+import MDEditor from '@uiw/react-md-editor/nohighlight';
 import DOMPurify from 'dompurify';
 import { Empty } from 'antd';
 import { safeUrlTransform, SAFE_TAGS } from './MarkdownViewer';

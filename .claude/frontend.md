@@ -51,7 +51,8 @@
   - 专用 CSS：`pages/styles/markdown-viewer.css`，使用 `.markdown-viewer` 类名 + CSS 变量引用 Carbon Token
   - CSS 覆盖包含：letter-spacing 0.16px、GitHub→Carbon CSS 变量映射、pre/blockquote/alert border-radius: 0、链接 focus-visible、表格行 hover、代码块滚动条、容器 :focus-visible 焦点环
   - global.css 中 `.article-content-preview` 样式保留兼容，新代码应使用 MarkdownViewer 组件
-- **MarkdownEditor 封装组件**：`pages/components/MarkdownEditor.tsx`，封装 `@uiw/react-md-editor`
+- **MarkdownEditor 封装组件**：`pages/components/MarkdownEditor.tsx`，封装 `@uiw/react-md-editor/nohighlight`
+  - 使用 `/nohighlight` 入口（不引入 rehype-raw/rehype-prism-plus，消除 HTML 注入攻击面，减少 ~90KB bundle）
   - 隔离 Context.tsx 已知缺陷（索引签名any/Reducer无Action/DOM引用混入Context/dispatch混入state/零主题支持）
   - 严格接口 `MarkdownEditorProps`（无 any），支持 antd Form.Item value + onChange 模式
   - 安全防护：复用 MarkdownViewer 的 safeUrlTransform + SAFE_TAGS，DOMPurify 消毒（getSanitizedHTML()），2MB 内容长度截断

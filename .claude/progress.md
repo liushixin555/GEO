@@ -114,3 +114,4 @@
 | 2026-05-24 | tasks/review/Editor.nohighlight.tsx.security.md | @uiw/react-md-editor Editor.nohighlight.tsx 代码安全专家评审——B-/7.0分（nohighlight变体安全基线显著优于标准版，H×3传导+M×4传导+L×2传导，项目MarkdownEditor.tsx多层缓解） |
 | 2026-05-24 | tasks/review/Editor.nohighlight.tsx.ui.md | @uiw/react-md-editor Editor.nohighlight.tsx UI 专家评审——⚠️有条件通过 4.6/10（nohighlight变体代码高亮缺失但bundle/安全/无障碍更优，本项目以文本内容为主建议采用） |
 | 2026-05-24 | tasks/review/Editor.nohighlight.tsx.committer.md | @uiw/react-md-editor Editor.nohighlight.tsx Committer 审核专家评审——✅通过（APPROVE），nohighlight变体三变体最优，建议从标准版迁移 |
+| 2026-05-24 | progress_tasks/2026-05-24-editor-nohighlight-migration.md | Editor.nohighlight.tsx 评审修复——标准版→nohighlight变体迁移（-90KB bundle/消除rehype-raw+Prism.js/零API变更） |

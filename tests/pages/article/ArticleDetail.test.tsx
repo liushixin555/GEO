@@ -6,13 +6,21 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 // Mock MDEditor
-jest.mock('@uiw/react-md-editor', () => {
+jest.mock('@uiw/react-md-editor/nohighlight', () => {
   const React = require('react');
   const MDEditor: any = (props: any) =>
     React.createElement('div', { 'data-testid': 'md-editor' }, props.value);
   MDEditor.Markdown = (props: any) =>
     React.createElement('div', { 'data-testid': 'md-preview' }, props.source);
   return { __esModule: true, default: MDEditor };
+});
+
+// Mock react-markdown-preview/nohighlight (ESM module incompatible with Jest)
+jest.mock('@uiw/react-markdown-preview/nohighlight', () => {
+  const React = require('react');
+  const MarkdownPreview: any = (props: any) =>
+    React.createElement('div', { 'data-testid': 'md-preview' }, props.source);
+  return { __esModule: true, default: MarkdownPreview };
 });
 
 // Mock mammoth
