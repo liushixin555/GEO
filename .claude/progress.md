@@ -539,3 +539,12 @@
   - 修复 mock 缺少 articleVersion 模型问题
   - 覆盖率：controller 92.85%/86.44%/100%/100%，service 95.55%/93.5%/100%/100%
   - TDD 报告：tasks/tdd/article.controller.test.md
+
+## 本次变更（2026-05-24 ArticleDetail.tsx 软件质量专家评审）
+- [x] **软件质量专家评审 pages/article/ArticleDetail.tsx（889 行）**
+  - 综合评级 C+（功能完整，但组件体量严重超标，职责耦合度高）
+  - 14 项质量发现：CRITICAL×2（889行单组件违反SRP、mammoth HTML转换XSS风险）、HIGH×3（localStorage解析无容错、Token重复获取11处、useEffect依赖项缺失）、MEDIUM×5（知识库API无缓存、JSX嵌套过深、错误处理不一致、表单校验分散、类型安全不足）、LOW×4（CSS变量引用不规范、缺少loading提示、Collapse forceRender、未使用date工具）
+  - 安全问题汇总：CRITICAL×1（XSS）、HIGH×1（localStorage）、MEDIUM×2（Token存储/CSRF）、LOW×1（URL校验）
+  - 正面评价：业务流程完整9/10、权限控制到位、自动保存机制合理、文档导入功能良好
+  - 建议拆分方案：主组件+6个子组件+3个自定义hooks
+  - 评审报告 tasks/review/ArticleDetail.tsx.md
