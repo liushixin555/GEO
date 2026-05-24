@@ -1,5 +1,6 @@
 import { getPrisma } from '../../utils';
 import { Skills, CreateSkillsRequest, UpdateSkillsRequest } from '../../entity';
+import { NotFoundError, ConflictError } from '../../entity/errors';
 import { mapSkills } from '../../map';
 import { ISkillsService } from '../skills.service';
 
@@ -30,7 +31,7 @@ export class SkillsServiceImpl implements ISkillsService {
       where: { id },
       include: { creator: true },
     });
-    if (!item) throw new Error('技能不存在');
+    if (!item) throw new NotFoundError('技能');
     return mapSkills(item);
   }
 
@@ -39,7 +40,7 @@ export class SkillsServiceImpl implements ISkillsService {
 
     // Check duplicate name
     const existing = await prisma.skills.findFirst({ where: { name: request.name } });
-    if (existing) throw new Error(`已存在同名技能「${request.name}」`);
+    if (existing) throw new ConflictError(`已存在同名技能「${request.name}」`);
 
     const item = await prisma.skills.create({
       data: {
@@ -57,12 +58,11 @@ export class SkillsServiceImpl implements ISkillsService {
     const prisma = getPrisma();
 
     const existing = await prisma.skills.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('技能不存在');
+    if (!existing) throw new NotFoundError('技能');
 
     const data: any = {};
     if (request.name !== undefined) data.name = request.name;
     if (request.description !== undefined) data.description = request.description;
-    if (request.skill_dir !== undefined) data.skillDir = request.skill_dir;
 
     const updated = await prisma.skills.update({
       where: { id },
@@ -76,7 +76,7 @@ export class SkillsServiceImpl implements ISkillsService {
     const prisma = getPrisma();
 
     const existing = await prisma.skills.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('技能不存在');
+    if (!existing) throw new NotFoundError('技能');
 
     await prisma.skills.update({ where: { id }, data: { deletedAt: new Date() } });
   }

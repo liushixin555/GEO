@@ -19,5 +19,4 @@ export interface CreateSkillsRequest {
 export interface UpdateSkillsRequest {
   name?: string;
   description?: string;
-  skill_dir?: string;
 }

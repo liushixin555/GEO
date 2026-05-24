@@ -1,6 +1,7 @@
 export { User, UserRole, LoginRequest, LoginResponse, SaveSelectionRequest, LoginSelectionError, PermissionDeniedError, UserListItem, CreateUserRequest, UpdateUserRequest } from './user.entity';
 export { Company, CreateCompanyRequest, UpdateCompanyRequest, CompanyDetail } from './company.entity';
 export { Skills, CreateSkillsRequest, UpdateSkillsRequest } from './skills.entity';
+export { NotFoundError, ConflictError, BusinessError } from './errors';
 export { LlmModel, CreateLlmModelRequest, UpdateLlmModelRequest } from './llm-model.entity';
 export { SystemConfig, UpdateSystemConfigsRequest } from './system-config.entity';
 export { PublishingPlatform } from './publishing-platform.entity';

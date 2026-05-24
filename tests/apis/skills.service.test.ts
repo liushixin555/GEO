@@ -662,9 +662,9 @@ describe('SkillsServiceImpl', () => {
       );
     });
 
-    it('只更新 skill_dir 时 data 应只包含 skillDir', async () => {
+    it('只更新 name 和 description 时 data 应只包含这两个字段（skill_dir 已从 UpdateSkillsRequest 移除）', async () => {
       const existing = makePrismaSkill();
-      const updated = makePrismaSkill({ skillDir: '/skills/new-dir' });
+      const updated = makePrismaSkill({ name: '新名称', description: '新描述' });
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue(updated);
 
@@ -672,19 +672,18 @@ describe('SkillsServiceImpl', () => {
         skills: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await service.update(1, { skill_dir: '/skills/new-dir' });
+      await service.update(1, { name: '新名称', description: '新描述' });
 
       expect(mockUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ data: { skillDir: '/skills/new-dir' } }),
+        expect.objectContaining({ data: { name: '新名称', description: '新描述' } }),
       );
     });
 
-    it('同时更新多个字段时 data 应包含所有字段', async () => {
+    it('同时更新 name 和 description 时 data 应包含两个字段', async () => {
       const existing = makePrismaSkill();
       const updated = makePrismaSkill({
         name: '新名称',
         description: '新描述',
-        skillDir: '/new-dir',
       });
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue(updated);
@@ -696,12 +695,11 @@ describe('SkillsServiceImpl', () => {
       await service.update(1, {
         name: '新名称',
         description: '新描述',
-        skill_dir: '/new-dir',
       });
 
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: { name: '新名称', description: '新描述', skillDir: '/new-dir' },
+          data: { name: '新名称', description: '新描述' },
         }),
       );
     });
@@ -1252,9 +1250,9 @@ describe('SkillsServiceImpl', () => {
         );
       });
 
-      it('skill_dir 设为空字符串时应更新 skillDir', async () => {
+      it('skill_dir 已从 UpdateSkillsRequest 移除，update 不再处理 skillDir', async () => {
         const existing = makePrismaSkill();
-        const updated = makePrismaSkill({ skillDir: '' });
+        const updated = makePrismaSkill({ name: '新名称' });
         const mockFindFirst = jest.fn().mockResolvedValue(existing);
         const mockUpdate = jest.fn().mockResolvedValue(updated);
 
@@ -1262,10 +1260,11 @@ describe('SkillsServiceImpl', () => {
           skills: { findFirst: mockFindFirst, update: mockUpdate },
         } as any);
 
-        await service.update(1, { skill_dir: '' });
+        await service.update(1, { name: '新名称' });
 
+        // skillDir should NOT be in the update data
         expect(mockUpdate).toHaveBeenCalledWith(
-          expect.objectContaining({ data: { skillDir: '' } }),
+          expect.objectContaining({ data: { name: '新名称' } }),
         );
       });
 
