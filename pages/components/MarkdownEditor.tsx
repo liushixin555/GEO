@@ -385,6 +385,60 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
         };
       }
 
+      // P1-1/P1-2/P1-3/P1-4/S1/S2/S3/S4/S6/UI-P1-01~04/UI-P2-01/ARCH-2.1:
+      // 覆盖 image 命令——快捷键冲突 + URL 检测误判/XSS + SVG 无障碍 + 非空断言崩溃 +
+      // alt 文本注入 + 选区越界 + 缺少 re-select
+      if (command.name === 'image') {
+        return {
+          ...command,
+          shortcuts: 'ctrlcmd+shift+k',
+          buttonProps: {
+            'aria-label': '插入图片 (Ctrl+Shift+K)',
+            title: '插入图片 (Ctrl+Shift+K)',
+          },
+          icon: (
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                fill="currentColor"
+                d="M14 2H2C1.4 2 1 2.4 1 3v10c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V3c0-.6-.4-1-1-1zm0 11H2V3h12v10zM5.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM13 11H3l2.5-3L8 11l2.5-3.5L13 11z"
+              />
+            </svg>
+          ),
+          execute: (state: any, api: any) => {
+            try {
+              const { text, selection } = state;
+              if (!text || selection.start == null) return;
+
+              const safeStart = Math.max(0, Math.min(selection.start, text.length));
+              const safeEnd = Math.max(safeStart, Math.min(selection.end, text.length));
+
+              api.setSelectionRange({ start: safeStart, end: safeEnd });
+              const selectedText = text.substring(safeStart, safeEnd);
+              const trimmed = selectedText.trim();
+
+              const URL_RE = /^https?:\/\/[^\s)]+$/i;
+
+              if (trimmed.length > 0 && URL_RE.test(trimmed)) {
+                api.replaceSelection(`![image](${trimmed})`);
+              } else if (trimmed.length === 0) {
+                api.replaceSelection('![image](url)');
+              } else {
+                const escaped = trimmed.replace(/[[\]()!\\]/g, '\\$&');
+                api.replaceSelection(`![${escaped}]()`);
+              }
+            } catch (err) {
+              console.error('[MarkdownEditor] image 命令执行失败:', err);
+            }
+          },
+        };
+      }
+
       if (command.name === 'code' || command.name === 'codeBlock') {
         const wrapped = { ...command };
         if (command.name === 'code') {

@@ -170,3 +170,4 @@
 | 2026-05-25 | progress_tasks/2026-05-25-service-index-tdd.md | service/index.ts barrel 文件 TDD——72用例100%覆盖率（13类测试：导出数量/存在性/实例化/工厂函数/源模块关联/重导入/唯一性/方法存在性/异步验证/参数数量） |
 | 2026-05-25 | tasks/review/image.tsx.committer.md | image.tsx Committer 审核专家评审——⚠️有条件通过 5.0/10（P1×4 Ctrl+K严重违反行业"插入链接"惯例与link.tsx冲突+SVG缺aria-hidden无障碍不合规+图标13px远低于Carbon标准16/20px+URL检测includes误判漏判并存，安全评审3.5/10 CRITICAL XSS注入，封装层必须创建customImage覆盖） |
 | 2026-05-25 | tasks/tdd/knowledge-base.service.test.round2.md | knowledge-base.service TDD 第3轮补全——128用例100%覆盖率（+44新增：接口契约7+错误类型statusCode 8+字段映射3+list边界6+getById边界3+create边界4+update边界6+delete边界3+getAccessibleBaseIds边界3+deletedAt过滤器验证） |
+| 2026-05-25 | progress_tasks/2026-05-25-image-tsx-review-fix.md | image.tsx 评审封装层修复——P1×4快捷键Ctrl+Shift+K+URL正则白名单消除XSS+SVG aria-hidden+16px图标+P2×4非空断言防御+alt转义+选区边界+try-catch+中文ARIA，16项新增测试全通过 |

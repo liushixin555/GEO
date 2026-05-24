@@ -588,4 +588,202 @@ describe('MarkdownEditor', () => {
       expect(result).toBe(cmd);
     });
   });
+
+  describe('commandsFilter — image command override', () => {
+    const createImageCommand = () => ({
+      name: 'image',
+      keyCommand: 'image',
+      shortcuts: 'ctrlcmd+k',
+      prefix: '![image](',
+      suffix: ')',
+      buttonProps: { 'aria-label': 'Add image (ctrl + k)', title: 'Add image (ctrl + k)' },
+    });
+
+    const createMockApi = () => ({
+      replaceSelection: jest.fn(),
+      setSelectionRange: jest.fn(),
+    });
+
+    it('should override shortcuts from ctrlcmd+k to ctrlcmd+shift+k', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createImageCommand(), false);
+      expect(result.shortcuts).toBe('ctrlcmd+shift+k');
+    });
+
+    it('should use Chinese ARIA labels', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createImageCommand(), false);
+      expect(result.buttonProps['aria-label']).toBe('插入图片 (Ctrl+Shift+K)');
+      expect(result.buttonProps.title).toBe('插入图片 (Ctrl+Shift+K)');
+    });
+
+    it('should replace icon with 16px SVG with aria-hidden and focusable', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createImageCommand(), false);
+      expect(result.icon).toBeTruthy();
+      expect(React.isValidElement(result.icon)).toBe(true);
+      expect(result.icon.props.width).toBe('16');
+      expect(result.icon.props.height).toBe('16');
+      expect(result.icon.props['aria-hidden']).toBe('true');
+      expect(result.icon.props.focusable).toBe('false');
+    });
+
+    it('should wrap valid https URL as image', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createImageCommand(), false);
+      const api = createMockApi();
+      const state = {
+        text: 'See https://img.com/a.png here',
+        selection: { start: 4, end: 26 },
+      };
+      result.execute(state, api);
+      expect(api.setSelectionRange).toHaveBeenCalledWith({ start: 4, end: 26 });
+      expect(api.replaceSelection).toHaveBeenCalledWith('![image](https://img.com/a.png)');
+    });
+
+    it('should wrap valid http URL as image', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createImageCommand(), false);
+      const api = createMockApi();
+      const state = {
+        text: 'Link: http://example.com/img.jpg end',
+        selection: { start: 6, end: 32 },
+      };
+      result.execute(state, api);
+      expect(api.replaceSelection).toHaveBeenCalledWith('![image](http://example.com/img.jpg)');
+    });
+
+    it('should NOT treat "the http protocol" as URL', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createImageCommand(), false);
+      const api = createMockApi();
+      const state = {
+        text: 'See the http protocol here',
+        selection: { start: 4, end: 19 },
+      };
+      result.execute(state, api);
+      expect(api.replaceSelection).not.toHaveBeenCalledWith(
+        expect.stringContaining('![image]('),
+      );
+      expect(api.replaceSelection).toHaveBeenCalledWith(
+        expect.stringMatching(/^!\[.*\]\(\)$/),
+      );
+    });
+
+    it('should NOT treat "www example" as URL', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createImageCommand(), false);
+      const api = createMockApi();
+      const state = {
+        text: 'Use www example here',
+        selection: { start: 4, end: 14 },
+      };
+      result.execute(state, api);
+      expect(api.replaceSelection).not.toHaveBeenCalledWith(
+        expect.stringContaining('![image]('),
+      );
+    });
+
+    it('should insert placeholder when selection is empty', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createImageCommand(), false);
+      const api = createMockApi();
+      const state = {
+        text: 'Hello world',
+        selection: { start: 5, end: 5 },
+      };
+      result.execute(state, api);
+      expect(api.replaceSelection).toHaveBeenCalledWith('![image](url)');
+    });
+
+    it('should wrap selected text as alt with empty URL', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createImageCommand(), false);
+      const api = createMockApi();
+      const state = {
+        text: 'This is my logo here',
+        selection: { start: 8, end: 16 },
+      };
+      result.execute(state, api);
+      expect(api.replaceSelection).toHaveBeenCalledWith('![my logo]()');
+    });
+
+    it('should escape Markdown special characters in alt text', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createImageCommand(), false);
+      const api = createMockApi();
+      const state = {
+        text: 'See img](x)![y here',
+        selection: { start: 4, end: 16 },
+      };
+      result.execute(state, api);
+      const call = api.replaceSelection.mock.calls[0][0];
+      expect(call).toContain('![');
+      expect(call).toContain(']()');
+      expect(call).toContain('\\]');
+      expect(call).toContain('\\[');
+    });
+
+    it('should clamp selection to text boundaries', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createImageCommand(), false);
+      const api = createMockApi();
+      const state = {
+        text: 'Hello',
+        selection: { start: 3, end: 100 },
+      };
+      result.execute(state, api);
+      expect(api.setSelectionRange).toHaveBeenCalledWith({ start: 3, end: 5 });
+    });
+
+    it('should handle negative start gracefully', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createImageCommand(), false);
+      const api = createMockApi();
+      const state = {
+        text: 'Hello',
+        selection: { start: -5, end: 3 },
+      };
+      result.execute(state, api);
+      expect(api.setSelectionRange).toHaveBeenCalledWith({ start: 0, end: 3 });
+    });
+
+    it('should return early when text is empty', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createImageCommand(), false);
+      const api = createMockApi();
+      result.execute({ text: '', selection: { start: 0, end: 0 } }, api);
+      expect(api.replaceSelection).not.toHaveBeenCalled();
+      expect(api.setSelectionRange).not.toHaveBeenCalled();
+    });
+
+    it('should return early when selection.start is null', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createImageCommand(), false);
+      const api = createMockApi();
+      result.execute({ text: 'Hello', selection: { start: null as any, end: 0 } }, api);
+      expect(api.replaceSelection).not.toHaveBeenCalled();
+    });
+
+    it('should handle execution error gracefully', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createImageCommand(), false);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const api = {
+        setSelectionRange: jest.fn(() => { throw new Error('test error'); }),
+        replaceSelection: jest.fn(),
+      };
+      expect(() => {
+        result.execute(
+          { text: 'Hello', selection: { start: 0, end: 0 } },
+          api,
+        );
+      }).not.toThrow();
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[MarkdownEditor] image 命令执行失败:',
+        expect.any(Error),
+      );
+      consoleSpy.mockRestore();
+    });
+  });
 });
