@@ -132,6 +132,21 @@ describe('apis/utils/db.util.ts', () => {
     });
   });
 
+    it('should pass production log config when NODE_ENV is empty string', async () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = '';
+
+      const { getPrisma } = await import('../../../apis/utils/db.util');
+      getPrisma();
+
+      expect(mockPrismaClient).toHaveBeenCalledWith({
+        log: ['error'],
+      });
+
+      process.env.NODE_ENV = originalEnv;
+    });
+  });
+
   describe('getPrisma + closePrisma interaction', () => {
     it('should support multiple open/close cycles', async () => {
       const { getPrisma, closePrisma } = await import('../../../apis/utils/db.util');

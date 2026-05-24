@@ -79,6 +79,39 @@ describe('apis/utils/response.util.ts', () => {
 
       expect(result).toBe(res);
     });
+
+    it('should handle numeric data', () => {
+      const res = mockResponse();
+      success(res, 42);
+
+      expect(res.json).toHaveBeenCalledWith({
+        code: 0,
+        message: '操作成功',
+        data: 42,
+      });
+    });
+
+    it('should handle boolean data', () => {
+      const res = mockResponse();
+      success(res, false);
+
+      expect(res.json).toHaveBeenCalledWith({
+        code: 0,
+        message: '操作成功',
+        data: false,
+      });
+    });
+
+    it('should handle empty object data', () => {
+      const res = mockResponse();
+      success(res, {});
+
+      expect(res.json).toHaveBeenCalledWith({
+        code: 0,
+        message: '操作成功',
+        data: {},
+      });
+    });
   });
 
   describe('created', () => {
@@ -147,6 +180,42 @@ describe('apis/utils/response.util.ts', () => {
       const result = created(res, 'data');
 
       expect(result).toBe(res);
+    });
+
+    it('should handle numeric data', () => {
+      const res = mockResponse();
+      created(res, 100);
+
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith({
+        code: 0,
+        message: '创建成功',
+        data: 100,
+      });
+    });
+
+    it('should handle boolean data', () => {
+      const res = mockResponse();
+      created(res, true);
+
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith({
+        code: 0,
+        message: '创建成功',
+        data: true,
+      });
+    });
+
+    it('should handle empty object data', () => {
+      const res = mockResponse();
+      created(res, {});
+
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith({
+        code: 0,
+        message: '创建成功',
+        data: {},
+      });
     });
   });
 
@@ -289,6 +358,39 @@ describe('apis/utils/response.util.ts', () => {
         message: '接近400',
       });
     });
+
+    it('should return status 429 for code 429 (rate limit)', () => {
+      const res = mockResponse();
+      fail(res, 429, '请求过于频繁');
+
+      expect(res.status).toHaveBeenCalledWith(429);
+      expect(res.json).toHaveBeenCalledWith({
+        code: 429,
+        message: '请求过于频繁',
+      });
+    });
+
+    it('should handle very large error code', () => {
+      const res = mockResponse();
+      fail(res, 599, '自定义5xx');
+
+      expect(res.status).toHaveBeenCalledWith(599);
+      expect(res.json).toHaveBeenCalledWith({
+        code: 599,
+        message: '自定义5xx',
+      });
+    });
+
+    it('should handle unicode message', () => {
+      const res = mockResponse();
+      fail(res, 400, '参数错误：名称包含特殊字符 🎉');
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        code: 400,
+        message: '参数错误：名称包含特殊字符 🎉',
+      });
+    });
   });
 
   describe('paginate', () => {
@@ -418,6 +520,36 @@ describe('apis/utils/response.util.ts', () => {
           page: 1,
           pageSize: 10,
         },
+      });
+    });
+
+    it('should handle zero page and zero pageSize', () => {
+      const res = mockResponse();
+      paginate(res, [], 0, 0, 0);
+
+      expect(res.json).toHaveBeenCalledWith({
+        code: 0,
+        data: { list: [], total: 0, page: 0, pageSize: 0 },
+      });
+    });
+
+    it('should handle negative page and pageSize values', () => {
+      const res = mockResponse();
+      paginate(res, [], 0, -1, -10);
+
+      expect(res.json).toHaveBeenCalledWith({
+        code: 0,
+        data: { list: [], total: 0, page: -1, pageSize: -10 },
+      });
+    });
+
+    it('should handle very large total', () => {
+      const res = mockResponse();
+      paginate(res, [{ id: 1 }], Number.MAX_SAFE_INTEGER, 1, 10);
+
+      expect(res.json).toHaveBeenCalledWith({
+        code: 0,
+        data: { list: [{ id: 1 }], total: Number.MAX_SAFE_INTEGER, page: 1, pageSize: 10 },
       });
     });
   });
