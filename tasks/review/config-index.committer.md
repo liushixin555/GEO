@@ -332,13 +332,24 @@
 | 编号 | 原因 |
 |------|------|
 | Q-04（IIFE 提取为命名函数） | Committer 评审建议保持现状：IIFE 在配置对象中是惯用写法 |
-| Q-07（cron 表达式校验） | P3 技术债务，后续迭代实现 |
 | Q-10（模块副作用延迟加载） | P3 技术债务，涉及所有消费模块的 import 修改 |
 
-### 9.3 测试验证
+### 9.3 安全加固修复（第二轮，2026-05-24）
 
-- 测试从 116 个增加到 120 个（+4 新增测试用例）
-- 新增：JWT 强度警告测试×2、连接池环境变量覆盖×2、浮点字符串拒绝×1、pool.min=0×1
-- 修改：浮点截断测试 → 浮点拒绝测试×1
-- 120 个测试全部通过
+基于安全评审（config-index.security.md）和架构评审（config-index.architecture.md）的发现：
+
+| # | 编号 | 修复内容 | 状态 |
+|---|------|----------|------|
+| 8 | SEC-CFG-05 | uploadDir 添加路径遍历防护（`resolveUploadDir` 函数） | ✅ 已修复 |
+| 9 | SEC-CFG-03 | JWT_EXPIRES_IN 添加格式校验（`validateTimeSpan` 函数） | ✅ 已修复 |
+| 10 | SEC-CFG-04/Q-07 | CRON_ARTICLE_INTERVAL 添加 5 段格式校验（`validateCronExpression` 函数） | ✅ 已修复 |
+| 11 | SEC-CFG-07 | DB_POOL_MAX 添加 max: 100 上限约束 | ✅ 已修复 |
+| 12 | A-04 | Swagger 配置封装环境约束 | ✅ 已修复 |
+
+### 9.4 测试验证（第二轮）
+
+- 测试从 145 个增加到 166 个（+21 新增测试用例）
+- 新增：JWT_EXPIRES_IN 格式校验×7、CRON 格式校验×4、uploadDir 路径安全×4、DB_POOL_MAX 上限×3、Swagger 环境约束×3
+- 166 个测试全部通过
 - TypeScript 编译通过
+- 关联模块测试（auth 176 个、server 13 个）全部通过，无回归

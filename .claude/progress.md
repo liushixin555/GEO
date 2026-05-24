@@ -954,3 +954,33 @@
     - `ArticleReviewActions` — 审核操作栏
   - Phase 3: 主文件从 943 行精简至 ~180 行容器组件
   - 前端构建通过、类型检查通过
+
+## 本次变更（2026-05-24 @uiw/react-markdown-preview index.tsx 软件UI专家评审）
+- [x] **软件UI专家评审 @uiw/react-markdown-preview/src/index.tsx（27 行）**
+  - 综合评分 2.9/10（渲染管线硬编码，与 Carbon Design System 根本对立）
+  - 8 个维度评分：渲染管线设计3、设计系统对齐2、可访问性1、性能3、开发者体验4、安全性3、封装质量4
+  - 13 项 UI 发现：P1×3（rehypePrism 强制 GitHub 主题与 Carbon 冲突、rehypeRaw 始终启用破坏设计系统完整性、rehypeAttrs 允许任意属性注入绕过 Design Token）、P2×6（插件数组每次渲染重建、用户插件位置固定不可定制、与 preview.tsx rehypeRaw 重复处理、forwardRef 无 displayName、rehypePrism ignoreMissing 静默吞错、export * API膨胀）、P3×4（rehypeRewriteHandle 闭包重建、?? vs 解构默认值、meta 插件对分散、无错误边界）
+  - DESIGN.md 合规性映射：颜色/圆角/字体/背景/HTML注入全部 ❌，需 50+ 条 CSS 覆盖
+  - 渲染管线架构图（10 插件顺序 + 用户可控性标注）
+  - 对本项目的集成建议：使用 nohighlight 入口 + Carbon 色板 CSS 覆盖 + MarkdownViewer 封装组件
+  - 评审报告 tasks/review/react-markdown-preview.index.tsx.ui.md
+
+## 本次变更（2026-05-24 apis/config/index.ts 安全评审修复）
+- [x] **fix017: apis/config/index.ts 安全评审问题修复** — 5 项安全加固，166 个测试通过
+  - SEC-CFG-05: uploadDir 添加路径遍历防护（`resolveUploadDir` 函数，拒绝含 `..` 的路径）
+  - SEC-CFG-03: JWT_EXPIRES_IN 添加格式校验（`validateTimeSpan` 函数，支持数字+ms/s/m/h/d/w/y）
+  - SEC-CFG-04: CRON_ARTICLE_INTERVAL 添加 5 段格式校验（`validateCronExpression` 函数）
+  - SEC-CFG-07: DB_POOL_MAX 添加 max: 100 上限约束
+  - A-04: Swagger 配置封装环境约束（`SWAGGER_ENABLED === 'true' && NODE_ENV !== 'production'`）
+  - 新增 4 个校验函数：validateTimeSpan、validateCronExpression、resolveUploadDir（+ parseCorsOrigins 已有）
+  - 测试从 145 个增加到 166 个（+21：JWT_EXPIRES_IN 格式×7、CRON 格式×4、uploadDir 路径安全×4、DB_POOL_MAX 上限×3、Swagger 环境约束×3）
+  - 关联模块测试无回归（auth 176个、server 13个）
+
+## 本次变更（2026-05-24 @uiw/react-markdown-preview index.tsx Committer审核专家评审）
+- [x] **Committer审核专家评审 @uiw/react-markdown-preview/src/index.tsx（27 行）**
+  - 综合评分 4.5/10，有条件通过（CONDITIONAL APPROVE）
+  - 核心发现：index.tsx 与 common.tsx 唯一差异是 rehype-prism-plus 全量 vs 核心导入，项目当前使用 index.tsx 导致额外 150KB+ gzip bundle
+  - 11 项发现：P0×2（全量 bundle 浪费、rehypeRaw XSS 已缓解）、P1×2（管线重建性能、闭包重复）、P2×4、P3×3
+  - 前置条件：必须将 MarkdownViewer 导入路径切换为 `@uiw/react-markdown-preview/common`
+  - 安全评审已综合 5 份评审报告（质量 7.5、架构 5.4、安全 B-/7.8、UI 2.9、Committer 4.5）
+  - 评审报告 tasks/review/react-markdown-preview.index.tsx.committer.md

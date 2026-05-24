@@ -104,6 +104,32 @@ function parseCorsOrigins(raw: string | undefined): string[] {
   return origins;
 }
 
+function validateTimeSpan(value: string, name: string): string {
+  if (/^\d+$/.test(value)) return value;
+  if (/^\d+(ms|s|m|h|d|w|y)$/.test(value)) return value;
+  throw new Error(
+    `FATAL: ${name} must be a valid timespan (e.g., '2h', '7d', '3600'), got: "${value}"`
+  );
+}
+
+function validateCronExpression(expr: string, name: string): string {
+  const parts = expr.trim().split(/\s+/);
+  if (parts.length !== 5) {
+    throw new Error(
+      `FATAL: ${name} must be a valid 5-field cron expression, got: "${expr}"`
+    );
+  }
+  return expr;
+}
+
+function resolveUploadDir(raw: string | undefined): string {
+  const dir = raw || path.resolve(process.cwd(), 'uploads');
+  if (dir.includes('..')) {
+    throw new Error('FATAL: UPLOAD_DIR must not contain path traversal sequences (..)');
+  }
+  return path.resolve(dir);
+}
+
 const config: Readonly<AppConfig> = deepFreeze({
   server: {
     port: safeParseInt(process.env.PORT, DEFAULTS.PORT, 'PORT', { min: 1, max: 65535 }),
@@ -127,7 +153,7 @@ const config: Readonly<AppConfig> = deepFreeze({
     })(),
     pool: {
       min: safeParseInt(process.env.DB_POOL_MIN, DEFAULTS.DB_POOL_MIN, 'DB_POOL_MIN', { min: 0 }),
-      max: safeParseInt(process.env.DB_POOL_MAX, DEFAULTS.DB_POOL_MAX, 'DB_POOL_MAX', { min: 1 }),
+      max: safeParseInt(process.env.DB_POOL_MAX, DEFAULTS.DB_POOL_MAX, 'DB_POOL_MAX', { min: 1, max: 100 }),
     },
   },
   jwt: {
@@ -152,10 +178,10 @@ const config: Readonly<AppConfig> = deepFreeze({
       }
       return secret;
     })(),
-    expiresIn: process.env.JWT_EXPIRES_IN || DEFAULTS.JWT_EXPIRES_IN,
+    expiresIn: validateTimeSpan(process.env.JWT_EXPIRES_IN || DEFAULTS.JWT_EXPIRES_IN, 'JWT_EXPIRES_IN'),
   },
   swagger: {
-    enabled: process.env.SWAGGER_ENABLED === 'true',
+    enabled: process.env.SWAGGER_ENABLED === 'true' && process.env.NODE_ENV !== 'production',
   },
   rateLimit: {
     windowMs: safeParseInt(process.env.RATE_LIMIT_WINDOW_MS, DEFAULTS.RATE_LIMIT_WINDOW_MS, 'RATE_LIMIT_WINDOW_MS', {
@@ -164,11 +190,11 @@ const config: Readonly<AppConfig> = deepFreeze({
     max: safeParseInt(process.env.RATE_LIMIT_MAX, DEFAULTS.RATE_LIMIT_MAX, 'RATE_LIMIT_MAX', { min: 1 }),
   },
   cron: {
-    articleGenerationInterval: process.env.CRON_ARTICLE_INTERVAL || DEFAULTS.CRON_ARTICLE_INTERVAL,
+    articleGenerationInterval: validateCronExpression(process.env.CRON_ARTICLE_INTERVAL || DEFAULTS.CRON_ARTICLE_INTERVAL, 'CRON_ARTICLE_INTERVAL'),
     articleGenerationEnabled: process.env.CRON_ARTICLE_ENABLED !== 'false',
   },
   corsOrigins: parseCorsOrigins(process.env.CORS_ORIGINS),
-  uploadDir: process.env.UPLOAD_DIR || path.resolve(process.cwd(), 'uploads'),
+  uploadDir: resolveUploadDir(process.env.UPLOAD_DIR),
 });
 
 export default config;

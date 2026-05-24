@@ -543,3 +543,39 @@ password: (() => {
 **可延后至下个迭代**: SEC-CFG-02~05 为 MEDIUM 级别，不影响核心安全但在成熟度提升时应逐步修复。
 
 **综合安全评分**: **B+ / 8.4**（安全基线优秀，凭证管理和输入验证仍有加固空间）
+
+---
+
+## 9. 修复执行记录
+
+**修复日期**: 2026-05-24
+**修复人**: 软件开发专家
+**修复范围**: P1~P2 安全加固（5 项修复）
+
+### 9.1 已完成修复
+
+| # | 编号 | 修复内容 | 状态 |
+|---|------|----------|------|
+| 1 | SEC-CFG-05 | uploadDir 添加路径遍历防护（`resolveUploadDir` 函数，拒绝含 `..` 的路径） | ✅ 已修复 |
+| 2 | SEC-CFG-03 | JWT_EXPIRES_IN 添加格式校验（`validateTimeSpan` 函数，支持数字+ms/s/m/h/d/w/y） | ✅ 已修复 |
+| 3 | SEC-CFG-04 | CRON_ARTICLE_INTERVAL 添加 5 段格式校验（`validateCronExpression` 函数） | ✅ 已修复 |
+| 4 | SEC-CFG-07 | DB_POOL_MAX 添加 max: 100 上限约束 | ✅ 已修复 |
+| 5 | A-04 | Swagger 配置封装环境约束（`SWAGGER_ENABLED === 'true' && NODE_ENV !== 'production'`） | ✅ 已修复 |
+
+### 9.2 未修复项（维持原评审裁决）
+
+| 编号 | 原因 |
+|------|------|
+| SEC-CFG-01 | Committer 决定保留开发便利性，生产环境已有 NODE_ENV 保护 |
+| SEC-CFG-02 | Committer 决定保留随机生成机制，生产环境强制设置 |
+| SEC-CFG-06 | dotenv 模块级副作用为标准实践 |
+| SEC-CFG-08 | 错误消息仅启动时输出，进程会退出 |
+| SEC-CFG-09 | CORS 协议校验已到位，实际利用难度高 |
+
+### 9.3 测试验证
+
+- 测试从 145 个增加到 166 个（+21 新增测试用例）
+- 新增：JWT_EXPIRES_IN 格式校验×7、CRON 格式校验×4、uploadDir 路径安全×4、DB_POOL_MAX 上限×3、Swagger 环境约束×3
+- 166 个测试全部通过
+- TypeScript 编译通过
+- 关联模块测试（auth 176 个、server 13 个）全部通过，无回归

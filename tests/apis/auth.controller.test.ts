@@ -492,6 +492,17 @@ describe('Auth Controller', () => {
     });
 
     it('should return valid for a valid token', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        user: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 1, username: 'sysadmin', cnName: '系统管理员', role: 'sysadmin', companyId: 1,
+            selectedCompany: { id: 1, shortName: '测试公司' },
+            selectedProject: null,
+          }),
+        },
+      });
+
       const response = await agent
         .get(VERIFY)
         .set('Authorization', `Bearer ${sysadminToken()}`);
@@ -530,6 +541,17 @@ describe('Auth Controller', () => {
     });
 
     it('should return valid for admin token', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        user: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 2, username: 'admin', cnName: '管理员', role: 'admin', companyId: 2,
+            selectedCompany: { id: 2, shortName: '测试公司2' },
+            selectedProject: null,
+          }),
+        },
+      });
+
       const response = await agent
         .get(VERIFY)
         .set('Authorization', `Bearer ${adminToken()}`);
@@ -538,6 +560,17 @@ describe('Auth Controller', () => {
     });
 
     it('should return valid for view token', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        user: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 3, username: 'viewer', cnName: '观察者', role: 'view', companyId: 2,
+            selectedCompany: { id: 2, shortName: '测试公司2' },
+            selectedProject: null,
+          }),
+        },
+      });
+
       const response = await agent
         .get(VERIFY)
         .set('Authorization', `Bearer ${viewToken()}`);

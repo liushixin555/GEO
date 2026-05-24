@@ -22,10 +22,10 @@ const BLOCKED_HOSTNAMES = [
   /^172\.(1[6-9]|2\d|3[01])\./,
   /^192\.168\./,
   /^0\./,
-  /^::1$/,
-  /^fe80:/,
-  /^fc00:/,
-  /^fd/,
+  /^\[?::1\]?$/,
+  /^\[?fe80:/,
+  /^\[?fc00:/,
+  /^\[?fd/,
 ];
 
 function isUrlSafe(baseUrl: string): { safe: boolean; error?: string } {

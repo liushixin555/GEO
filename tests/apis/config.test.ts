@@ -5,6 +5,8 @@
  * Covers: default values, environment variable overrides, type correctness, edge cases
  */
 
+import path from 'path';
+
 // Save original env to restore after tests
 const originalEnv = { ...process.env };
 
@@ -1061,6 +1063,140 @@ describe('apis/config/index.ts', () => {
       );
       expect(config.jwt.secret).toBe('short');
       spy.mockRestore();
+    });
+  });
+
+  describe('JWT_EXPIRES_IN format validation', () => {
+    it('should accept valid timespan with hours unit', async () => {
+      const config = await loadConfigWithEnv({ JWT_EXPIRES_IN: '24h' });
+      expect(config.jwt.expiresIn).toBe('24h');
+    });
+
+    it('should accept valid timespan with seconds unit', async () => {
+      const config = await loadConfigWithEnv({ JWT_EXPIRES_IN: '3600s' });
+      expect(config.jwt.expiresIn).toBe('3600s');
+    });
+
+    it('should accept valid timespan as pure number', async () => {
+      const config = await loadConfigWithEnv({ JWT_EXPIRES_IN: '7200' });
+      expect(config.jwt.expiresIn).toBe('7200');
+    });
+
+    it('should accept valid timespan with days unit', async () => {
+      const config = await loadConfigWithEnv({ JWT_EXPIRES_IN: '7d' });
+      expect(config.jwt.expiresIn).toBe('7d');
+    });
+
+    it('should accept valid timespan with minutes unit', async () => {
+      const config = await loadConfigWithEnv({ JWT_EXPIRES_IN: '30m' });
+      expect(config.jwt.expiresIn).toBe('30m');
+    });
+
+    it('should throw when JWT_EXPIRES_IN is invalid string', async () => {
+      await expect(loadConfigWithEnv({ JWT_EXPIRES_IN: 'forever' })).rejects.toThrow(
+        'FATAL: JWT_EXPIRES_IN must be a valid timespan'
+      );
+    });
+
+    it('should throw when JWT_EXPIRES_IN is random text', async () => {
+      await expect(loadConfigWithEnv({ JWT_EXPIRES_IN: 'abc' })).rejects.toThrow(
+        'FATAL: JWT_EXPIRES_IN must be a valid timespan'
+      );
+    });
+  });
+
+  describe('CRON_ARTICLE_INTERVAL format validation', () => {
+    it('should accept valid 5-field cron expression', async () => {
+      const config = await loadConfigWithEnv({ CRON_ARTICLE_INTERVAL: '0 */2 * * *' });
+      expect(config.cron.articleGenerationInterval).toBe('0 */2 * * *');
+    });
+
+    it('should throw when cron expression has too few fields', async () => {
+      await expect(loadConfigWithEnv({ CRON_ARTICLE_INTERVAL: '* * *' })).rejects.toThrow(
+        'FATAL: CRON_ARTICLE_INTERVAL must be a valid 5-field cron expression'
+      );
+    });
+
+    it('should throw when cron expression has too many fields', async () => {
+      await expect(loadConfigWithEnv({ CRON_ARTICLE_INTERVAL: '* * * * * *' })).rejects.toThrow(
+        'FATAL: CRON_ARTICLE_INTERVAL must be a valid 5-field cron expression'
+      );
+    });
+
+    it('should throw when cron expression is plain text', async () => {
+      await expect(loadConfigWithEnv({ CRON_ARTICLE_INTERVAL: 'every 5 minutes' })).rejects.toThrow(
+        'FATAL: CRON_ARTICLE_INTERVAL must be a valid 5-field cron expression'
+      );
+    });
+  });
+
+  describe('uploadDir path security', () => {
+    it('should use default uploads directory when UPLOAD_DIR not set', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(config.uploadDir).toContain('uploads');
+    });
+
+    it('should accept valid UPLOAD_DIR', async () => {
+      const config = await loadConfigWithEnv({ UPLOAD_DIR: '/tmp/my-uploads' });
+      expect(config.uploadDir).toBe(path.resolve('/tmp/my-uploads'));
+    });
+
+    it('should throw when UPLOAD_DIR contains path traversal', async () => {
+      await expect(loadConfigWithEnv({ UPLOAD_DIR: '../../etc' })).rejects.toThrow(
+        'FATAL: UPLOAD_DIR must not contain path traversal sequences (..)'
+      );
+    });
+
+    it('should throw when UPLOAD_DIR contains nested path traversal', async () => {
+      await expect(loadConfigWithEnv({ UPLOAD_DIR: '/tmp/../etc/passwd' })).rejects.toThrow(
+        'FATAL: UPLOAD_DIR must not contain path traversal sequences (..)'
+      );
+    });
+  });
+
+  describe('DB_POOL_MAX upper limit', () => {
+    it('should throw when DB_POOL_MAX exceeds 100', async () => {
+      await expect(loadConfigWithEnv({ DB_POOL_MAX: '101' })).rejects.toThrow(
+        'FATAL: DB_POOL_MAX must be <= 100'
+      );
+    });
+
+    it('should accept DB_POOL_MAX=100 (maximum valid)', async () => {
+      const config = await loadConfigWithEnv({ DB_POOL_MAX: '100' });
+      expect(config.database.pool.max).toBe(100);
+    });
+
+    it('should accept DB_POOL_MAX=50', async () => {
+      const config = await loadConfigWithEnv({ DB_POOL_MAX: '50' });
+      expect(config.database.pool.max).toBe(50);
+    });
+  });
+
+  describe('Swagger environment constraint', () => {
+    it('should disable swagger in production even when SWAGGER_ENABLED=true', async () => {
+      const config = await loadConfigWithEnv({
+        NODE_ENV: 'production',
+        DB_PASSWORD: 'prod-pwd',
+        JWT_SECRET: 'prod-jwt-secret-key-that-is-at-least-32-chars',
+        SWAGGER_ENABLED: 'true',
+      });
+      expect(config.swagger.enabled).toBe(false);
+    });
+
+    it('should enable swagger in non-production when SWAGGER_ENABLED=true', async () => {
+      const config = await loadConfigWithEnv({
+        NODE_ENV: 'development',
+        SWAGGER_ENABLED: 'true',
+      });
+      expect(config.swagger.enabled).toBe(true);
+    });
+
+    it('should disable swagger in non-production when SWAGGER_ENABLED is not true', async () => {
+      const config = await loadConfigWithEnv({
+        NODE_ENV: 'development',
+        SWAGGER_ENABLED: 'false',
+      });
+      expect(config.swagger.enabled).toBe(false);
     });
   });
 });
