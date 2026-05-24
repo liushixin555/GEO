@@ -142,8 +142,8 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
       'title': '标题',
       'link': '链接',
       'quote': '引用',
-      'code': '代码',
-      'codeBlock': '代码块',
+      'codeBlock': '插入代码块 (Ctrl+Shift+E)',
+      'code': '插入行内代码 (Ctrl+E)',
       'image': '图片',
       'unorderedListCommand': '无序列表',
       'orderedListCommand': '有序列表',
@@ -217,6 +217,21 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
     return () => observer.disconnect();
   }, []);
 
+  // C-02 fallback: 拦截 Ctrl+J/Ctrl+Shift+J，防止浏览器导航到下载页/开发者工具
+  useEffect(() => {
+    const container = editorRef.current;
+    if (!container) return;
+
+    const preventBrowserShortcut = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'j') {
+        e.preventDefault();
+      }
+    };
+
+    container.addEventListener('keydown', preventBrowserShortcut, true);
+    return () => container.removeEventListener('keydown', preventBrowserShortcut, true);
+  }, []);
+
   const handleChange = useCallback(
     (val: string | undefined) => {
       if (!onChange) return;
@@ -248,9 +263,46 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
   }), [getSanitizedHTML, value]);
 
   // 上游 help 命令使用 window.open 缺少 noopener，存在 Tabnabbing 风险（SEC-MD-05）
+  // C-02/UI-P1-03: 重映射 code/codeBlock 快捷键（Ctrl+J→Ctrl+E），避免浏览器冲突
+  // S1/S2/C-03: 防御性封装 — 非空断言防护 + try-catch
   const commandsFilter = useCallback(
-    (command: { name?: string }, isExtra: boolean) => {
+    (command: any, isExtra: boolean) => {
       if (command.name === 'help') return false;
+
+      if (command.name === 'code' || command.name === 'codeBlock') {
+        const wrapped = { ...command };
+        if (command.name === 'code') {
+          wrapped.shortcuts = 'ctrlcmd+e';
+          wrapped.buttonProps = {
+            'aria-label': '插入行内代码 (Ctrl+E)',
+            title: '插入行内代码 (Ctrl+E)',
+          };
+        } else {
+          wrapped.shortcuts = 'ctrlcmd+shift+e';
+          wrapped.buttonProps = {
+            'aria-label': '插入代码块 (Ctrl+Shift+E)',
+            title: '插入代码块 (Ctrl+Shift+E)',
+          };
+        }
+
+        const originalExecute = wrapped.execute;
+        if (originalExecute) {
+          wrapped.execute = (state: any, api: any) => {
+            try {
+              if (command.name === 'code' && !state.command?.prefix) {
+                console.warn('[MarkdownEditor] code 命令缺少 prefix，已跳过');
+                return;
+              }
+              originalExecute(state, api);
+            } catch (err) {
+              console.error(`[MarkdownEditor] 命令 "${command.name}" 执行失败:`, err);
+            }
+          };
+        }
+
+        return wrapped;
+      }
+
       return command;
     },
     [],
