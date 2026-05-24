@@ -65,6 +65,7 @@
 | 2026-05-24 | `tasks/review/rehypePlugins.tsx.md` | @uiw/react-markdown-preview rehypePlugins.tsx 质量评审——CONDITIONAL ACCEPT 5.8分，P0×3（正则误判/类型断言不安全/XSS攻击面）+ P1×3 |
 | 2026-05-24 | `tasks/review/rehypePlugins.tsx.architecture.md` | @uiw/react-markdown-preview rehypePlugins.tsx 架构评审——CONDITIONAL APPROVE 5.0分，P1×3（隐式契约耦合/SRP三重职责/OCP缺失）+ P2×3 |
 | 2026-05-24 | `tasks/tdd/publishing-platform.controller.test.md` | publishing-platform.controller TDD 补全——+12 用例（52 总），Stmts/Branch/Funcs/Lines 100% |
+| 2026-05-24 | `tasks/review/index.ts.security.md` | controller/index.ts 代码安全专家评审——REJECT 3.5分（53%模块脱离管控+上传安全+死代码100%） |
 
 ## 已知问题
 - `apis/service/impl/auth.service.impl.ts` Prisma 类型错误（待 schema 同步）
