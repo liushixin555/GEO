@@ -52,6 +52,7 @@
 | 2026-05-24 | `tasks/review/preview.tsx.md` | @uiw/react-markdown-preview preview.tsx 质量评审——4.7分，P1×3（URL消毒禁用/skipHtml反转/标签白名单过宽）+ P2×3 + P3×5 |
 | 2026-05-24 | `tasks/review/company.controller.ts.md` | company.controller.ts 代码安全专家评审（第二轮）——✅LOW 低风险，6/7项已修复，剩余4项P2-P3 |
 | 2026-05-24 | `tasks/review/company.controller.ts.committer.md` | company.controller.ts Committer 审核专家评审——通过（APPROVE），前次P1全修复，剩余P2×3+P3×4 |
+| 2026-05-24 | `tasks/review/preview.tsx.security.md` | @uiw/react-markdown-preview preview.tsx 代码安全专家评审——REJECT（P0×3：URL消毒禁用XSS/skipHtml语义反转/标签白名单过宽），综合2.5分 |
 
 ## 已知问题
 - `apis/service/impl/auth.service.impl.ts` Prisma 类型错误（待 schema 同步）
