@@ -826,3 +826,48 @@ components: {
 - `pages/components/MarkdownEditor.tsx` — commandsFilter 添加 group 命令处理 + annotateToolbar 添加下拉菜单 ARIA
 - `pages/styles/markdown-editor.css` — Carbon 下拉菜单样式 + 触摸设备 48px 规则
 - `tests/pages/components/MarkdownEditor.test.tsx` — 5 个新增 group 测试
+
+---
+
+## fix029. help.tsx 评审封装层问题修复（noopener反向标签劫持+弹窗拦截降级+中文ARIA+antd图标）
+
+### 问题
+根据 `tasks/review/` 目录下 5 份评审报告（安全评审 5.5/10、UI 评审 5.0/10、架构评审 5.5/10、质量评审 6.0/10、Committer 审核 5.0/10），`@uiw/react-md-editor` 的 `help.tsx` 是库内唯一产生外部网络导航的命令，拥有库内最广的安全攻击面。由于是第三方库文件无法直接修改，所有修复在项目封装层实施。
+
+### 修复
+
+**SEC-H1（P0）window.open 缺少 noopener——反向标签劫持风险**：
+- 原始代码 `windowFeatures` 仅为 `'noreferrer'`，缺少 `noopener`
+- 新窗口可通过 `window.opener` 访问原始页面，攻击者可重定向原始窗口到钓鱼页面
+- 修复：`'noreferrer'` → `'noopener,noreferrer'`
+
+**SEC-H2（P1）noreferrer 作为 windowFeatures 无实际效果**：
+- `noreferrer` 不在 `window.open` 的 `windowFeatures` 规范中，部分浏览器忽略
+- 与 `noopener` 一起使用作为纵深防御
+
+**SEC-M2/UI-M3（P1）弹窗被拦截时无降级处理**：
+- `window.open` 返回 `null` 或 `closed` 时，降级为 `window.location.href` 导航
+- 确保用户始终可获取帮助
+
+**UI-H1/UI-L1（P2）SVG 图标 12px 替换为 antd QuestionCircleOutlined**：
+- 替换为 antd 图标（fontSize: 16），符合 Carbon 16px 图标规范
+
+**UI-L2（P2）英文 ARIA 标注改为中文**：
+- `aria-label: '打开 Markdown 语法帮助（外部链接）'`
+- `title: '打开 Markdown 语法帮助 (F1)'`
+- 标注"外部链接"让用户预判点击行为
+
+**Q-低3（P3）添加 F1 快捷键**：
+- 添加 `shortcuts: 'f1'`，键盘用户可通过 F1 获取帮助
+
+### 行为变更
+- **之前**：`help` 命令被 `commandsFilter` 直接过滤掉（`return false`），用户无法使用帮助功能
+- **之后**：`help` 命令被安全覆盖，保留功能同时修复所有安全问题
+
+### 测试
+- 新增 6 个 help 命令测试用例（noopener+noreferrer验证、弹窗拦截降级null、弹窗拦截降级closed、中文ARIA、antd图标、F1快捷键）
+- 全部 22 个 MarkdownEditor 测试通过
+
+### 涉及文件
+- `pages/components/MarkdownEditor.tsx` — commandsFilter 将 help 从过滤改为安全覆盖
+- `tests/pages/components/MarkdownEditor.test.tsx` — 6 个新增 help 测试

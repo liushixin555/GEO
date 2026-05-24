@@ -61,7 +61,7 @@
   - 专用 CSS：`pages/styles/markdown-editor.css`，Carbon Design System 样式全覆盖（字体/颜色/圆角/工具栏/预览区）
   - ArticleContentEditor.tsx 已从直接使用 MDEditor 改为使用此封装组件
   - **commandsFilter 覆盖机制**：拦截第三方库命令并覆盖
-    - `help` 命令：直接过滤掉（Tabnabbing 风险）
+    - `help` 命令：安全覆盖（noopener+noreferrer 防反向标签劫持 + 弹窗拦截降级为 window.location.href + 中文 ARIA + antd QuestionCircleOutlined 图标 16px + F1 快捷键）
     - `code`/`codeBlock` 命令：重映射快捷键（Ctrl+J→Ctrl+E），添加中文 ARIA 标注，try-catch 包裹
     - `fullscreen` 命令：修复按钮点击不触发全屏（移除 shortcuts 条件守卫）、重映射快捷键（ctrlcmd+0→ctrlcmd+shift+f）、中文 ARIA 标注、antd FullscreenOutlined 图标（16px）
 - antd 主题通过 `main.tsx` 的 `ConfigProvider` 配置，全局覆盖 border-radius: 0 等 Carbon 风格
