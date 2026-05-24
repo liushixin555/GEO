@@ -52,6 +52,12 @@
   padding: 4px 8px;
 }
 
+/* V-01: 工具栏 SVG 图标尺寸 — Carbon 最小 16px */
+.markdown-editor-wrapper .w-md-editor-toolbar button svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+
 /* 工具栏分隔线 */
 .markdown-editor-wrapper .w-md-editor-toolbar .w-md-editor-toolbar-divider {
   background-color: var(--color-hairline) !important;
@@ -296,11 +302,11 @@
   outline-offset: -2px !important;
 }
 
-/* R-01: 移动端响应式 — 增大工具栏按钮触控目标 */
+/* R-01: 移动端响应式 — 增大工具栏按钮触控目标至 44px（WCAG AAA） */
 @media (max-width: 672px) {
   .markdown-editor-wrapper .w-md-editor-toolbar button {
-    min-height: 40px !important;
-    min-width: 40px !important;
-    padding: 6px 10px !important;
+    min-height: 44px !important;
+    min-width: 44px !important;
+    padding: 8px 12px !important;
   }
 }

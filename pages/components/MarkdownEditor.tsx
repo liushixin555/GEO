@@ -165,16 +165,28 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
 
       const buttons = toolbar.querySelectorAll('button[title]');
       buttons.forEach((btn) => {
-        if (btn.getAttribute('aria-label')) return;
         const title = btn.getAttribute('title') ?? '';
+        let matched = false;
         for (const [key, label] of Object.entries(TOOLBAR_LABELS)) {
           if (title.toLowerCase().includes(key.toLowerCase())) {
             btn.setAttribute('aria-label', label);
+            btn.setAttribute('title', label);
+            matched = true;
             break;
           }
         }
-        if (!btn.getAttribute('aria-label')) {
-          btn.setAttribute('aria-label', title);
+        if (!matched) {
+          const existingLabel = btn.getAttribute('aria-label');
+          if (!existingLabel) {
+            btn.setAttribute('aria-label', title);
+          }
+        }
+      });
+
+      // A-02: SVG 图标设置 aria-hidden，防止屏幕阅读器重复播报
+      toolbar.querySelectorAll('button svg').forEach((svg) => {
+        if (!svg.getAttribute('aria-hidden')) {
+          svg.setAttribute('aria-hidden', 'true');
         }
       });
 

@@ -733,3 +733,32 @@ components: {
 - `apis/controller/article.controller.ts` — 审计日志 + ROLES 常量 + handleServerError 日志
 - `apis/schema/article.schema.ts` — search trim
 - `tasks/review/article.controller.md` — 更新修复状态
+
+---
+
+## fix026. bold.tsx 评审封装层问题修复（I18N + 无障碍 + 图标尺寸 + 触摸目标）
+
+### 问题
+根据 `tasks/review/` 目录下 3 份评审报告（安全评审 8.0/10、UI 评审 4.3/10 CONDITIONAL APPROVE、Committer 审核 8.0/10 APPROVE），`@uiw/react-md-editor` 的 `bold.tsx` 为第三方库内部文件无法直接修改，所有修复在项目封装层实施。
+
+### 修复
+
+**I18N-01（P2）英文 aria-label/title 未被覆盖**：
+- `MarkdownEditor.tsx` 的 `annotateToolbar` 函数中 `if (btn.getAttribute('aria-label')) return` 会导致已有英文 `aria-label` 的按钮（如 bold/italic/strikethrough）跳过中文替换
+- 修复：移除早期返回，改为始终匹配 `title` 内容并覆盖 `aria-label` 和 `title` 为中文
+
+**A-02（P3）SVG 缺少 aria-hidden**：
+- 工具栏按钮已有 `aria-label`，内部 SVG 应设置 `aria-hidden="true"` 防止屏幕阅读器重复播报
+- 在 `annotateToolbar` 中增加 `querySelectorAll('button svg')` 遍历注入
+
+**V-01（P3）SVG 图标尺寸偏小**：
+- 原始 12×12 偏小，Carbon 建议最小 16px
+- 在 `markdown-editor.css` 添加 `.w-md-editor-toolbar button svg { width: 16px; height: 16px }` 覆盖
+
+**R-01（P3）移动端触摸目标不足**：
+- 原始 40×40 不足 WCAG AAA 要求的 44×44
+- 移动端 `@media (max-width: 672px)` 从 `min-height: 40px` 提升至 `44px`
+
+### 涉及文件
+- `pages/components/MarkdownEditor.tsx` — annotateToolbar 逻辑修复 + SVG aria-hidden 注入
+- `pages/styles/markdown-editor.css` — SVG 图标尺寸 + 移动端触摸目标
