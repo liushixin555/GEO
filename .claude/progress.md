@@ -188,3 +188,4 @@
 | 2026-05-25 | tasks/review/strikeThrough.tsx.md | @uiw/react-md-editor strikeThrough.tsx 软件质量专家评审——⚠️APPROVE WITH COMMENTS 7.5/10（M×2 prefix!非空断言+SVG内联定义，L×2 data-name非标准+缺返回类型，INFO×1 快捷键跨平台） |
 | 2026-05-25 | tasks/review/strikeThrough.tsx.architecture.md | @uiw/react-md-editor strikeThrough.tsx 软件架构专家评审——✅APPROVE WITH COMMENTS 7.5分（H×1 inline命令95%同构bold/italic/code无工厂抽象 + M×2 ICommand无分类维度/prefix!非空断言系统性问题 + L×2 SVG同层部署/变量命名 + INFO×2 架构最简洁inline实例/3步线性数据流最清晰） |
 | 2026-05-25 | tasks/tdd/llm-model.controller.test.round3.md | llm-model.controller TDD 第3轮补全——264用例（+43），Stmts 99.21% Branch 97.43% Funcs 100% Lines 100%（覆盖null字段/AppError处理/SSRF直接调用/多字段更新/parseId边界/软删除验证） |
+| 2026-05-25 | tasks/tdd/app.test.md | app.ts TDD 第六次验证——261用例全通过，100%四维覆盖率确认无回归 |
