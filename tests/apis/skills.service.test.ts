@@ -1396,4 +1396,266 @@ describe('SkillsServiceImpl', () => {
       });
     });
   });
+
+  // ──────────────────────────────────────
+  //  第2轮补全——错误类型验证 + 额外边界
+  // ──────────────────────────────────────
+  describe('第2轮补全——错误类型与额外边界', () => {
+    // --- 错误类型与 statusCode 验证 ---
+    describe('错误类型验证', () => {
+      it('getById 不存在时应抛出 NotFoundError（非通用 Error）', async () => {
+        const mockFindFirst = jest.fn().mockResolvedValue(null);
+        mockedGetPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } } as any);
+
+        try {
+          await service.getById(999);
+          fail('应抛出错误');
+        } catch (e: any) {
+          expect(e.name).toBe('NotFoundError');
+          expect(e.message).toBe('技能不存在');
+          expect(e.statusCode).toBe(404);
+        }
+      });
+
+      it('create 同名时应抛出 ConflictError（非通用 Error）', async () => {
+        const existing = makePrismaSkill({ name: '重名' });
+        const mockFindFirst = jest.fn().mockResolvedValue(existing);
+        mockedGetPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } } as any);
+
+        try {
+          await service.create({ name: '重名', skill_dir: '/test' });
+          fail('应抛出错误');
+        } catch (e: any) {
+          expect(e.name).toBe('ConflictError');
+          expect(e.statusCode).toBe(409);
+          expect(e.message).toContain('重名');
+        }
+      });
+
+      it('update 不存在时应抛出 NotFoundError 且 statusCode=404', async () => {
+        const mockFindFirst = jest.fn().mockResolvedValue(null);
+        mockedGetPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } } as any);
+
+        try {
+          await service.update(999, { name: 'x' });
+          fail('应抛出错误');
+        } catch (e: any) {
+          expect(e.name).toBe('NotFoundError');
+          expect(e.statusCode).toBe(404);
+        }
+      });
+
+      it('delete 不存在时应抛出 NotFoundError 且 statusCode=404', async () => {
+        const mockFindFirst = jest.fn().mockResolvedValue(null);
+        mockedGetPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } } as any);
+
+        try {
+          await service.delete(999);
+          fail('应抛出错误');
+        } catch (e: any) {
+          expect(e.name).toBe('NotFoundError');
+          expect(e.statusCode).toBe(404);
+        }
+      });
+    });
+
+    // --- list 额外边界 ---
+    describe('list 额外边界', () => {
+      it('极大页码时 skip 应正确计算', async () => {
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockResolvedValue(0);
+        mockedGetPrisma.mockReturnValue({ skills: { findMany: mockFindMany, count: mockCount } } as any);
+
+        await service.list(9999, 50);
+
+        expect(mockFindMany).toHaveBeenCalledWith(
+          expect.objectContaining({ skip: 499900, take: 50 }),
+        );
+      });
+
+      it('pageSize 为小数时应直接传递（由调用方保证整数）', async () => {
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockResolvedValue(0);
+        mockedGetPrisma.mockReturnValue({ skills: { findMany: mockFindMany, count: mockCount } } as any);
+
+        await service.list(1, 10.5);
+
+        expect(mockFindMany).toHaveBeenCalledWith(
+          expect.objectContaining({ take: 10.5 }),
+        );
+      });
+
+      it('search 仅包含空格时应作为搜索词传递', async () => {
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockResolvedValue(0);
+        mockedGetPrisma.mockReturnValue({ skills: { findMany: mockFindMany, count: mockCount } } as any);
+
+        await service.list(1, 10, '   ');
+
+        expect(mockFindMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { name: { contains: '   ', mode: 'insensitive' } },
+          }),
+        );
+      });
+
+      it('count 与 findMany 使用相同的 where 条件', async () => {
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockResolvedValue(0);
+        mockedGetPrisma.mockReturnValue({ skills: { findMany: mockFindMany, count: mockCount } } as any);
+
+        await service.list(1, 10, '测试');
+
+        const findManyWhere = mockFindMany.mock.calls[0][0].where;
+        const countWhere = mockCount.mock.calls[0][0].where;
+        expect(findManyWhere).toEqual(countWhere);
+      });
+    });
+
+    // --- create 额外边界 ---
+    describe('create 额外边界', () => {
+      it('ConflictError 消息格式应包含技能名称', async () => {
+        const existing = makePrismaSkill({ name: 'AI写作' });
+        const mockFindFirst = jest.fn().mockResolvedValue(existing);
+        mockedGetPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } } as any);
+
+        try {
+          await service.create({ name: 'AI写作', skill_dir: '/test' });
+          fail('应抛出错误');
+        } catch (e: any) {
+          expect(e.message).toBe('已存在同名技能「AI写作」');
+        }
+      });
+
+      it('description 为纯空格时应作为有值字符串传递（非 null）', async () => {
+        const mockFindFirst = jest.fn().mockResolvedValue(null);
+        const mockCreate = jest.fn().mockResolvedValue(makePrismaSkill());
+        mockedGetPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, create: mockCreate } } as any);
+
+        await service.create({ name: '测试', description: '   ', skill_dir: '/test' });
+
+        // '   ' || null → '   '（非空字符串是 truthy）
+        expect(mockCreate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ description: '   ' }),
+          }),
+        );
+      });
+
+      it('name 包含前后空格时应原样传递（不 trim）', async () => {
+        const mockFindFirst = jest.fn().mockResolvedValue(null);
+        const mockCreate = jest.fn().mockResolvedValue(makePrismaSkill({ name: ' SEO ' }));
+        mockedGetPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, create: mockCreate } } as any);
+
+        await service.create({ name: ' SEO ', skill_dir: '/test' });
+
+        expect(mockCreate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ name: ' SEO ' }),
+          }),
+        );
+      });
+
+      it('重名检查不匹配时不应阻止创建', async () => {
+        const existing = makePrismaSkill({ name: 'SEO优化' });
+        const mockFindFirst = jest.fn().mockResolvedValue(existing);
+        const mockCreate = jest.fn().mockResolvedValue(makePrismaSkill({ name: 'SEO优化V2' }));
+        mockedGetPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, create: mockCreate } } as any);
+
+        // name 不匹配，findFirst 返回 existing 但实际 name 不匹配时
+        // 注意：实际代码只检查 name 字段匹配，这里是验证逻辑
+        // 模拟 findFirst 返回 null 表示无重名
+        mockFindFirst.mockResolvedValue(null);
+
+        const result = await service.create({ name: 'SEO优化V2', skill_dir: '/test' });
+
+        expect(mockCreate).toHaveBeenCalled();
+      });
+    });
+
+    // --- update 额外边界 ---
+    describe('update 额外边界', () => {
+      it('description 设为 null 时应在 data 中包含（非 undefined）', async () => {
+        const existing = makePrismaSkill({ description: '旧描述' });
+        const updated = makePrismaSkill({ description: null });
+        const mockFindFirst = jest.fn().mockResolvedValue(existing);
+        const mockUpdate = jest.fn().mockResolvedValue(updated);
+        mockedGetPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } } as any);
+
+        // UpdateSkillsRequest 定义 description 为 string | undefined
+        // 但代码只检查 !== undefined，null 会通过
+        await service.update(1, { description: null } as any);
+
+        const data = mockUpdate.mock.calls[0][0].data;
+        expect(data).toHaveProperty('description', null);
+      });
+
+      it('更新后 mapSkills 应映射更新后的数据（非原始数据）', async () => {
+        const existing = makePrismaSkill({ id: 1, name: '旧名称' });
+        const updated = makePrismaSkill({ id: 1, name: '新名称', description: '新描述' });
+        const mockFindFirst = jest.fn().mockResolvedValue(existing);
+        const mockUpdate = jest.fn().mockResolvedValue(updated);
+        mockedGetPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } } as any);
+
+        const result = await service.update(1, { name: '新名称', description: '新描述' });
+
+        expect(result.name).toBe('新名称');
+        expect(result.description).toBe('新描述');
+      });
+    });
+
+    // --- delete 额外边界 ---
+    describe('delete 额外边界', () => {
+      it('删除后不应返回任何数据', async () => {
+        const existing = makePrismaSkill({ id: 1 });
+        const mockFindFirst = jest.fn().mockResolvedValue(existing);
+        // Prisma update 返回完整记录，但 service 不使用返回值
+        const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
+        mockedGetPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } } as any);
+
+        const result = await service.delete(1);
+
+        expect(result).toBeUndefined();
+        // update 的返回值被忽略
+        expect(mockUpdate).toHaveBeenCalledTimes(1);
+      });
+
+      it('负数 ID 不存在时应抛出 NotFoundError', async () => {
+        const mockFindFirst = jest.fn().mockResolvedValue(null);
+        mockedGetPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } } as any);
+
+        try {
+          await service.delete(-999);
+          fail('应抛出错误');
+        } catch (e: any) {
+          expect(e.name).toBe('NotFoundError');
+          expect(e.statusCode).toBe(404);
+        }
+      });
+    });
+
+    // --- mapSkills 综合映射 ---
+    describe('mapSkills 综合映射', () => {
+      it('creator 对象有 cnName 但为 null 时 creator_name 应为 null', async () => {
+        const prismaItem = makePrismaSkill({ creator: { id: 10, cnName: null as any } });
+        const mockFindFirst = jest.fn().mockResolvedValue(prismaItem);
+        mockedGetPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } } as any);
+
+        const result = await service.getById(1);
+
+        expect(result.creator_name).toBeNull();
+      });
+
+      it('creator 对象有 cnName 为数字时 creator_name 应为该数字转字符串或原值', async () => {
+        const prismaItem = makePrismaSkill({ creator: { id: 10, cnName: 123 as any } });
+        const mockFindFirst = jest.fn().mockResolvedValue(prismaItem);
+        mockedGetPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } } as any);
+
+        const result = await service.getById(1);
+
+        // cnName=123 是 truthy, || null → 123
+        expect(result.creator_name).toBe(123);
+      });
+    });
+  });
 });
