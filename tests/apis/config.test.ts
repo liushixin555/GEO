@@ -10,30 +10,41 @@ import path from 'path';
 // Save original env to restore after tests
 const originalEnv = { ...process.env };
 
-// Helper: reload config module with specific env vars
+const CONFIG_KEYS = [
+  'NODE_ENV',
+  'PORT', 'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD',
+  'DB_POOL_MIN', 'DB_POOL_MAX',
+  'JWT_SECRET', 'JWT_EXPIRES_IN', 'SWAGGER_ENABLED',
+  'RATE_LIMIT_WINDOW_MS', 'RATE_LIMIT_MAX',
+  'CRON_ARTICLE_INTERVAL', 'CRON_ARTICLE_ENABLED', 'CORS_ORIGINS',
+];
+
+// Helper: reload config module with specific env vars (dotenv loads .env normally)
 async function loadConfigWithEnv(envVars: Record<string, string | undefined>) {
-  // Reset module cache
   jest.resetModules();
-
-  // Clear all config-related env vars
-  const configKeys = [
-    'NODE_ENV',
-    'PORT', 'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD',
-    'DB_POOL_MIN', 'DB_POOL_MAX',
-    'JWT_SECRET', 'JWT_EXPIRES_IN', 'SWAGGER_ENABLED',
-    'RATE_LIMIT_WINDOW_MS', 'RATE_LIMIT_MAX',
-    'CRON_ARTICLE_INTERVAL', 'CRON_ARTICLE_ENABLED', 'CORS_ORIGINS',
-  ];
-  configKeys.forEach(key => delete process.env[key]);
-
-  // Set provided env vars
+  CONFIG_KEYS.forEach(key => delete process.env[key]);
   Object.entries(envVars).forEach(([key, value]) => {
     if (value !== undefined) {
       process.env[key] = value;
     }
   });
+  const mod = await import('../../apis/config/index');
+  return mod.default;
+}
 
-  // Re-import config
+// Helper: reload config module with dotenv mocked away — tests pure DEFAULTS
+async function loadConfigPure(envVars: Record<string, string | undefined> = {}) {
+  jest.resetModules();
+  jest.doMock('dotenv', () => ({ config: jest.fn() }));
+  CONFIG_KEYS.forEach(key => delete process.env[key]);
+  Object.entries(envVars).forEach(([key, value]) => {
+    if (value !== undefined) {
+      process.env[key] = value;
+    }
+  });
+  // Ensure minimum required env vars to avoid production checks
+  if (!process.env.DB_PASSWORD) process.env.DB_PASSWORD = 'test-pwd';
+  if (!process.env.JWT_SECRET) process.env.JWT_SECRET = 'test-secret-that-is-long-enough-32chars';
   const mod = await import('../../apis/config/index');
   return mod.default;
 }
@@ -41,6 +52,7 @@ async function loadConfigWithEnv(envVars: Record<string, string | undefined>) {
 afterEach(() => {
   // Restore original env
   process.env = { ...originalEnv };
+  jest.unmock('dotenv');
   jest.resetModules();
 });
 
@@ -52,7 +64,7 @@ describe('apis/config/index.ts', () => {
     });
 
     it('should use default database host localhost', async () => {
-      const config = await loadConfigWithEnv({});
+      const config = await loadConfigPure();
       expect(config.database.host).toBe('localhost');
     });
 
@@ -122,9 +134,9 @@ describe('apis/config/index.ts', () => {
       expect(config.rateLimit.windowMs).toBe(60000);
     });
 
-    it('should use default rate limit max 100', async () => {
-      const config = await loadConfigWithEnv({});
-      expect(config.rateLimit.max).toBe(100);
+    it('should use default rate limit max 500 when dotenv not loaded', async () => {
+      const config = await loadConfigPure();
+      expect(config.rateLimit.max).toBe(500);
     });
 
     it('should use default cron interval */5 * * * *', async () => {
@@ -549,16 +561,25 @@ describe('apis/config/index.ts', () => {
 
   describe('production environment', () => {
     it('should throw in production when DB_PASSWORD is not set', async () => {
-      await expect(
-        loadConfigWithEnv({ NODE_ENV: 'production' })
-      ).rejects.toThrow('FATAL: DB_PASSWORD is required in production');
+      jest.resetModules();
+      jest.doMock('dotenv', () => ({ config: jest.fn() }));
+      CONFIG_KEYS.forEach(key => delete process.env[key]);
+      process.env.NODE_ENV = 'production';
+      await expect(import('../../apis/config/index')).rejects.toThrow(
+        'FATAL: DB_PASSWORD is required in production'
+      );
     });
 
     it('should throw in production when JWT_SECRET is not set', async () => {
-      // DB_PASSWORD must be set first to reach JWT_SECRET check
-      await expect(
-        loadConfigWithEnv({ NODE_ENV: 'production', DB_PASSWORD: 'prod-pwd', JWT_SECRET: '' })
-      ).rejects.toThrow('FATAL: JWT_SECRET is required in production');
+      jest.resetModules();
+      jest.doMock('dotenv', () => ({ config: jest.fn() }));
+      CONFIG_KEYS.forEach(key => delete process.env[key]);
+      process.env.NODE_ENV = 'production';
+      process.env.DB_PASSWORD = 'prod-pwd';
+      process.env.JWT_SECRET = '';
+      await expect(import('../../apis/config/index')).rejects.toThrow(
+        'FATAL: JWT_SECRET is required in production'
+      );
     });
 
     it('should not throw in production when both DB_PASSWORD and JWT_SECRET are set', async () => {
@@ -1197,6 +1218,162 @@ describe('apis/config/index.ts', () => {
         SWAGGER_ENABLED: 'false',
       });
       expect(config.swagger.enabled).toBe(false);
+    });
+  });
+
+  describe('validateTimeSpan additional units', () => {
+    it('should accept timespan with milliseconds unit "100ms"', async () => {
+      const config = await loadConfigWithEnv({ JWT_EXPIRES_IN: '100ms' });
+      expect(config.jwt.expiresIn).toBe('100ms');
+    });
+
+    it('should accept timespan with weeks unit "1w"', async () => {
+      const config = await loadConfigWithEnv({ JWT_EXPIRES_IN: '1w' });
+      expect(config.jwt.expiresIn).toBe('1w');
+    });
+
+    it('should accept timespan with years unit "1y"', async () => {
+      const config = await loadConfigWithEnv({ JWT_EXPIRES_IN: '1y' });
+      expect(config.jwt.expiresIn).toBe('1y');
+    });
+
+    it('should throw when JWT_EXPIRES_IN has invalid unit "10x"', async () => {
+      await expect(loadConfigWithEnv({ JWT_EXPIRES_IN: '10x' })).rejects.toThrow(
+        'FATAL: JWT_EXPIRES_IN must be a valid timespan'
+      );
+    });
+
+    it('should throw when JWT_EXPIRES_IN is mixed alphanumeric "10h5m"', async () => {
+      await expect(loadConfigWithEnv({ JWT_EXPIRES_IN: '10h5m' })).rejects.toThrow(
+        'FATAL: JWT_EXPIRES_IN must be a valid timespan'
+      );
+    });
+  });
+
+  describe('resolveUploadDir edge cases', () => {
+    it('should fall back to cwd/uploads when UPLOAD_DIR is empty string', async () => {
+      const config = await loadConfigPure({ UPLOAD_DIR: '' });
+      expect(config.uploadDir).toContain('uploads');
+    });
+
+    it('should prevent modifying uploadDir', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config as Record<string, unknown>).uploadDir = '/evil';
+      }).toThrow();
+    });
+
+    it('should resolve UPLOAD_DIR to absolute path', async () => {
+      const config = await loadConfigWithEnv({ UPLOAD_DIR: 'relative-uploads' });
+      expect(path.isAbsolute(config.uploadDir)).toBe(true);
+    });
+  });
+
+  describe('pure defaults via loadConfigPure', () => {
+    it('should use DEFAULTS.DB_HOST when dotenv is mocked away', async () => {
+      const config = await loadConfigPure();
+      expect(config.database.host).toBe('localhost');
+    });
+
+    it('should use DEFAULTS.RATE_LIMIT_MAX (500) when dotenv is mocked away', async () => {
+      const config = await loadConfigPure();
+      expect(config.rateLimit.max).toBe(500);
+    });
+
+    it('should use DEFAULTS.RATE_LIMIT_WINDOW_MS (60000) when dotenv is mocked away', async () => {
+      const config = await loadConfigPure();
+      expect(config.rateLimit.windowMs).toBe(60000);
+    });
+
+    it('should use DEFAULTS.SWAGGER_ENABLED logic (false) when dotenv is mocked away', async () => {
+      const config = await loadConfigPure();
+      expect(config.swagger.enabled).toBe(false);
+    });
+  });
+
+  describe('CRON_ARTICLE_INTERVAL whitespace handling', () => {
+    it('should accept cron expression with extra whitespace between fields', async () => {
+      const config = await loadConfigWithEnv({ CRON_ARTICLE_INTERVAL: '0  *  *  *  *' });
+      expect(config.cron.articleGenerationInterval).toBe('0  *  *  *  *');
+    });
+  });
+
+  describe('deepFreeze edge cases', () => {
+    it('should freeze nested array elements (corsOrigins)', async () => {
+      const config = await loadConfigWithEnv({ CORS_ORIGINS: 'http://a.com,http://b.com' });
+      expect(() => {
+        (config.corsOrigins as string[])[0] = 'http://evil.com';
+      }).toThrow();
+    });
+
+    it('should prevent modification of database.password', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config.database as { password: string }).password = 'hacked';
+      }).toThrow();
+    });
+
+    it('should prevent modification of database.port', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config.database as { port: number }).port = 9999;
+      }).toThrow();
+    });
+  });
+
+  describe('safeParseInt without max constraint', () => {
+    it('should accept very large DB_POOL_MIN (no upper bound)', async () => {
+      const config = await loadConfigWithEnv({ DB_POOL_MIN: '99999' });
+      expect(config.database.pool.min).toBe(99999);
+    });
+  });
+
+  describe('uploadDir path traversal variants', () => {
+    it('should throw when UPLOAD_DIR contains ".." at start', async () => {
+      await expect(loadConfigWithEnv({ UPLOAD_DIR: '../secret' })).rejects.toThrow(
+        'FATAL: UPLOAD_DIR must not contain path traversal sequences (..)'
+      );
+    });
+
+    it('should throw when UPLOAD_DIR contains ".." with mixed separators', async () => {
+      await expect(loadConfigWithEnv({ UPLOAD_DIR: 'uploads/..\\etc' })).rejects.toThrow(
+        'FATAL: UPLOAD_DIR must not contain path traversal sequences (..)'
+      );
+    });
+  });
+
+  describe('production environment with dotenv mocked', () => {
+    it('should throw in production with dotenv mocked and no DB_PASSWORD', async () => {
+      jest.resetModules();
+      jest.doMock('dotenv', () => ({ config: jest.fn() }));
+      CONFIG_KEYS.forEach(key => delete process.env[key]);
+      process.env.NODE_ENV = 'production';
+      await expect(import('../../apis/config/index')).rejects.toThrow(
+        'FATAL: DB_PASSWORD is required in production'
+      );
+    });
+
+    it('should throw in production with dotenv mocked and no JWT_SECRET', async () => {
+      jest.resetModules();
+      jest.doMock('dotenv', () => ({ config: jest.fn() }));
+      CONFIG_KEYS.forEach(key => delete process.env[key]);
+      process.env.NODE_ENV = 'production';
+      process.env.DB_PASSWORD = 'prod-pwd';
+      process.env.JWT_SECRET = '';
+      await expect(import('../../apis/config/index')).rejects.toThrow(
+        'FATAL: JWT_SECRET is required in production'
+      );
+    });
+
+    it('should succeed in production with dotenv mocked and all secrets set', async () => {
+      jest.resetModules();
+      jest.doMock('dotenv', () => ({ config: jest.fn() }));
+      CONFIG_KEYS.forEach(key => delete process.env[key]);
+      process.env.NODE_ENV = 'production';
+      process.env.DB_PASSWORD = 'prod-password-123';
+      process.env.JWT_SECRET = 'prod-jwt-secret-key-that-is-at-least-32-chars';
+      const mod = await import('../../apis/config/index');
+      expect(mod.default.database.password).toBe('prod-password-123');
     });
   });
 });
