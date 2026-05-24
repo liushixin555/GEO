@@ -702,3 +702,34 @@ components: {
 
 ### 涉及文件
 - `Dockerfile` — prisma generate 添加 --generator=client 参数
+
+---
+
+## fix025. article.controller.ts 评审剩余问题修复（审计日志 + ROLES 常量 + Service 一致性）
+
+### 问题
+根据 `tasks/review/article.controller.md` Committer 审核报告，article 控制器和服务层仍存在以下未修复项：service 层 regenerate 状态校验与控制器不一致、删除操作无审计日志、handleServerError 未记录 500 错误、魔法字符串硬编码。
+
+### 修复
+
+**Service regenerate 状态不一致**：
+- `article.service.impl.ts`：`regenerate` 方法从仅接受 `pending_review` 扩展为接受 `['generate_failed', 'pending_review']`，与控制器层预检一致
+
+**MEDIUM-1 删除审计日志**：
+- `article.controller.ts`：`deleteArticle` 成功后添加 `logger.info('article_deleted', { articleId, projectId, operatorId, role })`
+
+**handleServerError 500 错误日志记录**：
+- 未知异常（非 AppError）时添加 `logger.error('unhandled_error', { error, context })`，避免 500 错误无服务端记录
+
+**LOW-3 魔法字符串替换**：
+- 所有 `'sysadmin'` → `ROLES.SYSADMIN`，`'admin'` → `ROLES.ADMIN`
+- 导入 `ROLES` from `apis/constants/roles`
+
+**LOW-1 搜索参数 trim**：
+- `article.schema.ts`：`search` 字段添加 `.trim()` 前置处理
+
+### 涉及文件
+- `apis/service/impl/article.service.impl.ts` — regenerate 状态白名单扩展
+- `apis/controller/article.controller.ts` — 审计日志 + ROLES 常量 + handleServerError 日志
+- `apis/schema/article.schema.ts` — search trim
+- `tasks/review/article.controller.md` — 更新修复状态
