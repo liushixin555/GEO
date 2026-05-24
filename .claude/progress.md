@@ -141,3 +141,4 @@
 | 2026-05-24 | progress_tasks/2026-05-24-company-entity-review-fix.md | company.entity.ts 评审修复验证——8项全部已修复确认+移除未使用eslint-disable+362测试全通过 |
 | 2026-05-24 | tasks/review/code.tsx.security.md | code.tsx 代码安全专家评审——7.8分APPROVE（MEDIUM×3 非空断言+过期状态+LOW×3 输入校验/Unicode/快捷键） |
 | 2026-05-24 | tasks/review/code.tsx.ui.md | code.tsx UI 专家评审——⚠️有条件通过 4.1/10（P2×5 图标13px不合规/风格不统一/Ctrl+J浏览器冲突/英文硬编码/非平台感知 + P3×4 无操作反馈/无ARIA/触摸不足/无语言选择） |
+| 2026-05-24 | tasks/tdd/auth.service.test.round2.md | auth.service TDD 第2轮补全——68用例100%覆盖率（+12新增：getLatestUserState全量/verifyToken用户删除/login companyId undefined/null/falsy companyId/接口合规性） |
