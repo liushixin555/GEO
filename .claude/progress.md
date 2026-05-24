@@ -166,3 +166,4 @@
 | 2026-05-25 | tasks/review/hr.tsx.ui.md | hr.tsx UI 专家评审——REJECT 3.2/10（P1×3 SVG字母HR语义错位+Ctrl+H冲突浏览器历史+选区丢弃；P2×3 tooltip语义+无role=img+focus缺失；P3×4 触摸+移动端+i18n+aria） |
 | 2026-05-25 | tasks/tdd/system-config.service.test.md | system-config.service.impl TDD 第2轮——53用例100%覆盖率（+30新增：错误类型验证+数据一致性+字符串边界纯空格/Unicode/SQL注入+数值边界id=0/极大值+事务深度重复key/P2002+实例独立性+接口一致性） |
 | 2026-05-25 | tasks/review/hr.tsx.committer.md | hr.tsx Committer 审核专家评审——⚠️有条件通过 5.0/10（P1×2 Ctrl+H快捷键冲突+SVG图标语义错位需封装层修复，C-01 selectWord不适用行级块元素+17项已知问题均可封装层解决） |
+| 2026-05-25 | tasks/tdd/todo.service.test.round2.md | todo.service.impl TDD 第2轮——124用例100%覆盖率（+60新增：错误类型验证statusCode×9+数据一致性count/findMany同步×6+字符串边界空串/空格/XSS/emoji/超长/换行×8+数值边界page=0/极大值/id=0/INT32MAX×4+综合映射null缺失回退×6+实例独立性+接口一致性×2+list where逐字段×3+create默认值×5+draft状态操作×5+update全字段×1+companyId边界×2+getObjectOptions排序字段×4+getAssigneeCandidates查询条件×4） |

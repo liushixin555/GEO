@@ -1356,4 +1356,923 @@ describe('TodoServiceImpl', () => {
       await expect(service.getAssigneeCandidates(999)).rejects.toThrow('项目不存在');
     });
   });
+
+  // ══════════════════════════════════════════
+  //  TDD 第2轮：错误类型验证
+  // ══════════════════════════════════════════
+
+  describe('TDD第2轮 — 错误类型验证', () => {
+    describe('getById 错误类型', () => {
+      it('待办不存在时应抛出 NotFoundError（Error 实例 + statusCode=404）', async () => {
+        mockedGetPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(null) },
+        } as any);
+
+        try {
+          await service.getById(999, 1, 'sysadmin', 1);
+          fail('应抛出错误');
+        } catch (e: any) {
+          expect(e).toBeInstanceOf(Error);
+          expect(e.statusCode).toBe(404);
+          expect(e.message).toContain('待办不存在');
+        }
+      });
+
+      it('无权访问时应抛出 ForbiddenError（statusCode=403）', async () => {
+        mockedGetPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(makePrismaTodo({ companyId: 99 })) },
+        } as any);
+
+        try {
+          await service.getById(1, 2, 'admin', 1);
+          fail('应抛出错误');
+        } catch (e: any) {
+          expect(e).toBeInstanceOf(Error);
+          expect(e.statusCode).toBe(403);
+          expect(e.message).toContain('无权访问该待办');
+        }
+      });
+    });
+
+    describe('update 错误类型', () => {
+      it('待办不存在时应抛出 NotFoundError（statusCode=404）', async () => {
+        mockedGetPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(null) },
+        } as any);
+
+        try {
+          await service.update(999, { title: 'x' }, 2, 'admin');
+          fail('应抛出错误');
+        } catch (e: any) {
+          expect(e).toBeInstanceOf(Error);
+          expect(e.statusCode).toBe(404);
+        }
+      });
+
+      it('已关闭时应抛出 BusinessError（statusCode=400）', async () => {
+        mockedGetPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(makePrismaTodo({ status: 'closed' })) },
+        } as any);
+
+        try {
+          await service.update(1, { title: 'x' }, 2, 'admin');
+          fail('应抛出错误');
+        } catch (e: any) {
+          expect(e).toBeInstanceOf(Error);
+          expect(e.statusCode).toBe(400);
+        }
+      });
+
+      it('非本人修改应抛出 BusinessError（statusCode=400）', async () => {
+        mockedGetPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(makePrismaTodo({ assigneeId: 99, status: 'open' })) },
+        } as any);
+
+        try {
+          await service.update(1, { title: 'x' }, 2, 'admin');
+          fail('应抛出错误');
+        } catch (e: any) {
+          expect(e).toBeInstanceOf(Error);
+          expect(e.statusCode).toBe(400);
+        }
+      });
+    });
+
+    describe('close 错误类型', () => {
+      it('非 open 状态应抛出 BusinessError（statusCode=400）', async () => {
+        mockedGetPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(makePrismaTodo({ status: 'draft' })) },
+        } as any);
+
+        try {
+          await service.close(1, 2, 'admin');
+          fail('应抛出错误');
+        } catch (e: any) {
+          expect(e).toBeInstanceOf(Error);
+          expect(e.statusCode).toBe(400);
+        }
+      });
+    });
+
+    describe('reject 错误类型', () => {
+      it('非 sysadmin 应抛出 ForbiddenError（statusCode=403）', async () => {
+        mockedGetPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(makePrismaTodo({ status: 'open', createdBy: { cnName: 'c' } })) },
+        } as any);
+
+        try {
+          await service.reject(1, 2, 'admin');
+          fail('应抛出错误');
+        } catch (e: any) {
+          expect(e).toBeInstanceOf(Error);
+          expect(e.statusCode).toBe(403);
+        }
+      });
+    });
+
+    describe('transfer 错误类型', () => {
+      it('目标用户不存在应抛出 BusinessError（statusCode=400）', async () => {
+        mockedGetPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(makePrismaTodo({ status: 'open', assigneeId: 2 })) },
+          user: { findFirst: jest.fn().mockResolvedValue(null) },
+        } as any);
+
+        try {
+          await service.transfer(1, { assignee_id: 999 }, 2, 'admin');
+          fail('应抛出错误');
+        } catch (e: any) {
+          expect(e).toBeInstanceOf(Error);
+          expect(e.statusCode).toBe(400);
+        }
+      });
+    });
+
+    describe('getLogs 错误类型', () => {
+      it('无权访问应抛出 ForbiddenError（statusCode=403）', async () => {
+        mockedGetPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(makePrismaTodo({ companyId: 99 })) },
+        } as any);
+
+        try {
+          await service.getLogs(1, 2, 'admin', 1);
+          fail('应抛出错误');
+        } catch (e: any) {
+          expect(e).toBeInstanceOf(Error);
+          expect(e.statusCode).toBe(403);
+        }
+      });
+    });
+
+    describe('getAssigneeCandidates 错误类型', () => {
+      it('项目不存在应抛出 NotFoundError（statusCode=404）', async () => {
+        mockedGetPrisma.mockReturnValue({
+          project: { findUnique: jest.fn().mockResolvedValue(null) },
+        } as any);
+
+        try {
+          await service.getAssigneeCandidates(999);
+          fail('应抛出错误');
+        } catch (e: any) {
+          expect(e).toBeInstanceOf(Error);
+          expect(e.statusCode).toBe(404);
+        }
+      });
+    });
+  });
+
+  // ══════════════════════════════════════════
+  //  TDD 第2轮：数据一致性（count/findMany where 同步）
+  // ══════════════════════════════════════════
+
+  describe('TDD第2轮 — 数据一致性', () => {
+    it('list 的 count 和 findMany 应使用相同的 where 条件', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+
+      mockedGetPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list({
+        page: 1, pageSize: 10, tab: 'my_open',
+        priority: 'P1', search: '关键词',
+        userId: 2, role: 'admin', companyId: 1,
+      });
+
+      const findManyWhere = mockFindMany.mock.calls[0][0].where;
+      const countWhere = mockCount.mock.calls[0][0].where;
+      expect(countWhere).toEqual(findManyWhere);
+    });
+
+    it('list 不同 tab 值的 count/findMany where 一致', async () => {
+      for (const tab of ['my_open', 'my_closed', 'all_open', 'all_closed', 'unknown']) {
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockResolvedValue(0);
+
+        mockedGetPrisma.mockReturnValue({
+          todo: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        await service.list({
+          page: 1, pageSize: 10, tab,
+          userId: 2, role: 'admin', companyId: 5,
+        });
+
+        const findManyWhere = mockFindMany.mock.calls[0][0].where;
+        const countWhere = mockCount.mock.calls[0][0].where;
+        expect(countWhere).toEqual(findManyWhere);
+      }
+    });
+
+    it('getById 的 include 应包含 company/project/assignee/createdBy', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(makePrismaTodo());
+      mockedGetPrisma.mockReturnValue({
+        todo: { findFirst: mockFindFirst },
+      } as any);
+
+      await service.getById(1, 1, 'sysadmin', 1);
+
+      const call = mockFindFirst.mock.calls[0][0];
+      expect(call.include).toEqual({
+        company: true, project: true, assignee: true, createdBy: true,
+      });
+    });
+
+    it('list 的 include 应包含 company/project/assignee/createdBy', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list({ page: 1, pageSize: 10, tab: 'my_open', userId: 2, role: 'admin', companyId: 1 });
+
+      const call = mockFindMany.mock.calls[0][0];
+      expect(call.include).toEqual({
+        company: true, project: true, assignee: true, createdBy: true,
+      });
+    });
+
+    it('list 的 orderBy 应为 priority asc + createdAt desc', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list({ page: 1, pageSize: 10, tab: 'my_open', userId: 2, role: 'admin', companyId: 1 });
+
+      const call = mockFindMany.mock.calls[0][0];
+      expect(call.orderBy).toEqual([{ priority: 'asc' }, { createdAt: 'desc' }]);
+    });
+
+    it('list 的 where 应包含 deletedAt: null', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list({ page: 1, pageSize: 10, tab: 'my_open', userId: 2, role: 'admin', companyId: 1 });
+
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where.deletedAt).toBeNull();
+    });
+  });
+
+  // ══════════════════════════════════════════
+  //  TDD 第2轮：字符串边界
+  // ══════════════════════════════════════════
+
+  describe('TDD第2轮 — 字符串边界', () => {
+    it('list search 为空字符串不应添加 title 过滤', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list({ page: 1, pageSize: 10, tab: 'my_open', search: '', userId: 2, role: 'admin', companyId: 1 });
+
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where).not.toHaveProperty('title');
+    });
+
+    it('list search 为纯空格应作为搜索条件', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list({ page: 1, pageSize: 10, tab: 'my_open', search: '   ', userId: 2, role: 'admin', companyId: 1 });
+
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where.title).toEqual({ contains: '   ', mode: 'insensitive' });
+    });
+
+    it('list search 含特殊字符应原样传递', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list({ page: 1, pageSize: 10, tab: 'my_open', search: '<script>alert("xss")</script>', userId: 2, role: 'admin', companyId: 1 });
+
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where.title).toEqual({ contains: '<script>alert("xss")</script>', mode: 'insensitive' });
+    });
+
+    it('list search 含 emoji 应正常传递', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list({ page: 1, pageSize: 10, tab: 'my_open', search: '🔍搜索', userId: 2, role: 'admin', companyId: 1 });
+
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where.title).toEqual({ contains: '🔍搜索', mode: 'insensitive' });
+    });
+
+    it('list search 超长字符串应正常传递', async () => {
+      const longStr = 'a'.repeat(10000);
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list({ page: 1, pageSize: 10, tab: 'my_open', search: longStr, userId: 2, role: 'admin', companyId: 1 });
+
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where.title.contains).toBe(longStr);
+    });
+
+    it('create title 为空字符串应正常创建', async () => {
+      const mockCreate = jest.fn().mockResolvedValue(makePrismaTodo({ title: '' }));
+      const mockLogCreate = jest.fn().mockResolvedValue({});
+      mockedGetPrisma.mockReturnValue({
+        todo: { create: mockCreate },
+        todoLog: { create: mockLogCreate },
+      } as any);
+
+      await service.create({ title: '', company_id: 1, object_type: 'article', action: 'review', assignee_id: 2 }, 1);
+
+      expect(mockCreate.mock.calls[0][0].data.title).toBe('');
+    });
+
+    it('create title 含前后空格应原样保存', async () => {
+      const mockCreate = jest.fn().mockResolvedValue(makePrismaTodo({ title: '  带空格  ' }));
+      const mockLogCreate = jest.fn().mockResolvedValue({});
+      mockedGetPrisma.mockReturnValue({
+        todo: { create: mockCreate },
+        todoLog: { create: mockLogCreate },
+      } as any);
+
+      await service.create({ title: '  带空格  ', company_id: 1, object_type: 'article', action: 'review', assignee_id: 2 }, 1);
+
+      expect(mockCreate.mock.calls[0][0].data.title).toBe('  带空格  ');
+    });
+
+    it('create title 含换行符和制表符应原样保存', async () => {
+      const mockCreate = jest.fn().mockResolvedValue(makePrismaTodo());
+      const mockLogCreate = jest.fn().mockResolvedValue({});
+      mockedGetPrisma.mockReturnValue({
+        todo: { create: mockCreate },
+        todoLog: { create: mockLogCreate },
+      } as any);
+
+      await service.create({ title: '行1\n行2\t缩进', company_id: 1, object_type: 'article', action: 'review', assignee_id: 2 }, 1);
+
+      expect(mockCreate.mock.calls[0][0].data.title).toBe('行1\n行2\t缩进');
+    });
+  });
+
+  // ══════════════════════════════════════════
+  //  TDD 第2轮：数值边界
+  // ══════════════════════════════════════════
+
+  describe('TDD第2轮 — 数值边界', () => {
+    it('list page=0 的偏移量应为负数（0-1)*pageSize', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list({ page: 0, pageSize: 10, tab: 'my_open', userId: 2, role: 'admin', companyId: 1 });
+
+      expect(mockFindMany.mock.calls[0][0].skip).toBe(-10);
+      expect(mockFindMany.mock.calls[0][0].take).toBe(10);
+    });
+
+    it('list page 极大值应正常计算偏移', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list({ page: 999999, pageSize: 10, tab: 'my_open', userId: 2, role: 'admin', companyId: 1 });
+
+      expect(mockFindMany.mock.calls[0][0].skip).toBe(999998 * 10);
+    });
+
+    it('getById id=0 应正常查询（Prisma 层返回 null 则 NotFound）', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findFirst: mockFindFirst },
+      } as any);
+
+      await expect(service.getById(0, 1, 'sysadmin', 1)).rejects.toThrow('待办不存在');
+      expect(mockFindFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 0, deletedAt: null } }),
+      );
+    });
+
+    it('getById id 极大值应正常查询', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(makePrismaTodo({ id: 2147483647 }));
+      mockedGetPrisma.mockReturnValue({
+        todo: { findFirst: mockFindFirst },
+      } as any);
+
+      const result = await service.getById(2147483647, 1, 'sysadmin', 1);
+      expect(result.id).toBe(2147483647);
+    });
+  });
+
+  // ══════════════════════════════════════════
+  //  TDD 第2轮：mapTodo / mapTodoLog 综合映射
+  // ══════════════════════════════════════════
+
+  describe('TDD第2轮 — 综合映射', () => {
+    it('mapTodo 应正确处理 project=null 的场景', async () => {
+      const item = makePrismaTodo({ project: null, projectId: null });
+      const mockFindMany = jest.fn().mockResolvedValue([item]);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const result = await service.list({ page: 1, pageSize: 10, tab: 'my_open', userId: 2, role: 'admin', companyId: 1 });
+      expect(result.list[0].project_id).toBeNull();
+      expect(result.list[0].project_name).toBeNull();
+    });
+
+    it('mapTodo 应正确处理 company.shortName 缺失（回退为空字符串）', async () => {
+      const item = makePrismaTodo({ company: {} });
+      const mockFindMany = jest.fn().mockResolvedValue([item]);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const result = await service.list({ page: 1, pageSize: 10, tab: 'my_open', userId: 2, role: 'admin', companyId: 1 });
+      expect(result.list[0].company_name).toBe('');
+    });
+
+    it('mapTodo 应正确处理 dueAt 日期', async () => {
+      const dueDate = new Date('2025-06-15T00:00:00.000Z');
+      const item = makePrismaTodo({ dueAt: dueDate });
+      const mockFindMany = jest.fn().mockResolvedValue([item]);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const result = await service.list({ page: 1, pageSize: 10, tab: 'my_open', userId: 2, role: 'admin', companyId: 1 });
+      expect(result.list[0].due_at).toBe(dueDate.toISOString());
+    });
+
+    it('mapTodoLog 应正确映射所有字段（含 null 值）', async () => {
+      const log = makePrismaTodoLog({
+        id: 5, todoId: 10, operatorId: 3, action: 'transfer',
+        objectType: 'article', objectId: 100, remark: '测试备注',
+        operator: { cnName: '操作者Z' },
+      });
+      const mockTodoFindFirst = jest.fn().mockResolvedValue(makePrismaTodo());
+      const mockLogFindMany = jest.fn().mockResolvedValue([log]);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findFirst: mockTodoFindFirst },
+        todoLog: { findMany: mockLogFindMany },
+      } as any);
+
+      const result = await service.getLogs(10, 1, 'sysadmin', 1);
+      expect(result[0]).toEqual({
+        id: 5, todo_id: 10, operator_id: 3, operator_name: '操作者Z',
+        action: 'transfer', object_type: 'article', object_id: 100,
+        remark: '测试备注', created_at: new Date('2025-01-01'),
+      });
+    });
+
+    it('mapTodoLog 应正确处理 operator.cnName 缺失', async () => {
+      const log = makePrismaTodoLog({ operator: {} });
+      const mockTodoFindFirst = jest.fn().mockResolvedValue(makePrismaTodo());
+      const mockLogFindMany = jest.fn().mockResolvedValue([log]);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findFirst: mockTodoFindFirst },
+        todoLog: { findMany: mockLogFindMany },
+      } as any);
+
+      const result = await service.getLogs(1, 1, 'sysadmin', 1);
+      expect(result[0].operator_name).toBe('');
+    });
+
+    it('getAssigneeCandidates 映射应使用 cn_name（下划线）而非 cnName（驼峰）', async () => {
+      const mockProjectFindUnique = jest.fn().mockResolvedValue({
+        id: 10, operators: [{ userId: 2 }],
+      });
+      const mockUserFindMany = jest.fn().mockResolvedValue([
+        { id: 2, username: 'u2', cnName: '中文名', role: 'admin' },
+      ]);
+      mockedGetPrisma.mockReturnValue({
+        project: { findUnique: mockProjectFindUnique },
+        user: { findMany: mockUserFindMany },
+      } as any);
+
+      const result = await service.getAssigneeCandidates(10);
+      expect(result[0]).toEqual({ id: 2, username: 'u2', cn_name: '中文名', role: 'admin' });
+    });
+  });
+
+  // ══════════════════════════════════════════
+  //  TDD 第2轮：实例独立性 + 接口一致性
+  // ══════════════════════════════════════════
+
+  describe('TDD第2轮 — 实例独立性与接口一致性', () => {
+    it('不同的 TodoServiceImpl 实例应共享同一个 Prisma 实例', async () => {
+      const service1 = new TodoServiceImpl();
+      const service2 = new TodoServiceImpl();
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service1.list({ page: 1, pageSize: 10, tab: 'my_open', userId: 1, role: 'admin', companyId: 1 });
+      await service2.list({ page: 1, pageSize: 10, tab: 'my_open', userId: 2, role: 'admin', companyId: 1 });
+
+      // 两个实例都应调用 getPrisma
+      expect(mockedGetPrisma).toHaveBeenCalledTimes(2);
+    });
+
+    it('ITodoService 接口方法完整性——所有方法均存在于实例上', () => {
+      expect(typeof service.list).toBe('function');
+      expect(typeof service.getById).toBe('function');
+      expect(typeof service.create).toBe('function');
+      expect(typeof service.update).toBe('function');
+      expect(typeof service.close).toBe('function');
+      expect(typeof service.reopen).toBe('function');
+      expect(typeof service.transfer).toBe('function');
+      expect(typeof service.reject).toBe('function');
+      expect(typeof service.getLogs).toBe('function');
+      expect(typeof service.getObjectOptions).toBe('function');
+      expect(typeof service.getAssigneeCandidates).toBe('function');
+    });
+  });
+
+  // ══════════════════════════════════════════
+  //  TDD 第2轮：list 全场景 where 条件逐字段验证
+  // ══════════════════════════════════════════
+
+  describe('TDD第2轮 — list where 条件逐字段验证', () => {
+    it('tab=all_closed 且 role=sysadmin 不应添加 companyId 过滤', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list({ page: 1, pageSize: 10, tab: 'all_closed', userId: 1, role: 'sysadmin', companyId: 5 });
+
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where).not.toHaveProperty('companyId');
+    });
+
+    it('tab=all_open 且 role=sysadmin 且 companyId 非 null 也不应添加 companyId', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list({ page: 1, pageSize: 10, tab: 'all_open', userId: 1, role: 'sysadmin', companyId: 99 });
+
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where).not.toHaveProperty('companyId');
+    });
+
+    it('priority 为空字符串不应添加 priority 过滤', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      await service.list({ page: 1, pageSize: 10, tab: 'my_open', priority: '', userId: 2, role: 'admin', companyId: 1 });
+
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where).not.toHaveProperty('priority');
+    });
+  });
+
+  // ══════════════════════════════════════════
+  //  TDD 第2轮：create 默认值和条件展开
+  // ══════════════════════════════════════════
+
+  describe('TDD第2轮 — create 默认值验证', () => {
+    it('source 默认值应为 manual', async () => {
+      const mockCreate = jest.fn().mockResolvedValue(makePrismaTodo());
+      const mockLogCreate = jest.fn().mockResolvedValue({});
+      mockedGetPrisma.mockReturnValue({
+        todo: { create: mockCreate },
+        todoLog: { create: mockLogCreate },
+      } as any);
+
+      await service.create({ title: 't', company_id: 1, object_type: 'article', action: 'review', assignee_id: 2 }, 1);
+      expect(mockCreate.mock.calls[0][0].data.source).toBe('manual');
+    });
+
+    it('priority 默认值应为 P2', async () => {
+      const mockCreate = jest.fn().mockResolvedValue(makePrismaTodo());
+      const mockLogCreate = jest.fn().mockResolvedValue({});
+      mockedGetPrisma.mockReturnValue({
+        todo: { create: mockCreate },
+        todoLog: { create: mockLogCreate },
+      } as any);
+
+      await service.create({ title: 't', company_id: 1, object_type: 'article', action: 'review', assignee_id: 2 }, 1);
+      expect(mockCreate.mock.calls[0][0].data.priority).toBe('P2');
+    });
+
+    it('status 应始终为 open', async () => {
+      const mockCreate = jest.fn().mockResolvedValue(makePrismaTodo());
+      const mockLogCreate = jest.fn().mockResolvedValue({});
+      mockedGetPrisma.mockReturnValue({
+        todo: { create: mockCreate },
+        todoLog: { create: mockLogCreate },
+      } as any);
+
+      await service.create({ title: 't', company_id: 1, object_type: 'article', action: 'review', assignee_id: 2 }, 1);
+      expect(mockCreate.mock.calls[0][0].data.status).toBe('open');
+    });
+
+    it('object_id 未传时 objectId 应为 null', async () => {
+      const mockCreate = jest.fn().mockResolvedValue(makePrismaTodo());
+      const mockLogCreate = jest.fn().mockResolvedValue({});
+      mockedGetPrisma.mockReturnValue({
+        todo: { create: mockCreate },
+        todoLog: { create: mockLogCreate },
+      } as any);
+
+      await service.create({ title: 't', company_id: 1, object_type: 'article', action: 'review', assignee_id: 2 }, 1);
+      expect(mockCreate.mock.calls[0][0].data.objectId).toBeNull();
+    });
+
+    it('create 应包含 include 关联', async () => {
+      const mockCreate = jest.fn().mockResolvedValue(makePrismaTodo());
+      const mockLogCreate = jest.fn().mockResolvedValue({});
+      mockedGetPrisma.mockReturnValue({
+        todo: { create: mockCreate },
+        todoLog: { create: mockLogCreate },
+      } as any);
+
+      await service.create({ title: 't', company_id: 1, object_type: 'article', action: 'review', assignee_id: 2 }, 1);
+      expect(mockCreate.mock.calls[0][0].include).toEqual({
+        company: true, project: true, assignee: true, createdBy: true,
+      });
+    });
+  });
+
+  // ══════════════════════════════════════════
+  //  TDD 第2轮：draft 状态操作验证
+  // ══════════════════════════════════════════
+
+  describe('TDD第2轮 — draft 状态操作验证', () => {
+    it('close 不应关闭 draft 状态的待办', async () => {
+      mockedGetPrisma.mockReturnValue({
+        todo: { findFirst: jest.fn().mockResolvedValue(makePrismaTodo({ status: 'draft' })) },
+      } as any);
+
+      await expect(service.close(1, 2, 'admin')).rejects.toThrow('只有处理中的待办可以关闭');
+    });
+
+    it('reopen 不应重新打开 draft 状态的待办', async () => {
+      mockedGetPrisma.mockReturnValue({
+        todo: { findFirst: jest.fn().mockResolvedValue(makePrismaTodo({ status: 'draft' })) },
+      } as any);
+
+      await expect(service.reopen(1, 2, 'admin')).rejects.toThrow('只有已关闭的待办可以重新打开');
+    });
+
+    it('transfer 不应转交 draft 状态的待办', async () => {
+      mockedGetPrisma.mockReturnValue({
+        todo: { findFirst: jest.fn().mockResolvedValue(makePrismaTodo({ status: 'draft' })) },
+      } as any);
+
+      await expect(service.transfer(1, { assignee_id: 3 }, 2, 'admin')).rejects.toThrow('只有处理中的待办可以转交');
+    });
+
+    it('reject 不应驳回 draft 状态的待办', async () => {
+      mockedGetPrisma.mockReturnValue({
+        todo: { findFirst: jest.fn().mockResolvedValue(makePrismaTodo({ status: 'draft', createdBy: { cnName: 'c' } })) },
+      } as any);
+
+      await expect(service.reject(1, 1, 'sysadmin')).rejects.toThrow('只有处理中的待办可以驳回');
+    });
+
+    it('update 应允许修改 draft 状态的待办', async () => {
+      const existing = makePrismaTodo({ id: 1, assigneeId: 2, status: 'draft' });
+      const updated = makePrismaTodo({ id: 1, title: '修改草稿' });
+      mockedGetPrisma.mockReturnValue({
+        todo: { findFirst: jest.fn().mockResolvedValue(existing), update: jest.fn().mockResolvedValue(updated) },
+      } as any);
+
+      const result = await service.update(1, { title: '修改草稿' }, 2, 'admin');
+      expect(result.title).toBe('修改草稿');
+    });
+  });
+
+  // ══════════════════════════════════════════
+  //  TDD 第2轮：update 全字段覆盖
+  // ══════════════════════════════════════════
+
+  describe('TDD第2轮 — update 全字段覆盖', () => {
+    it('传入所有可更新字段应全部写入', async () => {
+      const existing = makePrismaTodo({ id: 1, assigneeId: 2, status: 'open' });
+      const updated = makePrismaTodo({ id: 1 });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        todo: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.update(1, {
+        title: '新标题',
+        object_type: 'keyword',
+        object_id: 200,
+        action: 'delete',
+        priority: 'P3',
+        due_at: '2025-12-31',
+      }, 2, 'admin');
+
+      const data = mockUpdate.mock.calls[0][0].data;
+      expect(data).toEqual({
+        title: '新标题',
+        objectType: 'keyword',
+        objectId: 200,
+        action: 'delete',
+        priority: 'P3',
+        dueAt: new Date('2025-12-31'),
+      });
+    });
+  });
+
+  // ══════════════════════════════════════════
+  //  TDD 第2轮：getById companyId 匹配验证
+  // ══════════════════════════════════════════
+
+  describe('TDD第2轮 — getById companyId 边界', () => {
+    it('非 sysadmin 且 companyId=null 时访问任何待办应抛出 ForbiddenError', async () => {
+      const item = makePrismaTodo({ companyId: 99 });
+      mockedGetPrisma.mockReturnValue({
+        todo: { findFirst: jest.fn().mockResolvedValue(item) },
+      } as any);
+
+      await expect(service.getById(1, 2, 'admin', null)).rejects.toThrow('无权访问该待办');
+    });
+
+    it('非 sysadmin 且 companyId 匹配时应成功', async () => {
+      const item = makePrismaTodo({ companyId: 5 });
+      mockedGetPrisma.mockReturnValue({
+        todo: { findFirst: jest.fn().mockResolvedValue(item) },
+      } as any);
+
+      const result = await service.getById(1, 2, 'admin', 5);
+      expect(result.id).toBe(1);
+    });
+  });
+
+  // ══════════════════════════════════════════
+  //  TDD 第2轮：getObjectOptions 排序验证
+  // ══════════════════════════════════════════
+
+  describe('TDD第2轮 — getObjectOptions 排序和字段选择', () => {
+    it('article 应按 id 降序排列', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({
+        article: { findMany: mockFindMany },
+      } as any);
+
+      await service.getObjectOptions({ projectId: 10, objectType: 'article' });
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { id: 'desc' } }),
+      );
+    });
+
+    it('article 应只选择 id 和 title', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({
+        article: { findMany: mockFindMany },
+      } as any);
+
+      await service.getObjectOptions({ projectId: 10, objectType: 'article' });
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ select: { id: true, title: true } }),
+      );
+    });
+
+    it('keyword 应按 id 降序排列', async () => {
+      const mockKbFindMany = jest.fn().mockResolvedValue([{ id: 1 }]);
+      const mockKwFindMany = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockKbFindMany },
+        knowledgeKeyword: { findMany: mockKwFindMany },
+      } as any);
+
+      await service.getObjectOptions({ projectId: 10, objectType: 'keyword' });
+
+      expect(mockKwFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { id: 'desc' } }),
+      );
+    });
+
+    it('keyword 应只选择 id 和 keyword', async () => {
+      const mockKbFindMany = jest.fn().mockResolvedValue([{ id: 1 }]);
+      const mockKwFindMany = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockKbFindMany },
+        knowledgeKeyword: { findMany: mockKwFindMany },
+      } as any);
+
+      await service.getObjectOptions({ projectId: 10, objectType: 'keyword' });
+
+      expect(mockKwFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ select: { id: true, keyword: true } }),
+      );
+    });
+  });
+
+  // ══════════════════════════════════════════
+  //  TDD 第2轮：getAssigneeCandidates 用户筛选
+  // ══════════════════════════════════════════
+
+  describe('TDD第2轮 — getAssigneeCandidates 用户查询条件', () => {
+    it('应只查询 status=true 且 deletedAt=null 的用户', async () => {
+      const mockProjectFindUnique = jest.fn().mockResolvedValue({
+        id: 10, operators: [{ userId: 2 }],
+      });
+      const mockUserFindMany = jest.fn().mockResolvedValue([
+        { id: 1, username: 'a', cnName: 'A', role: 'sysadmin' },
+      ]);
+      mockedGetPrisma.mockReturnValue({
+        project: { findUnique: mockProjectFindUnique },
+        user: { findMany: mockUserFindMany },
+      } as any);
+
+      await service.getAssigneeCandidates(10);
+
+      const where = mockUserFindMany.mock.calls[0][0].where;
+      expect(where.status).toBe(true);
+      expect(where.deletedAt).toBeNull();
+    });
+
+    it('应按 id 升序排列用户', async () => {
+      const mockProjectFindUnique = jest.fn().mockResolvedValue({
+        id: 10, operators: [{ userId: 2 }],
+      });
+      const mockUserFindMany = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({
+        project: { findUnique: mockProjectFindUnique },
+        user: { findMany: mockUserFindMany },
+      } as any);
+
+      await service.getAssigneeCandidates(10);
+
+      expect(mockUserFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { id: 'asc' } }),
+      );
+    });
+
+    it('应选择正确的用户字段', async () => {
+      const mockProjectFindUnique = jest.fn().mockResolvedValue({
+        id: 10, operators: [{ userId: 2 }],
+      });
+      const mockUserFindMany = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({
+        project: { findUnique: mockProjectFindUnique },
+        user: { findMany: mockUserFindMany },
+      } as any);
+
+      await service.getAssigneeCandidates(10);
+
+      expect(mockUserFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ select: { id: true, username: true, cnName: true, role: true } }),
+      );
+    });
+
+    it('项目无操作员时应只返回 sysadmin', async () => {
+      const mockProjectFindUnique = jest.fn().mockResolvedValue({
+        id: 10, operators: [],
+      });
+      const mockUserFindMany = jest.fn().mockResolvedValue([
+        { id: 1, username: 'admin', cnName: '管理员', role: 'sysadmin' },
+      ]);
+      mockedGetPrisma.mockReturnValue({
+        project: { findUnique: mockProjectFindUnique },
+        user: { findMany: mockUserFindMany },
+      } as any);
+
+      const result = await service.getAssigneeCandidates(10);
+
+      const where = mockUserFindMany.mock.calls[0][0].where;
+      expect(where.OR).toContainEqual({ id: { in: [] } });
+      expect(result).toEqual([{ id: 1, username: 'admin', cn_name: '管理员', role: 'sysadmin' }]);
+    });
+  });
 });
