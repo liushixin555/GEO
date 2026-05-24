@@ -28,6 +28,7 @@ describe('article.entity', () => {
       version: 1,
       status: 'draft',
       scheduled_publish_at: null,
+      schedule_type: null,
       created_by: 1,
       created_at: new Date(),
       updated_at: new Date(),
@@ -71,6 +72,7 @@ describe('article.entity', () => {
         version: 0,
         status: 'draft',
         scheduled_publish_at: null,
+        schedule_type: null,
         created_by: null,
         created_at: new Date(),
         updated_at: new Date(),
@@ -179,7 +181,7 @@ describe('article.entity', () => {
       expect(Object.keys(baseArticle).sort()).toEqual(
         ['id', 'project_id', 'title', 'article_type', 'write_mode', 'keywords',
          'portrait', 'images', 'platforms', 'skills', 'llm_model_id', 'content',
-         'version', 'status', 'scheduled_publish_at', 'created_by', 'created_at',
+         'version', 'status', 'scheduled_publish_at', 'schedule_type', 'created_by', 'created_at',
          'updated_at'].sort()
       );
     });
@@ -288,7 +290,7 @@ describe('article.entity', () => {
         portrait: '画像',
         images: ['img.jpg'],
         platforms: ['新浪'],
-        skills: 1,
+        skills: [1, 2],
         llm_model_id: 1,
         content: '内容',
         status: 'draft',
@@ -300,7 +302,7 @@ describe('article.entity', () => {
       expect(req.portrait).toBe('画像');
       expect(req.images).toEqual(['img.jpg']);
       expect(req.platforms).toEqual(['新浪']);
-      expect(req.skills).toBe(1);
+      expect(req.skills).toEqual([1, 2]);
       expect(req.llm_model_id).toBe(1);
       expect(req.content).toBe('内容');
       expect(req.status).toBe('draft');
@@ -336,15 +338,20 @@ describe('article.entity', () => {
       expect(req.platforms).toHaveLength(0);
     });
 
-    it('should allow skills as 0', () => {
-      const req: CreateArticleRequest = { skills: 0 };
-      expect(req.skills).toBe(0);
+    it('should allow skills as empty array', () => {
+      const req: CreateArticleRequest = { skills: [] };
+      expect(req.skills).toEqual([]);
+    });
+
+    it('should allow skills as number array', () => {
+      const req: CreateArticleRequest = { skills: [1, 2, 3] };
+      expect(req.skills).toEqual([1, 2, 3]);
     });
 
     it('should have correct number of fields when all set', () => {
       const req: CreateArticleRequest = {
         title: 'T', article_type: 'a', write_mode: 'w', keywords: 'k',
-        portrait: 'p', images: [], platforms: [], skills: 1, llm_model_id: 1,
+        portrait: 'p', images: [], platforms: [], skills: [1], llm_model_id: 1,
         content: 'c', status: 'draft',
       };
       expect(Object.keys(req)).toHaveLength(11);
@@ -441,7 +448,7 @@ describe('article.entity', () => {
         id: 1, project_id: 1, title: 'T', article_type: null, write_mode: null,
         keywords: null, portrait: null, images: null, platforms: null,
         skills: null, llm_model_id: null, content: null, version: 1,
-        status: 'draft', scheduled_publish_at: null, created_by: null,
+        status: 'draft', scheduled_publish_at: null, schedule_type: null, created_by: null,
         created_at: new Date(), updated_at: new Date(),
       };
       expect(article.title).toBe('T');

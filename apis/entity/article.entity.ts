@@ -54,7 +54,8 @@ export interface CreateArticleRequest {
   portrait?: string;
   images?: string[];
   platforms?: string[];
-  skills?: number;
+  /** 技能 ID 数组（与 Prisma Json? 对齐） */
+  skills?: number[];
   llm_model_id?: number;
   content?: string;
   status?: 'draft' | 'generating' | 'manual_writing';

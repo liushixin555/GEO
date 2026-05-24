@@ -281,7 +281,7 @@ describe('ArticleServiceImpl', () => {
         portrait: '画像',
         images: ['img.jpg'],
         platforms: ['新浪'],
-        skills: 1,
+        skills: [1],
         llm_model_id: 2,
         content: '内容',
         status: 'manual_writing',
@@ -292,7 +292,7 @@ describe('ArticleServiceImpl', () => {
       expect(callData.writeMode).toBe('manual');
       expect(callData.keywords).toBe('kw');
       expect(callData.portrait).toBe('画像');
-      expect(callData.skills).toBe(1);
+      expect(callData.skills).toEqual([1]);
       expect(callData.llmModelId).toBe(2);
       expect(callData.content).toBe('内容');
       expect(callData.status).toBe('manual_writing');
@@ -707,7 +707,7 @@ describe('ArticleServiceImpl', () => {
         portrait: '画像',
         images: ['img.jpg'],
         platforms: ['新浪'],
-        skills: 1,
+        skills: [1],
         llmModelId: 2,
         content: '内容',
         version: 3,
@@ -731,7 +731,7 @@ describe('ArticleServiceImpl', () => {
       expect(result.portrait).toBe('画像');
       expect(result.images).toEqual(['img.jpg']);
       expect(result.platforms).toEqual(['新浪']);
-      expect(result.skills).toBe(1);
+      expect(result.skills).toEqual([1]);
       expect(result.llm_model_id).toBe(2);
       expect(result.content).toBe('内容');
       expect(result.version).toBe(3);
