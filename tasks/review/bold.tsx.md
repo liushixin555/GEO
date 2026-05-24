@@ -1,236 +1,323 @@
-# bold.tsx 软件架构评审报告
+# 代码安全专家评审：bold.tsx
 
 **文件**: `@uiw/react-md-editor@4.1.0/src/commands/bold.tsx`
-**评审角色**: 软件架构专家
+**评审角色**: 代码安全专家（OWASP Top 10 · 输入验证 · 类型安全 · 注入防护 · 攻击面分析）
 **评审日期**: 2026-05-24
-**总行数**: 33 行 | **导出**: 1 个 `ICommand` 对象
+**代码行数**: 33 行（1 个导出 `ICommand` 对象）
+**功能概述**: Markdown 编辑器"加粗"命令实现，通过 `**` 前后缀包裹/解包裹选中文本
+**评审结论**: ✅ APPROVE — 无可直接利用的安全漏洞，攻击面极小，但存在 2 项类型安全风险和 2 项防御性编程缺陷
+
+**问题统计**: HIGH × 0 / MEDIUM × 2 / LOW × 2 / INFO × 2
 
 ---
 
-## 一、架构定位
+## 一、安全上下文分析
 
-该文件是 `@uiw/react-md-editor` 编辑器**命令模式（Command Pattern）** 的一个具体实现，负责"加粗"操作。它遵循库内统一命令接口 `ICommand`，与 `italic`、`strikethrough`、`link` 等命令构成平行的策略族。
-
-**模块依赖关系**:
+### 1.1 攻击面地图
 
 ```
-bold.tsx
-  ├── ICommand, ExecuteState, TextAreaTextApi  (commands/index.ts — 接口契约层)
-  ├── selectWord()                             (utils/markdownUtils.ts — 选区算法层)
-  └── executeCommand()                         (utils/markdownUtils.ts — 文本变换层)
+┌──────────────────────────────────────────────────────────────────────┐
+│                     bold.tsx 安全边界                                 │
+│                                                                      │
+│  外部输入（不可信）:                                                   │
+│  ┌─────────────────────────────────┐                                 │
+│  │ state.text (textarea 全文)       │ ──→ selectWord()               │
+│  │ state.selection (选区范围)       │      ├── 用户通过键盘/鼠标控制    │
+│  │ state.command (当前命令对象)     │      └── 数值范围可被异常调用篡改  │
+│  └─────────────────────────────────┘                                 │
+│                   │                                                  │
+│                   ▼                                                  │
+│  ┌──────────────────────────────────────────────────────────────┐    │
+│  │                    execute(state, api)                        │    │
+│  │                                                               │    │
+│  │  阶段 1: selectWord() ←── text + selection + prefix          │    │
+│  │    └── 计算 newSelectionRange (纯数值运算)                     │    │
+│  │                                                               │    │
+│  │  阶段 2: api.setSelectionRange() ←── 操作 DOM textarea       │    │
+│  │    └── textarea.selectionStart/End = newRange                 │    │
+│  │        └── 安全：仅操作 DOM 选区属性，无 HTML 注入风险          │    │
+│  │                                                               │    │
+│  │  阶段 3: executeCommand() ←── 文本包裹/解包裹                  │    │
+│  │    └── api.replaceSelection(`${prefix}${text}${suffix}`)      │    │
+│  │        └── 写入 textarea.value（纯文本，不经过 HTML 解析）      │    │
+│  └──────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+│  信任边界:                                                           │
+│  ├── T1: state.text → selectWord() → 字符串切片（纯运算，安全）       │
+│  ├── T2: 数值结果 → textarea DOM 属性（同源上下文，安全）             │
+│  ├── T3: textarea.value 赋值（纯文本操作，无 XSS 风险）              │
+│  └── T4: SVG icon（硬编码静态 path，无动态内容注入点）               │
+│                                                                      │
+│  关键安全特性:                                                        │
+│  ✓ 全部操作在 textarea.value 上进行（纯文本域，非 contentEditable）  │
+│  ✓ 不涉及 innerHTML / dangerouslySetInnerHTML                       │
+│  ✓ 不发起网络请求                                                     │
+│  ✓ 不访问 localStorage / cookie / sessionStorage                    │
+│  ✓ 不使用 eval() / new Function() / document.write()                │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-**架构角色**: UI 命令层（Presentation Command Layer）——声明式定义命令元数据 + 命令执行逻辑。
+### 1.2 数据流安全追踪
+
+```
+输入: state.text (textarea 完整文本内容，用户可控)
+  │
+  ├── [T1] selectWord({ text, selection, prefix })
+  │   ├── text.slice() 字符串切片 — 纯数值运算，无副作用
+  │   ├── getSurroundingWord() — 正向/反向遍历字符，无 ReDoS 风险
+  │   └── 返回 { start, end } 数值对 — 用于后续 DOM 操作
+  │       └── ✅ 安全：纯计算，无 DOM 写入
+  │
+  ├── [T2] api.setSelectionRange({ start, end })
+  │   └── textarea.selectionStart = start
+  │       textarea.selectionEnd = end
+  │       └── ✅ 安全：仅修改选区，不修改文本内容
+  │
+  └── [T3] executeCommand({ api, selectedText, selection, prefix })
+      ├── 若已包裹: api.replaceSelection(text.slice(prefix, -suffix))
+      │   └── textarea.value 被赋值 — 纯文本操作
+      └── 若未包裹: api.replaceSelection(`${prefix}${text}${suffix}`)
+          └── textarea.value 被赋值 — 纯文本操作
+              └── ✅ 安全：textarea.value 不解析 HTML
+```
+
+### 1.3 依赖安全审计
+
+| 依赖 | 来源 | 安全状态 |
+|------|------|----------|
+| `selectWord()` | `utils/markdownUtils.ts` | 纯字符串运算，无正则，安全 |
+| `executeCommand()` | `utils/markdownUtils.ts` | 纯文本拼接写入 textarea，安全 |
+| `TextAreaTextApi` | `commands/index.ts` | 直接操作 `HTMLTextAreaElement` DOM 属性，同源安全 |
+| `ICommand` / `ExecuteState` | `commands/index.ts` | 纯类型定义，无运行时影响 |
+| `React` | 项目依赖 | JSX 编译，无运行时安全问题 |
+| `SVG path` | FontAwesome Solid (CC BY 4.0) | 硬编码静态数据，无注入风险 |
 
 ---
 
-## 二、架构优点
+## 二、安全问题详细分析
 
-| # | 优点 | 架构意义 |
-|---|------|----------|
-| 1 | **命令模式标准实现** | `ICommand` 接口统一了 name/keyCommand/shortcuts/prefix/icon/execute，工具栏、快捷键、执行引擎均通过同一接口解耦 |
-| 2 | **声明式元数据 + 命令式执行** | 元数据（prefix、shortcuts、buttonProps）与行为（execute）分离，工具栏渲染器只读元数据，不耦合执行逻辑 |
-| 3 | **算法下沉到工具层** | `selectWord` 和 `executeCommand` 提取到 `markdownUtils.ts`，加粗/斜体/删除线共享同一套算法，避免命令间代码重复 |
-| 4 | **跨平台快捷键抽象** | `ctrlcmd+b` 由框架解析为 Ctrl（Win/Linux）或 Cmd（Mac），命令层无需关心平台差异 |
-| 5 | **策略族对齐** | 所有 inline 命令（bold/italic/strikethrough/code）结构一致，新增 inline 格式命令只需复制模板改 prefix 和 icon |
+### S1 — 🟡 MEDIUM: 非空断言绕过类型契约，运行时 `undefined` 传播风险
 
----
-
-## 三、架构问题
-
-### P1 - 非空断言绕过类型契约（高）
-
-**位置**: 第 23 行、第 30 行
+**位置**: 第 22 行、第 28 行、第 30 行
+**OWASP 分类**: N/A（类型安全层面）
+**CWE**: CWE-628 — Function Call with Incorrectly Specified Arguments
 
 ```typescript
-prefix: state.command.prefix!,  // 两次
-```
-
-**架构分析**:
-
-`ICommandBase` 接口定义 `prefix?: string`（可选），这是**接口契约**的一部分——调用方应当能安全地假设 `prefix` 可能不存在。`bold.tsx` 自身硬编码了 `prefix: '**'`，所以运行时确实不为空。但 `execute` 函数签名 `(state: ExecuteState, api: TextAreaTextApi)` 接收的是泛型 `state.command`，并非 `bold` 对象本身。
-
-**问题本质**: 实现层的确定性假设（`prefix` 一定有值）与接口契约的不确定性（`prefix` 可选）产生了**契约语义冲突**。非空断言 `!` 是在编译期压制了这一冲突，而非在架构层面解决它。
-
-**架构层面修复方案**:
-
-方案 A — 收紧接口契约：将 `prefix` 从 `ICommand` 基接口移到 `IInlineCommand extends ICommand` 中声明为必选，使类型系统在编译期保证 inline 命令必须有 prefix：
-
-```typescript
-interface IInlineCommand extends ICommand {
-  prefix: string;  // 必选，非 optional
-}
-```
-
-方案 B — 在 execute 内做防御性检查，早返回：
-
-```typescript
-execute: (state, api) => {
-  const prefix = state.command.prefix;
-  if (!prefix) return;
-  // ...
-}
-```
-
-方案 A 更优——它从类型系统层面消除了整类问题，而非逐个函数打补丁。
-
----
-
-### P2 - 命令对象混合了 UI 声明与业务逻辑（中）
-
-**位置**: 整个对象结构
-
-```typescript
-export const bold: ICommand = {
-  name: 'bold',
-  keyCommand: 'bold',
-  shortcuts: 'ctrlcmd+b',
-  prefix: '**',
-  buttonProps: { ... },
-  icon: (<svg .../>),
-  execute: (state, api) => { ... },
-};
-```
-
-**架构分析**:
-
-`bold` 对象同时承载了三类职责：
-1. **UI 渲染数据**（icon、buttonProps）——工具栏按钮渲染用
-2. **交互元数据**（name、shortcuts、keyCommand）——快捷键绑定和命令分发用
-3. **文本操作逻辑**（prefix、execute）——文档模型变换用
-
-当命令数量增多（该库有 20+ 个命令），每条命令都内联一个 JSX SVG 图标，导致：
-- 命令模块**无法独立于 React 测试**（icon 是 JSX 表达式）
-- 图标资源与逻辑代码耦合，无法独立替换/懒加载图标
-
-**建议**: 将 `icon` 改为 `iconName: string` 或 `icon: () => ReactNode`（工厂函数），由工具栏渲染器按需加载图标资源。这是"配置与资源分离"的标准做法。
-
----
-
-### P3 - execute 函数的"两阶段状态变更"缺乏事务性保障（中）
-
-**位置**: 第 20-31 行
-
-```typescript
-execute: (state, api) => {
-  // 阶段 1: 选区扩展
-  const newSelectionRange = selectWord({ ... });
-  const state1 = api.setSelectionRange(newSelectionRange);
-  // 阶段 2: 文本包裹/解包裹
-  executeCommand({ ... });
-}
-```
-
-**架构分析**:
-
-`execute` 是一个**两阶段操作**：先修改选区，再修改文本。这两个阶段分别调用 `api.setSelectionRange` 和 `executeCommand`（内部也调用 `api`），存在以下架构隐患：
-
-1. **非原子性**: 如果阶段 2 失败，阶段 1 的选区变更已生效但无法回滚
-2. **隐式状态依赖**: `executeCommand` 依赖 `state1.selectedText`（阶段 1 的输出），但传入的 `selection` 参数却用 `state.selection`（阶段 0 的值），这种跨阶段的状态混用增加认知复杂度
-3. **API 设计问题**: `TextAreaTextApi` 同时暴露了选区操作和文本操作，命令实现者必须正确编排调用顺序，API 层面没有提供"原子命令"的能力
-
-**建议**: 提供 `api.executeInlineCommand(prefix)` 这样的高层 API，内部封装选区扩展 + 文本变换的事务性操作，将两阶段逻辑下沉到 API 层。
-
----
-
-### P4 - 变量命名不反映架构角色（低）
-
-**位置**: 第 25 行、第 29 行
-
-```typescript
-const state1 = api.setSelectionRange(newSelectionRange);
-// ...
+// 第 22 行
+prefix: state.command.prefix!,
+// 第 28 行
 selectedText: state1.selectedText,
 selection: state.selection,
+prefix: state.command.prefix!,
 ```
 
-**架构分析**:
+**问题分析**:
 
-在命令模式的执行上下文中，存在两个有架构意义的状态阶段：
-- **初始状态** (`state`): 用户触发命令时的编辑器快照
-- **选区扩展后状态** (`state1`): 算法扩展选区后的编辑器快照
+`ICommandBase` 接口中 `prefix` 声明为 `prefix?: string`（可选）。`bold.tsx` 自身硬编码了 `prefix: '**'`，运行时确实非空。但 `execute` 函数签名为 `(state: ExecuteState, api: TextAreaTextApi)`，其中 `state.command` 的类型是 `ICommand`（泛型接口），而非特指 `bold` 对象。
 
-`state1` 这个命名无法表达其在状态机中的角色。在架构文档或新人阅读代码时，需要额外推理才能理解 `state` 和 `state1` 的关系。
+这意味着：
+1. **类型欺骗风险**: 如果框架内部通过动态分发调用 `execute`，且 `state.command` 被意外替换为一个没有 `prefix` 的命令对象，`prefix!` 将把 `undefined` 传入 `selectWord()` 和 `executeCommand()`
+2. **undefined 传播路径**:
+   - `selectWord({ prefix: undefined })` → `prefix.length` → `TypeError: Cannot read properties of undefined (reading 'length')`
+   - `executeCommand({ prefix: undefined })` → `` `${undefined}${text}${undefined}` `` → 文本被包裹为 `"undefined...undefined"`
+3. **不可利用性**: 此场景需要框架内部逻辑错误才能触发，外部攻击者无法控制 `state.command` 的绑定
 
-**建议**: `state` → `initialState`，`state1` → `expandedState`。
+**影响范围**: 运行时异常导致编辑器功能中断（DoS），但无数据泄露或代码执行风险。
+
+**修复建议**:
+
+```typescript
+execute: (state: ExecuteState, api: TextAreaTextApi) => {
+  const prefix = state.command.prefix;
+  if (!prefix) return;  // 防御性检查
+  const newSelectionRange = selectWord({
+    text: state.text,
+    selection: state.selection,
+    prefix,
+  });
+  // ...
+},
+```
 
 ---
 
-### P5 - 缺少命令行为的可测试性设计（低）
+### S2 — 🟡 MEDIUM: `executeCommand` 中字符串拼接的 `undefined` 污染风险
 
-**位置**: `execute` 函数
+**位置**: 第 26-31 行（间接风险，来自 `markdownUtils.ts` 的 `executeCommand` 实现）
+**OWASP 分类**: N/A
+**CWE**: CWE-20 — Improper Input Validation
 
-**架构分析**:
+```typescript
+// bold.tsx 调用
+executeCommand({
+  api,
+  selectedText: state1.selectedText,
+  selection: state.selection,
+  prefix: state.command.prefix!,
+});
+```
 
-`execute` 函数的签名 `(state: ExecuteState, api: TextAreaTextApi) => void` 返回 `void`，意味着：
-1. 调用者无法通过返回值判断命令是否成功执行
-2. 调用者无法获取命令执行后的新编辑器状态（需要重新从 textarea 读取）
-3. 单元测试只能验证 `api` 的调用序列（mock），无法做基于状态的断言
+追踪到 `markdownUtils.ts` 中 `executeCommand` 的实现：
 
-从可测试性角度看，`execute` 应返回新状态或至少返回 `boolean`/`Result` 类型。
+```typescript
+// markdownUtils.ts
+export function executeCommand({ api, selectedText, selection, prefix, suffix = prefix }) {
+  if (
+    selectedText.length >= prefix.length + suffix.length &&
+    selectedText.startsWith(prefix) &&
+    selectedText.endsWith(suffix)
+  ) {
+    api.replaceSelection(selectedText.slice(prefix.length, suffix.length ? -suffix.length : undefined));
+    api.setSelectionRange({ start: selection.start - prefix.length, end: selection.end - prefix.length });
+  } else {
+    api.replaceSelection(`${prefix}${selectedText}${suffix}`);
+    api.setSelectionRange({ start: selection.start + prefix.length, end: selection.end + prefix.length });
+  }
+}
+```
+
+**问题分析**:
+
+当 `prefix` 为 `undefined` 时（由 S1 传播而来）：
+1. `suffix = prefix` → `suffix` 也为 `undefined`
+2. `prefix.length` → `TypeError`（分支 1）
+3. `` `${undefined}${selectedText}${undefined}` `` → 输出 `"undefinedhelloundefined"`（分支 2）
+4. `selection.start + prefix.length` → `NaN` → `textarea.selectionStart = NaN` → 被浏览器解析为 `0`
+
+此风险与 S1 联动，但根源在 `bold.tsx` 的非空断言。
 
 ---
 
-### P6 - SVG 图标硬编码尺寸不利于主题适配（提示）
+### S3 — 🟢 LOW: SVG 图标硬编码无内容安全策略(CSP)兼容性风险
 
-**位置**: 第 12 行
+**位置**: 第 11-18 行
+**CWE**: CWE-1021 — Improper Restriction of Rendered UI Layers
 
 ```tsx
-width="12" height="12"
+icon: (
+  <svg role="img" width="12" height="12" viewBox="0 0 384 512">
+    <path fill="currentColor" d="M304.793..." />
+  </svg>
+),
 ```
 
-在主题化架构中，图标尺寸应随设计 token 变化。硬编码 `12px` 无法被 CSS 变量或主题系统覆盖。建议使用 `currentColor` + `em` 单位或通过 CSS class 控制。
+**问题分析**:
+
+1. **内联 SVG 是 CSP 安全的** — 内联 SVG 不受 `img-src` 限制，也不会触发外部资源加载。与 `<img src="...">` 或 `<iframe>` 相比，这是最安全的图标方案之一。
+2. **`fill="currentColor"` 是安全的** — 不引入外部 URL，不执行脚本。
+3. **微小风险**: SVG 内联在 DOM 中，如果页面存在其他 XSS 漏洞，攻击者理论上可以修改 SVG path 的 `d` 属性（纯视觉影响，无安全影响）。
+
+**结论**: 当前实现已经是安全最优解，无需修改。
 
 ---
 
-### P7 - FontAwesome 图标数据无归属声明（提示）
+### S4 — 🟢 LOW: `selectWord` 和 `executeCommand` 对 `selection` 越界无防护
 
-SVG path 数据与 FontAwesome Solid `fa-bold` 图标一致。FontAwesome Solid 采用 CC BY 4.0 / SIL OFL 1.1 许可，而 `@uiw/react-md-editor` 声明 MIT 许可。属于包级别的合规审计范畴，非该文件架构问题。
+**位置**: 第 20-31 行（间接风险，来自 `markdownUtils.ts`）
+**CWE**: CWE-129 — Improper Validation of Array Indexing
+
+```typescript
+// selectWord 内部
+if (result.start >= prefix.length && result.end <= text.length - suffix.length) {
+  const selectedTextContext = text.slice(result.start - prefix.length, result.end + suffix.length);
+}
+```
+
+**问题分析**:
+
+如果 `state.selection` 被篡改为超出 `state.text.length` 的值：
+1. `text.slice(negativeIndex, exceedIndex)` → JavaScript 的 `slice` 对越界参数有容错处理，返回空字符串或截断结果
+2. `api.setSelectionRange({ start: NaN, end: NaN })` → 浏览器会 clamp 到 `[0, text.length]`
+3. 不会导致内存越界或缓冲区溢出（JavaScript 字符串不可变）
+
+**结论**: JavaScript 语言的字符串/DOM API 自带越界保护，实际风险极低。但属于防御性编程缺失。
 
 ---
 
-## 四、架构原则审查
+### S5 — ℹ️ INFO: FontAwesome 图标数据许可合规性
 
-| 原则 | 评估 | 说明 |
-|------|------|------|
-| **单一职责 (SRP)** | 通过 | 模块只负责加粗命令，职责单一 |
-| **开闭原则 (OCP)** | 通过 | 通过 `ICommand` 接口扩展新命令无需修改已有代码 |
-| **里氏替换 (LSP)** | 部分通过 | `bold` 可替换为任何 `ICommand`，但 `execute` 中 `prefix!` 隐含了 `IInlineCommand` 的特化假设 |
-| **接口隔离 (ISP)** | 部分通过 | `ICommand` 接口过胖（UI 属性 + 逻辑属性混合），不同命令不一定需要所有字段 |
-| **依赖倒置 (DIP)** | 通过 | 依赖抽象（`ICommand`、`TextAreaTextApi`），不依赖具体实现 |
-| **命令模式** | 通过 | 标准命令模式实现，元数据与执行分离 |
-| **DRY** | 通过 | `selectWord`/`executeCommand` 复用，无重复逻辑 |
+**位置**: 第 15 行
+
+SVG path 数据与 FontAwesome Solid `fa-bold` 图标一致。FontAwesome Solid 采用 SIL OFL 1.1 许可（字体）+ CC BY 4.0 许可（图标）。`@uiw/react-md-editor` 声明 MIT 许可。
+
+**影响**: 属于包级别的合规审计范畴，非运行时安全问题。在企业级项目中使用需确认许可证兼容性。
 
 ---
 
-## 五、架构改进建议（按影响力排序）
+### S6 — ℹ️ INFO: `buttonProps` 中 `title` 属性的信息泄露风险
 
-| 优先级 | 建议 | 影响范围 | 工作量 |
-|--------|------|----------|--------|
-| 1 | 引入 `IInlineCommand extends ICommand`，`prefix` 声明为必选 | 所有 inline 命令模块 | 中 |
-| 2 | 提供 `api.executeInlineCommand(prefix)` 高层 API | `TextAreaTextApi` + 所有 inline 命令 | 中 |
-| 3 | `icon` 改为工厂函数或资源引用 | 所有命令模块 + 工具栏渲染器 | 中 |
-| 4 | `execute` 返回新状态或 `Result` 类型 | `ICommand` 接口 + 所有命令 + 调用方 | 大 |
-| 5 | 变量重命名：`state`/`state1` → `initialState`/`expandedState` | 本文件 | 小 |
+**位置**: 第 10 行
+
+```typescript
+buttonProps: { 'aria-label': 'Add bold text (ctrl + b)', title: 'Add bold text (ctrl + b)' },
+```
+
+`title` 属性会在鼠标悬停时显示工具提示。字符串中包含快捷键信息 `ctrl + b`，不构成安全风险，但需注意：
+1. 硬编码英文文本，未国际化 — 非安全问题
+2. `aria-label` 用于屏幕阅读器 — 无障碍属性，安全
+
+---
+
+## 三、安全检查清单
+
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| XSS（跨站脚本） | ✅ 通过 | 全部操作在 textarea.value 上进行（纯文本），不涉及 innerHTML |
+| 注入攻击 | ✅ 通过 | 无 eval/new Function/动态代码执行 |
+| Prototype Pollution | ✅ 通过 | 不操作 __proto__/constructor/prototype |
+| DOM Clobbering | ✅ 通过 | 不通过 id/name 创建全局变量 |
+| ReDoS（正则拒绝服务） | ✅ 通过 | selectWord/getSurroundingWord 使用字符遍历，非正则匹配 |
+| 供应链安全 | ⚠️ 提示 | FontAwesome SVG 数据的许可证兼容性待确认 |
+| 类型安全 | ⚠️ 风险 | prefix 非空断言绕过类型检查，可能传播 undefined |
+| 输入验证 | ⚠️ 缺陷 | selection 越界无显式校验（依赖 JS 引擎容错） |
+| 敏感数据泄露 | ✅ 通过 | 不访问 cookie/localStorage/sessionStorage |
+| CSRF | ✅ 通过 | 不发起网络请求 |
+| 权限提升 | ✅ 通过 | 不涉及认证/授权逻辑 |
+| Content Security Policy | ✅ 通过 | 内联 SVG + 无外部资源加载 |
+
+---
+
+## 四、与同类命令的安全对比
+
+`bold.tsx` 的结构与 `italic`、`strikethrough`、`code` 等 inline 命令完全一致：
+
+| 命令 | prefix | 非空断言 | 安全差异 |
+|------|--------|----------|----------|
+| `bold` | `**` | ✅ `prefix!` ×2 | — |
+| `italic` | `*` | ✅ `prefix!` ×2 | 相同 |
+| `strikethrough` | `~~` | ✅ `prefix!` ×2 | 相同 |
+| `code` | `` ` `` | ✅ `prefix!` ×2 | 相同 |
+
+**结论**: S1/S2 是**系统性问题**，影响所有 inline 命令，非 `bold.tsx` 独有。
+
+---
+
+## 五、安全修复建议（按优先级排序）
+
+| 优先级 | 建议 | 工作量 | 影响范围 |
+|--------|------|--------|----------|
+| 1 | 在 `execute` 入口增加 `prefix` 防御性检查 | 小 | 本文件 |
+| 2 | 在 `markdownUtils.ts` 的 `selectWord`/`executeCommand` 中增加 `prefix` 参数校验 | 小 | 所有 inline 命令 |
+| 3 | 将 `ICommandBase.prefix` 从 `prefix?: string` 改为 `prefix: string`（收紧类型） | 中 | 所有命令模块 |
 
 ---
 
 ## 六、评审总结
 
-`bold.tsx` 是一个结构简洁、职责单一的命令模块，正确遵循了命令模式。它在命令族内具有良好的一致性和可扩展性。
+`bold.tsx` 的安全态势良好。其核心安全优势在于：**所有文本操作均在 `<textarea>` 的 `.value` 属性上进行**，这是浏览器原生的纯文本容器，天然免疫 HTML 注入和 XSS 攻击。SVG 图标为静态硬编码，无动态内容注入点。不涉及网络请求、敏感数据访问或代码执行。
 
-核心架构隐患集中在**接口契约与实现假设的冲突**（P1 非空断言）和**职责混合**（P2 UI 资源与逻辑耦合）。这两个问题在单个文件中影响有限，但在 20+ 个命令组成的系统中，会累积为可维护性和可测试性的系统性技术债。
+仅有的安全关注点集中在**类型安全层面**（`prefix!` 非空断言）和**防御性编程缺失**（无输入校验），但这些在当前上下文中不可被外部攻击者利用，仅可能导致编辑器功能异常（DoS 级别）。
 
-| 维度 | 评分（1-5） | 说明 |
+| 维度 | 评分（1-10） | 说明 |
 |------|-------------|------|
-| 模式遵循 | 5 | 标准命令模式，无偏差 |
-| 接口契约完整性 | 3 | `prefix!` 绕过了接口契约的可选语义 |
-| 职责分离 | 3 | UI 资源（icon）与命令逻辑混合在同一对象 |
-| 可测试性 | 2 | execute 返回 void，只能通过 mock 验证 |
-| 可扩展性 | 4 | 新增同类命令成本极低（复制改 prefix/icon） |
-| 错误处理架构 | 2 | 无事务性保障，异常冒泡到调用方 |
-| **综合** | **3.3** | 模式正确但接口设计和可测试性有架构债务 |
+| XSS 防护 | 10 | textarea 纯文本操作，天然安全 |
+| 注入防护 | 10 | 无动态代码执行 |
+| 类型安全 | 6 | `prefix!` 绕过类型契约 |
+| 输入验证 | 5 | 无显式边界校验 |
+| 依赖安全 | 9 | 核心依赖均为纯运算函数 |
+| 供应链合规 | 7 | FontAwesome 许可证待确认 |
+| **综合安全评分** | **8.0** | **无高危漏洞，攻击面极小，类型安全有改善空间** |
 
 ---
 
-*评审基于 @uiw/react-md-editor@4.1.0 源码，TypeScript strict mode 未启用*
+*评审基于 @uiw/react-md-editor@4.1.0 源码 + 依赖链分析（markdownUtils.ts / commands/index.ts / Context.tsx）*
