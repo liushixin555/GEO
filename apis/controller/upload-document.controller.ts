@@ -7,6 +7,13 @@ import crypto from 'crypto';
 import { success, fail } from '../utils';
 import { DocumentValidator } from '../utils/document-validator';
 
+class FileFilterError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FileFilterError';
+  }
+}
+
 const UPLOAD_DIR = path.resolve(process.cwd(), 'uploads');
 // 直接创建，recursive 模式下已存在不报错（修复 TOCTOU 竞态）
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -30,17 +37,17 @@ const upload = multer({
   fileFilter: (_req, file, cb) => {
     // 文件名长度限制
     if (file.originalname.length > MAX_FILENAME_LENGTH) {
-      cb(new Error('文件名过长（最大 255 个字符）'));
+      cb(new FileFilterError('文件名过长（最大 255 个字符）'));
       return;
     }
     // 防御性校验：扩展名中不应包含路径分隔符
     const ext = path.extname(file.originalname).toLowerCase();
     if (ext.includes('/') || ext.includes('\\') || ext.includes('..')) {
-      cb(new Error('非法文件扩展名'));
+      cb(new FileFilterError('非法文件扩展名'));
       return;
     }
     if (!DocumentValidator.validateExtension(file.originalname)) {
-      cb(new Error(`不支持的文档格式，仅支持: ${DocumentValidator.ALLOWED_EXTENSIONS.map(e => `.${e}`).join(', ')}`));
+      cb(new FileFilterError(`不支持的文档格式，仅支持: ${DocumentValidator.ALLOWED_EXTENSIONS.map(e => `.${e}`).join(', ')}`));
       return;
     }
     cb(null, true);
@@ -54,13 +61,9 @@ export function uploadDocumentMiddleware(req: Request, res: Response, next: Next
         fail(res, 400, `文件大小超过限制（最大 ${DocumentValidator.MAX_FILE_SIZE / 1024 / 1024}MB）`);
         return;
       }
-      if (err instanceof Error) {
-        if (err.message.includes('不支持的文档格式') ||
-            err.message.includes('文件名过长') ||
-            err.message.includes('非法文件扩展名')) {
-          fail(res, 400, err.message);
-          return;
-        }
+      if (err instanceof FileFilterError) {
+        fail(res, 400, err.message);
+        return;
       }
       // 不暴露内部错误消息
       fail(res, 500, '上传失败');

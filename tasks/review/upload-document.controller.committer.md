@@ -83,28 +83,15 @@ if (err instanceof MulterError && err.code === 'LIMIT_FILE_SIZE') {
 
 ---
 
-#### [NOTE-3] Multer 错误消息字符串匹配不够健壮
+#### [NOTE-3] Multer 错误消息字符串匹配不够健壮 ~~已修复~~
 
-**级别**: LOW
-**文件**: 第 47 行
+**级别**: LOW → FIXED
+**文件**: `upload-document.controller.ts`
 
-通过字符串包含检查判断错误类型:
-```typescript
-const status = err.message.includes('不支持的文档格式') ? 400 : 500;
-```
-
-如果未来有人修改 `fileFilter` 中的错误消息文本（例如从"不支持的文档格式"改为"不支持的文件类型"），此处的匹配会失效，导致本应返回 400 的错误变成 500。
-
-**建议**: 使用自定义错误类或错误码来区分错误类型:
-```typescript
-class ValidationError extends Error {
-  constructor(message: string) { super(message); this.name = 'ValidationError'; }
-}
-// fileFilter 中: cb(new ValidationError('不支持的文档格式...'));
-// middleware 中: if (err.name === 'ValidationError')
-```
-
-**阻塞程度**: 不阻塞提交。当前逻辑可工作，但建议后续重构。
+**已修复** (2026-05-24): 引入 `FileFilterError` 自定义错误类替代字符串匹配。
+- `fileFilter` 中的 `new Error(...)` 全部改为 `new FileFilterError(...)`
+- `uploadDocumentMiddleware` 中使用 `instanceof FileFilterError` 替代 `err.message.includes(...)` 字符串匹配
+- 36 个测试全部通过，行为无变化
 
 ---
 
@@ -283,13 +270,13 @@ app.ts (路由注册 + 中间件链)
 
 ### 建议的后续优化（不阻塞提交）
 
-| 优先级 | 建议 | 预计工作量 |
-|--------|------|-----------|
-| P2 | 将同步 I/O 改为异步 I/O | 30 分钟 |
-| P2 | 添加 Swagger 注释 | 15 分钟 |
-| P3 | 引入 MulterError 类型检查 | 10 分钟 |
-| P3 | 使用自定义错误类替代字符串匹配 | 15 分钟 |
-| P3 | 移除 destination 回调中的冗余目录检查 | 5 分钟 |
+| 优先级 | 建议 | 状态 | 预计工作量 |
+|--------|------|------|-----------|
+| P2 | 将同步 I/O 改为异步 I/O | ✅ 已修复 | 30 分钟 |
+| P2 | 添加 Swagger 注释 | ⏭ 跳过（项目使用 AST 自动生成） | 15 分钟 |
+| P3 | 引入 MulterError 类型检查 | ✅ 已修复 | 10 分钟 |
+| P3 | 使用自定义错误类替代字符串匹配 | ✅ 已修复（NOTE-3） | 15 分钟 |
+| P3 | 移除 destination 回调中的冗余目录检查 | ✅ 已修复 | 5 分钟 |
 
 ---
 
