@@ -170,3 +170,4 @@
 | 2026-05-25 | progress_tasks/2026-05-25-hr-command-review-fix.md | hr.tsx 评审封装层修复——P1快捷键ctrlcmd+shift+h+SVG水平线替换+行级检测execute重写+中文ARIA+Ctrl+H拦截+try-catch，11测试全通过 |
 | 2026-05-25 | tasks/tdd/user.service.test.round2.md | user.service.impl TDD 第2轮——99用例100%覆盖率（+55新增：错误类型验证statusCode×7+数据一致性count/findMany同步×6+字符串边界XSS/emoji/超长/SQL注入×8+数值边界page=0/极大值/id=0/INT32MAX×4+综合映射×6+实例独立性+接口一致性×7+list where逐字段×4+create默认值×3+update全字段×6+delete深度验证×4） |
 | 2026-05-25 | tasks/review/image.tsx.architecture.md | image.tsx 软件架构专家评审——3.8/10（A0×2 URL分支re-select缺失违反LSP+三路分支缺策略模式，A1×2 prefix/suffix可选性冲突+循环引用，A2×2 DOM隐式耦合+URL检测不可扩展，SOLID全违反，建议封装层customImage覆盖） |
+| 2026-05-25 | tasks/review/image.tsx.security.md | image.tsx 代码安全专家评审——3.5/10 REQUEST CHANGES（S1 CRITICAL 不安全URL方案注入XSS javascript:/data:URI+攻击链Cookie窃取，S2 HIGH URL检测includes过于宽松，S3 HIGH prefix!非空断言崩溃，S4 MEDIUM alt文本Markdown注入，S5 MEDIUM SSRF前兆，S6 MEDIUM 选区越界） |
