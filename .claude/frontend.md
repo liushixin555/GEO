@@ -106,13 +106,15 @@
 - CSS 变量定义在 `:root` 中，类名中通过 `var(--color-*)` 引用
 
 ## UI评审发现的系统性问题（ArticleDetail.tsx.ui.md）
-- **antd Alert `title` prop 错误**: antd Alert 使用 `message` 而非 `title`（L526, L797），导致错误信息不显示。同样问题存在于 login/index.tsx，是系统性问题
-- **Table `sortOrder: null` 类型错误**: 应为 `undefined`，TypeScript 严格模式下会报错
+- **antd Alert `title` prop 错误**: antd Alert 使用 `message` 而非 `title`（L526, L797），导致错误信息不显示。同样问题存在于 login/index.tsx，是系统性问题。**已在重构中修复**
+- **Table `sortOrder: null` 类型错误**: 应为 `undefined`，TypeScript 严格模式下会报错。**已修复**
 - **40+ 处内联样式**: ArticleDetail.tsx 严重违反 CSS 规范，需逐步迁移到 global.css
 - **CSS 变量命名不一致**: `--text-secondary`/`--interactive`/`--border-subtle` 与 DESIGN.md 的 `--color-ink-muted`/`--color-primary`/`--color-hairline` 不一致
-- **缺少 beforeunload 未保存提示**: 内容编辑页面必须添加未保存更改提示
-- **响应式设计为零**: 固定宽高（Modal 700px, MDEditor 600px, 图片 80x80），移动端完全不可用
-- **可访问性缺失**: 图片选择 div 无 role/aria/tabIndex，平台选择 div 无 ARIA 属性
+- **beforeunload 未保存提示**: ✅ 已添加，检测内容变更和表单脏状态
+- **响应式设计**: ✅ Modal 宽度和 MDEditor 高度已使用 antd Grid.useBreakpoint 适配
+- **可访问性**: ✅ 图片选择和平台选择已添加 ARIA 属性和键盘支持
+- **保存状态指示器**: ✅ 自动保存时显示"保存中"/"已保存"状态
+- **新增 CSS 变量**: `--color-overlay-light`（rgba(22,22,22,0.25)）、`--color-overlay-medium`（rgba(22,22,22,0.5)）
 
 ## 页面标题规范
 - **所有页面标题统一使用 antd `<Breadcrumb>` 组件**，不再使用 `Typography.Title level={1}` 或 `<h1>`
