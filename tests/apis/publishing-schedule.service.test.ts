@@ -584,6 +584,135 @@ describe('PublishingScheduleServiceImpl', () => {
       expect(result.list[1].status).toBe('published');
       expect(result.list[2].status).toBe('publish_failed');
     });
+
+    it('should map schedule_type when scheduleType has a value', async () => {
+      const article = makeArticle({ scheduleType: 'manual' });
+      const mockFindMany = jest.fn().mockResolvedValue([article]);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      mockedGetPrisma.mockReturnValue({
+        article: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const result = await service.list({ page: 1, pageSize: 10 });
+
+      expect(result.list[0].schedule_type).toBe('manual');
+    });
+
+    it('should map null keywords correctly', async () => {
+      const article = makeArticle({ keywords: null });
+      const mockFindMany = jest.fn().mockResolvedValue([article]);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      mockedGetPrisma.mockReturnValue({
+        article: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const result = await service.list({ page: 1, pageSize: 10 });
+
+      expect(result.list[0].keywords).toBeNull();
+    });
+
+    it('should map null articleType (article_type) correctly', async () => {
+      const article = makeArticle({ articleType: null });
+      const mockFindMany = jest.fn().mockResolvedValue([article]);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      mockedGetPrisma.mockReturnValue({
+        article: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const result = await service.list({ page: 1, pageSize: 10 });
+
+      expect(result.list[0].article_type).toBeNull();
+    });
+
+    it('should map null platforms correctly', async () => {
+      const article = makeArticle({ platforms: null });
+      const mockFindMany = jest.fn().mockResolvedValue([article]);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      mockedGetPrisma.mockReturnValue({
+        article: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const result = await service.list({ page: 1, pageSize: 10 });
+
+      expect(result.list[0].platforms).toBeNull();
+    });
+
+    it('should handle creator with empty cnName', async () => {
+      const article = makeArticle({ creator: { id: 1, cnName: '' } });
+      const mockFindMany = jest.fn().mockResolvedValue([article]);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      mockedGetPrisma.mockReturnValue({
+        article: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const result = await service.list({ page: 1, pageSize: 10 });
+
+      expect(result.list[0].created_by_name).toBe('');
+    });
+
+    it('should handle creator with null cnName', async () => {
+      const article = makeArticle({ creator: { id: 1, cnName: null } });
+      const mockFindMany = jest.fn().mockResolvedValue([article]);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      mockedGetPrisma.mockReturnValue({
+        article: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const result = await service.list({ page: 1, pageSize: 10 });
+
+      expect(result.list[0].created_by_name).toBe('');
+    });
+
+    it('should map item with all nullable fields set to values', async () => {
+      const article = makeArticle({
+        keywords: 'SEO,SEM',
+        articleType: 'original',
+        platforms: ['新浪', '网易', '腾讯'],
+        scheduleType: 'auto',
+        scheduledPublishAt: new Date('2025-07-15T08:00:00Z'),
+        createdBy: 5,
+        creator: { id: 5, cnName: '李四' },
+        project: {
+          id: 10,
+          shortName: '项目A',
+          company: { shortName: '公司A' },
+        },
+      });
+      const mockFindMany = jest.fn().mockResolvedValue([article]);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      mockedGetPrisma.mockReturnValue({
+        article: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const result = await service.list({ page: 1, pageSize: 10 });
+
+      const item = result.list[0];
+      expect(item.keywords).toBe('SEO,SEM');
+      expect(item.article_type).toBe('original');
+      expect(item.platforms).toEqual(['新浪', '网易', '腾讯']);
+      expect(item.schedule_type).toBe('auto');
+      expect(item.scheduled_publish_at).toEqual(new Date('2025-07-15T08:00:00Z'));
+      expect(item.created_by).toBe(5);
+      expect(item.created_by_name).toBe('李四');
+      expect(item.project_name).toBe('项目A');
+      expect(item.company_name).toBe('公司A');
+    });
+
+    it('should handle project with empty shortName', async () => {
+      const article = makeArticle({
+        project: { id: 10, shortName: '', company: { shortName: '公司A' } },
+      });
+      const mockFindMany = jest.fn().mockResolvedValue([article]);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      mockedGetPrisma.mockReturnValue({
+        article: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const result = await service.list({ page: 1, pageSize: 10 });
+
+      expect(result.list[0].project_name).toBe('');
+      expect(result.list[0].company_name).toBe('公司A');
+    });
   });
 
   // ──────────────────────────────────────
@@ -903,6 +1032,318 @@ describe('PublishingScheduleServiceImpl', () => {
       await expect(service.updateSchedule(1, '2025-08-01T10:00:00Z', null, 99, 'view'))
         .rejects.toThrow(ForbiddenError);
       expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('should update scheduleType to a non-null value', async () => {
+      const existing = makeArticle({ status: 'publishing' });
+      const updated = makeUpdatedArticle({ scheduleType: 'auto' });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', 'auto', 1, 'sysadmin');
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ scheduleType: 'auto' }),
+        }),
+      );
+      expect(result.schedule_type).toBe('auto');
+    });
+
+    it('should update both scheduledPublishAt and scheduleType simultaneously', async () => {
+      const existing = makeArticle({ status: 'publishing' });
+      const updated = makeUpdatedArticle({
+        scheduledPublishAt: new Date('2025-09-15T14:00:00Z'),
+        scheduleType: 'manual',
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.updateSchedule(1, '2025-09-15T14:00:00Z', 'manual', 1, 'sysadmin');
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: {
+            scheduledPublishAt: new Date('2025-09-15T14:00:00Z'),
+            scheduleType: 'manual',
+          },
+        }),
+      );
+      expect(result.scheduled_publish_at).toEqual(new Date('2025-09-15T14:00:00Z'));
+      expect(result.schedule_type).toBe('manual');
+    });
+
+    it('should verify NotFoundError has correct message', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst },
+      } as any);
+
+      try {
+        await service.updateSchedule(999, null, null, 1, 'sysadmin');
+        fail('Should have thrown NotFoundError');
+      } catch (error) {
+        expect(error).toBeInstanceOf(NotFoundError);
+        expect((error as any).message).toBe('文章不存在');
+        expect((error as any).statusCode).toBe(404);
+      }
+    });
+
+    it('should verify BusinessError has correct message', async () => {
+      const existing = makeArticle({ status: 'published' });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst },
+      } as any);
+
+      try {
+        await service.updateSchedule(1, null, null, 1, 'sysadmin');
+        fail('Should have thrown BusinessError');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BusinessError);
+        expect((error as any).message).toBe('当前文章状态不可编辑发布计划');
+        expect((error as any).statusCode).toBe(400);
+      }
+    });
+
+    it('should verify ForbiddenError has correct message', async () => {
+      const existing = makeArticle({
+        status: 'publishing',
+        project: {
+          id: 10,
+          shortName: '项目A',
+          company: { shortName: '公司A' },
+          operators: [{ userId: 1 }],
+        },
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst },
+      } as any);
+
+      try {
+        await service.updateSchedule(1, null, null, 99, 'admin');
+        fail('Should have thrown ForbiddenError');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ForbiddenError);
+        expect((error as any).message).toBe('无权操作此文章');
+        expect((error as any).statusCode).toBe(403);
+      }
+    });
+
+    it('should map null keywords in update result', async () => {
+      const existing = makeArticle({ status: 'publishing' });
+      const updated = makeUpdatedArticle({ keywords: null });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', null, 1, 'sysadmin');
+
+      expect(result.keywords).toBeNull();
+    });
+
+    it('should map null articleType in update result', async () => {
+      const existing = makeArticle({ status: 'publishing' });
+      const updated = makeUpdatedArticle({ articleType: null });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', null, 1, 'sysadmin');
+
+      expect(result.article_type).toBeNull();
+    });
+
+    it('should map null platforms in update result', async () => {
+      const existing = makeArticle({ status: 'publishing' });
+      const updated = makeUpdatedArticle({ platforms: null });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', null, 1, 'sysadmin');
+
+      expect(result.platforms).toBeNull();
+    });
+
+    it('should map null scheduleType in update result', async () => {
+      const existing = makeArticle({ status: 'publishing' });
+      const updated = makeUpdatedArticle({ scheduleType: null });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', null, 1, 'sysadmin');
+
+      expect(result.schedule_type).toBeNull();
+    });
+
+    it('should pass empty string scheduleType through (?? does not convert)', async () => {
+      const existing = makeArticle({ status: 'publishing' });
+      const updated = makeUpdatedArticle({ scheduleType: '' });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.updateSchedule(1, '2025-08-01T10:00:00Z', '' as any, 1, 'sysadmin');
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ scheduleType: '' }),
+        }),
+      );
+    });
+
+    it('should convert undefined scheduleType to null in data', async () => {
+      const existing = makeArticle({ status: 'publishing' });
+      const updated = makeUpdatedArticle({ scheduleType: null });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.updateSchedule(1, '2025-08-01T10:00:00Z', undefined as any, 1, 'sysadmin');
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ scheduleType: null }),
+        }),
+      );
+    });
+
+    it('should verify Date object construction from scheduledPublishAt', async () => {
+      const existing = makeArticle({ status: 'publishing' });
+      const updated = makeUpdatedArticle({ scheduledPublishAt: new Date('2025-10-01T00:00:00Z') });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.updateSchedule(1, '2025-10-01T00:00:00Z', null, 1, 'sysadmin');
+
+      const data = mockUpdate.mock.calls[0][0].data;
+      expect(data.scheduledPublishAt).toBeInstanceOf(Date);
+      expect(data.scheduledPublishAt.toISOString()).toBe('2025-10-01T00:00:00.000Z');
+    });
+
+    it('should allow admin who is one of multiple operators', async () => {
+      const existing = makeArticle({
+        status: 'publishing',
+        project: {
+          id: 10,
+          shortName: '项目A',
+          company: { shortName: '公司A' },
+          operators: [{ userId: 1 }, { userId: 2 }, { userId: 3 }],
+        },
+      });
+      const updated = makeUpdatedArticle();
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', 'manual', 3, 'admin');
+
+      expect(mockUpdate).toHaveBeenCalled();
+      expect(result.id).toBe(1);
+    });
+
+    it('should reject admin when operators array is empty', async () => {
+      const existing = makeArticle({
+        status: 'publishing',
+        project: {
+          id: 10,
+          shortName: '项目A',
+          company: { shortName: '公司A' },
+          operators: [],
+        },
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn();
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await expect(service.updateSchedule(1, '2025-08-01T10:00:00Z', null, 1, 'admin'))
+        .rejects.toThrow(ForbiddenError);
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('should map update result with all nullable fields set to values', async () => {
+      const existing = makeArticle({ status: 'publishing' });
+      const updated = makeUpdatedArticle({
+        keywords: '新SEO,SEM',
+        articleType: 'original',
+        platforms: ['新浪', '网易'],
+        scheduleType: 'auto',
+        scheduledPublishAt: new Date('2025-12-01T10:00:00Z'),
+        project: {
+          id: 20,
+          shortName: '项目B',
+          company: { shortName: '公司B' },
+        },
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.updateSchedule(1, '2025-12-01T10:00:00Z', 'auto', 1, 'sysadmin');
+
+      expect(result.keywords).toBe('新SEO,SEM');
+      expect(result.article_type).toBe('original');
+      expect(result.platforms).toEqual(['新浪', '网易']);
+      expect(result.schedule_type).toBe('auto');
+      expect(result.scheduled_publish_at).toEqual(new Date('2025-12-01T10:00:00Z'));
+      expect(result.project_name).toBe('项目B');
+      expect(result.company_name).toBe('公司B');
+    });
+
+    it('should throw BusinessError for draft status', async () => {
+      const existing = makeArticle({ status: 'draft' });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst },
+      } as any);
+
+      await expect(service.updateSchedule(1, null, null, 1, 'sysadmin'))
+        .rejects.toThrow('当前文章状态不可编辑发布计划');
+    });
+
+    it('should handle article with undefined scheduleType in update result', async () => {
+      const existing = makeArticle({ status: 'publishing' });
+      const updated = makeUpdatedArticle({ scheduleType: undefined });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        article: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', null, 1, 'sysadmin');
+
+      // scheduleType ?? null → undefined ?? null = null
+      expect(result.schedule_type).toBeNull();
     });
   });
 });
