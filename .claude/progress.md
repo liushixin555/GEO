@@ -85,4 +85,4 @@
 
 | 2026-05-24 | progress_tasks/2026-05-24-index-tsx-ui-review-fix.md | index.tsx UI评审修复——CSS border/font-family/token颜色 + 测试 + jest-dom类型 |
 | 2026-05-24 | progress_tasks/2026-05-24-app-committer-review-fix.md | App.tsx Committer评审修复——重写测试覆盖认证/未认证/认证失败/ErrorBoundary，11用例全通过 |
-| 2026-05-24 | `progress_tasks/2026-05-24-kb-controller-review-fix.md` | knowledge-base.controller.ts 评审修复——validateInteger抛错+status类型验证+description简化+scope校验+Zod status补全+归属校验，250测试全通过 |
+| 2026-05-24 | progress_tasks/2026-05-24-project-controller-review-fix.md | project.controller.ts 评审修复——C-1/C-2 view拦截 + M-1 err:unknown + M-5 search限制 + L-3 长度验证，76测试全通过 |

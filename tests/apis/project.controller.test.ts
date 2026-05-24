@@ -1236,4 +1236,161 @@ describe('Project Controller', () => {
       );
     });
   });
+
+  // ========== Defense-in-depth: view role controller tests ==========
+  describe('getProject - view role defense-in-depth', () => {
+    it('should return 403 for view role trying to get project', async () => {
+      const { getProject } = require('../../apis/controller/project.controller');
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        params: { id: '1' },
+        user: { userId: 3, role: 'view', companyId: 2 },
+        body: {},
+      };
+
+      // Mock service to return a project (simulating data exists)
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        companyId: 2,
+      });
+      getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
+
+      await getProject(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(403);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '无权查看该项目' })
+      );
+    });
+  });
+
+  describe('updateProject - view role defense-in-depth', () => {
+    it('should return 403 for view role trying to update project', async () => {
+      const { updateProject } = require('../../apis/controller/project.controller');
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        params: { id: '1' },
+        user: { userId: 3, role: 'view', companyId: 2 },
+        body: { short_name: 'Updated' },
+      };
+
+      await updateProject(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(403);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '查看者无权操作该项目' })
+      );
+    });
+  });
+
+  // ========== Input validation tests ==========
+  describe('listProjects - input validation', () => {
+    it('should return 400 for search exceeding 100 characters', async () => {
+      const longSearch = 'a'.repeat(101);
+      const response = await agent
+        .get(`/api/v1/projects?search=${longSearch}`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('搜索关键词长度不能超过100个字符');
+    });
+
+    it('should allow search with exactly 100 characters', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
+
+      const search100 = 'a'.repeat(100);
+      const response = await agent
+        .get(`/api/v1/projects?search=${search100}`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should return 400 for invalid company_id (NaN)', async () => {
+      const response = await agent
+        .get('/api/v1/projects?company_id=abc')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的公司ID');
+    });
+
+    it('should return 400 for negative company_id', async () => {
+      const response = await agent
+        .get('/api/v1/projects?company_id=-1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的公司ID');
+    });
+
+    it('should return 400 for zero company_id', async () => {
+      const response = await agent
+        .get('/api/v1/projects?company_id=0')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的公司ID');
+    });
+  });
+
+  describe('createProject - string length validation', () => {
+    it('should return 400 when short_name exceeds 50 characters', async () => {
+      const response = await agent
+        .post('/api/v1/projects')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ short_name: 'x'.repeat(51), full_name: 'Project 1', company_id: 1 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('项目短名不能超过50个字符');
+    });
+
+    it('should return 400 when full_name exceeds 200 characters', async () => {
+      const response = await agent
+        .post('/api/v1/projects')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ short_name: 'P1', full_name: 'x'.repeat(201), company_id: 1 });
+
+      expect(response.status).toBe(400);
+      // Middleware validates full_name length before controller
+      expect(response.body.message).toContain('200');
+    });
+
+    it('should return 400 when description exceeds 500 characters', async () => {
+      const response = await agent
+        .post('/api/v1/projects')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ short_name: 'P1', full_name: 'Project 1', company_id: 1, description: 'x'.repeat(501) });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('项目描述不能超过500个字符');
+    });
+
+    it('should allow short_name with exactly 50 characters', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue(mockProjectRow);
+      const mockUserFindMany = jest.fn().mockResolvedValue([]);
+      getPrisma.mockReturnValue({
+        project: { create: mockCreate },
+        user: { findMany: mockUserFindMany },
+      });
+
+      const response = await agent
+        .post('/api/v1/projects')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ short_name: 'x'.repeat(50), full_name: 'Project 1', company_id: 1, operator_ids: [] });
+
+      expect(response.status).toBe(201);
+    });
+  });
 });

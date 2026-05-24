@@ -84,8 +84,7 @@ export async function createKnowledgeBase(req: Request, res: Response): Promise<
     const { userId, role } = user;
     const item = await knowledgeBaseService.create(
       { name: name.trim(), description: validDescription, scope, company_id: validCompanyId, project_id: validProjectId },
-      userId,
-      role
+      userId
     );
     created(res, item, '创建知识库成功');
   } catch (err: unknown) {
