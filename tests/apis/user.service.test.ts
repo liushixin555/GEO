@@ -81,7 +81,7 @@ describe('UserServiceImpl', () => {
         user: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      const result = await service.list(null, 1, 10);
+      const result = await service.list(1, 10);
 
       expect(result).toEqual({
         list: [makeMappedUser({ id: 1 }), makeMappedUser({ id: 2, username: 'user2' })],
@@ -104,7 +104,7 @@ describe('UserServiceImpl', () => {
         user: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list(null, 2, 10);
+      await service.list(2, 10);
 
       expect(mockFindMany).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 10, take: 10 }),
@@ -119,7 +119,7 @@ describe('UserServiceImpl', () => {
         user: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list(null, 1, 10, '测试');
+      await service.list(1, 10, { search: '测试' });
 
       const expectedWhere = {
         OR: [
@@ -141,7 +141,7 @@ describe('UserServiceImpl', () => {
         user: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list(null, 1, 10, undefined, 'admin');
+      await service.list(1, 10, { role: 'admin' });
 
       expect(mockFindMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { role: 'admin' } }),
@@ -156,7 +156,7 @@ describe('UserServiceImpl', () => {
         user: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list(null, 1, 10, undefined, undefined, false);
+      await service.list(1, 10, { status: false });
 
       expect(mockFindMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { status: false } }),
@@ -171,7 +171,7 @@ describe('UserServiceImpl', () => {
         user: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list(5, 1, 10);
+      await service.list(1, 10, { companyId: 5 });
 
       expect(mockFindMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { companyId: 5 } }),
@@ -186,7 +186,7 @@ describe('UserServiceImpl', () => {
         user: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list(1, 1, 10, '张', 'admin', true);
+      await service.list(1, 10, { companyId: 1, search: '张', role: 'admin', status: true });
 
       const expectedWhere = {
         OR: [
@@ -202,7 +202,7 @@ describe('UserServiceImpl', () => {
       );
     });
 
-    it('companyId 为 null 时不添加 companyId 过滤', async () => {
+    it('不传 options 时不添加 companyId 过滤', async () => {
       const mockFindMany = jest.fn().mockResolvedValue([]);
       const mockCount = jest.fn().mockResolvedValue(0);
 
@@ -210,7 +210,7 @@ describe('UserServiceImpl', () => {
         user: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list(null, 1, 10);
+      await service.list(1, 10);
 
       const callArgs = mockFindMany.mock.calls[0][0];
       expect(callArgs.where).not.toHaveProperty('companyId');
@@ -224,7 +224,7 @@ describe('UserServiceImpl', () => {
         user: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      const result = await service.list(null, 1, 10);
+      const result = await service.list(1, 10);
 
       expect(result).toEqual({ list: [], total: 0 });
     });
@@ -242,7 +242,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst },
       } as any);
 
-      const result = await service.getById(1, null);
+      const result = await service.getById(1);
 
       expect(result).toEqual(makeMappedUser({ id: 1 }));
       expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 1 } });
@@ -255,7 +255,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst },
       } as any);
 
-      await expect(service.getById(999, null)).rejects.toThrow('用户不存在');
+      await expect(service.getById(999)).rejects.toThrow('用户不存在');
     });
   });
 
@@ -394,7 +394,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      const result = await service.update(1, null, { cn_name: '新名字' });
+      const result = await service.update(1, { cn_name: '新名字' });
 
       expect(result).toEqual(makeMappedUser({ id: 1, cn_name: '新名字' }));
       expect(mockUpdate).toHaveBeenCalledWith({
@@ -413,7 +413,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      const result = await service.update(1, null, { role: 'view' });
+      const result = await service.update(1, { role: 'view' });
 
       expect(result).toEqual(makeMappedUser({ id: 1, role: 'view' }));
     });
@@ -428,7 +428,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      const result = await service.update(1, null, { status: false });
+      const result = await service.update(1, { status: false });
 
       expect(result).toEqual(makeMappedUser({ id: 1, status: false }));
     });
@@ -445,7 +445,7 @@ describe('UserServiceImpl', () => {
 
       mockedBcryptHash.mockResolvedValue('$2b$10$newhash');
 
-      await service.update(1, null, { password: 'newpass123' });
+      await service.update(1, { password: 'newpass123' });
 
       expect(mockedBcryptHash).toHaveBeenCalledWith('newpass123', 10);
       expect(mockUpdate).toHaveBeenCalledWith({
@@ -464,7 +464,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await service.update(1, null, { cn_name: '新名字', role: 'view', status: false });
+      await service.update(1, { cn_name: '新名字', role: 'view', status: false });
 
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -479,7 +479,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst },
       } as any);
 
-      await expect(service.update(999, null, { cn_name: '测试' })).rejects.toThrow('用户不存在');
+      await expect(service.update(999, { cn_name: '测试' })).rejects.toThrow('用户不存在');
     });
 
     it('禁止修改系统管理员角色', async () => {
@@ -490,7 +490,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst },
       } as any);
 
-      await expect(service.update(1, null, { role: 'admin' })).rejects.toThrow('系统管理员角色不可修改');
+      await expect(service.update(1, { role: 'admin' })).rejects.toThrow('系统管理员角色不可修改');
     });
 
     it('sysadmin 修改其他字段不报错', async () => {
@@ -503,7 +503,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      const result = await service.update(1, null, { cn_name: '新名字' });
+      const result = await service.update(1, { cn_name: '新名字' });
 
       expect(result).toEqual(makeMappedUser({ id: 1, cn_name: '新名字', role: 'sysadmin' }));
     });
@@ -518,7 +518,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await service.update(1, null, { cn_name: '新名字' });
+      await service.update(1, { cn_name: '新名字' });
 
       const updateData = mockUpdate.mock.calls[0][0].data;
       expect(updateData).not.toHaveProperty('role');
@@ -534,7 +534,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await service.update(1, null, { cn_name: '新名字' });
+      await service.update(1, { cn_name: '新名字' });
 
       const updateData = mockUpdate.mock.calls[0][0].data;
       expect(updateData).not.toHaveProperty('passwordHash');
@@ -551,7 +551,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await service.update(1, null, { password: '' });
+      await service.update(1, { password: '' });
 
       const updateData = mockUpdate.mock.calls[0][0].data;
       expect(updateData).not.toHaveProperty('passwordHash');
@@ -571,7 +571,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await service.delete(1, null);
+      await service.delete(1);
 
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -586,7 +586,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst },
       } as any);
 
-      await expect(service.delete(999, null)).rejects.toThrow('用户不存在');
+      await expect(service.delete(999)).rejects.toThrow('用户不存在');
     });
 
     it('禁止删除系统管理员', async () => {
@@ -597,7 +597,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst },
       } as any);
 
-      await expect(service.delete(1, null)).rejects.toThrow('系统管理员不可删除');
+      await expect(service.delete(1)).rejects.toThrow('系统管理员不可删除');
     });
 
     it('应成功删除 admin 角色用户', async () => {
@@ -609,7 +609,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await service.delete(2, null);
+      await service.delete(2);
 
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 2 },
@@ -626,7 +626,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await service.delete(3, null);
+      await service.delete(3);
 
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 3 },
@@ -644,7 +644,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst, update: mockUpdate, delete: mockDelete },
       } as any);
 
-      await service.delete(1, null);
+      await service.delete(1);
 
       expect(mockUpdate).toHaveBeenCalled();
       expect(mockDelete).not.toHaveBeenCalled();
@@ -663,7 +663,7 @@ describe('UserServiceImpl', () => {
         user: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list(0, 1, 10);
+      await service.list(1, 10, { companyId: 0 });
 
       const callArgs = mockFindMany.mock.calls[0][0];
       expect(callArgs.where).not.toHaveProperty('companyId');
@@ -677,7 +677,7 @@ describe('UserServiceImpl', () => {
         user: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list(null, 1, 10, '');
+      await service.list(1, 10, { search: '' });
 
       const callArgs = mockFindMany.mock.calls[0][0];
       expect(callArgs.where).not.toHaveProperty('OR');
@@ -691,7 +691,7 @@ describe('UserServiceImpl', () => {
         user: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list(null, 3, 5);
+      await service.list(3, 5);
 
       expect(mockFindMany).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 10, take: 5 }),
@@ -707,7 +707,7 @@ describe('UserServiceImpl', () => {
         user: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      const result = await service.list(null, 1, 10);
+      const result = await service.list(1, 10);
 
       expect(result.list[0].company_name).toBe('');
     });
@@ -767,7 +767,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      const result = await service.update(1, null, { role: 'sysadmin' });
+      const result = await service.update(1, { role: 'sysadmin' });
 
       expect(mockUpdate).toHaveBeenCalled();
       expect(result.role).toBe('sysadmin');
@@ -785,7 +785,7 @@ describe('UserServiceImpl', () => {
 
       mockedBcryptHash.mockResolvedValue('$2b$10$onlypass');
 
-      await service.update(1, null, { password: 'onlypass' });
+      await service.update(1, { password: 'onlypass' });
 
       const updateData = mockUpdate.mock.calls[0][0].data;
       expect(Object.keys(updateData)).toEqual(['passwordHash']);
@@ -802,7 +802,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await service.update(1, null, { status: false });
+      await service.update(1, { status: false });
 
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -820,7 +820,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await service.update(1, null, { cn_name: '' });
+      await service.update(1, { cn_name: '' });
 
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -836,7 +836,7 @@ describe('UserServiceImpl', () => {
         user: { findFirst: mockFindFirst },
       } as any);
 
-      const result = await service.getById(1, null);
+      const result = await service.getById(1);
 
       expect(result.company_id).toBeNull();
       expect(result.company_name).toBe('');

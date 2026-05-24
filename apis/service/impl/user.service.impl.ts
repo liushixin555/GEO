@@ -1,14 +1,14 @@
 import bcrypt from 'bcryptjs';
-import { Prisma } from '@prisma/client';
 import { getPrisma } from '../../utils';
 import { UserListItem, CreateUserRequest, UpdateUserRequest } from '../../entity';
 import { mapUser } from '../../map';
-import { IUserService } from '../user.service';
+import { IUserService, UserListOptions } from '../user.service';
 import { NotFoundError, ForbiddenError, ConflictError } from '../../errors';
 
 export class UserServiceImpl implements IUserService {
-  async list(companyId: number | null, page: number, pageSize: number, search?: string, role?: string, status?: boolean): Promise<{ list: UserListItem[]; total: number }> {
+  async list(page: number, pageSize: number, options?: UserListOptions): Promise<{ list: UserListItem[]; total: number }> {
     const prisma = getPrisma();
+    const { companyId, search, role, status } = options ?? {};
 
     const where: any = {};
     if (search) {
@@ -34,7 +34,7 @@ export class UserServiceImpl implements IUserService {
     return { list: items.map(mapUser), total };
   }
 
-  async getById(id: number, companyId: number | null): Promise<UserListItem> {
+  async getById(id: number): Promise<UserListItem> {
     const prisma = getPrisma();
     const user = await prisma.user.findFirst({
       where: { id },
@@ -62,7 +62,7 @@ export class UserServiceImpl implements IUserService {
     return mapUser(user);
   }
 
-  async update(id: number, companyId: number | null, request: UpdateUserRequest): Promise<UserListItem> {
+  async update(id: number, request: UpdateUserRequest): Promise<UserListItem> {
     const prisma = getPrisma();
 
     const existing = await prisma.user.findFirst({ where: { id } });
@@ -85,7 +85,7 @@ export class UserServiceImpl implements IUserService {
     return mapUser(user);
   }
 
-  async delete(id: number, companyId: number | null): Promise<void> {
+  async delete(id: number): Promise<void> {
     const prisma = getPrisma();
 
     const existing = await prisma.user.findFirst({ where: { id } });

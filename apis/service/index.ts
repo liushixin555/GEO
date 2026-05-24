@@ -4,8 +4,15 @@ export { ICompanyService } from './company.service';
 export { CompanyServiceImpl } from './impl/company.service.impl';
 export { ISkillsService } from './skills.service';
 export { SkillsServiceImpl } from './impl/skills.service.impl';
-export { IUserService } from './user.service';
+export { IUserService, UserListOptions } from './user.service';
 export { UserServiceImpl } from './impl/user.service.impl';
+
+import { IUserService } from './user.service';
+import { UserServiceImpl } from './impl/user.service.impl';
+
+export function createUserService(): IUserService {
+  return new UserServiceImpl();
+}
 export { ILlmModelService } from './llm-model.service';
 export { LlmModelServiceImpl } from './impl/llm-model.service.impl';
 export { ISystemConfigService } from './system-config.service';
