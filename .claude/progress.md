@@ -549,6 +549,15 @@
   - 建议拆分方案：主组件+6个子组件+3个自定义hooks
   - 评审报告 tasks/review/ArticleDetail.tsx.md
 
+## 本次变更（2026-05-24 ArticleDetail.tsx 软件架构专家评审）
+- [x] **软件架构专家评审 pages/article/ArticleDetail.tsx（889 行）**
+  - 综合评级 D+（功能完整但架构严重不合理，God Component 反模式）
+  - 13 项架构发现：CRITICAL×3（889行God Component、无API层抽象、17个useState无聚合策略）、HIGH×4（useEffect生命周期管理缺陷、权限架构内嵌、自动保存竞态风险、类型架构薄弱）、MEDIUM×4（Collapse forceRender、location.state滥用、错误处理无层次化设计、组件通信架构缺失）、LOW×2（魔法字符串散布、新建/编辑模式混合）
+  - 量化分析：文件行数超标4.4×、useState超标3.4×、异步函数超标6×、JSX嵌套超标1.7×
+  - 提出目标架构：主文件~100行 + 5个子组件 + 6个自定义hooks + API层封装
+  - 重构路线图：Phase 1安全修复(1天) → Phase 2组件拆分(2-3天) → Phase 3 Hook提取(1-2天) → Phase 4类型架构(1天) → Phase 5性能优化(1天)
+  - 评审报告 tasks/review/ArticleDetail.tsx.architecture.md
+
 ## 本次变更（2026-05-24 apis/config/index.ts 评审问题修复）
 - [x] **fix013: apis/config/index.ts 评审问题修复** — 7 项质量改进，120 个测试通过
   - Q-01: 子接口（DatabaseConfig/JwtConfig/RateLimitConfig/CronConfig）所有属性添加 `readonly`
