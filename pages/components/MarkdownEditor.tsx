@@ -153,6 +153,7 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
       'edit': '编辑模式',
       'preview': '预览模式',
       'fullscreen': '全屏',
+      'table': '插入表格',
     };
 
     const annotateToolbar = () => {
@@ -381,6 +382,58 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
               }
             } catch (err) {
               console.error('[MarkdownEditor] hr 命令执行失败:', err);
+            }
+          },
+        };
+      }
+
+      // QUALITY-M1/M2/QUALITY-L3~L4/SEC-M1/SEC-L2~L4/ARCH-H1~H2/ARCH-M2/UI-P2~P3:
+      // 覆盖 table 命令——toggle 移除分支为死代码（编辑后 startsWith 必然失败） +
+      // selectWord 无法处理多行块级内容 + 4 处 prefix! 非空断言掩盖运行时风险 +
+      // 选区范围未验证 + 超长文本无 DoS 防护 + 圈复杂度 3（命令簇最高） +
+      // 无快捷键 + SVG 缺少 title/aria-hidden + 英文标签/占位文本硬编码
+      if (command.name === 'table') {
+        return {
+          ...command,
+          shortcuts: 'ctrlcmd+shift+t',
+          buttonProps: {
+            'aria-label': '插入表格 (Ctrl+Shift+T)',
+            title: '插入表格 (Ctrl+Shift+T)',
+          },
+          icon: (
+            <svg role="img" aria-hidden="true" width="16" height="16" viewBox="0 0 512 512" focusable="false">
+              <title>表格</title>
+              <path
+                fill="currentColor"
+                d="M64 256V160H224v96H64zm0 64H224v96H64V320zm224 96V320H448v96H288zM448 256H288V160H448v96zM64 32C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V96c0-35.3-28.7-64-64-64H64z"
+              />
+            </svg>
+          ),
+          // ARCH-H1/H2: 重写为纯模板插入管道——无 toggle、无 selectWord，圈复杂度 1
+          execute: (state: any, api: any) => {
+            try {
+              const { text, selection } = state;
+              // SEC-L3: 超长文本防护（注意：空字符串 '' 应允许插入）
+              if (text == null || typeof text !== 'string' || text.length > 1_000_000) return;
+              // QUALITY-L3/SEC-M1: 防御性检查
+              if (selection?.start == null) return;
+              // SEC-L2: 选区边界校验
+              const safeStart = Math.max(0, Math.min(selection.start, text.length));
+              if (safeStart > (selection.end ?? safeStart)) return;
+
+              // 中文模板（UI-P3: 占位文本中文化）
+              const TABLE_TEMPLATE = '\n| 表头 | 表头 |\n|------|------|\n| 内容 | 内容 |\n| 内容 | 内容 |\n| 内容 | 内容 |\n';
+
+              // 检测光标是否在表格行内 → 插入前加空行分隔
+              const lineStart = text.lastIndexOf('\n', safeStart - 1) + 1;
+              const lineEnd = text.indexOf('\n', safeStart);
+              const currentLine = text.slice(lineStart, lineEnd === -1 ? text.length : lineEnd).trim();
+              const needsSeparator = currentLine.startsWith('|') && currentLine.length > 1;
+
+              api.setSelectionRange({ start: safeStart, end: safeStart });
+              api.replaceSelection(needsSeparator ? '\n' + TABLE_TEMPLATE : TABLE_TEMPLATE);
+            } catch (err) {
+              console.error('[MarkdownEditor] table 命令执行失败:', err);
             }
           },
         };

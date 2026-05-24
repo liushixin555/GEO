@@ -846,6 +846,244 @@ describe('MarkdownEditor', () => {
     });
   });
 
+  describe('commandsFilter — table command override', () => {
+    const createTableCommand = () => ({
+      name: 'table',
+      keyCommand: 'table',
+      prefix: '\n| Header | Header |\n|--------|--------|\n| Cell | Cell |\n| Cell | Cell |\n| Cell | Cell |\n\n',
+      suffix: '',
+      buttonProps: { 'aria-label': 'Add table', title: 'Add table' },
+      execute: jest.fn(),
+    });
+
+    const createMockApi = () => ({
+      setSelectionRange: jest.fn(),
+      replaceSelection: jest.fn(),
+    });
+
+    // UI-P2: 快捷键覆盖
+    it('should override table shortcut to ctrlcmd+shift+t', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createTableCommand(), false);
+      expect(result.shortcuts).toBe('ctrlcmd+shift+t');
+    });
+
+    // UI-P3: 中文 ARIA 标签
+    it('should use Chinese ARIA labels', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createTableCommand(), false);
+      expect(result.buttonProps['aria-label']).toBe('插入表格 (Ctrl+Shift+T)');
+      expect(result.buttonProps.title).toBe('插入表格 (Ctrl+Shift+T)');
+    });
+
+    // QUALITY-L4/SEC-L4/UI-P3: SVG 无障碍
+    it('should replace icon with 16px SVG with aria-hidden, title, and focusable', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createTableCommand(), false);
+      expect(result.icon).toBeTruthy();
+      expect(React.isValidElement(result.icon)).toBe(true);
+      expect(result.icon.props.width).toBe('16');
+      expect(result.icon.props.height).toBe('16');
+      expect(result.icon.props['aria-hidden']).toBe('true');
+      expect(result.icon.props.focusable).toBe('false');
+      expect(result.icon.props.role).toBe('img');
+      // SVG should have <title> and <path> as children
+      const children = React.Children.toArray(result.icon.props.children);
+      const titleEl = children.find((c: any) => c.type === 'title');
+      expect(titleEl).toBeTruthy();
+      expect((titleEl as any).props.children).toBe('表格');
+    });
+
+    // ARCH-H1/H2: 纯模板插入——空文档
+    it('should insert Chinese table template at cursor in empty text', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createTableCommand(), false);
+      const api = createMockApi();
+
+      result.execute({ text: '', selection: { start: 0, end: 0 } }, api);
+
+      expect(api.setSelectionRange).toHaveBeenCalledWith({ start: 0, end: 0 });
+      const inserted = api.replaceSelection.mock.calls[0][0];
+      expect(inserted).toContain('表头');
+      expect(inserted).toContain('内容');
+    });
+
+    // ARCH-H1: 无 toggle，始终插入
+    it('should always insert template (no toggle)', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createTableCommand(), false);
+      const api = createMockApi();
+
+      // 光标在已有表格内
+      const state = {
+        text: '\n| 已编辑 | 已编辑 |\n|------|------|\n| 数据 | 数据 |\n',
+        selection: { start: 5, end: 5 },
+      };
+      result.execute(state, api);
+
+      // 应插入新表格（加前缀空行分隔），而非移除
+      expect(api.replaceSelection).toHaveBeenCalled();
+      const inserted = api.replaceSelection.mock.calls[0][0];
+      expect(inserted).toContain('表头');
+      // 因为光标在已有表格行内，应该加空行分隔
+      expect(inserted.startsWith('\n\n')).toBe(true);
+    });
+
+    // SEC-L2: 选区边界校验
+    it('should clamp selection start to text boundaries (SEC-L2)', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createTableCommand(), false);
+      const api = createMockApi();
+
+      result.execute({ text: 'Hello', selection: { start: 100, end: 100 } }, api);
+
+      expect(api.setSelectionRange).toHaveBeenCalledWith({ start: 5, end: 5 });
+    });
+
+    // QUALITY-L3/SEC-M1: 空文本防护
+    it('should return early when text is empty', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createTableCommand(), false);
+      const api = createMockApi();
+
+      result.execute({ text: '', selection: { start: 0, end: 0 } }, api);
+
+      // 空文本应正常插入（start 0 不越界）
+      expect(api.replaceSelection).toHaveBeenCalled();
+    });
+
+    // QUALITY-L3/SEC-M1: text 缺失防护
+    it('should return early when text is undefined', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createTableCommand(), false);
+      const api = createMockApi();
+
+      result.execute({ text: undefined as any, selection: { start: 0, end: 0 } }, api);
+
+      expect(api.replaceSelection).not.toHaveBeenCalled();
+    });
+
+    // SEC-M1: selection.start 缺失防护
+    it('should return early when selection.start is null', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createTableCommand(), false);
+      const api = createMockApi();
+
+      result.execute({ text: 'Hello', selection: { start: null as any, end: 0 } }, api);
+
+      expect(api.replaceSelection).not.toHaveBeenCalled();
+    });
+
+    // SEC-M1: selection 缺失防护
+    it('should return early when selection is null', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createTableCommand(), false);
+      const api = createMockApi();
+
+      expect(() => {
+        result.execute({ text: 'Hello', selection: null as any }, api);
+      }).not.toThrow();
+      expect(api.replaceSelection).not.toHaveBeenCalled();
+    });
+
+    // SEC-L2: start > end 检测
+    it('should return early when start > end', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createTableCommand(), false);
+      const api = createMockApi();
+
+      result.execute({ text: 'Hello', selection: { start: 4, end: 2 } }, api);
+
+      expect(api.replaceSelection).not.toHaveBeenCalled();
+    });
+
+    // SEC-L3: 超长文本防护
+    it('should return early when text exceeds 1MB limit (SEC-L3)', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createTableCommand(), false);
+      const api = createMockApi();
+
+      const longText = 'a'.repeat(1_000_001);
+      result.execute({ text: longText, selection: { start: 5, end: 5 } }, api);
+
+      expect(api.replaceSelection).not.toHaveBeenCalled();
+    });
+
+    // SEC-L3: 1MB 边界内正常工作
+    it('should work when text is exactly at 1MB limit', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createTableCommand(), false);
+      const api = createMockApi();
+
+      const exactLimitText = 'a'.repeat(1_000_000);
+      result.execute({ text: exactLimitText, selection: { start: 5, end: 5 } }, api);
+
+      expect(api.replaceSelection).toHaveBeenCalled();
+    });
+
+    // 光标在表格行内时加空行分隔
+    it('should add leading newline when cursor is inside an existing table', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createTableCommand(), false);
+      const api = createMockApi();
+
+      const state = {
+        text: '| A | B |\n|---|---|\n| 1 | 2 |',
+        selection: { start: 5, end: 5 },
+      };
+      result.execute(state, api);
+
+      const inserted = api.replaceSelection.mock.calls[0][0];
+      expect(inserted.startsWith('\n\n')).toBe(true);
+    });
+
+    // 光标在普通文本行内时不需要额外空行
+    it('should not add extra separator when cursor is in normal text', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createTableCommand(), false);
+      const api = createMockApi();
+
+      const state = {
+        text: 'Hello world',
+        selection: { start: 5, end: 5 },
+      };
+      result.execute(state, api);
+
+      const inserted = api.replaceSelection.mock.calls[0][0];
+      expect(inserted.startsWith('\n|')).toBe(true);
+      expect(inserted.startsWith('\n\n')).toBe(false);
+    });
+
+    // 错误边界
+    it('should handle execution error gracefully', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createTableCommand(), false);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const api = {
+        setSelectionRange: jest.fn(() => { throw new Error('test error'); }),
+        replaceSelection: jest.fn(),
+      };
+
+      expect(() => {
+        result.execute({ text: 'Hello', selection: { start: 0, end: 0 } }, api);
+      }).not.toThrow();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[MarkdownEditor] table 命令执行失败:',
+        expect.any(Error),
+      );
+      consoleSpy.mockRestore();
+    });
+
+    // 不影响其他命令
+    it('should not affect non-table commands', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = { name: 'otherCommand', keyCommand: 'other' };
+      const result = commandsFilterFn!(cmd, false);
+      expect(result).toBe(cmd);
+    });
+  });
+
   describe('commandsFilter — hr command override', () => {
     it('should override hr shortcut from ctrlcmd+h to ctrlcmd+shift+h', () => {
       render(<MarkdownEditor value="" />);
