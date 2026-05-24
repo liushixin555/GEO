@@ -63,7 +63,7 @@ const DocumentDetail: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`/api/knowledge-bases/${baseId}/documents/${id}`, {
+      const res = await axios.get(`/api/v1/knowledge-bases/${baseId}/documents/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setData(res.data.data);
@@ -81,7 +81,7 @@ const DocumentDetail: React.FC = () => {
     const fetchBaseName = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(`/api/knowledge-bases/${baseId}`, {
+        const res = await axios.get(`/api/v1/knowledge-bases/${baseId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setBaseName(res.data.data.name);
@@ -109,7 +109,7 @@ const DocumentDetail: React.FC = () => {
       const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('file', file);
-      const res = await axios.post('/api/upload/document', formData, {
+      const res = await axios.post('/api/v1/upload/document', formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
       });
       setFileUrl(res.data.data.url);
@@ -133,12 +133,12 @@ const DocumentDetail: React.FC = () => {
       const token = localStorage.getItem('token');
       const payload = { ...values, file_url: fileUrl, file_name: fileName, file_type: fileType, file_size: fileSize };
       if (isNew) {
-        await axios.post(`/api/knowledge-bases/${baseId}/documents`, payload, {
+        await axios.post(`/api/v1/knowledge-bases/${baseId}/documents`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         message.success('创建成功');
       } else {
-        await axios.put(`/api/knowledge-bases/${baseId}/documents/${id}`, payload, {
+        await axios.put(`/api/v1/knowledge-bases/${baseId}/documents/${id}`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         message.success('更新成功');

@@ -158,7 +158,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
 
   const loadCompanies = async () => {
     try {
-      const res = await axios.get('/api/auth/companies', { headers: authHeaders() });
+      const res = await axios.get('/api/v1/auth/companies', { headers: authHeaders() });
       const list = res.data.data || [];
       setCompanies(list.map((c: any) => ({ id: c.id, name: c.short_name || c.full_name })));
       if (todo?.company_id) {
@@ -177,7 +177,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
 
   const loadProjects = async (companyId: number) => {
     try {
-      const res = await axios.get('/api/auth/projects', {
+      const res = await axios.get('/api/v1/auth/projects', {
         headers: authHeaders(),
         params: { company_id: companyId },
       });
@@ -196,7 +196,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
       return;
     }
     try {
-      const res = await axios.get('/api/todos/object-options', {
+      const res = await axios.get('/api/v1/todos/object-options', {
         headers: authHeaders(),
         params: { projectId, objectType, action },
       });
@@ -208,7 +208,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
 
   const loadAssignees = async (projectId: number) => {
     try {
-      const res = await axios.get('/api/todos/assignee-candidates', {
+      const res = await axios.get('/api/v1/todos/assignee-candidates', {
         headers: authHeaders(),
         params: { projectId },
       });
@@ -258,7 +258,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
       const title = generateTitle(values.action, values.object_type, selectedObj?.name);
 
       if (isEdit) {
-        await axios.put(`/api/todos/${todo!.id}`, {
+        await axios.put(`/api/v1/todos/${todo!.id}`, {
           title,
           object_type: values.object_type,
           object_id: values.object_id || null,
@@ -268,7 +268,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
         }, { headers: { Authorization: `Bearer ${token}` } });
         message.success('待办更新成功');
       } else {
-        await axios.post('/api/todos', {
+        await axios.post('/api/v1/todos', {
           title,
           company_id: values.company_id,
           project_id: values.project_id || null,

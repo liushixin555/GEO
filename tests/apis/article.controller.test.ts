@@ -48,7 +48,7 @@ function viewToken() {
   );
 }
 
-const BASE = '/api/projects/1/articles';
+const BASE = '/api/v1/projects/1/articles';
 
 describe('Article Controller', () => {
   beforeEach(() => {
@@ -124,7 +124,7 @@ describe('Article Controller', () => {
 
     it('should return 400 for invalid projectId', async () => {
       const response = await agent
-        .get('/api/projects/abc/articles')
+        .get('/api/v1/projects/abc/articles')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
     });
@@ -907,7 +907,7 @@ describe('Article Controller', () => {
 
     it('should return 400 for invalid projectId on update', async () => {
       const response = await agent
-        .put('/api/projects/abc/articles/1')
+        .put('/api/v1/projects/abc/articles/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ title: 'Updated' });
       expect(response.status).toBe(400);
@@ -973,7 +973,7 @@ describe('Article Controller', () => {
   describe('DELETE /api/projects/:projectId/articles/:id - additional', () => {
     it('should return 400 for invalid projectId on delete', async () => {
       const response = await agent
-        .delete('/api/projects/abc/articles/1')
+        .delete('/api/v1/projects/abc/articles/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
     });
@@ -1091,7 +1091,7 @@ describe('Article Controller', () => {
 
     it('should return 400 for invalid projectId on review', async () => {
       const response = await agent
-        .put('/api/projects/abc/articles/1/review')
+        .put('/api/v1/projects/abc/articles/1/review')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ approved: true });
       expect(response.status).toBe(400);
@@ -1175,7 +1175,7 @@ describe('Article Controller', () => {
 
     it('should return 400 for invalid projectId', async () => {
       const response = await agent
-        .put('/api/projects/abc/articles/1/content')
+        .put('/api/v1/projects/abc/articles/1/content')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ content: 'new content' });
       expect(response.status).toBe(400);
@@ -1424,7 +1424,7 @@ describe('Article Controller', () => {
 
     it('should return 400 for invalid projectId', async () => {
       const response = await agent
-        .put('/api/projects/abc/articles/1/regenerate')
+        .put('/api/v1/projects/abc/articles/1/regenerate')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
     });
@@ -1561,7 +1561,7 @@ describe('Article Controller', () => {
 
     it('should return 400 for invalid projectId', async () => {
       const response = await agent
-        .put('/api/projects/abc/articles/1/submit-review')
+        .put('/api/v1/projects/abc/articles/1/submit-review')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
     });
@@ -1718,7 +1718,7 @@ describe('Article Controller', () => {
 
     it('should return 400 for invalid projectId', async () => {
       const response = await agent
-        .get('/api/projects/abc/articles/1/versions')
+        .get('/api/v1/projects/abc/articles/1/versions')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
     });

@@ -83,20 +83,20 @@ describe('PublishingPlatform Controller', () => {
   // ========== POST /api/publishing-platforms/sync (syncPublishingPlatforms) ==========
   describe('POST /api/publishing-platforms/sync', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.post('/api/publishing-platforms/sync');
+      const response = await agent.post('/api/v1/publishing-platforms/sync');
       expect(response.status).toBe(401);
     });
 
     it('should return 403 for admin role', async () => {
       const response = await agent
-        .post('/api/publishing-platforms/sync')
+        .post('/api/v1/publishing-platforms/sync')
         .set('Authorization', `Bearer ${adminToken()}`);
       expect(response.status).toBe(403);
     });
 
     it('should return 403 for view role', async () => {
       const response = await agent
-        .post('/api/publishing-platforms/sync')
+        .post('/api/v1/publishing-platforms/sync')
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(response.status).toBe(403);
     });
@@ -105,7 +105,7 @@ describe('PublishingPlatform Controller', () => {
       mockSyncFromSystemConfig.mockRejectedValue(new Error('请先配置软盟账号和密码'));
 
       const response = await agent
-        .post('/api/publishing-platforms/sync')
+        .post('/api/v1/publishing-platforms/sync')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -116,7 +116,7 @@ describe('PublishingPlatform Controller', () => {
       mockSyncFromSystemConfig.mockResolvedValue(42);
 
       const response = await agent
-        .post('/api/publishing-platforms/sync')
+        .post('/api/v1/publishing-platforms/sync')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -131,7 +131,7 @@ describe('PublishingPlatform Controller', () => {
       mockSyncFromSystemConfig.mockRejectedValue(new Error('网络超时'));
 
       const response = await agent
-        .post('/api/publishing-platforms/sync')
+        .post('/api/v1/publishing-platforms/sync')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -142,7 +142,7 @@ describe('PublishingPlatform Controller', () => {
       mockSyncFromSystemConfig.mockRejectedValue(new Error());
 
       const response = await agent
-        .post('/api/publishing-platforms/sync')
+        .post('/api/v1/publishing-platforms/sync')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -153,7 +153,7 @@ describe('PublishingPlatform Controller', () => {
       mockSyncFromSystemConfig.mockRejectedValue('string error');
 
       const response = await agent
-        .post('/api/publishing-platforms/sync')
+        .post('/api/v1/publishing-platforms/sync')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -164,7 +164,7 @@ describe('PublishingPlatform Controller', () => {
       mockSyncFromSystemConfig.mockResolvedValue(0);
 
       const response = await agent
-        .post('/api/publishing-platforms/sync')
+        .post('/api/v1/publishing-platforms/sync')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -177,13 +177,13 @@ describe('PublishingPlatform Controller', () => {
   // ========== GET /api/publishing-platforms (listPublishingPlatforms) ==========
   describe('GET /api/publishing-platforms', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.get('/api/publishing-platforms');
+      const response = await agent.get('/api/v1/publishing-platforms');
       expect(response.status).toBe(401);
     });
 
     it('should return 403 for view role', async () => {
       const response = await agent
-        .get('/api/publishing-platforms')
+        .get('/api/v1/publishing-platforms')
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(response.status).toBe(403);
     });
@@ -192,7 +192,7 @@ describe('PublishingPlatform Controller', () => {
       mockListAll.mockResolvedValue([mappedPlatform]);
 
       const response = await agent
-        .get('/api/publishing-platforms')
+        .get('/api/v1/publishing-platforms')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -207,7 +207,7 @@ describe('PublishingPlatform Controller', () => {
       mockListAll.mockResolvedValue([mappedPlatform]);
 
       const response = await agent
-        .get('/api/publishing-platforms')
+        .get('/api/v1/publishing-platforms')
         .set('Authorization', `Bearer ${adminToken()}`);
 
       expect(response.status).toBe(200);
@@ -218,7 +218,7 @@ describe('PublishingPlatform Controller', () => {
       mockList.mockResolvedValue({ list: [mappedPlatform], total: 1 });
 
       const response = await agent
-        .get('/api/publishing-platforms?page=1&pageSize=10')
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -234,7 +234,7 @@ describe('PublishingPlatform Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-platforms?page=1&pageSize=10&search=新浪')
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&search=新浪')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -245,7 +245,7 @@ describe('PublishingPlatform Controller', () => {
       mockList.mockResolvedValue({ list: [mappedPlatform], total: 1 });
 
       const response = await agent
-        .get('/api/publishing-platforms?page=1&pageSize=10&taxonomy=门户网站')
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&taxonomy=门户网站')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -256,7 +256,7 @@ describe('PublishingPlatform Controller', () => {
       mockList.mockResolvedValue({ list: [mappedPlatform], total: 1 });
 
       const response = await agent
-        .get('/api/publishing-platforms?page=1&pageSize=10&sortBy=price&sortOrder=desc')
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&sortBy=price&sortOrder=desc')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -267,7 +267,7 @@ describe('PublishingPlatform Controller', () => {
       mockList.mockResolvedValue({ list: [mappedPlatform], total: 1 });
 
       const response = await agent
-        .get('/api/publishing-platforms?page=2&pageSize=5&search=新浪&taxonomy=门户网站&sortBy=name&sortOrder=asc')
+        .get('/api/v1/publishing-platforms?page=2&pageSize=5&search=新浪&taxonomy=门户网站&sortBy=name&sortOrder=asc')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -278,7 +278,7 @@ describe('PublishingPlatform Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-platforms?search=test')
+        .get('/api/v1/publishing-platforms?search=test')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -289,7 +289,7 @@ describe('PublishingPlatform Controller', () => {
       mockList.mockResolvedValue({ list: [mappedPlatform], total: 1 });
 
       const response = await agent
-        .get('/api/publishing-platforms?taxonomy=门户网站')
+        .get('/api/v1/publishing-platforms?taxonomy=门户网站')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -301,7 +301,7 @@ describe('PublishingPlatform Controller', () => {
       mockListAll.mockRejectedValue(new Error('数据库连接失败'));
 
       const response = await agent
-        .get('/api/publishing-platforms')
+        .get('/api/v1/publishing-platforms')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -312,7 +312,7 @@ describe('PublishingPlatform Controller', () => {
       mockListAll.mockRejectedValue(new Error());
 
       const response = await agent
-        .get('/api/publishing-platforms')
+        .get('/api/v1/publishing-platforms')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -323,7 +323,7 @@ describe('PublishingPlatform Controller', () => {
       mockList.mockRejectedValue(new Error('查询超时'));
 
       const response = await agent
-        .get('/api/publishing-platforms?page=1&pageSize=10')
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -334,7 +334,7 @@ describe('PublishingPlatform Controller', () => {
       mockList.mockRejectedValue(new Error());
 
       const response = await agent
-        .get('/api/publishing-platforms?page=1&pageSize=10')
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -345,7 +345,7 @@ describe('PublishingPlatform Controller', () => {
       mockList.mockResolvedValue({ list: [mappedPlatform], total: 1 });
 
       const response = await agent
-        .get('/api/publishing-platforms?pageSize=5')
+        .get('/api/v1/publishing-platforms?pageSize=5')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -357,7 +357,7 @@ describe('PublishingPlatform Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-platforms?page=2')
+        .get('/api/v1/publishing-platforms?page=2')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -369,7 +369,7 @@ describe('PublishingPlatform Controller', () => {
       mockListAll.mockResolvedValue([]);
 
       const response = await agent
-        .get('/api/publishing-platforms')
+        .get('/api/v1/publishing-platforms')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -380,7 +380,7 @@ describe('PublishingPlatform Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-platforms?page=3&pageSize=10')
+        .get('/api/v1/publishing-platforms?page=3&pageSize=10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -392,7 +392,7 @@ describe('PublishingPlatform Controller', () => {
       mockListAll.mockRejectedValue('unexpected string');
 
       const response = await agent
-        .get('/api/publishing-platforms')
+        .get('/api/v1/publishing-platforms')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -410,7 +410,7 @@ describe('PublishingPlatform Controller', () => {
       mockListAll.mockResolvedValue([mappedPlatform, secondPlatform]);
 
       const response = await agent
-        .get('/api/publishing-platforms')
+        .get('/api/v1/publishing-platforms')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -423,7 +423,7 @@ describe('PublishingPlatform Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-platforms?page=abc&pageSize=xyz')
+        .get('/api/v1/publishing-platforms?page=abc&pageSize=xyz')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -436,7 +436,7 @@ describe('PublishingPlatform Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-platforms?page=1&pageSize=999')
+        .get('/api/v1/publishing-platforms?page=1&pageSize=999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -445,7 +445,7 @@ describe('PublishingPlatform Controller', () => {
 
     it('should return 400 when search exceeds max length', async () => {
       const response = await agent
-        .get('/api/publishing-platforms?page=1&pageSize=10&search=' + 'a'.repeat(101))
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&search=' + 'a'.repeat(101))
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -456,7 +456,7 @@ describe('PublishingPlatform Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-platforms?page=1&pageSize=10&search=' + 'a'.repeat(100))
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&search=' + 'a'.repeat(100))
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -465,7 +465,7 @@ describe('PublishingPlatform Controller', () => {
 
     it('should return 400 when sortBy is invalid', async () => {
       const response = await agent
-        .get('/api/publishing-platforms?page=1&pageSize=10&sortBy=invalid_field')
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&sortBy=invalid_field')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -474,7 +474,7 @@ describe('PublishingPlatform Controller', () => {
 
     it('should return 400 when sortOrder is invalid', async () => {
       const response = await agent
-        .get('/api/publishing-platforms?page=1&pageSize=10&sortOrder=invalid')
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&sortOrder=invalid')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -487,7 +487,7 @@ describe('PublishingPlatform Controller', () => {
       for (const field of ['name', 'taxonomy', 'price', 'include_rate', 'publish_rate']) {
         jest.clearAllMocks();
         const response = await agent
-          .get(`/api/publishing-platforms?page=1&pageSize=10&sortBy=${field}`)
+          .get(`/api/v1/publishing-platforms?page=1&pageSize=10&sortBy=${field}`)
           .set('Authorization', `Bearer ${sysadminToken()}`);
 
         expect(response.status).toBe(200);
@@ -501,7 +501,7 @@ describe('PublishingPlatform Controller', () => {
       for (const order of ['asc', 'desc']) {
         jest.clearAllMocks();
         const response = await agent
-          .get(`/api/publishing-platforms?page=1&pageSize=10&sortOrder=${order}`)
+          .get(`/api/v1/publishing-platforms?page=1&pageSize=10&sortOrder=${order}`)
           .set('Authorization', `Bearer ${sysadminToken()}`);
 
         expect(response.status).toBe(200);
@@ -513,7 +513,7 @@ describe('PublishingPlatform Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-platforms?page=-1&pageSize=10')
+        .get('/api/v1/publishing-platforms?page=-1&pageSize=10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -524,7 +524,7 @@ describe('PublishingPlatform Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-platforms?page=1&pageSize=0')
+        .get('/api/v1/publishing-platforms?page=1&pageSize=0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);

@@ -46,11 +46,11 @@ const SkillForm: React.FC<SkillFormProps> = ({ item, isSysadmin, onClose, onSave
       };
 
       if (isEdit) {
-        await axios.put(`/api/skills/${item!.id}`, payload, {
+        await axios.put(`/api/v1/skills/${item!.id}`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
       } else {
-        await axios.post('/api/skills', payload, {
+        await axios.post('/api/v1/skills', payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
       }

@@ -139,7 +139,7 @@ const KnowledgeBaseDetail: React.FC = () => {
     const fetchBase = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(`/api/knowledge-bases/${baseId}`, {
+        const res = await axios.get(`/api/v1/knowledge-bases/${baseId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setBaseName(res.data.data.name);
@@ -158,7 +158,7 @@ const KnowledgeBaseDetail: React.FC = () => {
       const token = localStorage.getItem('token');
       const params: any = { page: kwPage, pageSize };
       if (kwSearch) params.search = kwSearch;
-      const res = await axios.get(`/api/knowledge-bases/${baseId}/keywords`, {
+      const res = await axios.get(`/api/v1/knowledge-bases/${baseId}/keywords`, {
         headers: { Authorization: `Bearer ${token}` }, params,
       });
       setKeywords(res.data.data.list);
@@ -173,7 +173,7 @@ const KnowledgeBaseDetail: React.FC = () => {
       const token = localStorage.getItem('token');
       const params: any = { page: ptPage, pageSize };
       if (ptSearch) params.search = ptSearch;
-      const res = await axios.get(`/api/knowledge-bases/${baseId}/portraits`, {
+      const res = await axios.get(`/api/v1/knowledge-bases/${baseId}/portraits`, {
         headers: { Authorization: `Bearer ${token}` }, params,
       });
       setPortraits(res.data.data.list);
@@ -188,7 +188,7 @@ const KnowledgeBaseDetail: React.FC = () => {
       const token = localStorage.getItem('token');
       const params: any = { page: imgPage, pageSize };
       if (imgSearch) params.search = imgSearch;
-      const res = await axios.get(`/api/knowledge-bases/${baseId}/images`, {
+      const res = await axios.get(`/api/v1/knowledge-bases/${baseId}/images`, {
         headers: { Authorization: `Bearer ${token}` }, params,
       });
       setImages(res.data.data.list);
@@ -203,7 +203,7 @@ const KnowledgeBaseDetail: React.FC = () => {
       const token = localStorage.getItem('token');
       const params: any = { page: docPage, pageSize };
       if (docSearch) params.search = docSearch;
-      const res = await axios.get(`/api/knowledge-bases/${baseId}/documents`, {
+      const res = await axios.get(`/api/v1/knowledge-bases/${baseId}/documents`, {
         headers: { Authorization: `Bearer ${token}` }, params,
       });
       setDocuments(res.data.data.list);
@@ -221,7 +221,7 @@ const KnowledgeBaseDetail: React.FC = () => {
   const handleDeleteKeyword = async (item: KeywordItem) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`/api/knowledge-bases/${baseId}/keywords/${item.id}`, {
+      await axios.delete(`/api/v1/knowledge-bases/${baseId}/keywords/${item.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       message.success('删除成功');
@@ -239,7 +239,7 @@ const KnowledgeBaseDetail: React.FC = () => {
     setManualSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`/api/knowledge-bases/${baseId}/keywords/batch`,
+      const res = await axios.post(`/api/v1/knowledge-bases/${baseId}/keywords/batch`,
         { keywords: unique, seed_word: '手工输入' },
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -255,7 +255,7 @@ const KnowledgeBaseDetail: React.FC = () => {
   const handleDeletePortrait = async (item: PortraitItem) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`/api/knowledge-bases/${baseId}/portraits/${item.id}`, {
+      await axios.delete(`/api/v1/knowledge-bases/${baseId}/portraits/${item.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       message.success('删除成功');
@@ -266,7 +266,7 @@ const KnowledgeBaseDetail: React.FC = () => {
   const handleDeleteImage = async (item: ImageItem) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`/api/knowledge-bases/${baseId}/images/${item.id}`, {
+      await axios.delete(`/api/v1/knowledge-bases/${baseId}/images/${item.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       message.success('删除成功');
@@ -277,7 +277,7 @@ const KnowledgeBaseDetail: React.FC = () => {
   const handleDeleteDocument = async (item: DocumentItem) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`/api/knowledge-bases/${baseId}/documents/${item.id}`, {
+      await axios.delete(`/api/v1/knowledge-bases/${baseId}/documents/${item.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       message.success('删除成功');

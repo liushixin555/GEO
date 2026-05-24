@@ -33,7 +33,7 @@ describe('GET /api/auth/context', () => {
 
   it('should return 401 when no token', async () => {
     const res = await request(app)
-      .get('/api/auth/context')
+      .get('/api/v1/auth/context')
       .set('User-Agent', 'test-agent/1.0');
     expect(res.status).toBe(401);
   });
@@ -50,7 +50,7 @@ describe('GET /api/auth/context', () => {
       } as any);
 
       const res = await request(app)
-        .get('/api/auth/context')
+        .get('/api/v1/auth/context')
         .set('Authorization', `Bearer ${token}`)
         .set('User-Agent', 'test-agent/1.0');
 
@@ -76,7 +76,7 @@ describe('GET /api/auth/context', () => {
       } as any);
 
       const res = await request(app)
-        .get('/api/auth/context?company_id=1')
+        .get('/api/v1/auth/context?company_id=1')
         .set('Authorization', `Bearer ${token}`)
         .set('User-Agent', 'test-agent/1.0');
 
@@ -101,7 +101,7 @@ describe('GET /api/auth/context', () => {
       } as any);
 
       const res = await request(app)
-        .get('/api/auth/context?company_id=1')
+        .get('/api/v1/auth/context?company_id=1')
         .set('Authorization', `Bearer ${token}`)
         .set('User-Agent', 'test-agent/1.0');
 
@@ -126,7 +126,7 @@ describe('GET /api/auth/context', () => {
       } as any);
 
       const res = await request(app)
-        .get('/api/auth/context?company_id=1')
+        .get('/api/v1/auth/context?company_id=1')
         .set('Authorization', `Bearer ${token}`)
         .set('User-Agent', 'test-agent/1.0');
 
@@ -144,7 +144,7 @@ describe('GET /api/auth/context', () => {
     } as any);
 
     const res = await request(app)
-      .get('/api/auth/context')
+      .get('/api/v1/auth/context')
       .set('Authorization', `Bearer ${token}`)
       .set('User-Agent', 'test-agent/1.0');
 

@@ -26,7 +26,7 @@ const PortraitDetail: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`/api/knowledge-bases/${baseId}/portraits/${id}`, {
+      const res = await axios.get(`/api/v1/knowledge-bases/${baseId}/portraits/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setData(res.data.data);
@@ -40,7 +40,7 @@ const PortraitDetail: React.FC = () => {
     const fetchBaseName = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(`/api/knowledge-bases/${baseId}`, {
+        const res = await axios.get(`/api/v1/knowledge-bases/${baseId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setBaseName(res.data.data.name);
@@ -69,12 +69,12 @@ const PortraitDetail: React.FC = () => {
     try {
       const token = localStorage.getItem('token');
       if (isNew) {
-        await axios.post(`/api/knowledge-bases/${baseId}/portraits`, values, {
+        await axios.post(`/api/v1/knowledge-bases/${baseId}/portraits`, values, {
           headers: { Authorization: `Bearer ${token}` },
         });
         message.success('创建成功');
       } else {
-        await axios.put(`/api/knowledge-bases/${baseId}/portraits/${id}`, values, {
+        await axios.put(`/api/v1/knowledge-bases/${baseId}/portraits/${id}`, values, {
           headers: { Authorization: `Bearer ${token}` },
         });
         message.success('更新成功');

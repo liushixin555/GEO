@@ -33,7 +33,7 @@ const SystemAdminPage: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('/api/llm-models', {
+      const res = await axios.get('/api/v1/llm-models', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setModels(res.data.data);
@@ -48,7 +48,7 @@ const SystemAdminPage: React.FC = () => {
     setConfigsLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('/api/system-configs', {
+      const res = await axios.get('/api/v1/system-configs', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const configs: Record<string, string> = {};
@@ -78,7 +78,7 @@ const SystemAdminPage: React.FC = () => {
   const handleToggleStatus = async (item: LlmModelItem) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`/api/llm-models/${item.id}`, {
+      await axios.put(`/api/v1/llm-models/${item.id}`, {
         status: !item.status,
       }, { headers: { Authorization: `Bearer ${token}` } });
       fetchModels();
@@ -90,7 +90,7 @@ const SystemAdminPage: React.FC = () => {
   const handleDelete = async (id: number) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`/api/llm-models/${id}`, {
+      await axios.delete(`/api/v1/llm-models/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchModels();
@@ -101,7 +101,7 @@ const SystemAdminPage: React.FC = () => {
 
   const saveConfigs = async (keys: { username: string; password: string }, prefix: string) => {
     const token = localStorage.getItem('token');
-    await axios.put('/api/system-configs', {
+    await axios.put('/api/v1/system-configs', {
       configs: [
         { config_key: `${prefix}_username`, config_value: keys.username },
         { config_key: `${prefix}_password`, config_value: keys.password },
@@ -147,7 +147,7 @@ const SystemAdminPage: React.FC = () => {
     setPlatformSyncing(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post('/api/publishing-platforms/sync', {}, {
+      const res = await axios.post('/api/v1/publishing-platforms/sync', {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
       message.success(res.data.message || '同步成功');

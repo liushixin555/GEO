@@ -80,27 +80,27 @@ describe('KnowledgeBase Controller', () => {
   // =========================================================
   describe('Auth & Role Guards', () => {
     test('未登录访问知识库列表返回 401', async () => {
-      const res = await agent.get('/api/knowledge-bases');
+      const res = await agent.get('/api/v1/knowledge-bases');
       expect(res.status).toBe(401);
     });
 
     test('view 角色访问知识库列表返回 403', async () => {
       const res = await agent
-        .get('/api/knowledge-bases')
+        .get('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(res.status).toBe(403);
     });
 
     test('view 角色访问知识库详情返回 403', async () => {
       const res = await agent
-        .get('/api/knowledge-bases/1')
+        .get('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(res.status).toBe(403);
     });
 
     test('view 角色创建知识库返回 403', async () => {
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${viewToken()}`)
         .send({ name: 'test', scope: 'platform' });
       expect(res.status).toBe(403);
@@ -108,7 +108,7 @@ describe('KnowledgeBase Controller', () => {
 
     test('view 角色更新知识库返回 403', async () => {
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${viewToken()}`)
         .send({ name: 'test' });
       expect(res.status).toBe(403);
@@ -116,7 +116,7 @@ describe('KnowledgeBase Controller', () => {
 
     test('view 角色删除知识库返回 403', async () => {
       const res = await agent
-        .delete('/api/knowledge-bases/1')
+        .delete('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(res.status).toBe(403);
     });
@@ -141,7 +141,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases')
+        .get('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(200);
@@ -161,7 +161,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases?page=2&pageSize=5')
+        .get('/api/v1/knowledge-bases?page=2&pageSize=5')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(200);
@@ -181,7 +181,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases?pageSize=999999')
+        .get('/api/v1/knowledge-bases?pageSize=999999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(200);
@@ -200,7 +200,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases?search=测试')
+        .get('/api/v1/knowledge-bases?search=测试')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(200);
@@ -216,7 +216,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases?scope=platform')
+        .get('/api/v1/knowledge-bases?scope=platform')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(200);
@@ -231,7 +231,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases?status=true')
+        .get('/api/v1/knowledge-bases?status=true')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(200);
@@ -246,7 +246,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases?status=false')
+        .get('/api/v1/knowledge-bases?status=false')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(200);
@@ -261,7 +261,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases')
+        .get('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(200);
@@ -282,7 +282,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases')
+        .get('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${adminToken()}`);
 
       expect(res.status).toBe(200);
@@ -301,7 +301,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases')
+        .get('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${adminToken()}`);
 
       expect(res.status).toBe(200);
@@ -317,7 +317,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases')
+        .get('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(500);
@@ -332,7 +332,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases')
+        .get('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(500);
@@ -358,7 +358,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases/1')
+        .get('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(200);
@@ -369,7 +369,7 @@ describe('KnowledgeBase Controller', () => {
 
     test('无效的 ID 参数返回 400', async () => {
       const res = await agent
-        .get('/api/knowledge-bases/abc')
+        .get('/api/v1/knowledge-bases/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(400);
@@ -384,7 +384,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases/999')
+        .get('/api/v1/knowledge-bases/999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(404);
@@ -407,7 +407,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases/1')
+        .get('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${adminToken()}`);
 
       expect(res.status).toBe(200);
@@ -432,7 +432,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases/1')
+        .get('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${adminToken(2, 2)}`);
 
       expect(res.status).toBe(404);
@@ -457,7 +457,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases/1')
+        .get('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${adminToken(2, 2)}`);
 
       expect(res.status).toBe(404);
@@ -472,7 +472,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases/1')
+        .get('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(500);
@@ -487,7 +487,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases/1')
+        .get('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(500);
@@ -513,7 +513,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: '新知识库', scope: 'platform' });
 
@@ -539,7 +539,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${adminToken()}`)
         .send({ name: '公司知识库', scope: 'company', company_id: 2 });
 
@@ -563,7 +563,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${adminToken()}`)
         .send({ name: '项目知识库', scope: 'project', project_id: 1 });
 
@@ -572,7 +572,7 @@ describe('KnowledgeBase Controller', () => {
 
     test('名称为空返回 400', async () => {
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scope: 'platform' });
 
@@ -582,7 +582,7 @@ describe('KnowledgeBase Controller', () => {
 
     test('名称为纯空格返回 400', async () => {
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: '   ', scope: 'platform' });
 
@@ -592,7 +592,7 @@ describe('KnowledgeBase Controller', () => {
 
     test('名称为非字符串类型返回 400', async () => {
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: [1, 2, 3], scope: 'platform' });
 
@@ -602,7 +602,7 @@ describe('KnowledgeBase Controller', () => {
 
     test('名称超过200字符返回 400', async () => {
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: 'A'.repeat(201), scope: 'platform' });
 
@@ -612,7 +612,7 @@ describe('KnowledgeBase Controller', () => {
 
     test('描述超过2000字符返回 400', async () => {
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: '测试', scope: 'platform', description: 'A'.repeat(2001) });
 
@@ -622,7 +622,7 @@ describe('KnowledgeBase Controller', () => {
 
     test('scope 为空返回 400', async () => {
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: '测试知识库' });
 
@@ -632,7 +632,7 @@ describe('KnowledgeBase Controller', () => {
 
     test('scope 为无效值返回 400', async () => {
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: '测试知识库', scope: 'invalid' });
 
@@ -648,7 +648,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: '公司知识库', scope: 'company' });
 
@@ -664,7 +664,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: '项目知识库', scope: 'project' });
 
@@ -680,7 +680,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: '测试', scope: 'platform' });
 
@@ -696,7 +696,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: '测试', scope: 'platform' });
 
@@ -730,7 +730,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: '更新后知识库' });
 
@@ -760,7 +760,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${adminToken(2)}`)
         .send({ name: '更新后' });
 
@@ -769,7 +769,7 @@ describe('KnowledgeBase Controller', () => {
 
     test('无效的 ID 返回 400', async () => {
       const res = await agent
-        .put('/api/knowledge-bases/abc')
+        .put('/api/v1/knowledge-bases/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: 'test' });
 
@@ -779,7 +779,7 @@ describe('KnowledgeBase Controller', () => {
 
     test('无效的 scope 值返回 400', async () => {
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scope: 'invalid' });
 
@@ -789,7 +789,7 @@ describe('KnowledgeBase Controller', () => {
 
     test('更新时名称为空字符串返回 400', async () => {
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: '   ' });
 
@@ -799,7 +799,7 @@ describe('KnowledgeBase Controller', () => {
 
     test('更新时名称超过200字符返回 400', async () => {
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: 'A'.repeat(201) });
 
@@ -809,7 +809,7 @@ describe('KnowledgeBase Controller', () => {
 
     test('更新时描述超过2000字符返回 400', async () => {
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ description: 'A'.repeat(2001) });
 
@@ -825,7 +825,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .put('/api/knowledge-bases/999')
+        .put('/api/v1/knowledge-bases/999')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: 'test' });
 
@@ -846,7 +846,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${adminToken(2)}`)
         .send({ name: 'test' });
 
@@ -862,7 +862,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: 'test' });
 
@@ -878,7 +878,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: 'test' });
 
@@ -908,7 +908,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scope: 'platform' });
 
@@ -935,7 +935,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scope: 'company' });
 
@@ -958,7 +958,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scope: 'project' });
 
@@ -983,7 +983,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .delete('/api/knowledge-bases/1')
+        .delete('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(200);
@@ -1003,7 +1003,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .delete('/api/knowledge-bases/1')
+        .delete('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${adminToken(2)}`);
 
       expect(res.status).toBe(200);
@@ -1012,7 +1012,7 @@ describe('KnowledgeBase Controller', () => {
 
     test('无效的 ID 返回 400', async () => {
       const res = await agent
-        .delete('/api/knowledge-bases/abc')
+        .delete('/api/v1/knowledge-bases/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(400);
@@ -1027,7 +1027,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .delete('/api/knowledge-bases/999')
+        .delete('/api/v1/knowledge-bases/999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(404);
@@ -1045,7 +1045,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .delete('/api/knowledge-bases/1')
+        .delete('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${adminToken(2)}`);
 
       expect(res.status).toBe(403);
@@ -1060,7 +1060,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .delete('/api/knowledge-bases/1')
+        .delete('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(500);
@@ -1075,7 +1075,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .delete('/api/knowledge-bases/1')
+        .delete('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(500);
@@ -1097,7 +1097,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases?page=0')
+        .get('/api/v1/knowledge-bases?page=0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(200);
@@ -1116,7 +1116,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases?page=-5')
+        .get('/api/v1/knowledge-bases?page=-5')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(200);
@@ -1132,7 +1132,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases?pageSize=0')
+        .get('/api/v1/knowledge-bases?pageSize=0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(200);
@@ -1149,7 +1149,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases?pageSize=-10')
+        .get('/api/v1/knowledge-bases?pageSize=-10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(200);
@@ -1166,7 +1166,7 @@ describe('KnowledgeBase Controller', () => {
 
       const longSearch = 'A'.repeat(150);
       const res = await agent
-        .get(`/api/knowledge-bases?search=${longSearch}`)
+        .get(`/api/v1/knowledge-bases?search=${longSearch}`)
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(200);
@@ -1182,7 +1182,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases')
+        .get('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(404);
@@ -1198,7 +1198,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases/0')
+        .get('/api/v1/knowledge-bases/0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       // parseInt('0') = 0, isNaN(0) = false, so it queries DB with id=0
@@ -1213,7 +1213,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases/-1')
+        .get('/api/v1/knowledge-bases/-1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       // parseInt('-1') = -1, isNaN(-1) = false, controller doesn't check negative
@@ -1228,7 +1228,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .get('/api/knowledge-bases/1.5')
+        .get('/api/v1/knowledge-bases/1.5')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       // parseInt('1.5') = 1, so it queries id=1
@@ -1251,7 +1251,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: 'A'.repeat(200), scope: 'platform' });
 
@@ -1273,7 +1273,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: '测试', scope: 'platform', description: 'B'.repeat(2000) });
 
@@ -1295,119 +1295,47 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: '测试', scope: 'platform', description: null });
 
       expect(res.status).toBe(201);
     });
 
-    test('create: company_id 为非整数被忽略', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockCreate = jest.fn().mockResolvedValue({
-        ...mockKB,
-        company: null,
-        project: null,
-        creator: { cnName: '管理员' },
-        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
-      });
-      getPrisma.mockReturnValue({
-        knowledgeBase: { create: mockCreate },
-      });
-
+    test('create: company_id 为非整数被 Zod 拒绝', async () => {
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: '测试', scope: 'platform', company_id: 1.5 });
 
-      expect(res.status).toBe(201);
-      // validateInteger returns undefined for float, service maps to companyId: null
-      expect(mockCreate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ companyId: null }),
-        })
-      );
+      expect(res.status).toBe(400);
     });
 
-    test('create: company_id 为负数被忽略', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockCreate = jest.fn().mockResolvedValue({
-        ...mockKB,
-        company: null,
-        project: null,
-        creator: { cnName: '管理员' },
-        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
-      });
-      getPrisma.mockReturnValue({
-        knowledgeBase: { create: mockCreate },
-      });
-
+    test('create: company_id 为负数被 Zod 拒绝', async () => {
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: '测试', scope: 'platform', company_id: -5 });
 
-      expect(res.status).toBe(201);
-      // validateInteger rejects negative, service maps to companyId: null
-      expect(mockCreate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ companyId: null }),
-        })
-      );
+      expect(res.status).toBe(400);
     });
 
-    test('create: company_id 为0被忽略', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockCreate = jest.fn().mockResolvedValue({
-        ...mockKB,
-        company: null,
-        project: null,
-        creator: { cnName: '管理员' },
-        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
-      });
-      getPrisma.mockReturnValue({
-        knowledgeBase: { create: mockCreate },
-      });
-
+    test('create: company_id 为0被 Zod 拒绝', async () => {
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: '测试', scope: 'platform', company_id: 0 });
 
-      expect(res.status).toBe(201);
-      // validateInteger rejects 0 (value < 1), service maps to companyId: null
-      expect(mockCreate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ companyId: null }),
-        })
-      );
+      expect(res.status).toBe(400);
     });
 
-    test('create: project_id 为非整数被忽略', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockCreate = jest.fn().mockResolvedValue({
-        ...mockKB,
-        company: null,
-        project: null,
-        creator: { cnName: '管理员' },
-        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
-      });
-      getPrisma.mockReturnValue({
-        knowledgeBase: { create: mockCreate },
-      });
-
+    test('create: project_id 为非数字被 Zod 拒绝', async () => {
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: '测试', scope: 'platform', project_id: 'abc' });
 
-      expect(res.status).toBe(201);
-      // validateInteger returns undefined for non-number, service maps to projectId: null
-      expect(mockCreate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ projectId: null }),
-        })
-      );
+      expect(res.status).toBe(400);
     });
 
     test('create: name 有前后空格被 trim', async () => {
@@ -1424,7 +1352,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: '  测试知识库  ', scope: 'platform' });
 
@@ -1439,12 +1367,13 @@ describe('KnowledgeBase Controller', () => {
     // --- Update 边界 ---
     test('update: name 为非字符串类型返回 400', async () => {
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: 12345 });
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toBe('知识库名称不能为空');
+      // Zod correctly rejects non-string type
+      expect(res.body.message).toBeDefined();
     });
 
     test('update: description=null 不报错', async () => {
@@ -1468,38 +1397,20 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ description: null });
 
       expect(res.status).toBe(200);
     });
 
-    test('update: company_id 为非整数被忽略（validateInteger）', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindFirst = jest.fn().mockResolvedValue({
-        ...mockKB,
-        createdBy: 1,
-        companyId: null,
-        projectId: null,
-      });
-      const mockUpdate = jest.fn().mockResolvedValue({
-        ...mockKB,
-        company: null,
-        project: null,
-        creator: { cnName: '管理员' },
-        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
-      });
-      getPrisma.mockReturnValue({
-        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
-      });
-
+    test('update: company_id 为非整数被 Zod 拒绝', async () => {
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ company_id: 3.14 });
 
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(400);
     });
 
     test('update: name 恰好200字符成功', async () => {
@@ -1523,7 +1434,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: 'A'.repeat(200) });
 
@@ -1551,7 +1462,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ description: 'B'.repeat(2000) });
 
@@ -1579,7 +1490,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: 'sysadmin修改' });
 
@@ -1607,7 +1518,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .put('/api/knowledge-bases/1')
+        .put('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ description: '只更新描述' });
 
@@ -1623,7 +1534,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .delete('/api/knowledge-bases/0')
+        .delete('/api/v1/knowledge-bases/0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       // parseInt('0') = 0, isNaN(0) = false, so it queries DB
@@ -1642,7 +1553,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .delete('/api/knowledge-bases/1')
+        .delete('/api/v1/knowledge-bases/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(res.status).toBe(200);
@@ -1664,7 +1575,7 @@ describe('KnowledgeBase Controller', () => {
       });
 
       const res = await agent
-        .post('/api/knowledge-bases')
+        .post('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           name: '测试',
@@ -1674,11 +1585,8 @@ describe('KnowledgeBase Controller', () => {
           malicious_field: 'hack',
         });
 
-      expect(res.status).toBe(201);
-      const createData = mockCreate.mock.calls[0][0].data;
-      expect(createData.id).toBeUndefined();
-      expect(createData.created_by).toBeUndefined();
-      expect(createData.malicious_field).toBeUndefined();
+      // Zod strict() rejects extra fields at route level — mass assignment prevented
+      expect(res.status).toBe(400);
     });
   });
 

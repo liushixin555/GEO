@@ -88,13 +88,13 @@ describe('Todo Controller', () => {
   // ============================================================
   describe('GET /api/todos', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.get('/api/todos');
+      const response = await agent.get('/api/v1/todos');
       expect(response.status).toBe(401);
     });
 
     it('should return 403 for view role', async () => {
       const response = await agent
-        .get('/api/todos')
+        .get('/api/v1/todos')
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(response.status).toBe(403);
     });
@@ -108,7 +108,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos?tab=my_open')
+        .get('/api/v1/todos?tab=my_open')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -126,7 +126,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos')
+        .get('/api/v1/todos')
         .set('Authorization', `Bearer ${adminToken()}`);
 
       expect(response.status).toBe(200);
@@ -142,7 +142,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos?tab=my_open')
+        .get('/api/v1/todos?tab=my_open')
         .set('Authorization', `Bearer ${sysadminToken(5, 1)}`);
 
       expect(response.status).toBe(200);
@@ -165,7 +165,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos?tab=my_closed')
+        .get('/api/v1/todos?tab=my_closed')
         .set('Authorization', `Bearer ${sysadminToken(5, 1)}`);
 
       expect(response.status).toBe(200);
@@ -188,7 +188,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos?tab=all_open')
+        .get('/api/v1/todos?tab=all_open')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -210,7 +210,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos?tab=all_closed')
+        .get('/api/v1/todos?tab=all_closed')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -232,7 +232,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos?priority=P0')
+        .get('/api/v1/todos?priority=P0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -254,7 +254,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos?search=文章')
+        .get('/api/v1/todos?search=文章')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -276,7 +276,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos?page=2&pageSize=5')
+        .get('/api/v1/todos?page=2&pageSize=5')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -290,7 +290,7 @@ describe('Todo Controller', () => {
 
     it('should deny admin access to all_open tab', async () => {
       const response = await agent
-        .get('/api/todos?tab=all_open')
+        .get('/api/v1/todos?tab=all_open')
         .set('Authorization', `Bearer ${adminToken(5, 10)}`);
 
       expect(response.status).toBe(403);
@@ -299,7 +299,7 @@ describe('Todo Controller', () => {
 
     it('should deny admin access to all_closed tab', async () => {
       const response = await agent
-        .get('/api/todos?tab=all_closed')
+        .get('/api/v1/todos?tab=all_closed')
         .set('Authorization', `Bearer ${adminToken(5, 10)}`);
 
       expect(response.status).toBe(403);
@@ -315,7 +315,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos?tab=all_open')
+        .get('/api/v1/todos?tab=all_open')
         .set('Authorization', `Bearer ${sysadminToken(1)}`);
 
       expect(response.status).toBe(200);
@@ -330,7 +330,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos?tab=all_closed')
+        .get('/api/v1/todos?tab=all_closed')
         .set('Authorization', `Bearer ${sysadminToken(1)}`);
 
       expect(response.status).toBe(200);
@@ -345,7 +345,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos')
+        .get('/api/v1/todos')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -357,13 +357,13 @@ describe('Todo Controller', () => {
   // ============================================================
   describe('GET /api/todos/:id', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.get('/api/todos/1');
+      const response = await agent.get('/api/v1/todos/1');
       expect(response.status).toBe(401);
     });
 
     it('should return 400 for invalid id', async () => {
       const response = await agent
-        .get('/api/todos/abc')
+        .get('/api/v1/todos/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
       expect(response.body.message).toBe('无效的待办ID');
@@ -376,7 +376,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos/999')
+        .get('/api/v1/todos/999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
@@ -390,7 +390,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos/1')
+        .get('/api/v1/todos/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -405,7 +405,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos/1')
+        .get('/api/v1/todos/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -427,13 +427,13 @@ describe('Todo Controller', () => {
     };
 
     it('should return 401 without token', async () => {
-      const response = await agent.post('/api/todos').send(createPayload);
+      const response = await agent.post('/api/v1/todos').send(createPayload);
       expect(response.status).toBe(401);
     });
 
     it('should return 403 for view role', async () => {
       const response = await agent
-        .post('/api/todos')
+        .post('/api/v1/todos')
         .send(createPayload)
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(response.status).toBe(403);
@@ -449,7 +449,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos')
+        .post('/api/v1/todos')
         .send(createPayload)
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
@@ -473,7 +473,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos')
+        .post('/api/v1/todos')
         .send(createPayload)
         .set('Authorization', `Bearer ${adminToken()}`);
 
@@ -493,7 +493,7 @@ describe('Todo Controller', () => {
       const { priority: _p, ...payloadNoPriority } = createPayload;
 
       await agent
-        .post('/api/todos')
+        .post('/api/v1/todos')
         .send(payloadNoPriority)
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
@@ -522,7 +522,7 @@ describe('Todo Controller', () => {
       };
 
       await agent
-        .post('/api/todos')
+        .post('/api/v1/todos')
         .send(payload)
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
@@ -543,7 +543,7 @@ describe('Todo Controller', () => {
       });
 
       await agent
-        .post('/api/todos')
+        .post('/api/v1/todos')
         .send(createPayload)
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
@@ -565,7 +565,7 @@ describe('Todo Controller', () => {
 
       const dueAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
       await agent
-        .post('/api/todos')
+        .post('/api/v1/todos')
         .send({ ...createPayload, due_at: dueAt })
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
@@ -583,7 +583,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos')
+        .post('/api/v1/todos')
         .send(createPayload)
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
@@ -596,13 +596,13 @@ describe('Todo Controller', () => {
   // ============================================================
   describe('PUT /api/todos/:id', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.put('/api/todos/1').send({ title: 'updated' });
+      const response = await agent.put('/api/v1/todos/1').send({ title: 'updated' });
       expect(response.status).toBe(401);
     });
 
     it('should return 400 for invalid id', async () => {
       const response = await agent
-        .put('/api/todos/abc')
+        .put('/api/v1/todos/abc')
         .send({ title: 'updated' })
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
@@ -615,7 +615,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .put('/api/todos/999')
+        .put('/api/v1/todos/999')
         .send({ title: 'updated' })
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
@@ -630,7 +630,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .put('/api/todos/1')
+        .put('/api/v1/todos/1')
         .send({ title: 'updated' })
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
@@ -645,7 +645,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .put('/api/todos/1')
+        .put('/api/v1/todos/1')
         .send({ title: 'updated' })
         .set('Authorization', `Bearer ${adminToken(99, 2)}`);
 
@@ -664,7 +664,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .put('/api/todos/1')
+        .put('/api/v1/todos/1')
         .send({ title: 'updated' })
         .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
 
@@ -685,7 +685,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .put('/api/todos/1')
+        .put('/api/v1/todos/1')
         .send({ title: 'updated' })
         .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
 
@@ -698,13 +698,13 @@ describe('Todo Controller', () => {
   // ============================================================
   describe('POST /api/todos/:id/close', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.post('/api/todos/1/close');
+      const response = await agent.post('/api/v1/todos/1/close');
       expect(response.status).toBe(401);
     });
 
     it('should return 400 for invalid id', async () => {
       const response = await agent
-        .post('/api/todos/abc/close')
+        .post('/api/v1/todos/abc/close')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
     });
@@ -716,7 +716,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos/999/close')
+        .post('/api/v1/todos/999/close')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
@@ -730,7 +730,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos/1/close')
+        .post('/api/v1/todos/1/close')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -744,7 +744,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos/1/close')
+        .post('/api/v1/todos/1/close')
         .set('Authorization', `Bearer ${adminToken(99, 2)}`);
 
       expect(response.status).toBe(400);
@@ -764,7 +764,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos/1/close')
+        .post('/api/v1/todos/1/close')
         .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
 
       expect(response.status).toBe(200);
@@ -784,13 +784,13 @@ describe('Todo Controller', () => {
     const closedTodo = { ...mockTodoFull, status: 'closed' };
 
     it('should return 401 without token', async () => {
-      const response = await agent.post('/api/todos/1/reopen');
+      const response = await agent.post('/api/v1/todos/1/reopen');
       expect(response.status).toBe(401);
     });
 
     it('should return 400 for invalid id', async () => {
       const response = await agent
-        .post('/api/todos/abc/reopen')
+        .post('/api/v1/todos/abc/reopen')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
     });
@@ -802,7 +802,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos/1/reopen')
+        .post('/api/v1/todos/1/reopen')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -822,7 +822,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos/1/reopen')
+        .post('/api/v1/todos/1/reopen')
         .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
 
       expect(response.status).toBe(200);
@@ -841,7 +841,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos/999/reopen')
+        .post('/api/v1/todos/999/reopen')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
@@ -855,14 +855,14 @@ describe('Todo Controller', () => {
   describe('POST /api/todos/:id/transfer', () => {
     it('should return 401 without token', async () => {
       const response = await agent
-        .post('/api/todos/1/transfer')
+        .post('/api/v1/todos/1/transfer')
         .send({ assignee_id: 2 });
       expect(response.status).toBe(401);
     });
 
     it('should return 400 for invalid id', async () => {
       const response = await agent
-        .post('/api/todos/abc/transfer')
+        .post('/api/v1/todos/abc/transfer')
         .send({ assignee_id: 2 })
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
@@ -875,7 +875,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos/999/transfer')
+        .post('/api/v1/todos/999/transfer')
         .send({ assignee_id: 2 })
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
@@ -890,7 +890,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos/1/transfer')
+        .post('/api/v1/todos/1/transfer')
         .send({ assignee_id: 2 })
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
@@ -905,7 +905,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos/1/transfer')
+        .post('/api/v1/todos/1/transfer')
         .send({ assignee_id: 2 })
         .set('Authorization', `Bearer ${adminToken(99, 2)}`);
 
@@ -921,7 +921,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos/1/transfer')
+        .post('/api/v1/todos/1/transfer')
         .send({ assignee_id: 999 })
         .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
 
@@ -944,7 +944,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos/1/transfer')
+        .post('/api/v1/todos/1/transfer')
         .send({ assignee_id: 2 })
         .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
 
@@ -966,13 +966,13 @@ describe('Todo Controller', () => {
   // ============================================================
   describe('POST /api/todos/:id/reject', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.post('/api/todos/1/reject');
+      const response = await agent.post('/api/v1/todos/1/reject');
       expect(response.status).toBe(401);
     });
 
     it('should return 400 for invalid id', async () => {
       const response = await agent
-        .post('/api/todos/abc/reject')
+        .post('/api/v1/todos/abc/reject')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
     });
@@ -984,7 +984,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos/1/reject')
+        .post('/api/v1/todos/1/reject')
         .set('Authorization', `Bearer ${adminToken()}`);
 
       expect(response.status).toBe(403);
@@ -999,7 +999,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos/1/reject')
+        .post('/api/v1/todos/1/reject')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -1020,7 +1020,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos/1/reject')
+        .post('/api/v1/todos/1/reject')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1051,7 +1051,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos/1/reject')
+        .post('/api/v1/todos/1/reject')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1072,7 +1072,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .post('/api/todos/999/reject')
+        .post('/api/v1/todos/999/reject')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
@@ -1085,13 +1085,13 @@ describe('Todo Controller', () => {
   // ============================================================
   describe('GET /api/todos/:id/logs', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.get('/api/todos/1/logs');
+      const response = await agent.get('/api/v1/todos/1/logs');
       expect(response.status).toBe(401);
     });
 
     it('should return 400 for invalid id', async () => {
       const response = await agent
-        .get('/api/todos/abc/logs')
+        .get('/api/v1/todos/abc/logs')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
     });
@@ -1103,7 +1103,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos/999/logs')
+        .get('/api/v1/todos/999/logs')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
@@ -1119,7 +1119,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos/1/logs')
+        .get('/api/v1/todos/1/logs')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1136,7 +1136,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos/1/logs')
+        .get('/api/v1/todos/1/logs')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1150,7 +1150,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos/1/logs')
+        .get('/api/v1/todos/1/logs')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -1164,13 +1164,13 @@ describe('Todo Controller', () => {
   // ============================================================
   describe('GET /api/todos/object-options', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.get('/api/todos/object-options');
+      const response = await agent.get('/api/v1/todos/object-options');
       expect(response.status).toBe(401);
     });
 
     it('should return 400 when missing objectType', async () => {
       const response = await agent
-        .get('/api/todos/object-options?projectId=1')
+        .get('/api/v1/todos/object-options?projectId=1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
     });
@@ -1185,7 +1185,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos/object-options?projectId=1&objectType=article')
+        .get('/api/v1/todos/object-options?projectId=1&objectType=article')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1207,7 +1207,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos/object-options?projectId=1&objectType=article&action=delete')
+        .get('/api/v1/todos/object-options?projectId=1&objectType=article&action=delete')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1230,7 +1230,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos/object-options?projectId=1&objectType=article&action=restore')
+        .get('/api/v1/todos/object-options?projectId=1&objectType=article&action=restore')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1254,7 +1254,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos/object-options?projectId=1&objectType=keyword&action=update')
+        .get('/api/v1/todos/object-options?projectId=1&objectType=keyword&action=update')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1270,7 +1270,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos/object-options?projectId=1&objectType=keyword&action=delete')
+        .get('/api/v1/todos/object-options?projectId=1&objectType=keyword&action=delete')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1279,7 +1279,7 @@ describe('Todo Controller', () => {
 
     it('should return 400 for unknown objectType', async () => {
       const response = await agent
-        .get('/api/todos/object-options?projectId=1&objectType=unknown_type')
+        .get('/api/v1/todos/object-options?projectId=1&objectType=unknown_type')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       // Zod validation rejects invalid objectType values
@@ -1298,7 +1298,7 @@ describe('Todo Controller', () => {
 
       // Use admin that is NOT in operator_ids
       const response = await agent
-        .get('/api/todos/object-options?projectId=1&objectType=article')
+        .get('/api/v1/todos/object-options?projectId=1&objectType=article')
         .set('Authorization', `Bearer ${adminToken(5, 2)}`);
 
       // Since the projectService mock is complex, just verify it doesn't crash
@@ -1313,13 +1313,13 @@ describe('Todo Controller', () => {
   // ============================================================
   describe('GET /api/todos/assignee-candidates', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.get('/api/todos/assignee-candidates');
+      const response = await agent.get('/api/v1/todos/assignee-candidates');
       expect(response.status).toBe(401);
     });
 
     it('should return 400 when missing projectId', async () => {
       const response = await agent
-        .get('/api/todos/assignee-candidates')
+        .get('/api/v1/todos/assignee-candidates')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
     });
@@ -1331,7 +1331,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos/assignee-candidates?projectId=999')
+        .get('/api/v1/todos/assignee-candidates?projectId=999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
@@ -1354,7 +1354,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos/assignee-candidates?projectId=1')
+        .get('/api/v1/todos/assignee-candidates?projectId=1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1383,7 +1383,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos/assignee-candidates?projectId=1')
+        .get('/api/v1/todos/assignee-candidates?projectId=1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1397,7 +1397,7 @@ describe('Todo Controller', () => {
       });
 
       const response = await agent
-        .get('/api/todos/assignee-candidates?projectId=1')
+        .get('/api/v1/todos/assignee-candidates?projectId=1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);

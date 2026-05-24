@@ -70,13 +70,13 @@ describe('Upload Controller - Integration', () => {
   // ---------- Auth & Permission ----------
 
   it('should return 401 without token', async () => {
-    const response = await agent.post('/api/upload');
+    const response = await agent.post('/api/v1/upload');
     expect(response.status).toBe(401);
   });
 
   it('should return 403 for view role', async () => {
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${viewToken()}`);
     expect(response.status).toBe(403);
   });
@@ -85,7 +85,7 @@ describe('Upload Controller - Integration', () => {
 
   it('should upload PNG image successfully as sysadmin', async () => {
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', testImagePath);
 
@@ -101,7 +101,7 @@ describe('Upload Controller - Integration', () => {
 
   it('should upload image successfully as admin', async () => {
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${adminToken()}`)
       .attach('file', testImagePath);
 
@@ -121,7 +121,7 @@ describe('Upload Controller - Integration', () => {
     fs.writeFileSync(jpegPath, jpeg);
 
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', jpegPath);
 
@@ -142,7 +142,7 @@ describe('Upload Controller - Integration', () => {
     fs.writeFileSync(gifPath, gif);
 
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${adminToken()}`)
       .attach('file', gifPath);
 
@@ -163,7 +163,7 @@ describe('Upload Controller - Integration', () => {
     fs.writeFileSync(webpPath, webp);
 
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', webpPath);
 
@@ -181,7 +181,7 @@ describe('Upload Controller - Integration', () => {
     fs.writeFileSync(svgPath, svg);
 
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', svgPath);
 
@@ -195,7 +195,7 @@ describe('Upload Controller - Integration', () => {
 
   it('should return 400 when no file provided', async () => {
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${sysadminToken()}`);
     expect(response.status).toBe(400);
   });
@@ -205,7 +205,7 @@ describe('Upload Controller - Integration', () => {
     fs.writeFileSync(txtPath, 'not an image');
 
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', txtPath);
 
@@ -222,7 +222,7 @@ describe('Upload Controller - Integration', () => {
     fs.writeFileSync(largePath, buffer);
 
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', largePath);
 
@@ -237,7 +237,7 @@ describe('Upload Controller - Integration', () => {
     fs.writeFileSync(pdfPath, '%PDF-1.4 test content');
 
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', pdfPath);
 
@@ -251,7 +251,7 @@ describe('Upload Controller - Integration', () => {
     fs.writeFileSync(docPath, 'fake doc content');
 
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', docPath);
 
@@ -266,7 +266,7 @@ describe('Upload Controller - Integration', () => {
     fs.writeFileSync(fakePath, 'this is not a real PNG image content');
 
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', fakePath, { contentType: 'image/png' });
 
@@ -407,7 +407,7 @@ describe('Upload Controller - Edge Cases', () => {
     fs.writeFileSync(testImagePath, png);
 
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', testImagePath, { filename: '测试 图片 (1).png' });
 
@@ -423,7 +423,7 @@ describe('Upload Controller - Edge Cases', () => {
     fs.writeFileSync(noExtPath, 'not an image');
 
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', noExtPath);
 
@@ -440,7 +440,7 @@ describe('Upload Controller - Edge Cases', () => {
     fs.writeFileSync(bmpPath, bmp);
 
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', bmpPath);
 
@@ -455,7 +455,7 @@ describe('Upload Controller - Edge Cases', () => {
     fs.writeFileSync(tiffPath, 'II* fake tiff');
 
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', tiffPath);
 
@@ -469,7 +469,7 @@ describe('Upload Controller - Edge Cases', () => {
     fs.writeFileSync(exePath, 'MZ fake executable');
 
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', exePath);
 
@@ -483,7 +483,7 @@ describe('Upload Controller - Edge Cases', () => {
     fs.writeFileSync(zipPath, 'PK fake zip');
 
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', zipPath);
 
@@ -497,7 +497,7 @@ describe('Upload Controller - Edge Cases', () => {
     fs.writeFileSync(htmlPath, '<html><body>XSS</body></html>');
 
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', htmlPath);
 
@@ -524,7 +524,7 @@ describe('Upload Controller - Edge Cases', () => {
     fs.writeFileSync(testImagePath, png);
 
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', `Bearer ${expiredToken}`)
       .attach('file', testImagePath);
 
@@ -542,7 +542,7 @@ describe('Upload Controller - Edge Cases', () => {
     fs.writeFileSync(testImagePath, png);
 
     const response = await agent
-      .post('/api/upload')
+      .post('/api/v1/upload')
       .set('Authorization', 'Bearer invalid-token-string')
       .attach('file', testImagePath);
 

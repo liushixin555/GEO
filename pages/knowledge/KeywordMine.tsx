@@ -30,7 +30,7 @@ const KeywordMine: React.FC = () => {
     const fetchBase = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(`/api/knowledge-bases/${baseId}`, {
+        const res = await axios.get(`/api/v1/knowledge-bases/${baseId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setBaseName(res.data.data.name);
@@ -44,7 +44,7 @@ const KeywordMine: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`/api/knowledge-bases/${baseId}/mined-keywords`, {
+      const res = await axios.get(`/api/v1/knowledge-bases/${baseId}/mined-keywords`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const list: MinedKeywordItem[] = res.data.data || [];
@@ -59,7 +59,7 @@ const KeywordMine: React.FC = () => {
     setMining(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`/api/knowledge-bases/${baseId}/keywords/mine`,
+      const res = await axios.post(`/api/v1/knowledge-bases/${baseId}/keywords/mine`,
         { source_type: sourceType },
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -81,7 +81,7 @@ const KeywordMine: React.FC = () => {
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`/api/knowledge-bases/${baseId}/mined-keywords/save`,
+      const res = await axios.post(`/api/v1/knowledge-bases/${baseId}/mined-keywords/save`,
         { keywords: selected },
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -97,7 +97,7 @@ const KeywordMine: React.FC = () => {
     setSelectedRowKeys(allIds);
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`/api/knowledge-bases/${baseId}/mined-keywords/batch-toggle`,
+      await axios.put(`/api/v1/knowledge-bases/${baseId}/mined-keywords/batch-toggle`,
         { ids: allIds, selected: true },
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -113,7 +113,7 @@ const KeywordMine: React.FC = () => {
   const handleClear = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`/api/knowledge-bases/${baseId}/mined-keywords`, {
+      await axios.delete(`/api/v1/knowledge-bases/${baseId}/mined-keywords`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       message.success('已清空');
@@ -127,7 +127,7 @@ const KeywordMine: React.FC = () => {
   const handleDeleteSingle = async (id: number) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`/api/knowledge-bases/${baseId}/mined-keywords`, {
+      await axios.delete(`/api/v1/knowledge-bases/${baseId}/mined-keywords`, {
         headers: { Authorization: `Bearer ${token}` },
         data: { ids: [id] },
       });

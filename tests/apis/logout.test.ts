@@ -17,7 +17,7 @@ const agent = request.agent(app).set('User-Agent', 'test-agent/1.0');
 
 describe('POST /api/auth/logout', () => {
   it('should return 401 when no token provided', async () => {
-    const response = await agent.post('/api/auth/logout');
+    const response = await agent.post('/api/v1/auth/logout');
 
     expect(response.status).toBe(401);
   });
@@ -30,7 +30,7 @@ describe('POST /api/auth/logout', () => {
     );
 
     const response = await agent
-      .post('/api/auth/logout')
+      .post('/api/v1/auth/logout')
       .set('Authorization', `Bearer ${token}`);
 
     expect(response.status).toBe(200);

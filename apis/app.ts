@@ -106,20 +106,20 @@ if (config.swagger.enabled && process.env.NODE_ENV !== 'production') {
   app.get('/api-docs.json', (_req: Request, res: Response) => res.json(swaggerSpec));
 }
 
-// ── Route modules ──────────────────────────────────────────────────
-app.use('/api/auth', authRoutes);
-app.use('/api/companies', companyRoutes);
-app.use('/api/skills', skillsRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/llm-models', llmModelRoutes);
-app.use('/api/system-configs', systemConfigRoutes);
-app.use('/api/publishing-platforms', publishingPlatformRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api', articleRoutes);
-app.use('/api/upload', uploadRoutes);
-app.use('/api/publishing-schedule', publishingScheduleRoutes);
-app.use('/api', knowledgeRoutes);
-app.use('/api/todos', todoRoutes);
+// ── Route modules (v1) ─────────────────────────────────────────────
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/companies', companyRoutes);
+app.use('/api/v1/skills', skillsRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/llm-models', llmModelRoutes);
+app.use('/api/v1/system-configs', systemConfigRoutes);
+app.use('/api/v1/publishing-platforms', publishingPlatformRoutes);
+app.use('/api/v1/projects', projectRoutes);
+app.use('/api/v1', articleRoutes);
+app.use('/api/v1/upload', uploadRoutes);
+app.use('/api/v1/publishing-schedule', publishingScheduleRoutes);
+app.use('/api/v1', knowledgeRoutes);
+app.use('/api/v1/todos', todoRoutes);
 
 // 404 fallback — must be after all routes
 app.use((_req, res) => {

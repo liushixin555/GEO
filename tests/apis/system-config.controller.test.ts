@@ -78,20 +78,20 @@ describe('System Config Controller', () => {
 
   describe('GET /api/system-configs', () => {
     it('应返回401当无token时', async () => {
-      const response = await agent.get('/api/system-configs');
+      const response = await agent.get('/api/v1/system-configs');
       expect(response.status).toBe(401);
     });
 
     it('应返回403当角色为admin时', async () => {
       const response = await agent
-        .get('/api/system-configs')
+        .get('/api/v1/system-configs')
         .set('Authorization', `Bearer ${adminToken()}`);
       expect(response.status).toBe(403);
     });
 
     it('应返回403当角色为view时', async () => {
       const response = await agent
-        .get('/api/system-configs')
+        .get('/api/v1/system-configs')
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(response.status).toBe(403);
     });
@@ -103,7 +103,7 @@ describe('System Config Controller', () => {
       ]);
 
       const response = await agent
-        .get('/api/system-configs')
+        .get('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -116,7 +116,7 @@ describe('System Config Controller', () => {
       mockPrismaForGet([]);
 
       const response = await agent
-        .get('/api/system-configs')
+        .get('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -127,7 +127,7 @@ describe('System Config Controller', () => {
       mockPrismaForGetError(new Error('DB error'));
 
       const response = await agent
-        .get('/api/system-configs')
+        .get('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -138,7 +138,7 @@ describe('System Config Controller', () => {
       mockPrismaForGetError('string error');
 
       const response = await agent
-        .get('/api/system-configs')
+        .get('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -152,7 +152,7 @@ describe('System Config Controller', () => {
       ]);
 
       const response = await agent
-        .get('/api/system-configs')
+        .get('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -171,7 +171,7 @@ describe('System Config Controller', () => {
       ]);
 
       const response = await agent
-        .get('/api/system-configs')
+        .get('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -188,7 +188,7 @@ describe('System Config Controller', () => {
       ]);
 
       const response = await agent
-        .get('/api/system-configs')
+        .get('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -202,7 +202,7 @@ describe('System Config Controller', () => {
       ]);
 
       const response = await agent
-        .get('/api/system-configs')
+        .get('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -214,7 +214,7 @@ describe('System Config Controller', () => {
   describe('PUT /api/system-configs', () => {
     it('应返回401当无token时', async () => {
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .send({ configs: [{ config_key: 'k', config_value: 'v' }] });
 
       expect(response.status).toBe(401);
@@ -222,7 +222,7 @@ describe('System Config Controller', () => {
 
     it('应返回403当角色为admin时', async () => {
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${adminToken()}`)
         .send({ configs: [{ config_key: 'k', config_value: 'v' }] });
 
@@ -231,7 +231,7 @@ describe('System Config Controller', () => {
 
     it('应返回403当角色为view时', async () => {
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${viewToken()}`)
         .send({ configs: [{ config_key: 'k', config_value: 'v' }] });
 
@@ -240,7 +240,7 @@ describe('System Config Controller', () => {
 
     it('应返回400当configs为空数组时', async () => {
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ configs: [] });
 
@@ -250,7 +250,7 @@ describe('System Config Controller', () => {
 
     it('应返回400当configs不是数组时', async () => {
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ configs: 'not-array' });
 
@@ -259,7 +259,7 @@ describe('System Config Controller', () => {
 
     it('应返回400当configs字段缺失时', async () => {
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({});
 
@@ -268,7 +268,7 @@ describe('System Config Controller', () => {
 
     it('应返回400当config_key缺失时', async () => {
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ configs: [{ config_value: 'test' }] });
 
@@ -278,7 +278,7 @@ describe('System Config Controller', () => {
 
     it('应返回400当config_key不在白名单中时', async () => {
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ configs: [{ config_key: 'unknown_key', config_value: 'test' }] });
 
@@ -288,7 +288,7 @@ describe('System Config Controller', () => {
 
     it('应返回400当config_value为undefined时', async () => {
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ configs: [{ config_key: 'yishangshu_username' }] });
 
@@ -298,7 +298,7 @@ describe('System Config Controller', () => {
 
     it('应返回400当多条配置中第二条缺少config_key时', async () => {
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [
@@ -313,7 +313,7 @@ describe('System Config Controller', () => {
 
     it('应返回400当多条配置中第二条缺少config_value时', async () => {
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [
@@ -332,7 +332,7 @@ describe('System Config Controller', () => {
       mockPrismaForUpdate([result1, result2]);
 
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [
@@ -352,7 +352,7 @@ describe('System Config Controller', () => {
       mockPrismaForUpdate([result]);
 
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [
@@ -370,7 +370,7 @@ describe('System Config Controller', () => {
       mockPrismaForUpdate([result]);
 
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [
@@ -387,7 +387,7 @@ describe('System Config Controller', () => {
       mockPrismaForUpdate([result]);
 
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [
@@ -403,7 +403,7 @@ describe('System Config Controller', () => {
       mockPrismaForUpdate([result]);
 
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [
@@ -420,7 +420,7 @@ describe('System Config Controller', () => {
       mockPrismaForUpdate([result]);
 
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [
@@ -437,7 +437,7 @@ describe('System Config Controller', () => {
       mockPrismaForUpdate([result]);
 
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [{ config_key: 'yishangshu_username', config_value: 'val1' }],
@@ -456,7 +456,7 @@ describe('System Config Controller', () => {
       mockPrismaForUpdateError(new Error('DB error'));
 
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [
@@ -472,7 +472,7 @@ describe('System Config Controller', () => {
       mockPrismaForUpdateError('string error');
 
       const response = await agent
-        .put('/api/system-configs')
+        .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           configs: [

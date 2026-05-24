@@ -51,7 +51,7 @@ const ArticlePage: React.FC = () => {
       if (search) params.search = search;
       if (filterStatus) params.status = filterStatus;
 
-      const res = await axios.get(`/api/projects/${projectId}/articles`, {
+      const res = await axios.get(`/api/v1/projects/${projectId}/articles`, {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
@@ -71,7 +71,7 @@ const ArticlePage: React.FC = () => {
   const handleDelete = async (item: ArticleItem) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`/api/projects/${projectId}/articles/${item.id}`, {
+      await axios.delete(`/api/v1/projects/${projectId}/articles/${item.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       message.success('删除成功');

@@ -40,7 +40,7 @@ const TodoLogModal: React.FC<TodoLogModalProps> = ({ visible, todoId, onClose })
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`/api/todos/${todoId}/logs`, {
+      const res = await axios.get(`/api/v1/todos/${todoId}/logs`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setLogs(res.data.data || []);

@@ -65,13 +65,13 @@ describe('Project Controller', () => {
   // ========== GET /api/projects (listProjects) ==========
   describe('GET /api/projects', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.get('/api/projects');
+      const response = await agent.get('/api/v1/projects');
       expect(response.status).toBe(401);
     });
 
     it('should return 403 for view role', async () => {
       const response = await agent
-        .get('/api/projects')
+        .get('/api/v1/projects')
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(response.status).toBe(403);
     });
@@ -83,7 +83,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/projects')
+        .get('/api/v1/projects')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -101,7 +101,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/projects?company_id=2')
+        .get('/api/v1/projects?company_id=2')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -119,7 +119,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/projects?status=true')
+        .get('/api/v1/projects?status=true')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -137,7 +137,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/projects?status=false')
+        .get('/api/v1/projects?status=false')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -155,7 +155,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/projects?search=Test')
+        .get('/api/v1/projects?search=Test')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -178,7 +178,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/projects?page=2&pageSize=5')
+        .get('/api/v1/projects?page=2&pageSize=5')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -196,7 +196,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/projects')
+        .get('/api/v1/projects')
         .set('Authorization', `Bearer ${adminToken(2)}`);
 
       expect(response.status).toBe(200);
@@ -213,7 +213,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: jest.fn() } });
 
       const response = await agent
-        .get('/api/projects')
+        .get('/api/v1/projects')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -226,7 +226,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: jest.fn() } });
 
       const response = await agent
-        .get('/api/projects')
+        .get('/api/v1/projects')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -240,7 +240,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/projects')
+        .get('/api/v1/projects')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -258,7 +258,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/projects?search=Test&company_id=1&status=true')
+        .get('/api/v1/projects?search=Test&company_id=1&status=true')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -283,7 +283,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/projects')
+        .get('/api/v1/projects')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -293,7 +293,7 @@ describe('Project Controller', () => {
 
     it('should return 400 for invalid status parameter', async () => {
       const response = await agent
-        .get('/api/projects?status=invalid')
+        .get('/api/v1/projects?status=invalid')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -307,7 +307,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/projects?pageSize=9999')
+        .get('/api/v1/projects?pageSize=9999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -321,13 +321,13 @@ describe('Project Controller', () => {
   // ========== GET /api/projects/:id (getProject) ==========
   describe('GET /api/projects/:id', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.get('/api/projects/1');
+      const response = await agent.get('/api/v1/projects/1');
       expect(response.status).toBe(401);
     });
 
     it('should return 400 for invalid id', async () => {
       const response = await agent
-        .get('/api/projects/abc')
+        .get('/api/v1/projects/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -340,7 +340,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/projects/999')
+        .get('/api/v1/projects/999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
@@ -353,7 +353,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/projects/1')
+        .get('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -373,7 +373,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/projects/1')
+        .get('/api/v1/projects/1')
         .set('Authorization', `Bearer ${adminToken(2)}`);
 
       expect(response.status).toBe(403);
@@ -390,7 +390,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/projects/1')
+        .get('/api/v1/projects/1')
         .set('Authorization', `Bearer ${adminToken(2)}`);
 
       expect(response.status).toBe(200);
@@ -402,7 +402,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/projects/1')
+        .get('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -415,7 +415,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/projects/1')
+        .get('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -440,7 +440,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/projects/1')
+        .get('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -460,7 +460,7 @@ describe('Project Controller', () => {
   describe('POST /api/projects', () => {
     it('should return 400 when short_name is missing', async () => {
       const response = await agent
-        .post('/api/projects')
+        .post('/api/v1/projects')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ full_name: 'Project 1', company_id: 1 });
 
@@ -470,7 +470,7 @@ describe('Project Controller', () => {
 
     it('should return 400 when full_name is missing', async () => {
       const response = await agent
-        .post('/api/projects')
+        .post('/api/v1/projects')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'P1', company_id: 1 });
 
@@ -480,7 +480,7 @@ describe('Project Controller', () => {
 
     it('should return 400 when company_id is missing', async () => {
       const response = await agent
-        .post('/api/projects')
+        .post('/api/v1/projects')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'P1', full_name: 'Project 1' });
 
@@ -500,7 +500,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .post('/api/projects')
+        .post('/api/v1/projects')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'P1', full_name: 'Project 1', company_id: 1, operator_ids: [2] });
 
@@ -516,7 +516,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: {}, user: { findMany: mockUserFindMany } });
 
       const response = await agent
-        .post('/api/projects')
+        .post('/api/v1/projects')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'P1', full_name: 'Project 1', company_id: 1, operator_ids: [5] });
 
@@ -535,7 +535,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: {}, user: { findMany: mockUserFindMany } });
 
       const response = await agent
-        .post('/api/projects')
+        .post('/api/v1/projects')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'P1', full_name: 'Project 1', company_id: 1, operator_ids: [2], viewer_ids: [99] });
 
@@ -555,7 +555,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .post('/api/projects')
+        .post('/api/v1/projects')
         .set('Authorization', `Bearer ${adminToken(2)}`)
         .send({ short_name: 'P1', full_name: 'Project 1', company_id: 999 });
 
@@ -577,7 +577,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .post('/api/projects')
+        .post('/api/v1/projects')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'P1', full_name: 'Project 1', company_id: 1, operator_ids: [2] });
 
@@ -594,7 +594,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .post('/api/projects')
+        .post('/api/v1/projects')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'P1', full_name: 'Project 1', company_id: 1 });
 
@@ -623,7 +623,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .post('/api/projects')
+        .post('/api/v1/projects')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'P1',
@@ -660,7 +660,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .post('/api/projects')
+        .post('/api/v1/projects')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'P1', full_name: 'Project 1', company_id: 1 });
 
@@ -677,7 +677,7 @@ describe('Project Controller', () => {
 
     it('should return 400 when all three required fields are missing', async () => {
       const response = await agent
-        .post('/api/projects')
+        .post('/api/v1/projects')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ description: 'no required fields' });
 
@@ -697,7 +697,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .post('/api/projects')
+        .post('/api/v1/projects')
         .set('Authorization', `Bearer ${adminToken(2)}`)
         .send({ short_name: 'P1', full_name: 'Project 1' });
 
@@ -714,7 +714,7 @@ describe('Project Controller', () => {
   describe('PUT /api/projects/:id', () => {
     it('should return 400 for invalid id', async () => {
       const response = await agent
-        .put('/api/projects/abc')
+        .put('/api/v1/projects/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'Updated' });
 
@@ -729,7 +729,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .put('/api/projects/999')
+        .put('/api/v1/projects/999')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'Updated' });
 
@@ -743,7 +743,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .put('/api/projects/1')
+        .put('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ company_id: 2 });
 
@@ -763,7 +763,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .put('/api/projects/1')
+        .put('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ company_id: 1, short_name: 'P1-Updated' });
 
@@ -781,7 +781,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .put('/api/projects/1')
+        .put('/api/v1/projects/1')
         .set('Authorization', `Bearer ${adminToken(2)}`)
         .send({ short_name: 'P1-Updated' });
 
@@ -801,7 +801,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .put('/api/projects/1')
+        .put('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'P1-Updated' });
 
@@ -826,7 +826,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .put('/api/projects/1')
+        .put('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ operator_ids: [99] });
 
@@ -849,7 +849,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .put('/api/projects/1')
+        .put('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ operator_ids: [2], viewer_ids: [99] });
 
@@ -866,7 +866,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .put('/api/projects/1')
+        .put('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'P1-Updated' });
 
@@ -883,7 +883,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .put('/api/projects/1')
+        .put('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'P1-Updated' });
 
@@ -903,7 +903,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .put('/api/projects/1')
+        .put('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ status: false });
 
@@ -928,7 +928,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .put('/api/projects/1')
+        .put('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ description: 'New description' });
 
@@ -956,7 +956,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .put('/api/projects/1')
+        .put('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ operator_ids: [2] });
 
@@ -993,7 +993,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .put('/api/projects/1')
+        .put('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ operator_ids: [2], viewer_ids: [3] });
 
@@ -1023,7 +1023,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .put('/api/projects/1')
+        .put('/api/v1/projects/1')
         .set('Authorization', `Bearer ${adminToken(2)}`)
         .send({ short_name: 'P1-Updated' });
 
@@ -1040,7 +1040,7 @@ describe('Project Controller', () => {
       });
 
       await agent
-        .put('/api/projects/1')
+        .put('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ company_id: 1, short_name: 'P1-Updated' });
 
@@ -1065,7 +1065,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .put('/api/projects/1')
+        .put('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ operator_ids: [] });
 
@@ -1085,7 +1085,7 @@ describe('Project Controller', () => {
   describe('DELETE /api/projects/:id', () => {
     it('should return 400 for invalid id', async () => {
       const response = await agent
-        .delete('/api/projects/abc')
+        .delete('/api/v1/projects/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -1098,7 +1098,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .delete('/api/projects/999')
+        .delete('/api/v1/projects/999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
@@ -1114,7 +1114,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .delete('/api/projects/1')
+        .delete('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1132,7 +1132,7 @@ describe('Project Controller', () => {
       getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .delete('/api/projects/1')
+        .delete('/api/v1/projects/1')
         .set('Authorization', `Bearer ${adminToken(2)}`);
 
       expect(response.status).toBe(403);
@@ -1153,7 +1153,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .delete('/api/projects/1')
+        .delete('/api/v1/projects/1')
         .set('Authorization', `Bearer ${adminToken(2)}`);
 
       expect(response.status).toBe(200);
@@ -1169,7 +1169,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .delete('/api/projects/1')
+        .delete('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -1185,7 +1185,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .delete('/api/projects/1')
+        .delete('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -1201,7 +1201,7 @@ describe('Project Controller', () => {
       });
 
       const response = await agent
-        .delete('/api/projects/1')
+        .delete('/api/v1/projects/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1216,7 +1216,7 @@ describe('Project Controller', () => {
     });
 
     it('should return 401 without token on delete', async () => {
-      const response = await agent.delete('/api/projects/1');
+      const response = await agent.delete('/api/v1/projects/1');
       expect(response.status).toBe(401);
     });
   });

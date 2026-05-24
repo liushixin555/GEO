@@ -62,13 +62,13 @@ describe('Company Controller', () => {
   // ========== listCompanies ==========
   describe('GET /api/companies', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.get('/api/companies');
+      const response = await agent.get('/api/v1/companies');
       expect(response.status).toBe(401);
     });
 
     it('should return 403 for non-sysadmin role', async () => {
       const response = await agent
-        .get('/api/companies')
+        .get('/api/v1/companies')
         .set('Authorization', `Bearer ${adminToken()}`);
 
       expect(response.status).toBe(403);
@@ -89,7 +89,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .get('/api/companies')
+        .get('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -106,7 +106,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .get('/api/companies')
+        .get('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -121,7 +121,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .get('/api/companies')
+        .get('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -136,7 +136,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .get('/api/companies')
+        .get('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -164,7 +164,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .get('/api/companies')
+        .get('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -194,7 +194,7 @@ describe('Company Controller', () => {
         { expiresIn: '2h' }
       );
       const response = await agent
-        .get('/api/companies')
+        .get('/api/v1/companies')
         .set('Authorization', `Bearer ${viewT}`);
       expect(response.status).toBe(403);
     });
@@ -203,13 +203,13 @@ describe('Company Controller', () => {
   // ========== getCompany ==========
   describe('GET /api/companies/:id', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.get('/api/companies/1');
+      const response = await agent.get('/api/v1/companies/1');
       expect(response.status).toBe(401);
     });
 
     it('should return 403 for non-sysadmin role', async () => {
       const response = await agent
-        .get('/api/companies/1')
+        .get('/api/v1/companies/1')
         .set('Authorization', `Bearer ${adminToken()}`);
 
       expect(response.status).toBe(403);
@@ -217,7 +217,7 @@ describe('Company Controller', () => {
 
     it('should return 400 for invalid ID (non-numeric)', async () => {
       const response = await agent
-        .get('/api/companies/abc')
+        .get('/api/v1/companies/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -242,7 +242,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .get('/api/companies/2')
+        .get('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -270,7 +270,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .get('/api/companies/3')
+        .get('/api/v1/companies/3')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -284,7 +284,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .get('/api/companies/999')
+        .get('/api/v1/companies/999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
@@ -299,7 +299,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .get('/api/companies/1')
+        .get('/api/v1/companies/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -314,7 +314,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .get('/api/companies/1')
+        .get('/api/v1/companies/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -327,7 +327,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .get('/api/companies/-1')
+        .get('/api/v1/companies/-1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
@@ -340,7 +340,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .get('/api/companies/0')
+        .get('/api/v1/companies/0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
@@ -365,7 +365,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .get('/api/companies/5')
+        .get('/api/v1/companies/5')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -393,7 +393,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .get('/api/companies/6')
+        .get('/api/v1/companies/6')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -424,7 +424,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .get('/api/companies/7')
+        .get('/api/v1/companies/7')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -449,7 +449,7 @@ describe('Company Controller', () => {
   describe('POST /api/companies', () => {
     it('should return 401 without token', async () => {
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .send({ short_name: 'TEST' });
 
       expect(response.status).toBe(401);
@@ -457,7 +457,7 @@ describe('Company Controller', () => {
 
     it('should return 403 for non-sysadmin role', async () => {
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${adminToken()}`)
         .send({ short_name: 'TEST' });
 
@@ -466,7 +466,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when short_name is missing', async () => {
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ full_name: 'Full', contact_person: 'A', contact_phone: '123', operator_ids: [1] });
 
@@ -476,7 +476,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when full_name is missing', async () => {
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'SN', contact_person: 'A', contact_phone: '123', operator_ids: [1] });
 
@@ -486,7 +486,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when contact_person is missing', async () => {
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'SN', full_name: 'FN', contact_phone: '123', operator_ids: [1] });
 
@@ -496,7 +496,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when contact_phone is missing', async () => {
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'SN', full_name: 'FN', contact_person: 'A', operator_ids: [1] });
 
@@ -506,7 +506,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when all required fields are missing', async () => {
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({});
 
@@ -516,7 +516,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when operator_ids is not an array', async () => {
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'SN', full_name: 'FN',
@@ -530,7 +530,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when operator_ids is empty array', async () => {
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'SN', full_name: 'FN',
@@ -544,7 +544,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when operator_ids is missing', async () => {
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'SN', full_name: 'FN',
@@ -575,7 +575,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'NEWCO',
@@ -615,7 +615,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'NEWCO2',
@@ -638,7 +638,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'SN', full_name: 'FN',
@@ -656,7 +656,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'SN', full_name: 'FN',
@@ -670,7 +670,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when short_name is empty string', async () => {
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: '', full_name: 'FN', contact_person: 'A', contact_phone: '123', operator_ids: [1] });
 
@@ -680,7 +680,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when full_name is empty string', async () => {
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'SN', full_name: '', contact_person: 'A', contact_phone: '123', operator_ids: [1] });
 
@@ -690,7 +690,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when contact_person is empty string', async () => {
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'SN', full_name: 'FN', contact_person: '', contact_phone: '123', operator_ids: [1] });
 
@@ -700,7 +700,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when contact_phone is empty string', async () => {
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'SN', full_name: 'FN', contact_person: 'A', contact_phone: '', operator_ids: [1] });
 
@@ -729,7 +729,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'MIN',
@@ -772,7 +772,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'MV',
@@ -810,7 +810,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'EV',
@@ -833,7 +833,7 @@ describe('Company Controller', () => {
         { expiresIn: '2h' }
       );
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${viewT}`)
         .send({ short_name: 'TEST' });
       expect(response.status).toBe(403);
@@ -844,7 +844,7 @@ describe('Company Controller', () => {
   describe('PUT /api/companies/:id', () => {
     it('should return 401 without token', async () => {
       const response = await agent
-        .put('/api/companies/2')
+        .put('/api/v1/companies/2')
         .send({ short_name: 'TEST' });
 
       expect(response.status).toBe(401);
@@ -852,7 +852,7 @@ describe('Company Controller', () => {
 
     it('should return 403 for non-sysadmin role', async () => {
       const response = await agent
-        .put('/api/companies/2')
+        .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${adminToken()}`)
         .send({ short_name: 'TEST' });
 
@@ -861,7 +861,7 @@ describe('Company Controller', () => {
 
     it('should return 400 for invalid ID (non-numeric)', async () => {
       const response = await agent
-        .put('/api/companies/abc')
+        .put('/api/v1/companies/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'SN', full_name: 'FN',
@@ -875,7 +875,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when short_name is missing', async () => {
       const response = await agent
-        .put('/api/companies/2')
+        .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ full_name: 'FN', contact_person: 'A', contact_phone: '123', operator_ids: [1] });
 
@@ -885,7 +885,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when full_name is missing', async () => {
       const response = await agent
-        .put('/api/companies/2')
+        .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'SN', contact_person: 'A', contact_phone: '123', operator_ids: [1] });
 
@@ -895,7 +895,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when contact_person is missing', async () => {
       const response = await agent
-        .put('/api/companies/2')
+        .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'SN', full_name: 'FN', contact_phone: '123', operator_ids: [1] });
 
@@ -905,7 +905,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when contact_phone is missing', async () => {
       const response = await agent
-        .put('/api/companies/2')
+        .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'SN', full_name: 'FN', contact_person: 'A', operator_ids: [1] });
 
@@ -915,7 +915,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when operator_ids is not an array', async () => {
       const response = await agent
-        .put('/api/companies/2')
+        .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'SN', full_name: 'FN',
@@ -929,7 +929,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when operator_ids is empty array', async () => {
       const response = await agent
-        .put('/api/companies/2')
+        .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'SN', full_name: 'FN',
@@ -943,7 +943,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when operator_ids is missing', async () => {
       const response = await agent
-        .put('/api/companies/2')
+        .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'SN', full_name: 'FN',
@@ -977,7 +977,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .put('/api/companies/2')
+        .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'ACME-UPD',
@@ -1020,7 +1020,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .put('/api/companies/2')
+        .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'ACME-V',
@@ -1041,7 +1041,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .put('/api/companies/999')
+        .put('/api/v1/companies/999')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'SN', full_name: 'FN',
@@ -1059,7 +1059,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .put('/api/companies/1')
+        .put('/api/v1/companies/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'SN', full_name: 'FN',
@@ -1077,7 +1077,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .put('/api/companies/1')
+        .put('/api/v1/companies/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'SN', full_name: 'FN',
@@ -1091,7 +1091,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when short_name is empty string', async () => {
       const response = await agent
-        .put('/api/companies/2')
+        .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: '', full_name: 'FN', contact_person: 'A', contact_phone: '123', operator_ids: [1] });
 
@@ -1101,7 +1101,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when full_name is empty string', async () => {
       const response = await agent
-        .put('/api/companies/2')
+        .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'SN', full_name: '', contact_person: 'A', contact_phone: '123', operator_ids: [1] });
 
@@ -1111,7 +1111,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when contact_person is empty string', async () => {
       const response = await agent
-        .put('/api/companies/2')
+        .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'SN', full_name: 'FN', contact_person: '', contact_phone: '123', operator_ids: [1] });
 
@@ -1121,7 +1121,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when contact_phone is empty string', async () => {
       const response = await agent
-        .put('/api/companies/2')
+        .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'SN', full_name: 'FN', contact_person: 'A', contact_phone: '', operator_ids: [1] });
 
@@ -1153,7 +1153,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .put('/api/companies/2')
+        .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'NO-V',
@@ -1199,7 +1199,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .put('/api/companies/2')
+        .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'MV',
@@ -1223,7 +1223,7 @@ describe('Company Controller', () => {
         { expiresIn: '2h' }
       );
       const response = await agent
-        .put('/api/companies/2')
+        .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${viewT}`)
         .send({ short_name: 'TEST' });
       expect(response.status).toBe(403);
@@ -1234,7 +1234,7 @@ describe('Company Controller', () => {
   describe('PUT /api/companies/:id/status', () => {
     it('should return 401 without token', async () => {
       const response = await agent
-        .put('/api/companies/1/status')
+        .put('/api/v1/companies/1/status')
         .send({ status: true });
 
       expect(response.status).toBe(401);
@@ -1242,7 +1242,7 @@ describe('Company Controller', () => {
 
     it('should return 403 for non-sysadmin role', async () => {
       const response = await agent
-        .put('/api/companies/1/status')
+        .put('/api/v1/companies/1/status')
         .set('Authorization', `Bearer ${adminToken()}`)
         .send({ status: true });
 
@@ -1251,7 +1251,7 @@ describe('Company Controller', () => {
 
     it('should return 400 for invalid ID (non-numeric)', async () => {
       const response = await agent
-        .put('/api/companies/abc/status')
+        .put('/api/v1/companies/abc/status')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ status: true });
 
@@ -1261,7 +1261,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when status is not boolean', async () => {
       const response = await agent
-        .put('/api/companies/1/status')
+        .put('/api/v1/companies/1/status')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ status: 'true' });
 
@@ -1271,7 +1271,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when status is missing', async () => {
       const response = await agent
-        .put('/api/companies/1/status')
+        .put('/api/v1/companies/1/status')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({});
 
@@ -1281,7 +1281,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when status is a number', async () => {
       const response = await agent
-        .put('/api/companies/1/status')
+        .put('/api/v1/companies/1/status')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ status: 1 });
 
@@ -1303,7 +1303,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .put('/api/companies/1/status')
+        .put('/api/v1/companies/1/status')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ status: true });
 
@@ -1326,7 +1326,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .put('/api/companies/1/status')
+        .put('/api/v1/companies/1/status')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ status: false });
 
@@ -1343,7 +1343,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .put('/api/companies/999/status')
+        .put('/api/v1/companies/999/status')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ status: true });
 
@@ -1359,7 +1359,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .put('/api/companies/1/status')
+        .put('/api/v1/companies/1/status')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ status: true });
 
@@ -1376,7 +1376,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .put('/api/companies/1/status')
+        .put('/api/v1/companies/1/status')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ status: false });
 
@@ -1386,7 +1386,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when status is null', async () => {
       const response = await agent
-        .put('/api/companies/1/status')
+        .put('/api/v1/companies/1/status')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ status: null });
 
@@ -1396,7 +1396,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when status is an object', async () => {
       const response = await agent
-        .put('/api/companies/1/status')
+        .put('/api/v1/companies/1/status')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ status: { value: true } });
 
@@ -1406,7 +1406,7 @@ describe('Company Controller', () => {
 
     it('should return 400 when status is an array', async () => {
       const response = await agent
-        .put('/api/companies/1/status')
+        .put('/api/v1/companies/1/status')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ status: [true] });
 
@@ -1421,7 +1421,7 @@ describe('Company Controller', () => {
         { expiresIn: '2h' }
       );
       const response = await agent
-        .put('/api/companies/1/status')
+        .put('/api/v1/companies/1/status')
         .set('Authorization', `Bearer ${viewT}`)
         .send({ status: true });
       expect(response.status).toBe(403);
@@ -1437,7 +1437,7 @@ describe('Company Controller', () => {
         { expiresIn: '-1s' }
       );
       const response = await agent
-        .get('/api/companies')
+        .get('/api/v1/companies')
         .set('Authorization', `Bearer ${expiredToken}`);
       expect(response.status).toBe(401);
       expect(response.body.message).toBe('登录已过期，请重新登录');
@@ -1445,14 +1445,14 @@ describe('Company Controller', () => {
 
     it('should return 401 for malformed JWT token', async () => {
       const response = await agent
-        .get('/api/companies')
+        .get('/api/v1/companies')
         .set('Authorization', 'Bearer not.a.valid.token');
       expect(response.status).toBe(401);
     });
 
     it('should return 401 for Bearer without token', async () => {
       const response = await agent
-        .get('/api/companies')
+        .get('/api/v1/companies')
         .set('Authorization', 'Bearer ');
       expect(response.status).toBe(401);
     });
@@ -1470,7 +1470,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .get('/api/companies/1.9')
+        .get('/api/v1/companies/1.9')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       // parseInt('1.9') = 1, so it queries company with id=1
@@ -1491,7 +1491,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .get('/api/companies/007')
+        .get('/api/v1/companies/007')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1518,7 +1518,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: '<script>alert("xss")</script>',
@@ -1552,7 +1552,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: '薄云科技',
@@ -1573,7 +1573,7 @@ describe('Company Controller', () => {
     it('should validate ID before body in updateCompany', async () => {
       // When ID is invalid, should return 400 for ID even if body is also invalid
       const response = await agent
-        .put('/api/companies/abc')
+        .put('/api/v1/companies/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({}); // empty body (also invalid)
 
@@ -1583,7 +1583,7 @@ describe('Company Controller', () => {
 
     it('should validate ID before status in toggleCompanyStatus', async () => {
       const response = await agent
-        .put('/api/companies/abc/status')
+        .put('/api/v1/companies/abc/status')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({}); // missing status
 
@@ -1598,7 +1598,7 @@ describe('Company Controller', () => {
         { expiresIn: '-1s' }
       );
       const response = await agent
-        .put('/api/companies/1/status')
+        .put('/api/v1/companies/1/status')
         .set('Authorization', `Bearer ${expiredToken}`)
         .send({ status: true });
       expect(response.status).toBe(401);
@@ -1626,7 +1626,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: shortName,
@@ -1647,7 +1647,7 @@ describe('Company Controller', () => {
         { expiresIn: '2h' }
       );
       const response = await agent
-        .get('/api/companies')
+        .get('/api/v1/companies')
         .set('Authorization', `Bearer ${wrongSecretToken}`);
       expect(response.status).toBe(401);
     });
@@ -1658,7 +1658,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .get('/api/companies/-1')
+        .get('/api/v1/companies/-1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
@@ -1679,7 +1679,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .put('/api/companies/1/status')
+        .put('/api/v1/companies/1/status')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ status: false });
 
@@ -1713,7 +1713,7 @@ describe('Company Controller', () => {
       });
 
       const response = await agent
-        .post('/api/companies')
+        .post('/api/v1/companies')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({
           short_name: 'MULTI',

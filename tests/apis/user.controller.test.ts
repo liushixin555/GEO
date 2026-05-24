@@ -50,20 +50,20 @@ describe('User Controller', () => {
 
   describe('GET /api/users', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.get('/api/users');
+      const response = await agent.get('/api/v1/users');
       expect(response.status).toBe(401);
     });
 
     it('should return 403 for view role', async () => {
       const response = await agent
-        .get('/api/users')
+        .get('/api/v1/users')
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(response.status).toBe(403);
     });
 
     it('should return 403 for admin role', async () => {
       const response = await agent
-        .get('/api/users')
+        .get('/api/v1/users')
         .set('Authorization', `Bearer ${adminToken(2)}`);
       expect(response.status).toBe(403);
     });
@@ -77,7 +77,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/users')
+        .get('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -92,7 +92,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/users?search=admin')
+        .get('/api/v1/users?search=admin')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -115,7 +115,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/users?role=admin')
+        .get('/api/v1/users?role=admin')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -133,7 +133,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/users?status=true')
+        .get('/api/v1/users?status=true')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -151,7 +151,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/users?page=2&pageSize=5')
+        .get('/api/v1/users?page=2&pageSize=5')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -170,7 +170,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/users')
+        .get('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -183,7 +183,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/users')
+        .get('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -197,7 +197,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/users?status=false')
+        .get('/api/v1/users?status=false')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -212,7 +212,7 @@ describe('User Controller', () => {
   describe('GET /api/users/:id', () => {
     it('should return 400 for invalid id', async () => {
       const response = await agent
-        .get('/api/users/abc')
+        .get('/api/v1/users/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -227,7 +227,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/users/1')
+        .get('/api/v1/users/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -241,7 +241,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/users/999')
+        .get('/api/v1/users/999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
@@ -254,7 +254,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/users/1')
+        .get('/api/v1/users/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -266,7 +266,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/users/1')
+        .get('/api/v1/users/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -277,7 +277,7 @@ describe('User Controller', () => {
   describe('POST /api/users', () => {
     it('should return 400 when required fields are missing', async () => {
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'test' });
 
@@ -286,7 +286,7 @@ describe('User Controller', () => {
 
     it('should return 400 when password is missing', async () => {
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'test', cn_name: 'Test', role: 'admin' });
 
@@ -295,7 +295,7 @@ describe('User Controller', () => {
 
     it('should return 400 when role is missing', async () => {
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'test', password: 'pass', cn_name: 'Test' });
 
@@ -304,7 +304,7 @@ describe('User Controller', () => {
 
     it('should return 400 when cn_name is missing', async () => {
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'test', password: 'pass', role: 'admin' });
 
@@ -314,7 +314,7 @@ describe('User Controller', () => {
 
     it('should return 400 with correct message when required fields missing', async () => {
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'test' });
 
@@ -324,7 +324,7 @@ describe('User Controller', () => {
 
     it('should return 400 when role is not in whitelist', async () => {
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'test', password: 'Pass1234', cn_name: 'Test', role: 'superadmin' });
 
@@ -334,7 +334,7 @@ describe('User Controller', () => {
 
     it('should return 400 when password is less than 8 characters', async () => {
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'test', password: 'short', cn_name: 'Test', role: 'admin' });
 
@@ -351,7 +351,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
 
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'newuser', password: 'Pass1234', cn_name: '新用户', role: 'admin', company_id: 1 });
 
@@ -365,7 +365,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } });
 
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'existing', password: 'Pass1234', cn_name: '用户', role: 'admin', company_id: 1 });
 
@@ -378,7 +378,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } });
 
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'test', password: 'Pass1234', cn_name: 'Test', role: 'admin' });
 
@@ -391,7 +391,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } });
 
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'test', password: 'Pass1234', cn_name: 'Test', role: 'admin' });
 
@@ -403,7 +403,7 @@ describe('User Controller', () => {
   describe('PUT /api/users/:id', () => {
     it('should return 400 for invalid id', async () => {
       const response = await agent
-        .put('/api/users/abc')
+        .put('/api/v1/users/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ cn_name: '新名称' });
 
@@ -421,7 +421,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .put('/api/users/1')
+        .put('/api/v1/users/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ cn_name: '新名称' });
 
@@ -436,7 +436,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .put('/api/users/1')
+        .put('/api/v1/users/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ role: 'admin' });
 
@@ -454,7 +454,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .put('/api/users/1')
+        .put('/api/v1/users/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ cn_name: '新名称' });
 
@@ -467,7 +467,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .put('/api/users/999')
+        .put('/api/v1/users/999')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ cn_name: '新名称' });
 
@@ -485,7 +485,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .put('/api/users/2')
+        .put('/api/v1/users/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ password: 'newpass123' });
 
@@ -502,7 +502,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .put('/api/users/2')
+        .put('/api/v1/users/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ status: false });
 
@@ -515,7 +515,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .put('/api/users/1')
+        .put('/api/v1/users/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ cn_name: '新名称' });
 
@@ -527,7 +527,7 @@ describe('User Controller', () => {
   describe('Admin permission denied (sysadmin-only)', () => {
     it('should return 403 for admin on list users', async () => {
       const response = await agent
-        .get('/api/users')
+        .get('/api/v1/users')
         .set('Authorization', `Bearer ${adminToken(2)}`);
 
       expect(response.status).toBe(403);
@@ -535,7 +535,7 @@ describe('User Controller', () => {
 
     it('should return 403 for admin on get user', async () => {
       const response = await agent
-        .get('/api/users/1')
+        .get('/api/v1/users/1')
         .set('Authorization', `Bearer ${adminToken(2)}`);
 
       expect(response.status).toBe(403);
@@ -543,7 +543,7 @@ describe('User Controller', () => {
 
     it('should return 403 for admin on create user', async () => {
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${adminToken(2)}`)
         .send({ username: 'new', password: 'pass', cn_name: '用户', role: 'admin', company_id: 2 });
 
@@ -552,7 +552,7 @@ describe('User Controller', () => {
 
     it('should return 403 for admin on update user', async () => {
       const response = await agent
-        .put('/api/users/1')
+        .put('/api/v1/users/1')
         .set('Authorization', `Bearer ${adminToken(2)}`)
         .send({ cn_name: '新名称' });
 
@@ -561,7 +561,7 @@ describe('User Controller', () => {
 
     it('should return 403 for admin on delete user', async () => {
       const response = await agent
-        .delete('/api/users/1')
+        .delete('/api/v1/users/1')
         .set('Authorization', `Bearer ${adminToken(2)}`);
 
       expect(response.status).toBe(403);
@@ -571,7 +571,7 @@ describe('User Controller', () => {
   describe('DELETE /api/users/:id', () => {
     it('should return 400 for invalid id', async () => {
       const response = await agent
-        .delete('/api/users/abc')
+        .delete('/api/v1/users/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -584,7 +584,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .delete('/api/users/999')
+        .delete('/api/v1/users/999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
@@ -598,7 +598,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .delete('/api/users/2')
+        .delete('/api/v1/users/2')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -612,7 +612,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .delete('/api/users/1')
+        .delete('/api/v1/users/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(403);
@@ -625,7 +625,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .delete('/api/users/1')
+        .delete('/api/v1/users/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -637,7 +637,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .delete('/api/users/1')
+        .delete('/api/v1/users/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -654,7 +654,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/users?search=')
+        .get('/api/v1/users?search=')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -668,7 +668,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/users?search=admin&role=admin&status=true&page=1&pageSize=20')
+        .get('/api/v1/users?search=admin&role=admin&status=true&page=1&pageSize=20')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -696,7 +696,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/users')
+        .get('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -711,7 +711,7 @@ describe('User Controller', () => {
     // createUser: empty string username
     it('should return 400 when username is empty string', async () => {
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: '', password: 'Pass1234', cn_name: 'Test', role: 'admin' });
 
@@ -722,7 +722,7 @@ describe('User Controller', () => {
     // createUser: empty string password
     it('should return 400 when password is empty string', async () => {
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'test', password: '', cn_name: 'Test', role: 'admin' });
 
@@ -733,7 +733,7 @@ describe('User Controller', () => {
     // createUser: empty string cn_name
     it('should return 400 when cn_name is empty string', async () => {
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'test', password: 'Pass1234', cn_name: '', role: 'admin' });
 
@@ -744,7 +744,7 @@ describe('User Controller', () => {
     // createUser: empty string role
     it('should return 400 when role is empty string', async () => {
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'test', password: 'Pass1234', cn_name: 'Test', role: '' });
 
@@ -763,7 +763,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
 
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'test8char', password: '12345678', cn_name: '8位密码', role: 'view' });
 
@@ -773,7 +773,7 @@ describe('User Controller', () => {
     // createUser: 7 characters password should fail
     it('should reject password with 7 characters', async () => {
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'test7', password: '1234567', cn_name: '7位密码', role: 'admin' });
 
@@ -792,7 +792,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
 
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'newsysadmin', password: 'Pass1234', cn_name: '新管理员', role: 'sysadmin' });
 
@@ -811,7 +811,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
 
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'newviewer', password: 'Pass1234', cn_name: '新观察者', role: 'view' });
 
@@ -822,7 +822,7 @@ describe('User Controller', () => {
     // createUser: invalid role 'superadmin'
     it('should reject invalid role superadmin', async () => {
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'test', password: 'Pass1234', cn_name: 'Test', role: 'superadmin' });
 
@@ -833,7 +833,7 @@ describe('User Controller', () => {
     // createUser: invalid role 'user'
     it('should reject invalid role user', async () => {
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'test', password: 'Pass1234', cn_name: 'Test', role: 'user' });
 
@@ -851,7 +851,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/users/0')
+        .get('/api/v1/users/0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -861,7 +861,7 @@ describe('User Controller', () => {
     // getUser: negative id
     it('should return 400 for negative id', async () => {
       const response = await agent
-        .get('/api/users/-1')
+        .get('/api/v1/users/-1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       // -1 parsed as number is valid, but negative — the service should handle this
@@ -879,7 +879,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .put('/api/users/2')
+        .put('/api/v1/users/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ role: 'view' });
 
@@ -899,7 +899,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .put('/api/users/2')
+        .put('/api/v1/users/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ cn_name: '新名称', role: 'view', status: false });
 
@@ -917,7 +917,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .put('/api/users/2')
+        .put('/api/v1/users/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({});
 
@@ -931,7 +931,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .delete('/api/users/999')
+        .delete('/api/v1/users/999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
@@ -941,7 +941,7 @@ describe('User Controller', () => {
     // View role: denied for all user CRUD operations
     it('should return 403 for view role on create user', async () => {
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${viewToken()}`)
         .send({ username: 'test', password: 'Pass1234', cn_name: 'Test', role: 'admin' });
 
@@ -950,7 +950,7 @@ describe('User Controller', () => {
 
     it('should return 403 for view role on update user', async () => {
       const response = await agent
-        .put('/api/users/1')
+        .put('/api/v1/users/1')
         .set('Authorization', `Bearer ${viewToken()}`)
         .send({ cn_name: '新名称' });
 
@@ -959,7 +959,7 @@ describe('User Controller', () => {
 
     it('should return 403 for view role on delete user', async () => {
       const response = await agent
-        .delete('/api/users/1')
+        .delete('/api/v1/users/1')
         .set('Authorization', `Bearer ${viewToken()}`);
 
       expect(response.status).toBe(403);
@@ -967,7 +967,7 @@ describe('User Controller', () => {
 
     it('should return 403 for view role on get user detail', async () => {
       const response = await agent
-        .get('/api/users/1')
+        .get('/api/v1/users/1')
         .set('Authorization', `Bearer ${viewToken()}`);
 
       expect(response.status).toBe(403);
@@ -976,7 +976,7 @@ describe('User Controller', () => {
     // createUser: missing all fields (empty body)
     it('should return 400 when body is empty', async () => {
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({});
 
@@ -995,7 +995,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
 
       const response = await agent
-        .post('/api/users')
+        .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'structtest', password: 'Pass1234', cn_name: '结构测试', role: 'admin' });
 
@@ -1016,7 +1016,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/users?page=2&pageSize=2')
+        .get('/api/v1/users?page=2&pageSize=2')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1037,7 +1037,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/users/1')
+        .get('/api/v1/users/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1055,7 +1055,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .delete('/api/users/2')
+        .delete('/api/v1/users/2')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1075,7 +1075,7 @@ describe('User Controller', () => {
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .put('/api/users/2')
+        .put('/api/v1/users/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ cn_name: '更新后' });
 

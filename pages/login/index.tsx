@@ -20,7 +20,7 @@ const LoginPage: React.FC = () => {
     setError('');
     setLoading(true);
     try {
-      const response = await axios.post('/api/auth/login', values);
+      const response = await axios.post('/api/v1/auth/login', values);
       const { token, user } = response.data.data;
 
       localStorage.setItem('token', token);

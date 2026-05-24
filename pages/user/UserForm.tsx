@@ -50,11 +50,11 @@ const UserForm: React.FC<UserFormProps> = ({ item, isSysadmin, onClose, onSaved 
 
       if (isEdit) {
         delete payload.username;
-        await axios.put(`/api/users/${item!.id}`, payload, {
+        await axios.put(`/api/v1/users/${item!.id}`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
       } else {
-        await axios.post('/api/users', payload, {
+        await axios.post('/api/v1/users', payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
       }

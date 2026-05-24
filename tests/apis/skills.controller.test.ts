@@ -93,13 +93,13 @@ describe('Skills Controller', () => {
   // ============================================================
   describe('GET /api/skills', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.get('/api/skills');
+      const response = await agent.get('/api/v1/skills');
       expect(response.status).toBe(401);
     });
 
     it('should return 403 for view role', async () => {
       const response = await agent
-        .get('/api/skills')
+        .get('/api/v1/skills')
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(response.status).toBe(403);
     });
@@ -113,7 +113,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/skills')
+        .get('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -129,7 +129,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/skills')
+        .get('/api/v1/skills')
         .set('Authorization', `Bearer ${adminToken(2, 2)}`);
 
       expect(response.status).toBe(200);
@@ -147,7 +147,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/skills?search=react')
+        .get('/api/v1/skills?search=react')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -165,7 +165,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/skills?page=2&pageSize=5')
+        .get('/api/v1/skills?page=2&pageSize=5')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -184,7 +184,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/skills')
+        .get('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -203,7 +203,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/skills')
+        .get('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -216,7 +216,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/skills')
+        .get('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -230,7 +230,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/skills?page=0')
+        .get('/api/v1/skills?page=0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -254,7 +254,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findMany: mockFindMany, count: mockCount } });
 
       const response = await agent
-        .get('/api/skills?search=React')
+        .get('/api/v1/skills?search=React')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -268,20 +268,20 @@ describe('Skills Controller', () => {
   // ============================================================
   describe('GET /api/skills/:id', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.get('/api/skills/1');
+      const response = await agent.get('/api/v1/skills/1');
       expect(response.status).toBe(401);
     });
 
     it('should return 403 for view role', async () => {
       const response = await agent
-        .get('/api/skills/1')
+        .get('/api/v1/skills/1')
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(response.status).toBe(403);
     });
 
     it('should return 400 for invalid id', async () => {
       const response = await agent
-        .get('/api/skills/abc')
+        .get('/api/v1/skills/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -296,7 +296,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/skills/1')
+        .get('/api/v1/skills/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -312,7 +312,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/skills/2')
+        .get('/api/v1/skills/2')
         .set('Authorization', `Bearer ${adminToken(2, 2)}`);
 
       expect(response.status).toBe(200);
@@ -325,7 +325,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/skills/999')
+        .get('/api/v1/skills/999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
@@ -338,7 +338,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/skills/1')
+        .get('/api/v1/skills/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -350,7 +350,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/skills/1')
+        .get('/api/v1/skills/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -363,7 +363,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/skills/0')
+        .get('/api/v1/skills/0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       // parseInt('0', 10) = 0, NOT NaN, passes validation; getById(0) returns null → 404
@@ -377,7 +377,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/skills/-1')
+        .get('/api/v1/skills/-1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       // parseInt('-1', 10) = -1, NOT NaN, passes validation; getById(-1) returns null → 404
@@ -393,7 +393,7 @@ describe('Skills Controller', () => {
     it('should return 401 without token', async () => {
       const zipBuffer = createSkillZip();
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .attach('file', zipBuffer, 'skill.zip');
 
       expect(response.status).toBe(401);
@@ -402,7 +402,7 @@ describe('Skills Controller', () => {
     it('should return 403 for view role', async () => {
       const zipBuffer = createSkillZip();
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${viewToken()}`)
         .attach('file', zipBuffer, 'skill.zip');
 
@@ -411,7 +411,7 @@ describe('Skills Controller', () => {
 
     it('should return 400 when no file uploaded', async () => {
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: 'Test' });
 
@@ -431,7 +431,7 @@ describe('Skills Controller', () => {
       zip.addFile('test-skill/../../etc/passwd', Buffer.from('malicious'));
 
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .attach('file', zip.toBuffer(), 'skill.zip');
 
@@ -456,7 +456,7 @@ describe('Skills Controller', () => {
       // This test verifies the code path exists. The actual size check uses entry.header.size
       // which may differ from buffer size. Let's test with a real oversized buffer
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .attach('file', zip.toBuffer(), 'skill.zip');
 
@@ -469,7 +469,7 @@ describe('Skills Controller', () => {
       zip.addFile('readme.txt', Buffer.from('hello'));
 
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .attach('file', zip.toBuffer(), 'skill.zip');
 
@@ -488,7 +488,7 @@ describe('Skills Controller', () => {
       const zipBuffer = createSkillZip();
 
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .attach('file', zipBuffer, 'skill.zip');
 
@@ -515,7 +515,7 @@ describe('Skills Controller', () => {
       const zipBuffer = createSkillZip('admin-skill', 'Admin skill');
 
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${adminToken(2, 2)}`)
         .attach('file', zipBuffer, 'skill.zip');
 
@@ -543,7 +543,7 @@ describe('Skills Controller', () => {
       );
 
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .attach('file', zip.toBuffer(), 'skill.zip');
 
@@ -562,7 +562,7 @@ describe('Skills Controller', () => {
       const zipBuffer = createFlatSkillZip();
 
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .attach('file', zipBuffer, 'skill.zip');
 
@@ -590,7 +590,7 @@ describe('Skills Controller', () => {
       const zipBuffer = createSkillZip('existing-skill', 'Existing');
 
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .attach('file', zipBuffer, 'skill.zip');
 
@@ -603,7 +603,7 @@ describe('Skills Controller', () => {
 
     it('should return 400 for non-zip file', async () => {
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .attach('file', Buffer.from('not a zip'), 'skill.txt');
 
@@ -616,7 +616,7 @@ describe('Skills Controller', () => {
       zip.addFile('skill/SKILL.md', Buffer.from('# No frontmatter here'));
 
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .attach('file', zip.toBuffer(), 'skill.zip');
 
@@ -629,7 +629,7 @@ describe('Skills Controller', () => {
       zip.addFile('skill/SKILL.md', Buffer.from('---\ndescription: No name\n---\n'));
 
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .attach('file', zip.toBuffer(), 'skill.zip');
 
@@ -646,7 +646,7 @@ describe('Skills Controller', () => {
       const zipBuffer = createSkillZip('db-error-skill', 'DB error');
 
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .attach('file', zipBuffer, 'skill.zip');
 
@@ -663,7 +663,7 @@ describe('Skills Controller', () => {
       const zipBuffer = createSkillZip('nomsg-skill', 'No message');
 
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .attach('file', zipBuffer, 'skill.zip');
 
@@ -685,7 +685,7 @@ describe('Skills Controller', () => {
       const filesBefore = fs.readdirSync(tmpDir);
 
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .attach('file', zipBuffer, 'skill.zip');
 
@@ -706,7 +706,7 @@ describe('Skills Controller', () => {
       const filesBefore = fs.readdirSync(tmpDir);
 
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .attach('file', zipBuffer, 'skill.zip');
 
@@ -730,7 +730,7 @@ describe('Skills Controller', () => {
       );
 
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .attach('file', zip.toBuffer(), 'skill.zip');
 
@@ -760,7 +760,7 @@ describe('Skills Controller', () => {
       zip.addFile('multi-file-skill/README.md', Buffer.from('# Multi-file Skill'));
 
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .attach('file', zip.toBuffer(), 'skill.zip');
 
@@ -783,7 +783,7 @@ describe('Skills Controller', () => {
       );
 
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .attach('file', zip.toBuffer(), 'skill.zip');
 
@@ -808,7 +808,7 @@ describe('Skills Controller', () => {
       if (corrupted.length > 10) corrupted[corrupted.length - 2] = 0xFF;
 
       const response = await agent
-        .post('/api/skills')
+        .post('/api/v1/skills')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .attach('file', corrupted, 'skill.zip');
 
@@ -823,7 +823,7 @@ describe('Skills Controller', () => {
   describe('PUT /api/skills/:id', () => {
     it('should return 401 without token', async () => {
       const response = await agent
-        .put('/api/skills/1')
+        .put('/api/v1/skills/1')
         .send({ name: 'Updated' });
 
       expect(response.status).toBe(401);
@@ -831,7 +831,7 @@ describe('Skills Controller', () => {
 
     it('should return 403 for view role', async () => {
       const response = await agent
-        .put('/api/skills/1')
+        .put('/api/v1/skills/1')
         .set('Authorization', `Bearer ${viewToken()}`)
         .send({ name: 'Updated' });
 
@@ -840,7 +840,7 @@ describe('Skills Controller', () => {
 
     it('should return 400 for invalid id', async () => {
       const response = await agent
-        .put('/api/skills/abc')
+        .put('/api/v1/skills/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: 'Updated' });
 
@@ -855,7 +855,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .put('/api/skills/1')
+        .put('/api/v1/skills/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: 'Vue' });
 
@@ -871,7 +871,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .put('/api/skills/1')
+        .put('/api/v1/skills/1')
         .set('Authorization', `Bearer ${adminToken(2, 2)}`)
         .send({ name: 'Vue' });
 
@@ -886,7 +886,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .put('/api/skills/1')
+        .put('/api/v1/skills/1')
         .set('Authorization', `Bearer ${adminToken(2, 2)}`)
         .send({ name: 'Vue' });
 
@@ -901,7 +901,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .put('/api/skills/1')
+        .put('/api/v1/skills/1')
         .set('Authorization', `Bearer ${adminToken(2, 2)}`)
         .send({ name: 'Vue' });
 
@@ -914,7 +914,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .put('/api/skills/999')
+        .put('/api/v1/skills/999')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: 'Vue' });
 
@@ -928,7 +928,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .put('/api/skills/1')
+        .put('/api/v1/skills/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: 'Vue' });
 
@@ -943,7 +943,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .put('/api/skills/1')
+        .put('/api/v1/skills/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: 'Vue' });
 
@@ -959,7 +959,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .put('/api/skills/1')
+        .put('/api/v1/skills/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: 'Vue' });
 
@@ -975,7 +975,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .put('/api/skills/1')
+        .put('/api/v1/skills/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ description: 'Updated description' });
 
@@ -999,7 +999,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .put('/api/skills/3')
+        .put('/api/v1/skills/3')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: 'Updated by sysadmin' });
 
@@ -1009,7 +1009,7 @@ describe('Skills Controller', () => {
 
     it('should return 400 for id=NaN (non-numeric string)', async () => {
       const response = await agent
-        .put('/api/skills/abc123')
+        .put('/api/v1/skills/abc123')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ name: 'Test' });
 
@@ -1022,20 +1022,20 @@ describe('Skills Controller', () => {
   // ============================================================
   describe('DELETE /api/skills/:id', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.delete('/api/skills/1');
+      const response = await agent.delete('/api/v1/skills/1');
       expect(response.status).toBe(401);
     });
 
     it('should return 403 for view role', async () => {
       const response = await agent
-        .delete('/api/skills/1')
+        .delete('/api/v1/skills/1')
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(response.status).toBe(403);
     });
 
     it('should return 400 for invalid id', async () => {
       const response = await agent
-        .delete('/api/skills/abc')
+        .delete('/api/v1/skills/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -1047,7 +1047,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .delete('/api/skills/999')
+        .delete('/api/v1/skills/999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
@@ -1066,7 +1066,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .delete('/api/skills/1')
+        .delete('/api/v1/skills/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1087,7 +1087,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .delete('/api/skills/1')
+        .delete('/api/v1/skills/1')
         .set('Authorization', `Bearer ${adminToken(2, 2)}`);
 
       expect(response.status).toBe(200);
@@ -1104,7 +1104,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .delete('/api/skills/1')
+        .delete('/api/v1/skills/1')
         .set('Authorization', `Bearer ${adminToken(2, 2)}`);
 
       expect(response.status).toBe(403);
@@ -1121,7 +1121,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .delete('/api/skills/1')
+        .delete('/api/v1/skills/1')
         .set('Authorization', `Bearer ${adminToken(2, 2)}`);
 
       expect(response.status).toBe(403);
@@ -1148,7 +1148,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .delete('/api/skills/1')
+        .delete('/api/v1/skills/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1168,7 +1168,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .delete('/api/skills/1')
+        .delete('/api/v1/skills/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1188,7 +1188,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .delete('/api/skills/1')
+        .delete('/api/v1/skills/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1200,7 +1200,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .delete('/api/skills/1')
+        .delete('/api/v1/skills/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -1219,7 +1219,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .delete('/api/skills/1')
+        .delete('/api/v1/skills/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -1239,7 +1239,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .delete('/api/skills/1')
+        .delete('/api/v1/skills/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -1269,7 +1269,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .delete('/api/skills/1')
+        .delete('/api/v1/skills/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1291,7 +1291,7 @@ describe('Skills Controller', () => {
       getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .delete('/api/skills/5')
+        .delete('/api/v1/skills/5')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1300,7 +1300,7 @@ describe('Skills Controller', () => {
 
     it('should return 400 for non-numeric delete id', async () => {
       const response = await agent
-        .delete('/api/skills/notanumber')
+        .delete('/api/v1/skills/notanumber')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);

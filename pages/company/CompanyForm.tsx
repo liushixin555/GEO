@@ -42,7 +42,7 @@ const CompanyForm: React.FC = () => {
     const fetchUsers = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get('/api/users', {
+        const res = await axios.get('/api/v1/users', {
           headers: { Authorization: `Bearer ${token}` },
           params: { page: 1, pageSize: 999, status: 'true' },
         });
@@ -58,7 +58,7 @@ const CompanyForm: React.FC = () => {
     try {
       setFetching(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`/api/companies/${companyId}`, {
+      const response = await axios.get(`/api/v1/companies/${companyId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = response.data.data;
@@ -95,11 +95,11 @@ const CompanyForm: React.FC = () => {
       };
 
       if (isEdit && id) {
-        await axios.put(`/api/companies/${id}`, payload, {
+        await axios.put(`/api/v1/companies/${id}`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
       } else {
-        await axios.post('/api/companies', payload, {
+        await axios.post('/api/v1/companies', payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
       }

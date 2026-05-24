@@ -317,21 +317,66 @@ Vite 代理:           无 /api-docs 代理规则
 
 ## 九、处理记录
 
-**处理日期**: 2026-05-24
-**处理方案**: 方案 A — 删除死代码文件
+### 第一轮：方案 A — 删除死代码文件
 
-### 执行操作
+**处理日期**: 2026-05-24
+
+#### 执行操作
 
 1. 删除 `pages/api-docs/index.tsx` 及其父目录 `pages/api-docs/`
 2. 全项目搜索确认无任何文件引用 `ApiDocsPage` 或 `api-docs/index`
 3. `pnpm build` 构建通过
 4. `pnpm test:api`（app.test）156 个测试全部通过
 
-### 处理理由
+#### 处理理由
 
 按照 Committer 审核报告推荐方案 A 执行：
 - 组件未注册路由、未注册菜单、未被任何文件导入，属完全不可达的死代码
 - 后端 `apis/app.ts:104` 已提供完整 Swagger UI 服务（`/api-docs`），无需重复的前端入口页
 - 存在路由冲突（前端路径与后端端点重叠）和安全漏洞（`target="_blank"` 缺少 `rel` 属性）
+
+**状态**: ✅ 已完成
+
+### 第二轮：方案 B — 按 UI 评审重新实现完整页面
+
+**处理日期**: 2026-05-24
+
+#### 执行操作
+
+1. 创建 `pages/api-docs/index.tsx`（按 UI 评审推荐方案重写，49行）：
+   - 使用 `Typography.Title` level={3} 替代单项面包屑作为标题（UI-02/UI-17）
+   - 使用 `Typography.Text type="secondary"` 替代 `Typography.Paragraph`（UI-03）
+   - 使用 `Card` 作为内容容器（UI-07）
+   - 使用 `Space direction="vertical"` 管理间距（UI-06/UI-09）
+   - 添加 `document.title` 设置（UI-18）
+   - 添加 `rel="noopener noreferrer"` 安全属性（UI-11）
+   - 添加 `aria-label` 可访问性标签（UI-17）
+   - 按钮使用 `href="/api-docs/"` + Vite 代理避免路由冲突（UI-10）
+2. 在 `Layout.tsx` 注册路由 `/swagger` → `ApiDocsPage`（避免与后端 `/api-docs` 冲突）
+3. 在 `Sidebar.tsx` 添加菜单项 `API 文档`（仅 sysadmin 可见），使用 `ApiOutlined` 图标
+4. 在 `vite.config.ts` 添加 `/api-docs` 代理规则到后端 `localhost:8080`
+5. 修复 `page-container` padding 从 `6px` 改为 `var(--spacing-lg)` (24px)（UI-05 严重）
+6. 编写测试 `tests/pages/api-docs.test.tsx`（7个测试用例，全部通过）
+
+#### UI 评审问题修复覆盖
+
+| UI 评审 ID | 修复状态 | 说明 |
+|------------|---------|------|
+| UI-05 🔴 | ✅ 已修复 | page-container padding 6px → 24px |
+| UI-10 🔴 | ✅ 已修复 | 路由改为 /swagger，按钮 href=/api-docs/ 通过代理访问后端 |
+| UI-11 🟡 | ✅ 已修复 | 添加 rel="noopener noreferrer" |
+| UI-02 🟡 | ✅ 已修复 | 使用 Typography.Title level={3} 作为标题 |
+| UI-03 🟡 | ✅ 已修复 | 使用 Typography.Text type="secondary" |
+| UI-06 🟡 | ✅ 已修复 | 使用 Space direction="vertical" size="large" |
+| UI-07 🟡 | ✅ 已修复 | 使用 Card 包裹内容 |
+| UI-17 🟡 | ✅ 已修复 | 添加 Typography.Title h3 + aria-label |
+| UI-18 🟢 | ✅ 已修复 | 添加 document.title 设置 |
+| UI-09 🟡 | ✅ 已修复 | 使用 Space 管理垂直间距 |
+
+#### 测试结果
+
+- `pnpm build`: ✅ 构建通过
+- `tests/pages/api-docs.test.tsx`: ✅ 7/7 通过
+- `tests/apis/app.test.ts`: ✅ 156/156 通过
 
 **状态**: ✅ 已完成

@@ -51,20 +51,20 @@ describe('LLM Model Controller', () => {
   // ========== GET /api/llm-models ==========
   describe('GET /api/llm-models', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.get('/api/llm-models');
+      const response = await agent.get('/api/v1/llm-models');
       expect(response.status).toBe(401);
     });
 
     it('should return 403 for admin role', async () => {
       const response = await agent
-        .get('/api/llm-models')
+        .get('/api/v1/llm-models')
         .set('Authorization', `Bearer ${adminToken()}`);
       expect(response.status).toBe(403);
     });
 
     it('should return 403 for view role', async () => {
       const response = await agent
-        .get('/api/llm-models')
+        .get('/api/v1/llm-models')
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(response.status).toBe(403);
     });
@@ -77,7 +77,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
 
       const response = await agent
-        .get('/api/llm-models')
+        .get('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -92,7 +92,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
 
       const response = await agent
-        .get('/api/llm-models')
+        .get('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -105,7 +105,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
 
       const response = await agent
-        .get('/api/llm-models')
+        .get('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -118,7 +118,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
 
       const response = await agent
-        .get('/api/llm-models')
+        .get('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -131,7 +131,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
 
       const response = await agent
-        .get('/api/llm-models')
+        .get('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -147,7 +147,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
 
       const response = await agent
-        .get('/api/llm-models')
+        .get('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -163,7 +163,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
 
       const response = await agent
-        .get('/api/llm-models')
+        .get('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -175,13 +175,13 @@ describe('LLM Model Controller', () => {
   // ========== GET /api/llm-models/enabled ==========
   describe('GET /api/llm-models/enabled', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.get('/api/llm-models/enabled');
+      const response = await agent.get('/api/v1/llm-models/enabled');
       expect(response.status).toBe(401);
     });
 
     it('should return 403 for view role', async () => {
       const response = await agent
-        .get('/api/llm-models/enabled')
+        .get('/api/v1/llm-models/enabled')
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(response.status).toBe(403);
     });
@@ -194,7 +194,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
 
       const response = await agent
-        .get('/api/llm-models/enabled')
+        .get('/api/v1/llm-models/enabled')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -213,7 +213,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
 
       const response = await agent
-        .get('/api/llm-models/enabled')
+        .get('/api/v1/llm-models/enabled')
         .set('Authorization', `Bearer ${adminToken()}`);
 
       expect(response.status).toBe(200);
@@ -225,7 +225,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
 
       const response = await agent
-        .get('/api/llm-models/enabled')
+        .get('/api/v1/llm-models/enabled')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -238,7 +238,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
 
       const response = await agent
-        .get('/api/llm-models/enabled')
+        .get('/api/v1/llm-models/enabled')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -251,7 +251,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
 
       const response = await agent
-        .get('/api/llm-models/enabled')
+        .get('/api/v1/llm-models/enabled')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -267,7 +267,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
 
       const response = await agent
-        .get('/api/llm-models/enabled')
+        .get('/api/v1/llm-models/enabled')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -281,7 +281,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
 
       const response = await agent
-        .get('/api/llm-models/enabled')
+        .get('/api/v1/llm-models/enabled')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -296,7 +296,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
 
       await agent
-        .get('/api/llm-models/enabled')
+        .get('/api/v1/llm-models/enabled')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(mockFindMany).toHaveBeenCalledWith(
@@ -310,27 +310,27 @@ describe('LLM Model Controller', () => {
   // ========== GET /api/llm-models/:id ==========
   describe('GET /api/llm-models/:id', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.get('/api/llm-models/1');
+      const response = await agent.get('/api/v1/llm-models/1');
       expect(response.status).toBe(401);
     });
 
     it('should return 403 for admin role', async () => {
       const response = await agent
-        .get('/api/llm-models/1')
+        .get('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${adminToken()}`);
       expect(response.status).toBe(403);
     });
 
     it('should return 403 for view role', async () => {
       const response = await agent
-        .get('/api/llm-models/1')
+        .get('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(response.status).toBe(403);
     });
 
     it('should return 400 for invalid id (non-numeric)', async () => {
       const response = await agent
-        .get('/api/llm-models/abc')
+        .get('/api/v1/llm-models/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -339,7 +339,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 for invalid id (special characters)', async () => {
       const response = await agent
-        .get('/api/llm-models/@#$')
+        .get('/api/v1/llm-models/@#$')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -354,7 +354,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/llm-models/1')
+        .get('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -369,7 +369,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/llm-models/999')
+        .get('/api/v1/llm-models/999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
@@ -382,7 +382,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/llm-models/1')
+        .get('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -395,7 +395,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/llm-models/1')
+        .get('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -408,7 +408,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .get('/api/llm-models/1')
+        .get('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -417,7 +417,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 for id = 0', async () => {
       const response = await agent
-        .get('/api/llm-models/0')
+        .get('/api/v1/llm-models/0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -426,7 +426,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 for negative id', async () => {
       const response = await agent
-        .get('/api/llm-models/-1')
+        .get('/api/v1/llm-models/-1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -435,7 +435,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 for float id', async () => {
       const response = await agent
-        .get('/api/llm-models/1.9')
+        .get('/api/v1/llm-models/1.9')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -444,7 +444,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 for id with leading zeros', async () => {
       const response = await agent
-        .get('/api/llm-models/007')
+        .get('/api/v1/llm-models/007')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -453,7 +453,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 for id = "Infinity"', async () => {
       const response = await agent
-        .get('/api/llm-models/Infinity')
+        .get('/api/v1/llm-models/Infinity')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -462,7 +462,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 for id = "NaN" string', async () => {
       const response = await agent
-        .get('/api/llm-models/NaN')
+        .get('/api/v1/llm-models/NaN')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -474,14 +474,14 @@ describe('LLM Model Controller', () => {
   describe('POST /api/llm-models', () => {
     it('should return 401 without token', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .send({ provider: 'OpenAI' });
       expect(response.status).toBe(401);
     });
 
     it('should return 403 for admin role', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${adminToken()}`)
         .send({ provider: 'OpenAI' });
       expect(response.status).toBe(403);
@@ -489,7 +489,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 403 for view role', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${viewToken()}`)
         .send({ provider: 'OpenAI' });
       expect(response.status).toBe(403);
@@ -497,7 +497,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 when all required fields are missing', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({});
 
@@ -507,7 +507,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 when provider is missing', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
 
@@ -517,7 +517,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 when base_url is missing', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'OpenAI', api_key: 'sk-test', model_name: 'gpt-4o' });
 
@@ -526,7 +526,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 when api_key is missing', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', model_name: 'gpt-4o' });
 
@@ -535,7 +535,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 when model_name is missing', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test' });
 
@@ -550,7 +550,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
 
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
 
@@ -566,7 +566,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
 
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
 
@@ -580,7 +580,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
 
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
 
@@ -594,7 +594,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
 
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
 
@@ -604,7 +604,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 when provider is empty string', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: '', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
 
@@ -613,7 +613,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 when base_url has invalid protocol (ftp://)', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'OpenAI', base_url: 'ftp://example.com', api_key: 'sk-test', model_name: 'gpt-4o' });
 
@@ -623,7 +623,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 when base_url is malformed', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'OpenAI', base_url: 'not-a-url', api_key: 'sk-test', model_name: 'gpt-4o' });
 
@@ -640,7 +640,7 @@ describe('LLM Model Controller', () => {
 
       const body = { provider: 'Anthropic', base_url: 'https://api.anthropic.com', api_key: 'sk-ant', model_name: 'claude-3' };
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send(body);
 
@@ -651,7 +651,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 when base_url is empty string', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'OpenAI', base_url: '', api_key: 'sk-test', model_name: 'gpt-4o' });
 
@@ -661,7 +661,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 when api_key is empty string', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: '', model_name: 'gpt-4o' });
 
@@ -671,7 +671,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 when model_name is empty string', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: '' });
 
@@ -687,7 +687,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
 
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'CustomAI', base_url: 'http://llm.example.com/v1', api_key: 'local-key', model_name: 'custom-model' });
 
@@ -697,7 +697,7 @@ describe('LLM Model Controller', () => {
 
     it('should reject javascript: protocol in base_url', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Evil', base_url: 'javascript:alert(1)', api_key: 'sk-test', model_name: 'evil-model' });
 
@@ -707,7 +707,7 @@ describe('LLM Model Controller', () => {
 
     it('should reject data: protocol in base_url', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Evil', base_url: 'data:text/html,<h1>test</h1>', api_key: 'sk-test', model_name: 'evil-model' });
 
@@ -717,7 +717,7 @@ describe('LLM Model Controller', () => {
 
     it('should reject file: protocol in base_url', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Evil', base_url: 'file:///etc/passwd', api_key: 'sk-test', model_name: 'evil-model' });
 
@@ -727,7 +727,7 @@ describe('LLM Model Controller', () => {
 
     it('should reject base_url with spaces', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'OpenAI', base_url: 'not a url', api_key: 'sk-test', model_name: 'gpt-4o' });
 
@@ -743,7 +743,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
 
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: '国产模型', base_url: 'https://api.example.com', api_key: 'sk-test', model_name: '通义千问-Max' });
 
@@ -760,7 +760,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
 
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o', extra_field: 'should be ignored', malicious: '<script>alert(1)</script>' });
 
@@ -771,7 +771,7 @@ describe('LLM Model Controller', () => {
     // === SSRF 防护测试 ===
     it('should reject localhost in base_url (SSRF)', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Evil', base_url: 'http://localhost:8080/v1', api_key: 'sk-test', model_name: 'evil-model' });
 
@@ -781,7 +781,7 @@ describe('LLM Model Controller', () => {
 
     it('should reject 127.x.x.x in base_url (SSRF)', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Evil', base_url: 'http://127.0.0.1/v1', api_key: 'sk-test', model_name: 'evil-model' });
 
@@ -791,7 +791,7 @@ describe('LLM Model Controller', () => {
 
     it('should reject 169.254.x.x (AWS metadata) in base_url', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Evil', base_url: 'http://169.254.169.254/latest/meta-data/', api_key: 'sk-test', model_name: 'evil-model' });
 
@@ -801,7 +801,7 @@ describe('LLM Model Controller', () => {
 
     it('should reject 10.x.x.x in base_url (RFC 1918)', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Evil', base_url: 'http://10.0.0.1/v1', api_key: 'sk-test', model_name: 'evil-model' });
 
@@ -811,7 +811,7 @@ describe('LLM Model Controller', () => {
 
     it('should reject 192.168.x.x in base_url (RFC 1918)', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Evil', base_url: 'http://192.168.1.1/v1', api_key: 'sk-test', model_name: 'evil-model' });
 
@@ -822,7 +822,7 @@ describe('LLM Model Controller', () => {
     // === 输入验证测试 ===
     it('should reject non-string provider', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 123, base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
 
@@ -832,7 +832,7 @@ describe('LLM Model Controller', () => {
 
     it('should reject whitespace-only provider', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: '   ', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
 
@@ -842,7 +842,7 @@ describe('LLM Model Controller', () => {
 
     it('should reject too-long provider', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'A'.repeat(101), base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
 
@@ -852,7 +852,7 @@ describe('LLM Model Controller', () => {
 
     it('should reject too-long base_url', async () => {
       const response = await agent
-        .post('/api/llm-models')
+        .post('/api/v1/llm-models')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/' + 'a'.repeat(2100), api_key: 'sk-test', model_name: 'gpt-4o' });
 
@@ -1061,14 +1061,14 @@ describe('LLM Model Controller', () => {
   describe('PUT /api/llm-models/:id', () => {
     it('should return 401 without token', async () => {
       const response = await agent
-        .put('/api/llm-models/1')
+        .put('/api/v1/llm-models/1')
         .send({ provider: 'Anthropic' });
       expect(response.status).toBe(401);
     });
 
     it('should return 403 for admin role', async () => {
       const response = await agent
-        .put('/api/llm-models/1')
+        .put('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${adminToken()}`)
         .send({ provider: 'Anthropic' });
       expect(response.status).toBe(403);
@@ -1076,7 +1076,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 403 for view role', async () => {
       const response = await agent
-        .put('/api/llm-models/1')
+        .put('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${viewToken()}`)
         .send({ provider: 'Anthropic' });
       expect(response.status).toBe(403);
@@ -1084,7 +1084,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 for invalid id (non-numeric)', async () => {
       const response = await agent
-        .put('/api/llm-models/abc')
+        .put('/api/v1/llm-models/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Anthropic' });
 
@@ -1094,7 +1094,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 for invalid id (special characters)', async () => {
       const response = await agent
-        .put('/api/llm-models/!@#')
+        .put('/api/v1/llm-models/!@#')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Anthropic' });
 
@@ -1110,7 +1110,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .put('/api/llm-models/1')
+        .put('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Anthropic' });
 
@@ -1124,7 +1124,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .put('/api/llm-models/999')
+        .put('/api/v1/llm-models/999')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Anthropic' });
 
@@ -1140,7 +1140,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .put('/api/llm-models/1')
+        .put('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ status: false });
 
@@ -1156,7 +1156,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .put('/api/llm-models/1')
+        .put('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Anthropic', model_name: 'claude-3' });
 
@@ -1169,7 +1169,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .put('/api/llm-models/1')
+        .put('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Anthropic' });
 
@@ -1183,7 +1183,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .put('/api/llm-models/1')
+        .put('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Anthropic' });
 
@@ -1197,7 +1197,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .put('/api/llm-models/1')
+        .put('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Anthropic' });
 
@@ -1213,7 +1213,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .put('/api/llm-models/1')
+        .put('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Anthropic' });
 
@@ -1223,7 +1223,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 for id = 0', async () => {
       const response = await agent
-        .put('/api/llm-models/0')
+        .put('/api/v1/llm-models/0')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Anthropic' });
 
@@ -1233,7 +1233,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 for negative id', async () => {
       const response = await agent
-        .put('/api/llm-models/-1')
+        .put('/api/v1/llm-models/-1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Anthropic' });
 
@@ -1243,7 +1243,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 for float id', async () => {
       const response = await agent
-        .put('/api/llm-models/1.9')
+        .put('/api/v1/llm-models/1.9')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Anthropic' });
 
@@ -1253,7 +1253,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 for empty body', async () => {
       const response = await agent
-        .put('/api/llm-models/1')
+        .put('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({});
 
@@ -1269,7 +1269,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .put('/api/llm-models/1')
+        .put('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Anthropic', base_url: 'https://api.anthropic.com', api_key: 'sk-ant', model_name: 'claude-3', status: false });
 
@@ -1280,7 +1280,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 for id with leading zeros', async () => {
       const response = await agent
-        .put('/api/llm-models/007')
+        .put('/api/v1/llm-models/007')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 'Anthropic' });
 
@@ -1291,7 +1291,7 @@ describe('LLM Model Controller', () => {
     // === Update SSRF 防护测试 ===
     it('should reject localhost in base_url during update (SSRF)', async () => {
       const response = await agent
-        .put('/api/llm-models/1')
+        .put('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ base_url: 'http://localhost:8080/v1' });
 
@@ -1301,7 +1301,7 @@ describe('LLM Model Controller', () => {
 
     it('should reject 169.254.x.x in base_url during update', async () => {
       const response = await agent
-        .put('/api/llm-models/1')
+        .put('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ base_url: 'http://169.254.169.254/latest/meta-data/' });
 
@@ -1312,7 +1312,7 @@ describe('LLM Model Controller', () => {
     // === Update 输入验证测试 ===
     it('should reject non-string provider during update', async () => {
       const response = await agent
-        .put('/api/llm-models/1')
+        .put('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: 123 });
 
@@ -1322,7 +1322,7 @@ describe('LLM Model Controller', () => {
 
     it('should reject empty string provider during update', async () => {
       const response = await agent
-        .put('/api/llm-models/1')
+        .put('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ provider: '   ' });
 
@@ -1332,7 +1332,7 @@ describe('LLM Model Controller', () => {
 
     it('should reject non-boolean status during update', async () => {
       const response = await agent
-        .put('/api/llm-models/1')
+        .put('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ status: 'true' });
 
@@ -1342,7 +1342,7 @@ describe('LLM Model Controller', () => {
 
     it('should reject too-long model_name during update', async () => {
       const response = await agent
-        .put('/api/llm-models/1')
+        .put('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ model_name: 'A'.repeat(201) });
 
@@ -1352,7 +1352,7 @@ describe('LLM Model Controller', () => {
 
     it('should reject malformed base_url during update', async () => {
       const response = await agent
-        .put('/api/llm-models/1')
+        .put('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ base_url: 'not-a-url' });
 
@@ -1617,27 +1617,27 @@ describe('LLM Model Controller', () => {
   // ========== DELETE /api/llm-models/:id ==========
   describe('DELETE /api/llm-models/:id', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.delete('/api/llm-models/1');
+      const response = await agent.delete('/api/v1/llm-models/1');
       expect(response.status).toBe(401);
     });
 
     it('should return 403 for admin role', async () => {
       const response = await agent
-        .delete('/api/llm-models/1')
+        .delete('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${adminToken()}`);
       expect(response.status).toBe(403);
     });
 
     it('should return 403 for view role', async () => {
       const response = await agent
-        .delete('/api/llm-models/1')
+        .delete('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(response.status).toBe(403);
     });
 
     it('should return 400 for invalid id (non-numeric)', async () => {
       const response = await agent
-        .delete('/api/llm-models/abc')
+        .delete('/api/v1/llm-models/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -1646,7 +1646,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 for invalid id (special characters)', async () => {
       const response = await agent
-        .delete('/api/llm-models/!@#')
+        .delete('/api/v1/llm-models/!@#')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -1659,7 +1659,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .delete('/api/llm-models/999')
+        .delete('/api/v1/llm-models/999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(404);
@@ -1674,7 +1674,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .delete('/api/llm-models/1')
+        .delete('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -1689,7 +1689,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .delete('/api/llm-models/1')
+        .delete('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -1702,7 +1702,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .delete('/api/llm-models/1')
+        .delete('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -1715,7 +1715,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
 
       const response = await agent
-        .delete('/api/llm-models/1')
+        .delete('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -1724,7 +1724,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 for id = 0', async () => {
       const response = await agent
-        .delete('/api/llm-models/0')
+        .delete('/api/v1/llm-models/0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -1733,7 +1733,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 for negative id', async () => {
       const response = await agent
-        .delete('/api/llm-models/-1')
+        .delete('/api/v1/llm-models/-1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -1742,7 +1742,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 for float id', async () => {
       const response = await agent
-        .delete('/api/llm-models/1.9')
+        .delete('/api/v1/llm-models/1.9')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -1751,7 +1751,7 @@ describe('LLM Model Controller', () => {
 
     it('should return 400 for id with leading zeros', async () => {
       const response = await agent
-        .delete('/api/llm-models/007')
+        .delete('/api/v1/llm-models/007')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
@@ -1766,7 +1766,7 @@ describe('LLM Model Controller', () => {
       getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
 
       const response = await agent
-        .delete('/api/llm-models/1')
+        .delete('/api/v1/llm-models/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);

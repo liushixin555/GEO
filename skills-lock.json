@@ -6,6 +6,26 @@
       "sourceType": "github",
       "skillPath": "skills/ant-design/SKILL.md",
       "computedHash": "4d0447d48fced080b2825ecc0fb4d7ca836c8015882899c643acca0b864d5179"
+    },
+    "gpt-image-2": {
+      "source": "/tmp/garden-skills",
+      "sourceType": "local",
+      "computedHash": "9692bc55eabbaa9ac3e2293478a3029982c37f93d8e90d41785b2bd002a05426"
+    },
+    "kb-retriever": {
+      "source": "/tmp/garden-skills",
+      "sourceType": "local",
+      "computedHash": "7ddd881df3a8f079de8bde052ccd0c7ead81e4bdfeb2884031a312614a1632da"
+    },
+    "web-design-engineer": {
+      "source": "/tmp/garden-skills",
+      "sourceType": "local",
+      "computedHash": "334f3a824156e58f4ffea9fa6ccc620d741131b7cb43ee19efbb24d36c5e7563"
+    },
+    "web-video-presentation": {
+      "source": "/tmp/garden-skills",
+      "sourceType": "local",
+      "computedHash": "367da98a0578edbebf03edde75c67ea419e261b97e489fd912fea116516c8641"
     }
   }
 }

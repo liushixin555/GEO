@@ -47,7 +47,7 @@ const UserPage: React.FC = () => {
       if (filterRole) params.role = filterRole;
       if (filterStatus !== '') params.status = filterStatus;
 
-      const res = await axios.get('/api/users', {
+      const res = await axios.get('/api/v1/users', {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
@@ -67,7 +67,7 @@ const UserPage: React.FC = () => {
   const handleToggleStatus = async (item: UserItem) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`/api/users/${item.id}`, {
+      await axios.put(`/api/v1/users/${item.id}`, {
         status: !item.status,
       }, {
         headers: { Authorization: `Bearer ${token}` },

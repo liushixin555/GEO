@@ -35,7 +35,7 @@ const SkillPage: React.FC = () => {
       const params: Record<string, unknown> = { page, pageSize };
       if (search) params.search = search;
 
-      const res = await axios.get('/api/skills', {
+      const res = await axios.get('/api/v1/skills', {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
@@ -57,7 +57,7 @@ const SkillPage: React.FC = () => {
   const handleDelete = async (item: SkillsItem) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`/api/skills/${item.id}`, {
+      await axios.delete(`/api/v1/skills/${item.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       message.success('删除成功');
@@ -73,7 +73,7 @@ const SkillPage: React.FC = () => {
       const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('file', rawFile);
-      await axios.post('/api/skills', formData, {
+      await axios.post('/api/v1/skills', formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
       });
       message.success('技能上传成功');

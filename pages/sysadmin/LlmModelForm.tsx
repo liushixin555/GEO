@@ -48,11 +48,11 @@ const LlmModelForm: React.FC<LlmModelFormProps> = ({ item, onClose, onSaved }) =
       };
 
       if (isEdit) {
-        await axios.put(`/api/llm-models/${item!.id}`, payload, {
+        await axios.put(`/api/v1/llm-models/${item!.id}`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
       } else {
-        await axios.post('/api/llm-models', payload, {
+        await axios.post('/api/v1/llm-models', payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
       }

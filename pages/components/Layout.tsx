@@ -78,7 +78,7 @@ const Layout: React.FC = () => {
     }
 
     axios
-      .get('/api/auth/verify', {
+      .get('/api/v1/auth/verify', {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then(() => {
@@ -109,7 +109,7 @@ const Layout: React.FC = () => {
     const token = localStorage.getItem('token');
     if (token) {
       try {
-        await axios.post('/api/auth/logout', null, {
+        await axios.post('/api/v1/auth/logout', null, {
           headers: { Authorization: `Bearer ${token}` },
         });
       } catch {

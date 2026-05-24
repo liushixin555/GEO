@@ -83,7 +83,7 @@ const PublishingSchedulePage: React.FC = () => {
       if (search) params.search = search;
       if (filterStatus) params.status = filterStatus;
 
-      const res = await axios.get('/api/publishing-schedule', {
+      const res = await axios.get('/api/v1/publishing-schedule', {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
@@ -99,7 +99,7 @@ const PublishingSchedulePage: React.FC = () => {
   const fetchPendingCount = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('/api/publishing-schedule', {
+      const res = await axios.get('/api/v1/publishing-schedule', {
         headers: { Authorization: `Bearer ${token}` },
         params: { page: 1, pageSize: 1, status: 'publishing' },
       });
@@ -112,7 +112,7 @@ const PublishingSchedulePage: React.FC = () => {
         return;
       }
       // Fetch all publishing articles (up to a reasonable limit) to count unscheduled
-      const allRes = await axios.get('/api/publishing-schedule', {
+      const allRes = await axios.get('/api/v1/publishing-schedule', {
         headers: { Authorization: `Bearer ${token}` },
         params: { page: 1, pageSize: 200, status: 'publishing' },
       });
@@ -155,7 +155,7 @@ const PublishingSchedulePage: React.FC = () => {
         schedule_type: editScheduleType,
         scheduled_publish_at: editScheduleType === 'asap' ? null : editDate,
       };
-      await axios.put(`/api/publishing-schedule/${editItem.id}`, body, {
+      await axios.put(`/api/v1/publishing-schedule/${editItem.id}`, body, {
         headers: { Authorization: `Bearer ${token}` },
       });
       message.success('发布计划已更新');

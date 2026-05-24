@@ -64,7 +64,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ item, companies, onClose, onS
     setViewers([]);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`/api/auth/companies/${companyId}`, {
+      const res = await axios.get(`/api/v1/auth/companies/${companyId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setOperators(res.data.data.operators || []);
@@ -94,11 +94,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ item, companies, onClose, onS
       };
 
       if (isEdit) {
-        await axios.put(`/api/projects/${item!.id}`, payload, {
+        await axios.put(`/api/v1/projects/${item!.id}`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
       } else {
-        await axios.post('/api/projects', payload, {
+        await axios.post('/api/v1/projects', payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
       }

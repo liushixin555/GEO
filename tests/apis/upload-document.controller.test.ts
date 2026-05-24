@@ -61,13 +61,13 @@ describe('Upload Document Controller - Integration', () => {
   // ---------- Auth & Permission ----------
 
   it('should return 401 without token', async () => {
-    const response = await agent.post('/api/upload/document');
+    const response = await agent.post('/api/v1/upload/document');
     expect(response.status).toBe(401);
   });
 
   it('should return 403 for view role', async () => {
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${viewToken()}`);
     expect(response.status).toBe(403);
   });
@@ -79,7 +79,7 @@ describe('Upload Document Controller - Integration', () => {
     fs.writeFileSync(pdfPath, '%PDF-1.4 test pdf content');
 
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', pdfPath);
 
@@ -102,7 +102,7 @@ describe('Upload Document Controller - Integration', () => {
     fs.writeFileSync(jsonPath, JSON.stringify({ key: 'value' }));
 
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${adminToken()}`)
       .attach('file', jsonPath);
 
@@ -120,7 +120,7 @@ describe('Upload Document Controller - Integration', () => {
     fs.writeFileSync(mdPath, '# Hello World\n\nThis is **markdown**.');
 
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', mdPath);
 
@@ -137,7 +137,7 @@ describe('Upload Document Controller - Integration', () => {
     fs.writeFileSync(csvPath, 'name,age\nAlice,30\nBob,25');
 
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${adminToken()}`)
       .attach('file', csvPath);
 
@@ -154,7 +154,7 @@ describe('Upload Document Controller - Integration', () => {
     fs.writeFileSync(yamlPath, 'name: test\nvalue: 123');
 
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', yamlPath);
 
@@ -171,7 +171,7 @@ describe('Upload Document Controller - Integration', () => {
     fs.writeFileSync(xmlPath, '<?xml version="1.0"?><root><item>test</item></root>');
 
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', xmlPath);
 
@@ -191,7 +191,7 @@ describe('Upload Document Controller - Integration', () => {
     zip.writeZip(docxPath);
 
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', docxPath);
 
@@ -210,7 +210,7 @@ describe('Upload Document Controller - Integration', () => {
     zip.writeZip(xlsxPath);
 
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${adminToken()}`)
       .attach('file', xlsxPath);
 
@@ -229,7 +229,7 @@ describe('Upload Document Controller - Integration', () => {
     zip.writeZip(pptxPath);
 
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', pptxPath);
 
@@ -245,7 +245,7 @@ describe('Upload Document Controller - Integration', () => {
 
   it('should return 400 when no file provided', async () => {
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${sysadminToken()}`);
     expect(response.status).toBe(400);
   });
@@ -255,7 +255,7 @@ describe('Upload Document Controller - Integration', () => {
     fs.writeFileSync(txtPath, 'plain text content');
 
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', txtPath);
 
@@ -270,7 +270,7 @@ describe('Upload Document Controller - Integration', () => {
     fs.writeFileSync(exePath, 'MZ\x90\x00fake exe content');
 
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', exePath);
 
@@ -287,7 +287,7 @@ describe('Upload Document Controller - Integration', () => {
     fs.writeFileSync(largePath, JSON.stringify(data));
 
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', largePath);
 
@@ -304,7 +304,7 @@ describe('Upload Document Controller - Integration', () => {
     fs.writeFileSync(jsonPath, '{ invalid json content }');
 
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', jsonPath);
 
@@ -320,7 +320,7 @@ describe('Upload Document Controller - Integration', () => {
     fs.writeFileSync(yamlPath, 'key: [unclosed');
 
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', yamlPath);
 
@@ -334,7 +334,7 @@ describe('Upload Document Controller - Integration', () => {
     fs.writeFileSync(pdfPath, '{"not": "a pdf"}');
 
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', pdfPath);
 
@@ -352,7 +352,7 @@ describe('Upload Document Controller - Integration', () => {
     zip.writeZip(zipPath);
 
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', zipPath);
 
@@ -367,7 +367,7 @@ describe('Upload Document Controller - Integration', () => {
     fs.writeFileSync(ymlPath, 'key: value');
 
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', ymlPath);
 
@@ -384,7 +384,7 @@ describe('Upload Document Controller - Integration', () => {
     fs.writeFileSync(csvPath, '');
 
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', csvPath);
 
@@ -398,7 +398,7 @@ describe('Upload Document Controller - Integration', () => {
     fs.writeFileSync(csvPath, 'no separator here');
 
     const response = await agent
-      .post('/api/upload/document')
+      .post('/api/v1/upload/document')
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', csvPath);
 

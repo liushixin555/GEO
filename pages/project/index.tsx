@@ -42,7 +42,7 @@ const ProjectPage: React.FC = () => {
     const fetchCompanies = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get('/api/auth/companies', {
+        const res = await axios.get('/api/v1/auth/companies', {
           headers: { Authorization: `Bearer ${token}` },
         });
         setCompanies(res.data.data.map((c: any) => ({ id: c.id, short_name: c.short_name })));
@@ -62,7 +62,7 @@ const ProjectPage: React.FC = () => {
       if (filterCompany) params.company_id = filterCompany;
       if (filterStatus !== '') params.status = filterStatus;
 
-      const res = await axios.get('/api/projects', {
+      const res = await axios.get('/api/v1/projects', {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
@@ -82,7 +82,7 @@ const ProjectPage: React.FC = () => {
   const handleToggleStatus = async (item: ProjectItem) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`/api/projects/${item.id}`, {
+      await axios.put(`/api/v1/projects/${item.id}`, {
         status: !item.status,
       }, {
         headers: { Authorization: `Bearer ${token}` },

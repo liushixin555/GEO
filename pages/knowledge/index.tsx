@@ -112,7 +112,7 @@ const KnowledgePage: React.FC = () => {
       if (search) params.search = search;
       if (filterScope) params.scope = filterScope;
 
-      const res = await axios.get('/api/knowledge-bases', {
+      const res = await axios.get('/api/v1/knowledge-bases', {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
@@ -134,7 +134,7 @@ const KnowledgePage: React.FC = () => {
       if (invCategory) params.category = invCategory;
       if (invSearch) params.search = invSearch;
 
-      const res = await axios.get('/api/knowledge-inventory', {
+      const res = await axios.get('/api/v1/knowledge-inventory', {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });

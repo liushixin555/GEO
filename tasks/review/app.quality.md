@@ -528,3 +528,36 @@ export default app;
 ---
 
 *软件质量专家评审完成 — 2026-05-24*
+
+---
+
+## 修复记录（2026-05-24）
+
+### 已修复项
+
+| 编号 | 修复项 | 状态 | 修复说明 |
+|------|--------|------|----------|
+| Q-01 | 路由拆分为 Router 模块 | ✅ 已修复 | 拆分为 13 个路由文件 `apis/routes/*.routes.ts` |
+| Q-02 | 消除中间件重复 | ✅ 已修复 | 使用 `router.use()` 级中间件 |
+| Q-03 | 修正 L187 注释错误 | ✅ 已修复 | 文件重构后注释已正确 |
+| Q-04 | API 版本化 | ✅ 已修复 | 路由挂载从 `/api/xxx` 改为 `/api/v1/xxx`，前端+测试同步更新 |
+| Q-05 | Zod 请求验证中间件 | ✅ 已修复 | 创建 `apis/middleware/validate.ts` 工厂函数，为 auth/knowledge-base 路由添加验证 |
+| Q-06 | Swagger 条件生成 | ✅ 已修复 | swaggerJSDoc 移入条件判断内 |
+| Q-07 | 请求日志中间件 | ✅ 已修复 | 添加 API 请求审计日志（4xx/5xx） |
+| Q-08 | 错误分类处理 | ✅ 已修复 | `AppError` 层次结构 + 全局错误分类处理 |
+| Q-09 | 角色常量化 | ✅ 已修复 | `apis/constants/roles.ts` |
+| Q-10 | 路由分组统一 | ✅ 已修复 | 按业务域拆分为独立路由文件 |
+
+### 新增文件
+
+- `apis/middleware/validate.ts` — Zod 验证中间件工厂
+- `apis/schema/auth.schema.ts` — 登录/选择参数验证
+- `apis/schema/project.schema.ts` — 项目创建/更新验证
+- `apis/schema/knowledge-base.schema.ts` — 知识库创建/更新验证
+- `apis/schema/publishing-schedule.schema.ts` — 发布排期更新验证
+
+### 验证结果
+
+- 构建通过（`npm run build`）
+- 全部 1141 个测试通过
+- TypeScript 类型检查通过

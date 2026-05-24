@@ -63,7 +63,7 @@ const KnowledgeBaseForm: React.FC<KnowledgeBaseFormProps> = ({ item, onClose, on
   const fetchAccessibleData = async () => {
     try {
       const token = localStorage.getItem('token');
-      const companiesRes = await axios.get('/api/auth/companies', { headers: { Authorization: `Bearer ${token}` } });
+      const companiesRes = await axios.get('/api/v1/auth/companies', { headers: { Authorization: `Bearer ${token}` } });
       setCompanies(companiesRes.data.data.map((c: any) => ({ id: c.id, short_name: c.short_name })));
     } catch {
       // ignore
@@ -73,7 +73,7 @@ const KnowledgeBaseForm: React.FC<KnowledgeBaseFormProps> = ({ item, onClose, on
   const fetchProjects = async (companyId: number) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('/api/auth/projects', {
+      const res = await axios.get('/api/v1/auth/projects', {
         headers: { Authorization: `Bearer ${token}` },
         params: { company_id: companyId },
       });
@@ -113,11 +113,11 @@ const KnowledgeBaseForm: React.FC<KnowledgeBaseFormProps> = ({ item, onClose, on
       }
 
       if (isEdit) {
-        await axios.put(`/api/knowledge-bases/${item!.id}`, payload, {
+        await axios.put(`/api/v1/knowledge-bases/${item!.id}`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
       } else {
-        await axios.post('/api/knowledge-bases', payload, {
+        await axios.post('/api/v1/knowledge-bases', payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
       }

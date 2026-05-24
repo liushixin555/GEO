@@ -25,7 +25,7 @@ const CompanyProjectSwitcher: React.FC = () => {
     try {
       const params: { company_id?: number } = {};
       if (targetCompanyId) params.company_id = targetCompanyId;
-      const res = await axios.get('/api/auth/context', {
+      const res = await axios.get('/api/v1/auth/context', {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
@@ -73,7 +73,7 @@ const CompanyProjectSwitcher: React.FC = () => {
     const token = localStorage.getItem('token');
     if (token && company) {
       try {
-        await axios.put('/api/auth/selection', {
+        await axios.put('/api/v1/auth/selection', {
           company_id: company.id,
           project_id: project?.id ?? null,
         }, {

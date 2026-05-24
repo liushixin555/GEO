@@ -100,7 +100,7 @@ const TodoPage: React.FC = () => {
       if (search) params.search = search;
       if (filterPriority) params.priority = filterPriority;
 
-      const res = await axios.get('/api/todos', {
+      const res = await axios.get('/api/v1/todos', {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
@@ -146,7 +146,7 @@ const TodoPage: React.FC = () => {
   const handleClose = async (id: number) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`/api/todos/${id}/close`, null, {
+      await axios.post(`/api/v1/todos/${id}/close`, null, {
         headers: { Authorization: `Bearer ${token}` },
       });
       message.success('待办已关闭');
@@ -159,7 +159,7 @@ const TodoPage: React.FC = () => {
   const handleReopen = async (id: number) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`/api/todos/${id}/reopen`, null, {
+      await axios.post(`/api/v1/todos/${id}/reopen`, null, {
         headers: { Authorization: `Bearer ${token}` },
       });
       message.success('待办已重新打开');
@@ -172,7 +172,7 @@ const TodoPage: React.FC = () => {
   const handleReject = async (id: number) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`/api/todos/${id}/reject`, null, {
+      await axios.post(`/api/v1/todos/${id}/reject`, null, {
         headers: { Authorization: `Bearer ${token}` },
       });
       message.success('待办已驳回');
@@ -189,7 +189,7 @@ const TodoPage: React.FC = () => {
     setTransferLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('/api/users', {
+      const res = await axios.get('/api/v1/users', {
         headers: { Authorization: `Bearer ${token}` },
         params: { pageSize: 200 },
       });
@@ -208,7 +208,7 @@ const TodoPage: React.FC = () => {
     }
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`/api/todos/${transferTodo.id}/transfer`, {
+      await axios.post(`/api/v1/todos/${transferTodo.id}/transfer`, {
         assignee_id: transferTargetId,
       }, { headers: { Authorization: `Bearer ${token}` } });
       message.success('转交成功');

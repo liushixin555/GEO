@@ -27,7 +27,7 @@ const CompanyPage: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get('/api/companies', {
+      const response = await axios.get('/api/v1/companies', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setCompanies(response.data.data);
@@ -46,7 +46,7 @@ const CompanyPage: React.FC = () => {
     setTogglingId(id);
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`/api/companies/${id}/status`, { status }, {
+      await axios.put(`/api/v1/companies/${id}/status`, { status }, {
         headers: { Authorization: `Bearer ${token}` },
       });
       message.success(status ? '公司已启用' : '公司已禁用');

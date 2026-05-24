@@ -45,37 +45,37 @@ describe('Knowledge Controller - Auth & Role Guards', () => {
   beforeEach(() => jest.clearAllMocks());
 
   test('未登录访问关键词列表返回401', async () => {
-    const res = await agent.get('/api/knowledge-bases/10/keywords');
+    const res = await agent.get('/api/v1/knowledge-bases/10/keywords');
     expect(res.status).toBe(401);
   });
 
   test('view角色访问关键词列表返回403', async () => {
-    const res = await agent.get('/api/knowledge-bases/10/keywords').set('Authorization', auth(viewToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/keywords').set('Authorization', auth(viewToken));
     expect(res.status).toBe(403);
   });
 
   test('view角色访问画像列表返回403', async () => {
-    const res = await agent.get('/api/knowledge-bases/10/portraits').set('Authorization', auth(viewToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/portraits').set('Authorization', auth(viewToken));
     expect(res.status).toBe(403);
   });
 
   test('view角色访问图片列表返回403', async () => {
-    const res = await agent.get('/api/knowledge-bases/10/images').set('Authorization', auth(viewToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/images').set('Authorization', auth(viewToken));
     expect(res.status).toBe(403);
   });
 
   test('view角色访问文档列表返回403', async () => {
-    const res = await agent.get('/api/knowledge-bases/10/documents').set('Authorization', auth(viewToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/documents').set('Authorization', auth(viewToken));
     expect(res.status).toBe(403);
   });
 
   test('view角色访问知识清单返回403', async () => {
-    const res = await agent.get('/api/knowledge-inventory').set('Authorization', auth(viewToken));
+    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth(viewToken));
     expect(res.status).toBe(403);
   });
 
   test('view角色访问项目关键词返回403', async () => {
-    const res = await agent.get('/api/projects/1/knowledge/keywords').set('Authorization', auth(viewToken));
+    const res = await agent.get('/api/v1/projects/1/knowledge/keywords').set('Authorization', auth(viewToken));
     expect(res.status).toBe(403);
   });
 });
@@ -94,7 +94,7 @@ describe('Keywords - listKeywords', () => {
         count: jest.fn().mockResolvedValue(1),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/keywords').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/keywords').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.code).toBe(0);
     expect(res.body.data.list).toHaveLength(1);
@@ -102,7 +102,7 @@ describe('Keywords - listKeywords', () => {
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.get('/api/knowledge-bases/abc/keywords').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/abc/keywords').set('Authorization', auth());
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('无效的知识库ID');
   });
@@ -114,7 +114,7 @@ describe('Keywords - listKeywords', () => {
         count: jest.fn().mockRejectedValue(new Error('DB error')),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/keywords').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/keywords').set('Authorization', auth());
     expect(res.status).toBe(500);
   });
 });
@@ -130,18 +130,18 @@ describe('Keywords - getKeyword', () => {
         .mockResolvedValueOnce([{ id: 1, base_id: 10, keyword: 'SEO', seed_word: null, group_id: null, created_by: 1, created_at: new Date(), updated_at: new Date() }])
         .mockResolvedValueOnce([]), // expanded words
     });
-    const res = await agent.get('/api/knowledge-bases/10/keywords/1').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.keyword).toBe('SEO');
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.get('/api/knowledge-bases/abc/keywords/1').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/abc/keywords/1').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 
   test('无效的id返回400', async () => {
-    const res = await agent.get('/api/knowledge-bases/10/keywords/abc').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/keywords/abc').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 
@@ -151,7 +151,7 @@ describe('Keywords - getKeyword', () => {
         .mockResolvedValueOnce([{ id: 1, base_id: 99, keyword: 'SEO', seed_word: null, group_id: null, created_by: 1, created_at: new Date(), updated_at: new Date() }])
         .mockResolvedValueOnce([]),
     });
-    const res = await agent.get('/api/knowledge-bases/10/keywords/1').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth());
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('关键词不存在');
   });
@@ -160,7 +160,7 @@ describe('Keywords - getKeyword', () => {
     mockPrisma({
       $queryRaw: jest.fn().mockResolvedValueOnce([]), // empty result
     });
-    const res = await agent.get('/api/knowledge-bases/10/keywords/999').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/keywords/999').set('Authorization', auth());
     expect(res.status).toBe(404);
   });
 
@@ -168,7 +168,7 @@ describe('Keywords - getKeyword', () => {
     mockPrisma({
       $queryRaw: jest.fn().mockRejectedValue(new Error('DB error')),
     });
-    const res = await agent.get('/api/knowledge-bases/10/keywords/1').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth());
     expect(res.status).toBe(500);
   });
 });
@@ -182,19 +182,19 @@ describe('Keywords - createKeyword', () => {
         create: jest.fn().mockResolvedValue({ id: 1, baseId: 10, keyword: '新关键词', createdBy: 1, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/keywords').set('Authorization', auth()).send({ keyword: '新关键词' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords').set('Authorization', auth()).send({ keyword: '新关键词' });
     expect(res.status).toBe(201);
     expect(res.body.code).toBe(0);
     expect(res.body.message).toBe('创建关键词成功');
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/abc/keywords').set('Authorization', auth()).send({ keyword: 'test' });
+    const res = await agent.post('/api/v1/knowledge-bases/abc/keywords').set('Authorization', auth()).send({ keyword: 'test' });
     expect(res.status).toBe(400);
   });
 
   test('keyword为空返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/10/keywords').set('Authorization', auth()).send({});
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords').set('Authorization', auth()).send({});
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('关键词不能为空');
   });
@@ -205,7 +205,7 @@ describe('Keywords - createKeyword', () => {
         create: jest.fn().mockRejectedValue(new Error('知识库不存在')),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/999/keywords').set('Authorization', auth()).send({ keyword: 'test' });
+    const res = await agent.post('/api/v1/knowledge-bases/999/keywords').set('Authorization', auth()).send({ keyword: 'test' });
     expect(res.status).toBe(404);
   });
 
@@ -215,7 +215,7 @@ describe('Keywords - createKeyword', () => {
         create: jest.fn().mockRejectedValue(new Error('Unexpected error')),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/keywords').set('Authorization', auth()).send({ keyword: 'test' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords').set('Authorization', auth()).send({ keyword: 'test' });
     expect(res.status).toBe(500);
   });
 });
@@ -235,7 +235,7 @@ describe('Keywords - updateKeyword', () => {
         update: jest.fn().mockResolvedValue({ id: 1, baseId: 10, keyword: '新', createdBy: 2, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/keywords/1').set('Authorization', auth()).send({ keyword: '新' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth()).send({ keyword: '新' });
     expect(res.status).toBe(200);
     expect(res.body.data.keyword).toBe('新');
   });
@@ -251,17 +251,17 @@ describe('Keywords - updateKeyword', () => {
         update: jest.fn().mockResolvedValue({ id: 1, baseId: 10, keyword: '新', createdBy: 2, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/keywords/1').set('Authorization', auth(adminToken)).send({ keyword: '新' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth(adminToken)).send({ keyword: '新' });
     expect(res.status).toBe(200);
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.put('/api/knowledge-bases/abc/keywords/1').set('Authorization', auth()).send({ keyword: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/abc/keywords/1').set('Authorization', auth()).send({ keyword: 'x' });
     expect(res.status).toBe(400);
   });
 
   test('无效的id返回400', async () => {
-    const res = await agent.put('/api/knowledge-bases/10/keywords/abc').set('Authorization', auth()).send({ keyword: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/keywords/abc').set('Authorization', auth()).send({ keyword: 'x' });
     expect(res.status).toBe(400);
   });
 
@@ -271,7 +271,7 @@ describe('Keywords - updateKeyword', () => {
         .mockResolvedValueOnce([{ id: 1, base_id: 99, keyword: '旧', seed_word: null, group_id: null, created_by: 1, created_at: new Date(), updated_at: new Date() }])
         .mockResolvedValueOnce([]),
     });
-    const res = await agent.put('/api/knowledge-bases/10/keywords/1').set('Authorization', auth()).send({ keyword: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth()).send({ keyword: 'x' });
     expect(res.status).toBe(404);
   });
 
@@ -281,7 +281,7 @@ describe('Keywords - updateKeyword', () => {
         .mockResolvedValueOnce([{ id: 1, base_id: 10, keyword: '旧', seed_word: null, group_id: null, created_by: 5, created_at: new Date(), updated_at: new Date() }])
         .mockResolvedValueOnce([]),
     });
-    const res = await agent.put('/api/knowledge-bases/10/keywords/1').set('Authorization', auth(adminToken)).send({ keyword: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth(adminToken)).send({ keyword: 'x' });
     expect(res.status).toBe(403);
     expect(res.body.message).toBe('只能修改自己创建的关键词');
   });
@@ -292,7 +292,7 @@ describe('Keywords - updateKeyword', () => {
         .mockResolvedValueOnce([{ id: 1, base_id: 10, keyword: '旧', seed_word: null, group_id: null, created_by: 1, created_at: new Date(), updated_at: new Date() }])
         .mockResolvedValueOnce([]),
     });
-    const res = await agent.put('/api/knowledge-bases/10/keywords/1').set('Authorization', auth()).send({});
+    const res = await agent.put('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth()).send({});
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('关键词不能为空');
   });
@@ -301,7 +301,7 @@ describe('Keywords - updateKeyword', () => {
     mockPrisma({
       $queryRaw: jest.fn().mockResolvedValueOnce([]),
     });
-    const res = await agent.put('/api/knowledge-bases/10/keywords/999').set('Authorization', auth()).send({ keyword: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/keywords/999').set('Authorization', auth()).send({ keyword: 'x' });
     expect(res.status).toBe(404);
   });
 });
@@ -320,7 +320,7 @@ describe('Keywords - deleteKeyword', () => {
         update: jest.fn().mockResolvedValue({}),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/keywords/1').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth());
     expect(res.status).toBe(200);
   });
 
@@ -334,17 +334,17 @@ describe('Keywords - deleteKeyword', () => {
         update: jest.fn().mockResolvedValue({}),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/keywords/1').set('Authorization', auth(adminToken));
+    const res = await agent.delete('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth(adminToken));
     expect(res.status).toBe(200);
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.delete('/api/knowledge-bases/abc/keywords/1').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/abc/keywords/1').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 
   test('无效的id返回400', async () => {
-    const res = await agent.delete('/api/knowledge-bases/10/keywords/abc').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/10/keywords/abc').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 
@@ -354,7 +354,7 @@ describe('Keywords - deleteKeyword', () => {
         .mockResolvedValueOnce([{ id: 1, base_id: 99, keyword: 'SEO', seed_word: null, group_id: null, created_by: 1, created_at: new Date(), updated_at: new Date() }])
         .mockResolvedValueOnce([]),
     });
-    const res = await agent.delete('/api/knowledge-bases/10/keywords/1').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth());
     expect(res.status).toBe(404);
   });
 
@@ -364,7 +364,7 @@ describe('Keywords - deleteKeyword', () => {
         .mockResolvedValueOnce([{ id: 1, base_id: 10, keyword: 'SEO', seed_word: null, group_id: null, created_by: 5, created_at: new Date(), updated_at: new Date() }])
         .mockResolvedValueOnce([]),
     });
-    const res = await agent.delete('/api/knowledge-bases/10/keywords/1').set('Authorization', auth(adminToken));
+    const res = await agent.delete('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth(adminToken));
     expect(res.status).toBe(403);
     expect(res.body.message).toBe('只能删除自己创建的关键词');
   });
@@ -373,7 +373,7 @@ describe('Keywords - deleteKeyword', () => {
     mockPrisma({
       $queryRaw: jest.fn().mockResolvedValueOnce([]),
     });
-    const res = await agent.delete('/api/knowledge-bases/10/keywords/999').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/10/keywords/999').set('Authorization', auth());
     expect(res.status).toBe(404);
   });
 });
@@ -388,24 +388,24 @@ describe('Keywords - batchCreateKeywords', () => {
         findMany: jest.fn().mockResolvedValue([]),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/keywords/batch').set('Authorization', auth()).send({ keywords: ['A', 'B', 'C'], seed_word: '种子词' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/batch').set('Authorization', auth()).send({ keywords: ['A', 'B', 'C'], seed_word: '种子词' });
     expect(res.status).toBe(200);
     expect(res.body.code).toBe(0);
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/abc/keywords/batch').set('Authorization', auth()).send({ keywords: ['A'] });
+    const res = await agent.post('/api/v1/knowledge-bases/abc/keywords/batch').set('Authorization', auth()).send({ keywords: ['A'] });
     expect(res.status).toBe(400);
   });
 
   test('keywords非数组返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/10/keywords/batch').set('Authorization', auth()).send({ keywords: 'not-array' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/batch').set('Authorization', auth()).send({ keywords: 'not-array' });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('关键词列表不能为空');
   });
 
   test('keywords为空数组返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/10/keywords/batch').set('Authorization', auth()).send({ keywords: [] });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/batch').set('Authorization', auth()).send({ keywords: [] });
     expect(res.status).toBe(400);
   });
 
@@ -416,7 +416,7 @@ describe('Keywords - batchCreateKeywords', () => {
         findMany: jest.fn().mockResolvedValue([]),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/keywords/batch').set('Authorization', auth()).send({ keywords: ['A'] });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/batch').set('Authorization', auth()).send({ keywords: ['A'] });
     expect(res.status).toBe(500);
   });
 });
@@ -425,12 +425,12 @@ describe('Keywords - expandKeywords', () => {
   beforeEach(() => jest.clearAllMocks());
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/abc/keywords/expand').set('Authorization', auth()).send({ keyword: 'SEO' });
+    const res = await agent.post('/api/v1/knowledge-bases/abc/keywords/expand').set('Authorization', auth()).send({ keyword: 'SEO' });
     expect(res.status).toBe(400);
   });
 
   test('keyword为空返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/10/keywords/expand').set('Authorization', auth()).send({});
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/expand').set('Authorization', auth()).send({});
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('关键词不能为空');
   });
@@ -449,13 +449,13 @@ describe('Portraits - listPortraits', () => {
         count: jest.fn().mockResolvedValue(1),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/portraits').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/portraits').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.get('/api/knowledge-bases/abc/portraits').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/abc/portraits').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 
@@ -466,7 +466,7 @@ describe('Portraits - listPortraits', () => {
         count: jest.fn().mockRejectedValue(new Error('DB error')),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/portraits').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/portraits').set('Authorization', auth());
     expect(res.status).toBe(500);
   });
 });
@@ -480,18 +480,18 @@ describe('Portraits - getPortrait', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseId: 10, title: '画像1', content: '内容', createdBy: 1, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/portraits/1').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/portraits/1').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.title).toBe('画像1');
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.get('/api/knowledge-bases/abc/portraits/1').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/abc/portraits/1').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 
   test('无效的id返回400', async () => {
-    const res = await agent.get('/api/knowledge-bases/10/portraits/abc').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/portraits/abc').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 
@@ -501,7 +501,7 @@ describe('Portraits - getPortrait', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseId: 99, title: '画像', content: '内容', createdBy: 1, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/portraits/1').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/portraits/1').set('Authorization', auth());
     expect(res.status).toBe(404);
   });
 
@@ -511,7 +511,7 @@ describe('Portraits - getPortrait', () => {
         findFirst: jest.fn().mockResolvedValue(null),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/portraits/999').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/portraits/999').set('Authorization', auth());
     expect(res.status).toBe(404);
   });
 
@@ -521,7 +521,7 @@ describe('Portraits - getPortrait', () => {
         findFirst: jest.fn().mockRejectedValue(new Error('Unexpected')),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/portraits/1').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/portraits/1').set('Authorization', auth());
     expect(res.status).toBe(500);
   });
 });
@@ -535,24 +535,24 @@ describe('Portraits - createPortrait', () => {
         create: jest.fn().mockResolvedValue({ id: 1, baseId: 10, title: '画像', content: '内容', createdBy: 1, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/portraits').set('Authorization', auth()).send({ title: '画像', content: '内容' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/portraits').set('Authorization', auth()).send({ title: '画像', content: '内容' });
     expect(res.status).toBe(201);
     expect(res.body.message).toBe('创建画像成功');
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/abc/portraits').set('Authorization', auth()).send({ title: 'x', content: 'y' });
+    const res = await agent.post('/api/v1/knowledge-bases/abc/portraits').set('Authorization', auth()).send({ title: 'x', content: 'y' });
     expect(res.status).toBe(400);
   });
 
   test('title为空返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/10/portraits').set('Authorization', auth()).send({ content: '内容' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/portraits').set('Authorization', auth()).send({ content: '内容' });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('画像标题不能为空');
   });
 
   test('content为空返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/10/portraits').set('Authorization', auth()).send({ title: '标题' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/portraits').set('Authorization', auth()).send({ title: '标题' });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('画像内容不能为空');
   });
@@ -563,7 +563,7 @@ describe('Portraits - createPortrait', () => {
         create: jest.fn().mockRejectedValue(new Error('知识库不存在')),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/999/portraits').set('Authorization', auth()).send({ title: 't', content: 'c' });
+    const res = await agent.post('/api/v1/knowledge-bases/999/portraits').set('Authorization', auth()).send({ title: 't', content: 'c' });
     expect(res.status).toBe(404);
   });
 
@@ -573,7 +573,7 @@ describe('Portraits - createPortrait', () => {
         create: jest.fn().mockRejectedValue(new Error('Unexpected')),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/portraits').set('Authorization', auth()).send({ title: 't', content: 'c' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/portraits').set('Authorization', auth()).send({ title: 't', content: 'c' });
     expect(res.status).toBe(500);
   });
 });
@@ -592,17 +592,17 @@ describe('Portraits - updatePortrait', () => {
         update: jest.fn().mockResolvedValue({ ...existing, title: '新标题' }),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/portraits/1').set('Authorization', auth()).send({ title: '新标题' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/portraits/1').set('Authorization', auth()).send({ title: '新标题' });
     expect(res.status).toBe(200);
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.put('/api/knowledge-bases/abc/portraits/1').set('Authorization', auth()).send({ title: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/abc/portraits/1').set('Authorization', auth()).send({ title: 'x' });
     expect(res.status).toBe(400);
   });
 
   test('无效的id返回400', async () => {
-    const res = await agent.put('/api/knowledge-bases/10/portraits/abc').set('Authorization', auth()).send({ title: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/portraits/abc').set('Authorization', auth()).send({ title: 'x' });
     expect(res.status).toBe(400);
   });
 
@@ -612,7 +612,7 @@ describe('Portraits - updatePortrait', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseId: 99, title: 'x', content: 'y', createdBy: 1, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/portraits/1').set('Authorization', auth()).send({ title: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/portraits/1').set('Authorization', auth()).send({ title: 'x' });
     expect(res.status).toBe(404);
   });
 
@@ -622,7 +622,7 @@ describe('Portraits - updatePortrait', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseId: 10, title: 'x', content: 'y', createdBy: 5, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/portraits/1').set('Authorization', auth(adminToken)).send({ title: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/portraits/1').set('Authorization', auth(adminToken)).send({ title: 'x' });
     expect(res.status).toBe(403);
     expect(res.body.message).toBe('只能修改自己创建的画像');
   });
@@ -633,7 +633,7 @@ describe('Portraits - updatePortrait', () => {
         findFirst: jest.fn().mockResolvedValue(null),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/portraits/999').set('Authorization', auth()).send({ title: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/portraits/999').set('Authorization', auth()).send({ title: 'x' });
     expect(res.status).toBe(404);
   });
 });
@@ -652,12 +652,12 @@ describe('Portraits - deletePortrait', () => {
         update: jest.fn().mockResolvedValue({}),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/portraits/1').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/10/portraits/1').set('Authorization', auth());
     expect(res.status).toBe(200);
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.delete('/api/knowledge-bases/abc/portraits/1').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/abc/portraits/1').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 
@@ -667,7 +667,7 @@ describe('Portraits - deletePortrait', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseId: 99, title: 'x', content: 'y', createdBy: 1, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/portraits/1').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/10/portraits/1').set('Authorization', auth());
     expect(res.status).toBe(404);
   });
 
@@ -677,7 +677,7 @@ describe('Portraits - deletePortrait', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseId: 10, title: 'x', content: 'y', createdBy: 5, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/portraits/1').set('Authorization', auth(adminToken));
+    const res = await agent.delete('/api/v1/knowledge-bases/10/portraits/1').set('Authorization', auth(adminToken));
     expect(res.status).toBe(403);
     expect(res.body.message).toBe('只能删除自己创建的画像');
   });
@@ -688,7 +688,7 @@ describe('Portraits - deletePortrait', () => {
         findFirst: jest.fn().mockResolvedValue(null),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/portraits/999').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/10/portraits/999').set('Authorization', auth());
     expect(res.status).toBe(404);
   });
 });
@@ -705,13 +705,13 @@ describe('Images - listImages', () => {
         count: jest.fn().mockResolvedValue(1),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/images').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/images').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.get('/api/knowledge-bases/abc/images').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/abc/images').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 
@@ -722,7 +722,7 @@ describe('Images - listImages', () => {
         count: jest.fn().mockRejectedValue(new Error('DB error')),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/images').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/images').set('Authorization', auth());
     expect(res.status).toBe(500);
   });
 });
@@ -736,18 +736,18 @@ describe('Images - getImage', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseId: 10, title: '图片1', imageUrl: '/test.png', createdBy: 1, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/images/1').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/images/1').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.title).toBe('图片1');
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.get('/api/knowledge-bases/abc/images/1').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/abc/images/1').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 
   test('无效的id返回400', async () => {
-    const res = await agent.get('/api/knowledge-bases/10/images/abc').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/images/abc').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 
@@ -757,7 +757,7 @@ describe('Images - getImage', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseId: 99, title: '图片', imageUrl: '/test.png', createdBy: 1, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/images/1').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/images/1').set('Authorization', auth());
     expect(res.status).toBe(404);
   });
 
@@ -767,7 +767,7 @@ describe('Images - getImage', () => {
         findFirst: jest.fn().mockResolvedValue(null),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/images/999').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/images/999').set('Authorization', auth());
     expect(res.status).toBe(404);
   });
 
@@ -777,7 +777,7 @@ describe('Images - getImage', () => {
         findFirst: jest.fn().mockRejectedValue(new Error('Unexpected')),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/images/1').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/images/1').set('Authorization', auth());
     expect(res.status).toBe(500);
   });
 });
@@ -792,24 +792,24 @@ describe('Images - createImage', () => {
         create: jest.fn().mockResolvedValue({ id: 1, baseId: 10, title: '图片', imageUrl: '/test.png', createdBy: 1, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '图片', image_url: '/test.png' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '图片', image_url: '/test.png' });
     expect(res.status).toBe(201);
     expect(res.body.message).toBe('创建图片成功');
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/abc/images').set('Authorization', auth()).send({ title: 'x', image_url: '/y' });
+    const res = await agent.post('/api/v1/knowledge-bases/abc/images').set('Authorization', auth()).send({ title: 'x', image_url: '/y' });
     expect(res.status).toBe(400);
   });
 
   test('title为空返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/10/images').set('Authorization', auth()).send({ image_url: '/test.png' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ image_url: '/test.png' });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('图片标题不能为空');
   });
 
   test('image_url为空返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '图片' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '图片' });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('图片地址不能为空');
   });
@@ -821,7 +821,7 @@ describe('Images - createImage', () => {
         create: jest.fn(),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '重复标题', image_url: '/test.png' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '重复标题', image_url: '/test.png' });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('该知识库已存在相同标题的图片');
   });
@@ -835,7 +835,7 @@ describe('Images - createImage', () => {
         create: jest.fn(),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '新标题', image_url: '/dup.png' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '新标题', image_url: '/dup.png' });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('该知识库已存在相同的图片');
   });
@@ -847,7 +847,7 @@ describe('Images - createImage', () => {
         create: jest.fn().mockRejectedValue(new Error('知识库不存在')),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/999/images').set('Authorization', auth()).send({ title: '图片', image_url: '/test.png' });
+    const res = await agent.post('/api/v1/knowledge-bases/999/images').set('Authorization', auth()).send({ title: '图片', image_url: '/test.png' });
     expect(res.status).toBe(404);
   });
 
@@ -858,7 +858,7 @@ describe('Images - createImage', () => {
         create: jest.fn().mockRejectedValue(new Error('Unexpected')),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '图片', image_url: '/test.png' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '图片', image_url: '/test.png' });
     expect(res.status).toBe(500);
   });
 });
@@ -878,18 +878,18 @@ describe('Images - updateImage', () => {
         update: jest.fn().mockResolvedValue({ ...existing, title: '新标题', description: '新描述' }),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/images/1').set('Authorization', auth()).send({ title: '新标题', description: '新描述' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/images/1').set('Authorization', auth()).send({ title: '新标题', description: '新描述' });
     expect(res.status).toBe(200);
     expect(res.body.data.title).toBe('新标题');
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.put('/api/knowledge-bases/abc/images/1').set('Authorization', auth()).send({ title: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/abc/images/1').set('Authorization', auth()).send({ title: 'x' });
     expect(res.status).toBe(400);
   });
 
   test('无效的id返回400', async () => {
-    const res = await agent.put('/api/knowledge-bases/10/images/abc').set('Authorization', auth()).send({ title: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/images/abc').set('Authorization', auth()).send({ title: 'x' });
     expect(res.status).toBe(400);
   });
 
@@ -899,7 +899,7 @@ describe('Images - updateImage', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseId: 99, title: 'x', imageUrl: '/y', createdBy: 1, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/images/1').set('Authorization', auth()).send({ title: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/images/1').set('Authorization', auth()).send({ title: 'x' });
     expect(res.status).toBe(404);
   });
 
@@ -909,7 +909,7 @@ describe('Images - updateImage', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseId: 10, title: 'x', imageUrl: '/y', createdBy: 5, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/images/1').set('Authorization', auth(adminToken)).send({ title: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/images/1').set('Authorization', auth(adminToken)).send({ title: 'x' });
     expect(res.status).toBe(403);
     expect(res.body.message).toBe('只能修改自己创建的图片');
   });
@@ -924,7 +924,7 @@ describe('Images - updateImage', () => {
         update: jest.fn(),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/images/1').set('Authorization', auth()).send({ title: '重复标题' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/images/1').set('Authorization', auth()).send({ title: '重复标题' });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('该知识库已存在相同标题的图片');
   });
@@ -935,7 +935,7 @@ describe('Images - updateImage', () => {
         findFirst: jest.fn().mockResolvedValue(null),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/images/999').set('Authorization', auth()).send({ title: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/images/999').set('Authorization', auth()).send({ title: 'x' });
     expect(res.status).toBe(404);
   });
 });
@@ -954,12 +954,12 @@ describe('Images - deleteImage', () => {
         update: jest.fn().mockResolvedValue({}),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/images/1').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/10/images/1').set('Authorization', auth());
     expect(res.status).toBe(200);
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.delete('/api/knowledge-bases/abc/images/1').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/abc/images/1').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 
@@ -969,7 +969,7 @@ describe('Images - deleteImage', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseId: 99, title: 'x', imageUrl: '/y', createdBy: 1, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/images/1').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/10/images/1').set('Authorization', auth());
     expect(res.status).toBe(404);
   });
 
@@ -979,7 +979,7 @@ describe('Images - deleteImage', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseId: 10, title: 'x', imageUrl: '/y', createdBy: 5, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/images/1').set('Authorization', auth(adminToken));
+    const res = await agent.delete('/api/v1/knowledge-bases/10/images/1').set('Authorization', auth(adminToken));
     expect(res.status).toBe(403);
     expect(res.body.message).toBe('只能删除自己创建的图片');
   });
@@ -990,7 +990,7 @@ describe('Images - deleteImage', () => {
         findFirst: jest.fn().mockResolvedValue(null),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/images/999').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/10/images/999').set('Authorization', auth());
     expect(res.status).toBe(404);
   });
 });
@@ -1007,13 +1007,13 @@ describe('Documents - listDocuments', () => {
         count: jest.fn().mockResolvedValue(1),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/documents').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/documents').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.get('/api/knowledge-bases/abc/documents').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/abc/documents').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 
@@ -1024,7 +1024,7 @@ describe('Documents - listDocuments', () => {
         count: jest.fn().mockRejectedValue(new Error('DB error')),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/documents').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/documents').set('Authorization', auth());
     expect(res.status).toBe(500);
   });
 });
@@ -1038,18 +1038,18 @@ describe('Documents - getDocument', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseId: 10, title: '文档1', fileName: 'test.pdf', createdBy: 1, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/documents/1').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/documents/1').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.title).toBe('文档1');
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.get('/api/knowledge-bases/abc/documents/1').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/abc/documents/1').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 
   test('无效的id返回400', async () => {
-    const res = await agent.get('/api/knowledge-bases/10/documents/abc').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/documents/abc').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 
@@ -1059,7 +1059,7 @@ describe('Documents - getDocument', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseId: 99, title: '文档', fileName: 'x.pdf', createdBy: 1, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/documents/1').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/documents/1').set('Authorization', auth());
     expect(res.status).toBe(404);
   });
 
@@ -1069,7 +1069,7 @@ describe('Documents - getDocument', () => {
         findFirst: jest.fn().mockResolvedValue(null),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/documents/999').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/documents/999').set('Authorization', auth());
     expect(res.status).toBe(404);
   });
 
@@ -1079,7 +1079,7 @@ describe('Documents - getDocument', () => {
         findFirst: jest.fn().mockRejectedValue(new Error('Unexpected')),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/documents/1').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/documents/1').set('Authorization', auth());
     expect(res.status).toBe(500);
   });
 });
@@ -1094,42 +1094,42 @@ describe('Documents - createDocument', () => {
         create: jest.fn().mockResolvedValue({ id: 1, baseId: 10, title: '文档', fileName: 'test.pdf', fileUrl: '/test.pdf', fileType: 'pdf', fileSize: 1024, createdBy: 1, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: '文档', file_url: '/test.pdf', file_name: 'test.pdf', file_type: 'pdf', file_size: 1024 });
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: '文档', file_url: '/test.pdf', file_name: 'test.pdf', file_type: 'pdf', file_size: 1024 });
     expect(res.status).toBe(201);
     expect(res.body.message).toBe('创建文档成功');
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/abc/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
+    const res = await agent.post('/api/v1/knowledge-bases/abc/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(400);
   });
 
   test('title为空返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/10/documents').set('Authorization', auth()).send({ file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('文档标题不能为空');
   });
 
   test('file_url为空返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_name: 'z', file_type: 'pdf', file_size: 1 });
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_name: 'z', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('文档地址不能为空');
   });
 
   test('file_name为空返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_type: 'pdf', file_size: 1 });
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('文件名不能为空');
   });
 
   test('file_type为空返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_name: 'z', file_size: 1 });
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_name: 'z', file_size: 1 });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('文件类型不能为空');
   });
 
   test('file_size为空返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf' });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('文件大小不能为空');
   });
@@ -1141,7 +1141,7 @@ describe('Documents - createDocument', () => {
         create: jest.fn(),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: '重复', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: '重复', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('该知识库已存在相同标题的文档');
   });
@@ -1155,7 +1155,7 @@ describe('Documents - createDocument', () => {
         create: jest.fn(),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: '新文档', file_url: '/dup.pdf', file_name: 'z', file_type: 'pdf', file_size: 1 });
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: '新文档', file_url: '/dup.pdf', file_name: 'z', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('该知识库已存在相同的文档');
   });
@@ -1167,7 +1167,7 @@ describe('Documents - createDocument', () => {
         create: jest.fn().mockRejectedValue(new Error('知识库不存在')),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/999/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
+    const res = await agent.post('/api/v1/knowledge-bases/999/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(404);
   });
 
@@ -1178,7 +1178,7 @@ describe('Documents - createDocument', () => {
         create: jest.fn().mockRejectedValue(new Error('Unexpected')),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(500);
   });
 });
@@ -1198,17 +1198,17 @@ describe('Documents - updateDocument', () => {
         update: jest.fn().mockResolvedValue({ ...existing, title: '新标题' }),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/documents/1').set('Authorization', auth()).send({ title: '新标题' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/documents/1').set('Authorization', auth()).send({ title: '新标题' });
     expect(res.status).toBe(200);
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.put('/api/knowledge-bases/abc/documents/1').set('Authorization', auth()).send({ title: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/abc/documents/1').set('Authorization', auth()).send({ title: 'x' });
     expect(res.status).toBe(400);
   });
 
   test('无效的id返回400', async () => {
-    const res = await agent.put('/api/knowledge-bases/10/documents/abc').set('Authorization', auth()).send({ title: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/documents/abc').set('Authorization', auth()).send({ title: 'x' });
     expect(res.status).toBe(400);
   });
 
@@ -1218,7 +1218,7 @@ describe('Documents - updateDocument', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseId: 99, title: 'x', fileName: 'y', createdBy: 1, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/documents/1').set('Authorization', auth()).send({ title: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/documents/1').set('Authorization', auth()).send({ title: 'x' });
     expect(res.status).toBe(404);
   });
 
@@ -1228,7 +1228,7 @@ describe('Documents - updateDocument', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseId: 10, title: 'x', fileName: 'y', createdBy: 5, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/documents/1').set('Authorization', auth(adminToken)).send({ title: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/documents/1').set('Authorization', auth(adminToken)).send({ title: 'x' });
     expect(res.status).toBe(403);
     expect(res.body.message).toBe('只能修改自己创建的文档');
   });
@@ -1243,7 +1243,7 @@ describe('Documents - updateDocument', () => {
         update: jest.fn(),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/documents/1').set('Authorization', auth()).send({ title: '重复标题' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/documents/1').set('Authorization', auth()).send({ title: '重复标题' });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('该知识库已存在相同标题的文档');
   });
@@ -1254,7 +1254,7 @@ describe('Documents - updateDocument', () => {
         findFirst: jest.fn().mockResolvedValue(null),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/documents/999').set('Authorization', auth()).send({ title: 'x' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/documents/999').set('Authorization', auth()).send({ title: 'x' });
     expect(res.status).toBe(404);
   });
 });
@@ -1273,12 +1273,12 @@ describe('Documents - deleteDocument', () => {
         update: jest.fn().mockResolvedValue({}),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/documents/1').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/10/documents/1').set('Authorization', auth());
     expect(res.status).toBe(200);
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.delete('/api/knowledge-bases/abc/documents/1').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/abc/documents/1').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 
@@ -1288,7 +1288,7 @@ describe('Documents - deleteDocument', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseId: 99, title: 'x', fileName: 'y', createdBy: 1, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/documents/1').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/10/documents/1').set('Authorization', auth());
     expect(res.status).toBe(404);
   });
 
@@ -1298,7 +1298,7 @@ describe('Documents - deleteDocument', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseId: 10, title: 'x', fileName: 'y', createdBy: 5, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/documents/1').set('Authorization', auth(adminToken));
+    const res = await agent.delete('/api/v1/knowledge-bases/10/documents/1').set('Authorization', auth(adminToken));
     expect(res.status).toBe(403);
     expect(res.body.message).toBe('只能删除自己创建的文档');
   });
@@ -1309,7 +1309,7 @@ describe('Documents - deleteDocument', () => {
         findFirst: jest.fn().mockResolvedValue(null),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/documents/999').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/10/documents/999').set('Authorization', auth());
     expect(res.status).toBe(404);
   });
 });
@@ -1320,7 +1320,7 @@ describe('Project Knowledge - listProjectKeywords', () => {
   beforeEach(() => jest.clearAllMocks());
 
   test('无效的projectId返回400', async () => {
-    const res = await agent.get('/api/projects/abc/knowledge/keywords').set('Authorization', auth());
+    const res = await agent.get('/api/v1/projects/abc/knowledge/keywords').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 });
@@ -1329,7 +1329,7 @@ describe('Project Knowledge - listProjectPortraits', () => {
   beforeEach(() => jest.clearAllMocks());
 
   test('无效的projectId返回400', async () => {
-    const res = await agent.get('/api/projects/abc/knowledge/portraits').set('Authorization', auth());
+    const res = await agent.get('/api/v1/projects/abc/knowledge/portraits').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 });
@@ -1338,7 +1338,7 @@ describe('Project Knowledge - listProjectImages', () => {
   beforeEach(() => jest.clearAllMocks());
 
   test('无效的projectId返回400', async () => {
-    const res = await agent.get('/api/projects/abc/knowledge/images').set('Authorization', auth());
+    const res = await agent.get('/api/v1/projects/abc/knowledge/images').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 });
@@ -1347,7 +1347,7 @@ describe('Project Knowledge - listProjectDocuments', () => {
   beforeEach(() => jest.clearAllMocks());
 
   test('无效的projectId返回400', async () => {
-    const res = await agent.get('/api/projects/abc/knowledge/documents').set('Authorization', auth());
+    const res = await agent.get('/api/v1/projects/abc/knowledge/documents').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 });
@@ -1365,7 +1365,7 @@ describe('Knowledge Inventory - listInventory', () => {
         count: jest.fn().mockResolvedValue(0),
       },
     });
-    const res = await agent.get('/api/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.stats.total).toBe(0);
     expect(res.body.data.list).toHaveLength(0);
@@ -1398,7 +1398,7 @@ describe('Knowledge Inventory - listInventory', () => {
         findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]),
       },
     });
-    const res = await agent.get('/api/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.stats.keyword).toBe(5);
     expect(res.body.data.stats.portrait).toBe(3);
@@ -1423,7 +1423,7 @@ describe('Knowledge Inventory - listInventory', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([]) },
     });
-    const res = await agent.get('/api/knowledge-inventory?category=keyword').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-inventory?category=keyword').set('Authorization', auth());
     expect(res.status).toBe(200);
   });
 
@@ -1435,7 +1435,7 @@ describe('Knowledge Inventory - listInventory', () => {
         count: jest.fn().mockRejectedValue(new Error('DB error')),
       },
     });
-    const res = await agent.get('/api/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
     expect(res.status).toBe(500);
   });
 });
@@ -1451,12 +1451,12 @@ describe('Mined Keywords - listMinedKeywords', () => {
         findMany: jest.fn().mockResolvedValue([{ id: 1, baseId: 10, keyword: 'AI营销', selected: true, createdBy: 1, createdAt: new Date() }]),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/mined-keywords').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/mined-keywords').set('Authorization', auth());
     expect(res.status).toBe(200);
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.get('/api/knowledge-bases/abc/mined-keywords').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/abc/mined-keywords').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 
@@ -1466,7 +1466,7 @@ describe('Mined Keywords - listMinedKeywords', () => {
         findMany: jest.fn().mockRejectedValue(new Error('DB error')),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/mined-keywords').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/10/mined-keywords').set('Authorization', auth());
     expect(res.status).toBe(500);
   });
 });
@@ -1475,7 +1475,7 @@ describe('Mined Keywords - mineKeywords', () => {
   beforeEach(() => jest.clearAllMocks());
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/abc/keywords/mine').set('Authorization', auth()).send({ source_type: 'all' });
+    const res = await agent.post('/api/v1/knowledge-bases/abc/keywords/mine').set('Authorization', auth()).send({ source_type: 'all' });
     expect(res.status).toBe(400);
   });
 
@@ -1485,7 +1485,7 @@ describe('Mined Keywords - mineKeywords', () => {
       knowledgePortrait: { findMany: jest.fn().mockResolvedValue([]) },
       knowledgeImage: { findMany: jest.fn().mockResolvedValue([]) },
     });
-    const res = await agent.post('/api/knowledge-bases/10/keywords/mine').set('Authorization', auth()).send({ source_type: 'all' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/mine').set('Authorization', auth()).send({ source_type: 'all' });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('知识库中暂无内容可供挖掘');
   });
@@ -1494,7 +1494,7 @@ describe('Mined Keywords - mineKeywords', () => {
     mockPrisma({
       knowledgeDocument: { findMany: jest.fn().mockRejectedValue(new Error('DB error')) },
     });
-    const res = await agent.post('/api/knowledge-bases/10/keywords/mine').set('Authorization', auth()).send({ source_type: 'document' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/mine').set('Authorization', auth()).send({ source_type: 'document' });
     expect(res.status).toBe(500);
   });
 });
@@ -1503,18 +1503,18 @@ describe('Mined Keywords - saveMinedKeywords', () => {
   beforeEach(() => jest.clearAllMocks());
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/abc/mined-keywords/save').set('Authorization', auth()).send({ keywords: ['A'] });
+    const res = await agent.post('/api/v1/knowledge-bases/abc/mined-keywords/save').set('Authorization', auth()).send({ keywords: ['A'] });
     expect(res.status).toBe(400);
   });
 
   test('keywords非数组返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/10/mined-keywords/save').set('Authorization', auth()).send({ keywords: 'not-array' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/mined-keywords/save').set('Authorization', auth()).send({ keywords: 'not-array' });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('请选择至少一个关键词');
   });
 
   test('keywords为空数组返回400', async () => {
-    const res = await agent.post('/api/knowledge-bases/10/mined-keywords/save').set('Authorization', auth()).send({ keywords: [] });
+    const res = await agent.post('/api/v1/knowledge-bases/10/mined-keywords/save').set('Authorization', auth()).send({ keywords: [] });
     expect(res.status).toBe(400);
   });
 
@@ -1528,7 +1528,7 @@ describe('Mined Keywords - saveMinedKeywords', () => {
         updateMany: jest.fn().mockRejectedValue(new Error('DB error')),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/mined-keywords/save').set('Authorization', auth()).send({ keywords: ['A'] });
+    const res = await agent.post('/api/v1/knowledge-bases/10/mined-keywords/save').set('Authorization', auth()).send({ keywords: ['A'] });
     expect(res.status).toBe(500);
   });
 });
@@ -1537,18 +1537,18 @@ describe('Mined Keywords - toggleMinedKeywordsBatch', () => {
   beforeEach(() => jest.clearAllMocks());
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.put('/api/knowledge-bases/abc/mined-keywords/batch-toggle').set('Authorization', auth()).send({ ids: [1, 2], selected: true });
+    const res = await agent.put('/api/v1/knowledge-bases/abc/mined-keywords/batch-toggle').set('Authorization', auth()).send({ ids: [1, 2], selected: true });
     expect(res.status).toBe(400);
   });
 
   test('ids非数组返回400', async () => {
-    const res = await agent.put('/api/knowledge-bases/10/mined-keywords/batch-toggle').set('Authorization', auth()).send({ ids: 'not-array', selected: true });
+    const res = await agent.put('/api/v1/knowledge-bases/10/mined-keywords/batch-toggle').set('Authorization', auth()).send({ ids: 'not-array', selected: true });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('请选择关键词');
   });
 
   test('ids为空数组返回400', async () => {
-    const res = await agent.put('/api/knowledge-bases/10/mined-keywords/batch-toggle').set('Authorization', auth()).send({ ids: [], selected: true });
+    const res = await agent.put('/api/v1/knowledge-bases/10/mined-keywords/batch-toggle').set('Authorization', auth()).send({ ids: [], selected: true });
     expect(res.status).toBe(400);
   });
 
@@ -1559,7 +1559,7 @@ describe('Mined Keywords - toggleMinedKeywordsBatch', () => {
         findMany: jest.fn().mockRejectedValue(new Error('DB error')),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/mined-keywords/batch-toggle').set('Authorization', auth()).send({ ids: [1], selected: true });
+    const res = await agent.put('/api/v1/knowledge-bases/10/mined-keywords/batch-toggle').set('Authorization', auth()).send({ ids: [1], selected: true });
     expect(res.status).toBe(500);
   });
 });
@@ -1573,13 +1573,13 @@ describe('Mined Keywords - deleteMinedKeywords', () => {
         updateMany: jest.fn().mockResolvedValue({ count: 5 }),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/mined-keywords').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/10/mined-keywords').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.message).toBe('已清空挖掘关键词');
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.delete('/api/knowledge-bases/abc/mined-keywords').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/abc/mined-keywords').set('Authorization', auth());
     expect(res.status).toBe(400);
   });
 
@@ -1589,7 +1589,7 @@ describe('Mined Keywords - deleteMinedKeywords', () => {
         updateMany: jest.fn().mockRejectedValue(new Error('DB error')),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/mined-keywords').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/10/mined-keywords').set('Authorization', auth());
     expect(res.status).toBe(500);
   });
 });
@@ -1613,7 +1613,7 @@ describe('checkBaseAccess - company scope (admin)', () => {
         count: jest.fn().mockResolvedValue(1),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/keywords').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/keywords').set('Authorization', auth(adminToken));
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
   });
@@ -1628,7 +1628,7 @@ describe('checkBaseAccess - company scope (admin)', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/keywords').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/keywords').set('Authorization', auth(adminToken));
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -1643,7 +1643,7 @@ describe('checkBaseAccess - company scope (admin)', () => {
         findFirst: jest.fn().mockResolvedValue(null),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/keywords').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/keywords').set('Authorization', auth(adminToken));
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -1673,7 +1673,7 @@ describe('checkBaseAccess - project scope (admin)', () => {
         count: jest.fn().mockResolvedValue(0),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/keywords').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/keywords').set('Authorization', auth(adminToken));
     expect(res.status).toBe(200);
   });
 
@@ -1684,7 +1684,7 @@ describe('checkBaseAccess - project scope (admin)', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'project', projectId: null, status: true, company: null, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/keywords').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/keywords').set('Authorization', auth(adminToken));
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -1704,7 +1704,7 @@ describe('checkBaseAccess - project scope (admin)', () => {
         }),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/keywords').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/keywords').set('Authorization', auth(adminToken));
     // listKeywords 未专门处理"无权操作该项目"错误，会走通用500路径
     expect(res.status).toBe(500);
   });
@@ -1726,7 +1726,7 @@ describe('Keywords - expandKeywords success', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseUrl: 'http://localhost:11434', modelName: 'test-model', apiKey: 'test-key' }),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/keywords/expand').set('Authorization', auth()).send({ keyword: 'SEO' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/expand').set('Authorization', auth()).send({ keyword: 'SEO' });
     expect(res.status).toBe(200);
     expect(res.body.data).toContain('SEO优化');
     axios.post.mockRestore();
@@ -1761,7 +1761,7 @@ describe('Project Knowledge - listProjectKeywords success', () => {
         count: jest.fn().mockResolvedValue(1),
       },
     });
-    const res = await agent.get('/api/projects/1/knowledge/keywords').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/projects/1/knowledge/keywords').set('Authorization', auth(adminToken));
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
   });
@@ -1778,7 +1778,7 @@ describe('Project Knowledge - listProjectKeywords success', () => {
         }),
       },
     });
-    const res = await agent.get('/api/projects/1/knowledge/keywords').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/projects/1/knowledge/keywords').set('Authorization', auth(adminToken));
     expect(res.status).toBe(403);
     expect(res.body.message).toBe('无权操作该项目');
   });
@@ -1810,7 +1810,7 @@ describe('Project Knowledge - listProjectPortraits success', () => {
         count: jest.fn().mockResolvedValue(1),
       },
     });
-    const res = await agent.get('/api/projects/1/knowledge/portraits').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/projects/1/knowledge/portraits').set('Authorization', auth(adminToken));
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
   });
@@ -1842,7 +1842,7 @@ describe('Project Knowledge - listProjectImages success', () => {
         count: jest.fn().mockResolvedValue(1),
       },
     });
-    const res = await agent.get('/api/projects/1/knowledge/images').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/projects/1/knowledge/images').set('Authorization', auth(adminToken));
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
   });
@@ -1874,7 +1874,7 @@ describe('Project Knowledge - listProjectDocuments success', () => {
         count: jest.fn().mockResolvedValue(1),
       },
     });
-    const res = await agent.get('/api/projects/1/knowledge/documents').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/projects/1/knowledge/documents').set('Authorization', auth(adminToken));
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
   });
@@ -1911,7 +1911,7 @@ describe('Knowledge Inventory - comprehensive', () => {
         findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }, { id: 2, cnName: '用户2' }]),
       },
     });
-    const res = await agent.get('/api/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.stats.image).toBe(2);
     expect(res.body.data.stats.document).toBe(1);
@@ -1938,7 +1938,7 @@ describe('Knowledge Inventory - comprehensive', () => {
         findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]),
       },
     });
-    const res = await agent.get('/api/knowledge-inventory?category=document&search=report').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-inventory?category=document&search=report').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
   });
@@ -1960,7 +1960,7 @@ describe('Knowledge Inventory - comprehensive', () => {
       knowledgeImage: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
     });
-    const res = await agent.get('/api/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
     expect(res.body.data.list[0].creatorName).toBe('-');
@@ -1993,7 +1993,7 @@ describe('Mined Keywords - mineKeywords success', () => {
         createMany: jest.fn().mockResolvedValue({ count: 5 }),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/keywords/mine').set('Authorization', auth()).send({ source_type: 'all' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/mine').set('Authorization', auth()).send({ source_type: 'all' });
     expect(res.status).toBe(200);
     expect(res.body.data.mined).toBe(5);
     expect(res.body.data.list).toHaveLength(2);
@@ -2017,7 +2017,7 @@ describe('Mined Keywords - saveMinedKeywords success', () => {
         updateMany: jest.fn().mockResolvedValue({ count: 2 }),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/mined-keywords/save').set('Authorization', auth()).send({ keywords: ['AI营销', '数字营销'] });
+    const res = await agent.post('/api/v1/knowledge-bases/10/mined-keywords/save').set('Authorization', auth()).send({ keywords: ['AI营销', '数字营销'] });
     expect(res.status).toBe(200);
     expect(res.body.message).toContain('成功保存');
   });
@@ -2039,7 +2039,7 @@ describe('Mined Keywords - toggleMinedKeywordsBatch success', () => {
         ]),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/mined-keywords/batch-toggle').set('Authorization', auth()).send({ ids: [1, 2], selected: true });
+    const res = await agent.put('/api/v1/knowledge-bases/10/mined-keywords/batch-toggle').set('Authorization', auth()).send({ ids: [1, 2], selected: true });
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
   });
@@ -2059,7 +2059,7 @@ describe('expandKeywords - LLM error', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 1, baseUrl: 'http://localhost:11434', modelName: 'test-model', apiKey: 'test-key' }),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/keywords/expand').set('Authorization', auth()).send({ keyword: 'SEO' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/expand').set('Authorization', auth()).send({ keyword: 'SEO' });
     expect(res.status).toBe(500);
     expect(res.body.message).toBe('智能扩词失败');
     axios.post.mockRestore();
@@ -2088,7 +2088,7 @@ describe('Project Knowledge - error paths', () => {
         count: jest.fn().mockResolvedValue(0),
       },
     });
-    const res = await agent.get('/api/projects/1/knowledge/portraits').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/projects/1/knowledge/portraits').set('Authorization', auth(adminToken));
     expect(res.status).toBe(500);
     expect(res.body.message).toBe('获取画像列表失败');
   });
@@ -2112,7 +2112,7 @@ describe('Project Knowledge - error paths', () => {
         count: jest.fn().mockResolvedValue(0),
       },
     });
-    const res = await agent.get('/api/projects/1/knowledge/images').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/projects/1/knowledge/images').set('Authorization', auth(adminToken));
     expect(res.status).toBe(500);
     expect(res.body.message).toBe('获取图片列表失败');
   });
@@ -2136,7 +2136,7 @@ describe('Project Knowledge - error paths', () => {
         count: jest.fn().mockResolvedValue(0),
       },
     });
-    const res = await agent.get('/api/projects/1/knowledge/documents').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/projects/1/knowledge/documents').set('Authorization', auth(adminToken));
     expect(res.status).toBe(500);
     expect(res.body.message).toBe('获取文档列表失败');
   });
@@ -2168,7 +2168,7 @@ describe('Knowledge Inventory - mixed creators', () => {
         findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]),
       },
     });
-    const res = await agent.get('/api/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(2);
     const withCreator = res.body.data.list.find((i: any) => i.name === '有创建者');

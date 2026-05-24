@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { authMiddleware, roleMiddleware } from '../middleware';
+import { validate } from '../middleware/validate';
 import { ROLES } from '../constants/roles';
+import { createKnowledgeBaseSchema, updateKnowledgeBaseSchema } from '../schema/knowledge-base.schema';
 import * as knowledgeController from '../controller/knowledge.controller';
 import * as knowledgeBaseController from '../controller/knowledge-base.controller';
 
@@ -17,8 +19,8 @@ router.get('/projects/:projectId/knowledge/documents', knowledgeController.listP
 router.use('/knowledge-bases', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN));
 router.get('/knowledge-bases', knowledgeBaseController.listKnowledgeBases);
 router.get('/knowledge-bases/:id', knowledgeBaseController.getKnowledgeBase);
-router.post('/knowledge-bases', knowledgeBaseController.createKnowledgeBase);
-router.put('/knowledge-bases/:id', knowledgeBaseController.updateKnowledgeBase);
+router.post('/knowledge-bases', validate(createKnowledgeBaseSchema), knowledgeBaseController.createKnowledgeBase);
+router.put('/knowledge-bases/:id', validate(updateKnowledgeBaseSchema), knowledgeBaseController.updateKnowledgeBase);
 router.delete('/knowledge-bases/:id', knowledgeBaseController.deleteKnowledgeBase);
 
 // Knowledge Inventory

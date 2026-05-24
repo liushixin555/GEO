@@ -115,14 +115,14 @@ const ArticleDetail: React.FC = () => {
             llm_model_id: formValues.llm_model_id,
             content: currentContent,
           };
-          const res = await axios.post(`/api/projects/${projectId}/articles`, payload, {
+          const res = await axios.post(`/api/v1/projects/${projectId}/articles`, payload, {
             headers: { Authorization: `Bearer ${token}` },
           });
           message.success('自动保存成功');
           navigate(`/article/${res.data.data.id}`, { replace: true });
         } else if (articleRef.current) {
           // Existing article: only update content
-          await axios.put(`/api/projects/${projectId}/articles/${id}/content`, { content: currentContent }, {
+          await axios.put(`/api/v1/projects/${projectId}/articles/${id}/content`, { content: currentContent }, {
             headers: { Authorization: `Bearer ${token}` },
           });
           message.success('正文已自动保存');
@@ -140,7 +140,7 @@ const ArticleDetail: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`/api/projects/${projectId}/articles/${id}`, {
+      const res = await axios.get(`/api/v1/projects/${projectId}/articles/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = res.data.data;
@@ -198,8 +198,8 @@ const ArticleDetail: React.FC = () => {
       try {
         const token = localStorage.getItem('token');
         const [skillsRes, llmRes] = await Promise.all([
-          axios.get('/api/skills?status=true&pageSize=999', { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get('/api/llm-models/enabled', { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get('/api/v1/skills?status=true&pageSize=999', { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get('/api/v1/llm-models/enabled', { headers: { Authorization: `Bearer ${token}` } }),
         ]);
         setSkillsOptions((skillsRes.data.data?.list || skillsRes.data.data || []).map((s: any) => ({ label: s.name, value: s.id })));
         const models = llmRes.data.data || [];
@@ -226,7 +226,7 @@ const ArticleDetail: React.FC = () => {
       const params: any = { page, pageSize: 10 };
       if (search) params.search = search;
       if (sortBy) { params.sortBy = sortBy; params.sortOrder = sortOrder; }
-      const res = await axios.get('/api/publishing-platforms', {
+      const res = await axios.get('/api/v1/publishing-platforms', {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
@@ -274,13 +274,13 @@ const ArticleDetail: React.FC = () => {
       try {
         const token = localStorage.getItem('token');
         const [kwRes, ptRes, imgRes] = await Promise.all([
-          axios.get(`/api/projects/${projectId}/knowledge/keywords`, {
+          axios.get(`/api/v1/projects/${projectId}/knowledge/keywords`, {
             headers: { Authorization: `Bearer ${token}` }, params: { pageSize: 999 },
           }),
-          axios.get(`/api/projects/${projectId}/knowledge/portraits`, {
+          axios.get(`/api/v1/projects/${projectId}/knowledge/portraits`, {
             headers: { Authorization: `Bearer ${token}` }, params: { pageSize: 999 },
           }),
-          axios.get(`/api/projects/${projectId}/knowledge/images`, {
+          axios.get(`/api/v1/projects/${projectId}/knowledge/images`, {
             headers: { Authorization: `Bearer ${token}` }, params: { pageSize: 999 },
           }),
         ]);
@@ -333,7 +333,7 @@ const ArticleDetail: React.FC = () => {
 
       if (isNew) {
         if (contentRef.current.trim()) payload.content = contentRef.current;
-        const res = await axios.post(`/api/projects/${projectId}/articles`, payload, {
+        const res = await axios.post(`/api/v1/projects/${projectId}/articles`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (submitForGeneration) {
@@ -347,7 +347,7 @@ const ArticleDetail: React.FC = () => {
           navigate(`/article/${res.data.data.id}`, { replace: true });
         }
       } else {
-        await axios.put(`/api/projects/${projectId}/articles/${id}`, payload, {
+        await axios.put(`/api/v1/projects/${projectId}/articles/${id}`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (submitForGeneration) {
@@ -375,7 +375,7 @@ const ArticleDetail: React.FC = () => {
     setContentSaving(true);
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`/api/projects/${projectId}/articles/${id}/content`, { content }, {
+      await axios.put(`/api/v1/projects/${projectId}/articles/${id}/content`, { content }, {
         headers: { Authorization: `Bearer ${token}` },
       });
       message.success('正文已保存');
@@ -391,7 +391,7 @@ const ArticleDetail: React.FC = () => {
     if (!article || !projectId) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`/api/projects/${projectId}/articles/${id}/review`, { approved }, {
+      await axios.put(`/api/v1/projects/${projectId}/articles/${id}/review`, { approved }, {
         headers: { Authorization: `Bearer ${token}` },
       });
       message.success(approved ? '审核通过，自动发布中' : '审核不通过，已退回草稿');
@@ -405,7 +405,7 @@ const ArticleDetail: React.FC = () => {
     if (!article || !projectId) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`/api/projects/${projectId}/articles/${id}/regenerate`, {}, {
+      await axios.put(`/api/v1/projects/${projectId}/articles/${id}/regenerate`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
       message.success('已重新提交AI生成');
@@ -419,7 +419,7 @@ const ArticleDetail: React.FC = () => {
     if (!article || !projectId) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`/api/projects/${projectId}/articles/${id}/submit-review`, {}, {
+      await axios.put(`/api/v1/projects/${projectId}/articles/${id}/submit-review`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
       message.success('已提交审核');
@@ -522,7 +522,7 @@ const ArticleDetail: React.FC = () => {
       const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('file', file);
-      const res = await axios.post('/api/upload', formData, {
+      const res = await axios.post('/api/v1/upload', formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
       });
       setImageList([...imageList, res.data.data.url]);

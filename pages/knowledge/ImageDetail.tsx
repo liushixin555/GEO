@@ -28,7 +28,7 @@ const ImageDetail: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`/api/knowledge-bases/${baseId}/images/${id}`, {
+      const res = await axios.get(`/api/v1/knowledge-bases/${baseId}/images/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setData(res.data.data);
@@ -43,7 +43,7 @@ const ImageDetail: React.FC = () => {
     const fetchBaseName = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(`/api/knowledge-bases/${baseId}`, {
+        const res = await axios.get(`/api/v1/knowledge-bases/${baseId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setBaseName(res.data.data.name);
@@ -72,7 +72,7 @@ const ImageDetail: React.FC = () => {
       const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('file', file);
-      const res = await axios.post('/api/upload', formData, {
+      const res = await axios.post('/api/v1/upload', formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
       });
       setImageUrl(res.data.data.url);
@@ -94,12 +94,12 @@ const ImageDetail: React.FC = () => {
       const token = localStorage.getItem('token');
       const payload = { ...values, image_url: imageUrl };
       if (isNew) {
-        await axios.post(`/api/knowledge-bases/${baseId}/images`, payload, {
+        await axios.post(`/api/v1/knowledge-bases/${baseId}/images`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         message.success('创建成功');
       } else {
-        await axios.put(`/api/knowledge-bases/${baseId}/images/${id}`, payload, {
+        await axios.put(`/api/v1/knowledge-bases/${baseId}/images/${id}`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         message.success('更新成功');

@@ -38,7 +38,7 @@ const KeywordDetail: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`/api/knowledge-bases/${baseId}/keywords/${id}`, {
+      const res = await axios.get(`/api/v1/knowledge-bases/${baseId}/keywords/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const kwData = res.data.data;
@@ -56,7 +56,7 @@ const KeywordDetail: React.FC = () => {
     const fetchBaseName = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(`/api/knowledge-bases/${baseId}`, {
+        const res = await axios.get(`/api/v1/knowledge-bases/${baseId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setBaseName(res.data.data.name);
@@ -89,7 +89,7 @@ const KeywordDetail: React.FC = () => {
     setExpanding(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`/api/knowledge-bases/${baseId}/keywords/expand`,
+      const res = await axios.post(`/api/v1/knowledge-bases/${baseId}/keywords/expand`,
         { keyword: keyword.trim() },
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -122,7 +122,7 @@ const KeywordDetail: React.FC = () => {
       setError('');
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.post(`/api/knowledge-bases/${baseId}/keywords/batch`,
+        const res = await axios.post(`/api/v1/knowledge-bases/${baseId}/keywords/batch`,
           { keywords: selectedWords, seed_word: seedWord },
           { headers: { Authorization: `Bearer ${token}` } },
         );
@@ -145,7 +145,7 @@ const KeywordDetail: React.FC = () => {
           keyword: keyword.trim(),
           expanded_words: expandedWords.map(w => ({ word: w.word, selected: w.selected })),
         };
-        await axios.put(`/api/knowledge-bases/${baseId}/keywords/${id}`, payload, {
+        await axios.put(`/api/v1/knowledge-bases/${baseId}/keywords/${id}`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         message.success('更新成功');

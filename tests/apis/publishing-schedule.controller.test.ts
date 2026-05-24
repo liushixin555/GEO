@@ -79,7 +79,7 @@ describe('PublishingSchedule Controller', () => {
   // ========== GET /api/publishing-schedule (listPublishingSchedule) ==========
   describe('GET /api/publishing-schedule', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.get('/api/publishing-schedule');
+      const response = await agent.get('/api/v1/publishing-schedule');
       expect(response.status).toBe(401);
     });
 
@@ -87,7 +87,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [mockScheduleItem], total: 1 });
 
       const response = await agent
-        .get('/api/publishing-schedule?page=1&pageSize=10')
+        .get('/api/v1/publishing-schedule?page=1&pageSize=10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -103,7 +103,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [mockScheduleItem], total: 1 });
 
       const response = await agent
-        .get('/api/publishing-schedule?page=1&pageSize=10')
+        .get('/api/v1/publishing-schedule?page=1&pageSize=10')
         .set('Authorization', `Bearer ${adminToken()}`);
 
       expect(response.status).toBe(200);
@@ -115,7 +115,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-schedule?page=1&pageSize=10')
+        .get('/api/v1/publishing-schedule?page=1&pageSize=10')
         .set('Authorization', `Bearer ${viewToken()}`);
 
       expect(response.status).toBe(200);
@@ -126,7 +126,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-schedule')
+        .get('/api/v1/publishing-schedule')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -145,7 +145,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-schedule?page=1&pageSize=10&search=测试')
+        .get('/api/v1/publishing-schedule?page=1&pageSize=10&search=测试')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -158,7 +158,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-schedule?page=1&pageSize=10&status=publishing')
+        .get('/api/v1/publishing-schedule?page=1&pageSize=10&status=publishing')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -171,7 +171,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-schedule?page=1&pageSize=10&projectId=5')
+        .get('/api/v1/publishing-schedule?page=1&pageSize=10&projectId=5')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -184,7 +184,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [mockScheduleItem], total: 1 });
 
       const response = await agent
-        .get('/api/publishing-schedule?page=2&pageSize=5&search=文章&status=publishing&projectId=3')
+        .get('/api/v1/publishing-schedule?page=2&pageSize=5&search=文章&status=publishing&projectId=3')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -203,7 +203,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-schedule?page=1&pageSize=10')
+        .get('/api/v1/publishing-schedule?page=1&pageSize=10')
         .set('Authorization', `Bearer ${adminToken(5)}`);
 
       expect(response.status).toBe(200);
@@ -216,7 +216,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-schedule?page=1&pageSize=10')
+        .get('/api/v1/publishing-schedule?page=1&pageSize=10')
         .set('Authorization', `Bearer ${viewToken()}`);
 
       expect(response.status).toBe(200);
@@ -229,7 +229,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-schedule?page=1&pageSize=10')
+        .get('/api/v1/publishing-schedule?page=1&pageSize=10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -241,7 +241,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockRejectedValue(new Error('数据库连接失败'));
 
       const response = await agent
-        .get('/api/publishing-schedule?page=1&pageSize=10')
+        .get('/api/v1/publishing-schedule?page=1&pageSize=10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -252,7 +252,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockRejectedValue(new Error());
 
       const response = await agent
-        .get('/api/publishing-schedule')
+        .get('/api/v1/publishing-schedule')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
@@ -263,13 +263,13 @@ describe('PublishingSchedule Controller', () => {
   // ========== PUT /api/publishing-schedule/:id (updatePublishingSchedule) ==========
   describe('PUT /api/publishing-schedule/:id', () => {
     it('should return 401 without token', async () => {
-      const response = await agent.put('/api/publishing-schedule/1');
+      const response = await agent.put('/api/v1/publishing-schedule/1');
       expect(response.status).toBe(401);
     });
 
     it('should return 403 for view role', async () => {
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${viewToken()}`)
         .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
@@ -278,7 +278,7 @@ describe('PublishingSchedule Controller', () => {
 
     it('should return 400 when id is not a number', async () => {
       const response = await agent
-        .put('/api/publishing-schedule/abc')
+        .put('/api/v1/publishing-schedule/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
@@ -288,7 +288,7 @@ describe('PublishingSchedule Controller', () => {
 
     it('should return 400 when scheduled_publish_at is not a string (number)', async () => {
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: 12345 });
 
@@ -298,7 +298,7 @@ describe('PublishingSchedule Controller', () => {
 
     it('should return 400 when scheduled_publish_at is not a string (boolean)', async () => {
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: true });
 
@@ -308,7 +308,7 @@ describe('PublishingSchedule Controller', () => {
 
     it('should return 400 when scheduled_publish_at is not a string (object)', async () => {
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: { date: '2025-06-01' } });
 
@@ -321,7 +321,7 @@ describe('PublishingSchedule Controller', () => {
       mockUpdateSchedule.mockResolvedValue(updatedItem);
 
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
@@ -336,7 +336,7 @@ describe('PublishingSchedule Controller', () => {
       mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
 
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${adminToken()}`)
         .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
@@ -350,7 +350,7 @@ describe('PublishingSchedule Controller', () => {
       mockUpdateSchedule.mockResolvedValue(updatedItem);
 
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: null });
 
@@ -363,7 +363,7 @@ describe('PublishingSchedule Controller', () => {
       mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
 
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({});
 
@@ -376,7 +376,7 @@ describe('PublishingSchedule Controller', () => {
       mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
 
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send();
 
@@ -388,7 +388,7 @@ describe('PublishingSchedule Controller', () => {
       mockUpdateSchedule.mockRejectedValue(new Error('文章不存在'));
 
       const response = await agent
-        .put('/api/publishing-schedule/999')
+        .put('/api/v1/publishing-schedule/999')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
@@ -400,7 +400,7 @@ describe('PublishingSchedule Controller', () => {
       mockUpdateSchedule.mockRejectedValue(new Error('当前文章状态不可编辑发布计划'));
 
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
@@ -412,7 +412,7 @@ describe('PublishingSchedule Controller', () => {
       mockUpdateSchedule.mockRejectedValue(new Error('内部服务错误'));
 
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
@@ -424,7 +424,7 @@ describe('PublishingSchedule Controller', () => {
       mockUpdateSchedule.mockRejectedValue(new Error());
 
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
@@ -435,7 +435,7 @@ describe('PublishingSchedule Controller', () => {
     it('should handle id=0 as invalid', async () => {
       mockUpdateSchedule.mockRejectedValue(new Error('文章不存在'));
       const response = await agent
-        .put('/api/publishing-schedule/0')
+        .put('/api/v1/publishing-schedule/0')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
@@ -447,7 +447,7 @@ describe('PublishingSchedule Controller', () => {
     it('should handle negative id', async () => {
       mockUpdateSchedule.mockRejectedValue(new Error('文章不存在'));
       const response = await agent
-        .put('/api/publishing-schedule/-1')
+        .put('/api/v1/publishing-schedule/-1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
@@ -458,7 +458,7 @@ describe('PublishingSchedule Controller', () => {
     it('should handle float id by truncating to integer', async () => {
       mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
       const response = await agent
-        .put('/api/publishing-schedule/1.5')
+        .put('/api/v1/publishing-schedule/1.5')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
@@ -468,7 +468,7 @@ describe('PublishingSchedule Controller', () => {
 
     it('should return 400 when scheduled_publish_at is an array', async () => {
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: ['2025-06-01'] });
 
@@ -481,7 +481,7 @@ describe('PublishingSchedule Controller', () => {
       mockUpdateSchedule.mockResolvedValue(updatedItem);
 
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: '' });
 
@@ -493,7 +493,7 @@ describe('PublishingSchedule Controller', () => {
     // ========== schedule_type tests ==========
     it('should return 400 when schedule_type is invalid', async () => {
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z', schedule_type: 'invalid' });
 
@@ -506,7 +506,7 @@ describe('PublishingSchedule Controller', () => {
       mockUpdateSchedule.mockResolvedValue(updatedItem);
 
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ schedule_type: 'asap', scheduled_publish_at: null });
 
@@ -520,7 +520,7 @@ describe('PublishingSchedule Controller', () => {
       mockUpdateSchedule.mockResolvedValue(updatedItem);
 
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ schedule_type: 'scheduled', scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
@@ -534,7 +534,7 @@ describe('PublishingSchedule Controller', () => {
       mockUpdateSchedule.mockResolvedValue(updatedItem);
 
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ schedule_type: 'after', scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
@@ -547,7 +547,7 @@ describe('PublishingSchedule Controller', () => {
       mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
 
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ schedule_type: null, scheduled_publish_at: null });
 
@@ -563,7 +563,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-schedule?page=abc&pageSize=10')
+        .get('/api/v1/publishing-schedule?page=abc&pageSize=10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -576,7 +576,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-schedule?page=1&pageSize=xyz')
+        .get('/api/v1/publishing-schedule?page=1&pageSize=xyz')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -589,7 +589,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-schedule?page=0&pageSize=10')
+        .get('/api/v1/publishing-schedule?page=0&pageSize=10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -603,7 +603,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-schedule?page=1&pageSize=-5')
+        .get('/api/v1/publishing-schedule?page=1&pageSize=-5')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -617,7 +617,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-schedule?projectId=')
+        .get('/api/v1/publishing-schedule?projectId=')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -636,7 +636,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: items, total: 3 });
 
       const response = await agent
-        .get('/api/publishing-schedule?page=1&pageSize=10')
+        .get('/api/v1/publishing-schedule?page=1&pageSize=10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -650,7 +650,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 100 });
 
       const response = await agent
-        .get('/api/publishing-schedule?page=999&pageSize=10')
+        .get('/api/v1/publishing-schedule?page=999&pageSize=10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -663,7 +663,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-schedule?search=%E6%B5%8B%E8%AF%95%26%3C%3E')
+        .get('/api/v1/publishing-schedule?search=%E6%B5%8B%E8%AF%95%26%3C%3E')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -676,7 +676,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-schedule?projectId=0')
+        .get('/api/v1/publishing-schedule?projectId=0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -691,7 +691,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: items, total: 15 });
 
       const response = await agent
-        .get('/api/publishing-schedule?page=2&pageSize=10')
+        .get('/api/v1/publishing-schedule?page=2&pageSize=10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -704,7 +704,7 @@ describe('PublishingSchedule Controller', () => {
       mockUpdateSchedule.mockRejectedValue(new Error('无权操作此文章'));
 
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${adminToken()}`)
         .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
 
@@ -714,7 +714,7 @@ describe('PublishingSchedule Controller', () => {
 
     it('should return 400 when scheduled_publish_at is invalid date string', async () => {
       const response = await agent
-        .put('/api/publishing-schedule/1')
+        .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: 'not-a-date' });
 
@@ -726,7 +726,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-schedule?status=invalid_status')
+        .get('/api/v1/publishing-schedule?status=invalid_status')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -739,7 +739,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-schedule?projectId=abc')
+        .get('/api/v1/publishing-schedule?projectId=abc')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -752,7 +752,7 @@ describe('PublishingSchedule Controller', () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
-        .get('/api/publishing-schedule?pageSize=999999')
+        .get('/api/v1/publishing-schedule?pageSize=999999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
