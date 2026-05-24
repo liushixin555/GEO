@@ -650,3 +650,11 @@
   - 新发现 RQ-07：审计日志（空格分隔）与错误日志（JSON.stringify）格式不一致
   - 修复优先级：P0×2（路由拆分+Router级中间件）、P1×3（zod验证+API版本化+日志格式统一）、P2×2（角色常量化+路由分组）
   - 评审报告 tasks/review/app.ts.md
+
+## 本次变更（2026-05-24 @uiw/react-markdown-preview Props.tsx 代码安全专家评审）
+- [x] **代码安全专家评审 @uiw/react-markdown-preview/src/Props.tsx（30 行）**
+  - 综合安全评级 ⚠️ MEDIUM（类型定义层面存在多处安全隐忧，需配合实现层验证）
+  - 8 项安全发现：HIGH×2（source无长度/内容约束DoS/XSS风险、rehypeRewrite无约束HTML AST重写可绕过安全过滤）、MEDIUM×2（pluginsFilter可移除安全插件、继承react-markdown Options未过滤危险属性如allowElement）、LOW-MEDIUM×2（wrapperElement接受任意HTML属性潜在事件注入、MarkdownPreviewRef暴露全部Props+DOM引用）、LOW×1（warpperElement弃用仍可传入危险属性）、INFO×1（事件回调无消毒）
+  - 供应链评估：react-markdown < v9 默认允许HTML渲染风险、rehype-rewrite AST重写能力本身是风险
+  - 提供本项目调用安全检查清单（8项）和上游调用防护建议
+  - 评审报告 tasks/review/Props.tsx.security.md
