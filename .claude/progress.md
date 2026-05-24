@@ -760,7 +760,22 @@
   - P0 修复建议：引入 rehype-sanitize 或 DOMPurify 消毒层
   - 评审报告 tasks/review/common.tsx.security.md
 
-## 本次变更（2026-05-24 @uiw/react-markdown-preview common.tsx 软件架构专家评审）
+## 本次变更（2026-05-24 App.tsx 安全评审问题修复）
+- [x] **fix015: App.tsx 安全评审问题修复** — 4 项安全修复（基于 tasks/review/App.tsx.security.md）
+  - **SEC-FE-03**: verify API 返回数据库用户数据（替代 localStorage 可篡改数据），AuthContext 以服务端数据为可信源
+    - 后端 `auth.service.impl.ts`: verifyToken 新增数据库查询返回完整用户数据
+    - 后端 `auth.service.ts`: 新增 VerifyUserData 接口
+    - 后端 `auth.controller.ts`: verify 端点返回 user 对象
+    - 前端 `AuthContext.tsx`: verify 成功后使用 response.data.data.user 覆盖 localStorage
+  - **SEC-FE-06**: 登录重定向路径校验 validateRedirect 函数，仅允许 / 开头的内部路径
+    - 修改 `pages/login/index.tsx`: 新增 validateRedirect 校验函数
+  - **SEC-FE-08**: 登出时清除 redirect_after_login，防止下次登录被重定向到意外页面
+    - 修改 `pages/context/AuthContext.tsx`: logout 添加 localStorage.removeItem('redirect_after_login')
+    - logout 改为 fire-and-forget 后端调用（不 await），立即清理客户端状态
+  - **SEC-FE-09**: 添加 CSP (Content-Security-Policy) meta 标签到 pages/index.html
+    - 限制 script-src 'self'、style-src 'self' 'unsafe-inline'（antd CSS-in-JS 需要）、connect-src 'self' 等
+  - auth.middleware 测试通过、前端构建通过
+  - **SEC-FE-02 (localStorage token)** 需后端 httpOnly Cookie 改造，本轮暂不实施
 - [x] **软件架构专家评审 @uiw/react-markdown-preview/src/common.tsx（27 行）**
   - 综合评分 5.4/10（管线编排架构清晰，但与 preview.tsx 存在职责重叠和耦合缺陷）
   - P1×3：每次渲染重建管线数组（无 useMemo）、与 preview.tsx 双封装职责重叠（安全策略分散）、插件管线违反 OCP（用户插件位置固定不可定制）

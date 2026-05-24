@@ -46,21 +46,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .get('/api/v1/auth/verify', {
         headers: { Authorization: `Bearer ${token}` },
       })
-      .then(() => {
-        const userData = localStorage.getItem(USER_KEY);
-        if (userData) {
-          try {
-            const parsed = JSON.parse(userData);
-            setUser(parsed);
-            // Initialize AppContext from login data
-            if (parsed.selected_company && !localStorage.getItem('selected_company')) {
-              localStorage.setItem('selected_company', JSON.stringify(parsed.selected_company));
+      .then((response) => {
+        const serverUser = response.data?.data?.user;
+        if (serverUser) {
+          setUser(serverUser);
+          localStorage.setItem(USER_KEY, JSON.stringify(serverUser));
+          if (serverUser.selected_company && !localStorage.getItem('selected_company')) {
+            localStorage.setItem('selected_company', JSON.stringify(serverUser.selected_company));
+          }
+          if (serverUser.selected_project && !localStorage.getItem('selected_project')) {
+            localStorage.setItem('selected_project', JSON.stringify(serverUser.selected_project));
+          }
+        } else {
+          const userData = localStorage.getItem(USER_KEY);
+          if (userData) {
+            try {
+              setUser(JSON.parse(userData));
+            } catch {
+              localStorage.removeItem(USER_KEY);
             }
-            if (parsed.selected_project && !localStorage.getItem('selected_project')) {
-              localStorage.setItem('selected_project', JSON.stringify(parsed.selected_project));
-            }
-          } catch {
-            localStorage.removeItem(USER_KEY);
           }
         }
       })
@@ -98,18 +102,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = useCallback(async () => {
     const token = localStorage.getItem(TOKEN_KEY);
     if (token) {
-      try {
-        await axios.post('/api/v1/auth/logout', null, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      } catch {
-        // Ignore logout API errors — client cleanup is the priority
-      }
+      axios.post('/api/v1/auth/logout', null, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
     }
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem('selected_company');
     localStorage.removeItem('selected_project');
+    localStorage.removeItem('redirect_after_login');
     setUser(null);
     window.location.href = '/login';
   }, []);

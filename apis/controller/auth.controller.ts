@@ -89,8 +89,17 @@ export async function logout(_req: Request, res: Response): Promise<void> {
  *         description: Token is valid
  */
 export async function verify(_req: Request, res: Response): Promise<void> {
-  // authMiddleware 已保证 req.user 存在且 token 有效，无需重复验证
-  success(res, { valid: true }, 'token有效');
+  const token = _req.headers.authorization?.substring(7);
+  if (!token) {
+    fail(res, 401, '未登录');
+    return;
+  }
+  const result = await authService.verifyToken(token);
+  if (!result.valid) {
+    fail(res, 401, '登录已过期');
+    return;
+  }
+  success(res, { valid: true, user: result.user }, 'token有效');
 }
 
 /**

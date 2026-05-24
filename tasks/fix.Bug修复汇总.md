@@ -343,3 +343,37 @@ components: {
 - `apis/schema/article.schema.ts` — 新增 updateContentSchema + scheduled_publish_at 校验
 - `apis/service/impl/article.service.impl.ts` — 使用类型化异常替代 Error
 - `tests/apis/article.controller.test.ts` — 更新 mock 和断言匹配新行为
+
+---
+
+## fix015. App.tsx 安全评审问题修复
+
+### 问题
+根据 `tasks/review/App.tsx.security.md` 安全评审报告（C+ 级），前端存在 4 项未修复的安全问题。
+
+### 修复
+
+**SEC-FE-03 用户数据可被篡改实现前端提权**：
+- 后端 verify API 从仅返回 `{ valid: true }` 改为返回完整用户数据（id, username, cn_name, role, company_id, selected_company, selected_project）
+- 前端 AuthContext 以服务端返回的用户数据为可信源，覆盖 localStorage 中的可篡改数据
+
+**SEC-FE-06 登录重定向未校验**：
+- 新增 `validateRedirect` 函数，仅允许 `/` 开头且非 `//` 开头的内部路径
+- 防止 XSS 修改 localStorage 中的重定向路径
+
+**SEC-FE-08 登出时 redirect_after_login 未清除**：
+- logout 函数新增 `localStorage.removeItem('redirect_after_login')`
+- 后端 logout API 改为 fire-and-forget（不 await），立即清理客户端状态
+
+**SEC-FE-09 无 Content Security Policy**：
+- `pages/index.html` 添加 CSP meta 标签
+- 策略：`default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'`
+
+### 涉及文件
+- `apis/controller/auth.controller.ts` — verify 返回用户数据
+- `apis/service/auth.service.ts` — 新增 VerifyUserData 接口
+- `apis/service/impl/auth.service.impl.ts` — verifyToken 查询数据库
+- `pages/context/AuthContext.tsx` — 使用服务端用户数据 + 登出清除优化
+- `pages/login/index.tsx` — 重定向路径校验
+- `pages/index.html` — CSP meta 标签
+- `tests/apis/auth.service.test.ts` — 更新 verifyToken 测试断言

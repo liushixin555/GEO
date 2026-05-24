@@ -9,6 +9,12 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  const validateRedirect = (path: string | null): string => {
+    if (!path) return '/publish';
+    if (path.startsWith('/') && !path.startsWith('//')) return path;
+    return '/publish';
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -37,7 +43,7 @@ const LoginPage: React.FC = () => {
 
       const redirectTo = !user.selected_project
         ? '/project'
-        : (localStorage.getItem('redirect_after_login') || '/publish');
+        : validateRedirect(localStorage.getItem('redirect_after_login'));
       localStorage.removeItem('redirect_after_login');
       navigate(redirectTo);
     } catch (err: any) {

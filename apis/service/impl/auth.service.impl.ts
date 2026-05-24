@@ -92,10 +92,30 @@ export class AuthServiceImpl implements IAuthService {
     };
   }
 
-  async verifyToken(token: string): Promise<{ valid: boolean; userId?: number }> {
+  async verifyToken(token: string): Promise<{ valid: boolean; user?: import('../auth.service').VerifyUserData }> {
     try {
       const decoded = jwt.verify(token, config.jwt.secret) as any;
-      return { valid: true, userId: decoded.userId };
+      const prisma = getPrisma();
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        include: {
+          selectedCompany: { select: { id: true, shortName: true } },
+          selectedProject: { select: { id: true, shortName: true } },
+        },
+      });
+      if (!user) return { valid: false };
+      return {
+        valid: true,
+        user: {
+          id: user.id,
+          username: user.username,
+          cn_name: user.cnName,
+          role: user.role as any,
+          company_id: user.companyId,
+          selected_company: user.selectedCompany ? { id: user.selectedCompany.id, short_name: user.selectedCompany.shortName } : null,
+          selected_project: user.selectedProject ? { id: user.selectedProject.id, short_name: user.selectedProject.shortName } : null,
+        },
+      };
     } catch {
       return { valid: false };
     }

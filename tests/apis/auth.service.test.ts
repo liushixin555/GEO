@@ -405,16 +405,31 @@ describe('AuthService', () => {
   // ══════════════════════════════════════
 
   describe('verifyToken', () => {
-    it('有效 token 应返回 { valid: true, userId }', async () => {
+    it('有效 token 应返回 { valid: true, user }', async () => {
       const token = jwt.sign(
         { userId: 1, username: 'test', role: 'admin', companyId: 1 },
         'test-secret',
         { expiresIn: '2h' }
       );
 
+      const mockUserFindUnique = jest.fn().mockResolvedValue({
+        id: 1,
+        username: 'test',
+        cnName: '测试',
+        role: 'admin',
+        companyId: 1,
+        selectedCompany: { id: 1, shortName: 'Co1' },
+        selectedProject: { id: 1, shortName: 'Pr1' },
+      });
+      mockedGetPrisma.mockReturnValue({
+        user: { findUnique: mockUserFindUnique },
+      } as any);
+
       const result = await authService.verifyToken(token);
       expect(result.valid).toBe(true);
-      expect(result.userId).toBe(1);
+      expect(result.user).toBeDefined();
+      expect(result.user!.id).toBe(1);
+      expect(result.user!.role).toBe('admin');
     });
 
     it('过期 token 应返回 { valid: false }', async () => {
