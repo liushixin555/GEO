@@ -140,6 +140,41 @@ function validateCronExpression(expr: string, name: string): string {
   return expr;
 }
 
+function resolvePassword(): string {
+  const pwd = process.env.DB_PASSWORD;
+  if (!pwd && process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL: DB_PASSWORD is required in production');
+  }
+  if (!pwd) {
+    console.error(
+      'WARNING: Using default DB_PASSWORD. Set DB_PASSWORD explicitly for better security.'
+    );
+  }
+  return pwd || DEFAULTS.DB_PASSWORD;
+}
+
+function resolveJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret && process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL: JWT_SECRET is required in production');
+  }
+  if (!secret) {
+    const generated = crypto.randomBytes(32).toString('hex');
+    console.error(
+      'WARNING: JWT_SECRET not set. Using auto-generated secret (changes on restart). ' +
+        'Generate a persistent one with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"'
+    );
+    return generated;
+  }
+  if (secret.length < 32) {
+    console.error(
+      `WARNING: JWT_SECRET is only ${secret.length} characters. ` +
+        'Recommend at least 32 characters for adequate security.'
+    );
+  }
+  return secret;
+}
+
 function resolveUploadDir(raw: string | undefined): string {
   if (raw) {
     if (raw.includes('..')) {
@@ -162,45 +197,14 @@ const config: Readonly<AppConfig> = deepFreeze({
     port: safeParseInt(process.env.DB_PORT, DEFAULTS.DB_PORT, 'DB_PORT', { min: 1, max: 65535 }),
     name: process.env.DB_NAME || DEFAULTS.DB_NAME,
     user: process.env.DB_USER || DEFAULTS.DB_USER,
-    password: (() => {
-      const pwd = process.env.DB_PASSWORD;
-      if (!pwd && process.env.NODE_ENV === 'production') {
-        throw new Error('FATAL: DB_PASSWORD is required in production');
-      }
-      if (!pwd) {
-        console.error(
-          'WARNING: Using default DB_PASSWORD. Set DB_PASSWORD explicitly for better security.'
-        );
-      }
-      return pwd || DEFAULTS.DB_PASSWORD;
-    })(),
+    password: resolvePassword(),
     pool: {
       min: safeParseInt(process.env.DB_POOL_MIN, DEFAULTS.DB_POOL_MIN, 'DB_POOL_MIN', { min: 0 }),
       max: safeParseInt(process.env.DB_POOL_MAX, DEFAULTS.DB_POOL_MAX, 'DB_POOL_MAX', { min: 1, max: 100 }),
     },
   },
   jwt: {
-    secret: (() => {
-      const secret = process.env.JWT_SECRET;
-      if (!secret && process.env.NODE_ENV === 'production') {
-        throw new Error('FATAL: JWT_SECRET is required in production');
-      }
-      if (!secret) {
-        const generated = crypto.randomBytes(32).toString('hex');
-        console.error(
-          'WARNING: JWT_SECRET not set. Using auto-generated secret (changes on restart). ' +
-            'Generate a persistent one with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"'
-        );
-        return generated;
-      }
-      if (secret.length < 32) {
-        console.error(
-          `WARNING: JWT_SECRET is only ${secret.length} characters. ` +
-            'Recommend at least 32 characters for adequate security.'
-        );
-      }
-      return secret;
-    })(),
+    secret: resolveJwtSecret(),
     expiresIn: validateTimeSpan(process.env.JWT_EXPIRES_IN || DEFAULTS.JWT_EXPIRES_IN, 'JWT_EXPIRES_IN'),
   },
   swagger: {
