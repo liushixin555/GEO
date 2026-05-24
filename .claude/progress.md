@@ -111,3 +111,4 @@
 | 2026-05-24 | tasks/review/Editor.nohighlight.tsx.quality.md | @uiw/react-md-editor Editor.nohighlight.tsx 软件质量专家评审——✅通过 8.5/10（工厂+DI优秀组装模块，传导发现useMemo副作用/事件泄漏/滚动除零） |
 | 2026-05-24 | tasks/tdd/todo.entity.test.md | todo.entity TDD 补全——150用例全通过（+124新增：JSON序列化/Object.freeze/结构相等/深拷贝/解构/集合操作/连续更新/日期操作/Set-Map/属性描述符/函数参数） |
 | 2026-05-24 | tasks/review/Editor.nohighlight.tsx.architecture.md | @uiw/react-md-editor Editor.nohighlight.tsx 架构专家评审——✅通过 8.8/10（工厂+策略注入教科书级OCP，7行零逻辑冗余，上游传导6项风险ARCH-1~6） |
+| 2026-05-24 | tasks/review/Editor.nohighlight.tsx.security.md | @uiw/react-md-editor Editor.nohighlight.tsx 代码安全专家评审——B-/7.0分（nohighlight变体安全基线显著优于标准版，H×3传导+M×4传导+L×2传导，项目MarkdownEditor.tsx多层缓解） |
