@@ -34,6 +34,8 @@ app.get('/api/health', (_req, res) => {
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  hsts: false, // HTTP server — disable HSTS to prevent browser forcing HTTPS
+  contentSecurityPolicy: false, // swagger-ui needs inline scripts/styles
 }));
 
 // CORS — whitelist-based configuration
