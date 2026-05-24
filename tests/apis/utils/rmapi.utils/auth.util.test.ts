@@ -247,7 +247,7 @@ describe('apis/utils/rmapi.utils/auth.util.ts', () => {
       );
     });
 
-    describe('RM_API_KEY missing', () => {
+    describe('RM_API_KEY edge cases', () => {
       it('should throw error when RM_API_KEY env var is not set', async () => {
         const saved = process.env.RM_API_KEY;
         delete process.env.RM_API_KEY;
@@ -255,6 +255,162 @@ describe('apis/utils/rmapi.utils/auth.util.ts', () => {
           getRmToken({ mobile: '13800138000', password: 'pass' }),
         ).rejects.toThrow('RM_API_KEY 环境变量未配置');
         process.env.RM_API_KEY = saved;
+      });
+
+      it('should throw error when RM_API_KEY is empty string', async () => {
+        const saved = process.env.RM_API_KEY;
+        process.env.RM_API_KEY = '';
+        await expect(
+          getRmToken({ mobile: '13800138000', password: 'pass' }),
+        ).rejects.toThrow('RM_API_KEY 环境变量未配置');
+        process.env.RM_API_KEY = saved;
+      });
+    });
+
+    describe('token edge cases', () => {
+      it('should return long token string', async () => {
+        const longToken = 'a'.repeat(2048);
+        mockedAxios.post.mockResolvedValueOnce({
+          data: {
+            success: true,
+            message: 'ok',
+            data: { token: longToken },
+            status: 200,
+          },
+        });
+
+        const token = await getRmToken({ mobile: '13800138000', password: 'pass' });
+
+        expect(token).toBe(longToken);
+        expect(token).toHaveLength(2048);
+      });
+
+      it('should return token with unicode and special characters', async () => {
+        const specialToken = 'tok-中文_特殊!@#$%^&*()+=[]{}|;:\'",.<>?/~`';
+        mockedAxios.post.mockResolvedValueOnce({
+          data: {
+            success: true,
+            message: 'ok',
+            data: { token: specialToken },
+            status: 200,
+          },
+        });
+
+        const token = await getRmToken({ mobile: '13800138000', password: 'pass' });
+
+        expect(token).toBe(specialToken);
+      });
+    });
+
+    describe('error message edge cases', () => {
+      it('should throw with unicode error message', async () => {
+        mockedAxios.post.mockResolvedValueOnce({
+          data: {
+            success: false,
+            message: '验证码错误🔑请重试',
+            data: { token: '' },
+            status: 400,
+          },
+        });
+
+        await expect(
+          getRmToken({ mobile: '13800138000', password: 'pass' }),
+        ).rejects.toThrow('rmapi 认证失败: 验证码错误🔑请重试');
+      });
+
+      it('should throw with very long error message', async () => {
+        const longMsg = '错误'.repeat(500);
+        mockedAxios.post.mockResolvedValueOnce({
+          data: {
+            success: false,
+            message: longMsg,
+            data: { token: '' },
+            status: 500,
+          },
+        });
+
+        await expect(
+          getRmToken({ mobile: '13800138000', password: 'pass' }),
+        ).rejects.toThrow(`rmapi 认证失败: ${longMsg}`);
+      });
+    });
+
+    describe('input parameter variations', () => {
+      it('should pass special characters in mobile and password', async () => {
+        mockedAxios.post.mockResolvedValueOnce({
+          data: {
+            success: true,
+            message: 'ok',
+            data: { token: 'tok' },
+            status: 200,
+          },
+        });
+
+        await getRmToken({ mobile: '+86-138 0013 8000', password: 'p@ss w0rd!#$%' });
+
+        const body = mockedAxios.post.mock.calls[0][1] as Record<string, string>;
+        expect(body.mobile).toBe('+86-138 0013 8000');
+        expect(body.password).toBe('p@ss w0rd!#$%');
+      });
+
+      it('should pass empty mobile and password strings without validation', async () => {
+        mockedAxios.post.mockResolvedValueOnce({
+          data: {
+            success: true,
+            message: 'ok',
+            data: { token: 'tok' },
+            status: 200,
+          },
+        });
+
+        await getRmToken({ mobile: '', password: '' });
+
+        const body = mockedAxios.post.mock.calls[0][1] as Record<string, string>;
+        expect(body.mobile).toBe('');
+        expect(body.password).toBe('');
+      });
+
+      it('should pass unicode mobile and password', async () => {
+        mockedAxios.post.mockResolvedValueOnce({
+          data: {
+            success: true,
+            message: 'ok',
+            data: { token: 'tok' },
+            status: 200,
+          },
+        });
+
+        await getRmToken({ mobile: '用户名测试', password: '密码🔑测试' });
+
+        const body = mockedAxios.post.mock.calls[0][1] as Record<string, string>;
+        expect(body.mobile).toBe('用户名测试');
+        expect(body.password).toBe('密码🔑测试');
+      });
+    });
+
+    describe('concurrent calls', () => {
+      it('should handle concurrent getRmToken calls independently', async () => {
+        mockedAxios.post
+          .mockResolvedValueOnce({
+            data: { success: true, message: 'ok', data: { token: 'token-A' }, status: 200 },
+          })
+          .mockResolvedValueOnce({
+            data: { success: true, message: 'ok', data: { token: 'token-B' }, status: 200 },
+          })
+          .mockResolvedValueOnce({
+            data: { success: true, message: 'ok', data: { token: 'token-C' }, status: 200 },
+          });
+
+        const [a, b, c] = await Promise.all([
+          getRmToken({ mobile: '111', password: 'pa' }),
+          getRmToken({ mobile: '222', password: 'pb' }),
+          getRmToken({ mobile: '333', password: 'pc' }),
+        ]);
+
+        expect(a).toBe('token-A');
+        expect(b).toBe('token-B');
+        expect(c).toBe('token-C');
+        expect(mockedAxios.post).toHaveBeenCalledTimes(3);
       });
     });
   });
