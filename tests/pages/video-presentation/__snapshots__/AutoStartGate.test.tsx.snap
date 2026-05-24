@@ -1,0 +1,40 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`AutoStartGate 快照测试 visible=false 匹配快照（空渲染） 1`] = `<DocumentFragment />`;
+
+exports[`AutoStartGate 快照测试 visible=true 匹配快照 1`] = `
+<DocumentFragment>
+  <div
+    class="auto-gate"
+    data-no-advance="true"
+    role="button"
+    tabindex="0"
+  >
+    <div
+      class="auto-gate-card"
+    >
+      <div
+        class="auto-gate-kicker"
+      >
+        AUTO PLAYBACK
+      </div>
+      <div
+        class="auto-gate-title"
+      >
+        Press SPACE to start
+      </div>
+      <div
+        class="auto-gate-sub"
+      >
+        Audio plays per step and advances automatically.
+        <br />
+        Press 
+        <kbd>
+          M
+        </kbd>
+         any time to switch modes.
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;
