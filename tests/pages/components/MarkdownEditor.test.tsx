@@ -292,6 +292,194 @@ describe('MarkdownEditor', () => {
     });
   });
 
+  describe('commandsFilter — issue command defensive override', () => {
+    const createIssueCommand = () => ({
+      name: 'issue',
+      keyCommand: 'issue',
+      prefix: '#',
+      suffix: '',
+      buttonProps: { 'aria-label': 'Add issue', title: 'Add issue' },
+      execute: jest.fn(),
+    });
+
+    const createMockApi = () => ({
+      setSelectionRange: jest.fn((range: { start: number; end: number }) => ({
+        selectedText: 'test',
+      })),
+      replaceSelection: jest.fn(),
+    });
+
+    it('should use Chinese ARIA labels for buttonProps', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createIssueCommand(), false);
+      expect(result.buttonProps['aria-label']).toBe('插入 Issue 引用 (#)');
+      expect(result.buttonProps.title).toBe('插入 Issue 引用 (#)');
+    });
+
+    it('should replace icon with 16px SVG with aria-hidden and title', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createIssueCommand(), false);
+      expect(result.icon).toBeTruthy();
+      expect(React.isValidElement(result.icon)).toBe(true);
+      expect(result.icon.props.width).toBe('16');
+      expect(result.icon.props.height).toBe('16');
+      expect(result.icon.props['aria-hidden']).toBe('true');
+      // SVG should have <title> and <path> as children
+      const children = React.Children.toArray(result.icon.props.children);
+      const titleEl = children.find((c: any) => c.type === 'title');
+      expect(titleEl).toBeTruthy();
+      expect((titleEl as any).props.children).toBe('Issue 引用');
+    });
+
+    it('should skip execution when prefix is missing (S1/Q4)', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createIssueCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: 'Hello', selection: { start: 2, end: 2 }, command: { prefix: undefined } },
+        api,
+      );
+
+      expect(cmd.execute).not.toHaveBeenCalled();
+      expect(api.setSelectionRange).not.toHaveBeenCalled();
+    });
+
+    it('should skip execution at line start to prevent H1 collision (ARCH-CRITICAL-1)', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createIssueCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      // Cursor at line start (position 0)
+      result.execute(
+        { text: 'Hello world', selection: { start: 0, end: 0 }, command: { prefix: '#' } },
+        api,
+      );
+
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it('should skip execution when beforeCursor is only # (H1 heading)', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createIssueCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      // Text: "# Title", cursor at position 2 (after "# ")
+      result.execute(
+        { text: '# Title', selection: { start: 2, end: 2 }, command: { prefix: '#' } },
+        api,
+      );
+
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it('should skip at line start after newline', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createIssueCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      // Cursor at start of second line (position 6, right after \n)
+      result.execute(
+        { text: 'Hello\nWorld', selection: { start: 6, end: 6 }, command: { prefix: '#' } },
+        api,
+      );
+
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it('should call original execute for valid mid-line position', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createIssueCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      // Cursor at position 3 within "Hello" (mid-line)
+      const state = {
+        text: 'Hello world',
+        selection: { start: 3, end: 3 },
+        command: { prefix: '#' },
+      };
+      result.execute(state, api);
+
+      expect(cmd.execute).toHaveBeenCalledWith(state, api);
+    });
+
+    it('should call original execute after # in mid-line (e.g., #123)', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createIssueCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      // Text: "See #123 for", cursor at position 7 (after #123)
+      const state = {
+        text: 'See #123 for',
+        selection: { start: 7, end: 7 },
+        command: { prefix: '#' },
+      };
+      result.execute(state, api);
+
+      // "See " before cursor is not empty and not just "#", so should proceed
+      expect(cmd.execute).toHaveBeenCalledWith(state, api);
+    });
+
+    it('should handle execution error gracefully (S2)', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = {
+        ...createIssueCommand(),
+        execute: jest.fn(() => { throw new Error('selectWord crash'); }),
+      };
+      const result = commandsFilterFn!(cmd, false);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const api = createMockApi();
+
+      expect(() => {
+        result.execute(
+          { text: 'Hello', selection: { start: 3, end: 3 }, command: { prefix: '#' } },
+          api,
+        );
+      }).not.toThrow();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[MarkdownEditor] issue 命令执行失败:',
+        expect.any(Error),
+      );
+      consoleSpy.mockRestore();
+    });
+
+    it('should not crash when state.text is undefined', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createIssueCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      expect(() => {
+        result.execute(
+          { text: undefined as any, selection: { start: 0, end: 0 }, command: { prefix: '#' } },
+          api,
+        );
+      }).not.toThrow();
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it('should not crash when state.selection is null', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createIssueCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      expect(() => {
+        result.execute(
+          { text: 'Hello', selection: null as any, command: { prefix: '#' } },
+          api,
+        );
+      }).not.toThrow();
+    });
+  });
+
   describe('commandsFilter — other commands pass through', () => {
     it('should pass through unknown commands unchanged', () => {
       render(<MarkdownEditor value="" />);

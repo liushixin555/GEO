@@ -439,6 +439,42 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
         };
       }
 
+      // ARCH-CRITICAL-1/SEC-S1/S2/SEC-S4/Q1~Q7/UI-P1~P3:
+      // issue 命令防御性覆盖——# 前缀与 Markdown H1 标题语义碰撞、prefix! 非空断言、
+      // 无错误边界、SVG 无障碍缺陷。命令未被默认工具栏注册（死代码），此处为防御性保护
+      if (command.name === 'issue') {
+        const originalExecute = command.execute;
+        return {
+          ...command,
+          buttonProps: {
+            'aria-label': '插入 Issue 引用 (#)',
+            title: '插入 Issue 引用 (#)',
+          },
+          icon: (
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 448 512">
+              <title>Issue 引用</title>
+              <path
+                fill="currentColor"
+                d="M181.3 32.4c17.4 2.9 29.2 19.4 26.3 36.8L197.8 128l95.1 0 11.5-69.3c2.9-17.4 19.4-29.2 36.8-26.3s29.2 19.4 26.3 36.8L357.8 128l58.2 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-68.9 0L325.8 320l58.2 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-68.9 0-11.5 69.3c-2.9 17.4-19.4 29.2-36.8 26.3s-29.2-19.4-26.3-36.8l9.8-58.7-95.1 0-11.5 69.3c-2.9 17.4-19.4 29.2-36.8 26.3s-29.2-19.4-26.3-36.8L90.2 384 32 384c-17.7 0-32-14.3-32-32s14.3-32 32-32l68.9 0 21.3-128L64 192c-17.7 0-32-14.3-32-32s14.3-32 32-32l68.9 0 11.5-69.3c2.9-17.4 19.4-29.2 36.8-26.3zM187.1 192L165.8 320l95.1 0 21.3-128-95.1 0z"
+              />
+            </svg>
+          ),
+          execute: (state: any, api: any) => {
+            try {
+              if (!state.command?.prefix) return;
+              const { text, selection } = state;
+              if (!text || selection?.start == null) return;
+              const lineStart = text.lastIndexOf('\n', selection.start - 1) + 1;
+              const beforeCursor = text.slice(lineStart, selection.start).trim();
+              if (beforeCursor === '' || beforeCursor === '#') return;
+              originalExecute?.(state, api);
+            } catch (err) {
+              console.error('[MarkdownEditor] issue 命令执行失败:', err);
+            }
+          },
+        };
+      }
+
       if (command.name === 'code' || command.name === 'codeBlock') {
         const wrapped = { ...command };
         if (command.name === 'code') {

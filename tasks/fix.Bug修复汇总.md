@@ -904,3 +904,42 @@ components: {
 ### 涉及文件
 - `pages/components/MarkdownEditor.tsx` — commandsFilter 覆盖 hr + Ctrl+H 拦截
 - `tests/pages/components/MarkdownEditor.test.tsx` — 11 个新增 hr 测试
+
+---
+
+## fix030. issue.tsx 评审封装层问题修复（#语义碰撞防护 + prefix非空断言 + 错误边界 + SVG无障碍）
+
+### 问题
+根据 `tasks/review/` 目录下 5 份评审报告（质量评审 6.9/10、架构评审 4.0/10、安全评审 7.2/10、UI 评审 3.0/10、Committer 审核 APPROVE），`@uiw/react-md-editor` 的 `issue.tsx` 存在多项架构、安全、UI 问题。命令未被默认工具栏注册（死代码），但通过封装层提供防御性覆盖。
+
+### 修复
+
+**ARCH-CRITICAL-1（# 语义碰撞）**：
+- `prefix: '#'` 与 Markdown H1 标题语法冲突，toggle 可能意外删除标题
+- 封装层 execute 函数添加行首上下文检测：`beforeCursor === '' || beforeCursor === '#'` 时跳过执行
+
+**SEC-S1/Q4（prefix! 非空断言 CWE-476）**：
+- 原始代码使用 `state.command.prefix!` 绕过可选类型检查
+- 封装层改为 `if (!state.command?.prefix) return` 防御性检查
+
+**SEC-S2（无错误边界 CWE-755）**：
+- 原始 execute 函数无 try-catch，selectWord 异常可导致编辑器崩溃
+- 封装层包裹 try-catch，异常时 console.error 记录
+
+**UI-P1（SVG 尺寸/比例失真）**：
+- 原始 SVG 12×12 偏小，viewBox 448×512 非正方形比例
+- 替换为 16×16 SVG + `aria-hidden="true"` + `<title>Issue 引用</title>`
+
+**UI-P3（buttonProps 文本改进）**：
+- 英文 `'Add issue'` 改为中文 `'插入 Issue 引用 (#)'`
+
+**运行时守卫**：
+- `if (!text || selection?.start == null) return` 防御空状态和异常输入
+
+### 测试
+- 新增 13 个 issue 命令测试用例（中文 ARIA、SVG 属性、prefix 空值守卫、H1 碰撞防护行首检测、行首换行后检测、有效 mid-line 执行、#123 场景、错误边界、undefined/null 安全）
+- 全部 59 个 MarkdownEditor 测试通过
+
+### 涉及文件
+- `pages/components/MarkdownEditor.tsx` — commandsFilter 添加 issue 命令防御性覆盖
+- `tests/pages/components/MarkdownEditor.test.tsx` — 13 个新增 issue 测试
