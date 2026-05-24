@@ -1082,3 +1082,13 @@
   - 安全优势：不引入 rehype-raw 天然降低 XSS 风险
   - 与本项目关联：MarkdownViewer 已切换使用 nohighlight 入口（commit 8225cb0），P1-01 性能问题直接影响长文档渲染
   - 评审报告 tasks/review/nohighlight.tsx.md
+
+## 本次变更（2026-05-24 article.controller.ts Committer审核专家第二轮评审）
+- [x] **Committer审核专家第二轮评审 apis/controller/article.controller.ts（554 行）**
+  - 综合判定：通过（APPROVE）— 上轮 P1 修复全部完成，从「有条件通过」升级为「通过」
+  - 测试文件：53 个 describe 块，231 个 it 块（controller）+ 关联测试 115 个，总计 346 个测试用例
+  - 上轮 7 项 P1 修复验证：6 项已完成（updateContentSchema Zod、created()、handleServerError 类型化、VALID_CREATE_STATUSES 清理、scheduled_publish_at 时间校验、MAX_CONTENT_LENGTH 统一），1 项部分完成（STATUS_TRANSITIONS 不可达条目仍在）
+  - 新发现 2 项：NEW-1 Service 层 update/delete 抛出原始 Error 非 NotFoundError（MEDIUM）、NEW-2 submitForReview 绕过 STATUS_TRANSITIONS（LOW）
+  - 遗留问题均为 P2/P3 级别或项目级技术债务：TOCTOU 竞态、权限检查重复、skills z.unknown()、版本列表无分页
+  - 项目规范最佳：10/10 响应工具函数、5/5 Zod Schema、类型化异常处理——项目标杆控制器
+  - 评审报告 tasks/review/article.controller.ts.committer.md
