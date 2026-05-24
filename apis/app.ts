@@ -2,7 +2,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import config from './config';
-import { rateLimitMiddleware, antiCrawlMiddleware } from './middleware';
+import { rateLimitMiddleware, antiCrawlMiddleware, swaggerAuthMiddleware } from './middleware';
 import { AppError } from './errors';
 
 // Route modules
@@ -107,8 +107,8 @@ const swaggerSpec = swaggerJSDoc({
   },
   apis: ['./apis/controller/*.ts'],
 });
-app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
-app.get('/api-docs.json', (_req: Request, res: Response) => res.json(swaggerSpec));
+app.use('/api-docs', swaggerAuthMiddleware, swaggerUI.serve, swaggerUI.setup(swaggerSpec));
+app.get('/api-docs.json', swaggerAuthMiddleware, (_req: Request, res: Response) => res.json(swaggerSpec));
 
 // ── Route modules (v1) ─────────────────────────────────────────────
 app.use('/api/v1/auth', authRoutes);
