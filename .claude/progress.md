@@ -782,3 +782,24 @@
   - antd 集成兼容性：第三方库 DOM 不受控（铁律豁免）、antd Token 无法自动同步到 Markdown 区域
   - 11 项问题清单：P1×2（行内代码语义红色、重复CSS）、P2×5（移动端copy、焦点管理、表格响应式、性能隔离、重复CSS合并）、P3×4
   - 评审报告 tasks/review/common.tsx.ui.md
+
+## 本次变更（2026-05-24 @uiw/react-markdown-preview common.tsx Committer审核专家评审）
+- [x] **Committer审核专家评审 @uiw/react-markdown-preview/src/common.tsx（27 行）**
+  - 综合判定：⚠️ 有条件通过（CONDITIONAL APPROVE）— 依赖可保留，但必须通过 MarkdownViewer 封装层隔离安全和性能风险
+  - 综合评分 5.0/10：功能适用性 7、安全合规性 4、性能就绪度 4、API 契约质量 7、项目规范兼容性 3、供应链稳定性 5、封装层有效性 6
+  - 四份已有评审综合裁定：质量 B🟡不阻塞、架构 5.4/10🟡不阻塞、安全 B+/HIGH🔴需封装层防护、UI 5.3/10🟡需CSS覆盖
+  - 3 项前置条件：COND-1 客户端 DOMPurify 消毒（❌待实施）、COND-2 服务端消毒确认（⚠️需确认）、COND-3 CSS 回归测试（✅持续维护）
+  - 安全核心问题：rehypeRaw 无条件开启 HTML 注入，MarkdownViewer 仅依赖服务端消毒单一防线
+  - 性能核心问题：每次渲染重建 9 插件管线，长文档场景有性能风险，建议 React.memo 缓解
+  - 10 项问题清单：P0×1（DOMPurify）、P1×2（React.memo、闭包重建）、P2×3（rehype-sanitize、属性注入、双重rehypeRaw）、P3×4（CSS冲突、供应链、DevTools、OCP）
+  - 评审报告 tasks/review/common.tsx.committer.md
+
+## 本次变更（2026-05-24 apis/app.ts 评审修复第二轮）
+- [x] **fix: apis/app.ts 评审修复（5 项）** — 183 个测试通过
+  - FIX-R2-01: CORS 拒绝请求添加日志（console.warn('[CORS] Rejected origin:', origin)）
+  - FIX-R2-02: 畸形 JSON 返回 400 而非 500（全局错误处理识别 SyntaxError）
+  - FIX-R2-03: 审计日志格式统一为 JSON（JSON.stringify 结构化格式，与错误日志一致）
+  - FIX-R2-04: 静态文件路径配置化（process.cwd() → config.uploadDir，支持 UPLOAD_DIR 环境变量）
+  - FIX-R2-05: validate 中间件支持 query/params 验证（validate(schema, source) 支持 body/query/params）
+  - 测试同步更新：审计日志测试改为 JSON 解析、畸形 JSON 测试改为期望 400、登录验证消息更新
+  - 配置新增 uploadDir 字段（AppConfig.uploadDir，默认 path.resolve(process.cwd(), 'uploads')）
