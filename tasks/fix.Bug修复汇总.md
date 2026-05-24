@@ -619,3 +619,31 @@ components: {
 ### 涉及文件
 - `pages/components/MarkdownEditor.tsx` — DOM 清理 + commandsFilter + ARIA 标注
 - `pages/styles/markdown-editor.css` — focus-visible + 拖拽条 + 全屏 + overflow
+
+---
+
+## fix021. knowledge-base.controller.ts 评审安全修复（SEC-M-03 AppError 统一异常体系）
+
+### 问题
+根据 `tasks/review/knowledge-base.controller.md` 安全评审报告（MEDIUM-LOW 级），知识库 controller 的 catch 块使用字符串精确匹配错误消息，设计脆弱，Service 层修改消息会导致 Controller 匹配失效。
+
+### 修复
+
+**SEC-M-03（P2）字符串匹配异常检测 → AppError 类型安全异常体系**：
+- Service 层：所有 `throw new Error(...)` 替换为对应的 AppError 子类
+  - `NotFoundError('知识库')` → 404
+  - `NotFoundError('项目')` → 404
+  - `BusinessError(...)` → 400（公司/项目必选验证）
+  - `ForbiddenError(...)` → 403（无权关联/只能操作自己创建的）
+- Controller 层：5 个 catch 块统一简化为 `instanceof AppError` 匹配
+  - 原来 4-6 个字符串条件分支 → 统一 1 个 `instanceof AppError` 检查
+  - `validateInteger` 改为抛出 `BusinessError`（而非 `Error`）
+- 测试文件：所有 mock 中的 `new Error(...)` 替换为对应 AppError 子类
+
+### 验证
+- 318 个测试全部通过（knowledge-base controller/entity/service 三个测试套件）
+
+### 涉及文件
+- `apis/service/impl/knowledge-base.service.impl.ts` — 导入 AppError 子类，替换所有 throw new Error
+- `apis/controller/knowledge-base.controller.ts` — 导入 AppError，统一 catch 块
+- `tests/apis/knowledge-base.controller.test.ts` — mock 错误类型替换 + 断言更新

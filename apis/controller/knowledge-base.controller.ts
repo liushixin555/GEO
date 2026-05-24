@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { KnowledgeBaseServiceImpl } from '../service/impl/knowledge-base.service.impl';
 import { success, fail, paginate, created } from '../utils';
 import { UpdateKnowledgeBaseRequest } from '../entity';
+import { AppError, BusinessError } from '../errors';
 
 const knowledgeBaseService = new KnowledgeBaseServiceImpl();
 
@@ -10,7 +11,7 @@ const VALID_SCOPES = ['platform', 'company', 'project'] as const;
 function validateInteger(value: unknown, fieldName: string): number | undefined {
   if (value === undefined || value === null) return undefined;
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
-    throw new Error(`${fieldName} 必须为正整数`);
+    throw new BusinessError(`${fieldName} 必须为正整数`);
   }
   return value;
 }
@@ -32,8 +33,8 @@ export async function listKnowledgeBases(req: Request, res: Response): Promise<v
     const { list, total } = await knowledgeBaseService.list(page, pageSize, search, scope, status, userId, role);
     paginate(res, list, total, page, pageSize);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message.endsWith('必须为正整数')) {
-      fail(res, 400, err.message);
+    if (err instanceof AppError) {
+      fail(res, err.statusCode, err.message);
     } else {
       fail(res, 500, '获取知识库列表失败');
     }
@@ -51,8 +52,8 @@ export async function getKnowledgeBase(req: Request, res: Response): Promise<voi
     const item = await knowledgeBaseService.getById(id, userId, role);
     success(res, item);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '知识库不存在') {
-      fail(res, 404, err.message);
+    if (err instanceof AppError) {
+      fail(res, err.statusCode, err.message);
     } else {
       fail(res, 500, '获取知识库详情失败');
     }
@@ -89,12 +90,8 @@ export async function createKnowledgeBase(req: Request, res: Response): Promise<
     );
     created(res, item, '创建知识库成功');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message.endsWith('必须为正整数')) {
-      fail(res, 400, err.message);
-    } else if (err instanceof Error && (err.message === '公司公共知识库必须选择公司' || err.message === '项目私有知识库必须选择项目')) {
-      fail(res, 400, err.message);
-    } else if (err instanceof Error && (err.message === '无权关联该公司' || err.message === '无权关联该项目')) {
-      fail(res, 403, err.message);
+    if (err instanceof AppError) {
+      fail(res, err.statusCode, err.message);
     } else {
       fail(res, 500, '创建知识库失败');
     }
@@ -138,16 +135,8 @@ export async function updateKnowledgeBase(req: Request, res: Response): Promise<
     const item = await knowledgeBaseService.update(id, updateRequest, userId, role);
     success(res, item, '更新知识库成功');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message.endsWith('必须为正整数')) {
-      fail(res, 400, err.message);
-    } else if (err instanceof Error && err.message === '知识库不存在') {
-      fail(res, 404, err.message);
-    } else if (err instanceof Error && err.message === '只能修改自己创建的知识库') {
-      fail(res, 403, err.message);
-    } else if (err instanceof Error && (err.message === '公司公共知识库必须选择公司' || err.message === '项目私有知识库必须选择项目')) {
-      fail(res, 400, err.message);
-    } else if (err instanceof Error && (err.message === '无权关联该公司' || err.message === '无权关联该项目')) {
-      fail(res, 403, err.message);
+    if (err instanceof AppError) {
+      fail(res, err.statusCode, err.message);
     } else {
       fail(res, 500, '更新知识库失败');
     }
@@ -165,10 +154,8 @@ export async function deleteKnowledgeBase(req: Request, res: Response): Promise<
     await knowledgeBaseService.delete(id, userId, role);
     success(res, null, '删除知识库成功');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '知识库不存在') {
-      fail(res, 404, err.message);
-    } else if (err instanceof Error && err.message === '只能删除自己创建的知识库') {
-      fail(res, 403, err.message);
+    if (err instanceof AppError) {
+      fail(res, err.statusCode, err.message);
     } else {
       fail(res, 500, '删除知识库失败');
     }

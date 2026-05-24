@@ -1,6 +1,7 @@
 import { getPrisma } from '../../utils';
 import { KnowledgeBase, CreateKnowledgeBaseRequest, UpdateKnowledgeBaseRequest } from '../../entity';
 import { IKnowledgeBaseService } from '../knowledge-base.service';
+import { NotFoundError, BusinessError, ForbiddenError } from '../../errors';
 
 const BASE_INCLUDE = {
   company: true,
@@ -108,25 +109,25 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
       where: { id },
       include: BASE_INCLUDE,
     });
-    if (!item) throw new Error('知识库不存在');
+    if (!item) throw new NotFoundError('知识库');
 
     // Non-sysadmin: check data-level access control (SEC-H-01)
     if (role !== 'sysadmin' && userId) {
       if (item.scope === 'platform') {
         // platform knowledge bases: only active ones are visible
-        if (!item.status) throw new Error('知识库不存在');
+        if (!item.status) throw new NotFoundError('知识库');
       } else if (item.scope === 'company') {
         const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
         if (!user || user.companyId !== item.companyId) {
-          throw new Error('知识库不存在');
+          throw new NotFoundError('知识库');
         }
       } else if (item.scope === 'project') {
-        if (!item.projectId) throw new Error('知识库不存在');
+        if (!item.projectId) throw new NotFoundError('知识库');
         const operator = await prisma.projectOperator.findFirst({
           where: { userId, projectId: item.projectId, deletedAt: null },
         });
         if (!operator) {
-          throw new Error('知识库不存在');
+          throw new NotFoundError('知识库');
         }
       }
     }
@@ -139,10 +140,10 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
 
     // Validate scope-specific fields
     if (request.scope === 'company' && !request.company_id) {
-      throw new Error('公司公共知识库必须选择公司');
+      throw new BusinessError('公司公共知识库必须选择公司');
     }
     if (request.scope === 'project' && !request.project_id) {
-      throw new Error('项目私有知识库必须选择项目');
+      throw new BusinessError('项目私有知识库必须选择项目');
     }
 
     // Ownership validation (SEC-M-01): only admin needs validation
@@ -150,7 +151,7 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
       if (request.scope === 'company' && request.company_id) {
         const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
         if (!user || user.companyId !== request.company_id) {
-          throw new Error('无权关联该公司');
+          throw new ForbiddenError('无权关联该公司');
         }
       }
       if (request.scope === 'project' && request.project_id) {
@@ -158,7 +159,7 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
           where: { userId, projectId: request.project_id, deletedAt: null },
         });
         if (!operator) {
-          throw new Error('无权关联该项目');
+          throw new ForbiddenError('无权关联该项目');
         }
       }
     }
@@ -185,11 +186,11 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
     const prisma = getPrisma();
 
     const existing = await prisma.knowledgeBase.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('知识库不存在');
+    if (!existing) throw new NotFoundError('知识库');
 
     // Non-sysadmin can only update their own
     if (role !== 'sysadmin' && existing.createdBy !== userId) {
-      throw new Error('只能修改自己创建的知识库');
+      throw new ForbiddenError('只能修改自己创建的知识库');
     }
 
     // Ownership validation (SEC-M-01): only admin needs validation
@@ -197,7 +198,7 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
       if (request.company_id !== undefined) {
         const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
         if (!user || user.companyId !== request.company_id) {
-          throw new Error('无权关联该公司');
+          throw new ForbiddenError('无权关联该公司');
         }
       }
       if (request.project_id !== undefined) {
@@ -205,7 +206,7 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
           where: { userId, projectId: request.project_id, deletedAt: null },
         });
         if (!operator) {
-          throw new Error('无权关联该项目');
+          throw new ForbiddenError('无权关联该项目');
         }
       }
     }
@@ -223,13 +224,13 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
         data.projectId = null;
       } else if (request.scope === 'company') {
         if (!request.company_id && !existing.companyId) {
-          throw new Error('公司公共知识库必须选择公司');
+          throw new BusinessError('公司公共知识库必须选择公司');
         }
         data.companyId = request.company_id ?? existing.companyId;
         data.projectId = null;
       } else if (request.scope === 'project') {
         if (!request.project_id && !existing.projectId) {
-          throw new Error('项目私有知识库必须选择项目');
+          throw new BusinessError('项目私有知识库必须选择项目');
         }
         data.projectId = request.project_id ?? existing.projectId;
         data.companyId = request.company_id ?? existing.companyId;
@@ -251,10 +252,10 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
     const prisma = getPrisma();
 
     const existing = await prisma.knowledgeBase.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('知识库不存在');
+    if (!existing) throw new NotFoundError('知识库');
 
     if (role !== 'sysadmin' && existing.createdBy !== userId) {
-      throw new Error('只能删除自己创建的知识库');
+      throw new ForbiddenError('只能删除自己创建的知识库');
     }
 
     await prisma.knowledgeBase.update({ where: { id }, data: { deletedAt: new Date() } });
@@ -264,7 +265,7 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
     const prisma = getPrisma();
 
     const project = await prisma.project.findFirst({ where: { id: projectId, deletedAt: null } });
-    if (!project) throw new Error('项目不存在');
+    if (!project) throw new NotFoundError('项目');
 
     const orConditions: any[] = [
       { scope: 'platform', status: true },

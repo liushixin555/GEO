@@ -3,6 +3,7 @@
  */
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
+import { NotFoundError, BusinessError, ForbiddenError } from '../../apis/errors';
 
 process.env.JWT_SECRET = 'test-secret';
 process.env.JWT_EXPIRES_IN = '2h';
@@ -646,7 +647,7 @@ describe('KnowledgeBase Controller', () => {
 
     test('company 知识库未选公司返回 400', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
-      const mockCreate = jest.fn().mockRejectedValue(new Error('公司公共知识库必须选择公司'));
+      const mockCreate = jest.fn().mockRejectedValue(new BusinessError('公司公共知识库必须选择公司'));
       getPrisma.mockReturnValue({
         knowledgeBase: { create: mockCreate },
       });
@@ -662,7 +663,7 @@ describe('KnowledgeBase Controller', () => {
 
     test('project 知识库未选项目返回 400', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
-      const mockCreate = jest.fn().mockRejectedValue(new Error('项目私有知识库必须选择项目'));
+      const mockCreate = jest.fn().mockRejectedValue(new BusinessError('项目私有知识库必须选择项目'));
       getPrisma.mockReturnValue({
         knowledgeBase: { create: mockCreate },
       });
@@ -979,7 +980,7 @@ describe('KnowledgeBase Controller', () => {
         companyId: null,
         projectId: null,
       });
-      const mockUpdate = jest.fn().mockRejectedValue(new Error('公司公共知识库必须选择公司'));
+      const mockUpdate = jest.fn().mockRejectedValue(new BusinessError('公司公共知识库必须选择公司'));
       getPrisma.mockReturnValue({
         knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
       });
@@ -1002,7 +1003,7 @@ describe('KnowledgeBase Controller', () => {
         companyId: null,
         projectId: null,
       });
-      const mockUpdate = jest.fn().mockRejectedValue(new Error('项目私有知识库必须选择项目'));
+      const mockUpdate = jest.fn().mockRejectedValue(new BusinessError('项目私有知识库必须选择项目'));
       getPrisma.mockReturnValue({
         knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
       });
@@ -1226,7 +1227,7 @@ describe('KnowledgeBase Controller', () => {
 
     test('list: service 抛出 validateInteger 错误返回 400', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindMany = jest.fn().mockRejectedValue(new Error('company_id 必须为正整数'));
+      const mockFindMany = jest.fn().mockRejectedValue(new BusinessError('company_id 必须为正整数'));
       getPrisma.mockReturnValue({
         knowledgeBase: { findMany: mockFindMany, count: jest.fn() },
       });
@@ -1239,9 +1240,9 @@ describe('KnowledgeBase Controller', () => {
       expect(res.body.message).toBe('company_id 必须为正整数');
     });
 
-    test('list: service 抛出 "知识库不存在" 返回 500（已移除不合理 404 分支）', async () => {
+    test('list: service 抛出 NotFoundError 返回 404（SEC-M-03 AppError 统一处理）', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindMany = jest.fn().mockRejectedValue(new Error('知识库不存在'));
+      const mockFindMany = jest.fn().mockRejectedValue(new NotFoundError('知识库'));
       getPrisma.mockReturnValue({
         knowledgeBase: { findMany: mockFindMany, count: jest.fn() },
       });
@@ -1250,8 +1251,8 @@ describe('KnowledgeBase Controller', () => {
         .get('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(res.status).toBe(500);
-      expect(res.body.message).toBe('获取知识库列表失败');
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe('知识库不存在');
     });
 
     test('list: 无效 scope 参数被忽略（SEC-L-02）', async () => {
