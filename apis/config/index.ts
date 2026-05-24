@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import crypto from 'crypto';
+import path from 'path';
 
 dotenv.config();
 
@@ -51,6 +52,7 @@ export interface AppConfig {
   readonly rateLimit: RateLimitConfig;
   readonly cron: CronConfig;
   readonly corsOrigins: readonly string[];
+  readonly uploadDir: string;
 }
 
 function safeParseInt(
@@ -166,6 +168,7 @@ const config: Readonly<AppConfig> = deepFreeze({
     articleGenerationEnabled: process.env.CRON_ARTICLE_ENABLED !== 'false',
   },
   corsOrigins: parseCorsOrigins(process.env.CORS_ORIGINS),
+  uploadDir: process.env.UPLOAD_DIR || path.resolve(process.cwd(), 'uploads'),
 });
 
 export default config;

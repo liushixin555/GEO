@@ -28,6 +28,8 @@ tests/apis/  + tests/pages/  测试文件
 - `apis/controller/upload.controller.ts` — 图片上传（multer，sysadmin + admin）
 - `apis/controller/knowledge.controller.ts` — 知识库 CRUD（关键词/画像/图片，各5个端点，sysadmin + admin）
 - `apis/service/impl/` — 业务实现（Prisma）
+- `apis/middleware/validate.ts` — Zod 参数验证中间件（支持 body/query/params 三种来源）
+- `apis/schema/auth.schema.ts` — 认证相关 Zod 验证 schema（loginSchema、saveSelectionSchema）
 - `pages/App.tsx` — React 路由定义（ErrorBoundary + AuthProvider + Routes）
 - `pages/components/Layout.tsx` — 纯布局组件（Sider + Content）
 - `pages/components/AuthGuard.tsx` — 认证门控（检查登录状态）

@@ -1,7 +1,6 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import path from 'path';
 import config from './config';
 import { rateLimitMiddleware, antiCrawlMiddleware } from './middleware';
 import { AppError } from './errors';
@@ -44,6 +43,7 @@ app.use(cors({
     if (!origin || allowed.includes(origin)) {
       callback(null, true);
     } else {
+      console.warn('[CORS] Rejected origin:', origin);
       callback(null, false);
     }
   },
@@ -58,7 +58,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use('/uploads', (_req, res, next) => {
   res.set('Cross-Origin-Resource-Policy', 'cross-origin');
   next();
-}, express.static(path.resolve(process.cwd(), 'uploads')));
+}, express.static(config.uploadDir));
 
 // Anti-crawl & rate limiting — intentionally placed before login route to prevent brute force
 app.use(antiCrawlMiddleware);
@@ -69,10 +69,16 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   res.on('finish', () => {
     if (res.statusCode >= 400) {
-      console.warn('[API]', req.method, req.originalUrl, res.statusCode,
-        `${Date.now() - start}ms`,
-        req.user?.userId || 'anonymous',
-        req.ip);
+      console.warn(JSON.stringify({
+        level: 'warn',
+        type: 'api_access',
+        method: req.method,
+        url: req.originalUrl,
+        status: res.statusCode,
+        duration: Date.now() - start,
+        userId: req.user?.userId || 'anonymous',
+        ip: req.ip,
+      }));
     }
   });
   next();
@@ -129,6 +135,10 @@ app.use((_req, res) => {
 // Global error handler — Express identifies by 4-parameter signature
 // M-3: 区分业务错误(AppError)与系统错误
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof SyntaxError && 'status' in err && (err as any).status === 400) {
+    res.status(400).json({ code: 400, message: '请求体 JSON 格式错误' });
+    return;
+  }
   if (err instanceof AppError) {
     res.status(err.statusCode).json({ code: err.statusCode, message: err.message });
     return;

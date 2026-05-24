@@ -389,4 +389,24 @@ apis/
 
 ---
 
+## 修复记录（第二轮 2026-05-24）
+
+### 已修复项
+
+| 编号 | 修复项 | 来源 | 状态 | 修复说明 |
+|------|--------|------|------|----------|
+| FIX-R2-01 | CORS 拒绝请求添加日志 | 架构评审 P2-2 | ✅ 已修复 | 添加 `console.warn('[CORS] Rejected origin:', origin)` |
+| FIX-R2-02 | 畸形 JSON 返回 400 | 架构评审 P3-3 | ✅ 已修复 | 全局错误处理识别 SyntaxError 返回 400 |
+| FIX-R2-03 | 审计日志格式统一为 JSON | 架构评审 P3-2 / SEC-APP-08 | ✅ 已修复 | 审计日志改为 `JSON.stringify` 结构化格式 |
+| FIX-R2-04 | 静态文件路径配置化 | 安全评审 SEC-APP-03 | ✅ 已修复 | `process.cwd()` 改为 `config.uploadDir`，支持环境变量覆盖 |
+| FIX-R2-05 | validate 中间件支持 query 验证 | Q-05 补全 | ✅ 已修复 | `validate(schema, source)` 支持 body/query/params |
+
+### 验证结果
+
+- 构建通过（`npm run build`）
+- app 测试全部通过（183 个用例）
+- TypeScript 类型检查通过
+
+---
+
 *软件质量专家评审完成（第三轮 — 修复后复审） — 2026-05-24*
