@@ -125,6 +125,7 @@
 | BUG-004 | CompanyForm useForm 警告 — 始终渲染 Form（loading 时 display:none） | `pages/company/CompanyForm.tsx` | ✅ 已完成 | 05-17 |
 | BUG-005 | User 路由权限违规 — admin 不应访问用户管理 | `apis/app.ts`, `apis/controller/user.controller.ts` | ✅ 已完成 | 05-17 |
 | BUG-006 | ProjectForm 调用 sysadmin-only API — 改用 /api/auth/companies/:id | `pages/project/ProjectForm.tsx` | ✅ 已完成 | 05-17 |
+| BUG-007 | App.tsx 死路由 + 无 Error Boundary — 评审问题修复 | `pages/App.tsx`, `pages/components/ErrorBoundary.tsx` | ✅ 已完成 | 05-24 |
 
 ---
 

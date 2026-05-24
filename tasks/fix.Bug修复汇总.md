@@ -226,3 +226,25 @@ components: {
 - `tests/apis/auth.controller.test.ts`（85 个测试）
 - `tests/apis/auth.service.test.ts`（42 个测试，含 3 个新增授权测试）
 - `tests/apis/auth.context.test.ts`
+
+---
+
+## fix011. App.tsx 死路由 + 无 Error Boundary（评审问题修复）
+
+### 问题
+根据 tasks/review/ 目录下 4 份评审报告（架构评审、安全评审、UI评审、Committer审核），`pages/App.tsx` 存在以下问题：
+1. **死路由 Bug**：第 11 行 `<Route path="/" element={<Navigate to="/login" replace />} />` 被 `path="/*"` 通配路由遮挡，永远不会执行
+2. **无 Error Boundary**：子组件渲染异常导致整个应用白屏
+3. **冗余 React 导入**：`tsconfig.page.json` 已使用 `jsx: "react-jsx"` 自动注入 React
+
+### 修复
+1. 删除死路由 `<Route path="/" .../>`，仅保留 `/login` 和 `/*` 两条路由
+2. 创建 `pages/components/ErrorBoundary.tsx`，使用 antd Result + Button 提供友好的错误提示页面
+3. 在 App.tsx 中用 ErrorBoundary 包裹 Routes
+4. 移除冗余的 `import React from 'react'`
+5. 创建 `tests/pages/App.test.tsx`，覆盖 7 个测试场景
+
+### 涉及文件
+- `pages/App.tsx` — 删除死路由、添加 ErrorBoundary、移除冗余 import
+- `pages/components/ErrorBoundary.tsx`（新建）
+- `tests/pages/App.test.tsx`（新建）

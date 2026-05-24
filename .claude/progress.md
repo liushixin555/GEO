@@ -398,3 +398,13 @@
 - [x] 正面评价：安全基础9/10、中间件链顺序正确、配置层设计精良
 - [x] 提出目标架构：路由拆分为 Router 模块，app.ts 缩减至 <60 行
 - [x] 评审报告 tasks/review/app.quality.md
+
+## 本次变更（2026-05-24 App.tsx 评审问题修复）
+- [x] **fix011: App.tsx 死路由 + 无 Error Boundary**
+  - 删除第 11 行死路由 `<Route path="/" element={<Navigate to="/login" />} />`（被 `path="/*"` 吞没，永不执行）
+  - 创建 `pages/components/ErrorBoundary.tsx`（antd Result + Button 友好错误页）
+  - App.tsx 用 ErrorBoundary 包裹 Routes，防止子组件异常导致白屏
+  - 移除冗余 `import React from 'react'`（tsconfig 已用 react-jsx 自动注入）
+  - 创建 `tests/pages/App.test.tsx`，覆盖 7 个测试场景（路由匹配 4 个 + ErrorBoundary 3 个）
+  - 安装缺失依赖 `@uiw/react-md-editor`、`mammoth`
+  - Vite 构建通过、App 测试全部通过

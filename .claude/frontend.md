@@ -123,3 +123,11 @@
 - 折叠/展开按钮逻辑全部收敛在 `Sidebar.tsx`，Layout 不定义按钮
 - 移动端展开时显示半透明遮罩，点击遮罩或菜单项自动收起
 - 移动端默认折叠，窗口 resize 到移动端宽度自动收起
+
+## App.tsx 路由结构
+- **ErrorBoundary 包裹整个 Routes**，防止子组件渲染异常导致白屏
+- 路由表仅两条：`/login` → LoginPage，`/*` → Layout
+- `/*` 通配路由匹配所有非 `/login` 路径，Layout 内部处理认证和子路由
+- 无独立的根路径 `/` 路由（死路由已删除），根路径由 Layout 的认证逻辑处理（无 token → 跳转 /login）
+- `import React` 已移除（tsconfig.page.json 使用 `jsx: "react-jsx"` 自动注入）
+- ErrorBoundary 使用 antd Result + Button 提供友好错误页面，点击"返回登录"清除 localStorage 并跳转
