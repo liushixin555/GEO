@@ -15,7 +15,7 @@
 | INF-004 | JWT 认证 — 登录/验证/登出，2小时过期 | `apis/middleware/auth.middleware.ts` | ✅ 已完成 | - |
 | INF-005 | 反爬虫中间件 — User-Agent ≥ 10字符，200+请求/分钟封禁 | `apis/middleware/anti-crawl.middleware.ts` | ✅ 已完成 | - |
 | INF-006 | 限流中间件 — 超限返回 429 | `apis/middleware/rate-limit.middleware.ts` | ✅ 已完成 | - |
-| INF-007 | Swagger 集成 — OpenAPI 3.0 文档 | `apis/app.ts`, `apis/controller/*.ts` | ✅ 已完成 | - |
+| INF-007 | Swagger 集成 — OpenAPI 3.0 文档（swagger-autogen-ast 自动生成） | `apis/app.ts`, `apis/scripts/generate-swagger.ts`, `apis/swagger-spec.json` | ✅ 已完成 | 05-24 |
 | INF-008 | Vite SPA fallback — 刷新时正确返回 index.html | `vite.config.ts` | ✅ 已完成 | - |
 | INF-009 | 全局样式 — IBM Carbon Design System，CSS 变量，单一 global.css | `pages/styles/global.css` | ✅ 已完成 | - |
 | INF-010 | antd 主题配置 — colorPrimary #0f62fe, borderRadius 0, IBM Plex Sans | `pages/main.tsx` ConfigProvider | ✅ 已完成 | 05-16 |
