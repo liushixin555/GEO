@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { UserServiceImpl } from '../service/impl/user.service.impl';
 import { success, fail, created, paginate } from '../utils';
 import { NotFoundError, ForbiddenError, ConflictError } from '../errors';
-import { listUsersSchema, createUserSchema, updateUserSchema } from '../schema/user.schema';
 
 const userService = new UserServiceImpl();
 
@@ -23,9 +22,10 @@ function handleError(res: Response, err: unknown, defaultMsg: string): void {
 
 export async function listUsers(req: Request, res: Response): Promise<void> {
   try {
-    const { page, pageSize, search, role, status } = listUsersSchema.parse(req.query);
-    const { list, total } = await userService.list(null, page, pageSize, search, role, status);
-    paginate(res, list, total, page, pageSize);
+    // req.query already validated and transformed by validate(listUsersSchema, 'query') middleware
+    const q = req.query as Record<string, any>;
+    const { list, total } = await userService.list(null, q.page, q.pageSize, q.search, q.role, q.status);
+    paginate(res, list, total, q.page, q.pageSize);
   } catch (err: unknown) {
     handleError(res, err, '获取用户列表失败');
   }
@@ -45,8 +45,8 @@ export async function getUser(req: Request, res: Response): Promise<void> {
 
 export async function createUser(req: Request, res: Response): Promise<void> {
   try {
-    const data = createUserSchema.parse(req.body);
-    const user = await userService.create(data);
+    // req.body already validated by validate(createUserSchema) middleware
+    const user = await userService.create(req.body);
     created(res, user, '创建用户成功');
   } catch (err: unknown) {
     handleError(res, err, '创建用户失败');
@@ -58,8 +58,8 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { fail(res, 400, '无效的用户ID'); return; }
 
-    const data = updateUserSchema.parse(req.body);
-    const user = await userService.update(id, null, data);
+    // req.body already validated by validate(updateUserSchema) middleware
+    const user = await userService.update(id, null, req.body);
     success(res, user, '更新用户成功');
   } catch (err: unknown) {
     handleError(res, err, '更新用户失败');

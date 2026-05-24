@@ -29,18 +29,10 @@
 
 | 日期 | 文件 | 摘要 |
 |------|------|------|
-| 2026-05-16 | `progress_tasks/archive-2026-05-16.md` | 登录、公司管理、技能管理 |
-| 2026-05-17 | `progress_tasks/archive-2026-05-17.md` | 用户管理、项目管理、多运营者、踩坑经验 |
-| 2026-05-18 | `progress_tasks/archive-2026-05-18.md` | 文章管理、调度器、状态权限优化 |
-| 2026-05-24 | `progress_tasks/archive-2026-05-24-app-tsx.md` | App.tsx 评审 |
-| 2026-05-24 | `progress_tasks/archive-2026-05-24-apis-app.md` | apis/app.ts 评审+TDD |
-| 2026-05-24 | `progress_tasks/archive-2026-05-24-config.md` | config/index.ts 评审 |
-| 2026-05-24 | `progress_tasks/archive-2026-05-24-article-ctrl.md` | article.controller.ts 评审 |
-| 2026-05-24 | `progress_tasks/archive-2026-05-24-articledetail.md` | ArticleDetail.tsx 评审 |
-| 2026-05-24 | `progress_tasks/archive-2026-05-24-markdown-preview.md` | markdown-preview 评审 |
-| 2026-05-24 | `progress_tasks/archive-2026-05-24-api-docs-page.md` | api-docs 页面评审 |
-| 2026-05-24 | `progress_tasks/archive-2026-05-24-other.md` | todo/upload/knowledge-base 等 |
+| 2026-05-16~05-24 | `progress_tasks/archive-history.md` | 历史归档（开发+评审+重构） |
 | 2026-05-24 | `progress_tasks/2026-05-24-bugfix-429-login.md` | Docker 429 限流 + 登录死循环 + Swagger 部署 |
+| 2026-05-24 | `tasks/review/nohighlight.tsx.security.md` | nohighlight.tsx 代码安全专家评审——B+ 8.5分 |
+| 2026-05-24 | `tasks/review/nohighlight.tsx.ui.md` | nohighlight.tsx UI 专家评审——5项严重问题 |
 
 ## 已知问题
 - `apis/service/impl/auth.service.impl.ts` Prisma 类型错误（待 schema 同步）

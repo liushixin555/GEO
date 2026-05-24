@@ -83,7 +83,7 @@ export class ArticleServiceImpl implements IArticleService {
     const prisma = getPrisma();
 
     const existing = await prisma.article.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('文章不存在');
+    if (!existing) throw new NotFoundError('文章');
 
     const data: any = {};
     if (request.title !== undefined) data.title = request.title;
@@ -134,7 +134,7 @@ export class ArticleServiceImpl implements IArticleService {
     const prisma = getPrisma();
 
     const existing = await prisma.article.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('文章不存在');
+    if (!existing) throw new NotFoundError('文章');
 
     await prisma.article.update({ where: { id }, data: { deletedAt: new Date() } });
   }
@@ -143,7 +143,7 @@ export class ArticleServiceImpl implements IArticleService {
     const prisma = getPrisma();
 
     const existing = await prisma.article.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('文章不存在');
+    if (!existing) throw new NotFoundError('文章');
 
     if (existing.status !== 'pending_review') {
       throw new BusinessError('文章当前状态不支持审核操作');
@@ -161,7 +161,7 @@ export class ArticleServiceImpl implements IArticleService {
     const prisma = getPrisma();
 
     const existing = await prisma.article.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('文章不存在');
+    if (!existing) throw new NotFoundError('文章');
 
     if (existing.status !== 'pending_review') {
       throw new BusinessError('文章当前状态不支持重新生成');

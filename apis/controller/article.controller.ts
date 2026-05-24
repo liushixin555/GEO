@@ -3,7 +3,7 @@ import { ArticleServiceImpl } from '../service/impl/article.service.impl';
 import { ProjectServiceImpl } from '../service/impl/project.service.impl';
 import { success, fail, paginate, created } from '../utils';
 import { createArticleSchema, updateArticleSchema, reviewArticleSchema, listArticlesSchema, updateContentSchema } from '../schema/article.schema';
-import { NotFoundError, BusinessError } from '../errors';
+import { NotFoundError, BusinessError, ForbiddenError } from '../errors';
 
 const articleService = new ArticleServiceImpl();
 const projectService = new ProjectServiceImpl();
@@ -48,18 +48,11 @@ function pickAllowedFields(body: Record<string, unknown>, allowed: string[]): Re
   return result;
 }
 
-class PermissionDeniedError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'PermissionDeniedError';
-  }
-}
-
 async function checkProjectOperator(projectId: number, userId: number, role: string): Promise<void> {
   if (role === 'sysadmin') return;
   const project = await projectService.getById(projectId, userId, role);
   if (!project.operator_ids.includes(userId)) {
-    throw new PermissionDeniedError('无权操作该项目');
+    throw new ForbiddenError('无权操作该项目');
   }
 }
 
@@ -67,6 +60,8 @@ async function checkProjectOperator(projectId: number, userId: number, role: str
 function handleServerError(res: Response, err: unknown, contextMsg: string): void {
   if (err instanceof NotFoundError) {
     fail(res, 404, err.message);
+  } else if (err instanceof ForbiddenError) {
+    fail(res, 403, err.message);
   } else if (err instanceof BusinessError) {
     fail(res, 400, err.message);
   } else {
@@ -79,10 +74,18 @@ function getAuthUser(req: Request): { userId: number; role: string } | null {
   return req.user ?? null;
 }
 
+// M-2 fix: 统一整数参数解析 + 边界检查
+function parseId(value: string | undefined, label: string, res: Response): number | null {
+  if (value === undefined) { fail(res, 400, `无效的${label}`); return null; }
+  const id = parseInt(value, 10);
+  if (!Number.isInteger(id) || id <= 0) { fail(res, 400, `无效的${label}`); return null; }
+  return id;
+}
+
 export async function listArticles(req: Request, res: Response): Promise<void> {
   try {
-    const projectId = parseInt(req.params.projectId as string, 10);
-    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
+    const projectId = parseId(req.params.projectId as string, '项目ID', res);
+    if (projectId === null) return;
 
     // Zod Schema 验证查询参数
     const parsed = listArticlesSchema.safeParse(req.query);
@@ -97,16 +100,7 @@ export async function listArticles(req: Request, res: Response): Promise<void> {
     const { userId, role } = user;
 
     if (role === 'admin') {
-      try {
-        await checkProjectOperator(projectId, userId, role);
-      } catch (err) {
-        if (err instanceof PermissionDeniedError) {
-          fail(res, 403, err.message);
-        } else {
-          throw err;
-        }
-        return;
-      }
+      await checkProjectOperator(projectId, userId, role);
     }
 
     const { list, total } = await articleService.list(projectId, page, pageSize, search, status, userId, role);
@@ -118,10 +112,10 @@ export async function listArticles(req: Request, res: Response): Promise<void> {
 
 export async function getArticle(req: Request, res: Response): Promise<void> {
   try {
-    const projectId = parseInt(req.params.projectId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的文章ID'); return; }
+    const projectId = parseId(req.params.projectId as string, '项目ID', res);
+    if (projectId === null) return;
+    const id = parseId(req.params.id as string, '文章ID', res);
+    if (id === null) return;
 
     const user = getAuthUser(req);
     if (!user) { fail(res, 401, '未认证'); return; }
@@ -134,16 +128,7 @@ export async function getArticle(req: Request, res: Response): Promise<void> {
     }
 
     if (role === 'admin') {
-      try {
-        await checkProjectOperator(projectId, userId, role);
-      } catch (err) {
-        if (err instanceof PermissionDeniedError) {
-          fail(res, 403, err.message);
-        } else {
-          throw err;
-        }
-        return;
-      }
+      await checkProjectOperator(projectId, userId, role);
     }
 
     success(res, item);
@@ -154,8 +139,8 @@ export async function getArticle(req: Request, res: Response): Promise<void> {
 
 export async function createArticle(req: Request, res: Response): Promise<void> {
   try {
-    const projectId = parseInt(req.params.projectId as string, 10);
-    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
+    const projectId = parseId(req.params.projectId as string, '项目ID', res);
+    if (projectId === null) return;
 
     // HIGH-1 / CRITICAL-1 fix: Zod Schema 验证 + 字段白名单过滤
     const parsed = createArticleSchema.safeParse(req.body);
@@ -170,16 +155,7 @@ export async function createArticle(req: Request, res: Response): Promise<void> 
     const { userId, role } = user;
 
     if (role === 'admin') {
-      try {
-        await checkProjectOperator(projectId, userId, role);
-      } catch (err) {
-        if (err instanceof PermissionDeniedError) {
-          fail(res, 403, err.message);
-        } else {
-          throw err;
-        }
-        return;
-      }
+      await checkProjectOperator(projectId, userId, role);
     }
 
     const item = await articleService.create(projectId, body, userId);
@@ -191,10 +167,10 @@ export async function createArticle(req: Request, res: Response): Promise<void> 
 
 export async function updateArticle(req: Request, res: Response): Promise<void> {
   try {
-    const projectId = parseInt(req.params.projectId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的文章ID'); return; }
+    const projectId = parseId(req.params.projectId as string, '项目ID', res);
+    if (projectId === null) return;
+    const id = parseId(req.params.id as string, '文章ID', res);
+    if (id === null) return;
 
     const user = getAuthUser(req);
     if (!user) { fail(res, 401, '未认证'); return; }
@@ -207,16 +183,7 @@ export async function updateArticle(req: Request, res: Response): Promise<void> 
     }
 
     if (role === 'admin') {
-      try {
-        await checkProjectOperator(projectId, userId, role);
-      } catch (err) {
-        if (err instanceof PermissionDeniedError) {
-          fail(res, 403, err.message);
-        } else {
-          throw err;
-        }
-        return;
-      }
+      await checkProjectOperator(projectId, userId, role);
     }
 
     // Only creator or sysadmin can edit
@@ -265,10 +232,10 @@ export async function updateArticle(req: Request, res: Response): Promise<void> 
 
 export async function updateArticleContent(req: Request, res: Response): Promise<void> {
   try {
-    const projectId = parseInt(req.params.projectId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的文章ID'); return; }
+    const projectId = parseId(req.params.projectId as string, '项目ID', res);
+    if (projectId === null) return;
+    const id = parseId(req.params.id as string, '文章ID', res);
+    if (id === null) return;
 
     // Zod schema 验证 + content 大小限制
     const parsed = updateContentSchema.safeParse(req.body);
@@ -289,16 +256,7 @@ export async function updateArticleContent(req: Request, res: Response): Promise
     }
 
     if (role === 'admin') {
-      try {
-        await checkProjectOperator(projectId, userId, role);
-      } catch (err) {
-        if (err instanceof PermissionDeniedError) {
-          fail(res, 403, err.message);
-        } else {
-          throw err;
-        }
-        return;
-      }
+      await checkProjectOperator(projectId, userId, role);
     }
 
     // Only creator or sysadmin can edit content
@@ -322,10 +280,10 @@ export async function updateArticleContent(req: Request, res: Response): Promise
 
 export async function deleteArticle(req: Request, res: Response): Promise<void> {
   try {
-    const projectId = parseInt(req.params.projectId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的文章ID'); return; }
+    const projectId = parseId(req.params.projectId as string, '项目ID', res);
+    if (projectId === null) return;
+    const id = parseId(req.params.id as string, '文章ID', res);
+    if (id === null) return;
 
     const user = getAuthUser(req);
     if (!user) { fail(res, 401, '未认证'); return; }
@@ -338,16 +296,7 @@ export async function deleteArticle(req: Request, res: Response): Promise<void> 
     }
 
     if (role === 'admin') {
-      try {
-        await checkProjectOperator(projectId, userId, role);
-      } catch (err) {
-        if (err instanceof PermissionDeniedError) {
-          fail(res, 403, err.message);
-        } else {
-          throw err;
-        }
-        return;
-      }
+      await checkProjectOperator(projectId, userId, role);
     }
 
     // Only creator or sysadmin can delete
@@ -371,10 +320,10 @@ export async function deleteArticle(req: Request, res: Response): Promise<void> 
 
 export async function reviewArticle(req: Request, res: Response): Promise<void> {
   try {
-    const projectId = parseInt(req.params.projectId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的文章ID'); return; }
+    const projectId = parseId(req.params.projectId as string, '项目ID', res);
+    if (projectId === null) return;
+    const id = parseId(req.params.id as string, '文章ID', res);
+    if (id === null) return;
 
     const parsed = reviewArticleSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -394,16 +343,7 @@ export async function reviewArticle(req: Request, res: Response): Promise<void> 
     }
 
     if (role === 'admin') {
-      try {
-        await checkProjectOperator(projectId, userId, role);
-      } catch (err) {
-        if (err instanceof PermissionDeniedError) {
-          fail(res, 403, err.message);
-        } else {
-          throw err;
-        }
-        return;
-      }
+      await checkProjectOperator(projectId, userId, role);
     }
 
     // HIGH-2 fix: 创建者不能审核自己的文章
@@ -421,10 +361,10 @@ export async function reviewArticle(req: Request, res: Response): Promise<void> 
 
 export async function regenerateArticle(req: Request, res: Response): Promise<void> {
   try {
-    const projectId = parseInt(req.params.projectId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的文章ID'); return; }
+    const projectId = parseId(req.params.projectId as string, '项目ID', res);
+    if (projectId === null) return;
+    const id = parseId(req.params.id as string, '文章ID', res);
+    if (id === null) return;
 
     const user = getAuthUser(req);
     if (!user) { fail(res, 401, '未认证'); return; }
@@ -437,21 +377,19 @@ export async function regenerateArticle(req: Request, res: Response): Promise<vo
     }
 
     if (role === 'admin') {
-      try {
-        await checkProjectOperator(projectId, userId, role);
-      } catch (err) {
-        if (err instanceof PermissionDeniedError) {
-          fail(res, 403, err.message);
-        } else {
-          throw err;
-        }
-        return;
-      }
+      await checkProjectOperator(projectId, userId, role);
     }
 
     // MEDIUM-3 fix: 只有创建者或 sysadmin 可以重新生成
     if (role !== 'sysadmin' && existing.created_by !== userId) {
       fail(res, 403, '只能重新生成自己创建的文章');
+      return;
+    }
+
+    // M-4 fix: 控制器层状态预检
+    const allowedRegenerateStatuses = ['generate_failed', 'pending_review'];
+    if (!allowedRegenerateStatuses.includes(existing.status)) {
+      fail(res, 400, '当前文章状态不支持重新生成');
       return;
     }
 
@@ -464,10 +402,10 @@ export async function regenerateArticle(req: Request, res: Response): Promise<vo
 
 export async function submitForReview(req: Request, res: Response): Promise<void> {
   try {
-    const projectId = parseInt(req.params.projectId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的文章ID'); return; }
+    const projectId = parseId(req.params.projectId as string, '项目ID', res);
+    if (projectId === null) return;
+    const id = parseId(req.params.id as string, '文章ID', res);
+    if (id === null) return;
 
     const user = getAuthUser(req);
     if (!user) { fail(res, 401, '未认证'); return; }
@@ -480,16 +418,7 @@ export async function submitForReview(req: Request, res: Response): Promise<void
     }
 
     if (role === 'admin') {
-      try {
-        await checkProjectOperator(projectId, userId, role);
-      } catch (err) {
-        if (err instanceof PermissionDeniedError) {
-          fail(res, 403, err.message);
-        } else {
-          throw err;
-        }
-        return;
-      }
+      await checkProjectOperator(projectId, userId, role);
     }
 
     if (role !== 'sysadmin' && existing.created_by !== userId) {
@@ -499,6 +428,12 @@ export async function submitForReview(req: Request, res: Response): Promise<void
 
     if (existing.status !== 'manual_writing') {
       fail(res, 400, '只有手工编写中的文章可以提交审核');
+      return;
+    }
+
+    // M-4 fix: 内容非空检查
+    if (!existing.content || existing.content.trim().length === 0) {
+      fail(res, 400, '文章内容不能为空');
       return;
     }
 
@@ -517,10 +452,10 @@ export async function submitForReview(req: Request, res: Response): Promise<void
 
 export async function listArticleVersions(req: Request, res: Response): Promise<void> {
   try {
-    const projectId = parseInt(req.params.projectId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的文章ID'); return; }
+    const projectId = parseId(req.params.projectId as string, '项目ID', res);
+    if (projectId === null) return;
+    const id = parseId(req.params.id as string, '文章ID', res);
+    if (id === null) return;
 
     const user = getAuthUser(req);
     if (!user) { fail(res, 401, '未认证'); return; }
@@ -533,16 +468,7 @@ export async function listArticleVersions(req: Request, res: Response): Promise<
     }
 
     if (role === 'admin') {
-      try {
-        await checkProjectOperator(projectId, userId, role);
-      } catch (err) {
-        if (err instanceof PermissionDeniedError) {
-          fail(res, 403, err.message);
-        } else {
-          throw err;
-        }
-        return;
-      }
+      await checkProjectOperator(projectId, userId, role);
     }
 
     const versions = await articleService.listVersions(id);

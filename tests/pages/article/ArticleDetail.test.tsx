@@ -2,228 +2,341 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
-// Mock external modules that can't be transformed by Jest
+// Mock MDEditor
 jest.mock('@uiw/react-md-editor', () => {
   const React = require('react');
-  return {
-    __esModule: true,
-    default: (props: any) => React.createElement('div', { 'data-testid': 'md-editor' }, props.value),
-    Markdown: (props: any) => React.createElement('div', { 'data-testid': 'md-preview' }, props.source),
-  };
+  const MDEditor: any = (props: any) =>
+    React.createElement('div', { 'data-testid': 'md-editor' }, props.value);
+  MDEditor.Markdown = (props: any) =>
+    React.createElement('div', { 'data-testid': 'md-preview' }, props.source);
+  return { __esModule: true, default: MDEditor };
 });
 
-jest.mock('../../../pages/components/MarkdownViewer', () => {
-  const React = require('react');
-  return {
-    __esModule: true,
-    default: (props: any) => React.createElement('div', { 'data-testid': 'markdown-viewer' }, props.content || props.emptyText),
-  };
-});
+// Mock mammoth
+jest.mock('mammoth', () => ({
+  convertToHtml: jest.fn().mockResolvedValue({ value: '<p>Test content</p>' }),
+}));
 
-jest.mock('../../../pages/lib/apiClient', () => ({
+// Mock DOMPurify
+jest.mock('dompurify', () => ({
   __esModule: true,
-  default: {
+  default: { sanitize: jest.fn((html: string) => html) },
+}));
+
+// Mock axios
+jest.mock('axios', () => ({
+  get: jest.fn(),
+  post: jest.fn(),
+  put: jest.fn(),
+  delete: jest.fn(),
+  create: jest.fn(() => ({
     get: jest.fn(),
     post: jest.fn(),
-    put: jest.fn(),
-    delete: jest.fn(),
     interceptors: { request: { use: jest.fn() }, response: { use: jest.fn() } },
-  },
+  })),
 }));
 
+import axios from 'axios';
+const mockedAxios = axios as jest.Mocked<typeof axios>;
+
+// Mock AppContext
+const mockAppContext = {
+  companyId: 1,
+  companyName: 'Test Company',
+  projectId: 1,
+  projectName: 'Test Project',
+  setContext: jest.fn(),
+};
 jest.mock('../../../pages/context/AppContext', () => ({
-  useAppContext: () => ({ projectId: 1 }),
+  useAppContext: () => mockAppContext,
 }));
-
-jest.mock('../../../pages/article/hooks/useArticleDetail', () => ({
-  useArticleDetail: jest.fn(),
-}));
-
-jest.mock('../../../pages/article/hooks/useArticlePermissions', () => ({
-  useArticlePermissions: jest.fn(),
-}));
-
-jest.mock('../../../pages/article/hooks/usePlatformSelector', () => ({
-  usePlatformSelector: jest.fn(() => ({
-    modalOpen: false, platformList: [], platformTotal: 0, platformPage: 1,
-    platformSearch: '', platformLoading: false, selectedPlatformKeys: [],
-    platformSortBy: '', platformSortOrder: 'asc',
-    fetchList: jest.fn(), openModal: jest.fn(), confirmSelection: jest.fn(),
-    closeModal: jest.fn(), setSearch: jest.fn(), setSelectedKeys: jest.fn(), setSort: jest.fn(),
-  })),
-}));
-
-jest.mock('../../../pages/article/hooks/useKnowledgeBase', () => ({
-  useKnowledgeBase: jest.fn(() => ({
-    kbKeywords: [], kbPortraits: [], kbImages: [], kbLoading: false,
-    skillsOptions: [], llmModelsOptions: [],
-  })),
-}));
-
-jest.mock('../../../pages/article/hooks/useArticleActions', () => ({
-  useArticleActions: jest.fn(() => ({
-    review: jest.fn(), regenerate: jest.fn(), submitForReview: jest.fn(),
-  })),
-}));
-
-jest.mock('../../../pages/article/hooks/useDocumentImport', () => ({
-  useDocumentImport: jest.fn(() => ({ importDocument: jest.fn() })),
-}));
-
-jest.mock('../../../pages/article/components/PlatformSelectModal', () => {
-  const React = require('react');
-  return { __esModule: true, default: () => React.createElement('div', { 'data-testid': 'platform-modal' }) };
-});
-
-jest.mock('../../../pages/article/components/ArticleImageManager', () => {
-  const React = require('react');
-  return { __esModule: true, default: () => React.createElement('div', { 'data-testid': 'image-manager' }) };
-});
 
 import ArticleDetail from '../../../pages/article/ArticleDetail';
-import { useArticleDetail } from '../../../pages/article/hooks/useArticleDetail';
-import { useArticlePermissions } from '../../../pages/article/hooks/useArticlePermissions';
-
-const mockUseArticleDetail = useArticleDetail as jest.MockedFunction<typeof useArticleDetail>;
-const mockUseArticlePermissions = useArticlePermissions as jest.MockedFunction<typeof useArticlePermissions>;
 
 const renderWithRouter = (path: string) => {
-  window.history.pushState({}, '', path);
   return render(
-    <BrowserRouter>
+    <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/article/:id" element={<ArticleDetail />} />
+        <Route path="/article" element={<div data-testid="article-list">Article List</div>} />
       </Routes>
-    </BrowserRouter>,
+    </MemoryRouter>
   );
 };
 
-const defaultDetailReturn = {
-  article: null, loading: false, saving: false, error: '', content: '',
-  contentSaving: false, deleting: false,
-  setContent: jest.fn(), setError: jest.fn(), fetchArticle: jest.fn(),
-  saveSettings: jest.fn(), saveContent: jest.fn(), autoSave: jest.fn(),
-  deleteArticle: jest.fn(), articleRef: { current: null }, contentRef: { current: '' },
+const mockArticle = {
+  id: 1,
+  title: '测试文章',
+  article_type: '案例分析',
+  write_mode: 'ai',
+  keywords: '测试关键词',
+  portrait: null,
+  images: [] as string[],
+  platforms: ['平台A'],
+  skills: null,
+  llm_model_id: 1,
+  content: '# 测试内容\n\n这是测试正文',
+  version: 2,
+  status: 'draft',
+  created_by: 1,
 };
 
-const defaultPermissionsReturn = {
-  canEditSettings: false, canEditContent: false, canReview: false,
-  canDelete: false, canSubmitForReview: false, user: { id: 1, role: 'admin' },
+const defaultMockGet = (url: string) => {
+  if (url.includes('/skills')) {
+    return Promise.resolve({ data: { data: { list: [{ id: 1, name: '技能A' }] } } });
+  }
+  if (url.includes('/llm-models')) {
+    return Promise.resolve({ data: { data: [{ id: 1, provider: 'OpenAI', model_name: 'gpt-4' }] } });
+  }
+  if (url.includes('/knowledge')) {
+    return Promise.resolve({ data: { data: { list: [] } } });
+  }
+  if (url.includes('/publishing-platforms')) {
+    return Promise.resolve({ data: { data: { list: [] } } });
+  }
+  return Promise.resolve({ data: { data: {} } });
 };
 
-describe('ArticleDetail 组件', () => {
+describe('ArticleDetail', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseArticleDetail.mockReturnValue(defaultDetailReturn as any);
-    mockUseArticlePermissions.mockReturnValue(defaultPermissionsReturn as any);
-  });
-
-  describe('新建文章', () => {
-    it('应显示"新建文章"标题', () => {
-      renderWithRouter('/article/new');
-      expect(screen.getByText('新建文章')).toBeTruthy();
-    });
-
-    it('应显示文章设置面板', () => {
-      renderWithRouter('/article/new');
-      expect(screen.getByText('文章设置')).toBeTruthy();
+    localStorage.clear();
+    localStorage.setItem('token', 'mock-token');
+    localStorage.setItem('user', JSON.stringify({ id: 1, role: 'sysadmin' }));
+    mockedAxios.get.mockImplementation((url: string) => {
+      if (url.includes('/articles/1')) {
+        return Promise.resolve({ data: { data: mockArticle } });
+      }
+      return defaultMockGet(url);
     });
   });
 
-  describe('加载状态', () => {
-    it('应显示加载指示器', () => {
-      mockUseArticleDetail.mockReturnValue({ ...defaultDetailReturn, loading: true } as any);
-      const { container } = renderWithRouter('/article/42');
-      expect(container.querySelector('Spin')).toBeTruthy();
+  // === 1. 新建文章 ===
+  it('should render new article page', async () => {
+    renderWithRouter('/article/new');
+
+    await waitFor(() => {
+      expect(screen.getByText('新建文章')).toBeInTheDocument();
     });
   });
 
-  describe('编辑已有文章', () => {
-    const mockArticle = {
-      id: 42, title: '测试文章标题', status: 'draft' as const,
-      article_type: '案例分析', write_mode: 'ai' as const, keywords: '测试',
-      portrait: null, images: null, platforms: null, skills: null, llm_model_id: 1,
-      content: '正文', version: 1.0, created_by: 10,
-    };
+  // === 2. 加载文章 ===
+  it('should load and display article data', async () => {
+    renderWithRouter('/article/1');
 
-    const detailWithArticle = {
-      ...defaultDetailReturn,
-      article: mockArticle, content: '正文',
-      articleRef: { current: mockArticle }, contentRef: { current: '正文' },
-    };
+    await waitFor(() => {
+      expect(screen.getByText('测试文章')).toBeInTheDocument();
+    });
+  });
 
-    it('应显示文章标题和状态标签', () => {
-      mockUseArticleDetail.mockReturnValue(detailWithArticle as any);
-      mockUseArticlePermissions.mockReturnValue({
-        ...defaultPermissionsReturn,
-        canEditSettings: true, canEditContent: true, canDelete: true,
-        user: { id: 10, role: 'admin' },
-      } as any);
+  // === 3. 保存设置 ===
+  it('should call PUT API when saving draft', async () => {
+    mockedAxios.put.mockResolvedValueOnce({ data: { data: mockArticle } });
 
-      renderWithRouter('/article/42');
-      expect(screen.getByText('测试文章标题')).toBeTruthy();
-      expect(screen.getByText('草稿')).toBeTruthy();
+    renderWithRouter('/article/1');
+
+    await waitFor(() => {
+      expect(screen.getByText('测试文章')).toBeInTheDocument();
     });
 
-    it('草稿状态应显示删除按钮（BLK-02 修复验证）', () => {
-      mockUseArticleDetail.mockReturnValue(detailWithArticle as any);
-      mockUseArticlePermissions.mockReturnValue({
-        ...defaultPermissionsReturn,
-        canEditSettings: true, canEditContent: true, canDelete: true,
-        user: { id: 10, role: 'admin' },
-      } as any);
+    // The form-actions div contains buttons rendered outside Collapse
+    // The antd mock renders buttons as <Button> HTML elements
+    const buttons = screen.getAllByText('存草稿');
+    if (buttons.length > 0) {
+      fireEvent.click(buttons[0]);
+    }
 
-      renderWithRouter('/article/42');
-      expect(screen.getByText('删除文章')).toBeTruthy();
+    await waitFor(() => {
+      expect(mockedAxios.put).toHaveBeenCalled();
+    });
+  });
+
+  // === 4. 正文内容显示 ===
+  it('should display content preview', async () => {
+    renderWithRouter('/article/1');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('md-preview')).toBeInTheDocument();
+    });
+  });
+
+  // === 5. 待审核 — 显示审核提示 ===
+  it('should show review alert for pending_review status', async () => {
+    mockedAxios.get.mockImplementation((url: string) => {
+      if (url.includes('/articles/1')) {
+        return Promise.resolve({ data: { data: { ...mockArticle, status: 'pending_review' } } });
+      }
+      return defaultMockGet(url);
     });
 
-    it('非草稿状态不应显示删除按钮', () => {
-      const publishedArticle = { ...mockArticle, status: 'published' as const };
-      mockUseArticleDetail.mockReturnValue({
-        ...defaultDetailReturn,
-        article: publishedArticle, content: '正文',
-        articleRef: { current: publishedArticle }, contentRef: { current: '正文' },
-      } as any);
-      mockUseArticlePermissions.mockReturnValue({
-        ...defaultPermissionsReturn, canEditSettings: false, canDelete: false,
-      } as any);
+    renderWithRouter('/article/1');
 
-      renderWithRouter('/article/42');
-      expect(screen.queryByText('删除文章')).toBeNull();
+    await waitFor(() => {
+      expect(screen.getByText('该文章待审核')).toBeInTheDocument();
+    });
+  });
+
+  // === 6. 审核通过 ===
+  it('should call review API when approved', async () => {
+    mockedAxios.get.mockImplementation((url: string) => {
+      if (url.includes('/articles/1')) {
+        return Promise.resolve({ data: { data: { ...mockArticle, status: 'pending_review' } } });
+      }
+      return defaultMockGet(url);
+    });
+    mockedAxios.put.mockResolvedValueOnce({ data: { data: mockArticle } });
+
+    renderWithRouter('/article/1');
+
+    await waitFor(() => {
+      expect(screen.getByText('该文章待审核')).toBeInTheDocument();
     });
 
-    it('草稿状态应显示存草稿和提交按钮', () => {
-      mockUseArticleDetail.mockReturnValue(detailWithArticle as any);
-      mockUseArticlePermissions.mockReturnValue({
-        ...defaultPermissionsReturn,
-        canEditSettings: true, canEditContent: true, canDelete: true,
-        user: { id: 10, role: 'admin' },
-      } as any);
+    fireEvent.click(screen.getByText('审核通过'));
 
-      renderWithRouter('/article/42');
-      expect(screen.getByText('存草稿')).toBeTruthy();
-      expect(screen.getByText('提交给AI')).toBeTruthy();
+    await waitFor(() => {
+      expect(mockedAxios.put).toHaveBeenCalledWith(
+        expect.stringContaining('/review'),
+        { approved: true },
+        expect.anything()
+      );
+    });
+  });
+
+  // === 7. 权限控制 — 非创建者不可编辑 ===
+  it('should not show edit buttons for non-owner', async () => {
+    localStorage.setItem('user', JSON.stringify({ id: 999, role: 'admin' }));
+
+    renderWithRouter('/article/1');
+
+    await waitFor(() => {
+      expect(screen.getByText('测试文章')).toBeInTheDocument();
     });
 
-    it('文章不存在时应显示提示', () => {
-      renderWithRouter('/article/999');
-      expect(screen.getByText('文章不存在')).toBeTruthy();
+    expect(screen.queryByText('存草稿')).not.toBeInTheDocument();
+  });
+
+  // === 8. 删除按钮 — 草稿状态 ===
+  it('should show delete button for draft article', async () => {
+    renderWithRouter('/article/1');
+
+    await waitFor(() => {
+      expect(screen.getByText('测试文章')).toBeInTheDocument();
     });
 
-    it('应显示返回按钮', () => {
-      mockUseArticleDetail.mockReturnValue(detailWithArticle as any);
-      mockUseArticlePermissions.mockReturnValue({
-        ...defaultPermissionsReturn, canEditSettings: true,
-        user: { id: 10, role: 'admin' },
-      } as any);
+    // Delete button should exist for draft + sysadmin
+    expect(screen.getByText('删除文章')).toBeInTheDocument();
+  });
 
-      const { container } = renderWithRouter('/article/42');
-      // The mock icon renders as <span data-icon="ArrowLeftOutlined">
-      const backIcon = container.querySelector('span');
-      expect(backIcon).toBeTruthy();
+  // === 9. 删除 API 调用 ===
+  it('should call delete API', async () => {
+    mockedAxios.delete.mockResolvedValueOnce({ data: {} });
+
+    renderWithRouter('/article/1');
+
+    await waitFor(() => {
+      expect(screen.getByText('删除文章')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('删除文章'));
+
+    // Confirm in Popconfirm
+    await waitFor(() => {
+      const okButtons = screen.getAllByText('确认');
+      fireEvent.click(okButtons[0]);
+    });
+
+    await waitFor(() => {
+      expect(mockedAxios.delete).toHaveBeenCalledWith(
+        expect.stringContaining('/articles/1'),
+        expect.objectContaining({ headers: { Authorization: 'Bearer mock-token' } })
+      );
+    });
+  });
+
+  // === 10. 重新生成按钮 ===
+  it('should show regenerate button for generate_failed status', async () => {
+    mockedAxios.get.mockImplementation((url: string) => {
+      if (url.includes('/articles/1')) {
+        return Promise.resolve({ data: { data: { ...mockArticle, status: 'generate_failed' } } });
+      }
+      return defaultMockGet(url);
+    });
+
+    renderWithRouter('/article/1');
+
+    await waitFor(() => {
+      expect(screen.getByText('重新生成')).toBeInTheDocument();
+    });
+  });
+
+  // === 11. 待审核正文可编辑 ===
+  it('should allow content editing in pending_review status', async () => {
+    mockedAxios.get.mockImplementation((url: string) => {
+      if (url.includes('/articles/1')) {
+        return Promise.resolve({ data: { data: { ...mockArticle, status: 'pending_review' } } });
+      }
+      return defaultMockGet(url);
+    });
+
+    renderWithRouter('/article/1');
+
+    await waitFor(() => {
+      expect(screen.getByText('该文章待审核')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('浏览')).toBeInTheDocument();
+    expect(screen.getByText('编辑')).toBeInTheDocument();
+  });
+
+  // === 12. JSON.parse 容错 ===
+  it('should handle corrupted localStorage user data', async () => {
+    localStorage.setItem('user', 'invalid-json{');
+
+    renderWithRouter('/article/1');
+
+    await waitFor(() => {
+      expect(screen.getByText('测试文章')).toBeInTheDocument();
+    });
+  });
+
+  // === 13. 非草稿不显示删除按钮 ===
+  it('should not show delete button for published article', async () => {
+    mockedAxios.get.mockImplementation((url: string) => {
+      if (url.includes('/articles/1')) {
+        return Promise.resolve({ data: { data: { ...mockArticle, status: 'published' } } });
+      }
+      return defaultMockGet(url);
+    });
+
+    renderWithRouter('/article/1');
+
+    await waitFor(() => {
+      expect(screen.getByText('已发布')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('删除文章')).not.toBeInTheDocument();
+  });
+
+  // === 14. 加载状态 ===
+  it('should show loading spinner', async () => {
+    let resolveArticle: (value: any) => void;
+    const articlePromise = new Promise((resolve) => { resolveArticle = resolve; });
+    mockedAxios.get.mockImplementation((url: string) => {
+      if (url.includes('/articles/1')) return articlePromise as any;
+      return defaultMockGet(url);
+    });
+
+    renderWithRouter('/article/1');
+
+    // Spin component renders as <spin> element with tip prop
+    expect(screen.getByText('正在加载文章...')).toBeInTheDocument();
+
+    await act(async () => {
+      resolveArticle!({ data: { data: mockArticle } });
     });
   });
 });
