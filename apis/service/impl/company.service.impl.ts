@@ -132,7 +132,6 @@ export class CompanyServiceImpl implements ICompanyService {
 
   /** 校验用户 ID 列表的合法性：存在性、角色、状态 */
   private async validateUserIds(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     tx: any,
     operatorIds: number[],
     viewerIds?: number[],
