@@ -1,15 +1,15 @@
 import { Request, Response } from 'express';
 import { ArticleServiceImpl } from '../service/impl/article.service.impl';
 import { ProjectServiceImpl } from '../service/impl/project.service.impl';
-import { success, fail, paginate } from '../utils';
-import { createArticleSchema, updateArticleSchema, reviewArticleSchema, listArticlesSchema } from '../schema/article.schema';
+import { success, fail, paginate, created } from '../utils';
+import { createArticleSchema, updateArticleSchema, reviewArticleSchema, listArticlesSchema, updateContentSchema } from '../schema/article.schema';
+import { NotFoundError, BusinessError } from '../errors';
 
 const articleService = new ArticleServiceImpl();
 const projectService = new ProjectServiceImpl();
 
 const SETTINGS_EDITABLE_STATUSES = ['draft'];
 const CONTENT_EDITABLE_STATUSES = ['draft', 'manual_writing', 'generate_failed', 'publish_failed'];
-const MAX_CONTENT_LENGTH = 500_000;
 
 // CRITICAL-2 fix: 合法的状态转换白名单
 const STATUS_TRANSITIONS: Record<string, string[]> = {
@@ -37,8 +37,6 @@ const CREATE_ALLOWED_FIELDS = [
   'images', 'platforms', 'skills', 'llm_model_id', 'content', 'status',
 ];
 
-const VALID_CREATE_STATUSES = ['draft', 'manual_writing', 'generating'];
-
 // 提取白名单字段
 function pickAllowedFields(body: Record<string, unknown>, allowed: string[]): Record<string, unknown> {
   const result: Record<string, unknown> = {};
@@ -65,13 +63,11 @@ async function checkProjectOperator(projectId: number, userId: number, role: str
   }
 }
 
-// HIGH-3 fix: 统一错误处理，不泄露内部 err.message
+// 统一错误处理，使用类型化异常替代字符串匹配
 function handleServerError(res: Response, err: unknown, contextMsg: string): void {
-  if (err instanceof Error && err.message === '文章不存在') {
+  if (err instanceof NotFoundError) {
     fail(res, 404, err.message);
-  } else if (err instanceof Error && err.message === '文章当前状态不支持审核操作') {
-    fail(res, 400, err.message);
-  } else if (err instanceof Error && err.message === '文章当前状态不支持重新生成') {
+  } else if (err instanceof BusinessError) {
     fail(res, 400, err.message);
   } else {
     fail(res, 500, contextMsg);
@@ -187,7 +183,7 @@ export async function createArticle(req: Request, res: Response): Promise<void> 
     }
 
     const item = await articleService.create(projectId, body, userId);
-    res.status(201).json({ code: 0, message: '创建文章成功', data: item });
+    created(res, item, '创建文章成功');
   } catch (err: unknown) {
     handleServerError(res, err, '创建文章失败');
   }
@@ -274,14 +270,13 @@ export async function updateArticleContent(req: Request, res: Response): Promise
     if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
     if (isNaN(id)) { fail(res, 400, '无效的文章ID'); return; }
 
-    const { content } = req.body;
-    if (typeof content !== 'string') { fail(res, 400, 'content参数无效'); return; }
-
-    // HIGH-4 fix: content 大小限制
-    if (content.length > MAX_CONTENT_LENGTH) {
-      fail(res, 400, `正文内容不能超过${MAX_CONTENT_LENGTH / 1000}KB`);
+    // Zod schema 验证 + content 大小限制
+    const parsed = updateContentSchema.safeParse(req.body);
+    if (!parsed.success) {
+      fail(res, 400, `参数验证失败: ${parsed.error.issues.map(i => i.message).join('; ')}`);
       return;
     }
+    const { content } = parsed.data;
 
     const user = getAuthUser(req);
     if (!user) { fail(res, 401, '未认证'); return; }
@@ -504,6 +499,12 @@ export async function submitForReview(req: Request, res: Response): Promise<void
 
     if (existing.status !== 'manual_writing') {
       fail(res, 400, '只有手工编写中的文章可以提交审核');
+      return;
+    }
+
+    // 统一状态转换校验
+    if (!isValidStatusTransition(existing.status, 'pending_review')) {
+      fail(res, 400, '非法的状态转换');
       return;
     }
 

@@ -613,3 +613,13 @@
   - 规格符合度：14/20 通过（70%），3 项功能缺失/Bug
   - 交叉审核四份已有评审（质量C+/安全D+/UI 4.2/架构D+），诊断均认同
   - 评审报告 tasks/review/ArticleDetail.tsx.committer.md
+
+## 本次变更（2026-05-24 article.controller.ts 评审问题修复）
+- [x] **fix014: article.controller.ts 评审问题修复** — 6 项修复，213 个测试通过
+  - P1-1: updateArticleContent 补全 Zod schema（updateContentSchema: z.string().min(1).max(500_000).strict()）
+  - P1-2: submitForReview 添加 isValidStatusTransition 统一状态转换校验
+  - P1-3: 删除 VALID_CREATE_STATUSES 死代码常量
+  - P2-1: createArticle 使用 created() 函数统一 201 响应格式
+  - P2-2: handleServerError 改用类型化异常（NotFoundError/BusinessError），service 层同步替换
+  - P2-3: scheduled_publish_at 添加未来时间校验（Zod refine）
+  - 涉及文件：article.controller.ts、article.schema.ts、article.service.impl.ts、article.controller.test.ts

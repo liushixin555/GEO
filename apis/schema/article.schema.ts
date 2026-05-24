@@ -38,12 +38,18 @@ export const updateArticleSchema = z.object({
   llm_model_id: z.number().int().nonnegative().nullable().optional(),
   content: z.string().max(500_000).optional(),
   status: articleStatusSchema.optional(),
-  scheduled_publish_at: z.string().datetime({ offset: true }).nullable().optional(),
+  scheduled_publish_at: z.string().datetime({ offset: true })
+    .refine(val => new Date(val) > new Date(), '定时发布时间必须在未来')
+    .nullable().optional(),
   schedule_type: z.enum(['asap', 'scheduled', 'after']).nullable().optional(),
 }).strict();
 
 export const reviewArticleSchema = z.object({
   approved: z.boolean(),
+}).strict();
+
+export const updateContentSchema = z.object({
+  content: z.string().min(1).max(500_000),
 }).strict();
 
 export const listArticlesSchema = z.object({

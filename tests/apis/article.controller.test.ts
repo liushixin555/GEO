@@ -3,6 +3,7 @@
  */
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
+import { NotFoundError, BusinessError } from '../../apis/errors';
 
 process.env.JWT_SECRET = 'test-secret';
 process.env.JWT_EXPIRES_IN = '2h';
@@ -1194,7 +1195,7 @@ describe('Article Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ content: 123 });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('content参数无效');
+      expect(response.body.message).toContain('参数验证失败');
     });
 
     it('should return 400 when content is missing', async () => {
@@ -2474,7 +2475,7 @@ describe('Article Controller', () => {
         .send({ content: 'x'.repeat(500_001) });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toContain('500KB');
+      expect(response.body.message).toContain('500000');
     });
 
     it('should accept content exactly at 500KB limit', async () => {
@@ -2940,7 +2941,7 @@ describe('Article Controller', () => {
   // ============= Content update edge cases =============
 
   describe('PUT /api/projects/:projectId/articles/:id/content - edge cases', () => {
-    it('should accept empty string content', async () => {
+    it('should reject empty string content', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
@@ -2960,7 +2961,8 @@ describe('Article Controller', () => {
         .put(`${BASE}/1/content`)
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ content: '' });
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('参数验证失败');
     });
 
     it('should return 401 without token on content update', async () => {
@@ -3508,7 +3510,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: {
           findFirst: jest.fn().mockResolvedValue(existing),
-          update: jest.fn().mockRejectedValue(new Error('文章不存在')),
+          update: jest.fn().mockRejectedValue(new NotFoundError('文章')),
         },
       });
 
@@ -3530,7 +3532,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: {
           findFirst: jest.fn().mockResolvedValue(existing),
-          update: jest.fn().mockRejectedValue(new Error('文章不存在')),
+          update: jest.fn().mockRejectedValue(new NotFoundError('文章')),
         },
       });
 
@@ -3552,7 +3554,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: {
           findFirst: jest.fn().mockResolvedValue(existing),
-          update: jest.fn().mockRejectedValue(new Error('文章不存在')),
+          update: jest.fn().mockRejectedValue(new NotFoundError('文章')),
         },
         articleVersion: { create: jest.fn().mockResolvedValue({}) },
       });
@@ -3575,7 +3577,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: {
           findFirst: jest.fn().mockResolvedValue(pending),
-          update: jest.fn().mockRejectedValue(new Error('文章不存在')),
+          update: jest.fn().mockRejectedValue(new NotFoundError('文章')),
         },
       });
 
@@ -3597,7 +3599,7 @@ describe('Article Controller', () => {
             content: 'c', version: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
-          update: jest.fn().mockRejectedValue(new Error('文章当前状态不支持重新生成')),
+          update: jest.fn().mockRejectedValue(new BusinessError('文章当前状态不支持重新生成')),
         },
       });
 
@@ -3618,7 +3620,7 @@ describe('Article Controller', () => {
             content: 'c', version: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
-          update: jest.fn().mockRejectedValue(new Error('文章当前状态不支持审核操作')),
+          update: jest.fn().mockRejectedValue(new BusinessError('文章当前状态不支持审核操作')),
         },
       });
 
@@ -3642,7 +3644,7 @@ describe('Article Controller', () => {
           findFirst: jest.fn().mockResolvedValue(existing),
         },
         articleVersion: {
-          findMany: jest.fn().mockRejectedValue(new Error('文章不存在')),
+          findMany: jest.fn().mockRejectedValue(new NotFoundError('文章')),
         },
       });
 
@@ -3663,7 +3665,7 @@ describe('Article Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ content: null });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('content参数无效');
+      expect(response.body.message).toContain('参数验证失败');
     });
 
     it('should return 400 when content is boolean', async () => {
@@ -3672,7 +3674,7 @@ describe('Article Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ content: true });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('content参数无效');
+      expect(response.body.message).toContain('参数验证失败');
     });
 
     it('should return 400 when content is array', async () => {
@@ -3681,7 +3683,7 @@ describe('Article Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ content: ['text'] });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('content参数无效');
+      expect(response.body.message).toContain('参数验证失败');
     });
   });
 

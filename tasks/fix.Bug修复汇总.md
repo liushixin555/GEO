@@ -305,3 +305,41 @@ components: {
 ### 涉及文件
 - `apis/config/index.ts` — 7 项修复
 - `tests/apis/config.test.ts` — 新增 8 个测试用例（120 个全部通过）
+
+---
+
+## fix014. article.controller.ts 评审问题修复
+
+### 问题
+根据 tasks/review/ 目录下 5 份评审报告（安全评审、质量评审 B、架构评审、Committer CONDITIONAL APPROVE、旧安全评审），`apis/controller/article.controller.ts` 存在多个 P1/P2 级别问题。
+
+### 修复
+
+**P1-1 updateArticleContent 缺少 Zod schema 验证**：
+- 新增 `updateContentSchema`（`z.string().min(1).max(500_000).strict()`）
+- 替换原有的手动 `typeof` + `MAX_CONTENT_LENGTH` 检查
+- 删除 controller 中不再使用的 `MAX_CONTENT_LENGTH` 常量
+
+**P1-2 submitForReview 绕过 STATUS_TRANSITIONS 验证**：
+- 在 submitForReview 中添加 `isValidStatusTransition(existing.status, 'pending_review')` 校验
+- 统一所有状态变更入口
+
+**P1-3 VALID_CREATE_STATUSES 死代码**：
+- 删除第 40 行未使用的常量
+
+**P2-1 createArticle 未使用 created() 函数**：
+- 导入 `created` 函数并替换手动构造的 201 响应
+
+**P2-2 handleServerError 基于字符串匹配**：
+- Service 层：`throw new Error('文章不存在')` → `throw new NotFoundError('文章')`
+- Service 层：`throw new Error('文章当前状态不支持...')` → `throw new BusinessError(...)`
+- Controller 层：`handleServerError` 改用 `instanceof NotFoundError/BusinessError` 类型匹配
+
+**P2-3 scheduled_publish_at 未校验未来时间**：
+- Zod schema 添加 `.refine(val => new Date(val) > new Date(), '定时发布时间必须在未来')`
+
+### 涉及文件
+- `apis/controller/article.controller.ts` — 6 项修复
+- `apis/schema/article.schema.ts` — 新增 updateContentSchema + scheduled_publish_at 校验
+- `apis/service/impl/article.service.impl.ts` — 使用类型化异常替代 Error
+- `tests/apis/article.controller.test.ts` — 更新 mock 和断言匹配新行为

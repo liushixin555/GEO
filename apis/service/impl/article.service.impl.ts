@@ -3,6 +3,7 @@ import { Article, ArticleStatus, ArticleVersion, CreateArticleRequest, UpdateArt
 import { mapArticle, mapArticleVersion } from '../../map';
 import { IArticleService } from '../article.service';
 import { Prisma } from '@prisma/client';
+import { NotFoundError, BusinessError } from '../../errors';
 
 export class ArticleServiceImpl implements IArticleService {
   async list(projectId: number, page: number, pageSize: number, search?: string, status?: string, userId?: number, role?: string): Promise<{ list: Article[]; total: number }> {
@@ -36,7 +37,7 @@ export class ArticleServiceImpl implements IArticleService {
   async getById(id: number, userId?: number, role?: string): Promise<Article> {
     const prisma = getPrisma();
     const item = await prisma.article.findFirst({ where: { id, deletedAt: null } });
-    if (!item) throw new Error('文章不存在');
+    if (!item) throw new NotFoundError('文章');
     return mapArticle(item);
   }
 
@@ -145,7 +146,7 @@ export class ArticleServiceImpl implements IArticleService {
     if (!existing) throw new Error('文章不存在');
 
     if (existing.status !== 'pending_review') {
-      throw new Error('文章当前状态不支持审核操作');
+      throw new BusinessError('文章当前状态不支持审核操作');
     }
 
     const newStatus = approved ? 'publishing' : (existing.writeMode === 'manual' ? 'manual_writing' : 'draft');
@@ -163,7 +164,7 @@ export class ArticleServiceImpl implements IArticleService {
     if (!existing) throw new Error('文章不存在');
 
     if (existing.status !== 'pending_review') {
-      throw new Error('文章当前状态不支持重新生成');
+      throw new BusinessError('文章当前状态不支持重新生成');
     }
 
     const updated = await prisma.article.update({
