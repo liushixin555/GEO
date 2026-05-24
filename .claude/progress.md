@@ -418,3 +418,11 @@
   - 修复优先级：P0×3（安全审计能力）、P1×3（攻击面缩减）、P2×3（安全加固）
   - 评审报告 tasks/review/app.ts.md（同名新文件，不覆盖第一轮 app.md）
   - 127 个 app 测试全部通过
+
+## 本次变更（2026-05-24 pages/api-docs/index.tsx 软件质量专家评审）
+- [x] **软件质量专家评审 pages/api-docs/index.tsx（24 行）**
+  - 综合评分 3.0/10（不及格，死路由 + 安全缺陷 + 功能设计错误）
+  - 8 项质量发现：CRITICAL×1（死路由，未被 Layout/Sidebar 注册）、HIGH×2（target="_blank" 缺少 rel、自引用链接路由冲突）、MEDIUM×2（页面内容过于单薄、无测试覆盖）、LOW×3（冗余 React import、Breadcrumb 居中偏差、硬编码 URL）
+  - 核心问题：此页面为死代码，用户无法通过任何导航到达；按钮 href 与后端 Swagger UI 路由冲突
+  - 建议替代方案：侧边栏外链 / 增强页面内容 / 删除死代码
+  - 评审报告 tasks/review/index.tsx.md
