@@ -28,11 +28,16 @@ tests/apis/  + tests/pages/  测试文件
 - `apis/controller/upload.controller.ts` — 图片上传（multer，sysadmin + admin）
 - `apis/controller/knowledge.controller.ts` — 知识库 CRUD（关键词/画像/图片，各5个端点，sysadmin + admin）
 - `apis/service/impl/` — 业务实现（Prisma）
-- `pages/App.tsx` — React 路由定义
-- `pages/components/Layout.tsx` — 鉴权守卫 + 布局 + AppContextProvider 包裹
+- `pages/App.tsx` — React 路由定义（ErrorBoundary + AuthProvider + Routes）
+- `pages/components/Layout.tsx` — 纯布局组件（Sider + Content）
+- `pages/components/AuthGuard.tsx` — 认证门控（检查登录状态）
+- `pages/components/ErrorBoundary.tsx` — React 错误边界（防白屏）
 - `pages/components/Sidebar.tsx` — 角色侧边栏 + CompanyProjectSwitcher
 - `pages/components/CompanyProjectSwitcher.tsx` — 公司/项目切换 Modal
+- `pages/context/AuthContext.tsx` — 认证状态管理（用户、登录/登出、跨标签页同步）
 - `pages/context/AppContext.tsx` — AppContext（companyId/projectId + localStorage 持久化）
+- `pages/router/routes.tsx` — 集中式路由配置（React.lazy 懒加载 + 角色守卫）
+- `pages/theme/carbon.ts` — IBM Carbon Design System antd 主题配置
 - `pages/login/index.tsx` — 登录页
 - `pages/styles/global.css` — 全局样式（CSS 变量来自 DESIGN.md）
 
@@ -43,12 +48,14 @@ tests/apis/  + tests/pages/  测试文件
 4. roleMiddleware 检查角色权限
 5. 令牌 2 小时过期（可配置）
 6. `POST /api/auth/logout` → 服务端登出
-7. 前端 Layout 保存当前 URL 到 `redirect_after_login`，登录后跳回
-8. 已登录时登录页自动跳转 `/publish`
-9. **登录返回选中公司和项目**：LoginResponse.user 包含 `selected_company` + `selected_project`（而非 companies 数组）
-10. **登录选择逻辑**：根据角色确定可访问公司/项目 → 检查已保存选择是否有效 → 无效则自动选第一个 → 持久化到 User 记录
-11. **权限边界**：无公司→403(LoginSelectionError)、view无项目→403、admin无项目→selected_project=null（跳转/project）
-12. **切换公司/项目**：`CompanyProjectSwitcher` Modal → `PUT /api/auth/selection` 持久化 → `AppContext` 更新前端状态
+7. **前端分层架构**: main.tsx(ErrorBoundary+ConfigProvider) → App.tsx(AuthProvider+Routes) → AuthGuard(认证门控) → Layout(纯布局+AppContextProvider) → PageRouter(路由配置+角色守卫)
+8. AuthContext 管理认证状态全局，跨标签页同步通过 storage 事件
+9. 已登录时登录页调用 verify API 验证 token 有效性后跳转 `/publish`（避免竞态闪烁）
+10. **登录返回选中公司和项目**：LoginResponse.user 包含 `selected_company` + `selected_project`（而非 companies 数组）
+11. **登录选择逻辑**：根据角色确定可访问公司/项目 → 检查已保存选择是否有效 → 无效则自动选第一个 → 持久化到 User 记录
+12. **权限边界**：无公司→403(LoginSelectionError)、view无项目→403、admin无项目→selected_project=null（跳转/project）
+13. **切换公司/项目**：`CompanyProjectSwitcher` Modal → `PUT /api/auth/selection` 持久化 → `AppContext` 更新前端状态
+14. **路由级角色守卫**: PageRouter 根据 route.roles 数组检查用户角色，无权限重定向到 /publish
 
 ## 路由表
 | 路径 | 名称 | 允许角色 |

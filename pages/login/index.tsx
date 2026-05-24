@@ -12,7 +12,16 @@ const LoginPage: React.FC = () => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      navigate('/publish', { replace: true });
+      // Verify token validity before redirecting to avoid /login → /publish → /login flash
+      axios
+        .get('/api/v1/auth/verify', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        .then(() => navigate('/publish', { replace: true }))
+        .catch(() => {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        });
     }
   }, [navigate]);
 
@@ -26,7 +35,6 @@ const LoginPage: React.FC = () => {
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
 
-      // If no project selected (sysadmin/admin with empty company), go to project page
       const redirectTo = !user.selected_project
         ? '/project'
         : (localStorage.getItem('redirect_after_login') || '/publish');

@@ -19,11 +19,11 @@ import {
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
 import CompanyProjectSwitcher from './CompanyProjectSwitcher';
+import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
   userRole: string;
   cnName: string;
-  onLogout: () => void;
   collapsed: boolean;
   onCollapse: (collapsed: boolean) => void;
   isMobile?: boolean;
@@ -53,13 +53,13 @@ const menuItems: MenuItemDef[] = [
 const Sidebar: React.FC<SidebarProps> = ({
   userRole,
   cnName,
-  onLogout,
   collapsed,
   onCollapse,
   isMobile,
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout } = useAuth();
 
   const visibleMenuItems = menuItems.filter((item) => item.roles.includes(userRole));
 
@@ -113,7 +113,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 {cnName}
               </Typography.Text>
               <Tooltip title="登出">
-                <Button type="text" size="small" icon={<LogoutOutlined />} onClick={onLogout} />
+                <Button type="text" size="small" icon={<LogoutOutlined />} onClick={logout} />
               </Tooltip>
             </div>
             <CompanyProjectSwitcher />
@@ -122,7 +122,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       ) : (
         <div className="sidebar-footer-collapsed">
           <Tooltip title="登出">
-            <Button type="text" size="small" icon={<LogoutOutlined />} onClick={onLogout} />
+            <Button type="text" size="small" icon={<LogoutOutlined />} onClick={logout} />
           </Tooltip>
         </div>
       )}

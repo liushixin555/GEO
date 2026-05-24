@@ -140,9 +140,14 @@
 - 移动端默认折叠，窗口 resize 到移动端宽度自动收起
 
 ## App.tsx 路由结构
+- **分层架构**: ErrorBoundary → AuthProvider → Routes → AuthGuard → Layout → PageRouter
 - **ErrorBoundary 包裹整个 Routes**，防止子组件渲染异常导致白屏
-- 路由表仅两条：`/login` → LoginPage，`/*` → Layout
-- `/*` 通配路由匹配所有非 `/login` 路径，Layout 内部处理认证和子路由
-- 无独立的根路径 `/` 路由（死路由已删除），根路径由 Layout 的认证逻辑处理（无 token → 跳转 /login）
+- **AuthProvider** 管理 `user`/`loading`/`login`/`logout`，跨标签页同步 storage 事件
+- **AuthGuard** 检查 user 是否存在，未认证重定向到 /login（保存 redirect_after_login）
+- 路由表仅两条：`/login` → LoginPage，`/*` → AuthGuard → Layout
+- **PageRouter** (`pages/router/routes.tsx`) 集中管理 20+ 路由，每条含 `roles` 角色守卫
+- 所有页面组件使用 React.lazy 按需加载（代码分割），Suspense fallback 显示 Spin
+- 无角色权限的路由访问会被重定向到 `/publish`
 - `import React` 已移除（tsconfig.page.json 使用 `jsx: "react-jsx"` 自动注入）
 - ErrorBoundary 使用 antd Result + Button 提供友好错误页面，点击"返回登录"清除 localStorage 并跳转
+- **主题配置**抽取到 `pages/theme/carbon.ts`，main.tsx 引用 `carbonTheme`

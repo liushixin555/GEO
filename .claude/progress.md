@@ -409,6 +409,21 @@
   - 安装缺失依赖 `@uiw/react-md-editor`、`mammoth`
   - Vite 构建通过、App 测试全部通过
 
+## 本次变更（2026-05-24 前端架构重构）
+- [x] **INF-014: 前端架构重构** — 认证分离 + 路由守卫 + 代码分割
+  - 基于 `tasks/review/App.tsx.md` 软件架构专家评审修复（P0×3 + P1×4 + P2×3）
+  - **ARCH-01**: 创建 `pages/context/AuthContext.tsx`（认证状态管理）+ `pages/components/AuthGuard.tsx`（认证门控）
+  - **ARCH-03/05/06**: 创建 `pages/router/routes.tsx`（集中式路由配置 + React.lazy 懒加载 + roles 角色守卫）
+  - **ARCH-02**: Layout.tsx 重构为纯布局组件（72行，从 205 行缩减 65%）
+  - **ARCH-07**: Sidebar 使用 `useAuth()` 获取 logout，消除 onLogout prop drilling
+  - **ARCH-09**: LoginPage 调用 verify API 验证 token 有效性（修复 /login→/publish→/login 闪烁）
+  - **ARCH-09**: AuthContext 监听 storage 事件实现跨标签页登出同步
+  - **ARCH-10**: 主题配置抽取为 `pages/theme/carbon.ts`
+  - App.tsx 新架构：ErrorBoundary → AuthProvider → Routes（/login 公开，/* → AuthGuard → Layout）
+  - main.tsx 从 71 行缩至 21 行（主题配置外移）
+  - 前端构建通过，代码分割生效（20+ 独立 chunk）
+  - 任务文档：`tasks/refactor.frontend-architecture.md`
+
 ## 本次变更（2026-05-24 apis/app.ts 代码安全专家评审）
 - [x] **代码安全专家评审 apis/app.ts（第二轮）**
   - 综合安全评级 B（第一轮 C → 修复后 B+ → 本轮重新评估 B）
