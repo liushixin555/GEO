@@ -60,3 +60,4 @@ typings/
 dist/
 .gstack/
 uploads/
+.env

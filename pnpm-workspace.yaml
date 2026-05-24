@@ -10,5 +10,4 @@ onlyBuiltDependencies:
   - '@scarf/scarf'
   - esbuild
   - prisma
-patchedDependencies:
-  '@uiw/react-markdown-preview@5.2.0': patches/@uiw__react-markdown-preview@5.2.0.patch
+
