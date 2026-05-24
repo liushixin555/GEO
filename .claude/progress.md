@@ -672,6 +672,19 @@
   - 提供本项目调用安全检查清单（8项）和上游调用防护建议
   - 评审报告 tasks/review/Props.tsx.security.md
 
+## 本次变更（2026-05-24 apis/config/index.ts TDD 测试第三轮补全）
+- [x] **apis/config/index.ts 测试用例第三轮补全** — 从 120 个增加到 145 个测试用例（+25）
+  - 新增 dotenv 集成测试（1个）：验证 dotenv.config() 在模块导入时被调用
+  - 新增 JWT_EXPIRES_IN 回退到 DEFAULTS 测试（1个）：通过 jest.doMock('dotenv') 阻止 .env 加载，触发第 153 行回退分支
+  - 新增 safeParseInt 额外边界（8个）：十六进制/科学计数法/加号前缀拒绝、前导零解析、DB_POOL 负数拒绝
+  - 新增字符串字段空值回退（4个）：DB_HOST/DB_NAME/DB_USER/CRON_ARTICLE_INTERVAL 空字符串 → DEFAULTS
+  - 新增 deepFreeze 补充（4个）：boolean 安全、database.host/user/name 不可变
+  - 新增命名导出兼容性（1个）：mod.default 引用一致性
+  - 新增 CORS_ORIGINS 额外边界（4个）：混合空格协议、单条无效、端口号、冻结数组
+  - 新增生产环境补充（2个）：全密钥正常、短密钥警告
+  - **覆盖率：100%/100%/100%/100%（从 97.36% 分支提升到 100%）**
+  - TDD 报告：tasks/tdd/config.test.md（第三轮更新）
+
 ## 本次变更（2026-05-24 @uiw/react-markdown-preview Props.tsx 软件UI专家评审）
 - [x] **软件UI专家评审 @uiw/react-markdown-preview/src/Props.tsx（30 行）**
   - 综合评分 4.1/10（组件API基本可用，设计系统对齐/可访问性/开发者体验存在多项缺陷）
