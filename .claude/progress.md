@@ -60,6 +60,7 @@
 | 2026-05-24 | `tasks/tdd/video-presentation-useAudioPlayer.test.md` | useAudioPlayer hook TDD——63 项用例、100% 全维度覆盖率 |
 | 2026-05-24 | `tasks/review/Props.tsx.ui.md` | Props.tsx UI 评审修复——a11y可配置/Empty组件/forwardRef命令式API/事件处理props，+12测试（48总） |
 | 2026-05-24 | `progress_tasks/2026-05-24-fix-company-project-switcher.md` | 修复登录后右下角公司/项目选择不显示——login()补充写入selected_company/selected_project到localStorage |
+| 2026-05-24 | `tasks/tdd/video-presentation-useStepper.test.md` | useStepper hook TDD——68 项用例、98.91% Stmts/97.05% Branch/100% Lines + 修复空 chapters 崩溃 |
 
 ## 已知问题
 - `apis/service/impl/auth.service.impl.ts` Prisma 类型错误（待 schema 同步）
