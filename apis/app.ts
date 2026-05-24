@@ -84,33 +84,31 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// Swagger setup — conditional generation to avoid wasted I/O in production (M-1)
-if (config.swagger.enabled && process.env.NODE_ENV !== 'production') {
-  const swaggerJSDoc = require('swagger-jsdoc').default || require('swagger-jsdoc');
-  const swaggerUI = require('swagger-ui-express');
-  const swaggerSpec = swaggerJSDoc({
-    definition: {
-      openapi: '3.0.0',
-      info: {
-        title: '薄云商机倍增服务 API',
-        version: '1.0.0',
-        description: '薄云商机倍增服务 Enterprise Management Platform API',
-      },
-      components: {
-        securitySchemes: {
-          bearerAuth: {
-            type: 'http',
-            scheme: 'bearer',
-            bearerFormat: 'JWT',
-          },
+// Swagger API documentation
+const swaggerJSDoc = require('swagger-jsdoc').default || require('swagger-jsdoc');
+const swaggerUI = require('swagger-ui-express');
+const swaggerSpec = swaggerJSDoc({
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: '薄云商机倍增服务 API',
+      version: '1.0.0',
+      description: '薄云商机倍增服务 Enterprise Management Platform API',
+    },
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
         },
       },
     },
-    apis: ['./apis/controller/*.ts'],
-  });
-  app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
-  app.get('/api-docs.json', (_req: Request, res: Response) => res.json(swaggerSpec));
-}
+  },
+  apis: ['./apis/controller/*.ts'],
+});
+app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
+app.get('/api-docs.json', (_req: Request, res: Response) => res.json(swaggerSpec));
 
 // ── Route modules (v1) ─────────────────────────────────────────────
 app.use('/api/v1/auth', authRoutes);
