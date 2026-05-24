@@ -6,6 +6,14 @@ import { Prisma } from '@prisma/client';
 import { NotFoundError, BusinessError } from '../../errors';
 
 export class ArticleServiceImpl implements IArticleService {
+  /** 查找文章，不存在则抛出 NotFoundError。支持事务客户端 */
+  private async findArticleOrThrow(id: number, tx?: Prisma.TransactionClient) {
+    const client = tx ?? getPrisma();
+    const item = await client.article.findFirst({ where: { id, deletedAt: null } });
+    if (!item) throw new NotFoundError('文章');
+    return item;
+  }
+
   async list(projectId: number, page: number, pageSize: number, search?: string, status?: string, userId?: number, role?: string): Promise<{ list: Article[]; total: number }> {
     const prisma = getPrisma();
 
@@ -35,9 +43,7 @@ export class ArticleServiceImpl implements IArticleService {
   }
 
   async getById(id: number, userId?: number, role?: string): Promise<Article> {
-    const prisma = getPrisma();
-    const item = await prisma.article.findFirst({ where: { id, deletedAt: null } });
-    if (!item) throw new NotFoundError('文章');
+    const item = await this.findArticleOrThrow(id);
     return mapArticle(item);
   }
 
@@ -81,8 +87,7 @@ export class ArticleServiceImpl implements IArticleService {
 
   async update(id: number, request: UpdateArticleRequest, userId?: number, role?: string): Promise<Article> {
     return await getPrisma().$transaction(async (tx: Prisma.TransactionClient) => {
-      const existing = await tx.article.findFirst({ where: { id, deletedAt: null } });
-      if (!existing) throw new NotFoundError('文章');
+      const existing = await this.findArticleOrThrow(id, tx);
 
       const data: any = {};
       if (request.title !== undefined) data.title = request.title;
@@ -132,8 +137,7 @@ export class ArticleServiceImpl implements IArticleService {
 
   async delete(id: number, userId?: number, role?: string): Promise<void> {
     await getPrisma().$transaction(async (tx) => {
-      const existing = await tx.article.findFirst({ where: { id, deletedAt: null } });
-      if (!existing) throw new NotFoundError('文章');
+      await this.findArticleOrThrow(id, tx);
 
       await tx.article.update({ where: { id }, data: { deletedAt: new Date() } });
     });
@@ -141,8 +145,7 @@ export class ArticleServiceImpl implements IArticleService {
 
   async review(id: number, approved: boolean, userId?: number, role?: string): Promise<Article> {
     return await getPrisma().$transaction(async (tx: Prisma.TransactionClient) => {
-      const existing = await tx.article.findFirst({ where: { id, deletedAt: null } });
-      if (!existing) throw new NotFoundError('文章');
+      const existing = await this.findArticleOrThrow(id, tx);
 
       if (existing.status !== 'pending_review') {
         throw new BusinessError('文章当前状态不支持审核操作');
@@ -159,8 +162,7 @@ export class ArticleServiceImpl implements IArticleService {
 
   async regenerate(id: number, userId?: number, role?: string): Promise<Article> {
     return await getPrisma().$transaction(async (tx: Prisma.TransactionClient) => {
-      const existing = await tx.article.findFirst({ where: { id, deletedAt: null } });
-      if (!existing) throw new NotFoundError('文章');
+      const existing = await this.findArticleOrThrow(id, tx);
 
       const allowedRegenerateStatuses = ['generate_failed', 'pending_review'];
       if (!allowedRegenerateStatuses.includes(existing.status)) {

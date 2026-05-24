@@ -3,7 +3,7 @@ import { ArticleServiceImpl } from '../service/impl/article.service.impl';
 import { ProjectServiceImpl } from '../service/impl/project.service.impl';
 import { success, fail, paginate, created } from '../utils';
 
-import { NotFoundError, BusinessError, ForbiddenError } from '../errors';
+import { AppError, ForbiddenError } from '../errors';
 import { logger } from '../utils/logger.util';
 import { ROLES } from '../constants/roles';
 
@@ -55,14 +55,10 @@ async function checkProjectOperator(projectId: number, userId: number, role: str
   }
 }
 
-// 统一错误处理，使用类型化异常替代字符串匹配
+// 统一错误处理，使用 AppError 基类匹配所有业务异常
 function handleServerError(res: Response, err: unknown, contextMsg: string): void {
-  if (err instanceof NotFoundError) {
-    fail(res, 404, err.message);
-  } else if (err instanceof ForbiddenError) {
-    fail(res, 403, err.message);
-  } else if (err instanceof BusinessError) {
-    fail(res, 400, err.message);
+  if (err instanceof AppError) {
+    fail(res, err.statusCode, err.message);
   } else {
     logger.error('unhandled_error', { error: err instanceof Error ? err.message : String(err), context: contextMsg });
     fail(res, 500, contextMsg);
