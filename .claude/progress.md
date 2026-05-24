@@ -568,3 +568,15 @@
   - Q-08: 连接池参数新增 `DB_POOL_MIN`/`DB_POOL_MAX` 环境变量
   - Q-09: deepFreeze 添加适用范围 JSDoc 注释
   - 测试从 116 个增加到 120 个（+4：JWT强度×2、连接池覆盖×2、浮点拒绝×1、pool.min=0×1，修改浮点截断→拒绝×1）
+
+## 本次变更（2026-05-24 controller/index.ts TDD 测试补全）
+- [x] **apis/controller/index.ts barrel 文件 TDD 测试** — 140 个测试用例，100% 覆盖率
+  - 新增 `tests/apis/controller/index.test.ts`（~300行）
+  - 导出数量验证（33个命名导出）、存在性与类型验证（33个函数）、无意外导出验证
+  - 按模块分组验证（7个源模块）、导出唯一性验证、函数引用唯一性验证
+  - 源模块关联验证（7个模块的函数引用一致性）
+  - 封装完整性验证（10个未导出函数不泄漏）
+  - 函数参数数量验证（33个函数均接受2参数）、异步函数验证（33个）
+  - 重导入一致性验证（Node.js 模块缓存）
+  - 模块结构汇总验证
+  - TDD 报告：tasks/tdd/controller.index.test.md
