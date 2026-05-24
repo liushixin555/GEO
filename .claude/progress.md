@@ -871,3 +871,12 @@
   - 设计模式识别：Singleton、Value Object、Factory Method、Strategy、Template Method、Fail-Fast
   - 与同类对比：不可变性/启动校验/类型驱动超越行业平均，数据库配置一致性不足
   - 评审报告 tasks/review/config-index.architecture.md
+
+## 本次变更（2026-05-24 @uiw/react-markdown-preview index.tsx 软件质量专家评审）
+- [x] **软件质量专家评审 @uiw/react-markdown-preview/src/index.tsx（27 行）**
+  - 综合评分 7.5/10（库入口文件，架构清晰但性能和逻辑存在缺陷）
+  - 12 项质量发现：🔴严重×3（rehypePlugins每次渲染重建、rehypeRewriteHandle每次创建新闭包、rehypeRaw双重注册）、🟠安全×1（rehypeRaw无条件启用+无消毒=XSS风险）、🟡中等×3（缺少React.memo、用户插件位置固定、index.tsx与common.tsx重复）、🟢轻微×5（PluggableList类型弱化、缺少displayName、options参数未使用、export *暴露内部类型、魔法字符串）
+  - 插件链顺序分析：10个插件执行顺序基本合理，rehypeRaw无条件注册和用户插件位置固定是设计缺陷
+  - 对本项目影响：安全风险已被 MarkdownViewer.tsx 的 DOMPurify 消毒缓解（commit d511ad5），性能风险建议在 MarkdownViewer 外层添加 React.memo
+  - 评分明细：功能正确性17/20、性能8/15、安全性9/15、类型安全8/10、可读性13/15、可维护性11/15、最佳实践7/10
+  - 评审报告 tasks/review/react-markdown-preview.index.tsx.md
