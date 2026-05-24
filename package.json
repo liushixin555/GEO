@@ -29,6 +29,7 @@
     "@ant-design/icons": "^6.2.3",
     "@fontsource/ibm-plex-sans": "^5.2.8",
     "@prisma/client": "^5.22.0",
+    "@uiw/react-markdown-preview": "^5.2.1",
     "@uiw/react-md-editor": "^4.1.0",
     "adm-zip": "^0.5.17",
     "antd": "^6.4.1",
