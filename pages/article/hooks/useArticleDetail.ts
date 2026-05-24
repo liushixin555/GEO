@@ -147,7 +147,7 @@ export function useArticleDetail(
         message.success('正文已自动保存');
       }
     } catch (err) {
-      console.warn('[useArticleDetail] 自动保存失败:', err);
+      message.error('自动保存失败，请手动保存');
     } finally {
       savingRef.current = false;
     }

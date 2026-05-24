@@ -993,4 +993,54 @@ const [generatingTime, setGeneratingTime] = useState(0);
 
 ---
 
+## 13. 修复状态追踪
+
+**修复轮次**: 2026-05-24（第二轮 UI 修复）
+**基于代码**: 重构后的组件化版本（原始 889 行 → ArticleDetail.tsx 218 行 + 7 个子模块）
+
+### 13.1 已修复项（代码重构时已一并解决）
+
+| 编号 | 问题 | 修复方式 | 状态 |
+|------|------|---------|------|
+| UI-01 | 图片删除按钮 `borderRadius: '50%'` | 改为 `borderRadius: 0` (ArticleImageManager.tsx) | ✅ |
+| UI-02 | CSS 变量命名不一致 | 统一为 `--color-hairline`/`--color-primary`/`--color-ink-subtle` | ✅ |
+| UI-03 | 硬编码颜色值 | 改用 `var(--color-overlay-light)`/`var(--color-on-primary)` | ✅ |
+| UI-06 | 页面标题排版层级错误 | 改为 `level={4}` + `fontWeight: 400, fontSize: 24` | ✅ |
+| UI-08 | Alert `title` → `message` prop | 已修正为 `message={error}` (ArticleSettingsForm.tsx) | ✅ |
+| UI-09 | Table `sortOrder: null` | 改为 `undefined` (PlatformSelectModal.tsx) | ✅ |
+| UI-10 | Form.Item `noStyle` | 改为 `style={{ marginBottom: 0 }}` (ArticleSettingsForm.tsx) | ✅ |
+| UI-11 | Collapse `forceRender` | 已移除 (ArticleDetail.tsx) | ✅ |
+| UI-12 | 版本号 `.toFixed(1)` | 改为 `article.version ?? 1` (ArticleContentEditor.tsx) | ✅ |
+| UI-13 | 缺少未保存提示 | 添加 `beforeunload` 处理器 (ArticleDetail.tsx) | ✅ |
+| UI-14 | 自动保存无指示器 | 添加保存状态显示 (ArticleContentEditor.tsx) | ✅ |
+| UI-15 | 加载状态无文字 | 添加 `tip="正在加载文章..."` (ArticleDetail.tsx) | ✅ |
+| UI-16 | 空内容提示不友好 | 使用 MarkdownViewer + 自定义 emptyText | ✅ |
+| UI-18 | 图片选择无键盘支持 | 添加 `role="checkbox"` + `aria-checked` + `tabIndex` + `onKeyDown` | ✅ |
+| UI-19 | 平台选择无 ARIA | 添加 `role="combobox"` + `aria-expanded` + `aria-haspopup` | ✅ |
+| UI-20 | Modal 搜索无 autoFocus | 添加 `autoFocus` (PlatformSelectModal.tsx) | ✅ |
+| UI-21 | 无响应式适配 | Modal 响应式宽度 + MDEditor 响应式高度 (Grid.useBreakpoint) | ✅ |
+| UI-22 | 标题区域无响应式 | 添加 `flexWrap: 'wrap'` + 文本截断处理 | ✅ |
+
+### 13.2 本轮修复项（2026-05-24）
+
+| 编号 | 问题 | 修复方式 | 状态 |
+|------|------|---------|------|
+| UI-08/25 | 审核操作栏使用 antd 内部 className 伪装 Alert | 替换为正确 antd `Alert` 组件 + `message` prop + 移除 `size="small"` | ✅ |
+| UI-04 | 平台选择区 `padding: '4px 11px'` 不在 4px 网格 | 改为 `'4px 12px'` + `borderRadius: 0` | ✅ |
+| UI-14 | 自动保存失败静默吞掉 | `console.warn` → `message.error('自动保存失败，请手动保存')` | ✅ |
+| UI-17 | 表单按钮位置不合理 | 添加 `position: sticky; bottom: 0` 到 `.form-actions` | ✅ |
+
+### 13.3 待修复项（P2 长期优化）
+
+| 编号 | 问题 | 优先级 | 状态 |
+|------|------|--------|------|
+| UI-07 | 内联样式提取为 CSS 类 | P1 | ⏳ 待处理 |
+| UI-26 | 新建文章步骤引导 | P1 | ⏳ 待处理 |
+| UI-24 | 图片模式使用 Tabs 替代 Segmented | P2 | ⏳ 待处理 |
+| UI-27 | AI 生成进度反馈 | P2 | ⏳ 待处理 |
+| UI-28 | 手工编写模式内容区引导 | P2 | ⏳ 待处理 |
+
+---
+
 *软件UI专家评审完成 — 2026-05-24*
+*第二轮 UI 修复完成 — 2026-05-24*

@@ -127,7 +127,7 @@ const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
             aria-haspopup="dialog"
             aria-label="选择发布平台"
             tabIndex={editable ? 0 : -1}
-            style={{ display: 'flex', flexWrap: 'wrap', gap: 4, minHeight: 32, padding: '4px 11px', border: '1px solid var(--color-hairline)', borderRadius: 2, cursor: editable ? 'pointer' : 'default' }}
+            style={{ display: 'flex', flexWrap: 'wrap', gap: 4, minHeight: 32, padding: '4px 12px', border: '1px solid var(--color-hairline)', borderRadius: 0, cursor: editable ? 'pointer' : 'default' }}
             onClick={() => { if (editable) platformSelector.openModal(); }}
             onKeyDown={(e) => { if (editable && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); platformSelector.openModal(); } }}
           >

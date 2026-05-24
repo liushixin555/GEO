@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Segmented, Button, Popconfirm, Grid } from 'antd';
+import { Segmented, Button, Popconfirm, Grid, Alert } from 'antd';
 import { EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import MDEditor from '@uiw/react-md-editor';
 import MarkdownViewer from '../../components/MarkdownViewer';
@@ -75,17 +75,22 @@ const ArticleContentEditor: React.FC<ArticleContentEditorProps> = ({
       </div>
     )}
     {article?.status === 'pending_review' && (
-      <div className="ant-alert ant-alert-warning" style={{ marginBottom: 12, padding: '8px 15px', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span>该文章待审核</span>
-        <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-          <Popconfirm title="确认审核通过？" description="通过后将自动进入发布流程" onConfirm={() => onReview(true)} okText="确认" cancelText="取消">
-            <Button size="small" type="primary" icon={<CheckCircleOutlined />}>审核通过</Button>
-          </Popconfirm>
-          <Popconfirm title="确认审核不通过？" description="不通过后将退回为草稿" onConfirm={() => onReview(false)} okText="确认" cancelText="取消">
-            <Button size="small" danger icon={<CloseCircleOutlined />}>审核不通过</Button>
-          </Popconfirm>
-        </div>
-      </div>
+      <Alert
+        type="warning"
+        message="该文章待审核"
+        showIcon
+        style={{ marginBottom: 12 }}
+        action={
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Popconfirm title="确认审核通过？" description="通过后将自动进入发布流程" onConfirm={() => onReview(true)} okText="确认" cancelText="取消">
+              <Button type="primary" icon={<CheckCircleOutlined />}>审核通过</Button>
+            </Popconfirm>
+            <Popconfirm title="确认审核不通过？" description="不通过后将退回为草稿" onConfirm={() => onReview(false)} okText="确认" cancelText="取消">
+              <Button danger icon={<CloseCircleOutlined />}>审核不通过</Button>
+            </Popconfirm>
+          </div>
+        }
+      />
     )}
     {contentMode === 'edit' ? (
       <MDEditor
