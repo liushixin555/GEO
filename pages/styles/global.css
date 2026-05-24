@@ -210,6 +210,13 @@ a:hover {
   letter-spacing: 0.16px;
 }
 
+.api-docs-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
 /* ========================================
    Sidebar
    ======================================== */

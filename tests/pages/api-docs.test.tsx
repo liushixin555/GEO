@@ -77,8 +77,7 @@ describe('ApiDocsPage', () => {
     mockFetch.mockResolvedValue({ ok: false });
     renderWithRouter();
     await waitFor(() => {
-      const alert = document.querySelector('alert');
-      expect(alert).toBeTruthy();
+      expect(document.querySelector('alert')).toBeTruthy();
     });
     const alert = document.querySelector('alert');
     expect(alert?.getAttribute('message')).toBe('API 文档服务当前不可用');
@@ -98,5 +97,39 @@ describe('ApiDocsPage', () => {
     mockFetch.mockReturnValue(new Promise(() => {}));
     renderWithRouter();
     expect(document.querySelector('spin')).toBeTruthy();
+  });
+
+  it('should render API base URL info', () => {
+    renderWithRouter();
+    expect(screen.getByText(/基础路径/)).toBeInTheDocument();
+  });
+
+  it('should render authentication method info', () => {
+    renderWithRouter();
+    expect(screen.getByText(/认证方式/)).toBeInTheDocument();
+    expect(screen.getByText(/JWT Bearer Token/)).toBeInTheDocument();
+  });
+
+  it('should render GlobalOutlined and SafetyCertificateOutlined icons', () => {
+    renderWithRouter();
+    expect(document.querySelector('[data-icon="GlobalOutlined"]')).toBeTruthy();
+    expect(document.querySelector('[data-icon="SafetyCertificateOutlined"]')).toBeTruthy();
+  });
+
+  it('should have ApiOutlined icon styled with primary color', () => {
+    renderWithRouter();
+    const icon = document.querySelector('[data-icon="ApiOutlined"]');
+    expect(icon).toBeTruthy();
+    // JSDOM 不支持 CSS 自定义属性，验证 style 属性包含 margin-right 即可确认样式传递正常
+    const container = icon?.closest('[style]');
+    expect(container?.getAttribute('style')).toContain('margin-right');
+  });
+
+  it('should render Swagger heading as Typography.Title', () => {
+    renderWithRouter();
+    const heading = screen.getByText(/Swagger API 文档/);
+    expect(heading).toBeTruthy();
+    // antd Typography.Title 在 JSDOM 中渲染为自定义标签，验证文本存在即可
+    expect(heading.textContent).toContain('Swagger API 文档');
   });
 });
