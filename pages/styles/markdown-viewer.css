@@ -27,9 +27,18 @@
   font-family: var(--font-family) !important;
   font-size: 15px !important;
   line-height: 1.8 !important;
+  letter-spacing: 0.16px !important;
   color: var(--color-ink) !important;
   background: transparent !important;
   padding: 8px 16px !important;
+  /* GitHub → Carbon CSS 变量映射 */
+  --color-fg-default: var(--color-ink);
+  --color-fg-muted: var(--color-ink-muted);
+  --color-fg-subtle: var(--color-ink-subtle);
+  --color-canvas-default: var(--color-canvas);
+  --color-canvas-subtle: var(--color-surface-1);
+  --color-border-default: var(--color-hairline);
+  --color-border-muted: var(--color-hairline);
 }
 
 .markdown-viewer .wmde-markdown h1,
@@ -71,6 +80,7 @@
   padding: 8px 16px !important;
   margin: 1em 0 !important;
   color: var(--color-ink-muted) !important;
+  border-radius: 0 !important;
 }
 
 .markdown-viewer .wmde-markdown code,
@@ -85,7 +95,7 @@
 .markdown-viewer .wmde-markdown pre,
 .article-content-preview .wmde-markdown pre {
   background: var(--color-inverse-canvas) !important;
-  border-radius: 2px !important;
+  border-radius: 0 !important;
   padding: 16px !important;
 }
 
@@ -117,6 +127,11 @@
   font-weight: 600 !important;
 }
 
+.markdown-viewer .wmde-markdown table tbody tr:hover,
+.article-content-preview .wmde-markdown table tbody tr:hover {
+  background-color: var(--color-surface-1) !important;
+}
+
 .markdown-viewer .wmde-markdown img,
 .article-content-preview .wmde-markdown img {
   border-radius: 2px !important;
@@ -131,6 +146,13 @@
 .markdown-viewer .wmde-markdown a:hover,
 .article-content-preview .wmde-markdown a:hover {
   color: var(--color-blue-60) !important;
+}
+
+.markdown-viewer .wmde-markdown a:focus-visible,
+.article-content-preview .wmde-markdown a:focus-visible {
+  outline: 2px solid var(--color-primary) !important;
+  outline-offset: 2px !important;
+  text-decoration: underline !important;
 }
 
 .markdown-viewer .wmde-markdown hr,
@@ -150,5 +172,24 @@
 
 .markdown-viewer .wmde-markdown li,
 .article-content-preview .wmde-markdown li {
-  margin-bottom: 0.3em !important;
+  margin-bottom: var(--spacing-xs) !important;
+}
+
+/* markdown-alert 圆角覆盖 */
+.markdown-viewer .wmde-markdown .markdown-alert,
+.article-content-preview .wmde-markdown .markdown-alert {
+  border-radius: 0 !important;
+}
+
+/* 代码块滚动条 — Carbon 极简风格 */
+.markdown-viewer .wmde-markdown pre::-webkit-scrollbar,
+.article-content-preview .wmde-markdown pre::-webkit-scrollbar {
+  height: 6px;
+  background: var(--color-inverse-surface-1);
+}
+
+.markdown-viewer .wmde-markdown pre::-webkit-scrollbar-thumb,
+.article-content-preview .wmde-markdown pre::-webkit-scrollbar-thumb {
+  background: var(--color-inverse-ink-muted);
+  border-radius: 0;
 }
