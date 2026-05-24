@@ -2029,4 +2029,806 @@ describe('skills.entity', () => {
       expect(updateReq.skill_dir).toBe('/test');
     });
   });
+
+  // ============================================================
+  // JSON 序列化往返
+  // ============================================================
+  describe('JSON serialization round-trip', () => {
+    it('should survive JSON round-trip with all fields', () => {
+      const original: Skills = {
+        id: 42,
+        name: 'SEO优化',
+        description: '搜索引擎优化',
+        skill_dir: '/skills/seo',
+        created_by: 1,
+        creator_name: '管理员',
+        created_at: new Date('2024-06-15T08:30:00.123Z'),
+        updated_at: new Date('2024-06-20T14:45:00.456Z'),
+      };
+      const json = JSON.stringify(original);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (key === 'created_at' || key === 'updated_at') return new Date(value);
+        return value;
+      });
+      expect(parsed.id).toBe(42);
+      expect(parsed.name).toBe('SEO优化');
+      expect(parsed.description).toBe('搜索引擎优化');
+      expect(parsed.skill_dir).toBe('/skills/seo');
+      expect(parsed.created_by).toBe(1);
+      expect(parsed.creator_name).toBe('管理员');
+      expect(parsed.created_at).toBeInstanceOf(Date);
+      expect(parsed.updated_at).toBeInstanceOf(Date);
+    });
+
+    it('should survive JSON round-trip with null description', () => {
+      const original: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const json = JSON.stringify(original);
+      const parsed = JSON.parse(json);
+      expect(parsed.description).toBeNull();
+      expect(parsed.created_by).toBeNull();
+      expect(parsed.creator_name).toBeNull();
+    });
+
+    it('should serialize Date fields to ISO strings', () => {
+      const skills: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date('2024-06-15T08:30:00.000Z'),
+        updated_at: new Date('2024-06-20T14:45:00.000Z'),
+      };
+      const json = JSON.stringify(skills);
+      const parsed = JSON.parse(json);
+      expect(typeof parsed.created_at).toBe('string');
+      expect(typeof parsed.updated_at).toBe('string');
+      expect(parsed.created_at).toContain('2024-06-15');
+      expect(parsed.updated_at).toContain('2024-06-20');
+    });
+
+    it('should preserve number precision through JSON round-trip', () => {
+      const skills: Skills = {
+        id: Number.MAX_SAFE_INTEGER, name: 'A', description: null, skill_dir: '/test',
+        created_by: 42, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const json = JSON.stringify(skills);
+      const parsed = JSON.parse(json);
+      expect(parsed.id).toBe(Number.MAX_SAFE_INTEGER);
+      expect(parsed.created_by).toBe(42);
+    });
+
+    it('should preserve Chinese characters through JSON round-trip', () => {
+      const skills: Skills = {
+        id: 1, name: '薄云商机倍增服务',
+        description: '技能描述——中文测试',
+        skill_dir: '/skills/中文路径',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const json = JSON.stringify(skills);
+      const parsed = JSON.parse(json);
+      expect(parsed.name).toBe('薄云商机倍增服务');
+      expect(parsed.description).toBe('技能描述——中文测试');
+      expect(parsed.skill_dir).toBe('/skills/中文路径');
+      expect(parsed.creator_name).toBe('管理员');
+    });
+
+    it('skills array should survive JSON round-trip', () => {
+      const skills: Skills[] = [
+        { id: 1, name: 'SEO', description: '搜索', skill_dir: '/seo', created_by: 1, creator_name: 'A', created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01') },
+        { id: 2, name: 'AI', description: null, skill_dir: '/ai', created_by: null, creator_name: null, created_at: new Date('2024-02-01'), updated_at: new Date('2024-02-01') },
+      ];
+      const json = JSON.stringify(skills);
+      const parsed = JSON.parse(json);
+      expect(parsed).toHaveLength(2);
+      expect(parsed[0].name).toBe('SEO');
+      expect(parsed[1].description).toBeNull();
+    });
+  });
+
+  // ============================================================
+  // Object.freeze 不可变性
+  // ============================================================
+  describe('Object.freeze immutability', () => {
+    it('frozen skill should reject name mutation', () => {
+      const skills: Skills = Object.freeze({
+        id: 1, name: 'SEO', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (skills as any).name = 'hacked'; }).toThrow();
+      expect(skills.name).toBe('SEO');
+    });
+
+    it('frozen skill should reject id mutation', () => {
+      const skills: Skills = Object.freeze({
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (skills as any).id = 999; }).toThrow();
+      expect(skills.id).toBe(1);
+    });
+
+    it('frozen skill should reject description mutation', () => {
+      const skills: Skills = Object.freeze({
+        id: 1, name: 'A', description: '原始', skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (skills as any).description = 'hacked'; }).toThrow();
+      expect(skills.description).toBe('原始');
+    });
+
+    it('frozen skill should reject skill_dir mutation', () => {
+      const skills: Skills = Object.freeze({
+        id: 1, name: 'A', description: null, skill_dir: '/original',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (skills as any).skill_dir = '/hacked'; }).toThrow();
+      expect(skills.skill_dir).toBe('/original');
+    });
+
+    it('frozen skill should reject created_by mutation', () => {
+      const skills: Skills = Object.freeze({
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (skills as any).created_by = 999; }).toThrow();
+      expect(skills.created_by).toBe(1);
+    });
+
+    it('frozen skill should reject creator_name mutation', () => {
+      const skills: Skills = Object.freeze({
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (skills as any).creator_name = 'hacked'; }).toThrow();
+      expect(skills.creator_name).toBe('管理员');
+    });
+
+    it('frozen skill should reject adding new fields', () => {
+      const skills: Skills = Object.freeze({
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (skills as any).extra = 'new'; }).toThrow();
+      expect((skills as any).extra).toBeUndefined();
+    });
+
+    it('Object.isFrozen should return true for frozen skill', () => {
+      const skills: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Object.isFrozen(skills)).toBe(false);
+      Object.freeze(skills);
+      expect(Object.isFrozen(skills)).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // 结构相等与深拷贝
+  // ============================================================
+  describe('structural equality and deep copy', () => {
+    it('two skills with same values should be structurally equal', () => {
+      const skill1: Skills = {
+        id: 1, name: 'SEO', description: '搜索', skill_dir: '/seo',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date('2024-06-01'), updated_at: new Date('2024-06-01'),
+      };
+      const skill2: Skills = {
+        id: 1, name: 'SEO', description: '搜索', skill_dir: '/seo',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date('2024-06-01'), updated_at: new Date('2024-06-01'),
+      };
+      expect(skill1).not.toBe(skill2); // different references
+      expect(skill1.id).toBe(skill2.id);
+      expect(skill1.name).toBe(skill2.name);
+      expect(skill1.description).toBe(skill2.description);
+      expect(skill1.skill_dir).toBe(skill2.skill_dir);
+      expect(skill1.created_by).toBe(skill2.created_by);
+      expect(skill1.creator_name).toBe(skill2.creator_name);
+    });
+
+    it('spread copy should be structurally equal but different reference', () => {
+      const original: Skills = {
+        id: 1, name: 'SEO', description: '搜索', skill_dir: '/seo',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date('2024-06-01'), updated_at: new Date('2024-06-01'),
+      };
+      const copy: Skills = { ...original };
+      expect(copy).not.toBe(original);
+      expect(copy.id).toBe(original.id);
+      expect(copy.name).toBe(original.name);
+      expect(copy.description).toBe(original.description);
+      expect(copy.skill_dir).toBe(original.skill_dir);
+      expect(copy.created_by).toBe(original.created_by);
+      expect(copy.creator_name).toBe(original.creator_name);
+      expect(copy.created_at).toBe(original.created_at); // same Date reference (shallow)
+    });
+
+    it('JSON parse/stringify should create deep copy of skill', () => {
+      const original: Skills = {
+        id: 1, name: 'SEO', description: '搜索', skill_dir: '/seo',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date('2024-06-01T00:00:00Z'),
+        updated_at: new Date('2024-06-15T00:00:00Z'),
+      };
+      const json = JSON.stringify(original);
+      const deepCopy = JSON.parse(json);
+      expect(deepCopy).not.toBe(original);
+      expect(deepCopy.id).toBe(original.id);
+      expect(deepCopy.name).toBe(original.name);
+      expect(deepCopy.created_at).not.toBe(original.created_at); // different reference
+      expect(typeof deepCopy.created_at).toBe('string'); // Date becomes string
+    });
+
+    it('JSON deep copy should be independent from original', () => {
+      const original: Skills = {
+        id: 1, name: 'SEO', description: '搜索', skill_dir: '/seo',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date('2024-06-01'), updated_at: new Date('2024-06-01'),
+      };
+      const json = JSON.stringify(original);
+      const deepCopy: any = JSON.parse(json);
+      deepCopy.name = 'Modified';
+      deepCopy.id = 999;
+      expect(original.name).toBe('SEO');
+      expect(original.id).toBe(1);
+    });
+
+    it('spread copy of skill with null fields should be structurally equal', () => {
+      const original: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const copy: Skills = { ...original };
+      expect(copy.description).toBeNull();
+      expect(copy.created_by).toBeNull();
+      expect(copy.creator_name).toBeNull();
+      expect(copy.id).toBe(original.id);
+    });
+  });
+
+  // ============================================================
+  // 解构模式
+  // ============================================================
+  describe('destructuring patterns', () => {
+    it('should use rest operator for partial extraction', () => {
+      const skills: Skills = {
+        id: 1, name: 'SEO优化', description: '搜索引擎优化',
+        skill_dir: '/skills/seo',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const { id, name, ...rest } = skills;
+      expect(id).toBe(1);
+      expect(name).toBe('SEO优化');
+      expect(rest.description).toBe('搜索引擎优化');
+      expect(rest.skill_dir).toBe('/skills/seo');
+      expect(rest.created_by).toBe(1);
+      expect(rest.creator_name).toBe('管理员');
+    });
+
+    it('should destructure all fields individually', () => {
+      const skills: Skills = {
+        id: 1, name: 'SEO', description: '搜索', skill_dir: '/seo',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-06-01'),
+      };
+      const { id, name, description, skill_dir, created_by, creator_name, created_at, updated_at } = skills;
+      expect(id).toBe(1);
+      expect(name).toBe('SEO');
+      expect(description).toBe('搜索');
+      expect(skill_dir).toBe('/seo');
+      expect(created_by).toBe(1);
+      expect(creator_name).toBe('管理员');
+      expect(created_at.getFullYear()).toBe(2024);
+      expect(updated_at.getFullYear()).toBe(2024);
+    });
+
+    it('should destructure with computed property access', () => {
+      const skills: Skills = {
+        id: 1, name: 'SEO', description: '搜索', skill_dir: '/seo',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const field = 'name';
+      expect(skills[field as keyof Skills]).toBe('SEO');
+      const numField = 'id';
+      expect(skills[numField as keyof Skills]).toBe(1);
+    });
+
+    it('should use rest operator to extract metadata only', () => {
+      const skills: Skills = {
+        id: 1, name: 'SEO', description: '搜索', skill_dir: '/seo',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const { id, name, description, skill_dir, ...metadata } = skills;
+      expect(metadata.created_by).toBe(1);
+      expect(metadata.creator_name).toBe('管理员');
+      expect(metadata.created_at).toBeInstanceOf(Date);
+      expect(metadata.updated_at).toBeInstanceOf(Date);
+    });
+  });
+
+  // ============================================================
+  // 集合高级操作
+  // ============================================================
+  describe('advanced collection operations', () => {
+    const makeSkill = (id: number, name: string, desc: string | null, dir: string, createdBy: number | null, creatorName: string | null): Skills => ({
+      id, name, description: desc, skill_dir: dir,
+      created_by: createdBy, creator_name: creatorName,
+      created_at: new Date('2024-06-01'), updated_at: new Date('2024-06-01'),
+    });
+
+    it('should filter and map in chain', () => {
+      const skills = [
+        makeSkill(1, 'SEO', '搜索', '/seo', 1, '管理员'),
+        makeSkill(2, 'AI', null, '/ai', null, null),
+        makeSkill(3, '发布', '自动发布', '/pub', 2, '张三'),
+      ];
+      const names = skills.filter(s => s.description !== null).map(s => s.name);
+      expect(names).toEqual(['SEO', '发布']);
+    });
+
+    it('should find index of skill by name', () => {
+      const skills = [
+        makeSkill(1, 'SEO', null, '/seo', null, null),
+        makeSkill(2, 'AI', null, '/ai', null, null),
+        makeSkill(3, '发布', null, '/pub', null, null),
+      ];
+      expect(skills.findIndex(s => s.name === 'AI')).toBe(1);
+    });
+
+    it('should return -1 from findIndex for non-existent name', () => {
+      const skills = [
+        makeSkill(1, 'SEO', null, '/seo', null, null),
+      ];
+      expect(skills.findIndex(s => s.name === '不存在')).toBe(-1);
+    });
+
+    it('should flatMap skill names with path prefix', () => {
+      const skills = [
+        makeSkill(1, 'SEO', null, '/seo', null, null),
+        makeSkill(2, 'AI', null, '/ai', null, null),
+      ];
+      const prefixed = skills.flatMap(s => [s.name, s.skill_dir]);
+      expect(prefixed).toEqual(['SEO', '/seo', 'AI', '/ai']);
+    });
+
+    it('should use reduce to build id-to-skill map', () => {
+      const skills = [
+        makeSkill(1, 'SEO', null, '/seo', 1, '管理员'),
+        makeSkill(2, 'AI', null, '/ai', 2, '张三'),
+      ];
+      const map = skills.reduce<Map<number, Skills>>((acc, s) => {
+        acc.set(s.id, s);
+        return acc;
+      }, new Map());
+      expect(map.get(1)?.name).toBe('SEO');
+      expect(map.get(2)?.name).toBe('AI');
+    });
+
+    it('should group skills by description status', () => {
+      const skills = [
+        makeSkill(1, 'A', '有描述', '/a', null, null),
+        makeSkill(2, 'B', null, '/b', null, null),
+        makeSkill(3, 'C', '也有描述', '/c', null, null),
+      ];
+      const grouped = skills.reduce<Record<string, Skills[]>>((acc, s) => {
+        const key = s.description === null ? 'noDesc' : 'hasDesc';
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(s);
+        return acc;
+      }, {});
+      expect(grouped.hasDesc).toHaveLength(2);
+      expect(grouped.noDesc).toHaveLength(1);
+    });
+
+    it('should find skill with highest id', () => {
+      const skills = [
+        makeSkill(10, 'A', null, '/a', null, null),
+        makeSkill(50, 'B', null, '/b', null, null),
+        makeSkill(30, 'C', null, '/c', null, null),
+      ];
+      const max = skills.reduce((prev, curr) => curr.id > prev.id ? curr : prev);
+      expect(max.name).toBe('B');
+      expect(max.id).toBe(50);
+    });
+
+    it('should find skill with lowest id', () => {
+      const skills = [
+        makeSkill(10, 'A', null, '/a', null, null),
+        makeSkill(50, 'B', null, '/b', null, null),
+        makeSkill(30, 'C', null, '/c', null, null),
+      ];
+      const min = skills.reduce((prev, curr) => curr.id < prev.id ? curr : prev);
+      expect(min.name).toBe('A');
+      expect(min.id).toBe(10);
+    });
+
+    it('should count skills per creator', () => {
+      const skills = [
+        makeSkill(1, 'A', null, '/a', 1, '管理员'),
+        makeSkill(2, 'B', null, '/b', 2, '张三'),
+        makeSkill(3, 'C', null, '/c', 1, '管理员'),
+      ];
+      const counts = skills.reduce<Record<string, number>>((acc, s) => {
+        const creator = s.creator_name ?? '系统';
+        acc[creator] = (acc[creator] || 0) + 1;
+        return acc;
+      }, {});
+      expect(counts['管理员']).toBe(2);
+      expect(counts['张三']).toBe(1);
+      expect(counts['系统']).toBe(undefined);
+    });
+  });
+
+  // ============================================================
+  // 连续更新链
+  // ============================================================
+  describe('consecutive update chains', () => {
+    it('should apply 3 consecutive updates preserving integrity', () => {
+      let skill: Skills = {
+        id: 1, name: 'V1', description: '版本1', skill_dir: '/v1',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+
+      skill = { ...skill, name: 'V2', updated_at: new Date('2024-03-01') };
+      expect(skill.name).toBe('V2');
+      expect(skill.description).toBe('版本1');
+      expect(skill.id).toBe(1);
+
+      skill = { ...skill, description: '版本2', skill_dir: '/v2', updated_at: new Date('2024-06-01') };
+      expect(skill.name).toBe('V2');
+      expect(skill.description).toBe('版本2');
+      expect(skill.skill_dir).toBe('/v2');
+
+      skill = { ...skill, created_by: null, creator_name: null, updated_at: new Date('2024-09-01') };
+      expect(skill.created_by).toBeNull();
+      expect(skill.creator_name).toBeNull();
+      expect(skill.name).toBe('V2');
+      expect(skill.description).toBe('版本2');
+    });
+
+    it('should handle description toggle (null -> string -> null)', () => {
+      let skill: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      expect(skill.description).toBeNull();
+
+      skill = { ...skill, description: '新增描述', updated_at: new Date('2024-03-01') };
+      expect(skill.description).toBe('新增描述');
+
+      skill = { ...skill, description: null, updated_at: new Date('2024-06-01') };
+      expect(skill.description).toBeNull();
+    });
+
+    it('should handle 5 consecutive partial updates', () => {
+      let skill: Skills = {
+        id: 1, name: 'Init', description: '初始', skill_dir: '/init',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+
+      skill = { ...skill, name: 'U1', updated_at: new Date('2024-02-01') };
+      expect(skill.name).toBe('U1');
+
+      skill = { ...skill, description: '更新1', updated_at: new Date('2024-03-01') };
+      expect(skill.description).toBe('更新1');
+      expect(skill.name).toBe('U1');
+
+      skill = { ...skill, skill_dir: '/u3', updated_at: new Date('2024-04-01') };
+      expect(skill.skill_dir).toBe('/u3');
+
+      skill = { ...skill, creator_name: '张三', updated_at: new Date('2024-05-01') };
+      expect(skill.creator_name).toBe('张三');
+      expect(skill.created_by).toBe(1);
+
+      skill = { ...skill, created_by: 2, updated_at: new Date('2024-06-01') };
+      expect(skill.created_by).toBe(2);
+      expect(skill.creator_name).toBe('张三');
+      expect(skill.name).toBe('U1');
+    });
+
+    it('should preserve id through all updates', () => {
+      let skill: Skills = {
+        id: 42, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      for (let i = 0; i < 10; i++) {
+        skill = { ...skill, name: `更新${i}`, updated_at: new Date() };
+        expect(skill.id).toBe(42);
+      }
+    });
+  });
+
+  // ============================================================
+  // 日期操作
+  // ============================================================
+  describe('date operations', () => {
+    it('should support created_at with millisecond precision', () => {
+      const ms = new Date('2024-06-15T08:30:00.123Z');
+      const skills: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: ms, updated_at: new Date(),
+      };
+      expect(skills.created_at.getMilliseconds()).toBe(123);
+    });
+
+    it('should support date arithmetic between created_at and updated_at', () => {
+      const created = new Date('2024-06-01T00:00:00Z');
+      const updated = new Date('2024-06-15T00:00:00Z');
+      const skills: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: created, updated_at: updated,
+      };
+      const diffMs = skills.updated_at.getTime() - skills.created_at.getTime();
+      const diffDays = diffMs / (1000 * 60 * 60 * 24);
+      expect(diffDays).toBe(14);
+    });
+
+    it('should support sorting skills by created_at', () => {
+      const skills: Skills[] = [
+        { id: 3, name: 'C', description: null, skill_dir: '/c', created_by: null, creator_name: null, created_at: new Date('2024-03-01'), updated_at: new Date() },
+        { id: 1, name: 'A', description: null, skill_dir: '/a', created_by: null, creator_name: null, created_at: new Date('2024-01-01'), updated_at: new Date() },
+        { id: 2, name: 'B', description: null, skill_dir: '/b', created_by: null, creator_name: null, created_at: new Date('2024-02-01'), updated_at: new Date() },
+      ];
+      const sorted = [...skills].sort((a, b) => a.created_at.getTime() - b.created_at.getTime());
+      expect(sorted.map(s => s.name)).toEqual(['A', 'B', 'C']);
+    });
+
+    it('should detect stale skills via date comparison', () => {
+      const now = new Date('2024-12-01');
+      const staleThreshold = 180 * 24 * 60 * 60 * 1000; // 180 days in ms
+      const skills: Skills[] = [
+        { id: 1, name: 'Recent', description: null, skill_dir: '/a', created_by: null, creator_name: null, created_at: new Date('2024-06-01'), updated_at: new Date('2024-11-01') },
+        { id: 2, name: 'Stale', description: null, skill_dir: '/b', created_by: null, creator_name: null, created_at: new Date('2024-01-01'), updated_at: new Date('2024-03-01') },
+      ];
+      const stale = skills.filter(s => (now.getTime() - s.updated_at.getTime()) > staleThreshold);
+      expect(stale).toHaveLength(1);
+      expect(stale[0].name).toBe('Stale');
+    });
+
+    it('should support Date.now() for updated_at assignment', () => {
+      const before = Date.now();
+      const skills: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date('2024-01-01'),
+        updated_at: new Date(Date.now()),
+      };
+      const after = Date.now();
+      expect(skills.updated_at.getTime()).toBeGreaterThanOrEqual(before);
+      expect(skills.updated_at.getTime()).toBeLessThanOrEqual(after);
+    });
+
+    it('should support skills from different years', () => {
+      const skills: Skills[] = [
+        { id: 1, name: 'Old', description: null, skill_dir: '/a', created_by: null, creator_name: null, created_at: new Date('2020-01-01'), updated_at: new Date('2020-01-01') },
+        { id: 2, name: 'New', description: null, skill_dir: '/b', created_by: null, creator_name: null, created_at: new Date('2024-06-01'), updated_at: new Date('2024-06-01') },
+      ];
+      expect(skills[0].created_at.getFullYear()).toBe(2020);
+      expect(skills[1].created_at.getFullYear()).toBe(2024);
+    });
+  });
+
+  // ============================================================
+  // Set/Map 操作
+  // ============================================================
+  describe('Set/Map operations', () => {
+    it('should collect unique creator names into Set', () => {
+      const skills: Skills[] = [
+        { id: 1, name: 'A', description: null, skill_dir: '/a', created_by: 1, creator_name: '管理员', created_at: new Date(), updated_at: new Date() },
+        { id: 2, name: 'B', description: null, skill_dir: '/b', created_by: 2, creator_name: '张三', created_at: new Date(), updated_at: new Date() },
+        { id: 3, name: 'C', description: null, skill_dir: '/c', created_by: 1, creator_name: '管理员', created_at: new Date(), updated_at: new Date() },
+      ];
+      const creators = new Set(skills.filter(s => s.creator_name !== null).map(s => s.creator_name));
+      expect(creators.size).toBe(2);
+      expect(creators.has('管理员')).toBe(true);
+      expect(creators.has('张三')).toBe(true);
+    });
+
+    it('should store skills in Map keyed by skill_dir', () => {
+      const skills: Skills[] = [
+        { id: 1, name: 'SEO', description: null, skill_dir: '/seo', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() },
+        { id: 2, name: 'AI', description: null, skill_dir: '/ai', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() },
+      ];
+      const map = new Map(skills.map(s => [s.skill_dir, s]));
+      expect(map.get('/seo')?.name).toBe('SEO');
+      expect(map.get('/ai')?.name).toBe('AI');
+      expect(map.get('/nonexistent')).toBeUndefined();
+    });
+
+    it('should collect unique skill_dir values into Set', () => {
+      const skills: Skills[] = [
+        { id: 1, name: 'A', description: null, skill_dir: '/seo', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() },
+        { id: 2, name: 'B', description: null, skill_dir: '/ai', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() },
+        { id: 3, name: 'C', description: null, skill_dir: '/seo', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() },
+      ];
+      const dirs = new Set(skills.map(s => s.skill_dir));
+      expect(dirs.size).toBe(2);
+    });
+
+    it('should use Map for skill lookup by name', () => {
+      const skills: Skills[] = [
+        { id: 1, name: 'SEO优化', description: '搜索', skill_dir: '/seo', created_by: 1, creator_name: '管理员', created_at: new Date(), updated_at: new Date() },
+        { id: 2, name: '内容生成', description: 'AI', skill_dir: '/ai', created_by: 2, creator_name: '张三', created_at: new Date(), updated_at: new Date() },
+      ];
+      const byName = new Map(skills.map(s => [s.name, s]));
+      expect(byName.get('SEO优化')?.skill_dir).toBe('/seo');
+      expect(byName.has('不存在')).toBe(false);
+    });
+
+    it('should convert Map entries to array', () => {
+      const map = new Map<number, Skills>();
+      map.set(1, { id: 1, name: 'SEO', description: null, skill_dir: '/seo', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() });
+      map.set(2, { id: 2, name: 'AI', description: null, skill_dir: '/ai', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() });
+      const arr = Array.from(map.values());
+      expect(arr).toHaveLength(2);
+      expect(arr.map(s => s.name)).toEqual(['SEO', 'AI']);
+    });
+  });
+
+  // ============================================================
+  // 属性描述符
+  // ============================================================
+  describe('property descriptors', () => {
+    it('should verify hasOwnProperty for all Skills fields', () => {
+      const skills: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Object.prototype.hasOwnProperty.call(skills, 'id')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(skills, 'name')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(skills, 'description')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(skills, 'skill_dir')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(skills, 'created_by')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(skills, 'creator_name')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(skills, 'created_at')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(skills, 'updated_at')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(skills, 'nonexistent')).toBe(false);
+    });
+
+    it('should verify all fields are enumerable', () => {
+      const skills: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      Object.keys(skills).forEach(key => {
+        const desc = Object.getOwnPropertyDescriptor(skills, key);
+        expect(desc?.enumerable).toBe(true);
+      });
+    });
+
+    it('should allow property reassignment on unfrozen skill', () => {
+      const skills: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      skills.name = 'B';
+      skills.description = '新描述';
+      skills.created_by = 42;
+      expect(skills.name).toBe('B');
+      expect(skills.description).toBe('新描述');
+      expect(skills.created_by).toBe(42);
+    });
+
+    it('should verify property descriptor for specific fields', () => {
+      const skills: Skills = {
+        id: 1, name: 'SEO', description: '搜索', skill_dir: '/seo',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const idDesc = Object.getOwnPropertyDescriptor(skills, 'id');
+      expect(idDesc?.value).toBe(1);
+      expect(idDesc?.writable).toBe(true);
+      expect(idDesc?.configurable).toBe(true);
+
+      const nameDesc = Object.getOwnPropertyDescriptor(skills, 'name');
+      expect(nameDesc?.value).toBe('SEO');
+      expect(nameDesc?.writable).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // 函数参数传递
+  // ============================================================
+  describe('function parameter passing', () => {
+    it('should pass skill to transform function', () => {
+      const original: Skills = {
+        id: 1, name: 'SEO', description: '搜索', skill_dir: '/seo',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const transform = (s: Skills): Skills => ({
+        ...s,
+        name: s.name.toUpperCase(),
+        updated_at: new Date(),
+      });
+      const result = transform(original);
+      expect(result.name).toBe('SEO');
+      expect(result.description).toBe('搜索');
+      expect(original.name).toBe('SEO');
+    });
+
+    it('should pass skills to compare function', () => {
+      const skill1: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/a',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const skill2: Skills = {
+        id: 2, name: 'B', description: null, skill_dir: '/b',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const compareById = (a: Skills, b: Skills): number => a.id - b.id;
+      expect(compareById(skill1, skill2)).toBeLessThan(0);
+      expect(compareById(skill2, skill1)).toBeGreaterThan(0);
+    });
+
+    it('should use skill in map callback to extract summary', () => {
+      const skills: Skills[] = [
+        { id: 1, name: 'SEO', description: '搜索优化', skill_dir: '/seo', created_by: 1, creator_name: '管理员', created_at: new Date(), updated_at: new Date() },
+        { id: 2, name: 'AI', description: 'AI生成', skill_dir: '/ai', created_by: 2, creator_name: '张三', created_at: new Date(), updated_at: new Date() },
+      ];
+      const summaries = skills.map(s => `${s.id}: ${s.name} (${s.creator_name ?? '系统'})`);
+      expect(summaries).toEqual([
+        '1: SEO (管理员)',
+        '2: AI (张三)',
+      ]);
+    });
+
+    it('should create skill copy via function returning new object', () => {
+      const original: Skills = {
+        id: 1, name: 'SEO', description: '搜索', skill_dir: '/seo',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const cloneSkill = (s: Skills): Skills => ({ ...s });
+      const copy = cloneSkill(original);
+      expect(copy).not.toBe(original);
+      expect(copy.id).toBe(original.id);
+      expect(copy.name).toBe(original.name);
+    });
+
+    it('should pass skill as function argument and return updated version', () => {
+      const updateName = (skill: Skills, newName: string): Skills => ({
+        ...skill,
+        name: newName,
+        updated_at: new Date(),
+      });
+      const original: Skills = {
+        id: 1, name: '旧名称', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const updated = updateName(original, '新名称');
+      expect(updated.name).toBe('新名称');
+      expect(original.name).toBe('旧名称');
+      expect(updated.id).toBe(original.id);
+    });
+  });
 });

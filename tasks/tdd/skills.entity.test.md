@@ -11,7 +11,7 @@
 
 ## 测试结果
 - **测试套件**: 1 passed, 1 total
-- **测试用例**: 163 passed, 163 total
+- **测试用例**: 219 passed, 219 total
 - **状态**: 全部通过
 
 ## 测试覆盖
@@ -19,7 +19,7 @@
 ### 覆盖率说明
 entity文件仅包含纯TypeScript接口定义（`Skills`、`CreateSkillsRequest`、`UpdateSkillsRequest`），无可执行语句（statements/branches/functions），因此覆盖率指标为0%是正常的。测试通过类型检查和运行时断言验证接口契约的正确性。
 
-### 测试分组（5个describe，163个用例）
+### 测试分组（13个describe，219个用例）
 
 #### Skills interface（93个测试）
 - 基础创建和字段数量验证（2个）
@@ -89,5 +89,81 @@ entity文件仅包含纯TypeScript接口定义（`Skills`、`CreateSkillsRequest
 - 部分更新保持原字段（1个）
 - 接口间转换（1个）
 
+#### JSON 序列化往返（6个测试）【新增】
+- 全字段JSON round-trip（1个）
+- null description JSON round-trip（1个）
+- Date字段序列化为ISO字符串（1个）
+- 数字精度保持（1个）
+- 中文字符保持（1个）
+- 数组JSON round-trip（1个）
+
+#### Object.freeze 不可变性（8个测试）【新增】
+- 冻结后name/id/description/skill_dir/created_by/creator_name变异被拒绝（7个）
+- Object.isFrozen状态验证（1个）
+
+#### 结构相等与深拷贝（5个测试）【新增】
+- 同值结构相等（1个）
+- 展开复制结构相等但引用不同（1个）
+- JSON parse/stringify深拷贝（1个）
+- JSON深拷贝独立性（1个）
+- null字段展开复制结构相等（1个）
+
+#### 解构模式（4个测试）【新增】
+- rest操作符部分提取（1个）
+- 全字段解构（1个）
+- 计算属性访问（1个）
+- rest操作符提取元数据（1个）
+
+#### 集合高级操作（9个测试）【新增】
+- filter+map链式操作（1个）
+- findIndex查找（1个）
+- findIndex不存在返回-1（1个）
+- flatMap展开（1个）
+- reduce构建id到skill的Map（1个）
+- 按描述状态分组（1个）
+- 最高/最低id查找（2个）
+- 按创建者统计（1个）
+
+#### 连续更新链（4个测试）【新增】
+- 3次连续更新保持完整性（1个）
+- description null→string→null切换（1个）
+- 5次连续部分更新（1个）
+- 10次循环更新保持id不变（1个）
+
+#### 日期操作（6个测试）【新增】
+- 毫秒精度（1个）
+- 日期算术（1个）
+- 按created_at排序（1个）
+- 过期技能检测（1个）
+- Date.now()赋值（1个）
+- 不同年份技能（1个）
+
+#### Set/Map 操作（5个测试）【新增】
+- 唯一创建者名称Set收集（1个）
+- skill_dir为键的Map存储（1个）
+- 唯一skill_dir值Set收集（1个）
+- name查找Map（1个）
+- Map entries转数组（1个）
+
+#### 属性描述符（4个测试）【新增】
+- hasOwnProperty验证所有字段（1个）
+- 所有字段可枚举验证（1个）
+- 未冻结对象允许属性重赋值（1个）
+- 特定字段属性描述符验证（1个）
+
+#### 函数参数传递（5个测试）【新增】
+- transform函数传递（1个）
+- compare函数传递（1个）
+- map回调提取摘要（1个）
+- 函数返回新对象复制（1个）
+- 函数参数传递返回更新版本（1个）
+
+## 更新历史
+
+| 版本 | 日期 | 用例数 | 变更 |
+|------|------|--------|------|
+| v1 | 2026-05-24 | 163 | 初始版本：Skills/CreateSkillsRequest/UpdateSkillsRequest接口测试 |
+| v2 | 2026-05-24 | 219 | +56新增：JSON序列化往返/Object.freeze不可变/结构相等/深拷贝/解构模式/集合高级操作/连续更新链/日期操作/Set-Map操作/属性描述符/函数参数传递 |
+
 ## 结论
-skills.entity.ts 的三个接口（Skills、CreateSkillsRequest、UpdateSkillsRequest）的所有字段类型、nullable属性、边界值、实际场景均通过测试验证，接口契约完整且正确。共163个测试用例，覆盖了字段验证、对象操作、数组方法、类型收窄、可选链、空值合并、Map/Set、不可变性、CRUD生命周期等全面场景。
+skills.entity.ts 的三个接口（Skills、CreateSkillsRequest、UpdateSkillsRequest）的所有字段类型、nullable属性、边界值、实际场景均通过测试验证，接口契约完整且正确。共219个测试用例，覆盖了字段验证、对象操作、数组方法、类型收窄、可选链、空值合并、Map/Set、不可变性、CRUD生命周期、JSON序列化往返、Object.freeze不可变、结构相等与深拷贝、解构模式、集合高级操作、连续更新链、日期操作、属性描述符、函数参数传递等全面场景。
