@@ -1393,4 +1393,361 @@ describe('Project Controller', () => {
       expect(response.status).toBe(201);
     });
   });
+
+  // ========== Direct controller tests for uncovered branches ==========
+  describe('createProject - direct controller: full_name > 200 (defense-in-depth)', () => {
+    it('should return 400 when full_name exceeds 200 characters (bypass schema)', async () => {
+      const { createProject } = require('../../apis/controller/project.controller');
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        body: {
+          short_name: 'P1',
+          full_name: 'x'.repeat(201),
+          company_id: 1,
+        },
+        user: { userId: 1, role: 'sysadmin', companyId: 1 },
+      };
+
+      await createProject(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '项目全名不能超过200个字符' })
+      );
+    });
+
+    it('should allow full_name with exactly 200 characters (bypass schema)', async () => {
+      const { createProject } = require('../../apis/controller/project.controller');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const mockCreate = jest.fn().mockResolvedValue(mockProjectRow);
+      const mockUserFindMany = jest.fn().mockResolvedValue([]);
+      getPrisma.mockReturnValue({
+        project: { create: mockCreate },
+        user: { findMany: mockUserFindMany },
+      });
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        body: {
+          short_name: 'P1',
+          full_name: 'x'.repeat(200),
+          company_id: 1,
+          operator_ids: [],
+        },
+        user: { userId: 1, role: 'sysadmin', companyId: 1 },
+      };
+
+      await createProject(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+    });
+
+    it('should return 401 when not logged in (direct controller)', async () => {
+      const { createProject } = require('../../apis/controller/project.controller');
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        body: { short_name: 'P1', full_name: 'Project', company_id: 1 },
+        user: undefined,
+      };
+
+      await createProject(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(401);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '未登录' })
+      );
+    });
+
+    it('should return 400 when short_name exceeds 50 characters (direct controller)', async () => {
+      const { createProject } = require('../../apis/controller/project.controller');
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        body: {
+          short_name: 'x'.repeat(51),
+          full_name: 'Project',
+          company_id: 1,
+        },
+        user: { userId: 1, role: 'sysadmin', companyId: 1 },
+      };
+
+      await createProject(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '项目短名不能超过50个字符' })
+      );
+    });
+
+    it('should return 400 when description exceeds 500 characters (direct controller)', async () => {
+      const { createProject } = require('../../apis/controller/project.controller');
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        body: {
+          short_name: 'P1',
+          full_name: 'Project',
+          company_id: 1,
+          description: 'x'.repeat(501),
+        },
+        user: { userId: 1, role: 'sysadmin', companyId: 1 },
+      };
+
+      await createProject(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '项目描述不能超过500个字符' })
+      );
+    });
+  });
+
+  describe('updateProject - direct controller: 401 check (defense-in-depth)', () => {
+    it('should return 401 when not logged in (direct controller)', async () => {
+      const { updateProject } = require('../../apis/controller/project.controller');
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        params: { id: '1' },
+        body: { short_name: 'Updated' },
+        user: undefined,
+      };
+
+      await updateProject(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(401);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '未登录' })
+      );
+    });
+  });
+
+  describe('getProject - direct controller: 401 check (defense-in-depth)', () => {
+    it('should return 401 when not logged in (direct controller)', async () => {
+      const { getProject } = require('../../apis/controller/project.controller');
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        params: { id: '1' },
+        user: undefined,
+      };
+
+      await getProject(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(401);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '未登录' })
+      );
+    });
+  });
+
+  describe('deleteProject - direct controller: 401 check (defense-in-depth)', () => {
+    it('should return 401 when not logged in (direct controller)', async () => {
+      const { deleteProject } = require('../../apis/controller/project.controller');
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        params: { id: '1' },
+        user: undefined,
+      };
+
+      await deleteProject(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(401);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '未登录' })
+      );
+    });
+  });
+
+  describe('listProjects - direct controller: 401 check (defense-in-depth)', () => {
+    it('should return 401 when not logged in (direct controller)', async () => {
+      const { listProjects } = require('../../apis/controller/project.controller');
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        query: {},
+        user: undefined,
+      };
+
+      await listProjects(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(401);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '未登录' })
+      );
+    });
+  });
+
+  // ========== Non-Error thrown in catch blocks (branch coverage) ==========
+  describe('non-Error thrown in catch blocks', () => {
+    it('listProjects: should handle non-Error thrown', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockRejectedValue('string error');
+      getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: jest.fn() } });
+
+      const response = await agent
+        .get('/api/v1/projects')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取项目列表失败');
+    });
+
+    it('getProject: should handle non-Error thrown', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockRejectedValue('string error');
+      getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .get('/api/v1/projects/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取项目详情失败');
+    });
+
+    it('createProject: should handle non-Error thrown', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockUserFindMany = jest.fn().mockResolvedValue([{ id: 2, companyId: 1 }]);
+      const mockCreate = jest.fn().mockRejectedValue('string error');
+      getPrisma.mockReturnValue({
+        project: { create: mockCreate },
+        user: { findMany: mockUserFindMany },
+      });
+
+      const response = await agent
+        .post('/api/v1/projects')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ short_name: 'P1', full_name: 'Project 1', company_id: 1, operator_ids: [2] });
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('创建项目失败');
+    });
+
+    it('updateProject: should handle non-Error thrown', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
+      const mockUpdate = jest.fn().mockRejectedValue('string error');
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const response = await agent
+        .put('/api/v1/projects/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ short_name: 'P1-Updated' });
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('更新项目失败');
+    });
+
+    it('deleteProject: should handle non-Error thrown', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
+      const mockDelete = jest.fn().mockRejectedValue('string error');
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockDelete },
+      });
+
+      const response = await agent
+        .delete('/api/v1/projects/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('删除项目失败');
+    });
+  });
+
+  // ========== Edge case: admin creating with explicit company_id matches their own ==========
+  describe('createProject - admin edge cases', () => {
+    it('should use admin companyId when role is admin even if company_id provided', async () => {
+      const { createProject } = require('../../apis/controller/project.controller');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const mockCreate = jest.fn().mockResolvedValue({ ...mockProjectRow, companyId: 5 });
+      const mockUserFindMany = jest.fn().mockResolvedValue([{ id: 2, companyId: 5, role: 'admin' }]);
+      getPrisma.mockReturnValue({
+        project: { create: mockCreate },
+        user: { findMany: mockUserFindMany },
+      });
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        body: {
+          short_name: 'P1',
+          full_name: 'Project 1',
+          company_id: 999,
+          operator_ids: [2],
+        },
+        user: { userId: 2, role: 'admin', companyId: 5 },
+      };
+
+      await createProject(mockReq, mockRes);
+      // Admin's companyId (5) should be used, not the body's company_id (999)
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: 5 }),
+        })
+      );
+    });
+  });
+
+  // ========== getProject: view role via route is 403 from middleware ==========
+  describe('GET /api/projects/:id - view role via route', () => {
+    it('should return 403 for view role via route middleware', async () => {
+      const response = await agent
+        .get('/api/v1/projects/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+
+      expect(response.status).toBe(403);
+    });
+  });
+
+  // ========== updateProject: view role via route ==========
+  describe('PUT /api/projects/:id - view role via route', () => {
+    it('should return 403 for view role via route middleware', async () => {
+      const response = await agent
+        .put('/api/v1/projects/1')
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ short_name: 'Updated' });
+
+      expect(response.status).toBe(403);
+    });
+  });
+
+  // ========== DELETE: view role via route ==========
+  describe('DELETE /api/projects/:id - view role via route', () => {
+    it('should return 403 for view role via route middleware', async () => {
+      const response = await agent
+        .delete('/api/v1/projects/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+
+      expect(response.status).toBe(403);
+    });
+  });
 });

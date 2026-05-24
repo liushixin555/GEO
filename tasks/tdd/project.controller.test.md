@@ -7,10 +7,10 @@
 `apis/controller/project.controller.ts`
 
 ## 测试结果
-- **测试数量**: 65 个
-- **通过**: 65 个
+- **测试数量**: 94 个
+- **通过**: 94 个
 - **失败**: 0 个
-- **执行时间**: ~10s
+- **执行时间**: ~5.5s
 
 ## 覆盖率
 
@@ -94,55 +94,104 @@
 63. sysadmin 直接删除（跳过运营者检查）
 64. 无 token 删除返回 401
 
-### 直接单元测试 — 1 个测试
-65. deleteProject view 角色 403（绕过路由守卫，覆盖防御性分支）
+### 直接单元测试（defense-in-depth）— 4 个测试
+65. deleteProject view 角色 403（绕过路由守卫）
+66. getProject view 角色 403（绕过路由守卫）
+67. updateProject view 角色 403（绕过路由守卫）
+
+### 输入验证 — 5 个测试
+68. search 超过 100 字符返回 400
+69. search 恰好 100 字符允许
+70. 无效 company_id（NaN）返回 400
+71. 负数 company_id 返回 400
+72. 零值 company_id 返回 400
+
+### 字符串长度验证 — 4 个测试
+73. short_name 超过 50 字符返回 400
+74. full_name 超过 200 字符返回 400
+75. description 超过 500 字符返回 400
+76. short_name 恰好 50 字符允许
+
+### 直接控制器测试（覆盖未触达分支）— 5 个测试（新增）
+77. createProject full_name > 200 直接调用返回 400
+78. createProject full_name 恰好 200 允许
+79. createProject 401 未登录直接调用
+80. createProject short_name > 50 直接调用返回 400
+81. createProject description > 500 直接调用返回 400
+
+### 直接控制器 401 检查（defense-in-depth）— 4 个测试（新增）
+82. updateProject 401 未登录直接调用
+83. getProject 401 未登录直接调用
+84. deleteProject 401 未登录直接调用
+85. listProjects 401 未登录直接调用
+
+### 非 Error 对象抛出（分支覆盖）— 5 个测试（新增）
+86. listProjects 非 Error 抛出 → 500 + 默认消息
+87. getProject 非 Error 抛出 → 500 + 默认消息
+88. createProject 非 Error 抛出 → 500 + 默认消息
+89. updateProject 非 Error 抛出 → 500 + 默认消息
+90. deleteProject 非 Error 抛出 → 500 + 默认消息
+
+### admin 边界场景 — 1 个测试（新增）
+91. admin 创建项目始终使用 JWT companyId（忽略 body 中的 company_id）
+
+### view 角色路由守卫 — 3 个测试（新增）
+92. GET /api/projects/:id view 角色 403（路由中间件拦截）
+93. PUT /api/projects/:id view 角色 403（路由中间件拦截）
+94. DELETE /api/projects/:id view 角色 403（路由中间件拦截）
 
 ## 覆盖的分支路径
 
 ### listProjects
 - ✅ page/pageSize 解析（默认值、上限100）、search、company_id、status(true/false/undefined/invalid)、分页响应、组合过滤
-- ✅ 异常流程: 服务错误、默认错误消息
+- ✅ 异常流程: 服务错误、默认错误消息、非 Error 对象抛出
+- ✅ 401 未登录直接调用
 
 ### getProject
 - ✅ isNaN(id) → 400、项目不存在 → 404、admin非运营者 → 403、正常获取 → 200、全字段映射验证
-- ✅ 其他错误 → 500 + 默认消息
+- ✅ view 角色 → 403（直接单元测试 + 路由守卫）
+- ✅ 其他错误 → 500 + 默认消息、非 Error 对象抛出
+- ✅ 401 未登录直接调用
 
 ### createProject
 - ✅ 缺少必填字段 → 400（schema 验证 + 控制器 effectiveCompanyId 检查）
 - ✅ admin强制companyId覆盖、运营者/查看者不属于公司 → 400
 - ✅ 创建成功 → 201（含/不含 operators/viewers 两种场景）
-- ✅ 服务错误 → 500 + 默认消息
+- ✅ full_name > 200 直接调用 → 400（绕过 schema 中间件）
+- ✅ short_name > 50 / description > 500 直接调用 → 400
+- ✅ 服务错误 → 500 + 默认消息、非 Error 对象抛出
+- ✅ 401 未登录直接调用
 
 ### updateProject
 - ✅ isNaN(id) → 400、项目不存在 → 404、company_id变更 → 400、相同company_id允许
 - ✅ admin非运营者 → 403、admin运营者更新成功
+- ✅ view 角色 → 403（直接单元测试 + 路由守卫）
 - ✅ 运营者/查看者不属于公司 → 400
 - ✅ 更新成功 → 200（status/description/operator_ids/viewer_ids 多场景）
 - ✅ company_id 剥离、空 operator_ids 处理
-- ✅ 服务错误 → 500 + 默认消息
+- ✅ 服务错误 → 500 + 默认消息、非 Error 对象抛出
+- ✅ 401 未登录直接调用
 
 ### deleteProject
 - ✅ isNaN(id) → 400、项目不存在 → 404
 - ✅ admin非运营者 → 403、admin运营者删除成功
 - ✅ sysadmin删除成功（跳过运营者检查）
-- ✅ view角色 → 403（直接单元测试覆盖防御性分支）
+- ✅ view角色 → 403（直接单元测试 + 路由守卫）
 - ✅ 无token → 401
-- ✅ 服务错误 → 500 + 默认消息
+- ✅ 服务错误 → 500 + 默认消息、非 Error 对象抛出
+- ✅ 401 未登录直接调用
 
-## 本次变更详情
+## 本次变更详情（2026-05-24 第二轮补全）
 
-### Schema 修复（apis/schema/project.schema.ts）
-- createProjectSchema: `company_id` 改为 optional, `operator_ids` 移除 min(1) 改为 optional
-- updateProjectSchema: 添加 `company_id` optional, `status` 从 z.enum 改为 z.boolean, `operator_ids` 移除 min(1)
+### 新增 18 个测试用例
+从 76 个提升至 94 个，覆盖率从 90.83% Stmts / 87.05% Branch / 98.26% Lines 提升至 **100% 全覆盖**。
 
-### 修复 9 个失败测试
-- POST 测试补充 `operator_ids` 字段通过 schema 验证
-- POST mock 数据补充 user.findMany 返回值以通过运营者验证
-- PUT 测试适配 schema 变更（company_id/status/operator_ids）
-
-### 新增 1 个测试
-- **deleteProject view 角色**: 直接调用控制器函数绕过路由守卫，覆盖 lines 142-143 防御性代码
+### 覆盖率缺口分析
+1. **行 99-100**: `full_name.length > 200` 分支被路由 schema 中间件拦截，controller 自身该分支从未执行 → 通过直接调用 controller 函数覆盖
+2. **Branch 87.05% → 100%**: 5 个 catch 块中 `err instanceof Error` 的 false 分支（非 Error 抛出）未覆盖 → 新增非 Error 抛出测试
+3. **createProject/updateProject 401 检查**: controller 自身 `!req.user` 分支仅通过路由中间件间接覆盖 → 新增直接调用测试
+4. **view 角色路由守卫**: GET/PUT/DELETE 三个端点的 view 角色路由级拦截 → 新增路由级测试
 
 ### 覆盖率变化
-- 修复前: 64 用例（9 失败），93.25% Stmts / 89.28% Branch / 92.77% Lines
-- 修复后: 65 用例（0 失败），**100% Stmts / 100% Branch / 100% Lines**
+- 补全前: 76 用例，90.83% Stmts / 87.05% Branch / 100% Funcs / 98.26% Lines
+- 补全后: 94 用例，**100% Stmts / 100% Branch / 100% Funcs / 100% Lines**
