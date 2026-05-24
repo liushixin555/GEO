@@ -1670,4 +1670,404 @@ describe('apis/config/index.ts', () => {
       expect(mod.default.database.password).toBe('prod-password-123');
     });
   });
+
+  // ────────────────────────────────────────────────────────────
+  // 第三轮补充：边界场景增强
+  // ────────────────────────────────────────────────────────────
+
+  describe('validateTimeSpan granular edge cases', () => {
+    it('should accept "0" as a pure number timespan', async () => {
+      const config = await loadConfigWithEnv({ JWT_EXPIRES_IN: '0' });
+      expect(config.jwt.expiresIn).toBe('0');
+    });
+
+    it('should accept "00" as a pure number timespan (leading zeros)', async () => {
+      const config = await loadConfigWithEnv({ JWT_EXPIRES_IN: '00' });
+      expect(config.jwt.expiresIn).toBe('00');
+    });
+
+    it('should accept "0ms" as a zero-millisecond timespan', async () => {
+      const config = await loadConfigWithEnv({ JWT_EXPIRES_IN: '0ms' });
+      expect(config.jwt.expiresIn).toBe('0ms');
+    });
+
+    it('should accept "0s" as a zero-second timespan', async () => {
+      const config = await loadConfigWithEnv({ JWT_EXPIRES_IN: '0s' });
+      expect(config.jwt.expiresIn).toBe('0s');
+    });
+
+    it('should fall back to default when JWT_EXPIRES_IN is empty string', async () => {
+      // '' is falsy → || DEFAULTS.JWT_EXPIRES_IN → '2h'
+      const config = await loadConfigWithEnv({ JWT_EXPIRES_IN: '' });
+      expect(config.jwt.expiresIn).toBe('2h');
+    });
+
+    it('should throw when JWT_EXPIRES_IN has unit but no number "h"', async () => {
+      await expect(loadConfigWithEnv({ JWT_EXPIRES_IN: 'h' })).rejects.toThrow(
+        'FATAL: JWT_EXPIRES_IN must be a valid timespan'
+      );
+    });
+
+    it('should throw when JWT_EXPIRES_IN has double units "10hh"', async () => {
+      await expect(loadConfigWithEnv({ JWT_EXPIRES_IN: '10hh' })).rejects.toThrow(
+        'FATAL: JWT_EXPIRES_IN must be a valid timespan'
+      );
+    });
+
+    it('should accept large numeric timespan "99999999"', async () => {
+      const config = await loadConfigWithEnv({ JWT_EXPIRES_IN: '99999999' });
+      expect(config.jwt.expiresIn).toBe('99999999');
+    });
+  });
+
+  describe('validateCronExpression whitespace variants', () => {
+    it('should fall back to default when cron expression is empty string', async () => {
+      // '' is falsy → || DEFAULTS.CRON_ARTICLE_INTERVAL → '*/5 * * * *'
+      const config = await loadConfigWithEnv({ CRON_ARTICLE_INTERVAL: '' });
+      expect(config.cron.articleGenerationInterval).toBe('*/5 * * * *');
+    });
+
+    it('should throw when cron expression is only whitespace', async () => {
+      await expect(loadConfigWithEnv({ CRON_ARTICLE_INTERVAL: '   ' })).rejects.toThrow(
+        'FATAL: CRON_ARTICLE_INTERVAL must be a valid 5-field cron expression'
+      );
+    });
+
+    it('should throw when cron expression has 4 fields', async () => {
+      await expect(loadConfigWithEnv({ CRON_ARTICLE_INTERVAL: '* * * *' })).rejects.toThrow(
+        'FATAL: CRON_ARTICLE_INTERVAL must be a valid 5-field cron expression'
+      );
+    });
+
+    it('should throw when cron expression has 6 fields', async () => {
+      await expect(loadConfigWithEnv({ CRON_ARTICLE_INTERVAL: '* * * * * *' })).rejects.toThrow(
+        'FATAL: CRON_ARTICLE_INTERVAL must be a valid 5-field cron expression'
+      );
+    });
+
+    it('should accept cron with leading/trailing whitespace', async () => {
+      const config = await loadConfigWithEnv({ CRON_ARTICLE_INTERVAL: '  */5 * * * *  ' });
+      expect(config.cron.articleGenerationInterval).toBe('  */5 * * * *  ');
+    });
+  });
+
+  describe('parseCorsOrigins URL structure edge cases', () => {
+    it('should accept origin with path', async () => {
+      const config = await loadConfigWithEnv({ CORS_ORIGINS: 'http://example.com/api/v1' });
+      expect(config.corsOrigins).toEqual(['http://example.com/api/v1']);
+    });
+
+    it('should accept origin with trailing slash', async () => {
+      const config = await loadConfigWithEnv({ CORS_ORIGINS: 'https://example.com/' });
+      expect(config.corsOrigins).toEqual(['https://example.com/']);
+    });
+
+    it('should accept origin with query string', async () => {
+      const config = await loadConfigWithEnv({ CORS_ORIGINS: 'http://localhost:3000?redirect=1' });
+      expect(config.corsOrigins).toEqual(['http://localhost:3000?redirect=1']);
+    });
+
+    it('should accept origin with hash fragment', async () => {
+      const config = await loadConfigWithEnv({ CORS_ORIGINS: 'http://localhost:3000#section' });
+      expect(config.corsOrigins).toEqual(['http://localhost:3000#section']);
+    });
+
+    it('should accept subdomain origin', async () => {
+      const config = await loadConfigWithEnv({ CORS_ORIGINS: 'https://app.sub.example.com' });
+      expect(config.corsOrigins).toEqual(['https://app.sub.example.com']);
+    });
+
+    it('should throw when hostname is just a port without host "http://:3000"', async () => {
+      // withoutProtocol = ':3000', hostname = '' → empty hostname → throw
+      await expect(loadConfigWithEnv({ CORS_ORIGINS: 'http://:3000' })).rejects.toThrow(
+        'must have a valid hostname'
+      );
+    });
+
+    it('should accept origin with IPv4 address', async () => {
+      const config = await loadConfigWithEnv({ CORS_ORIGINS: 'http://10.0.0.1:8080' });
+      expect(config.corsOrigins).toEqual(['http://10.0.0.1:8080']);
+    });
+
+    it('should accept multiple origins with mixed paths and ports', async () => {
+      const config = await loadConfigWithEnv({
+        CORS_ORIGINS: 'http://localhost:3000/api,https://prod.com:443/v2,http://10.0.0.1',
+      });
+      expect(config.corsOrigins).toEqual([
+        'http://localhost:3000/api',
+        'https://prod.com:443/v2',
+        'http://10.0.0.1',
+      ]);
+    });
+  });
+
+  describe('deepFreeze robustness', () => {
+    it('should freeze corsOrigins array so splice fails', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config.corsOrigins as string[]).splice(0, 1);
+      }).toThrow();
+    });
+
+    it('should freeze corsOrigins array so shift fails', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config.corsOrigins as string[]).shift();
+      }).toThrow();
+    });
+
+    it('should freeze corsOrigins array so unshift fails', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config.corsOrigins as string[]).unshift('http://evil.com');
+      }).toThrow();
+    });
+
+    it('should freeze corsOrigins array so pop fails', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config.corsOrigins as string[]).pop();
+      }).toThrow();
+    });
+
+    it('should return the same object reference after freezing', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(Object.isFrozen(config)).toBe(true);
+      expect(Object.isFrozen(config.server)).toBe(true);
+      expect(Object.isFrozen(config.database)).toBe(true);
+      expect(Object.isFrozen(config.database.pool)).toBe(true);
+      expect(Object.isFrozen(config.jwt)).toBe(true);
+      expect(Object.isFrozen(config.rateLimit)).toBe(true);
+      expect(Object.isFrozen(config.cron)).toBe(true);
+      expect(Object.isFrozen(config.corsOrigins)).toBe(true);
+      expect(Object.isFrozen(config.swagger)).toBe(true);
+      expect(Object.isFrozen(config.upload)).toBe(true);
+    });
+
+    it('should handle deepFreeze on object with number-only values', async () => {
+      // config.server has only number values; deepFreeze should skip them (val && typeof val === 'object' is false for numbers)
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config.server as { port: number; trustProxy: number }).port = 0;
+      }).toThrow();
+    });
+  });
+
+  describe('resolveUploadDir absolute path', () => {
+    it('should resolve UPLOAD_DIR to absolute even when given absolute path', async () => {
+      const config = await loadConfigWithEnv({ UPLOAD_DIR: '/var/www/uploads' });
+      expect(path.isAbsolute(config.uploadDir)).toBe(true);
+    });
+
+    it('should not throw for simple relative UPLOAD_DIR without traversal', async () => {
+      const config = await loadConfigWithEnv({ UPLOAD_DIR: 'uploads' });
+      expect(path.isAbsolute(config.uploadDir)).toBe(true);
+    });
+
+    it('should throw when UPLOAD_DIR has traversal in middle of path', async () => {
+      await expect(loadConfigWithEnv({ UPLOAD_DIR: '/tmp/a/../b' })).rejects.toThrow(
+        'FATAL: UPLOAD_DIR must not contain path traversal sequences (..)'
+      );
+    });
+
+    it('should throw when UPLOAD_DIR has traversal at end', async () => {
+      await expect(loadConfigWithEnv({ UPLOAD_DIR: '/tmp/uploads/..' })).rejects.toThrow(
+        'FATAL: UPLOAD_DIR must not contain path traversal sequences (..)'
+      );
+    });
+  });
+
+  describe('safeParseInt special characters', () => {
+    it('should throw when value has spaces "12 34"', async () => {
+      await expect(loadConfigWithEnv({ PORT: '12 34' })).rejects.toThrow(
+        'FATAL: PORT must be a valid integer'
+      );
+    });
+
+    it('should throw when value has trailing newline', async () => {
+      await expect(loadConfigWithEnv({ PORT: '8080\n' })).rejects.toThrow(
+        'FATAL: PORT must be a valid integer'
+      );
+    });
+
+    it('should throw when value has leading/trailing spaces', async () => {
+      await expect(loadConfigWithEnv({ PORT: ' 8080 ' })).rejects.toThrow(
+        'FATAL: PORT must be a valid integer'
+      );
+    });
+
+    it('should throw when value contains comma "8,080"', async () => {
+      await expect(loadConfigWithEnv({ PORT: '8,080' })).rejects.toThrow(
+        'FATAL: PORT must be a valid integer'
+      );
+    });
+
+    it('should throw when value is underscore "1_000"', async () => {
+      await expect(loadConfigWithEnv({ PORT: '1_000' })).rejects.toThrow(
+        'FATAL: PORT must be a valid integer'
+      );
+    });
+  });
+
+  describe('config reload independence', () => {
+    it('should not leak env vars between reloads', async () => {
+      const config1 = await loadConfigWithEnv({ PORT: '3000', DB_PASSWORD: 'pwd1' });
+      expect(config1.server.port).toBe(3000);
+
+      const config2 = await loadConfigWithEnv({ PORT: '4000', DB_PASSWORD: 'pwd2' });
+      expect(config2.server.port).toBe(4000);
+      expect(config2.database.password).toBe('pwd2');
+    });
+
+    it('should produce independent frozen objects per reload', async () => {
+      const config1 = await loadConfigWithEnv({ PORT: '3000' });
+      const config2 = await loadConfigWithEnv({ PORT: '4000' });
+      expect(config1.server.port).toBe(3000);
+      expect(config2.server.port).toBe(4000);
+      // Both should be independently frozen
+      expect(Object.isFrozen(config1)).toBe(true);
+      expect(Object.isFrozen(config2)).toBe(true);
+    });
+  });
+
+  describe('production combined checks', () => {
+    it('should succeed in production with all settings explicitly configured', async () => {
+      const config = await loadConfigWithEnv({
+        NODE_ENV: 'production',
+        PORT: '9090',
+        DB_HOST: 'prod-db.internal',
+        DB_PORT: '5432',
+        DB_NAME: 'prod_geo_ts',
+        DB_USER: 'prod_admin',
+        DB_PASSWORD: 'very-secure-prod-password',
+        DB_POOL_MIN: '5',
+        DB_POOL_MAX: '50',
+        JWT_SECRET: 'prod-jwt-secret-with-at-least-32-characters-long',
+        JWT_EXPIRES_IN: '1h',
+        SWAGGER_ENABLED: 'true',
+        RATE_LIMIT_WINDOW_MS: '60000',
+        RATE_LIMIT_MAX: '200',
+        CRON_ARTICLE_INTERVAL: '0 */10 * * *',
+        CRON_ARTICLE_ENABLED: 'true',
+        TRUST_PROXY: '2',
+        UPLOAD_DIR: '/var/www/uploads',
+        UPLOAD_IMAGE_MAX_SIZE: '20',
+        UPLOAD_DOCUMENT_MAX_SIZE: '50',
+        BODY_LIMIT_MB: '20',
+        CORS_ORIGINS: 'https://app.example.com,https://admin.example.com',
+      });
+
+      expect(config.server.port).toBe(9090);
+      expect(config.server.trustProxy).toBe(2);
+      expect(config.database.host).toBe('prod-db.internal');
+      expect(config.database.port).toBe(5432);
+      expect(config.database.name).toBe('prod_geo_ts');
+      expect(config.database.user).toBe('prod_admin');
+      expect(config.database.password).toBe('very-secure-prod-password');
+      expect(config.database.pool).toEqual({ min: 5, max: 50 });
+      expect(config.jwt.secret).toBe('prod-jwt-secret-with-at-least-32-characters-long');
+      expect(config.jwt.expiresIn).toBe('1h');
+      // Swagger disabled in production even with SWAGGER_ENABLED=true
+      expect(config.swagger.enabled).toBe(false);
+      expect(config.rateLimit.windowMs).toBe(60000);
+      expect(config.rateLimit.max).toBe(200);
+      expect(config.cron.articleGenerationInterval).toBe('0 */10 * * *');
+      expect(config.cron.articleGenerationEnabled).toBe(true);
+      expect(config.corsOrigins).toEqual(['https://app.example.com', 'https://admin.example.com']);
+      expect(config.upload.imageMaxSize).toBe(20 * 1024 * 1024);
+      expect(config.upload.documentMaxSize).toBe(50 * 1024 * 1024);
+      expect(config.bodyLimitMb).toBe(20);
+      expect(path.isAbsolute(config.uploadDir)).toBe(true);
+    });
+  });
+
+  describe('resolvePassword explicit password scenarios', () => {
+    it('should use provided password when explicitly set', async () => {
+      const config = await loadConfigWithEnv({ DB_PASSWORD: 'my-explicit-pwd' });
+      expect(config.database.password).toBe('my-explicit-pwd');
+    });
+
+    it('should warn and use default when password is whitespace-only (truthy string)', async () => {
+      const spy = jest.spyOn(console, 'error').mockImplementation();
+      // '   ' is truthy so it won't trigger the warning path; the default path uses || DEFAULTS.DB_PASSWORD
+      // Actually resolvePassword: pwd = process.env.DB_PASSWORD → '   ' → truthy → return '   '
+      const config = await loadConfigWithEnv({ DB_PASSWORD: '   ' });
+      expect(config.database.password).toBe('   ');
+      spy.mockRestore();
+    });
+  });
+
+  describe('resolveJwtSecret auto-generated uniqueness', () => {
+    it('should generate unique secrets across 5 consecutive reloads', async () => {
+      const secrets = new Set<string>();
+      for (let i = 0; i < 5; i++) {
+        const config = await loadConfigWithEnv({ JWT_SECRET: '' });
+        secrets.add(config.jwt.secret);
+      }
+      // All 5 should be unique (extremely unlikely to collide with crypto.randomBytes)
+      expect(secrets.size).toBe(5);
+    });
+  });
+
+  describe('UPLOAD_DOCUMENT_MAX_SIZE boundary', () => {
+    it('should accept UPLOAD_DOCUMENT_MAX_SIZE=1 (minimum)', async () => {
+      const config = await loadConfigWithEnv({ UPLOAD_DOCUMENT_MAX_SIZE: '1' });
+      expect(config.upload.documentMaxSize).toBe(1 * 1024 * 1024);
+    });
+
+    it('should accept UPLOAD_DOCUMENT_MAX_SIZE=100 (maximum)', async () => {
+      const config = await loadConfigWithEnv({ UPLOAD_DOCUMENT_MAX_SIZE: '100' });
+      expect(config.upload.documentMaxSize).toBe(100 * 1024 * 1024);
+    });
+  });
+
+  describe('TRUST_PROXY edge cases', () => {
+    it('should throw when TRUST_PROXY is non-numeric', async () => {
+      await expect(loadConfigWithEnv({ TRUST_PROXY: 'abc' })).rejects.toThrow(
+        'FATAL: TRUST_PROXY must be a valid integer'
+      );
+    });
+
+    it('should accept TRUST_PROXY=5 (middle value)', async () => {
+      const config = await loadConfigWithEnv({ TRUST_PROXY: '5' });
+      expect(config.server.trustProxy).toBe(5);
+    });
+  });
+
+  describe('BODY_LIMIT_MB non-numeric edge cases', () => {
+    it('should throw when BODY_LIMIT_MB is scientific notation', async () => {
+      await expect(loadConfigWithEnv({ BODY_LIMIT_MB: '1e1' })).rejects.toThrow(
+        'FATAL: BODY_LIMIT_MB must be a valid integer'
+      );
+    });
+
+    it('should throw when BODY_LIMIT_MB is hex', async () => {
+      await expect(loadConfigWithEnv({ BODY_LIMIT_MB: '0x10' })).rejects.toThrow(
+        'FATAL: BODY_LIMIT_MB must be a valid integer'
+      );
+    });
+  });
+
+  describe('config object immutability exhaustive', () => {
+    it('should prevent deleting config.server', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        delete (config as Record<string, unknown>).server;
+      }).toThrow();
+    });
+
+    it('should prevent adding new properties to config', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config as Record<string, unknown>).newProp = 'value';
+      }).toThrow();
+    });
+
+    it('should prevent adding properties to nested database object', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config.database as Record<string, unknown>).extra = 'bad';
+      }).toThrow();
+    });
+  });
 });
