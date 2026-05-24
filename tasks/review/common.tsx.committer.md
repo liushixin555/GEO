@@ -306,7 +306,7 @@ export default React.forwardRef<MarkdownPreviewRef, MarkdownPreviewProps>((props
 
 | 编号 | 条件 | 状态 | 负责人 |
 |------|------|------|--------|
-| COND-1 | `MarkdownViewer` 必须引入 DOMPurify 对 `source` 进行预消毒 | ❌ 待实施 | 前端开发 |
+| COND-1 | `MarkdownViewer` 必须引入 DOMPurify 对 `source` 进行预消毒 | ✅ 已实施 | 前端开发 |
 | COND-2 | 后端 API 必须对存储的 Markdown 内容进行服务端消毒 | ⚠️ 需确认 | 后端开发 |
 | COND-3 | `markdown-viewer.css` 需随库升级时回归测试 | ✅ 持续维护 | 前端开发 |
 

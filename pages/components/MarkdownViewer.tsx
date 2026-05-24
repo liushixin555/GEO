@@ -273,8 +273,4 @@ MarkdownViewerBase.displayName = 'MarkdownViewer';
 const MarkdownViewer = memo(MarkdownViewerBase);
 MarkdownViewer.displayName = 'MarkdownViewer';
 
-// React.memo 阻断无关状态变更传播到 Markdown 渲染管线（审核报告 A-04）
-const MemoizedMarkdownViewer = React.memo(MarkdownViewer);
-MemoizedMarkdownViewer.displayName = 'MarkdownViewer';
-
-export default MemoizedMarkdownViewer;
+export default MarkdownViewer;
