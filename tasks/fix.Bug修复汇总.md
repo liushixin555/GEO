@@ -978,3 +978,39 @@ components: {
 
 ### 涉及文件
 - `apis/utils/skill-md.util.ts` — js-yaml 替代正则解析
+
+---
+
+## fix032. strikeThrough.tsx 评审修复（非空断言 + 中文可访问性 + SVG 无障碍 + 错误边界）
+
+### 问题
+根据 `tasks/review/` 目录下 4 份评审报告（安全评审 7.8/10、架构评审 7.5/10、UI 评审 6.5/10、Committer 审核 7.8/10），`@uiw/react-md-editor` 的 `strikeThrough.tsx` 存在非空断言安全性、中文可访问性缺失、SVG 可访问性缺陷等问题。与 bold/italic 不同，strikeThrough 直接在 node_modules 源码中修复（因为封装层 commandsFilter 已覆盖其他命令）。
+
+### 修复
+
+**S1/S2（MEDIUM）prefix! 非空断言**：
+- 替换为防御性空值守卫 `const prefix = state.command.prefix; if (!prefix) return;`
+- 消除 CWE-476 运行时 TypeError 和 "undefined" 文本污染风险
+
+**S3（LOW）execute 无错误边界**：
+- 添加 try-catch，静默处理异常，防止编辑器崩溃
+
+**S5（LOW）SVG data-name 信息泄露**：
+- 移除 `data-name="strikethrough"` 属性
+
+**S6/U2（HIGH/INFO）英文可访问性**：
+- `aria-label` 和 `title` 改为中文 `'添加删除线 (Ctrl+Shift+X)'`
+
+**U3（MEDIUM）快捷键表示法不一致**：
+- 统一为 Carbon 规范 `Ctrl+Shift+X` 格式（首字母大写、无空格）
+
+**U4（MEDIUM）SVG 缺 aria-hidden**：
+- 添加 `aria-hidden="true"`，移除 `role="img"`，防止屏幕阅读器重复播报
+
+**P3-LOW-02 变量命名**：
+- `state1` 重命名为 `selectedState`，传达语义
+
+### 涉及文件
+- `node_modules/.../react-md-editor/src/commands/strikeThrough.tsx` — 源码修复
+- `node_modules/.../react-md-editor/esm/commands/strikeThrough.js` — ESM 编译输出同步
+- `node_modules/.../react-md-editor/lib/commands/strikeThrough.js` — CJS 编译输出同步

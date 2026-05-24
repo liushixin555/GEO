@@ -436,3 +436,22 @@ shortcuts: 'ctrl+shift+x',
 ---
 
 *评审基于 @uiw/react-md-editor@4.1.0 源码 + 依赖链分析（markdownUtils.ts / commands/index.ts / bold.tsx / italic.tsx / code.tsx）*
+
+---
+
+## 修复记录（2026-05-25）
+
+基于安全/架构/UI/Committer 四份评审报告，已修复以下问题：
+
+| 编号 | 来源 | 级别 | 问题 | 修复方式 |
+|------|------|------|------|---------|
+| S1/S2 | 安全评审 | MEDIUM | `prefix!` 非空断言 | 改为 `const prefix = state.command.prefix; if (!prefix) return;` 防御性检查 + 类型收窄 |
+| S3 | 安全评审 | LOW | execute 无 try-catch | 添加 try-catch 错误边界，静默处理异常 |
+| S5 | 安全评审 | LOW | SVG `data-name` 信息泄露 | 移除 `data-name` 属性 |
+| S6 | 安全评审 | INFO | aria-label/title 英文硬编码 | 改为中文 `'添加删除线 (Ctrl+Shift+X)'` |
+| U2 | UI评审 | HIGH | 英文可访问性 | 同 S6 |
+| U3 | UI评审 | MEDIUM | 快捷键表示法不一致 | 统一为 `Ctrl+Shift+X` 格式（首字母大写、无空格） |
+| U4 | UI评审 | MEDIUM | SVG 缺 aria-hidden | 添加 `aria-hidden="true"`，移除 `role="img"` |
+| P3-LOW-02 | 架构评审 | LOW | `state1` 命名不语义化 | 重命名为 `selectedState` |
+
+**同步修复文件**: `src/commands/strikeThrough.tsx` + `esm/commands/strikeThrough.js` + `lib/commands/strikeThrough.js`
