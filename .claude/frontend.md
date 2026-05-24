@@ -51,6 +51,14 @@
   - 专用 CSS：`pages/styles/markdown-viewer.css`，使用 `.markdown-viewer` 类名 + CSS 变量引用 Carbon Token
   - CSS 覆盖包含：letter-spacing 0.16px、GitHub→Carbon CSS 变量映射、pre/blockquote/alert border-radius: 0、链接 focus-visible、表格行 hover、代码块滚动条、容器 :focus-visible 焦点环
   - global.css 中 `.article-content-preview` 样式保留兼容，新代码应使用 MarkdownViewer 组件
+- **MarkdownEditor 封装组件**：`pages/components/MarkdownEditor.tsx`，封装 `@uiw/react-md-editor`
+  - 隔离 Context.tsx 已知缺陷（索引签名any/Reducer无Action/DOM引用混入Context/dispatch混入state/零主题支持）
+  - 严格接口 `MarkdownEditorProps`（无 any），支持 antd Form.Item value + onChange 模式
+  - 安全防护：复用 MarkdownViewer 的 safeUrlTransform + SAFE_TAGS，DOMPurify 消毒（getSanitizedHTML()），2MB 内容长度截断
+  - forwardRef + useImperativeHandle：暴露 getSanitizedHTML/getRawMarkdown/focus
+  - DOM 引用隔离：ref 不暴露给外部，编辑器内部 DOM 不可被外部代码访问
+  - 专用 CSS：`pages/styles/markdown-editor.css`，Carbon Design System 样式全覆盖（字体/颜色/圆角/工具栏/预览区）
+  - ArticleContentEditor.tsx 已从直接使用 MDEditor 改为使用此封装组件
 - antd 主题通过 `main.tsx` 的 `ConfigProvider` 配置，全局覆盖 border-radius: 0 等 Carbon 风格
 - **Switch 组件不参与全局 border-radius: 0 覆盖**，保持 antd 默认椭圆胶囊样式
 - **Switch 使用 checkedChildren/unCheckedChildren** 显示"启用"/"禁用"文字，增强可读性
