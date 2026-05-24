@@ -470,3 +470,12 @@
   - 交叉审核五份已有评审（质量/安全×2/架构），所有问题均不构成合并阻塞
   - 建议合并前修正 L187 注释错误（Knowledge Item → Todo），其余为技术债务
   - 评审报告 tasks/review/app.ts.committer.md
+
+## 本次变更（2026-05-24 pages/api-docs/index.tsx 代码安全专家评审）
+- [x] **代码安全专家评审 pages/api-docs/index.tsx（24 行）**
+  - 综合安全评级 ⚠️ MEDIUM（组件自身安全，但链接目标存在认证缺陷，且为死代码）
+  - 5 项安全发现：MEDIUM×4（死代码/攻击面扩大、target="_blank"缺少rel、前后端路径冲突、Swagger端点无认证）、LOW×1（组件无RBAC）
+  - 正面评价：纯静态组件安全性9/10、无XSS/注入风险、React JSX自动转义
+  - 核心问题：组件未注册路由为死代码；Swagger `/api-docs` 端点无认证保护，任何可访问开发服务器的人可获取完整API攻击面地图
+  - 修复优先级：P0×2（删除死代码或完整实现 + Swagger端点添加认证）、P1×2、P2×1
+  - 评审报告 tasks/review/index.tsx.security.md
