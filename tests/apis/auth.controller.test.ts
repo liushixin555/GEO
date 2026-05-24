@@ -17,6 +17,7 @@ jest.mock('../../apis/utils/db.util', () => ({
   closePrisma: jest.fn(),
 }));
 
+import { clearBlacklist } from '../../apis/utils/token-blacklist.util';
 import app from '../../apis/app';
 
 const agent = request.agent(app).set('User-Agent', 'test-agent/1.0');
@@ -85,6 +86,7 @@ const hashedPassword = '$2a$10$abcdefghijklmnopqrstuuVWXYz0123456789A';
 describe('Auth Controller', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    clearBlacklist();
   });
 
   afterAll(() => {
@@ -461,6 +463,43 @@ describe('Auth Controller', () => {
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(response.status).toBe(200);
       expect(response.body.message).toBe('登出成功');
+    });
+
+    it('should revoke token after logout — subsequent request gets 401', async () => {
+      const token = sysadminToken(10, 10);
+      // Logout with the token
+      const logoutRes = await agent
+        .post(LOGOUT)
+        .set('Authorization', `Bearer ${token}`);
+      expect(logoutRes.status).toBe(200);
+
+      // Same token should now be rejected by auth middleware
+      const verifyRes = await agent
+        .get(VERIFY)
+        .set('Authorization', `Bearer ${token}`);
+      expect(verifyRes.status).toBe(401);
+      expect(verifyRes.body.message).toBe('登录已过期，请重新登录');
+    });
+
+    it('should not affect other tokens when one is revoked', async () => {
+      const token1 = sysadminToken(10, 10);
+      const token2 = sysadminToken(11, 11);
+
+      // Logout with token1
+      await agent.post(LOGOUT).set('Authorization', `Bearer ${token1}`);
+
+      // token2 should still work
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        user: { findUnique: jest.fn().mockResolvedValue({
+          id: 11, username: 'other', cnName: 'Other', role: 'sysadmin', companyId: 11,
+          selectedCompany: null, selectedProject: null,
+        })},
+      });
+      const verifyRes = await agent
+        .get(VERIFY)
+        .set('Authorization', `Bearer ${token2}`);
+      expect(verifyRes.status).toBe(200);
     });
   });
 

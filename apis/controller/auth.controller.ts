@@ -3,12 +3,17 @@ import { AuthServiceImpl } from '../service/impl/auth.service.impl';
 import { IAuthService } from '../service/auth.service';
 import { LoginSelectionError, PermissionDeniedError } from '../entity';
 import { success, fail } from '../utils';
+import { revokeToken, parseExpiryToMs } from '../utils/token-blacklist.util';
+import config from '../config';
+import { logger } from '../utils/logger.util';
 
 const authService: IAuthService = new AuthServiceImpl();
 
+const BEARER_PREFIX = 'Bearer ';
+
 export async function login(req: Request, res: Response): Promise<void> {
+  const { username, password } = req.body;
   try {
-    const { username, password } = req.body;
     if (!username || !password) {
       fail(res, 400, '用户名和密码不能为空');
       return;
@@ -22,17 +27,27 @@ export async function login(req: Request, res: Response): Promise<void> {
       return;
     }
     const result = await authService.login({ username, password });
+    logger.info('auth.login.success', { userId: result.user.id, username, ip: req.ip });
     success(res, result, '登录成功');
   } catch (err: unknown) {
     if (err instanceof LoginSelectionError) {
+      logger.warn('auth.login.no_access', { username, reason: err.message, ip: req.ip });
       fail(res, 403, err.message);
       return;
     }
+    logger.warn('auth.login.failed', { username, ip: req.ip });
     fail(res, 401, '用户名或密码错误');
   }
 }
 
-export async function logout(_req: Request, res: Response): Promise<void> {
+export async function logout(req: Request, res: Response): Promise<void> {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith(BEARER_PREFIX)) {
+    const token = authHeader.slice(BEARER_PREFIX.length);
+    const expiryMs = parseExpiryToMs(config.jwt.expiresIn);
+    revokeToken(token, expiryMs);
+  }
+  logger.info('auth.logout', { userId: req.user?.userId, ip: req.ip });
   success(res, null, '登出成功');
 }
 
@@ -46,13 +61,14 @@ export async function verify(req: Request, res: Response): Promise<void> {
     const freshUser = await authService.getLatestUserState(user.userId);
     success(res, { valid: true, user: freshUser }, 'token有效');
   } catch (err: unknown) {
+    logger.warn('auth.verify.failed', { userId: req.user?.userId, ip: req.ip });
     fail(res, 401, '登录已过期');
   }
 }
 
 export async function saveSelection(req: Request, res: Response): Promise<void> {
+  const user = req.user;
   try {
-    const user = req.user;
     if (!user) {
       fail(res, 401, '未登录');
       return;
@@ -71,12 +87,15 @@ export async function saveSelection(req: Request, res: Response): Promise<void> 
     }
 
     await authService.saveSelection(user.userId, user.role, user.companyId, { company_id: companyId, project_id: projectId });
+    logger.info('auth.selection.saved', { userId: user.userId, companyId, projectId, ip: req.ip });
     success(res, null, '保存成功');
   } catch (err: unknown) {
     if (err instanceof PermissionDeniedError) {
+      logger.warn('auth.selection.denied', { userId: user!.userId, ip: req.ip });
       fail(res, 403, err.message);
       return;
     }
+    logger.error('auth.selection.error', { userId: user?.userId, err: err instanceof Error ? err.message : String(err) });
     fail(res, 500, '保存失败，请稍后重试');
   }
 }
@@ -153,7 +172,7 @@ export async function getCompanyDetail(req: Request, res: Response): Promise<voi
       fail(res, 403, '当前角色无权查看公司用户');
       return;
     }
-    if (user.role !== 'sysadmin' && user.companyId !== id) {
+    if (user.role !== 'sysadmin' && (user.companyId == null || user.companyId !== id)) {
       fail(res, 403, '无权查看其他公司的用户');
       return;
     }
@@ -161,6 +180,7 @@ export async function getCompanyDetail(req: Request, res: Response): Promise<voi
     const result = await authService.getCompanyUsers(id);
     success(res, result);
   } catch (err: unknown) {
+    logger.error('auth.company_detail.error', { id: req.params.id, err: err instanceof Error ? err.message : String(err) });
     fail(res, 500, '获取公司用户失败，请稍后重试');
   }
 }

@@ -466,6 +466,40 @@ describe('roleMiddleware', () => {
       expect(statusFn).toHaveBeenCalledWith(401);
       expect(mockNext).not.toHaveBeenCalled();
     });
+
+    it('应该拒绝已被撤销（黑名单）的 token', () => {
+      const jwt = require('jsonwebtoken');
+      const { revokeToken, clearBlacklist } = require('../../../apis/utils/token-blacklist.util');
+      clearBlacklist();
+
+      const payload = { userId: 1, username: 'admin', role: 'admin', companyId: 10 };
+      const token = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '2h' });
+
+      // Revoke the token
+      revokeToken(token, 7_200_000);
+
+      mockReq = createMockReq({ authorization: `Bearer ${token}` });
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(jsonFn).toHaveBeenCalledWith({ code: 401, message: '登录已过期，请重新登录' });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('应该接受未被撤销的有效 token', () => {
+      const jwt = require('jsonwebtoken');
+      const { clearBlacklist } = require('../../../apis/utils/token-blacklist.util');
+      clearBlacklist();
+
+      const payload = { userId: 1, username: 'admin', role: 'admin', companyId: 10 };
+      const token = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '2h' });
+
+      mockReq = createMockReq({ authorization: `Bearer ${token}` });
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(statusFn).not.toHaveBeenCalled();
+    });
   });
 
   // =========================================================

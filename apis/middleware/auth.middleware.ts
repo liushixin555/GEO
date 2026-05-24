@@ -1,6 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import config from '../config';
+import { isTokenRevoked } from '../utils/token-blacklist.util';
+
+const BEARER_PREFIX = 'Bearer ';
 
 export interface AuthPayload {
   userId: number;
@@ -19,12 +22,17 @@ declare global {
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!authHeader?.startsWith(BEARER_PREFIX)) {
     res.status(401).json({ code: 401, message: '未登录，请先登录' });
     return;
   }
 
-  const token = authHeader.substring(7);
+  const token = authHeader.slice(BEARER_PREFIX.length);
+  if (isTokenRevoked(token)) {
+    res.status(401).json({ code: 401, message: '登录已过期，请重新登录' });
+    return;
+  }
+
   try {
     const decoded = jwt.verify(token, config.jwt.secret) as AuthPayload;
     req.user = decoded;
