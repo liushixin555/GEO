@@ -1,7 +1,8 @@
 # TDD 执行报告 — knowledge.service.impl.ts
 
 ## 测试文件
-`tests/apis/knowledge.service.test.ts`
+- `tests/apis/knowledge.service.test.ts`（Round 1: 105 用例）
+- `tests/apis/knowledge.service.r2.test.ts`（Round 2: 32 用例）
 
 ## 测试目标
 `apis/service/impl/knowledge.service.impl.ts` — 包含 5 个服务类
@@ -64,10 +65,10 @@
 | clearAll() | 1 | 全量软删除 |
 
 ## 测试结果
-- **测试总数**: 105
-- **通过**: 105
+- **测试总数**: 137（Round 1: 105 + Round 2: 32）
+- **通过**: 137
 - **失败**: 0
-- **执行时间**: 10.3s
+- **执行时间**: 6.9s
 
 ## 覆盖率
 | 指标 | 覆盖率 | 未覆盖行 |
@@ -109,4 +110,51 @@
 - 原始SQL查询 (`$queryRaw`、`$executeRaw`): 模拟返回原始行数据
 
 ## 执行日期
-2026-05-24
+- Round 1: 2026-05-24
+- Round 2: 2026-05-25
+
+---
+
+## Round 2 新增验证性测试（32个）
+
+### KeywordServiceImpl R2（9个）
+1. `list page 2 pageSize 5 should skip first 5`：验证非首页分页 skip 计算
+2. `listByProject should pass correct orderBy/skip/take`：验证 listByProject 完整查询参数传递
+3. `getById should call queryRaw twice`：验证 getById 调用 $queryRaw 2次（SELECT + 扩展词）
+4. `create should map returned snake_case fields`：验证 create 返回字段完整 snake_case 映射
+5. `update with empty expanded_words should trigger sync`：验证空 expanded_words 数组触发 sync（仅 DELETE，0 INSERT）
+6. `update with undefined expanded_words should only list`：验证 undefined expanded_words 仅 list（不调用 executeRaw）
+7. `batchCreate should pass correct where to findMany`：验证 batchCreate 的 findMany where 条件
+8. `syncExpandedWords 3 words should call executeRaw 4 times`：验证 1 DELETE + N INSERT 的 executeRaw 调用次数
+9. `delete should pass Date instance`：验证 deletedAt 传递 Date 实例
+
+### PortraitServiceImpl R2（7个）
+10. `list page 2 pageSize 15 should skip 15`：验证分页 skip 计算
+11. `getById should use deletedAt null filter`：验证 findFirst where 条件
+12. `create without content should pass null`：验证无 content 时传 null
+13. `update should find via deletedAt null`：验证 update 的 findFirst 过滤条件
+14. `listByProject page 3 pageSize 10 should skip 20`：验证 listByProject 分页
+15. `delete should find via deletedAt null`：验证 delete 的 findFirst 过滤条件
+16. `create should return snake_case fields`：验证 create 返回 snake_case 字段映射
+
+### ImageServiceImpl R2（5个）
+17. `list page 4 pageSize 5 should skip 15`：验证跨页 skip 计算
+18. `getById should use deletedAt null filter`：验证 findFirst where 条件
+19. `create should map image_url to imageUrl`：验证 snake_case→camelCase 字段映射
+20. `update should find via deletedAt null`：验证 update 的 findFirst 过滤条件
+21. `listByProject page 2 pageSize 25 should skip 25`：验证 listByProject 分页
+
+### DocumentServiceImpl R2（6个）
+22. `list should NOT include deletedAt filter`：验证 Document.list 故意不加 deletedAt 过滤
+23. `list page 5 pageSize 10 should skip 40`：验证大页码分页
+24. `getById should use deletedAt null filter`：验证 findFirst where 条件
+25. `create should map snake_case request to camelCase data`：验证完整 snake_case→camelCase 字段映射
+26. `update should find via deletedAt null`：验证 update 的 findFirst 过滤条件
+27. `listByProject page 2 pageSize 10 should skip 10`：验证 listByProject 分页
+
+### MinedKeywordServiceImpl R2（5个）
+28. `listByBase should order by id desc`：验证排序字段
+29. `addMinedKeywords should use correct where in findMany`：验证 findMany where + createMany data 完整参数
+30. `clearAll should not include id in where`：验证 clearAll 不含 id 约束
+31. `toggleSelectBatch should only update non-deleted`：验证 deletedAt 过滤
+32. `deleteByIds should constrain baseId and ids`：验证双条件约束
