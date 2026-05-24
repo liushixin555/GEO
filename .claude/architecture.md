@@ -162,6 +162,25 @@ tests/apis/  + tests/pages/  测试文件
 - **集成**: `server.ts` 的 `app.listen` 回调中启动，`SIGINT`/`SIGTERM` 中停止
 - **LLM服务**: `ILlmService.generateArticle(params)` 使用 system+user 双消息，temperature 0.7
 
+## 文章详情页重构（2026-05-24）
+- **重构前**: 943 行 God Component，17 个 useState，11 处直接 axios 调用，6 个 useEffect
+- **重构后**: 主文件 ~180 行容器组件 + 5 个子组件 + 6 个自定义 hooks
+- **新增文件**:
+  - `pages/lib/apiClient.ts` — 统一 axios 实例（token 注入 + 401 拦截 + 错误转换）
+  - `pages/article/types.ts` — 共享类型定义（ArticleData、Platform、ArticleFormValues 等）
+  - `pages/article/hooks/useArticleDetail.ts` — 文章数据 CRUD + 自动保存（含竞态防护 savingRef）
+  - `pages/article/hooks/useArticlePermissions.ts` — 权限计算（canEditSettings/Content/Review/Delete）
+  - `pages/article/hooks/usePlatformSelector.ts` — 平台选择器状态（9 个 state 聚合为 1 个 reducer-like）
+  - `pages/article/hooks/useKnowledgeBase.ts` — 知识库 + 技能 + LLM 模型选项加载
+  - `pages/article/hooks/useArticleActions.ts` — 审核/重新生成/提交审核
+  - `pages/article/hooks/useDocumentImport.ts` — 文档导入（md/docx 解析 + DOMPurify 消毒）
+  - `pages/article/components/ArticleSettingsForm.tsx` — 设置表单
+  - `pages/article/components/ArticleContentEditor.tsx` — 正文编辑/预览
+  - `pages/article/components/ArticleImageManager.tsx` — 图片管理（上传/URL/知识库三模式）
+  - `pages/article/components/PlatformSelectModal.tsx` — 发布平台选择弹窗
+  - `pages/article/components/ArticleReviewActions.tsx` — 审核操作栏
+- **架构评审**: D+ → 重构后架构符合 SOLID 原则，每个文件 < 200 行，职责单一，可独立测试
+
 ## 第三方库评审记录
 - **@uiw/react-markdown-preview（index.tsx）** — 架构评审 5.4/10（2026-05-24）
   - 核心架构缺陷：每次渲染重建 10 插件管线（无 useMemo）、与 preview.tsx 安全策略分裂、OCP 违反（用户插件位置固定）、与 common.tsx 代码克隆

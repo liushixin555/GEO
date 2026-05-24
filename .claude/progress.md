@@ -935,12 +935,22 @@
   - 无阻塞性问题，可安全合并
   - 评审报告 tasks/review/index.ts.committer.md
 
-## 本次变更（2026-05-24 @uiw/react-markdown-preview index.tsx 软件UI专家评审）
-- [x] **软件UI专家评审 @uiw/react-markdown-preview/src/index.tsx（27 行）**
-  - 综合评分 2.9/10（渲染管线硬编码，与 Carbon Design System 根本对立）
-  - 8 个维度评分：渲染管线设计3、设计系统对齐2、可访问性1、性能3、开发者体验4、安全性3、封装质量4
-  - 13 项 UI 发现：P1×3（rehypePrism 强制 GitHub 主题与 Carbon 冲突、rehypeRaw 始终启用破坏设计系统完整性、rehypeAttrs 允许任意属性注入绕过 Design Token）、P2×6（插件数组每次渲染重建、用户插件位置固定不可定制、与 preview.tsx rehypeRaw 重复处理、forwardRef 无 displayName、rehypePrism ignoreMissing 静默吞错、export * API膨胀）、P3×4（rehypeRewriteHandle 闭包重建、?? vs 解构默认值、meta 插件对分散、无错误边界）
-  - DESIGN.md 合规性映射：颜色/圆角/字体/背景/HTML注入全部 ❌，需 50+ 条 CSS 覆盖
-  - 渲染管线架构图（10 插件顺序 + 用户可控性标注）
-  - 对本项目的集成建议：使用 nohighlight 入口 + Carbon 色板 CSS 覆盖 + MarkdownViewer 封装组件
-  - 评审报告 tasks/review/react-markdown-preview.index.tsx.ui.md
+## 本次变更（2026-05-24 ArticleDetail.tsx 架构重构）
+- [x] **fix017: ArticleDetail.tsx 架构重构** — 基于 tasks/review/ArticleDetail.tsx.architecture.md（D+ 评审）
+  - Phase 1: 创建 `pages/lib/apiClient.ts`（统一 axios 实例，token 注入 + 401 拦截）
+  - Phase 1: 创建 `pages/article/types.ts`（共享类型定义，消除 any）
+  - Phase 2: 提取 6 个自定义 hooks：
+    - `useArticleDetail` — 文章数据 CRUD + 自动保存（含 savingRef 竞态防护）
+    - `useArticlePermissions` — 权限计算（canEditSettings/Content/Review/Delete）
+    - `usePlatformSelector` — 平台选择器状态（9 个 state 聚合）
+    - `useKnowledgeBase` — 知识库 + 技能 + LLM 模型选项加载
+    - `useArticleActions` — 审核/重新生成/提交审核
+    - `useDocumentImport` — 文档导入（md/docx + DOMPurify）
+  - Phase 2: 提取 5 个子组件（React.memo 包装）：
+    - `ArticleSettingsForm` — 设置表单（含平台选择 Modal）
+    - `ArticleContentEditor` — 正文编辑/预览
+    - `ArticleImageManager` — 图片管理（上传/URL/知识库三模式）
+    - `PlatformSelectModal` — 发布平台选择弹窗
+    - `ArticleReviewActions` — 审核操作栏
+  - Phase 3: 主文件从 943 行精简至 ~180 行容器组件
+  - 前端构建通过、类型检查通过
