@@ -168,3 +168,4 @@
 | 2026-05-25 | tasks/review/hr.tsx.committer.md | hr.tsx Committer 审核专家评审——⚠️有条件通过 5.0/10（P1×2 Ctrl+H快捷键冲突+SVG图标语义错位需封装层修复，C-01 selectWord不适用行级块元素+17项已知问题均可封装层解决） |
 | 2026-05-25 | progress_tasks/2026-05-25-common-tsx-quality-fix.md | common.tsx 质量评审修复——Q-01/Q-05 useMemo性能优化 + Q-04注释 + Q-08插件顺序注释，nohighlight+common双文件patch |
 | 2026-05-25 | progress_tasks/2026-05-25-service-index-tdd.md | service/index.ts barrel 文件 TDD——72用例100%覆盖率（13类测试：导出数量/存在性/实例化/工厂函数/源模块关联/重导入/唯一性/方法存在性/异步验证/参数数量） |
+| 2026-05-25 | tasks/review/image.tsx.committer.md | image.tsx Committer 审核专家评审——⚠️有条件通过 5.0/10（P1×4 Ctrl+K严重违反行业"插入链接"惯例与link.tsx冲突+SVG缺aria-hidden无障碍不合规+图标13px远低于Carbon标准16/20px+URL检测includes误判漏判并存，安全评审3.5/10 CRITICAL XSS注入，封装层必须创建customImage覆盖） |
