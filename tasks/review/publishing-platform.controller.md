@@ -1,9 +1,11 @@
 # apis/controller/publishing-platform.controller.ts — 软件质量专家评审报告
 
 **评审日期**: 2026-05-24
+**修复日期**: 2026-05-24
 **评审角色**: 软件质量专家（安全性 · 可靠性 · 可维护性 · 一致性 · 鲁棒性 · 最佳实践）
 **文件路径**: `apis/controller/publishing-platform.controller.ts`
-**代码行数**: 49 行（2 个导出函数 + 2 个模块级服务实例）
+**代码行数**: 65 行（2 个导出函数 + 1 个接口类型服务实例 + 参数校验常量）
+**修复状态**: ✅ 全部已修复（CRITICAL × 1 + HIGH × 4 + MEDIUM × 4 + LOW × 3 = 12/12）
 **关联路由**:
 - `POST /api/publishing-platforms/sync` — 同步软盟发布平台（仅 sysadmin）
 - `GET /api/publishing-platforms` — 列表查询（sysadmin + admin）
@@ -18,14 +20,14 @@
 
 | 质量维度 | 评分 | 说明 |
 |----------|------|------|
-| 安全性 | 6/10 | 凭证处理存在明文传输风险，敏感信息可能泄露到错误响应 |
-| 可靠性 | 6/10 | 参数解析缺少范围校验，parseInt 使用不一致 |
-| 可维护性 | 5/10 | DI 违反、两个服务实例在模块顶层直接创建、sync 函数职责过重 |
-| 一致性 | 5/10 | parseInt radix 不统一、向后兼容逻辑缺少注释说明 |
-| 鲁棒性 | 5/10 | 输入验证不完整，外部 API 凭证校验不够严格 |
-| 最佳实践 | 5/10 | 违反依赖倒置原则、错误类型不安全、缺少请求日志 |
+| 安全性 | 6/10 → 9/10 | ✅ 凭证逻辑已封装至 service 层，错误消息已过滤 |
+| 可靠性 | 6/10 → 9/10 | ✅ parseInt radix=10 + page/pageSize 范围校验 |
+| 可维护性 | 5/10 → 9/10 | ✅ 接口类型声明 + sync 职责下移至 service |
+| 一致性 | 5/10 → 9/10 | ✅ 统一 parseInt 写法 + @deprecated 标记 |
+| 鲁棒性 | 5/10 → 9/10 | ✅ sortBy/sortOrder 白名单 + search 长度限制 |
+| 最佳实践 | 5/10 → 9/10 | ✅ err:unknown + 接口 DI + app.ts access logging |
 
-**问题统计**: CRITICAL × 1 / HIGH × 4 / MEDIUM × 4 / LOW × 3
+**问题统计**: CRITICAL × 1 / HIGH × 4 / MEDIUM × 4 / LOW × 3 — **全部已修复 ✅**
 
 ---
 
@@ -33,7 +35,7 @@
 
 ### CRITICAL 级别
 
-#### C-1: 凭证明文传递 — 密码以明文形式在 controller 层流转
+#### C-1: 凭证明文传递 — 密码以明文形式在 controller 层流转 ✅ 已修复
 
 **位置**: `syncPublishingPlatforms` 第 10-21 行
 
@@ -72,7 +74,7 @@ if (!username || !password) {
 
 ### HIGH 级别
 
-#### H-1: 依赖倒置原则违反 — controller 直接依赖具体实现类
+#### H-1: 依赖倒置原则违反 — controller 直接依赖具体实现类 ✅ 已修复
 
 **位置**: 第 2、5-6 行
 
@@ -100,7 +102,7 @@ const systemConfigService: ISystemConfigService = new SystemConfigServiceImpl();
 
 ---
 
-#### H-2: `parseInt` 使用不一致 — 缺少 radix 参数且缺少范围校验
+#### H-2: `parseInt` 使用不一致 — 缺少 radix 参数且缺少范围校验 ✅ 已修复
 
 **位置**: `listPublishingPlatforms` 第 30-31 行
 
@@ -132,7 +134,7 @@ const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize as string
 
 ---
 
-#### H-3: `syncPublishingPlatforms` 函数职责过重 — 违反单一职责原则
+#### H-3: `syncPublishingPlatforms` 函数职责过重 — 违反单一职责原则 ✅ 已修复
 
 **位置**: `syncPublishingPlatforms` 第 8-26 行
 
@@ -167,7 +169,7 @@ export async function syncPublishingPlatforms(_req: Request, res: Response): Pro
 
 ---
 
-#### H-4: 错误响应可能泄露外部 API 细节
+#### H-4: 错误响应可能泄露外部 API 细节 ✅ 已修复
 
 **位置**: `syncPublishingPlatforms` 第 23-24 行
 
@@ -199,7 +201,7 @@ export async function syncPublishingPlatforms(_req: Request, res: Response): Pro
 
 ### MEDIUM 级别
 
-#### M-1: 错误处理使用 `err: any` — 缺少类型安全
+#### M-1: 错误处理使用 `err: any` — 缺少类型安全 ✅ 已修复
 
 **位置**: 两个函数的 catch 块（第 23 行、第 47 行）
 
@@ -224,7 +226,7 @@ export async function syncPublishingPlatforms(_req: Request, res: Response): Pro
 
 ---
 
-#### M-2: `listPublishingPlatforms` 向后兼容逻辑缺少文档注释
+#### M-2: `listPublishingPlatforms` 向后兼容逻辑缺少文档注释 ✅ 已修复
 
 **位置**: 第 37-42 行
 
@@ -256,7 +258,7 @@ if (!req.query.page && !req.query.pageSize && !search && !taxonomy) {
 
 ---
 
-#### M-3: `sortBy` 和 `sortOrder` 参数未经验证直接传递给 service
+#### M-3: `sortBy` 和 `sortOrder` 参数未经验证直接传递给 service ✅ 已修复
 
 **位置**: 第 34-35 行
 
@@ -290,7 +292,7 @@ if (sortOrder && !validSortOrders.includes(sortOrder)) {
 
 ---
 
-#### M-4: `search` 参数缺少长度限制
+#### M-4: `search` 参数缺少长度限制 ✅ 已修复
 
 **位置**: 第 32 行
 
@@ -316,7 +318,7 @@ if (search && search.length > 100) {
 
 ### LOW 级别
 
-#### L-1: `_req` 参数命名风格不统一
+#### L-1: `_req` 参数命名风格不统一 ✅ 已修复
 
 **位置**: `syncPublishingPlatforms` 第 8 行
 
@@ -330,7 +332,7 @@ export async function syncPublishingPlatforms(_req: Request, res: Response): Pro
 
 ---
 
-#### L-2: 缺少请求日志记录
+#### L-2: 缺少请求日志记录 ✅ 已修复（app.ts 中间件已包含 access logging）
 
 **位置**: 整个文件
 
@@ -340,7 +342,7 @@ controller 层没有任何日志记录。`syncPublishingPlatforms` 涉及外部 
 
 ---
 
-#### L-3: `syncPublishingPlatforms` 未使用 `_req` 中可能有用的请求信息
+#### L-3: `syncPublishingPlatforms` 未使用 `_req` 中可能有用的请求信息 ✅ 已修复（app.ts 日志中间件记录 userId）
 
 **位置**: 第 8 行
 
