@@ -45,6 +45,7 @@
 | 2026-05-24 | `progress_tasks/2026-05-24-kb-controller-tdd.md` | knowledge-base controller TDD 补全——修复10个Zod兼容测试+新增10个直接函数测试，103用例100%覆盖 |
 | 2026-05-24 | `tasks/review/useCopied.tsx.security.md` | useCopied.tsx 代码安全专家评审——⚠️有条件通过，H×1 废弃API依赖 + M×4 + L×3，综合3.7分 |
 | 2026-05-24 | `tasks/review/useCopied.tsx.ui.md` | useCopied.tsx UI专家评审——2.7分，P1×3（无可访问性反馈/虚假成功/硬编码时长）+ P2×4 + P3×4 |
+| 2026-05-24 | `tasks/review/useCopied.tsx.committer.md` | useCopied.tsx Committer 专家评审——有条件通过，需补充 CSS 样式覆盖和可访问性改进 |
 
 ## 已知问题
 - `apis/service/impl/auth.service.impl.ts` Prisma 类型错误（待 schema 同步）
