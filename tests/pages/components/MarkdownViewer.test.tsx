@@ -6,6 +6,15 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import MarkdownViewer, { safeUrlTransform } from '../../../pages/components/MarkdownViewer';
 import type { MarkdownViewerRef } from '../../../pages/components/MarkdownViewer';
 
+// Mock window.matchMedia for jsdom（useSystemColorMode hook 需要）
+let mockMatchMediaResult = { matches: false, addEventListener: jest.fn(), removeEventListener: jest.fn() };
+beforeAll(() => {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: jest.fn().mockImplementation(() => mockMatchMediaResult),
+  });
+});
+
 let mockProps: Record<string, unknown> = {};
 
 // Mock @uiw/react-markdown-preview/nohighlight（匹配组件实际导入路径）
@@ -385,5 +394,46 @@ describe('MarkdownViewer — UI review fixes', () => {
     const viewerDiv = container.querySelector('.markdown-viewer') as HTMLElement;
     fireEvent.mouseLeave(viewerDiv);
     expect(onMouseLeave).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('MarkdownViewer — colorMode prop', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockProps = {};
+  });
+
+  it('forces light mode via colorMode="light"', () => {
+    mockToken = { colorBgBase: '#141414' };
+    render(<MarkdownViewer content="test" colorMode="light" />);
+    expect(mockProps.wrapperElement).toEqual({ 'data-color-mode': 'light' });
+  });
+
+  it('forces dark mode via colorMode="dark"', () => {
+    mockToken = { colorBgBase: '#ffffff' };
+    render(<MarkdownViewer content="test" colorMode="dark" />);
+    expect(mockProps.wrapperElement).toEqual({ 'data-color-mode': 'dark' });
+  });
+
+  it('uses antd token detection when colorMode is undefined', () => {
+    mockToken = { colorBgBase: '#ffffff' };
+    render(<MarkdownViewer content="test" />);
+    expect(mockProps.wrapperElement).toEqual({ 'data-color-mode': 'light' });
+  });
+
+  it('colorMode="auto" uses system preference (light)', () => {
+    mockToken = { colorBgBase: '#141414' };
+    mockMatchMediaResult = { matches: false, addEventListener: jest.fn(), removeEventListener: jest.fn() };
+    (window.matchMedia as jest.Mock).mockReturnValue(mockMatchMediaResult);
+    render(<MarkdownViewer content="test" colorMode="auto" />);
+    expect(mockProps.wrapperElement).toEqual({ 'data-color-mode': 'light' });
+  });
+
+  it('colorMode="auto" uses system preference (dark)', () => {
+    mockToken = { colorBgBase: '#ffffff' };
+    mockMatchMediaResult = { matches: true, addEventListener: jest.fn(), removeEventListener: jest.fn() };
+    (window.matchMedia as jest.Mock).mockReturnValue(mockMatchMediaResult);
+    render(<MarkdownViewer content="test" colorMode="auto" />);
+    expect(mockProps.wrapperElement).toEqual({ 'data-color-mode': 'dark' });
   });
 });

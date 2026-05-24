@@ -14,7 +14,7 @@
  *   4. source 长度截断 — 防止超长内容导致 DoS
  *   5. MarkdownErrorBoundary — 防止渲染异常导致页面白屏
  */
-import React, { useMemo, Component, forwardRef, useRef, useImperativeHandle } from 'react';
+import React, { useMemo, Component, forwardRef, useRef, useImperativeHandle, useState, useEffect } from 'react';
 import MarkdownPreview from '@uiw/react-markdown-preview/nohighlight';
 import { Spin, Typography, Empty, theme } from 'antd';
 import DOMPurify from 'dompurify';
@@ -22,6 +22,22 @@ import type { CSSProperties, ReactNode, UIEvent, MouseEvent, KeyboardEvent } fro
 import '../styles/markdown-viewer.css';
 
 const MAX_SOURCE_LENGTH = 1048576; // 1MB 安全长上限
+
+function useSystemColorMode(): 'light' | 'dark' {
+  const [mode, setMode] = useState<'light' | 'dark'>(() => {
+    if (typeof window === 'undefined') return 'light';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => setMode(e.matches ? 'dark' : 'light');
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  return mode;
+}
 
 const ALLOWED_URL_PROTOCOLS = ['http://', 'https://', 'mailto:', 'tel:', '/', '#', './', '../'];
 
@@ -114,6 +130,8 @@ interface MarkdownViewerProps {
   onMouseEnter?: (e: MouseEvent<HTMLDivElement>) => void;
   /** 鼠标离开事件（不冒泡） */
   onMouseLeave?: (e: MouseEvent<HTMLDivElement>) => void;
+  /** 颜色模式：'auto' 跟随系统，'light'/'dark' 强制指定。默认从 antd token 自动检测 */
+  colorMode?: 'light' | 'dark' | 'auto';
 }
 
 export interface MarkdownViewerRef {
@@ -137,10 +155,15 @@ const MarkdownViewer = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
   onKeyDown,
   onMouseEnter,
   onMouseLeave,
+  colorMode: colorModeProp,
 }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { token } = theme.useToken();
-  const colorMode = useMemo(() => {
+  const systemMode = useSystemColorMode();
+
+  const resolvedColorMode = useMemo(() => {
+    if (colorModeProp === 'auto') return systemMode;
+    if (colorModeProp) return colorModeProp;
     const bg = token.colorBgBase;
     if (!bg || typeof bg !== 'string') return 'light';
     const hex = bg.replace('#', '');
@@ -149,7 +172,7 @@ const MarkdownViewer = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
     const b = parseInt(hex.substring(4, 6), 16);
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
     return luminance < 0.5 ? 'dark' : 'light';
-  }, [token.colorBgBase]);
+  }, [colorModeProp, systemMode, token.colorBgBase]);
 
   // 安全关键 — DOMPurify 消毒不可删除、不可降级、不可绕过
   // 这是防御 preview.tsx S1-S4 安全缺陷的最后防线
@@ -207,7 +230,7 @@ const MarkdownViewer = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
       >
         <MarkdownPreview
           source={safeSource}
-          wrapperElement={{ 'data-color-mode': colorMode }}
+          wrapperElement={{ 'data-color-mode': resolvedColorMode }}
           urlTransform={safeUrlTransform}
           allowElement={(element) => SAFE_TAGS.has(element.tagName.toLowerCase())}
         />
