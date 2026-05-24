@@ -976,6 +976,15 @@
   - 测试从 145 个增加到 166 个（+21：JWT_EXPIRES_IN 格式×7、CRON 格式×4、uploadDir 路径安全×4、DB_POOL_MAX 上限×3、Swagger 环境约束×3）
   - 关联模块测试无回归（auth 176个、server 13个）
 
+## 本次变更（2026-05-24 article.controller.ts 软件质量专家评审）
+- [x] **软件质量专家评审 apis/controller/article.controller.ts（553 行，第五轮评审）**
+  - 综合评级 A-（优秀，从 B 级提升，所有 CRITICAL 和 HIGH 安全问题已修复）
+  - 验证前四轮评审 14 项修复：100% 已修复（字段注入、状态机绕过、Zod schema补全、职责分离、错误处理类型化、内容限制、创建者检查、防御性认证、created()、scheduled时间校验、死代码删除、字符串匹配→类型化异常、submitForReview状态校验）
+  - 剩余 11 项质量改进：HIGH×2（TOCTOU竞态条件、schedule_type白名单缺失）、MEDIUM×5（代码重复~22%、版本列表无分页、状态机死代码、局部PermissionDeniedError、submitForReview冗余检查）、LOW×4（skills无结构、getAuthUser价值有限、无操作日志、无DI）
+  - 正面评价：纵深防御体系完善（Zod+白名单+状态机+类型化异常四重防护）、Zod Schema覆盖率100%、类型化异常体系为项目标杆
+  - 与其他控制器对比：article.controller 是项目中安全质量和代码质量最高的控制器
+  - 评审报告 tasks/review/article.controller.ts.md（覆盖原安全评审）
+
 ## 本次变更（2026-05-24 @uiw/react-markdown-preview index.tsx Committer审核专家评审）
 - [x] **Committer审核专家评审 @uiw/react-markdown-preview/src/index.tsx（27 行）**
   - 综合评分 4.5/10，有条件通过（CONDITIONAL APPROVE）
