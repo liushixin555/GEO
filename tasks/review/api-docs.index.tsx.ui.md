@@ -258,3 +258,34 @@ export default ApiDocsPage;
 5. **信息架构薄弱**：页面价值极低，仅一句描述+一个按钮
 
 **核心建议**：提升页面信息密度和结构化程度，使用正确的 antd 组件语义，修复路由冲突，补充可访问性属性。同时推动全局 `page-container` padding 从 6px 修正为 24px 以符合 Carbon Design System 规范。
+
+---
+
+## 11. 修复记录
+
+### 第四轮修复（2026-05-24）：剩余 UI 问题修复
+
+**修复文件**: `pages/api-docs/index.tsx`, `pages/styles/global.css`, `tests/pages/api-docs.test.tsx`
+
+| 问题 ID | 严重度 | 修复内容 |
+|---------|--------|---------|
+| UI-01 | 🟢 低 | `ApiOutlined` 图标添加 `color: var(--color-primary)` 主色调 |
+| UI-13 | 🟡 中 | 页面增加 API 基础路径和认证方式说明，提升信息密度 |
+| UI-19 | 🟢 低 | 按钮添加 `whiteSpace: 'nowrap'` 防止极窄屏幕文字截断 |
+| UI-21 | 🟢 低 | 组件使用 `React.memo` 包裹避免不必要重渲染 |
+
+**新增内容**:
+- 引入 `Divider`、`GlobalOutlined`、`SafetyCertificateOutlined` 组件
+- 新增 `api-docs-info` CSS 类用于信息行布局（flex + wrap）
+- 新增 5 个测试用例覆盖：基础路径信息、认证方式、图标渲染、图标样式、标题结构
+- 总测试数从 10 增至 15，全部通过
+
+**已有修复确认**（前几轮已完成的不再重复修改）:
+- UI-05 ✅ `page-container` padding 已为 `var(--spacing-lg)` (24px)
+- UI-10 ✅ 按钮改为 `/api-docs/`（尾部斜杠）+ Swagger 可用性检测
+- UI-11 ✅ 已添加 `rel="noopener noreferrer"`
+- UI-03 ✅ 已改用 `Typography.Text type="secondary"`
+- UI-06 ✅ 已使用 `Space direction="vertical" size="large"`
+- UI-07 ✅ 已使用 `Card` 包裹
+- UI-12 ✅ 已有 Swagger 可用性预检（HEAD 请求 + Spin/Alert）
+- UI-18 ✅ 已设置 `document.title`

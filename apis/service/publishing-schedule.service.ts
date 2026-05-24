@@ -1,19 +1,13 @@
+import type { PublishingScheduleListParams, PublishingScheduleItem, PublishingScheduleUpdateResult } from '../entity/publishing-schedule.entity';
+
 export interface IPublishingScheduleService {
-  list(params: {
-    page: number;
-    pageSize: number;
-    search?: string;
-    status?: string;
-    projectId?: number;
-    userId?: number;
-    role?: string;
-  }): Promise<{ list: any[]; total: number }>;
+  list(params: PublishingScheduleListParams): Promise<{ list: PublishingScheduleItem[]; total: number }>;
 
   updateSchedule(
     id: number,
     scheduledPublishAt: string | null,
     scheduleType: string | null,
-    userId?: number,
-    role?: string,
-  ): Promise<any>;
+    userId: number,
+    role: string,
+  ): Promise<PublishingScheduleUpdateResult>;
 }

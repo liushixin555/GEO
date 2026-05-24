@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PublishingScheduleServiceImpl } from '../service/impl/publishing-schedule.service.impl';
 import { success, fail, paginate } from '../utils';
+import { AppError } from '../errors';
 
 const publishingScheduleService = new PublishingScheduleServiceImpl();
 
@@ -70,17 +71,8 @@ export async function updatePublishingSchedule(req: Request, res: Response): Pro
     const item = await publishingScheduleService.updateSchedule(id, scheduled_publish_at, schedule_type ?? null, userId, role);
     success(res, item, '更新发布计划成功');
   } catch (err: unknown) {
-    if (err instanceof Error) {
-      if (err.message === '文章不存在') {
-        fail(res, 404, err.message);
-      } else if (err.message === '当前文章状态不可编辑发布计划') {
-        fail(res, 400, err.message);
-      } else if (err.message === '无权操作此文章') {
-        fail(res, 403, err.message);
-      } else {
-        console.error('[PublishingScheduleController] updatePublishingSchedule failed:', err);
-        fail(res, 500, '更新发布计划失败');
-      }
+    if (err instanceof AppError) {
+      fail(res, err.statusCode, err.message);
     } else {
       console.error('[PublishingScheduleController] updatePublishingSchedule failed:', err);
       fail(res, 500, '更新发布计划失败');

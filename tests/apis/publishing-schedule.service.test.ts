@@ -11,6 +11,7 @@ jest.mock('../../apis/utils/db.util', () => ({
 
 import { getPrisma } from '../../apis/utils/db.util';
 import { PublishingScheduleServiceImpl } from '../../apis/service/impl/publishing-schedule.service.impl';
+import { NotFoundError, BusinessError, ForbiddenError } from '../../apis/errors';
 
 const mockedGetPrisma = getPrisma as jest.MockedFunction<typeof getPrisma>;
 
@@ -600,7 +601,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', null);
+      const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', null, 1, 'sysadmin');
 
       expect(mockFindFirst).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -636,7 +637,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      const result = await service.updateSchedule(1, null, null);
+      const result = await service.updateSchedule(1, null, null, 1, 'sysadmin');
 
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -652,8 +653,8 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findFirst: mockFindFirst },
       } as any);
 
-      await expect(service.updateSchedule(999, '2025-08-01T10:00:00Z', null))
-        .rejects.toThrow('文章不存在');
+      await expect(service.updateSchedule(999, '2025-08-01T10:00:00Z', null, 1, 'sysadmin'))
+        .rejects.toThrow(NotFoundError);
     });
 
     it('should throw error when article status is not publishing', async () => {
@@ -663,8 +664,8 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findFirst: mockFindFirst },
       } as any);
 
-      await expect(service.updateSchedule(1, '2025-08-01T10:00:00Z', null))
-        .rejects.toThrow('当前文章状态不可编辑发布计划');
+      await expect(service.updateSchedule(1, '2025-08-01T10:00:00Z', null, 1, 'sysadmin'))
+        .rejects.toThrow(BusinessError);
     });
 
     it('should throw error when article status is published', async () => {
@@ -674,8 +675,8 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findFirst: mockFindFirst },
       } as any);
 
-      await expect(service.updateSchedule(1, '2025-08-01T10:00:00Z', null))
-        .rejects.toThrow('当前文章状态不可编辑发布计划');
+      await expect(service.updateSchedule(1, '2025-08-01T10:00:00Z', null, 1, 'sysadmin'))
+        .rejects.toThrow(BusinessError);
     });
 
     it('should throw error when article status is publish_failed', async () => {
@@ -685,8 +686,8 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findFirst: mockFindFirst },
       } as any);
 
-      await expect(service.updateSchedule(1, '2025-08-01T10:00:00Z', null))
-        .rejects.toThrow('当前文章状态不可编辑发布计划');
+      await expect(service.updateSchedule(1, '2025-08-01T10:00:00Z', null, 1, 'sysadmin'))
+        .rejects.toThrow(BusinessError);
     });
 
     it('should map updated article correctly', async () => {
@@ -714,7 +715,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      const result = await service.updateSchedule(5, '2025-09-01T10:00:00Z', null);
+      const result = await service.updateSchedule(5, '2025-09-01T10:00:00Z', null, 1, 'sysadmin');
 
       expect(result).toEqual({
         id: 5,
@@ -724,6 +725,7 @@ describe('PublishingScheduleServiceImpl', () => {
         platforms: ['网易'],
         status: 'publishing',
         scheduled_publish_at: new Date('2025-09-01T10:00:00Z'),
+        schedule_type: null,
         project_id: 20,
         project_name: '项目B',
         company_name: '公司B',
@@ -741,7 +743,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', null);
+      const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', null, 1, 'sysadmin');
 
       expect(result.project_name).toBe('');
       expect(result.company_name).toBe('');
@@ -758,7 +760,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', null);
+      const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', null, 1, 'sysadmin');
 
       expect(result.project_name).toBe('项目A');
       expect(result.company_name).toBe('');
@@ -771,7 +773,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await expect(service.updateSchedule(999, '2025-08-01', null)).rejects.toThrow();
+      await expect(service.updateSchedule(999, '2025-08-01', null, 1, 'sysadmin')).rejects.toThrow();
       expect(mockUpdate).not.toHaveBeenCalled();
     });
 
@@ -783,7 +785,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await expect(service.updateSchedule(1, '2025-08-01', null)).rejects.toThrow();
+      await expect(service.updateSchedule(1, '2025-08-01', null, 1, 'sysadmin')).rejects.toThrow();
       expect(mockUpdate).not.toHaveBeenCalled();
     });
 
@@ -820,7 +822,7 @@ describe('PublishingScheduleServiceImpl', () => {
 
       // userId=99 is NOT in operators list
       await expect(service.updateSchedule(1, '2025-08-01T10:00:00Z', null, 99, 'admin'))
-        .rejects.toThrow('无权操作此文章');
+        .rejects.toThrow(ForbiddenError);
       expect(mockUpdate).not.toHaveBeenCalled();
     });
 
@@ -856,7 +858,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await service.updateSchedule(1, '' as any, null);
+      await service.updateSchedule(1, '' as any, null, 1, 'sysadmin');
 
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -877,39 +879,8 @@ describe('PublishingScheduleServiceImpl', () => {
       } as any);
 
       await expect(service.updateSchedule(1, '2025-08-01T10:00:00Z', null, 2, 'admin'))
-        .rejects.toThrow('无权操作此文章');
+        .rejects.toThrow(ForbiddenError);
       expect(mockUpdate).not.toHaveBeenCalled();
-    });
-
-    it('should allow update when role is undefined and userId is undefined', async () => {
-      const existing = makeArticle({ status: 'publishing' });
-      const updated = makeUpdatedArticle();
-      const mockFindFirst = jest.fn().mockResolvedValue(existing);
-      const mockUpdate = jest.fn().mockResolvedValue(updated);
-      mockedGetPrisma.mockReturnValue({
-        article: { findFirst: mockFindFirst, update: mockUpdate },
-      } as any);
-
-      // No role, no userId → skips permission check entirely
-      const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', null);
-      expect(result.id).toBe(1);
-      expect(mockUpdate).toHaveBeenCalled();
-    });
-
-    it('should allow admin without userId to bypass permission check (current behavior)', async () => {
-      const existing = makeArticle({ status: 'publishing' });
-      const updated = makeUpdatedArticle();
-      const mockFindFirst = jest.fn().mockResolvedValue(existing);
-      const mockUpdate = jest.fn().mockResolvedValue(updated);
-      mockedGetPrisma.mockReturnValue({
-        article: { findFirst: mockFindFirst, update: mockUpdate },
-      } as any);
-
-      // role !== 'sysadmin' is true, but userId is undefined (falsy) → skips permission check
-      // This confirms current behavior: admin without userId bypasses permission
-      const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', null, undefined, 'admin');
-      expect(mockUpdate).toHaveBeenCalled();
-      expect(result.id).toBe(1);
     });
 
     it('should reject view role user who is not in operators', async () => {
@@ -930,7 +901,7 @@ describe('PublishingScheduleServiceImpl', () => {
 
       // view role user not in operators list
       await expect(service.updateSchedule(1, '2025-08-01T10:00:00Z', null, 99, 'view'))
-        .rejects.toThrow('无权操作此文章');
+        .rejects.toThrow(ForbiddenError);
       expect(mockUpdate).not.toHaveBeenCalled();
     });
   });

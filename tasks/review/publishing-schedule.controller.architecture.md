@@ -21,6 +21,16 @@ app.ts (路由注册 + 中间件编排)
 - `PUT /api/publishing-schedule/:id` — 更新发布计划（sysadmin + admin）
 **严重级别**: ARCH-MAJOR(3) / ARCH-MINOR(3) / OBSERVATION(3)
 
+> **修复状态 (2026-05-24)**:
+> - ARCH-MAJOR-2 ✅ 引入 NotFoundError/BusinessError/ForbiddenError 类型化异常，Controller 使用 `instanceof AppError` 替代字符串匹配
+> - ARCH-MAJOR-3 ✅ 创建 `publishing-schedule.entity.ts`，Service 接口返回类型从 `any[]`/`any` 替换为 `PublishingScheduleItem[]`/`PublishingScheduleUpdateResult`
+> - ARCH-MINOR-1 ✅ 统一使用 `instanceof AppError` 异常处理模式，list 和 update 端点错误处理策略一致
+> - ARCH-MINOR-3 ✅ update 返回结构补充 `schedule_type` 字段，与 list 返回结构统一
+> - OBS-1 ✅ 500 错误不再泄露 err.message，统一使用固定消息
+> - OBS-2 ✅ catch 使用 `unknown` 类型（已有）
+> - OBS-3 ✅ Service 接口 `userId`/`role` 从 optional 改为 required
+> - ARCH-MAJOR-1 ⏳ P3 项目级技术债务，待统一重构
+
 ---
 
 ## 一、架构评价总览

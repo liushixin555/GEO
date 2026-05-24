@@ -1,5 +1,7 @@
 import { getPrisma } from '../../utils';
 import { IPublishingScheduleService } from '../publishing-schedule.service';
+import { NotFoundError, BusinessError, ForbiddenError } from '../../errors';
+import type { PublishingScheduleItem, PublishingScheduleUpdateResult } from '../../entity/publishing-schedule.entity';
 
 const PUBLISH_STATUSES = ['publishing', 'published', 'publish_failed'];
 
@@ -12,7 +14,7 @@ export class PublishingScheduleServiceImpl implements IPublishingScheduleService
     projectId?: number;
     userId?: number;
     role?: string;
-  }): Promise<{ list: any[]; total: number }> {
+  }): Promise<{ list: PublishingScheduleItem[]; total: number }> {
     const prisma = getPrisma();
     const { page, pageSize, search, status, projectId, userId, role } = params;
 
@@ -68,7 +70,7 @@ export class PublishingScheduleServiceImpl implements IPublishingScheduleService
       prisma.article.count({ where }),
     ]);
 
-    const list = items.map((item: any) => ({
+    const list: PublishingScheduleItem[] = items.map((item: any) => ({
       id: item.id,
       title: item.title,
       keywords: item.keywords,
@@ -89,7 +91,7 @@ export class PublishingScheduleServiceImpl implements IPublishingScheduleService
     return { list, total };
   }
 
-  async updateSchedule(id: number, scheduledPublishAt: string | null, scheduleType: string | null, userId?: number, role?: string): Promise<any> {
+  async updateSchedule(id: number, scheduledPublishAt: string | null, scheduleType: string | null, userId: number, role: string): Promise<PublishingScheduleUpdateResult> {
     const prisma = getPrisma();
 
     const existing = await prisma.article.findFirst({
@@ -102,17 +104,17 @@ export class PublishingScheduleServiceImpl implements IPublishingScheduleService
         },
       },
     });
-    if (!existing) throw new Error('文章不存在');
+    if (!existing) throw new NotFoundError('文章');
 
     // Only allow updating publishing status
     if (existing.status !== 'publishing') {
-      throw new Error('当前文章状态不可编辑发布计划');
+      throw new BusinessError('当前文章状态不可编辑发布计划');
     }
 
     // Permission check — admin can only update articles in their own projects
-    if (role !== 'sysadmin' && userId) {
+    if (role !== 'sysadmin') {
       const hasAccess = existing.project?.operators?.some(op => op.userId === userId);
-      if (!hasAccess) throw new Error('无权操作此文章');
+      if (!hasAccess) throw new ForbiddenError('无权操作此文章');
     }
 
     const data: any = {
@@ -137,9 +139,10 @@ export class PublishingScheduleServiceImpl implements IPublishingScheduleService
       title: updated.title,
       keywords: updated.keywords,
       article_type: updated.articleType,
-      platforms: updated.platforms,
+      platforms: updated.platforms as string[] | null,
       status: updated.status,
       scheduled_publish_at: updated.scheduledPublishAt ?? null,
+      schedule_type: updated.scheduleType ?? null,
       project_id: updated.projectId,
       project_name: updated.project?.shortName || '',
       company_name: updated.project?.company?.shortName || '',

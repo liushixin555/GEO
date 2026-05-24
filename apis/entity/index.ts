@@ -9,3 +9,4 @@ export { Article, ArticleStatus, ArticleVersion, CreateArticleRequest, UpdateArt
 export { KnowledgeKeyword, KeywordExpandedWord, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, CreateKeywordRequest, UpdateKeywordRequest, CreatePortraitRequest, UpdatePortraitRequest, CreateImageRequest, UpdateImageRequest, CreateDocumentRequest, UpdateDocumentRequest, MinedKeyword } from './knowledge.entity';
 export { KnowledgeBase, CreateKnowledgeBaseRequest, UpdateKnowledgeBaseRequest } from './knowledge-base.entity';
 export { Todo, TodoLog, CreateTodoRequest, UpdateTodoRequest, TransferTodoRequest } from './todo.entity';
+export { PublishingScheduleListParams, PublishingScheduleItem, PublishingScheduleUpdateResult } from './publishing-schedule.entity';

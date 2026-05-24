@@ -3,6 +3,7 @@
  */
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
+import { NotFoundError, BusinessError, ForbiddenError } from '../../apis/errors';
 
 process.env.JWT_SECRET = 'test-secret';
 process.env.JWT_EXPIRES_IN = '2h';
@@ -377,7 +378,7 @@ describe('PublishingSchedule Controller', () => {
     });
 
     it('should return 404 when article does not exist', async () => {
-      mockUpdateSchedule.mockRejectedValue(new Error('文章不存在'));
+      mockUpdateSchedule.mockRejectedValue(new NotFoundError('文章'));
 
       const response = await agent
         .put('/api/v1/publishing-schedule/999')
@@ -389,7 +390,7 @@ describe('PublishingSchedule Controller', () => {
     });
 
     it('should return 400 when article status is not editable', async () => {
-      mockUpdateSchedule.mockRejectedValue(new Error('当前文章状态不可编辑发布计划'));
+      mockUpdateSchedule.mockRejectedValue(new BusinessError('当前文章状态不可编辑发布计划'));
 
       const response = await agent
         .put('/api/v1/publishing-schedule/1')
@@ -425,7 +426,7 @@ describe('PublishingSchedule Controller', () => {
     });
 
     it('should handle id=0 as valid integer', async () => {
-      mockUpdateSchedule.mockRejectedValue(new Error('文章不存在'));
+      mockUpdateSchedule.mockRejectedValue(new NotFoundError('文章'));
       const response = await agent
         .put('/api/v1/publishing-schedule/0')
         .set('Authorization', `Bearer ${sysadminToken()}`)
@@ -435,7 +436,7 @@ describe('PublishingSchedule Controller', () => {
     });
 
     it('should handle negative id', async () => {
-      mockUpdateSchedule.mockRejectedValue(new Error('文章不存在'));
+      mockUpdateSchedule.mockRejectedValue(new NotFoundError('文章'));
       const response = await agent
         .put('/api/v1/publishing-schedule/-1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
@@ -684,7 +685,7 @@ describe('PublishingSchedule Controller', () => {
     });
 
     it('should return 403 when admin has no access to the article', async () => {
-      mockUpdateSchedule.mockRejectedValue(new Error('无权操作此文章'));
+      mockUpdateSchedule.mockRejectedValue(new ForbiddenError('无权操作此文章'));
 
       const response = await agent
         .put('/api/v1/publishing-schedule/1')
