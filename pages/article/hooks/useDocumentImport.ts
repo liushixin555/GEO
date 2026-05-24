@@ -62,8 +62,7 @@ export function useDocumentImport(
 
       onContentImport(markdown);
       message.success(`已导入文档「${file.name}」`);
-    } catch (err: any) {
-      console.error('[DocumentImport] 解析失败:', err);
+    } catch (err: unknown) {
       message.error(getApiErrorMessage(err, '文档解析失败'));
     }
     return false;

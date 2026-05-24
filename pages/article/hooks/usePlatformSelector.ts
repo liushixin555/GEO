@@ -33,7 +33,7 @@ export function usePlatformSelector(form: FormInstance) {
   const fetchList = useCallback(async (page = 1, search = '', sortBy = '', sortOrder: 'asc' | 'desc' = 'asc') => {
     setState((s) => ({ ...s, platformLoading: true }));
     try {
-      const params: Record<string, any> = { page, pageSize: 10 };
+      const params: Record<string, string | number> = { page, pageSize: 10 };
       if (search) params.search = search;
       if (sortBy) { params.sortBy = sortBy; params.sortOrder = sortOrder; }
       const res = await apiClient.get('/publishing-platforms', { params });
@@ -43,8 +43,7 @@ export function usePlatformSelector(form: FormInstance) {
       } else if (Array.isArray(data)) {
         setState((s) => ({ ...s, platformList: data, platformTotal: data.length, platformPage: page, platformLoading: false }));
       }
-    } catch (err) {
-      console.warn('[usePlatformSelector] 加载平台列表失败:', err);
+    } catch {
       setState((s) => ({ ...s, platformList: [], platformTotal: 0, platformLoading: false }));
     }
   }, []);

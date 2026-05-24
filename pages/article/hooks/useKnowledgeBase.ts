@@ -41,8 +41,8 @@ export function useKnowledgeBase(projectId: number | undefined, isNew: boolean, 
         if (isNew && !form.getFieldValue('write_mode')) {
           form.setFieldValue('write_mode', 'ai');
         }
-      } catch (err) {
-        console.warn('[useKnowledgeBase] 加载选项失败:', err);
+      } catch {
+        // Non-critical: options not available, UI will show empty selects
       }
     };
     fetchOptions();
@@ -75,8 +75,8 @@ export function useKnowledgeBase(projectId: number | undefined, isNew: boolean, 
         setKbKeywords(keywords);
         setKbPortraits(portraits);
         setKbImages(images);
-      } catch (err) {
-        console.warn('[useKnowledgeBase] 加载知识库数据失败:', err);
+      } catch {
+        // Non-critical: knowledge base data not available, UI will show empty states
       } finally {
         setKbLoading(false);
       }

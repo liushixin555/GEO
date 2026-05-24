@@ -38,7 +38,7 @@ const ArticleImageManager: React.FC<ArticleImageManagerProps> = ({
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       imageListChange([...imageList, res.data.data.url]);
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(getApiErrorMessage(err, '上传失败'));
     } finally {
       setUploading(false);

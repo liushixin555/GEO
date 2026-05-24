@@ -54,9 +54,14 @@ const ArticleDetail: React.FC = () => {
 
   // Auto-save every 5 minutes
   useEffect(() => {
-    const timer = setInterval(() => { detail.autoSave(imageList); }, 5 * 60 * 1000);
+    const timer = setInterval(async () => {
+      const result = await detail.autoSave(imageList);
+      if (result?.navigateTo) {
+        navigate(result.navigateTo, { replace: true });
+      }
+    }, 5 * 60 * 1000);
     return () => clearInterval(timer);
-  }, [isNew, id, projectId, imageList, detail.autoSave]);
+  }, [isNew, id, projectId, imageList, detail.autoSave, navigate]);
 
   // Reset contentMode when transitioning from /article/new to /article/:id
   useEffect(() => {

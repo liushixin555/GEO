@@ -732,3 +732,39 @@ options={[
 **建议优先执行 Phase 1（安全修复）和 Phase 2（组件拆分）**，将 God Component 拆解为 5 个子组件 + 6 个自定义 hook，使主文件降至 100 行以内。
 
 **评审结果**: ❌ 架构不通过 — 需在下一迭代中完成组件拆分和 API 层抽象重构。
+
+---
+
+## 六、架构修复记录（2026-05-25）
+
+### 已完成修复
+
+| 编号 | 修复项 | 修复内容 | 涉及文件 |
+|------|--------|----------|----------|
+| C-1 | God Component | 主文件 889→218 行，拆分为 5 子组件 + 6 hooks | ArticleDetail.tsx |
+| C-2 | API 层抽象 | 创建 apiClient.ts，统一 token 注入 + 401 拦截 | pages/lib/apiClient.ts |
+| C-3 | 状态管理 | 17 个 useState 分散到 6 个专用 hooks | hooks/* |
+| H-1 | AbortController | fetchArticle 添加 AbortController 防竞态 + 内存泄漏 | useArticleDetail.ts |
+| H-2 | 权限抽象 | 提取 useArticlePermissions hook | useArticlePermissions.ts |
+| H-3 | 自动保存竞态 | savingRef 互斥 + autoSave 返回值处理导航 | useArticleDetail.ts, ArticleDetail.tsx |
+| H-4 | 类型修复 | `err: any` → `unknown`, `Record<string, any>` → 具体类型 | useArticleActions.ts, usePlatformSelector.ts, useDocumentImport.ts, ArticleImageManager.tsx |
+| M-1 | forceRender | 已移除 forceRender，改为条件渲染 | ArticleDetail.tsx |
+| M-3 | 错误处理 | 消除 console.warn/console.error，统一使用 message.error | usePlatformSelector.ts, useKnowledgeBase.ts, useDocumentImport.ts |
+| L-1 | 魔法字符串 | 状态值和类型定义提取到 types.ts | types.ts |
+
+### 修复后架构度量
+
+| 度量指标 | 评审时 | 修复后 |
+|----------|--------|--------|
+| 主文件行数 | 889 | 218 |
+| useState 数量 | 17 | 4（主组件） |
+| useEffect 数量 | 6 | 4（主组件） |
+| axios 直接调用 | 11 | 0（通过 apiClient） |
+| `any` 类型数量 | ~15 | 0（hooks/components 中） |
+| 子组件数量 | 0 | 5 |
+| 自定义 hooks | 0 | 6 |
+
+### 剩余低优先级项
+
+- L-2: 新建/编辑模式混合（当前通过 isNew 条件分支处理，可接受）
+- M-2: location.state 导航（改为 URL 参数需同步修改路由，风险较高，留待后续）

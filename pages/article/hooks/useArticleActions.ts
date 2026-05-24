@@ -18,7 +18,7 @@ export function useArticleActions(
       await apiClient.put(`/projects/${projectId}/articles/${id}/review`, { approved });
       message.success(approved ? '审核通过，自动发布中' : '审核不通过，已退回草稿');
       refetch();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(getApiErrorMessage(err, '审核操作失败'));
     }
   }, [article, projectId, id, refetch, message]);
@@ -29,7 +29,7 @@ export function useArticleActions(
       await apiClient.put(`/projects/${projectId}/articles/${id}/regenerate`, {});
       message.success('已重新提交AI生成');
       refetch();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(getApiErrorMessage(err, '重新生成失败'));
     }
   }, [article, projectId, id, refetch, message]);
@@ -40,7 +40,7 @@ export function useArticleActions(
       await apiClient.put(`/projects/${projectId}/articles/${id}/submit-review`, {});
       message.success('已提交审核');
       refetch();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(getApiErrorMessage(err, '提交审核失败'));
     }
   }, [article, projectId, id, refetch, message]);
