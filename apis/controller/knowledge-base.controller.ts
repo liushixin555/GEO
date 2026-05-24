@@ -115,14 +115,18 @@ export async function updateKnowledgeBase(req: Request, res: Response): Promise<
       }
       if (req.body.name.length > 200) { fail(res, 400, '知识库名称不能超过200个字符'); return; }
     }
-    if (req.body.description !== undefined && typeof req.body.description === 'string' && req.body.description.length > 2000) {
+    // Normalize description: string → string, null → null (clear), other types → undefined (ignore)
+    const validDescription = typeof req.body.description === 'string'
+      ? req.body.description
+      : (req.body.description === null ? null : undefined);
+    if (typeof validDescription === 'string' && validDescription.length > 2000) {
       fail(res, 400, '描述不能超过2000个字符'); return;
     }
 
     // Explicitly construct update request to prevent mass assignment (SEC-M-04)
     const updateRequest: UpdateKnowledgeBaseRequest = {
       name: req.body.name,
-      description: req.body.description,
+      description: validDescription,
       scope: req.body.scope,
       status: typeof req.body.status === 'boolean' ? req.body.status : undefined,
       company_id: validateInteger(req.body.company_id, 'company_id'),

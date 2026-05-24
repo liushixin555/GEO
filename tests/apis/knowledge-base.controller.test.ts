@@ -2002,6 +2002,42 @@ describe('KnowledgeBase Controller', () => {
       expect(createData.description).toBeNull();
     });
 
+    // --- update description 类型验证测试（M-1 update 路径）---
+    test('updateKnowledgeBase: description 为数组被转为 undefined（绕过 Zod）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        createdBy: 1,
+        companyId: null,
+        projectId: null,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        description: '原有描述',
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const req = {
+        params: { id: '1' },
+        body: { description: [1, 2, 3] },
+        user: mockUser,
+      } as any;
+      const res = mockRes();
+      await updateKnowledgeBase(req, res);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 0 })
+      );
+      const updateData = mockUpdate.mock.calls[0][0].data;
+      // description 为数组被规范化为 undefined，不出现在 data 中
+      expect(updateData.description).toBeUndefined();
+    });
+
     // --- 无权关联分支（覆盖 line 96: create, line 149: update）---
     test('createKnowledgeBase: admin 无权关联该公司返回 403（绕过 Zod）', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
