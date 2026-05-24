@@ -133,3 +133,4 @@
 | 2026-05-24 | progress_tasks/2026-05-24-editor-tsx-review-fix.md | Editor.tsx 评审修复——ESLint no-restricted-imports 防误用 + 禁止标准入口注释 + CSS-02拖拽条/CSS-03按钮pressed/CSS-05 Firefox滚动条/UX-02过渡动画/R-01移动端响应式/A-04 aria-live |
 | 2026-05-24 | tasks/review/bold.tsx.md | bold.tsx 软件架构专家评审——3.3分，P1非空断言绕过类型契约/P2 UI与逻辑混合/P3两阶段无事务保障/P4变量命名/P5可测试性 |
 | 2026-05-24 | tasks/tdd/todo.schema.test.md | todo.schema.ts TDD——203用例100%覆盖率（6个Zod schema全量验证：coerce/enum/nullable/optional/default/boundary/类型安全） |
+| 2026-05-24 | tasks/tdd/user.schema.test.md | user.schema.ts TDD——150用例100%覆盖率（3个Zod schema全量验证：coerce/enum/transform/strict/边界/类型安全/中文错误消息） |
