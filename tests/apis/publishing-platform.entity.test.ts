@@ -1530,4 +1530,812 @@ describe('publishing-platform.entity', () => {
       }
     });
   });
+
+  // ============================================================
+  // JSON 序列化往返测试
+  // ============================================================
+  describe('JSON serialization round-trip', () => {
+    it('should survive JSON round-trip with all fields', () => {
+      const original: PublishingPlatform = {
+        id: 42,
+        rm_resource_id: 500,
+        name: '新浪',
+        taxonomy: '门户',
+        price: 500,
+        remark: '优质媒体',
+        include_rate: 0.95,
+        publish_rate: 0.9,
+        created_at: new Date('2024-06-15T08:30:00Z'),
+        updated_at: new Date('2024-06-20T10:00:00Z'),
+      };
+      const json = JSON.stringify(original);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (key === 'created_at' || key === 'updated_at') return new Date(value);
+        return value;
+      });
+      expect(parsed.id).toBe(42);
+      expect(parsed.rm_resource_id).toBe(500);
+      expect(parsed.name).toBe('新浪');
+      expect(parsed.taxonomy).toBe('门户');
+      expect(parsed.price).toBe(500);
+      expect(parsed.remark).toBe('优质媒体');
+      expect(parsed.include_rate).toBe(0.95);
+      expect(parsed.publish_rate).toBe(0.9);
+      expect(parsed.created_at).toBeInstanceOf(Date);
+      expect(parsed.updated_at).toBeInstanceOf(Date);
+    });
+
+    it('should survive JSON round-trip with null remark', () => {
+      const original: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 0, remark: null, include_rate: 0, publish_rate: 0,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const json = JSON.stringify(original);
+      const parsed = JSON.parse(json);
+      expect(parsed.remark).toBeNull();
+    });
+
+    it('should serialize Date fields to ISO strings', () => {
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 0, remark: null, include_rate: 0, publish_rate: 0,
+        created_at: new Date('2024-01-15T12:30:45.123Z'),
+        updated_at: new Date('2024-06-20T08:00:00.000Z'),
+      };
+      const json = JSON.stringify(platform);
+      const parsed = JSON.parse(json);
+      expect(parsed.created_at).toBe('2024-01-15T12:30:45.123Z');
+      expect(parsed.updated_at).toBe('2024-06-20T08:00:00.000Z');
+    });
+
+    it('should preserve number precision through JSON round-trip', () => {
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 99.99, remark: null, include_rate: 0.333, publish_rate: 0.667,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const json = JSON.stringify(platform);
+      const parsed = JSON.parse(json);
+      expect(parsed.price).toBe(99.99);
+      expect(parsed.include_rate).toBeCloseTo(0.333, 3);
+      expect(parsed.publish_rate).toBeCloseTo(0.667, 3);
+    });
+
+    it('platform array should survive JSON round-trip', () => {
+      const platforms: PublishingPlatform[] = [
+        { id: 1, rm_resource_id: 101, name: '新浪', taxonomy: '门户', price: 500, remark: null, include_rate: 0.95, publish_rate: 0.9, created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01') },
+        { id: 2, rm_resource_id: 102, name: '搜狐', taxonomy: '门户', price: 300, remark: '高流量', include_rate: 0.8, publish_rate: 0.7, created_at: new Date('2024-02-01'), updated_at: new Date('2024-02-01') },
+      ];
+      const json = JSON.stringify(platforms);
+      const parsed = JSON.parse(json);
+      expect(parsed).toHaveLength(2);
+      expect(parsed[0].name).toBe('新浪');
+      expect(parsed[1].remark).toBe('高流量');
+    });
+
+    it('should preserve Chinese characters through JSON round-trip', () => {
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: '薄云商机倍增服务', taxonomy: '国家级媒体',
+        price: 10000, remark: '优质资源备注', include_rate: 0.99, publish_rate: 0.98,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const json = JSON.stringify(platform);
+      const parsed = JSON.parse(json);
+      expect(parsed.name).toBe('薄云商机倍增服务');
+      expect(parsed.taxonomy).toBe('国家级媒体');
+      expect(parsed.remark).toBe('优质资源备注');
+    });
+
+    it('should preserve all numeric fields through JSON round-trip', () => {
+      const platform: PublishingPlatform = {
+        id: Number.MAX_SAFE_INTEGER, rm_resource_id: 99999,
+        name: 'A', taxonomy: 'B', price: 0, remark: null,
+        include_rate: 0, publish_rate: 0,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const json = JSON.stringify(platform);
+      const parsed = JSON.parse(json);
+      expect(parsed.id).toBe(Number.MAX_SAFE_INTEGER);
+      expect(parsed.rm_resource_id).toBe(99999);
+    });
+  });
+
+  // ============================================================
+  // Object.freeze 不可变性（拒绝修改验证）
+  // ============================================================
+  describe('Object.freeze immutability', () => {
+    it('frozen platform should reject name mutation', () => {
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: '新浪', taxonomy: '门户',
+        price: 500, remark: null, include_rate: 0.95, publish_rate: 0.9,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      Object.freeze(platform);
+      expect(() => { (platform as any).name = '搜狐'; }).toThrow();
+      expect(platform.name).toBe('新浪');
+    });
+
+    it('frozen platform should reject price mutation', () => {
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 500, remark: null, include_rate: 0, publish_rate: 0,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      Object.freeze(platform);
+      expect(() => { (platform as any).price = 0; }).toThrow();
+      expect(platform.price).toBe(500);
+    });
+
+    it('frozen platform should reject id mutation', () => {
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 0, remark: null, include_rate: 0, publish_rate: 0,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      Object.freeze(platform);
+      expect(() => { (platform as any).id = 999; }).toThrow();
+      expect(platform.id).toBe(1);
+    });
+
+    it('frozen platform should reject include_rate mutation', () => {
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 0, remark: null, include_rate: 0.95, publish_rate: 0,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      Object.freeze(platform);
+      expect(() => { (platform as any).include_rate = 0; }).toThrow();
+      expect(platform.include_rate).toBe(0.95);
+    });
+
+    it('frozen platform should reject remark mutation', () => {
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 0, remark: null, include_rate: 0, publish_rate: 0,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      Object.freeze(platform);
+      expect(() => { (platform as any).remark = 'new remark'; }).toThrow();
+      expect(platform.remark).toBeNull();
+    });
+
+    it('frozen platform should reject adding new fields', () => {
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 0, remark: null, include_rate: 0, publish_rate: 0,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      Object.freeze(platform);
+      expect(() => { (platform as any).extra_field = 'test'; }).toThrow();
+      expect((platform as any).extra_field).toBeUndefined();
+    });
+
+    it('Object.isFrozen should return true for frozen platform', () => {
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 0, remark: null, include_rate: 0, publish_rate: 0,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Object.isFrozen(platform)).toBe(false);
+      Object.freeze(platform);
+      expect(Object.isFrozen(platform)).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // 结构相等与深拷贝
+  // ============================================================
+  describe('structural equality and deep copy', () => {
+    const sharedDate = new Date('2024-01-01T00:00:00Z');
+
+    it('two platforms with same values should be structurally equal', () => {
+      const platform1: PublishingPlatform = {
+        id: 1, rm_resource_id: 100, name: '新浪', taxonomy: '门户',
+        price: 500, remark: '优质', include_rate: 0.95, publish_rate: 0.9,
+        created_at: sharedDate, updated_at: sharedDate,
+      };
+      const platform2: PublishingPlatform = {
+        id: 1, rm_resource_id: 100, name: '新浪', taxonomy: '门户',
+        price: 500, remark: '优质', include_rate: 0.95, publish_rate: 0.9,
+        created_at: sharedDate, updated_at: sharedDate,
+      };
+      expect(platform1).toEqual(platform2);
+      expect(platform1).not.toBe(platform2);
+    });
+
+    it('spread copy should be structurally equal but different reference', () => {
+      const original: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 100, remark: null, include_rate: 0.5, publish_rate: 0.5,
+        created_at: sharedDate, updated_at: sharedDate,
+      };
+      const copy = { ...original };
+      expect(copy).toEqual(original);
+      expect(copy).not.toBe(original);
+      expect(copy.created_at).toBe(original.created_at); // shallow copy shares Date ref
+    });
+
+    it('JSON parse/stringify should create deep copy of platform', () => {
+      const original: PublishingPlatform = {
+        id: 1, rm_resource_id: 100, name: '新浪', taxonomy: '门户',
+        price: 500, remark: '备注', include_rate: 0.95, publish_rate: 0.9,
+        created_at: new Date('2024-01-01'),
+        updated_at: new Date('2024-06-01'),
+      };
+      const deepCopy = JSON.parse(JSON.stringify(original));
+      expect(deepCopy.id).toBe(original.id);
+      expect(deepCopy.name).toBe(original.name);
+      expect(deepCopy.price).toBe(original.price);
+      expect(deepCopy.include_rate).toBe(original.include_rate);
+      expect(typeof deepCopy.created_at).toBe('string'); // Date becomes string
+      expect(typeof deepCopy.updated_at).toBe('string');
+    });
+
+    it('JSON deep copy should be independent from original', () => {
+      const original: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: '新浪', taxonomy: '门户',
+        price: 500, remark: '备注', include_rate: 0.95, publish_rate: 0.9,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const copy = JSON.parse(JSON.stringify(original));
+      copy.name = '搜狐';
+      copy.price = 300;
+      expect(original.name).toBe('新浪');
+      expect(original.price).toBe(500);
+    });
+
+    it('spread copy of platform with null remark should be structurally equal', () => {
+      const original: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 0, remark: null, include_rate: 0, publish_rate: 0,
+        created_at: sharedDate, updated_at: sharedDate,
+      };
+      const copy = { ...original };
+      expect(copy.remark).toBeNull();
+      expect(copy).toEqual(original);
+    });
+  });
+
+  // ============================================================
+  // 解构模式（rest 运算符）
+  // ============================================================
+  describe('destructuring patterns', () => {
+    it('should use rest operator for partial extraction', () => {
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 100, name: '新浪', taxonomy: '门户',
+        price: 500, remark: '优质', include_rate: 0.95, publish_rate: 0.9,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const { id, created_at, updated_at, ...rest } = platform;
+      expect(id).toBe(1);
+      expect(rest).toEqual({
+        rm_resource_id: 100, name: '新浪', taxonomy: '门户',
+        price: 500, remark: '优质', include_rate: 0.95, publish_rate: 0.9,
+      });
+    });
+
+    it('should destructure all fields individually', () => {
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 100, name: '新浪', taxonomy: '门户',
+        price: 500, remark: '优质', include_rate: 0.95, publish_rate: 0.9,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-06-01'),
+      };
+      const { id, rm_resource_id, name, taxonomy, price, remark, include_rate, publish_rate, created_at, updated_at } = platform;
+      expect(id).toBe(1);
+      expect(rm_resource_id).toBe(100);
+      expect(name).toBe('新浪');
+      expect(taxonomy).toBe('门户');
+      expect(price).toBe(500);
+      expect(remark).toBe('优质');
+      expect(include_rate).toBe(0.95);
+      expect(publish_rate).toBe(0.9);
+      expect(created_at).toBeInstanceOf(Date);
+      expect(updated_at).toBeInstanceOf(Date);
+    });
+
+    it('should destructure with computed property access', () => {
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: '新浪', taxonomy: '门户',
+        price: 500, remark: null, include_rate: 0.95, publish_rate: 0.9,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const keys = ['name', 'taxonomy', 'price'] as const;
+      const values = keys.map(k => platform[k]);
+      expect(values).toEqual(['新浪', '门户', 500]);
+    });
+
+    it('should use rest operator to extract rates only', () => {
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 500, remark: null, include_rate: 0.95, publish_rate: 0.9,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const { include_rate, publish_rate } = platform;
+      expect(include_rate).toBe(0.95);
+      expect(publish_rate).toBe(0.9);
+    });
+  });
+
+  // ============================================================
+  // 集合高级操作
+  // ============================================================
+  describe('collection advanced operations', () => {
+    const createPlatforms = (): PublishingPlatform[] => [
+      { id: 1, rm_resource_id: 101, name: '新浪', taxonomy: '门户', price: 500, remark: null, include_rate: 0.95, publish_rate: 0.9, created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01') },
+      { id: 2, rm_resource_id: 102, name: '搜狐', taxonomy: '门户', price: 300, remark: '高流量', include_rate: 0.8, publish_rate: 0.7, created_at: new Date('2024-02-01'), updated_at: new Date('2024-02-01') },
+      { id: 3, rm_resource_id: 103, name: '微信', taxonomy: '社交媒体', price: 400, remark: '高流量', include_rate: 0.85, publish_rate: 0.8, created_at: new Date('2024-03-01'), updated_at: new Date('2024-03-01') },
+      { id: 4, rm_resource_id: 104, name: '知乎', taxonomy: '问答', price: 250, remark: null, include_rate: 0.7, publish_rate: 0.6, created_at: new Date('2024-04-01'), updated_at: new Date('2024-04-01') },
+      { id: 5, rm_resource_id: 105, name: '今日头条', taxonomy: '自媒体', price: 200, remark: '高流量', include_rate: 0.75, publish_rate: 0.65, created_at: new Date('2024-05-01'), updated_at: new Date('2024-05-01') },
+    ];
+
+    it('should reduce platforms to taxonomy count map', () => {
+      const platforms = createPlatforms();
+      const countByTaxonomy = platforms.reduce<Record<string, number>>((acc, p) => {
+        acc[p.taxonomy] = (acc[p.taxonomy] || 0) + 1;
+        return acc;
+      }, {});
+      expect(countByTaxonomy['门户']).toBe(2);
+      expect(countByTaxonomy['社交媒体']).toBe(1);
+      expect(countByTaxonomy['问答']).toBe(1);
+      expect(countByTaxonomy['自媒体']).toBe(1);
+    });
+
+    it('should filter and map in chain', () => {
+      const platforms = createPlatforms();
+      const expensiveNames = platforms.filter(p => p.price >= 400).map(p => p.name);
+      expect(expensiveNames).toEqual(['新浪', '微信']);
+    });
+
+    it('should find index of platform by name', () => {
+      const platforms = createPlatforms();
+      const idx = platforms.findIndex(p => p.name === '知乎');
+      expect(idx).toBe(3);
+    });
+
+    it('should return -1 from findIndex for non-existent name', () => {
+      const platforms = createPlatforms();
+      const idx = platforms.findIndex(p => p.name === '不存在');
+      expect(idx).toBe(-1);
+    });
+
+    it('should flatMap platform names with taxonomy prefix', () => {
+      const platforms = createPlatforms();
+      const displayNames = platforms.flatMap(p => [`${p.taxonomy}/${p.name}`]);
+      expect(displayNames).toHaveLength(5);
+      expect(displayNames[0]).toBe('门户/新浪');
+      expect(displayNames[2]).toBe('社交媒体/微信');
+    });
+
+    it('should use reduce to build id-to-platform map', () => {
+      const platforms = createPlatforms();
+      const idMap = platforms.reduce<Map<number, PublishingPlatform>>((map, p) => {
+        map.set(p.id, p);
+        return map;
+      }, new Map());
+      expect(idMap.get(1)!.name).toBe('新浪');
+      expect(idMap.get(3)!.taxonomy).toBe('社交媒体');
+      expect(idMap.has(99)).toBe(false);
+    });
+
+    it('should group platforms with remark vs without remark', () => {
+      const platforms = createPlatforms();
+      const withRemark = platforms.filter(p => p.remark !== null);
+      const withoutRemark = platforms.filter(p => p.remark === null);
+      expect(withRemark).toHaveLength(3);
+      expect(withoutRemark).toHaveLength(2);
+    });
+
+    it('should compute total price across all platforms', () => {
+      const platforms = createPlatforms();
+      const total = platforms.reduce((sum, p) => sum + p.price, 0);
+      expect(total).toBe(1650);
+    });
+
+    it('should compute average include_rate across all platforms', () => {
+      const platforms = createPlatforms();
+      const avg = platforms.reduce((sum, p) => sum + p.include_rate, 0) / platforms.length;
+      expect(avg).toBeCloseTo(0.81, 1);
+    });
+
+    it('should find platform with highest publish_rate', () => {
+      const platforms = createPlatforms();
+      const best = platforms.reduce((best, p) => p.publish_rate > best.publish_rate ? p : best);
+      expect(best.name).toBe('新浪');
+      expect(best.publish_rate).toBe(0.9);
+    });
+
+    it('should find platform with lowest price', () => {
+      const platforms = createPlatforms();
+      const cheapest = platforms.reduce((min, p) => p.price < min.price ? p : min);
+      expect(cheapest.name).toBe('今日头条');
+      expect(cheapest.price).toBe(200);
+    });
+  });
+
+  // ============================================================
+  // 连续更新链
+  // ============================================================
+  describe('consecutive update chains', () => {
+    it('should apply 3 consecutive updates preserving integrity', () => {
+      let platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1001, name: '新建平台', taxonomy: '自媒体',
+        price: 200, remark: '初始', include_rate: 0.7, publish_rate: 0.6,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+
+      // Update 1: change name
+      platform = { ...platform, name: '更新平台V2', updated_at: new Date('2024-03-01') };
+      expect(platform.name).toBe('更新平台V2');
+      expect(platform.price).toBe(200);
+
+      // Update 2: change price and rates
+      platform = { ...platform, price: 500, include_rate: 0.9, publish_rate: 0.85, updated_at: new Date('2024-06-01') };
+      expect(platform.name).toBe('更新平台V2');
+      expect(platform.price).toBe(500);
+      expect(platform.include_rate).toBe(0.9);
+
+      // Update 3: change remark and taxonomy
+      platform = { ...platform, remark: '升级为优质平台', taxonomy: '门户', updated_at: new Date('2024-09-01') };
+      expect(platform.remark).toBe('升级为优质平台');
+      expect(platform.taxonomy).toBe('门户');
+      expect(platform.price).toBe(500); // retained
+
+      // Verify final state
+      expect(platform.id).toBe(1);
+      expect(platform.rm_resource_id).toBe(1001); // always retained
+      expect(platform.created_at.getFullYear()).toBe(2024);
+    });
+
+    it('should handle price update sequence', () => {
+      let platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 100, remark: null, include_rate: 0.5, publish_rate: 0.5,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+
+      platform = { ...platform, price: 200, updated_at: new Date('2024-02-01') };
+      expect(platform.price).toBe(200);
+
+      platform = { ...platform, price: 500, updated_at: new Date('2024-03-01') };
+      expect(platform.price).toBe(500);
+
+      platform = { ...platform, price: 0, updated_at: new Date('2024-04-01') };
+      expect(platform.price).toBe(0);
+    });
+
+    it('should handle remark toggle (null -> string -> null)', () => {
+      let platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 100, remark: null, include_rate: 0.5, publish_rate: 0.5,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      expect(platform.remark).toBeNull();
+
+      platform = { ...platform, remark: '新增备注', updated_at: new Date('2024-03-01') };
+      expect(platform.remark).toBe('新增备注');
+
+      platform = { ...platform, remark: null, updated_at: new Date('2024-06-01') };
+      expect(platform.remark).toBeNull();
+    });
+
+    it('should handle 5 consecutive partial updates', () => {
+      let platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'N1', taxonomy: 'T1',
+        price: 100, remark: null, include_rate: 0.5, publish_rate: 0.5,
+        created_at: new Date(), updated_at: new Date(),
+      };
+
+      platform = { ...platform, name: 'N2', updated_at: new Date() };
+      platform = { ...platform, taxonomy: 'T2', updated_at: new Date() };
+      platform = { ...platform, price: 200, updated_at: new Date() };
+      platform = { ...platform, include_rate: 0.9, updated_at: new Date() };
+      platform = { ...platform, publish_rate: 0.85, updated_at: new Date() };
+
+      expect(platform.name).toBe('N2');
+      expect(platform.taxonomy).toBe('T2');
+      expect(platform.price).toBe(200);
+      expect(platform.include_rate).toBe(0.9);
+      expect(platform.publish_rate).toBe(0.85);
+      expect(platform.id).toBe(1); // always retained
+    });
+  });
+
+  // ============================================================
+  // 日期操作（时区、算术）
+  // ============================================================
+  describe('Date operations', () => {
+    it('should support created_at with millisecond precision', () => {
+      const date = new Date('2024-06-15T12:30:45.123Z');
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 0, remark: null, include_rate: 0, publish_rate: 0,
+        created_at: date, updated_at: date,
+      };
+      expect(platform.created_at.getMilliseconds()).toBe(123);
+    });
+
+    it('should support date arithmetic between created_at and updated_at', () => {
+      const created = new Date('2024-01-01T00:00:00Z');
+      const updated = new Date('2024-06-01T00:00:00Z');
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 0, remark: null, include_rate: 0, publish_rate: 0,
+        created_at: created, updated_at: updated,
+      };
+      const diffMs = platform.updated_at.getTime() - platform.created_at.getTime();
+      const diffDays = diffMs / (1000 * 60 * 60 * 24);
+      expect(diffDays).toBeGreaterThan(150);
+      expect(diffDays).toBeLessThan(153);
+    });
+
+    it('should support updating updated_at to current time', () => {
+      const before = new Date();
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 0, remark: null, include_rate: 0, publish_rate: 0,
+        created_at: new Date('2024-01-01'),
+        updated_at: before,
+      };
+      platform.updated_at = new Date();
+      expect(platform.updated_at.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    });
+
+    it('should support sorting platforms by created_at', () => {
+      const platforms: PublishingPlatform[] = [
+        { id: 3, rm_resource_id: 3, name: 'C', taxonomy: 'T', price: 0, remark: null, include_rate: 0, publish_rate: 0, created_at: new Date('2024-06-01'), updated_at: new Date() },
+        { id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'T', price: 0, remark: null, include_rate: 0, publish_rate: 0, created_at: new Date('2024-01-01'), updated_at: new Date() },
+        { id: 2, rm_resource_id: 2, name: 'B', taxonomy: 'T', price: 0, remark: null, include_rate: 0, publish_rate: 0, created_at: new Date('2024-03-01'), updated_at: new Date() },
+      ];
+      const sorted = [...platforms].sort((a, b) => a.created_at.getTime() - b.created_at.getTime());
+      expect(sorted[0].id).toBe(1);
+      expect(sorted[1].id).toBe(2);
+      expect(sorted[2].id).toBe(3);
+    });
+
+    it('should detect stale platforms via date comparison', () => {
+      const staleThreshold = new Date('2024-01-01');
+      const platforms: PublishingPlatform[] = [
+        { id: 1, rm_resource_id: 1, name: '旧平台', taxonomy: 'T', price: 0, remark: null, include_rate: 0, publish_rate: 0, created_at: new Date('2023-06-01'), updated_at: new Date('2023-06-01') },
+        { id: 2, rm_resource_id: 2, name: '新平台', taxonomy: 'T', price: 0, remark: null, include_rate: 0, publish_rate: 0, created_at: new Date('2024-06-01'), updated_at: new Date('2024-06-01') },
+      ];
+      const stale = platforms.filter(p => p.updated_at < staleThreshold);
+      expect(stale).toHaveLength(1);
+      expect(stale[0].name).toBe('旧平台');
+    });
+
+    it('should support Date.now() for updated_at assignment', () => {
+      const before = Date.now();
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 0, remark: null, include_rate: 0, publish_rate: 0,
+        created_at: new Date('2024-01-01'),
+        updated_at: new Date(before),
+      };
+      const after = Date.now();
+      expect(platform.updated_at.getTime()).toBeGreaterThanOrEqual(before);
+      expect(platform.updated_at.getTime()).toBeLessThanOrEqual(after);
+    });
+
+    it('should support platforms from different years', () => {
+      const platforms: PublishingPlatform[] = [
+        { id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'T', price: 0, remark: null, include_rate: 0, publish_rate: 0, created_at: new Date('2020-01-01'), updated_at: new Date('2020-01-01') },
+        { id: 2, rm_resource_id: 2, name: 'B', taxonomy: 'T', price: 0, remark: null, include_rate: 0, publish_rate: 0, created_at: new Date('2025-06-15'), updated_at: new Date('2025-06-15') },
+      ];
+      expect(platforms[0].created_at.getFullYear()).toBe(2020);
+      expect(platforms[1].created_at.getFullYear()).toBe(2025);
+    });
+  });
+
+  // ============================================================
+  // Set/Map 操作
+  // ============================================================
+  describe('Set/Map operations', () => {
+    it('should collect unique taxonomies into Set', () => {
+      const platforms: PublishingPlatform[] = [
+        { id: 1, rm_resource_id: 1, name: '新浪', taxonomy: '门户', price: 0, remark: null, include_rate: 0, publish_rate: 0, created_at: new Date(), updated_at: new Date() },
+        { id: 2, rm_resource_id: 2, name: '搜狐', taxonomy: '门户', price: 0, remark: null, include_rate: 0, publish_rate: 0, created_at: new Date(), updated_at: new Date() },
+        { id: 3, rm_resource_id: 3, name: '微信', taxonomy: '社交媒体', price: 0, remark: null, include_rate: 0, publish_rate: 0, created_at: new Date(), updated_at: new Date() },
+        { id: 4, rm_resource_id: 4, name: '知乎', taxonomy: '问答', price: 0, remark: null, include_rate: 0, publish_rate: 0, created_at: new Date(), updated_at: new Date() },
+      ];
+      const taxonomies = new Set(platforms.map(p => p.taxonomy));
+      expect(taxonomies.size).toBe(3);
+      expect(taxonomies.has('门户')).toBe(true);
+      expect(taxonomies.has('社交媒体')).toBe(true);
+      expect(taxonomies.has('问答')).toBe(true);
+    });
+
+    it('should store platforms in Map keyed by id', () => {
+      const platforms: PublishingPlatform[] = [
+        { id: 1, rm_resource_id: 101, name: '新浪', taxonomy: '门户', price: 500, remark: null, include_rate: 0.95, publish_rate: 0.9, created_at: new Date(), updated_at: new Date() },
+        { id: 2, rm_resource_id: 102, name: '搜狐', taxonomy: '门户', price: 300, remark: null, include_rate: 0.8, publish_rate: 0.7, created_at: new Date(), updated_at: new Date() },
+      ];
+      const platformMap = new Map(platforms.map(p => [p.id, p]));
+      expect(platformMap.get(1)!.name).toBe('新浪');
+      expect(platformMap.get(2)!.price).toBe(300);
+      expect(platformMap.has(3)).toBe(false);
+    });
+
+    it('should build Map from platforms by rm_resource_id', () => {
+      const platforms: PublishingPlatform[] = [
+        { id: 1, rm_resource_id: 1001, name: '新浪', taxonomy: '门户', price: 500, remark: null, include_rate: 0, publish_rate: 0, created_at: new Date(), updated_at: new Date() },
+        { id: 2, rm_resource_id: 2001, name: '搜狐', taxonomy: '门户', price: 300, remark: null, include_rate: 0, publish_rate: 0, created_at: new Date(), updated_at: new Date() },
+      ];
+      const resourceMap = new Map(platforms.map(p => [p.rm_resource_id, p]));
+      expect(resourceMap.get(1001)!.name).toBe('新浪');
+      expect(resourceMap.get(2001)!.price).toBe(300);
+    });
+
+    it('should collect unique price values into Set', () => {
+      const platforms: PublishingPlatform[] = [
+        { id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'T', price: 500, remark: null, include_rate: 0, publish_rate: 0, created_at: new Date(), updated_at: new Date() },
+        { id: 2, rm_resource_id: 2, name: 'B', taxonomy: 'T', price: 500, remark: null, include_rate: 0, publish_rate: 0, created_at: new Date(), updated_at: new Date() },
+        { id: 3, rm_resource_id: 3, name: 'C', taxonomy: 'T', price: 300, remark: null, include_rate: 0, publish_rate: 0, created_at: new Date(), updated_at: new Date() },
+      ];
+      const prices = new Set(platforms.map(p => p.price));
+      expect(prices.size).toBe(2);
+      expect(prices.has(500)).toBe(true);
+      expect(prices.has(300)).toBe(true);
+    });
+
+    it('should use Map for platform lookup by name', () => {
+      const platforms: PublishingPlatform[] = [
+        { id: 1, rm_resource_id: 1, name: '新浪', taxonomy: '门户', price: 500, remark: null, include_rate: 0, publish_rate: 0, created_at: new Date(), updated_at: new Date() },
+        { id: 2, rm_resource_id: 2, name: '搜狐', taxonomy: '门户', price: 300, remark: null, include_rate: 0, publish_rate: 0, created_at: new Date(), updated_at: new Date() },
+      ];
+      const nameMap = new Map(platforms.map(p => [p.name, p]));
+      expect(nameMap.get('新浪')!.price).toBe(500);
+      expect(nameMap.get('搜狐')!.id).toBe(2);
+      expect(nameMap.has('不存在')).toBe(false);
+    });
+  });
+
+  // ============================================================
+  // 属性描述符
+  // ============================================================
+  describe('property ownership and descriptors', () => {
+    it('should verify hasOwnProperty for all PublishingPlatform fields', () => {
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 0, remark: null, include_rate: 0, publish_rate: 0,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Object.prototype.hasOwnProperty.call(platform, 'id')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(platform, 'rm_resource_id')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(platform, 'name')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(platform, 'taxonomy')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(platform, 'price')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(platform, 'remark')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(platform, 'include_rate')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(platform, 'publish_rate')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(platform, 'created_at')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(platform, 'updated_at')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(platform, 'nonexistent')).toBe(false);
+    });
+
+    it('should verify all fields are enumerable', () => {
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 0, remark: null, include_rate: 0, publish_rate: 0,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      Object.keys(platform).forEach(key => {
+        const desc = Object.getOwnPropertyDescriptor(platform, key);
+        expect(desc!.enumerable).toBe(true);
+        expect(desc!.writable).toBe(true);
+        expect(desc!.configurable).toBe(true);
+      });
+    });
+
+    it('should allow property reassignment on unfrozen platform', () => {
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: '新浪', taxonomy: '门户',
+        price: 500, remark: null, include_rate: 0.95, publish_rate: 0.9,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      platform.name = '搜狐';
+      platform.price = 300;
+      expect(platform.name).toBe('搜狐');
+      expect(platform.price).toBe(300);
+    });
+
+    it('should verify property descriptor for specific fields', () => {
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'B',
+        price: 100, remark: null, include_rate: 0.5, publish_rate: 0.5,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const priceDesc = Object.getOwnPropertyDescriptor(platform, 'price');
+      expect(priceDesc!.value).toBe(100);
+      expect(priceDesc!.writable).toBe(true);
+      expect(priceDesc!.configurable).toBe(true);
+      expect(priceDesc!.enumerable).toBe(true);
+
+      const remarkDesc = Object.getOwnPropertyDescriptor(platform, 'remark');
+      expect(remarkDesc!.value).toBeNull();
+      expect(remarkDesc!.writable).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // 函数参数传递与返回值
+  // ============================================================
+  describe('function parameter passing and return values', () => {
+    const mockTransform = (platform: PublishingPlatform): { displayName: string; costPerRate: number } => ({
+      displayName: `${platform.taxonomy} - ${platform.name}`,
+      costPerRate: platform.include_rate > 0 ? platform.price / platform.include_rate : 0,
+    });
+
+    const mockCompare = (a: PublishingPlatform, b: PublishingPlatform): number => {
+      if (a.include_rate !== b.include_rate) return b.include_rate - a.include_rate;
+      return a.price - b.price;
+    };
+
+    it('should pass platform to transform function', () => {
+      const platform: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: '新浪', taxonomy: '门户',
+        price: 500, remark: null, include_rate: 0.95, publish_rate: 0.9,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const result = mockTransform(platform);
+      expect(result.displayName).toBe('门户 - 新浪');
+      expect(result.costPerRate).toBeCloseTo(526.316, 1);
+    });
+
+    it('should pass platforms to compare function', () => {
+      const platformA: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'T',
+        price: 500, remark: null, include_rate: 0.95, publish_rate: 0.9,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const platformB: PublishingPlatform = {
+        id: 2, rm_resource_id: 2, name: 'B', taxonomy: 'T',
+        price: 300, remark: null, include_rate: 0.8, publish_rate: 0.7,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const result = mockCompare(platformA, platformB);
+      expect(result).toBeLessThan(0); // A has higher include_rate, so B - A < 0
+    });
+
+    it('should use platform in filter callback', () => {
+      const platforms: PublishingPlatform[] = [
+        { id: 1, rm_resource_id: 1, name: 'A', taxonomy: 'T', price: 500, remark: null, include_rate: 0.95, publish_rate: 0.9, created_at: new Date(), updated_at: new Date() },
+        { id: 2, rm_resource_id: 2, name: 'B', taxonomy: 'T', price: 300, remark: null, include_rate: 0.8, publish_rate: 0.7, created_at: new Date(), updated_at: new Date() },
+      ];
+      const premium = platforms.filter(p => p.include_rate >= 0.9);
+      expect(premium).toHaveLength(1);
+      expect(premium[0].name).toBe('A');
+    });
+
+    it('should use platform in map callback to extract summary', () => {
+      const platforms: PublishingPlatform[] = [
+        { id: 1, rm_resource_id: 1, name: '新浪', taxonomy: '门户', price: 500, remark: null, include_rate: 0.95, publish_rate: 0.9, created_at: new Date(), updated_at: new Date() },
+        { id: 2, rm_resource_id: 2, name: '搜狐', taxonomy: '门户', price: 300, remark: null, include_rate: 0.8, publish_rate: 0.7, created_at: new Date(), updated_at: new Date() },
+      ];
+      const summaries = platforms.map(p => ({ id: p.id, name: p.name, price: p.price }));
+      expect(summaries).toEqual([
+        { id: 1, name: '新浪', price: 500 },
+        { id: 2, name: '搜狐', price: 300 },
+      ]);
+    });
+
+    it('should create platform copy via function returning new object', () => {
+      const clonePlatform = (source: PublishingPlatform, overrides: Partial<PublishingPlatform>): PublishingPlatform => ({
+        ...source,
+        ...overrides,
+        updated_at: new Date(),
+      });
+      const original: PublishingPlatform = {
+        id: 1, rm_resource_id: 1, name: '新浪', taxonomy: '门户',
+        price: 500, remark: null, include_rate: 0.95, publish_rate: 0.9,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const cloned = clonePlatform(original, { name: '搜狐', price: 300 });
+      expect(cloned.name).toBe('搜狐');
+      expect(cloned.price).toBe(300);
+      expect(cloned.id).toBe(1);
+      expect(cloned.include_rate).toBe(0.95);
+      expect(original.name).toBe('新浪'); // original unchanged
+    });
+  });
 });

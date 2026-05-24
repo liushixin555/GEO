@@ -1,0 +1,7 @@
+{
+  "testEnvironment": "node",
+  "roots": ["<rootDir>/tests/apis"],
+  "transform": { "^.+\\.tsx?$": "ts-jest" },
+  "moduleFileExtensions": ["ts", "tsx", "js", "jsx", "json"],
+  "testMatch": ["**/publishing-platform.entity.test.ts"]
+}
