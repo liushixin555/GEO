@@ -37,7 +37,7 @@
 | 上轮编号 | 问题描述 | 修复状态 | 代码证据 |
 |---------|---------|---------|---------|
 | P1-1 | updateArticleContent 缺 Zod schema | ✅ 已修复 | L5: `updateContentSchema` 已导入；L274: `updateContentSchema.safeParse(req.body)` |
-| P1-2 | STATUS_TRANSITIONS 不可达转换清理 | ⚠️ 部分修复 | `VALID_CREATE_STATUSES` 死代码已删除，但 `STATUS_TRANSITIONS` 中不可达条目仍在 |
+| P1-2 | STATUS_TRANSITIONS 不可达转换清理 | ✅ 已修复 | 已删除 `generate_failed`、`publish_failed`、`pending_review` 三个不可达条目，仅保留 `draft` 和 `manual_writing` |
 | P1-3 | VALID_CREATE_STATUSES 死代码删除 | ✅ 已修复 | 代码中已不存在 `VALID_CREATE_STATUSES` 常量 |
 | P1-4 | createArticle 使用 created() | ✅ 已修复 | L4: `created` 已导入；L186: `created(res, item, '创建文章成功')` |
 | P1-5 | handleServerError 字符串匹配 | ✅ 已修复 | L6: `import { NotFoundError, BusinessError } from '../errors'`；L68-74: `instanceof` 类型匹配 |
@@ -228,7 +228,7 @@ if (!existing) throw new NotFoundError('文章');
 | 上轮编号 | 级别 | 问题描述 | 当前状态 | Committer 决策 |
 |---------|------|---------|---------|---------------|
 | C-1 | CRITICAL | TOCTOU 竞态条件 | ❌ 未修复 | **不阻塞** — Node.js 单线程 + 业务并发量低 + 项目级通病 |
-| C-2 | CRITICAL | STATUS_TRANSITIONS 不可达转换 | ⚠️ 部分 | **不阻塞** — `VALID_CREATE_STATUSES` 已清理，不可达条目不影响功能 |
+| C-2 | CRITICAL | STATUS_TRANSITIONS 不可达转换 | ✅ 已修复 | 已清理 generate_failed/publish_failed/pending_review 不可达条目 |
 | H-1 | HIGH | 权限检查代码重复 ~22% | ❌ 未修复 | **不阻塞** — 项目级模式，9 处重复逻辑一致无遗漏 |
 | P2 | HIGH | 版本列表无分页 | ❌ 未修复 | **不阻塞** — sysadmin+admin 角色限制 |
 | 安全 H-1 | HIGH | skills 字段 z.unknown() | ❌ 未修复 | **不阻塞** — 白名单已过滤，Prisma JSON 存储 |
@@ -308,10 +308,10 @@ if (!existing) throw new NotFoundError('文章');
 
 | 优先级 | 问题 | 修复方案 | 预估工时 | 来源 |
 |--------|------|----------|---------|------|
-| P2-1 | Service 层 update/delete 抛出原始 Error | 改为 `throw new NotFoundError('文章')` | 5min | 本轮 NEW-1 |
+| P2-1 | Service 层 update/delete 抛出原始 Error | ✅ 已完成（前序修复） | — | 本轮 NEW-1 |
 | P2-2 | TOCTOU 竞态条件 | Service 层 Prisma `$transaction` 包裹读写 | 3h | 上轮 C-1 |
 | P2-3 | 权限检查代码重复 ~22% | 提取 `withProjectAuth` 高阶函数或中间件 | 3h | 上轮 H-1 |
-| P2-4 | STATUS_TRANSITIONS 不可达转换清理 | 删除非 draft 状态的转换条目 | 0.5h | 上轮 C-2 |
+| P2-4 | STATUS_TRANSITIONS 不可达转换清理 | ✅ 已完成 2026-05-24 | 删除 generate_failed/publish_failed/pending_review 不可达条目 | 上轮 C-2 |
 
 ### 8.3 建议改进（中长期规划）
 

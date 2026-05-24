@@ -11,13 +11,10 @@ const projectService = new ProjectServiceImpl();
 const SETTINGS_EDITABLE_STATUSES = ['draft'];
 const CONTENT_EDITABLE_STATUSES = ['draft', 'manual_writing', 'generate_failed', 'publish_failed'];
 
-// CRITICAL-2 fix: 合法的状态转换白名单
+// CRITICAL-2 fix: 合法的状态转换白名单（仅保留可达条目，regenerateArticle/reviewArticle 有独立状态校验）
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   'draft': ['generating', 'manual_writing'],
   'manual_writing': ['pending_review'],
-  'generate_failed': ['generating'],
-  'publish_failed': ['publishing'],
-  'pending_review': ['publishing', 'draft', 'manual_writing'],
 };
 
 function isValidStatusTransition(from: string, to: string): boolean {
