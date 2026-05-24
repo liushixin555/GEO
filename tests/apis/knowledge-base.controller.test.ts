@@ -16,6 +16,13 @@ jest.mock('../../apis/utils/db.util', () => ({
 }));
 
 import app from '../../apis/app';
+import {
+  listKnowledgeBases,
+  getKnowledgeBase,
+  createKnowledgeBase,
+  updateKnowledgeBase,
+  deleteKnowledgeBase,
+} from '../../apis/controller/knowledge-base.controller';
 
 const agent = request.agent(app).set('User-Agent', 'test-agent/1.0');
 
@@ -1672,6 +1679,71 @@ describe('KnowledgeBase Controller', () => {
       expect(createData.id).toBeUndefined();
       expect(createData.created_by).toBeUndefined();
       expect(createData.malicious_field).toBeUndefined();
+    });
+  });
+
+  // =========================================================
+  // 直接测试 Controller 函数（覆盖 !user 防御性分支）
+  // =========================================================
+  describe('Controller !user 防御性分支（直接函数测试）', () => {
+    function mockRes() {
+      const res: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      return res;
+    }
+
+    test('listKnowledgeBases: req.user 不存在返回 401', async () => {
+      const req = { query: {} } as any;
+      const res = mockRes();
+      await listKnowledgeBases(req, res);
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '未登录' })
+      );
+    });
+
+    test('getKnowledgeBase: req.user 不存在返回 401', async () => {
+      const req = { params: { id: '1' } } as any;
+      const res = mockRes();
+      await getKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '未登录' })
+      );
+    });
+
+    test('createKnowledgeBase: req.user 不存在返回 401', async () => {
+      const req = {
+        body: { name: '测试', scope: 'platform' },
+      } as any;
+      const res = mockRes();
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '未登录' })
+      );
+    });
+
+    test('updateKnowledgeBase: req.user 不存在返回 401', async () => {
+      const req = { params: { id: '1' }, body: {} } as any;
+      const res = mockRes();
+      await updateKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '未登录' })
+      );
+    });
+
+    test('deleteKnowledgeBase: req.user 不存在返回 401', async () => {
+      const req = { params: { id: '1' } } as any;
+      const res = mockRes();
+      await deleteKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '未登录' })
+      );
     });
   });
 });

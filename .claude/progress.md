@@ -588,3 +588,9 @@
   - 正面评价：安全意识强（白名单三重防护）、权限分层清晰、防御性编程
   - 修复优先级：P0×2（竞态条件+死代码清理）、P1×5、P2×6、P3×4
   - 评审报告 tasks/review/article.controller.ts.quality.md
+
+## 本次变更（2026-05-24 knowledge-base.controller.ts TDD 测试补全）
+- [x] **knowledge-base.controller.ts 测试用例补全** — 从 88 个增加到 93 个测试用例（+5）
+  - 新增 Controller !user 防御性分支直接函数测试 5 个：直接导入 controller 函数，构造无 user 的 mock req/res，覆盖 auth 中间件不可达的防御性分支
+  - 覆盖率从 91.93%/93.97%/100%/100% 提升到 **100%/100%/100%/100%**
+  - TDD 报告：tasks/tdd/knowledge-base.controller.test.md
