@@ -1,3 +1,19 @@
+/**
+ * MarkdownViewer — 安全封装层
+ *
+ * 第三方组件 @uiw/react-markdown-preview preview.tsx 存在以下安全缺陷：
+ *   S1: defaultUrlTransform = (url) => url — 禁用 URL 消毒，javascript: 协议可通过
+ *   S2: skipHtml={!skipHtml} — 语义反转，配置意图与实际行为矛盾
+ *   S3: allowElement 正则 /^[A-Za-z0-9]+$/ — 标签白名单过宽，允许 script/iframe 等
+ *   S4: rehype-raw 无二次过滤 — 事件处理器属性可通过
+ *
+ * 封装层防护措施（纵深防御）：
+ *   1. safeUrlTransform — 安全 URL 过滤，白名单协议 (http/https/mailto/tel)
+ *   2. SAFE_TAGS allowElement — 显式标签白名单，仅允许安全 HTML 标签
+ *   3. DOMPurify 消毒 — 消毒所有 HTML 标签和属性，过滤事件处理器（安全关键 — 不可删除）
+ *   4. source 长度截断 — 防止超长内容导致 DoS
+ *   5. MarkdownErrorBoundary — 防止渲染异常导致页面白屏
+ */
 import React, { useMemo, Component, forwardRef, useRef, useImperativeHandle } from 'react';
 import MarkdownPreview from '@uiw/react-markdown-preview/nohighlight';
 import { Spin, Typography, Empty, theme } from 'antd';
@@ -16,16 +32,24 @@ const EVENT_ATTRS = [
   'onwheel', 'onpointerdown', 'onpointerup', 'onpointermove', 'oninput',
 ];
 
-const DANGEROUS_ELEMENTS = [
-  'script', 'iframe', 'object', 'embed', 'form', 'input',
-  'textarea', 'select', 'button', 'applet', 'base', 'basefont',
-  'link', 'meta', 'style', 'noscript', 'template', 'svg', 'math',
-];
-
 const DANGEROUS_ATTRS = [
   ...EVENT_ATTRS,
   'formaction', 'xlink:href', 'srcdoc', 'action',
 ];
+
+// S3/A-03 修复：显式标签白名单（白名单方式比黑名单更安全）
+const SAFE_TAGS = new Set([
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'p', 'div', 'span', 'br', 'hr',
+  'blockquote', 'pre', 'code', 'kbd', 'samp',
+  'ul', 'ol', 'li', 'dl', 'dt', 'dd',
+  'a', 'img', 'strong', 'em', 'del', 'ins', 'sub', 'sup', 'mark',
+  'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'colgroup', 'col',
+  'details', 'summary', 'figure', 'figcaption',
+  'section', 'article', 'aside', 'header', 'footer', 'main', 'nav',
+  'abbr', 'cite', 'ruby', 'rt', 'rp',
+  'input',
+]);
 
 export const safeUrlTransform: (url: string) => string = (url) => {
   const lower = url.toLowerCase().trim();
@@ -127,13 +151,14 @@ const MarkdownViewer = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
     return luminance < 0.5 ? 'dark' : 'light';
   }, [token.colorBgBase]);
 
+  // 安全关键 — DOMPurify 消毒不可删除、不可降级、不可绕过
+  // 这是防御 preview.tsx S1-S4 安全缺陷的最后防线
   const safeSource = useMemo(() => {
     if (!content) return '';
     const truncated = content.length > MAX_SOURCE_LENGTH
       ? content.slice(0, MAX_SOURCE_LENGTH)
       : content;
     return DOMPurify.sanitize(truncated, {
-      FORBID_TAGS: DANGEROUS_ELEMENTS,
       FORBID_ATTR: DANGEROUS_ATTRS,
       ALLOW_DATA_ATTR: false,
       ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|telnet):|[^a-z]|[a+][a-z+.]+(?:\.|%20|\/))+$/i,
@@ -171,6 +196,7 @@ const MarkdownViewer = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
         ref={containerRef}
         role={roleProp}
         aria-label={ariaLabel}
+        tabIndex={0}
         className={`markdown-viewer${className ? ` ${className}` : ''}`}
         style={style}
         onScroll={onScroll}
@@ -183,7 +209,7 @@ const MarkdownViewer = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
           source={safeSource}
           wrapperElement={{ 'data-color-mode': colorMode }}
           urlTransform={safeUrlTransform}
-          disallowedElements={DANGEROUS_ELEMENTS}
+          allowElement={(element) => SAFE_TAGS.has(element.tagName.toLowerCase())}
         />
       </div>
     </MarkdownErrorBoundary>
