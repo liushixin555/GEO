@@ -1,0 +1,69 @@
+# fix. MarkdownViewer 封装组件（Props.tsx 评审修复）
+
+> 状态：✅ 已完成
+
+---
+
+## 背景
+
+基于 5 份专家评审报告（架构、质量、安全、UI、Committer），对第三方库 `@uiw/react-markdown-preview` 的 `Props.tsx` 进行综合评审。结论：Props.tsx 属于第三方依赖不可直接修改，必须创建项目级封装组件隔离安全风险。
+
+### 评审评分汇总
+
+| 评审 | 评分/评级 | 核心结论 |
+|------|----------|---------|
+| 架构评审 | 5.0/10 | Ref 接口违反 ISP/OCP，类型重复 |
+| 质量评审 | 5.3/10 | 拼写错误固化、类型重复 |
+| 安全评审 | ⚠️ MEDIUM | rehypeRewrite 可绕过安全过滤 |
+| UI 评审 | 4.1/10 | 无 a11y、无 auto 主题 |
+| Committer 审核 | ⚠️ 有条件通过 | 必须创建封装组件 |
+
+## 功能说明
+
+### MarkdownViewer 封装组件
+
+- 路径：`pages/components/MarkdownViewer.tsx`
+- 封装 `@uiw/react-markdown-preview`，隔离第三方库安全风险
+
+### 实现的安全管控措施
+
+| 措施 | 对应评审问题 | 说明 |
+|------|-------------|------|
+| source 长度截断 ≤ 1MB | SEC-MD-01 | 防止超长字符串 DoS |
+| 禁止暴露 rehypeRewrite | SEC-MD-02 | 防止绕过安全过滤 |
+| 禁止暴露 pluginsFilter | SEC-MD-03 | 防止移除安全插件 |
+| 禁止暴露 warpperElement | SEC-MD-07 | 避免弃用属性 |
+| 固定 data-color-mode='light' | UI-P1-01 | 统一主题 |
+| 添加 role="region" + aria-label | UI-P1-02 | WCAG 可访问性合规 |
+| 支持加载/错误/空状态 | UI-P2-04 | 使用 antd 组件 |
+| CSS 变量引用 Carbon Token | UI-P2-01 | Carbon Design System 对齐 |
+
+### CSS 覆盖方案
+
+- 路径：`pages/styles/markdown-viewer.css`
+- 使用 CSS 变量引用 Carbon Design Token
+- 覆盖字体、颜色、间距、圆角等
+
+## 供应链确认
+
+- `react-markdown` 版本：10.1.0（≥ 9.0，默认启用 HTML 过滤）✅
+- `@uiw/react-markdown-preview` 版本：5.2.0
+
+## 业务规则
+
+1. 加载状态优先于错误和内容显示
+2. 错误状态优先于内容显示
+3. 空内容显示可配置的空状态提示
+4. 超过 1MB 的内容自动截断，不报错
+
+## 验收标准
+
+- [x] 创建 MarkdownViewer 封装组件
+- [x] source 长度截断 ≤ 1MB
+- [x] 不暴露 rehypeRewrite、pluginsFilter、warpperElement
+- [x] 确认 react-markdown 版本 ≥ 9.0
+- [x] 创建 markdown-viewer.css 对齐 Carbon Design System
+- [x] 添加 a11y 属性（role + aria-label）
+- [x] 编写单元测试（13 个场景全部通过）
+- [x] ArticleDetail.tsx 已替换使用 MarkdownViewer
+- [x] 前端构建通过

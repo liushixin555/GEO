@@ -718,3 +718,13 @@
   - 交叉审核六份已有评审（质量 B/B+、安全 C→A-、架构 B-→B+），所有阻塞项已通过重构解决
   - 剩余 9 项 P2-P3 建议（API 版本化、CORS 日志、静态文件路径、日志格式统一等）不阻塞合并
   - 评审报告 tasks/review/app.ts.committer.md
+
+## 本次变更（2026-05-24 Props.tsx 评审修复）
+- [x] **创建 MarkdownViewer 封装组件** — 隔离第三方库 `@uiw/react-markdown-preview` 安全风险
+  - 基于 5 份评审报告（架构5.0、质量5.3、安全MEDIUM、UI 4.1、Committer有条件通过）
+  - 新增 `pages/components/MarkdownViewer.tsx`：source 截断≤1MB、禁止暴露 rehypeRewrite/pluginsFilter、a11y 属性、加载/错误/空状态
+  - 新增 `pages/styles/markdown-viewer.css`：`.markdown-viewer` 类名 + CSS 变量引用 Carbon Token
+  - 更新 `pages/article/ArticleDetail.tsx`：预览模式从 `MDEditor.Markdown` 替换为 `MarkdownViewer`
+  - 新增 `tests/pages/components/MarkdownViewer.test.tsx`：13 个测试场景全部通过
+  - 供应链确认：react-markdown 10.1.0（≥9.0），默认启用 HTML 过滤
+  - 评审报告 tasks/review/Props.tsx.*.md

@@ -42,6 +42,12 @@
 - antd Modal 组件用 `destroyOnHidden` 替代已废弃的 `destroyOnClose`
 - 字体：IBM Plex Sans，通过 `@fontsource/ibm-plex-sans` 本地打包，不使用 Google Fonts CDN
 - 单一 CSS 文件：`pages/styles/global.css`，通过 CSS 变量 + antd 覆盖实现 DESIGN.md 规范
+- **MarkdownViewer 封装组件**：`pages/components/MarkdownViewer.tsx`，封装 `@uiw/react-markdown-preview`
+  - 安全管控：source 截断 ≤1MB、不暴露 rehypeRewrite/pluginsFilter/warpperElement
+  - a11y：`role="region"` + `aria-label="Markdown 内容预览"`
+  - 支持加载/错误/空状态（使用 antd Spin/Empty/Typography）
+  - 专用 CSS：`pages/styles/markdown-viewer.css`，使用 `.markdown-viewer` 类名 + CSS 变量引用 Carbon Token
+  - global.css 中 `.article-content-preview` 样式保留兼容，新代码应使用 MarkdownViewer 组件
 - antd 主题通过 `main.tsx` 的 `ConfigProvider` 配置，全局覆盖 border-radius: 0 等 Carbon 风格
 - **Switch 组件不参与全局 border-radius: 0 覆盖**，保持 antd 默认椭圆胶囊样式
 - **Switch 使用 checkedChildren/unCheckedChildren** 显示"启用"/"禁用"文字，增强可读性

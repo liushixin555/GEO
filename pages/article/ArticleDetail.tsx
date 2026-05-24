@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Form, Input, Select, Button, Alert, Segmented, Upload, Image, Collapse, Typography, Spin, Tag, App, Popconfirm, Table, Modal, Radio, Space } from 'antd';
 import { ArrowLeftOutlined, InboxOutlined, LinkOutlined, DeleteOutlined, CheckOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined, ImportOutlined } from '@ant-design/icons';
 import MDEditor from '@uiw/react-md-editor';
+import MarkdownViewer from '../components/MarkdownViewer';
 import axios from 'axios';
 import mammoth from 'mammoth';
 import DOMPurify from 'dompurify';
@@ -871,13 +872,10 @@ const ArticleDetail: React.FC = () => {
         />
       ) : (
         <div className="article-content-preview" style={{ minHeight: 300 }}>
-          {content ? (
-            <MDEditor.Markdown source={content} />
-          ) : (
-            <div style={{ padding: 48, textAlign: 'center', color: 'var(--color-ink-subtle)' }}>
-              {article?.write_mode === 'ai' ? 'AI 正在生成文章内容，请稍候...' : '暂无内容'}
-            </div>
-          )}
+          <MarkdownViewer
+            content={content}
+            emptyText={article?.write_mode === 'ai' ? 'AI 正在生成文章内容，请稍候...' : '暂无内容'}
+          />
         </div>
       )}
     </div>
