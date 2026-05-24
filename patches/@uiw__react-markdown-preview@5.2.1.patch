@@ -1,5 +1,72 @@
+diff --git a/esm/Props.d.ts b/esm/Props.d.ts
+index b550d96681a92638d83e7cf98b7cfe32eab1f17d..c190aad887345c9bddd50e35a8322287753efdb2 100644
+--- a/esm/Props.d.ts
++++ b/esm/Props.d.ts
+@@ -1,27 +1,60 @@
+ import { type Options } from 'react-markdown';
+ import { type RehypeRewriteOptions } from 'rehype-rewrite';
+ import { type PluggableList } from 'unified';
++/**
++ * ⚠️ 安全说明（SEC-MD-04）：本接口继承 react-markdown Options，
++ * 暴露 allowElement/rehypePlugins/remarkPlugins/urlTransform 等危险属性。
++ * 渲染用户提交内容时，必须配合 allowElement 白名单 + DOMPurify 消毒使用。
++ */
+ export interface MarkdownPreviewProps extends Omit<Options, 'children'> {
+     prefixCls?: string;
+     className?: string;
++    /**
++     * ⚠️ 安全警告（SEC-MD-01）：
++     * 无长度限制（DoS风险）+ 无HTML过滤（XSS风险）。
++     * 建议对不可信输入进行服务端消毒（DOMPurify），并限制长度上限（建议 1MB）。
++     */
+     source?: string;
+     disableCopy?: boolean;
+     style?: React.CSSProperties;
++    /**
++     * ⚠️ 安全警告（SEC-MD-03）：
++     * 此回调可移除安全过滤插件（如 rehype-sanitize），导致 XSS 风险。
++     */
+     pluginsFilter?: (type: 'rehype' | 'remark', plugin: PluggableList) => PluggableList;
+-    wrapperElement?: React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement> & {
++    /** SEC-MD-05: 收窄类型，排除 dangerouslySetInnerHTML 和事件处理器 */
++    wrapperElement?: {
++        className?: string;
++        style?: React.CSSProperties;
++        id?: string;
++        role?: string;
+         'data-color-mode'?: 'light' | 'dark';
+     };
+     /**
+      * Please use wrapperElement, Will be removed in v5 release.
+      * @deprecated
+      */
+-    warpperElement?: React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement> & {
++    warpperElement?: {
++        className?: string;
++        style?: React.CSSProperties;
++        id?: string;
++        role?: string;
+         'data-color-mode'?: 'light' | 'dark';
+     };
+     onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
+     onMouseOver?: (e: React.MouseEvent<HTMLDivElement>) => void;
++    /**
++     * ⚠️ 安全警告（SEC-MD-02）：
++     * 此回调运行在安全过滤之后，可以覆盖安全过滤结果。
++     * 仅在完全信任输入源时使用。请勿用于渲染用户提交的 Markdown 内容。
++     */
+     rehypeRewrite?: RehypeRewriteOptions['rewrite'];
+ }
++/**
++ * ⚠️ 安全说明（SEC-MD-06）：继承全部 Props 属性，
++ * mdp 为内部 div 的直接 DOM 引用，可进行任意 DOM 操作。
++ * 建议仅在安全的命令式场景中使用（如 scrollTo）。
++ */
+ export interface MarkdownPreviewRef extends MarkdownPreviewProps {
+     mdp: React.RefObject<HTMLDivElement>;
+ }
 diff --git a/esm/common.js b/esm/common.js
-index 3201d502895df2997b9227a3d94cd4e48e747018..61838a61841682a96d16f86d05d7110747a53776 100644
+index 3201d502895df2997b9227a3d94cd4e48e747018..7359fda68842932b2c5f8c1e9a5670ff6a051559 100644
 --- a/esm/common.js
 +++ b/esm/common.js
 @@ -1,5 +1,5 @@
@@ -43,7 +110,7 @@ index 3201d502895df2997b9227a3d94cd4e48e747018..61838a61841682a96d16f86d05d71107
      rehypePlugins: rehypePlugins,
      ref: ref
 diff --git a/esm/nohighlight.js b/esm/nohighlight.js
-index 5399bb6cf2400875b0ed371665314d702152d46f..b5910380d74bc90f8cffd295be9d92404a23d132 100644
+index 5399bb6cf2400875b0ed371665314d702152d46f..c7071a780b7dd67c13bff38b89474ae4056030a5 100644
 --- a/esm/nohighlight.js
 +++ b/esm/nohighlight.js
 @@ -1,5 +1,5 @@
@@ -135,8 +202,75 @@ index 2796334dfb1c5fe796d15170c1067a411b3e8a71..bc3dea021709b7059d13af683f7c59a3
  };
  export var defaultRehypePlugins = [slug, headings, rehypeIgnore];
 \ No newline at end of file
+diff --git a/lib/Props.d.ts b/lib/Props.d.ts
+index b550d96681a92638d83e7cf98b7cfe32eab1f17d..c190aad887345c9bddd50e35a8322287753efdb2 100644
+--- a/lib/Props.d.ts
++++ b/lib/Props.d.ts
+@@ -1,27 +1,60 @@
+ import { type Options } from 'react-markdown';
+ import { type RehypeRewriteOptions } from 'rehype-rewrite';
+ import { type PluggableList } from 'unified';
++/**
++ * ⚠️ 安全说明（SEC-MD-04）：本接口继承 react-markdown Options，
++ * 暴露 allowElement/rehypePlugins/remarkPlugins/urlTransform 等危险属性。
++ * 渲染用户提交内容时，必须配合 allowElement 白名单 + DOMPurify 消毒使用。
++ */
+ export interface MarkdownPreviewProps extends Omit<Options, 'children'> {
+     prefixCls?: string;
+     className?: string;
++    /**
++     * ⚠️ 安全警告（SEC-MD-01）：
++     * 无长度限制（DoS风险）+ 无HTML过滤（XSS风险）。
++     * 建议对不可信输入进行服务端消毒（DOMPurify），并限制长度上限（建议 1MB）。
++     */
+     source?: string;
+     disableCopy?: boolean;
+     style?: React.CSSProperties;
++    /**
++     * ⚠️ 安全警告（SEC-MD-03）：
++     * 此回调可移除安全过滤插件（如 rehype-sanitize），导致 XSS 风险。
++     */
+     pluginsFilter?: (type: 'rehype' | 'remark', plugin: PluggableList) => PluggableList;
+-    wrapperElement?: React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement> & {
++    /** SEC-MD-05: 收窄类型，排除 dangerouslySetInnerHTML 和事件处理器 */
++    wrapperElement?: {
++        className?: string;
++        style?: React.CSSProperties;
++        id?: string;
++        role?: string;
+         'data-color-mode'?: 'light' | 'dark';
+     };
+     /**
+      * Please use wrapperElement, Will be removed in v5 release.
+      * @deprecated
+      */
+-    warpperElement?: React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement> & {
++    warpperElement?: {
++        className?: string;
++        style?: React.CSSProperties;
++        id?: string;
++        role?: string;
+         'data-color-mode'?: 'light' | 'dark';
+     };
+     onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
+     onMouseOver?: (e: React.MouseEvent<HTMLDivElement>) => void;
++    /**
++     * ⚠️ 安全警告（SEC-MD-02）：
++     * 此回调运行在安全过滤之后，可以覆盖安全过滤结果。
++     * 仅在完全信任输入源时使用。请勿用于渲染用户提交的 Markdown 内容。
++     */
+     rehypeRewrite?: RehypeRewriteOptions['rewrite'];
+ }
++/**
++ * ⚠️ 安全说明（SEC-MD-06）：继承全部 Props 属性，
++ * mdp 为内部 div 的直接 DOM 引用，可进行任意 DOM 操作。
++ * 建议仅在安全的命令式场景中使用（如 scrollTo）。
++ */
+ export interface MarkdownPreviewRef extends MarkdownPreviewProps {
+     mdp: React.RefObject<HTMLDivElement>;
+ }
 diff --git a/lib/common.js b/lib/common.js
-index b91190866e253f1de99867574b6751bb133ca22c..868e7ecf14739bed4db66618b81ecc776b59e330 100644
+index b91190866e253f1de99867574b6751bb133ca22c..41ae2f5ff8cc723526ac7896178435bae59d30cb 100644
 --- a/lib/common.js
 +++ b/lib/common.js
 @@ -30,15 +30,23 @@ Object.keys(_Props).forEach(function (key) {
@@ -171,7 +305,7 @@ index b91190866e253f1de99867574b6751bb133ca22c..868e7ecf14739bed4db66618b81ecc77
      rehypePlugins: rehypePlugins,
      ref: ref
 diff --git a/lib/nohighlight.js b/lib/nohighlight.js
-index 2900c920802ded27cee370e75522673cbcbaa4dc..d83550948c856c4810f483fce23eb22a807743fc 100644
+index 2900c920802ded27cee370e75522673cbcbaa4dc..1752e3f50bfb5a5ec24ede8746f3e0c4a578f851 100644
 --- a/lib/nohighlight.js
 +++ b/lib/nohighlight.js
 @@ -28,13 +28,21 @@ Object.keys(_Props).forEach(function (key) {
@@ -257,6 +391,95 @@ index e853c646805ac8647734f818366e1e7e64db3257..a8367fdb8fbae655bbde0dcd9a32b0e8
  };
  var defaultRehypePlugins = exports.defaultRehypePlugins = [_rehypeSlug["default"], _rehypeAutolinkHeadings["default"], _rehypeIgnore["default"]];
 \ No newline at end of file
+diff --git a/src/Props.tsx b/src/Props.tsx
+index ac09f1f3800701698c5cabbdfa8401ec8e0d03f0..43ceefef6df9ba1bfbb15c0ead663502a19ceaf9 100644
+--- a/src/Props.tsx
++++ b/src/Props.tsx
+@@ -2,28 +2,82 @@ import { type Options } from 'react-markdown';
+ import { type RehypeRewriteOptions } from 'rehype-rewrite';
+ import { type PluggableList } from 'unified';
+ 
++/**
++ * MarkdownPreview 组件属性。
++ *
++ * ⚠️ 安全说明（SEC-MD-04）：
++ * 本接口继承 react-markdown Options，暴露以下危险属性：
++ *   - `allowElement` — 可允许 `<script>`、`<iframe>` 等危险元素
++ *   - `rehypePlugins` / `remarkPlugins` — 可注入任意 AST 处理插件
++ *   - `urlTransform` — 可修改 URL 转换逻辑，绕过协议过滤
++ * 渲染用户提交内容时，必须配合 allowElement 白名单 + DOMPurify 消毒使用。
++ */
+ export interface MarkdownPreviewProps extends Omit<Options, 'children'> {
+   prefixCls?: string;
+   className?: string;
++  /**
++   * Markdown 源文本。
++   *
++   * ⚠️ 安全警告（SEC-MD-01）：
++   *   - 无长度限制，超长内容可导致 Markdown 解析器 CPU/内存耗尽（DoS）
++   *   - 若渲染层未启用 HTML 过滤，`<script>` 等标签可导致 XSS
++   *   - 恶意链接 `[click](javascript:alert(1))` 可绕过未过滤的协议
++   * 建议对不可信输入进行服务端消毒（DOMPurify），并限制长度上限（建议 1MB）。
++   */
+   source?: string;
+   disableCopy?: boolean;
+   style?: React.CSSProperties;
++  /**
++   * 插件过滤器。
++   *
++   * ⚠️ 安全警告（SEC-MD-03）：
++   * 此回调可过滤/修改插件列表，包括安全过滤插件（如 rehype-sanitize）。
++   * 不当使用可能移除安全插件，导致 XSS 风险。
++   */
+   pluginsFilter?: (type: 'rehype' | 'remark', plugin: PluggableList) => PluggableList;
+-  wrapperElement?: React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement> & {
++  /**
++   * 容器元素属性（SEC-MD-05 收窄类型）。
++   * 仅允许安全属性，排除 dangerouslySetInnerHTML 和事件处理器。
++   */
++  wrapperElement?: {
++    className?: string;
++    style?: React.CSSProperties;
++    id?: string;
++    role?: string;
+     'data-color-mode'?: 'light' | 'dark';
+   };
+   /**
+    * Please use wrapperElement, Will be removed in v5 release.
+    * @deprecated
+    */
+-  warpperElement?: React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement> & {
++  warpperElement?: {
++    className?: string;
++    style?: React.CSSProperties;
++    id?: string;
++    role?: string;
+     'data-color-mode'?: 'light' | 'dark';
+   };
+   onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
+   onMouseOver?: (e: React.MouseEvent<HTMLDivElement>) => void;
++  /**
++   * AST 重写回调。
++   *
++   * ⚠️ 安全警告（SEC-MD-02）：
++   * 此回调运行在安全过滤之后，可以覆盖安全过滤结果。
++   * 可移除安全过滤、注入恶意属性（onclick/onerror）、篡改链接为 javascript: URI。
++   * 仅在完全信任输入源时使用。请勿用于渲染用户提交的 Markdown 内容。
++   */
+   rehypeRewrite?: RehypeRewriteOptions['rewrite'];
+ }
+ 
++/**
++ * MarkdownPreview Ref 接口。
++ *
++ * ⚠️ 安全说明（SEC-MD-06）：
++ * 继承全部 Props 属性，通过 ref.current 可读取/修改内部状态。
++ * mdp 为内部 div 的直接 DOM 引用，可进行任意 DOM 操作（绕过 React XSS 防护）。
++ * 建议仅在安全的命令式场景中使用（如 scrollTo）。
++ */
+ export interface MarkdownPreviewRef extends MarkdownPreviewProps {
+   mdp: React.RefObject<HTMLDivElement>;
+ }
 diff --git a/src/common.tsx b/src/common.tsx
 index ae82392eaecd9a3d2130a7ba9648eeab82c74d39..4f69b321e0b5b25c30a92cce9dbe617a64cb7e3c 100644
 --- a/src/common.tsx
