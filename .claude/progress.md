@@ -1073,3 +1073,12 @@
   - 安全验证矩阵：10 个端点全部通过认证/角色/项目权限/创建者检查/Zod验证/白名单/状态检查/IDOR检查
   - 修复优先级路线图：P0×1（TOCTOU事务化）、P1×3（skills Schema/DEBUG日志/三重验证简化）、P2×4、P3×2
   - 评审报告 tasks/review/article.controller.ts.security.md
+
+## 本次变更（2026-05-24 @uiw/react-markdown-preview nohighlight.tsx 软件质量专家评审）
+- [x] **软件质量专家评审 @uiw/react-markdown-preview/src/nohighlight.tsx（23 行）**
+  - 综合评分 6.3/10（有条件通过，性能缺陷是最大问题）
+  - 与 index.tsx 差异对比：无 rehype-prism-plus（语法高亮）、无 rehype-raw（原始 HTML），bundle 更小
+  - 8 项质量发现：P1×1（rehypePlugins 每次渲染重建无 useMemo）、P2×4（与 index.tsx 高度重复违反 DRY、缺少 displayName、|| vs ?? 不一致、spread 透传已消费 props）、P3×3（缺文档注释、无错误边界、rehypeRewriteHandle 隐式类型依赖）
+  - 安全优势：不引入 rehype-raw 天然降低 XSS 风险
+  - 与本项目关联：MarkdownViewer 已切换使用 nohighlight 入口（commit 8225cb0），P1-01 性能问题直接影响长文档渲染
+  - 评审报告 tasks/review/nohighlight.tsx.md
