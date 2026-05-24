@@ -3935,3 +3935,49 @@ describe('mineKeywords - without optional fields', () => {
     axios.post.mockRestore();
   });
 });
+
+// ==================== 第三轮补全：覆盖剩余 3 个分支 ====================
+
+// 1. batchCreateKeywords > 500 limit
+describe('Keywords - batchCreateKeywords 超过500限制', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('关键词数量超过500返回400', async () => {
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/batch').set('Authorization', auth()).send({ keywords: Array.from({ length: 501 }, (_, i) => `关键词${i}`) });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('单次批量创建不能超过500个');
+  });
+});
+
+// 2. mineKeywords invalid source_type
+describe('mineKeywords - invalid source_type', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('无效的source_type返回400', async () => {
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/mine').set('Authorization', auth()).send({ source_type: 'invalid' });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('无效的资源类型');
+  });
+});
+
+// 3. checkProjectOperator - non-sysadmin non-operator throws
+describe('checkProjectOperator - admin非运营者检查', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('listProjectKeywords admin非运营者返回403', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      project: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 1, shortName: '项目A', fullName: '项目A全称', companyId: 2, status: true, deletedAt: null,
+          company: { shortName: '公司' },
+          operators: [{ userId: 99, user: { id: 99, cnName: '其他用户' } }],
+          viewers: [],
+        }),
+      },
+    });
+    const res = await agent.get('/api/v1/projects/1/knowledge/keywords').set('Authorization', auth(adminToken));
+    expect(res.status).toBe(403);
+    expect(res.body.message).toBe('无权操作该项目');
+  });
+});

@@ -183,3 +183,5 @@
 | 2026-05-25 | tasks/review/quote.tsx.ui.md | quote.tsx 软件 UI 专家评审——⚠️合格（图标12px偏小/Ctrl+Q macOS冲突/英文硬编码缺i18n/第三方库CSS继承兼容，DESIGN.md合规需CSS覆盖+图标替换+中文ARIA） |
 | 2026-05-25 | tasks/review/quote.tsx.committer.md | quote.tsx Committer 审核专家评审——⚠️有条件通过 7.0/10（P1 macOS Cmd+Q退出应用冲突需封装层覆盖快捷键，块级命令架构优于hr.tsx正确使用insertBeforeEachLine，10项独立问题9项非阻塞） |
 | 2026-05-25 | progress_tasks/2026-05-25-nohighlight-patch-review-fix.md | nohighlight.tsx patch层评审修复第二轮——P2-02 displayName + P2-03 ||→?? 一致性，6文件patch更新 |
+| 2026-05-25 | progress_tasks/2026-05-25-quote-tsx-review-fix.md | quote.tsx 评审封装层修复——P1-1 Cmd+Q→Ctrl+Shift+Q快捷键+S1 prefix!非空断言防御+Q-6 try-catch错误边界+P2-1中文ARIA，12项新增测试（112总）全通过 |
+| 2026-05-25 | tasks/tdd/knowledge.controller.test.round2.md | knowledge.controller TDD 第3轮补全——259用例（+3），Stmts 99.23% Branch 98.97% Funcs 100% Lines 99.81%（覆盖batchCreateKeywords>500限制+mineKeywords无效source_type+checkProjectOperator非运营者） |
