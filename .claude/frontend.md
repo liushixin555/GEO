@@ -64,6 +64,8 @@
     - `help` 命令：安全覆盖（noopener+noreferrer 防反向标签劫持 + 弹窗拦截降级为 window.location.href + 中文 ARIA + antd QuestionCircleOutlined 图标 16px + F1 快捷键）
     - `code`/`codeBlock` 命令：重映射快捷键（Ctrl+J→Ctrl+E），添加中文 ARIA 标注，try-catch 包裹
     - `fullscreen` 命令：修复按钮点击不触发全屏（移除 shortcuts 条件守卫）、重映射快捷键（ctrlcmd+0→ctrlcmd+shift+f）、中文 ARIA 标注、antd FullscreenOutlined 图标（16px）
+    - `link` 命令：快捷键Ctrl+L→Ctrl+K（行业标准，消除浏览器地址栏冲突）、URL方案白名单过滤（拦截javascript:/data: XSS穿透）、URL分支提取域名作默认链接文本（消除空链接文本WCAG 2.4.4违规）、URL检测改用正则、antd LinkOutlined图标16px、中文ARIA、try-catch错误边界、选区越界防护
+    - `Ctrl+L` 浏览器拦截：`preventBrowserShortcut` 中拦截 Ctrl+L 防止焦点跳走到地址栏
 - antd 主题通过 `main.tsx` 的 `ConfigProvider` 配置，全局覆盖 border-radius: 0 等 Carbon 风格
 - **Switch 组件不参与全局 border-radius: 0 覆盖**，保持 antd 默认椭圆胶囊样式
 - **Switch 使用 checkedChildren/unCheckedChildren** 显示"启用"/"禁用"文字，增强可读性
