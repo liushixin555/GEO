@@ -1659,4 +1659,470 @@ describe('Auth Controller', () => {
       expect(res.body.message).toBe('保存成功');
     });
   });
+
+  // ============================================================
+  // Round 3: Additional direct unit tests for edge branches
+  // Tests bypass middleware/Zod to cover controller-internal logic
+  // ============================================================
+  describe('Round 3: Logout direct unit tests', () => {
+    function mockRes() {
+      const res: any = {
+        statusCode: 200,
+        body: {},
+        status(code: number) { res.statusCode = code; return res; },
+        json(data: any) { res.body = data; return res; },
+      };
+      return res;
+    }
+
+    it('logout should return success when authHeader is undefined (no token to revoke)', async () => {
+      const { logout } = require('../../apis/controller/auth.controller');
+      const req = { headers: {}, user: { userId: 1, role: 'sysadmin' }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await logout(req, res);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.message).toBe('登出成功');
+    });
+
+    it('logout should return success when authHeader does not start with Bearer', async () => {
+      const { logout } = require('../../apis/controller/auth.controller');
+      const req = { headers: { authorization: 'Basic dXNlcjpwYXNz' }, user: { userId: 1, role: 'sysadmin' }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await logout(req, res);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.message).toBe('登出成功');
+    });
+
+    it('logout should revoke token when valid Bearer header present (direct call)', async () => {
+      const testToken = jwt.sign(
+        { userId: 99, username: 'direct_test', role: 'sysadmin', companyId: 1 },
+        'test-secret',
+        { expiresIn: '2h' }
+      );
+      const { logout } = require('../../apis/controller/auth.controller');
+      const req = { headers: { authorization: `Bearer ${testToken}` }, user: { userId: 99, role: 'sysadmin' }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await logout(req, res);
+      expect(res.statusCode).toBe(200);
+      // Verify token is blacklisted
+      const { isTokenRevoked } = require('../../apis/utils/token-blacklist.util');
+      expect(isTokenRevoked(testToken)).toBe(true);
+    });
+
+    it('logout should return success when req.user is undefined (no userId in log)', async () => {
+      const { logout } = require('../../apis/controller/auth.controller');
+      const req = { headers: {}, user: undefined as any, ip: '127.0.0.1' };
+      const res = mockRes();
+      await logout(req, res);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.message).toBe('登出成功');
+    });
+  });
+
+  describe('Round 3: getCompanyDetail direct unit tests', () => {
+    function mockRes() {
+      const res: any = {
+        statusCode: 200,
+        body: {},
+        status(code: number) { res.statusCode = code; return res; },
+        json(data: any) { res.body = data; return res; },
+      };
+      return res;
+    }
+
+    it('getCompanyDetail should return 403 when admin has null companyId', async () => {
+      const { getCompanyDetail } = require('../../apis/controller/auth.controller');
+      const req = { params: { id: '1' }, user: { userId: 5, role: 'admin', companyId: null }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await getCompanyDetail(req, res);
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toBe('无权查看其他公司的用户');
+    });
+
+    it('getCompanyDetail should return 200 when admin queries own company with matching companyId', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        user: { findMany: jest.fn().mockResolvedValue([
+          { id: 5, role: 'admin', cnName: '管理员A', username: 'admin_a' },
+        ]) },
+      });
+      const { getCompanyDetail } = require('../../apis/controller/auth.controller');
+      const req = { params: { id: '2' }, user: { userId: 5, role: 'admin', companyId: 2 }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await getCompanyDetail(req, res);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.data.operators).toHaveLength(1);
+    });
+
+    it('getCompanyDetail should return 403 when admin queries different company', async () => {
+      const { getCompanyDetail } = require('../../apis/controller/auth.controller');
+      const req = { params: { id: '99' }, user: { userId: 5, role: 'admin', companyId: 2 }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await getCompanyDetail(req, res);
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toBe('无权查看其他公司的用户');
+    });
+
+    it('getCompanyDetail should return 200 when sysadmin queries any company (direct)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        user: { findMany: jest.fn().mockResolvedValue([]) },
+      });
+      const { getCompanyDetail } = require('../../apis/controller/auth.controller');
+      const req = { params: { id: '55' }, user: { userId: 1, role: 'sysadmin', companyId: 1 }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await getCompanyDetail(req, res);
+      expect(res.statusCode).toBe(200);
+    });
+
+    it('getCompanyDetail should return 400 when id is negative via direct call', async () => {
+      const { getCompanyDetail } = require('../../apis/controller/auth.controller');
+      const req = { params: { id: '-5' }, user: { userId: 1, role: 'sysadmin', companyId: 1 }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await getCompanyDetail(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('无效的公司ID');
+    });
+
+    it('getCompanyDetail should return 400 when id is zero via direct call', async () => {
+      const { getCompanyDetail } = require('../../apis/controller/auth.controller');
+      const req = { params: { id: '0' }, user: { userId: 1, role: 'sysadmin', companyId: 1 }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await getCompanyDetail(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('无效的公司ID');
+    });
+  });
+
+  describe('Round 3: getContext direct unit tests', () => {
+    function mockRes() {
+      const res: any = {
+        statusCode: 200,
+        body: {},
+        status(code: number) { res.statusCode = code; return res; },
+        json(data: any) { res.body = data; return res; },
+      };
+      return res;
+    }
+
+    it('getContext should return 400 when company_id is negative string (direct)', async () => {
+      const { getContext } = require('../../apis/controller/auth.controller');
+      const req = { query: { company_id: '-1' }, user: { userId: 1, role: 'sysadmin', companyId: 1 }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await getContext(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('company_id 必须为正整数');
+    });
+
+    it('getContext should return 400 when company_id is zero string (direct)', async () => {
+      const { getContext } = require('../../apis/controller/auth.controller');
+      const req = { query: { company_id: '0' }, user: { userId: 1, role: 'sysadmin', companyId: 1 }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await getContext(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('company_id 必须为正整数');
+    });
+
+    it('getContext should return 400 when company_id is NaN string (direct)', async () => {
+      const { getContext } = require('../../apis/controller/auth.controller');
+      const req = { query: { company_id: 'xyz' }, user: { userId: 1, role: 'sysadmin', companyId: 1 }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await getContext(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('company_id 必须为正整数');
+    });
+
+    it('getContext should return companies only when company_id is empty string', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        company: { findMany: jest.fn().mockResolvedValue([{ id: 1, shortName: 'C1' }]) },
+      });
+      const { getContext } = require('../../apis/controller/auth.controller');
+      // Empty string is falsy, so targetCompanyId should not be set
+      const req = { query: { company_id: '' }, user: { userId: 1, role: 'sysadmin', companyId: 1 }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await getContext(req, res);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.data.companies).toHaveLength(1);
+      expect(res.body.data.projects).toHaveLength(0);
+    });
+
+    it('getContext should return companies and projects with valid company_id (direct)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        company: { findMany: jest.fn().mockResolvedValue([{ id: 1, shortName: 'C1' }]) },
+        project: { findMany: jest.fn().mockResolvedValue([{ id: 10, shortName: 'P1' }]) },
+      });
+      const { getContext } = require('../../apis/controller/auth.controller');
+      const req = { query: { company_id: '1' }, user: { userId: 1, role: 'sysadmin', companyId: 1 }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await getContext(req, res);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.data.companies).toHaveLength(1);
+      expect(res.body.data.projects).toHaveLength(1);
+    });
+  });
+
+  describe('Round 3: getAccessibleProjects direct unit tests', () => {
+    function mockRes() {
+      const res: any = {
+        statusCode: 200,
+        body: {},
+        status(code: number) { res.statusCode = code; return res; },
+        json(data: any) { res.body = data; return res; },
+      };
+      return res;
+    }
+
+    it('getAccessibleProjects should return 400 when company_id is negative (direct)', async () => {
+      const { getAccessibleProjects } = require('../../apis/controller/auth.controller');
+      const req = { query: { company_id: '-5' }, user: { userId: 1, role: 'sysadmin', companyId: 1 } };
+      const res = mockRes();
+      await getAccessibleProjects(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('company_id 必须为正整数');
+    });
+
+    it('getAccessibleProjects should return 400 when company_id is zero (direct)', async () => {
+      const { getAccessibleProjects } = require('../../apis/controller/auth.controller');
+      const req = { query: { company_id: '0' }, user: { userId: 1, role: 'sysadmin', companyId: 1 } };
+      const res = mockRes();
+      await getAccessibleProjects(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('company_id 必须为正整数');
+    });
+
+    it('getAccessibleProjects should return 400 when company_id is NaN (direct)', async () => {
+      const { getAccessibleProjects } = require('../../apis/controller/auth.controller');
+      const req = { query: { company_id: 'abc' }, user: { userId: 1, role: 'sysadmin', companyId: 1 } };
+      const res = mockRes();
+      await getAccessibleProjects(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('company_id 必须为正整数');
+    });
+
+    it('getAccessibleProjects should return projects with valid company_id (direct)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        project: { findMany: jest.fn().mockResolvedValue([{ id: 1, shortName: 'P1' }]) },
+      });
+      const { getAccessibleProjects } = require('../../apis/controller/auth.controller');
+      const req = { query: { company_id: '1' }, user: { userId: 1, role: 'sysadmin', companyId: 1 } };
+      const res = mockRes();
+      await getAccessibleProjects(req, res);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.data).toHaveLength(1);
+    });
+  });
+
+  describe('Round 3: getAccessibleCompanies direct unit tests', () => {
+    function mockRes() {
+      const res: any = {
+        statusCode: 200,
+        body: {},
+        status(code: number) { res.statusCode = code; return res; },
+        json(data: any) { res.body = data; return res; },
+      };
+      return res;
+    }
+
+    it('getAccessibleCompanies should return companies for sysadmin (direct)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        company: { findMany: jest.fn().mockResolvedValue([
+          { id: 1, shortName: 'C1' },
+          { id: 2, shortName: 'C2' },
+        ]) },
+      });
+      const { getAccessibleCompanies } = require('../../apis/controller/auth.controller');
+      const req = { user: { userId: 1, role: 'sysadmin', companyId: 1 }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await getAccessibleCompanies(req, res);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.data).toHaveLength(2);
+    });
+
+    it('getAccessibleCompanies should return 500 when service throws (direct)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        company: { findMany: jest.fn().mockRejectedValue(new Error('DB error')) },
+      });
+      const { getAccessibleCompanies } = require('../../apis/controller/auth.controller');
+      const req = { user: { userId: 1, role: 'sysadmin', companyId: 1 }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await getAccessibleCompanies(req, res);
+      expect(res.statusCode).toBe(500);
+      expect(res.body.message).toBe('获取公司列表失败，请稍后重试');
+    });
+  });
+
+  describe('Round 3: Login direct unit tests (additional)', () => {
+    function mockRes() {
+      const res: any = {
+        statusCode: 200,
+        body: {},
+        status(code: number) { res.statusCode = code; return res; },
+        json(data: any) { res.body = data; return res; },
+      };
+      return res;
+    }
+
+    it('login should return 400 when both username and password are missing (direct)', async () => {
+      const { login } = require('../../apis/controller/auth.controller');
+      const req = { body: {}, ip: '127.0.0.1' };
+      const res = mockRes();
+      await login(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('用户名和密码不能为空');
+    });
+
+    it('login should return 400 when username is empty string (direct)', async () => {
+      const { login } = require('../../apis/controller/auth.controller');
+      const req = { body: { username: '', password: 'pass' }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await login(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('用户名和密码不能为空');
+    });
+
+    it('login should return 400 when password is empty string (direct)', async () => {
+      const { login } = require('../../apis/controller/auth.controller');
+      const req = { body: { username: 'admin', password: '' }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await login(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('用户名和密码不能为空');
+    });
+
+    it('login should return 400 when both username and password are empty (direct)', async () => {
+      const { login } = require('../../apis/controller/auth.controller');
+      const req = { body: { username: '', password: '' }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await login(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('用户名和密码不能为空');
+    });
+
+    it('login should return 401 when user not found (direct)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        user: { findUnique: jest.fn().mockResolvedValue(null) },
+      });
+      const { login } = require('../../apis/controller/auth.controller');
+      const req = { body: { username: 'nobody', password: 'pass' }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await login(req, res);
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe('用户名或密码错误');
+    });
+
+    it('login should return 401 for wrong password (direct)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        user: { findUnique: jest.fn().mockResolvedValue({
+          id: 1, username: 'admin', passwordHash: hashedPassword, cnName: 'Admin',
+          role: 'admin', status: true, companyId: 1, selectedCompany: null, selectedProject: null,
+        }) },
+      });
+      jest.spyOn(bcrypt, 'compare').mockResolvedValue(false as never);
+      const { login } = require('../../apis/controller/auth.controller');
+      const req = { body: { username: 'admin', password: 'wrong' }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await login(req, res);
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe('用户名或密码错误');
+    });
+
+    it('login should return 200 on success (direct)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        user: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 1, username: 'sysadmin', passwordHash: hashedPassword, cnName: '系统管理员',
+            role: 'sysadmin', status: true, companyId: 1,
+            selectedCompany: { id: 1, shortName: 'C1' }, selectedProject: null,
+          }),
+          update: jest.fn().mockResolvedValue(undefined),
+        },
+        company: { findMany: jest.fn().mockResolvedValue([{ id: 1, shortName: 'C1' }]) },
+        project: { findMany: jest.fn().mockResolvedValue([]) },
+      });
+      jest.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
+      const { login } = require('../../apis/controller/auth.controller');
+      const req = { body: { username: 'sysadmin', password: 'pass' }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await login(req, res);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.data.token).toBeDefined();
+      expect(res.body.data.user.username).toBe('sysadmin');
+    });
+
+    it('login should return 401 on non-Error thrown (direct)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        user: { findUnique: jest.fn().mockRejectedValue('string error') },
+      });
+      const { login } = require('../../apis/controller/auth.controller');
+      const req = { body: { username: 'admin', password: 'pass' }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await login(req, res);
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe('用户名或密码错误');
+    });
+  });
+
+  describe('Round 3: saveSelection direct unit tests (additional)', () => {
+    function mockRes() {
+      const res: any = {
+        statusCode: 200,
+        body: {},
+        status(code: number) { res.statusCode = code; return res; },
+        json(data: any) { res.body = data; return res; },
+      };
+      return res;
+    }
+
+    it('saveSelection should return 403 on PermissionDeniedError (direct)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        company: { findMany: jest.fn().mockResolvedValue([]) },
+      });
+      const { saveSelection } = require('../../apis/controller/auth.controller');
+      const req = { body: { company_id: 999 }, user: { userId: 1, role: 'sysadmin', companyId: 1 }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await saveSelection(req, res);
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toBe('无权选择该公司');
+    });
+
+    it('saveSelection should return 500 on generic error (direct)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        company: { findMany: jest.fn().mockResolvedValue([{ id: 1, shortName: 'C1' }]) },
+        project: { findMany: jest.fn().mockResolvedValue([]) },
+        user: { update: jest.fn().mockRejectedValue(new Error('DB error')) },
+      });
+      const { saveSelection } = require('../../apis/controller/auth.controller');
+      const req = { body: { company_id: 1 }, user: { userId: 1, role: 'sysadmin', companyId: 1 }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await saveSelection(req, res);
+      expect(res.statusCode).toBe(500);
+      expect(res.body.message).toBe('保存失败，请稍后重试');
+    });
+
+    it('saveSelection should handle float company_id (parseInt truncation)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        company: { findMany: jest.fn().mockResolvedValue([{ id: 1, shortName: 'C1' }]) },
+        project: { findMany: jest.fn().mockResolvedValue([]) },
+        user: { update: jest.fn().mockResolvedValue(undefined) },
+      });
+      const { saveSelection } = require('../../apis/controller/auth.controller');
+      const req = { body: { company_id: 1.9 }, user: { userId: 1, role: 'sysadmin', companyId: 1 }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await saveSelection(req, res);
+      // parseInt(1.9, 10) = 1, which is > 0, so it passes validation
+      expect(res.statusCode).toBe(200);
+    });
+  });
 });
