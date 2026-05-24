@@ -184,11 +184,10 @@ tests/apis/  + tests/pages/  测试文件
   - `pages/article/components/ArticleReviewActions.tsx` — 审核操作栏
 - **架构评审**: D+ → 重构后架构符合 SOLID 原则，每个文件 < 200 行，职责单一，可独立测试
 
-## controller/index.ts barrel file 评审记录
-- **Committer 评审**: REJECT 2.0/10（2026-05-24）— 65% 函数遗漏（65/100）、53% 模块完全遗漏（8/15）、运行时零引用（死代码）
-- **质量评审**: REJECT 3.2/10（controller-index.md）
-- **安全评审**: REJECT 3.5/10（index.ts.security.md）
-- **推荐方案**: 删除 barrel file（方案 B），项目路由已建立直接导入约定（15 个 routes 文件均 `import * as ctrl from '../controller/xxx.controller'`）
+## controller/index.ts barrel file（已删除 2026-05-24）
+- **Committer 评审**: REJECT 2.0/10 — 65% 函数遗漏（65/100）、53% 模块完全遗漏（8/15）、运行时零引用（死代码）
+- **处置**: 采纳 Committer 推荐方案 B，删除 `apis/controller/index.ts` 及其测试 `tests/apis/controller/index.test.ts`
+- **依据**: 项目 15 个路由文件均使用直接导入（`import * as ctrl from '../controller/xxx.controller'`），barrel file 零引用、无存在价值
 - **详见**: `tasks/review/controller-index.committer.md`
 
 ## 第三方库补丁管理
