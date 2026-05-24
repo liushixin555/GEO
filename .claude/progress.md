@@ -164,3 +164,4 @@
 | 2026-05-25 | tasks/review/hr.tsx.security.md | hr.tsx 代码安全专家评审——6.5/10 APPROVE（H×2 prefix非空断言4次CWE-476+Ctrl+H冲突浏览器历史致数据丢失，M×3 selectWord语义不匹配+选区状态不一致+选区丢弃，L×3 SVG膨胀+aria-label泄露+无错误边界） |
 | 2026-05-25 | tasks/tdd/skills.service.test.round2.md | skills.service.impl TDD 第2轮——102用例100%覆盖率（+18新增：错误类型验证NotFoundError/ConflictError+statusCode+数据一致性+字符串边界+数值边界） |
 | 2026-05-25 | tasks/review/hr.tsx.ui.md | hr.tsx UI 专家评审——REJECT 3.2/10（P1×3 SVG字母HR语义错位+Ctrl+H冲突浏览器历史+选区丢弃；P2×3 tooltip语义+无role=img+focus缺失；P3×4 触摸+移动端+i18n+aria） |
+| 2026-05-25 | tasks/tdd/system-config.service.test.md | system-config.service.impl TDD 第2轮——53用例100%覆盖率（+30新增：错误类型验证+数据一致性+字符串边界纯空格/Unicode/SQL注入+数值边界id=0/极大值+事务深度重复key/P2002+实例独立性+接口一致性） |
