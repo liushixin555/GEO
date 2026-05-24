@@ -1,484 +1,477 @@
-# 软件质量专家评审：code.tsx
+# 软件架构专家评审：code.tsx
 
 **文件**: `@uiw/react-md-editor@4.1.0/src/commands/code.tsx`
-**评审角色**: 软件质量专家（代码质量 · 可维护性 · 可靠性 · 性能 · 可访问性 · 类型安全 · 边界条件）
+**评审角色**: 软件架构专家（模块架构 · 职责划分 · 依赖治理 · 扩展性 · 演进性 · 集成模式）
 **评审日期**: 2026-05-24
 **代码行数**: 97 行（2 个导出 `ICommand` 对象：`codeBlock` + `code`）
 **功能概述**: Markdown 编辑器"代码"命令实现——`code` 用于行内代码（`` ` `` 包裹），`codeBlock` 用于代码块（` ``` ` 包裹）；多行选中文本自动降级为代码块
-**评审结论**: ✅ APPROVE — 功能正确、攻击面极小，但存在 4 项中等问题（非空断言滥用、变量命名模糊、SVG 可访问性不足、魔法字符串重复）和 4 项低级问题
+**评审结论**: ✅ APPROVE — 架构设计符合 ICommand 插件模式，职责边界清晰，扩展性良好；但存在 4 项架构级改进建议
 
-**问题统计**: HIGH × 0 / MEDIUM × 4 / LOW × 4 / INFO × 2
-
----
-
-## 一、代码质量总览
-
-### 1.1 模块结构图
-
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                         code.tsx 模块结构                                 │
-│                                                                          │
-│  导入层:                                                                  │
-│  ├── React                     (JSX 运行时)                              │
-│  ├── ICommand / ExecuteState / TextAreaTextApi  (命令接口类型)            │
-│  └── selectWord / executeCommand         (Markdown 工具函数)             │
-│                                                                          │
-│  导出层:                                                                  │
-│  ├── codeBlock: ICommand   (代码块命令，快捷键 Ctrl+Shift+J)             │
-│  │   ├── name / keyCommand / shortcuts / prefix                          │
-│  │   ├── buttonProps (aria-label + title)                                │
-│  │   ├── icon (SVG, 13×13, 自定义花括号图标)                              │
-│  │   └── execute(state, api)                                             │
-│  │       ├── 阶段1: selectWord() — 计算选区扩展范围                        │
-│  │       ├── 阶段2: api.setSelectionRange() — 设定 DOM 选区               │
-│  │       ├── 阶段3: 判断包裹/解包裹方向                                    │
-│  │       ├── 阶段4: selectWord() 再次计算                                 │
-│  │       ├── 阶段5: api.setSelectionRange() 再次设定                      │
-│  │       └── 阶段6: executeCommand() — 执行文本替换                        │
-│  │                                                                        │
-│  └── code: ICommand         (行内代码命令，快捷键 Ctrl+J)                 │
-│      ├── name / keyCommand / shortcuts / prefix                          │
-│      ├── buttonProps (aria-label + title)                                │
-│      ├── icon (SVG, 14×14, FontAwesome 代码图标)                          │
-│      └── execute(state, api)                                             │
-│          ├── 单行: selectWord + executeCommand (`prefix`)                 │
-│          └── 多行: 委托 codeBlock.execute!()                              │
-│                                                                          │
-│  关键数据流:                                                              │
-│  state.text + state.selection ──→ selectWord() ──→ 新选区                 │
-│       │                                      │                           │
-│       │              api.setSelectionRange() ←┘                           │
-│       │                    │                                              │
-│       └──→ executeCommand() ──→ api.replaceSelection() ──→ textarea      │
-└──────────────────────────────────────────────────────────────────────────┘
-```
-
-### 1.2 代码度量
-
-| 指标 | codeBlock | code | 说明 |
-|------|-----------|------|------|
-| 代码行数 | 57 行 | 33 行 | 含 SVG icon |
-| 圈复杂度 | 6 | 3 | `codeBlock.execute` 分支较多 |
-| 嵌套深度 | 4 层 | 2 层 | `codeBlock.execute` 嵌套较深 |
-| 参数数量 | 2 | 2 | 接口约束，合理 |
-| 非空断言 (`!`) | 0 | 2 | `code.execute` 中 `prefix!` 和 `codeBlock.execute!` |
-| 魔法字符串 | 5 处 | 0 | ` ``` ` 及其换行变体 |
-| DOM 操作次数 | 4 次 | 2 次 | `setSelectionRange` + `replaceSelection` |
-
-### 1.3 依赖安全
-
-| 依赖 | 来源 | 安全评估 |
-|------|------|----------|
-| `selectWord()` | `utils/markdownUtils.ts` | 纯字符串运算，安全 |
-| `executeCommand()` | `utils/markdownUtils.ts` | 纯文本拼接写入 textarea，安全 |
-| `TextAreaTextApi` | `commands/index.ts` | 直接操作 `HTMLTextAreaElement`，同源安全 |
-| `ICommand` / `ExecuteState` | `commands/index.ts` | 纯类型定义，无运行时影响 |
-| `React` | 项目依赖 | JSX 编译，无安全问题 |
-| SVG path (codeBlock) | 自定义花括号图标 | 硬编码静态路径数据，无注入风险 |
-| SVG path (code) | FontAwesome Solid (CC BY 4.0) | 硬编码静态路径数据，无注入风险 |
+**问题统计**: HIGH × 0 / MEDIUM × 4 / LOW × 3 / INFO × 2
 
 ---
 
-## 二、问题详细分析
+## 一、架构总览
 
-### Q1 — 🟡 MEDIUM: `code.execute` 中非空断言绕过类型契约
+### 1.1 模块在编辑器架构中的位置
 
-**位置**: 第 84 行、第 90 行、第 93 行
-**类别**: 类型安全
-**CWE**: CWE-628 — Function Call with Incorrectly Specified Arguments
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      @uiw/react-md-editor 架构层次                          │
+│                                                                             │
+│  ┌─────────────┐   ┌─────────────┐   ┌─────────────┐                      │
+│  │ Editor.tsx   │   │ Toolbar.tsx  │   │ Preview.tsx  │   表现层            │
+│  └──────┬───────┘   └──────┬──────┘   └─────────────┘                      │
+│         │                  │                                               │
+│  ┌──────┴──────────────────┴──────────────────────────────────────┐        │
+│  │                    Context.tsx (状态管理)                       │        │
+│  └──────────────────────────┬─────────────────────────────────────┘        │
+│                             │                                               │
+│  ┌──────────────────────────┴─────────────────────────────────────┐        │
+│  │                   commands/ 目录 (命令层)                       │        │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────────┐  │        │
+│  │  │ bold.tsx │ │ code.tsx │ │ link.tsx │ │ ...其他命令       │  │        │
+│  │  └──────────┘ └────┬─────┘ └──────────┘ └──────────────────┘  │        │
+│  └─────────────────────┼─────────────────────────────────────────┘        │
+│                        │                                                     │
+│  ┌─────────────────────┴─────────────────────────────────────────┐        │
+│  │              utils/markdownUtils.ts (基础设施层)                │        │
+│  │         selectWord() / executeCommand() / ...                  │        │
+│  └───────────────────────────────────────────────────────────────┘        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+code.tsx 的架构角色:
+  - 位于「命令层」，实现 ICommand 接口
+  - 向上：被 Toolbar 注册消费，由用户交互或快捷键触发
+  - 向下：依赖 markdownUtils 的纯函数工具
+  - 横向：code → codeBlock 存在运行时委托关系
+```
+
+### 1.2 架构模式分析
+
+| 架构维度 | 评估 | 说明 |
+|----------|------|------|
+| **设计模式** | ✅ Command Pattern | `ICommand` 接口定义标准命令协议，每个命令是独立对象 |
+| **关注点分离** | ⚠️ 部分违反 | `execute` 函数混合了「选区计算」和「文本变换」两个关注点 |
+| **依赖方向** | ✅ 单向依赖 | code → codeBlock（同级委托），两者 → markdownUtils（向下依赖） |
+| **可扩展性** | ✅ 良好 | 新增代码相关命令（如 `codeLang`）只需新增 ICommand 对象 |
+| **可测试性** | ⚠️ 中等 | 依赖 `TextAreaTextApi`（DOM 操作），需 mock textarea 元素 |
+
+### 1.3 依赖关系图
+
+```
+                    ICommand (接口契约)
+                        │
+            ┌───────────┴───────────┐
+            │                       │
+       codeBlock: ICommand     code: ICommand
+            │                       │
+            │    ┌──────────────────┘
+            │    │ (运行时委托: code.execute → codeBlock.execute)
+            │    │
+            └────┴──────→ markdownUtils
+                              ├── selectWord()      纯函数，无副作用
+                              └── executeCommand()   通过 api 操作 DOM
+```
+
+**依赖治理评估**:
+- ✅ 编译期依赖仅限接口类型和纯函数工具，无循环依赖
+- ⚠️ 运行时 `code → codeBlock` 的同模块对象引用是隐式耦合（非 DI/注册表模式）
+- ✅ 外部依赖仅为 `React`（JSX 编译），无第三方运行时依赖
+
+---
+
+## 二、架构级问题分析
+
+### A1 — 🟡 MEDIUM: code → codeBlock 同级运行时耦合违反插件独立性
+
+**位置**: 第 93 行
+**架构原则**: Open/Closed Principle (OCP)、Command Independence
 
 ```typescript
-// 第 84 行
-prefix: state.command.prefix!,
-// 第 90 行
-prefix: state.command.prefix!,
-// 第 93 行
+// code.tsx 第 93 行
 codeBlock.execute!(state, api);
 ```
 
 **问题分析**:
 
-`ICommand` 接口中 `prefix` 声明为 `prefix?: string`（可选），`execute` 声明为 `execute?(state, api)`（可选）。使用 `!` 非空断言强制 TypeScript 编译器相信运行时值不为 `undefined`，但类型系统无法保证这一点。
+`code` 命令直接引用同模块的 `codeBlock` 对象并调用其 `execute` 方法。这建立了两个同级命令之间的**硬编码运行时依赖**：
 
-三条非空断言的风险路径：
-1. `state.command.prefix!` × 2 → 若 `prefix` 为 `undefined`，传入 `selectWord()` 后 `prefix.length` 抛出 `TypeError`
-2. `codeBlock.execute!` → 若 `execute` 为 `undefined`，直接抛出 `TypeError: codeBlock.execute is not a function`
+1. **插件独立性丧失**: ICommand 设计模式的核心优势是每个命令是独立的、可插拔的插件。但 `code` 无法脱离 `codeBlock` 独立工作——如果从命令注册表中移除 `codeBlock`，`code` 会运行时崩溃
+2. **循环扩展风险**: 如果未来 `codeBlock` 也需要反向委托给 `code`（如"如果选中内容是单行且已在代码块内，切换为行内代码"），就会形成循环依赖
+3. **测试隔离困难**: 测试 `code` 命令必须同时引入 `codeBlock`，无法独立 mock
 
-**实际影响**: 运行时异常导致编辑器功能中断，但外部无法触发（需框架内部逻辑错误），安全风险低。
-
-**修复建议**:
+**架构改进建议**:
 
 ```typescript
-execute: (state: ExecuteState, api: TextAreaTextApi) => {
-  if (!state.command.prefix) return;
-  if (state.selectedText.indexOf('\n') === -1) {
-    const prefix = state.command.prefix;
-    const newSelectionRange = selectWord({ text: state.text, selection: state.selection, prefix });
-    const state1 = api.setSelectionRange(newSelectionRange);
-    executeCommand({ api, selectedText: state1.selectedText, selection: state.selection, prefix });
-  } else {
-    codeBlock.execute?.(state, api);
-  }
-},
+// 方案 A: 提取共享逻辑到基础设施层
+// utils/markdownUtils.ts
+export function wrapOrUnwrapBlock(state, api, fence) { ... }
+
+// codeBlock.execute → wrapOrUnwrapBlock(state, api, '```')
+// code.execute (多行) → wrapOrUnwrapBlock(state, api, '```')
+
+// 方案 B: 注册表模式（更重量级，适合命令数 > 20 的场景）
+// commands/registry.ts
+const commandRegistry = new Map<string, ICommand>();
+export const registerCommand = (cmd: ICommand) => commandRegistry.set(cmd.name, cmd);
+export const getCommand = (name: string) => commandRegistry.get(name);
+
+// code.execute 中:
+const blockCmd = getCommand('codeBlock');
+blockCmd?.execute?.(state, api);
 ```
+
+> **推荐**: 对于当前 97 行的小文件，方案 A 更实际——提取共享逻辑消除了对象级耦合，同时保持简洁。
 
 ---
 
-### Q2 — 🟡 MEDIUM: `codeBlock.execute` 中魔法字符串重复且缺乏语义化
+### A2 — 🟡 MEDIUM: execute 函数职责过重，混合「选区策略」与「文本变换」两个关注点
 
-**位置**: 第 9 行、第 23-24 行、第 29-30 行、第 38-39 行、第 47-48 行、第 53-54 行
-**类别**: 可维护性
+**位置**: 第 19-61 行（codeBlock.execute）
+**架构原则**: Single Responsibility Principle (SRP)
 
-```typescript
-// prefix 属性
-prefix: '```',           // 第 9 行
-prefix: '```\n',         // 第 23 行
-suffix: '\n```',         // 第 24 行
-prefix: '\n```\n',       // 第 29 行
-suffix: '\n```\n',       // 第 30 行
-prefix = '```\n';        // 第 38 行
-suffix = '\n```';        // 第 39 行
-prefix = '```\n';        // 第 47 行
-suffix = '\n```';        // 第 53 行
+```
+codeBlock.execute 当前职责:
+  ┌──────────────────────────────────────────────────────┐
+  │  1. 选区扩展策略 (selectWord × 2)                    │  ← 选区策略
+  │  2. 包裹/解包裹方向判断 (6 条分支)                    │  ← 业务决策
+  │  3. 上下文换行感知 (前/后字符检查)                    │  ← 上下文策略
+  │  4. 文本替换执行 (executeCommand)                     │  ← 文本变换
+  └──────────────────────────────────────────────────────┘
+  全部写在一个函数中，圈复杂度 = 6
 ```
 
 **问题分析**:
 
-代码块标记 ` ``` ` 与换行符的组合出现 9 次，分散在不同分支中。这些值的语义差异微妙（有的带前导换行，有的不带），读者需要逐行对比才能理解每处的意图。如果未来 Markdown 规范变化或需要支持其他语法（如 `~~~`），需要在所有 9 处同步修改。
+`codeBlock.execute` 承担了 4 个不同层次的职责。这使得：
+- 难以单独测试选区策略（需要构造完整的 state + api）
+- 难以复用换行感知逻辑（其他块级命令如 `quote`、`list` 有相同需求）
+- 修改选区策略可能意外影响文本变换逻辑
 
-**修复建议**:
+**理想架构分层**:
+
+```
+┌─────────────────────────────────────────┐
+│  execute (协调器)                        │  ← 仅编排流程
+│    │                                     │
+│    ├── resolveRange(text, selection)     │  ← 选区策略（纯函数）
+│    │     └── selectWord()                │
+│    │                                     │
+│    ├── resolveWrapDirection(ctx)         │  ← 业务决策（纯函数）
+│    │     └── 判断包裹/解包裹 + 换行感知  │
+│    │                                     │
+│    └── applyTransform(api, decision)     │  ← 文本变换（副作用）
+│          └── executeCommand()            │
+└─────────────────────────────────────────┘
+```
+
+**架构改进建议**:
 
 ```typescript
-const CODE_FENCE = '```';
-const BLOCK_PREFIX = CODE_FENCE + '\n';
-const BLOCK_SUFFIX = '\n' + CODE_FENCE;
-const FULL_BLOCK_PREFIX = '\n' + BLOCK_PREFIX;
-const FULL_BLOCK_SUFFIX = BLOCK_SUFFIX + '\n';
+// 将策略逻辑提取为纯函数，execute 只做编排
+function resolveCodeBlockWrap(expandedState, originalState): { prefix: string; suffix: string } {
+  const { selectedText, selection } = expandedState;
+  const isWrapped = selectedText.length >= MIN_WRAP_LENGTH
+    && selectedText.startsWith(BLOCK_PREFIX)
+    && selectedText.endsWith(BLOCK_SUFFIX);
+
+  if (isWrapped) return { prefix: BLOCK_PREFIX, suffix: BLOCK_SUFFIX };
+
+  return {
+    prefix: isAtLineStart(originalState) ? BLOCK_PREFIX : FULL_BLOCK_PREFIX,
+    suffix: isAtLineEnd(originalState)   ? BLOCK_SUFFIX : FULL_BLOCK_SUFFIX,
+  };
+}
+
+// execute 变为简单的三步编排
+execute: (state, api) => {
+  const range = expandToBlockBoundary(state);
+  const expanded = api.setSelectionRange(range);
+  const { prefix, suffix } = resolveCodeBlockWrap(expanded, state);
+  const targetRange = selectWord({ text: state.text, selection: state.selection, prefix, suffix });
+  const target = api.setSelectionRange(targetRange);
+  executeCommand({ api, selectedText: target.selectedText, selection: state.selection, prefix, suffix });
+}
 ```
 
 ---
 
-### Q3 — 🟡 MEDIUM: `codeBlock.execute` 变量命名缺乏描述性
+### A3 — 🟡 MEDIUM: ICommand 接口的 `execute` 可选性与运行时强依赖的矛盾
 
-**位置**: 第 26 行、第 27 行、第 58-60 行
-**类别**: 可读性 / 可维护性
-
-```typescript
-const newSelectionRange = selectWord({...});     // 第 20 行
-const state1 = api.setSelectionRange(newSelectionRange);   // 第 26 行
-// ... 30 行逻辑 ...
-const newSelectionRange2 = selectWord({...});    // 第 58 行
-const state2 = api.setSelectionRange(newSelectionRange2);  // 第 59 行
-```
-
-**问题分析**:
-
-1. `state1` / `state2` — 以数字后缀区分变量，无法表达其语义差异（`state1` 是"首次选区扩展后的状态"，`state2` 是"最终包裹范围确定后的状态"）
-2. `newSelectionRange` / `newSelectionRange2` — 同样以数字后缀区分，第一个是基于 ` ``` ` 标记的初步选区，第二个是基于上下文判断后的精确选区
-3. 两阶段 `selectWord` + `setSelectionRange` 的设计意图不清晰——读者难以理解为什么需要调用两次
-
-**修复建议**:
+**位置**: 第 93 行 `codeBlock.execute!`
+**架构原则**: Interface Segregation Principle (ISP)、Liskov Substitution Principle (LSP)
 
 ```typescript
-// 阶段1: 扩展选区到整个代码块范围
-const codeBlockRange = selectWord({
-  text: state.text, selection: state.selection,
-  prefix: BLOCK_PREFIX, suffix: BLOCK_SUFFIX,
-});
-const expandedState = api.setSelectionRange(codeBlockRange);
-
-// 阶段2: 根据上下文确定最终包裹/解包裹方向
-const { prefix, suffix } = resolveWrapDirection(expandedState, state);
-
-// 阶段3: 精确计算替换范围并执行
-const targetRange = selectWord({ text: state.text, selection: state.selection, prefix, suffix });
-const targetState = api.setSelectionRange(targetRange);
-executeCommand({ api, selectedText: targetState.selectedText, selection: state.selection, prefix, suffix });
-```
-
----
-
-### Q4 — 🟡 MEDIUM: SVG 图标缺少 `<title>` 子元素，屏幕阅读器体验不完整
-
-**位置**: 第 12-17 行（codeBlock icon）、第 71-76 行（code icon）
-**类别**: 可访问性 (WCAG 2.1 Level A)
-**WCAG**: 1.1.1 Non-text Content
-
-```typescript
-// codeBlock icon
-<svg width="13" height="13" role="img" viewBox="0 0 156 156">
-  <path fill="currentColor" d="..." />
-  {/* 缺少 <title> 子元素 */}
-</svg>
-
-// code icon
-<svg width="14" height="14" role="img" viewBox="0 0 640 512">
-  <path fill="currentColor" d="..." />
-  {/* 缺少 <title> 子元素 */}
-</svg>
-```
-
-**问题分析**:
-
-两个 SVG 都设置了 `role="img"`，表明它们是装饰性/信息性图像。但缺少 `<title>` 子元素：
-- `role="img"` 的 SVG 应配套 `<title>` 元素提供文本替代
-- 虽然父按钮的 `aria-label` 补偿了部分可访问性（屏幕阅读器会朗读按钮标签而非 SVG），但这不是最佳实践
-- 当 SVG 被单独引用或提取使用时，缺乏自身文本描述
-
-**修复建议**:
-
-```typescript
-<svg width="13" height="13" role="img" viewBox="0 0 156 156" aria-hidden="true">
-  <title>Code Block</title>
-  <path fill="currentColor" d="..." />
-</svg>
-```
-
-> 注：如果 SVG 仅为图标装饰且父按钮已有 `aria-label`，应设 `aria-hidden="true"` 避免屏幕阅读器重复朗读。
-
----
-
-### Q5 — 🟢 LOW: `codeBlock.execute` 嵌套深度达 4 层，可读性下降
-
-**位置**: 第 32-56 行
-**类别**: 可读性
-
-```typescript
-if (state1.selectedText.length >= prefix.length + suffix.length - 2 &&
-    state1.selectedText.startsWith(prefix) &&
-    state1.selectedText.endsWith(suffix)) {
-  // 解包裹分支（深度 2）
-  prefix = '```\n';
-  suffix = '\n```';
-} else {
-  // 包裹分支
-  if (
-    (state1.selection.start >= 1 &&
-      state.text.slice(state1.selection.start - 1, state1.selection.start) === '\n') ||
-    state1.selection.start === 0
-  ) {
-    // 深度 3
-    prefix = '```\n';
-  }
-  if (
-    (state1.selection.end <= state.text.length - 1 &&
-      state.text.slice(state1.selection.end, state1.selection.end + 1) === '\n') ||
-    state1.selection.end === state.text.length
-  ) {
-    // 深度 3
-    suffix = '\n```';
-  }
+// ICommand 接口定义（commands/index.ts）
+export interface ICommand {
+  name: string;
+  keyCommand: string;
+  prefix?: string;        // 可选
+  execute?(state, api);   // 可选
+  // ...
 }
 ```
 
 **问题分析**:
 
-6 条分支路径交织在嵌套结构中：
-1. 已包裹 → 解包裹
-2. 未包裹 + 前有换行/在起始位 → 无前导换行
-3. 未包裹 + 前无换行 → 有前导换行
-4. 未包裹 + 后有换行/在末尾 → 无尾随换行
-5. 未包裹 + 后无换行 → 有尾随换行
+`ICommand` 接口将 `execute` 和 `prefix` 定义为可选属性，但 `code.tsx` 的 `execute` 实现对这两个属性有**强依赖**：
 
-读者需要在脑中构建完整的真值表才能理解所有路径。建议提取辅助函数降低认知负担。
+| 代码位置 | 非空断言 | 含义 |
+|----------|----------|------|
+| 第 84 行 | `state.command.prefix!` | 假设 `prefix` 必定存在 |
+| 第 90 行 | `state.command.prefix!` | 假设 `prefix` 必定存在 |
+| 第 93 行 | `codeBlock.execute!` | 假设 `execute` 必定存在 |
+
+这暴露了接口设计与实际使用之间的**契约不匹配**：
+
+1. **接口声称**: "你可以创建一个没有 `execute` 的 ICommand"（可选）
+2. **实际需要**: "如果这个命令被触发，`execute` 必须存在"（必需）
+
+这是典型的"宽接口"问题——`ICommand` 同时服务了两种角色：
+- **声明型命令**: 只需要 `name`/`icon`/`buttonProps`，不需要 `execute`（如分隔线、纯展示按钮）
+- **可执行命令**: 必须有 `execute` 和 `prefix`
+
+**架构改进建议**:
+
+```typescript
+// 方案: 接口分离
+interface ICommandBase {
+  name: string;
+  keyCommand: string;
+  icon?: React.ReactNode;
+  buttonProps?: React.ButtonHTMLAttributes<HTMLButtonElement>;
+}
+
+interface IExecutableCommand extends ICommandBase {
+  prefix: string;                          // 必需
+  execute: (state: ExecuteState, api: TextAreaTextApi) => void;  // 必需
+}
+
+interface IDecorativeCommand extends ICommandBase {
+  execute?: never;                         // 明确不可执行
+}
+
+type ICommand = IExecutableCommand | IDecorativeCommand;
+```
+
+> **注**: 此改进涉及上游接口 `ICommand` 定义，属于库级架构变更。在项目封装层，可通过 TypeScript 类型守卫在调用前做防御性检查。
 
 ---
 
-### Q6 — 🟢 LOW: `codeBlock.execute` 中边界条件 `-2` 缺乏注释
+### A4 — 🟡 MEDIUM: 两次 selectWord + setSelectionRange 的"两阶段提交"模式缺乏架构文档
 
-**位置**: 第 33 行
-**类别**: 可维护性
+**位置**: 第 20-26 行 + 第 58-60 行
+**架构原则**: Self-Documenting Architecture
 
-```typescript
-if (
-  state1.selectedText.length >= prefix.length + suffix.length - 2 &&
-  state1.selectedText.startsWith(prefix) &&
-  state1.selectedText.endsWith(suffix)
-)
+```
+codeBlock.execute 的"两阶段提交":
+
+Phase 1: selectWord(原始选区, '```\n', '\n```') → 扩展选区
+         │
+         └→ setSelectionRange() → state1
+              │
+              └→ Phase 2: 检查 state1.selectedText 判断是否已包裹
+                          │
+                          └→ selectWord(原始选区, 最终 prefix, 最终 suffix) → 精确选区
+                               │
+                               └→ setSelectionRange() → state2
+                                    │
+                                    └→ executeCommand() → 替换文本
 ```
 
 **问题分析**:
 
-`-2` 是一个魔法数字。其含义是：此时 `prefix` = `'\n```\n'`（长度 5），`suffix` = `'\n```\n'`（长度 5），所以 `prefix.length + suffix.length - 2` = 8。这对应最小有效代码块 ` ``` \n\n ``` `（不含前后换行的最短包裹）。
+这是一个精巧但隐式的两阶段策略：
+- **Phase 1 目的**: 用宽泛的包裹标记（带换行）尝试扩展选区，以检测当前选区是否已在代码块内
+- **Phase 2 目的**: 用精确的包裹标记（可能不带换行）重新计算选区，执行实际包裹/解包裹
 
-但这个 `-2` 与前面的 `prefix`/`suffix` 赋值（第 29-30 行）强耦合——如果修改 `prefix`/`suffix` 值而忘记调整 `-2`，判断逻辑会静默失效。
+这个设计意图**完全通过代码流程隐式表达**，没有任何注释、文档或命名提示。新维护者需要逐步跟踪 `prefix`/`suffix` 值的变化才能理解为什么要调用两次 `selectWord`。
 
-**修复建议**: 提取为命名常量并添加注释说明计算意图。
+**架构改进建议**:
+
+```typescript
+// 方案 A: 提取为带命名的两阶段函数
+function detectExistingBlock(state, api) { ... }  // Phase 1
+function applyBlockTransform(state, api, direction) { ... }  // Phase 2
+
+// 方案 B: 至少添加架构注释
+execute: (state, api) => {
+  // Phase 1: Detect — 用宽泛标记扩展选区，检测是否已在代码块内
+  const detectionRange = selectWord({ ... });
+  const detectionState = api.setSelectionRange(detectionRange);
+
+  // Phase 2: Transform — 根据检测结果确定精确包裹方向，执行文本变换
+  const { prefix, suffix } = resolveDirection(detectionState, state);
+  const targetRange = selectWord({ ... });
+  const targetState = api.setSelectionRange(targetRange);
+  executeCommand({ ... });
+}
+```
 
 ---
 
-### Q7 — 🟢 LOW: `code.execute` 单行判断逻辑不够健壮
+### A5 — 🟢 LOW: SVG 图标内联导致命令对象不可序列化
+
+**位置**: 第 11-17 行、第 70-76 行
+**架构影响**: 序列化 / SSR / 测试快照
+
+```typescript
+icon: (
+  <svg width="13" height="13" role="img" viewBox="0 0 156 156">
+    <path fill="currentColor" d="M110.85..." />
+  </svg>
+),
+```
+
+**问题分析**:
+
+`ICommand.icon` 属性直接存储 JSX `React.ReactNode`，导致：
+- 整个 `codeBlock` / `code` 对象无法被 `JSON.stringify` 序列化
+- 测试快照中 SVG path 数据会产生大量 diff 噪音
+- SSR 场景下 SVG 渲染依赖 React DOM 环境
+
+**架构改进建议**: 将 SVG 抽离为独立组件或使用图标标识符（字符串 key），由 Toolbar 层负责渲染图标。
+
+---
+
+### A6 — 🟢 LOW: code 命令的多行降级策略硬编码，缺乏可配置性
 
 **位置**: 第 79 行
-**类别**: 边界条件
+**架构影响**: 扩展性
 
 ```typescript
 if (state.selectedText.indexOf('\n') === -1) {
-  // 单行 → 行内代码
+  // 行内代码
 } else {
-  // 多行 → 代码块
+  codeBlock.execute!(state, api);  // 硬编码降级到 codeBlock
 }
 ```
 
 **问题分析**:
 
-使用 `\n` 是否存在作为区分行内代码和代码块的唯一判据。存在以下边界情况：
-1. **选中文本为空字符串** (`state.selectedText === ''`) — `indexOf('\n')` 返回 -1，走行内代码分支，行为正确但依赖隐式假设
-2. **选中文本仅包含 `\n`** — 走代码块分支，产生 ` ``` \n\n ``` ` 空代码块，可能不是用户预期
-3. **选中文本包含 `\r\n` (Windows 换行)** — 在 `textarea` 中通常已标准化为 `\n`，但若上游有非标准输入可能误判
+多行时降级为 `codeBlock` 是硬编码的，无法通过配置改变行为。如果有用户偏好"多行也使用行内代码"或"多行时弹出语言选择对话框"，需要修改 `code.execute` 源码。
 
-虽然 `textarea` 的值在 HTML 规范中会将 `\r\n` 标准化为 `\n`，但这种假设未显式文档化。
+从架构扩展性角度，可考虑策略模式：
+
+```typescript
+multilineStrategy?: 'block' | 'inline' | 'prompt';
+```
+
+> **注**: 这是架构远期建议，当前 97 行的小模块引入策略模式可能过度设计。
 
 ---
 
-### Q8 — 🟢 LOW: `codeBlock.execute` 中 `state.text` vs `state1` 的混用
+### A7 — 🟢 LOW: 依赖的 markdownUtils 工具函数缺少架构契约
 
-**位置**: 第 43-51 行
-**类别**: 数据一致性
+**位置**: 第 3 行
+**架构影响**: 可替换性
 
 ```typescript
-// state1 来自 api.setSelectionRange(newSelectionRange)
-// 但后续检查仍使用 state.text（原始文本）和 state.selection（原始选区）
-
-if (
-  (state1.selection.start >= 1 &&
-    state.text.slice(state1.selection.start - 1, state1.selection.start) === '\n') ||
-  state.selection.start === 0
-)
+import { selectWord, executeCommand } from '../utils/markdownUtils';
 ```
 
 **问题分析**:
 
-`state1` 是 `setSelectionRange` 后的新状态，但上下文判断却混用了 `state.text`（原始文本，第 44、50 行）和 `state1.selection.start`（新选区，第 43、49 行）。虽然在 textarea 场景下 `setSelectionRange` 不会修改文本内容（`state1.text === state.text` 为真），但这种混用增加了理解难度，也让未来的重构者误以为 `state1.text` 可能与 `state.text` 不同。
+`selectWord` 和 `executeCommand` 的行为契约未在 `code.tsx` 中显式声明——`codeBlock.execute` 的正确性完全依赖于 `selectWord` 对 prefix/suffix 的特定处理方式（如是否 trim 换行、是否支持重叠标记）。如果 `markdownUtils` 的实现变更，`codeBlock.execute` 可能静默失效。
+
+这是模块间"隐式行为契约"问题，在小项目中可接受，但在大型编辑器框架中建议通过集成测试覆盖。
 
 ---
 
-### INFO-1 — SVG 图标尺寸不一致
+### INFO-1 — 与编辑器生态的集成模式
 
-**位置**: 第 12 行 (`width="13" height="13"`)、第 71 行 (`width="14" height="14"`)
-**类别**: 一致性
+`code.tsx` 采用的 `ICommand` 插件模式与主流 Markdown 编辑器库的对比：
 
-`codeBlock` 图标使用 13×13，`code` 图标使用 14×14。两者在工具栏并排显示时可能出现对齐偏差。建议统一为相同尺寸或使用 CSS 控制尺寸。
+| 编辑器 | 命令模式 | 可扩展性 |
+|--------|----------|----------|
+| @uiw/react-md-editor | ICommand 对象 | 中等（需导出新对象） |
+| Slate.js | Plugin 函数 | 高（可覆盖任意行为） |
+| ProseMirror | Node + Command | 高（Schema 驱动） |
+| CodeMirror 6 | Extension | 高（Facet + Slot） |
 
-### INFO-2 — `code` 命令的 `prefix` 属性未被 `execute` 使用
+@uiw/react-md-editor 选择了简单直接的 ICommand 对象模式，适合中小型编辑器场景。`code.tsx` 的实现完全符合该模式的设计约定。
 
-**位置**: 第 68 行 (`prefix: '``'`)、第 84 行 (`state.command.prefix!`)
-**类别**: 设计一致性
+### INFO-2 — 项目封装层的架构适配
 
-`code` 对象声明了 `prefix: '``'`（单个反引号），但 `execute` 中通过 `state.command.prefix!` 读取。这种间接访问方式使得：
-- 对象属性声明 (`prefix: '``'`) 和实际使用 (`state.command.prefix!`) 之间存在一层间接
-- 如果有人在 `code` 对象上修改了 `prefix` 但未修改 `execute`，行为会静默改变
+本项目的编辑器封装层（`Editor.common.tsx` / `Editor.factory.tsx`）通过以下方式与 `code.tsx` 集成：
+- **命令注册**: 通过 `@uiw/react-md-editor` 的内置 Toolbar 自动注册
+- **自定义覆盖**: 项目可在 Toolbar 配置中过滤或替换内置命令
+- **扩展点**: 项目可通过 `commands` prop 注入自定义命令（如"插入代码模板"）
 
-虽然这是 `ICommand` 接口的设计模式（所有命令都通过 `state.command` 访问自身属性），但值得关注。
-
----
-
-## 三、数据流追踪
-
-### 3.1 codeBlock.execute 完整数据流
-
-```
-输入:
-  state.text ──────────────────→ textarea 完整文本（用户输入，不可信）
-  state.selection.start/end ──→ 当前光标/选区位置（数值）
-
-Phase 1: 初步选区扩展
-  selectWord({ text, selection, prefix: '```\n', suffix: '\n```' })
-    │
-    ├── 向前搜索 '```\n' → 找到则扩展 start
-    ├── 向后搜索 '\n```' → 找到则扩展 end
-    └── 返回 newSelectionRange { start, end }
-
-Phase 2: 设定扩展选区
-  api.setSelectionRange(newSelectionRange)
-    │
-    ├── textarea.selectionStart = start
-    ├── textarea.selectionEnd = end
-    └── 返回 state1（含 selectedText = 扩展后的选中文本）
-
-Phase 3: 判断包裹方向
-  state1.selectedText.startsWith('\n```\n') && .endsWith('\n```\n')?
-    │
-    ├── YES → 解包裹: prefix='```\n', suffix='\n```'
-    │
-    └── NO → 包裹: 根据上下文确定 prefix/suffix
-        ├── 前面是换行或已在起始位 → prefix='```\n'
-        └── 后面是换行或已在末尾 → suffix='\n```'
-
-Phase 4: 精确选区计算 + 执行
-  selectWord({ text, selection, prefix, suffix }) → newSelectionRange2
-  api.setSelectionRange(newSelectionRange2) → state2
-  executeCommand({ api, selectedText, selection, prefix, suffix })
-    │
-    ├── 已包裹 → api.replaceSelection(text.slice(prefix, -suffix))
-    └── 未包裹 → api.replaceSelection(`${prefix}${text}${suffix}`)
-
-输出: textarea.value 被修改（纯文本操作，无 HTML 注入风险）
-```
-
-### 3.2 code.execute 完整数据流
-
-```
-输入:
-  state.selectedText ──→ 当前选中文本
-
-判断分支:
-  state.selectedText.indexOf('\n') === -1 ?
-    │
-    ├── YES (单行) → 行内代码
-    │   selectWord({ text, selection, prefix: '`' })
-    │   api.setSelectionRange(range)
-    │   executeCommand({ prefix: '`' })
-    │   └── 输出: `selectedText` 或 去除反引号
-    │
-    └── NO (多行) → 委托 codeBlock.execute!(state, api)
-        └── 输出: ``` \nselectedText\n ``` 或 去除代码块
-```
+`code.tsx` 作为第三方库的内部实现，**项目不应直接修改**，而应通过封装层的配置和扩展机制进行定制。
 
 ---
 
-## 四、安全评估摘要
+## 三、架构质量评估
 
-| 安全维度 | 评估 | 说明 |
-|----------|------|------|
-| XSS | ✅ 安全 | 全部操作在 textarea.value 上进行，无 HTML 解析 |
-| 注入 | ✅ 安全 | 无 eval / new Function / innerHTML / dangerouslySetInnerHTML |
-| 数据泄露 | ✅ 安全 | 不访问 localStorage / cookie / sessionStorage |
-| 网络请求 | ✅ 安全 | 不发起任何 HTTP 请求 |
-| 状态篡改 | ✅ 安全 | 仅修改 textarea 文本和选区，无副作用 |
-| DoS | ⚠️ 极低风险 | 非空断言可能在极端场景抛出 TypeError，但需框架内部错误触发 |
+### 3.1 SOLID 原则合规性
 
----
+| 原则 | 合规 | 说明 |
+|------|------|------|
+| **S** — 单一职责 | ⚠️ 部分 | `execute` 混合选区策略 + 文本变换 + 业务决策 |
+| **O** — 开闭原则 | ✅ 良好 | 新增命令不影响现有命令；但 `code → codeBlock` 耦合限制了独立扩展 |
+| **L** — 里氏替换 | ⚠️ 部分 | `ICommand.execute` 可选 vs 实际强依赖的矛盾 |
+| **I** — 接口隔离 | ⚠️ 部分 | ICommand 同时服务声明型和可执行型命令 |
+| **D** — 依赖倒置 | ⚠️ 部分 | 直接依赖 `codeBlock` 具体对象而非抽象 |
 
-## 五、综合评分
+### 3.2 架构维度评分
 
 | 维度 | 评分 (1-10) | 说明 |
 |------|-------------|------|
-| **功能正确性** | 8.5 | 包裹/解包裹逻辑正确，上下文感知换行处理良好 |
-| **类型安全** | 6.0 | 3 处非空断言绕过编译器检查 |
-| **可读性** | 6.5 | 变量命名模糊，魔法字符串多，嵌套深 |
-| **可维护性** | 6.0 | 修改代码块标记需同步 9 处，分支逻辑缺乏注释 |
-| **可访问性** | 7.0 | buttonProps 有 aria-label，但 SVG 缺少 title/aria-hidden |
-| **性能** | 8.5 | 纯文本操作，无性能瓶颈 |
-| **安全** | 9.5 | 攻击面极小，纯客户端文本操作 |
-| **一致性** | 7.0 | 两个命令的 icon 尺寸不统一，命名风格一致 |
+| **模块边界清晰度** | 7.5 | 命令对象边界清晰，但 execute 内部职责过多 |
+| **依赖管理** | 7.0 | 无循环依赖，但存在同级硬编码耦合 |
+| **可扩展性** | 8.0 | ICommand 插件模式天然支持扩展 |
+| **可测试性** | 6.5 | 依赖 DOM 操作，纯逻辑部分可测试但需 mock |
+| **可替换性** | 7.5 | 标准接口，可在 Toolbar 层替换 |
+| **演进性** | 7.0 | 两阶段提交模式缺乏文档，新维护者理解成本高 |
+| **与框架一致性** | 8.5 | 完全遵循 @uiw/react-md-editor 的 ICommand 模式 |
 
 **综合评分**: **7.4 / 10** — ✅ APPROVE
 
 ---
 
-## 六、修复优先级建议
+## 四、架构演进建议路线图
 
-| 优先级 | 问题编号 | 修复内容 | 工作量 |
-|--------|----------|----------|--------|
-| P2 | Q1 | 非空断言 → 防御性检查 | 小 |
-| P2 | Q2 | 魔法字符串 → 常量 | 小 |
-| P2 | Q3 | 变量重命名 | 小 |
-| P2 | Q4 | SVG 添加 aria-hidden | 小 |
-| P3 | Q5 | 提取辅助函数降低嵌套 | 中 |
-| P3 | Q6 | 边界条件 `-2` 命名化 | 小 |
-| P3 | Q7 | 空选中文本边界处理 | 小 |
-| P3 | Q8 | 统一使用 state1 或 state | 小 |
+```
+当前状态 (v4.1.0)                    短期优化                     远期演进
+──────────────                  ──────────────               ──────────────
+code → codeBlock 硬编码    ──→  提取共享逻辑到       ──→  注册表模式
+                                markdownUtils               commandRegistry
 
-> **总体建议**: 此文件作为第三方库 `@uiw/react-md-editor` 的内部源码，在项目封装层可以安全使用。上述问题属于代码质量改进建议，不影响功能正确性和安全性，可在后续版本迭代中逐步优化。本项目的编辑器封装层（`Editor.common.tsx` / `Editor.factory.tsx`）已对底层命令做了适当的集成和覆盖处理。
+execute 职责混合           ──→  提取纯函数策略       ──→  Strategy Pattern
+                                resolveWrapDirection        可插拔策略对象
+
+ICommand 宽接口            ──→  类型守卫防御检查     ──→  接口分离
+                                if (!prefix) return         IExecutableCommand
+
+两阶段提交隐式             ──→  添加架构注释         ──→  命名阶段函数
+                                // Phase 1: Detect          detectExistingBlock()
+```
+
+---
+
+## 五、对项目封装层的建议
+
+基于 `code.tsx` 的架构分析，对本项目编辑器封装层的建议：
+
+1. **不修改第三方源码**: `code.tsx` 属于 `@uiw/react-md-editor` 库，应通过封装层扩展而非直接修改
+2. **自定义代码命令**: 如需增强（如代码语言选择、代码模板插入），创建独立的 ICommand 对象，在 Toolbar 中注册
+3. **防御性集成**: 在封装层对命令执行结果做基本校验（如 textarea 值不为空），防止库内部异常冒泡到用户界面
+4. **测试覆盖**: 在 `Editor.common.tsx` 的集成测试中覆盖代码块插入/删除场景，间接验证 `code.tsx` 的行为正确性
+
+---
+
+## 六、修复优先级
+
+| 优先级 | 编号 | 架构改进 | 工作量 | 适用范围 |
+|--------|------|----------|--------|----------|
+| P2 | A1 | code → codeBlock 去耦合（提取共享逻辑） | 中 | 库级变更 |
+| P2 | A4 | 两阶段提交模式添加架构文档/注释 | 小 | 当前可做 |
+| P3 | A2 | execute 职责拆分为纯函数策略 | 中 | 库级变更 |
+| P3 | A3 | ICommand 接口分离（需上游配合） | 大 | 库级变更 |
+| P3 | A5 | SVG 图标抽离为组件 | 小 | 库级变更 |
+| P4 | A6 | 多行降级策略可配置化 | 小 | 库级变更 |
+| P4 | A7 | markdownUtils 行为契约文档化 | 小 | 库级变更 |
+
+> **总体结论**: `code.tsx` 是一个结构良好的 ICommand 插件实现，完全符合 `@uiw/react-md-editor` 的架构约定。架构级问题主要集中在"同级命令耦合"和"execute 职责过重"两个方面，属于代码组织优化而非架构缺陷。作为第三方库的内部模块，本项目无需修改，应通过封装层进行集成和扩展。
