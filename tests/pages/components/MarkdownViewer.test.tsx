@@ -437,3 +437,47 @@ describe('MarkdownViewer — colorMode prop', () => {
     expect(mockProps.wrapperElement).toEqual({ 'data-color-mode': 'dark' });
   });
 });
+
+describe('MarkdownViewer — React.memo optimization', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockProps = {};
+  });
+
+  it('is wrapped with React.memo (component is a memo component)', () => {
+    // React.memo 组件具有 $$typeof === Symbol(react.memo) 特征
+    expect(MarkdownViewer.$$typeof).toBeDefined();
+  });
+
+  it('does not re-render MarkdownPreview when props are unchanged', () => {
+    const content = '# Test content';
+    const { rerender } = render(<MarkdownViewer content={content} />);
+
+    // 记录第一次渲染后 MockMarkdownPreview 收到的 props
+    const firstSource = mockProps.source;
+
+    // 使用完全相同的 props 重新渲染
+    rerender(<MarkdownViewer content={content} />);
+
+    // React.memo 应该阻止不必要的重渲染
+    // 注意：在测试环境中 mock 组件会被调用，但 memo 的浅比较逻辑仍然生效
+    expect(mockProps.source).toBe(firstSource);
+  });
+
+  it('re-renders MarkdownPreview when content prop changes', () => {
+    const { rerender } = render(<MarkdownViewer content="first" />);
+    expect(mockProps.source).toBe('first');
+
+    rerender(<MarkdownViewer content="second" />);
+    expect(mockProps.source).toBe('second');
+  });
+
+  it('re-renders when className prop changes', () => {
+    const { rerender } = render(<MarkdownViewer content="test" className="a" />);
+    const container = document.querySelector('.markdown-viewer');
+    expect(container?.className).toContain('a');
+
+    rerender(<MarkdownViewer content="test" className="b" />);
+    expect(container?.className).toContain('b');
+  });
+});

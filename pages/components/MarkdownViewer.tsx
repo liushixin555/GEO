@@ -13,6 +13,12 @@
  *   3. DOMPurify 消毒 — 消毒所有 HTML 标签和属性，过滤事件处理器（安全关键 — 不可删除）
  *   4. source 长度截断 — 防止超长内容导致 DoS
  *   5. MarkdownErrorBoundary — 防止渲染异常导致页面白屏
+ *
+ * ⚠️ skipHtml 语义陷阱：
+ *   preview.tsx 内部使用 skipHtml={!skipHtml}（双重否定），导致：
+ *   - skipHtml=true（意图跳过HTML） → 实际传入 skipHtml=false → 会渲染 HTML
+ *   - skipHtml=false（意图渲染HTML） → 实际传入 skipHtml=true → 会跳过 HTML
+ *   本封装层不传 skipHtml，使用 DOMPurify 消毒后的 safeSource 代替，绕过此陷阱。
  */
 import React, { useMemo, useCallback, useState, useEffect, Component, forwardRef, useRef, useImperativeHandle, memo } from 'react';
 import MarkdownPreview from '@uiw/react-markdown-preview/nohighlight';
@@ -267,4 +273,5 @@ MarkdownViewerBase.displayName = 'MarkdownViewer';
 const MarkdownViewer = memo(MarkdownViewerBase);
 MarkdownViewer.displayName = 'MarkdownViewer';
 
-export default MarkdownViewer;
+// React.memo 阻断无关状态变更传播到 Markdown 渲染管线（审核报告 A-04）
+export default React.memo(MarkdownViewer);
