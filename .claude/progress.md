@@ -881,7 +881,6 @@
   - 评分明细：功能正确性17/20、性能8/15、安全性9/15、类型安全8/10、可读性13/15、可维护性11/15、最佳实践7/10
   - 评审报告 tasks/review/react-markdown-preview.index.tsx.md
 
-<<<<<<< HEAD
 ## 本次变更（2026-05-24 App.tsx UI 评审问题修复）
 - [x] **fix016: App.tsx UI 评审问题修复（12 项）** — 基于 tasks/review/App.tsx.ui.md（5.5/10）
   - UI-09（P0 BUG）：Alert `title` → `message`，修复错误信息不显示
@@ -897,7 +896,7 @@
   - UI-20：加载页添加品牌信息
   - UI-21：PlaceholderPage 用 Result 组件
   - 涉及文件：login/index.tsx, Layout.tsx, Sidebar.tsx, AuthGuard.tsx, routes.tsx, global.css
-=======
+
 ## 本次变更（2026-05-24 apis/config/index.ts 代码安全专家评审）
 - [x] **代码安全专家评审 apis/config/index.ts（175 行）**
   - 综合安全评级 B+/8.4（安全基线良好，存在可加固项）
@@ -908,4 +907,12 @@
   - 安全合规对照：OWASP A02✅/A04⚠️/A05✅/A07⚠️、CWE-798⚠️/CWE-20⚠️/CWE-22⚠️/CWE-330✅/CWE-374✅
   - 评审结论：✅ 有条件通过（Conditional Approve），发布前修复 SEC-CFG-01
   - 评审报告 tasks/review/config-index.security.md
->>>>>>> c38cef7 (docs: 代码安全专家评审 apis/config/index.ts（B+/8.4，9项发现：1项HIGH硬编码密码+4项MEDIUM+4项LOW）)
+
+## 本次变更（2026-05-24 @uiw/react-markdown-preview index.tsx 软件架构专家评审）
+- [x] **软件架构专家评审 @uiw/react-markdown-preview/src/index.tsx（27 行）**
+  - 综合评分 5.4/10（管线编排简洁清晰，但性能架构、安全分层、OCP合规性存在结构性缺陷）
+  - 10 项架构发现：P1×4（每次渲染重建管线+安全策略分裂+OCP违反+代码克隆index/common）、P2×3（rehypeRewriteHandle混合依赖+export*隐式导出+匿名forwardRef）、P3×3（管线顺序无约束+全量prism导入+150KB+bundle+防御式编程不一致）
+  - SOLID 评估：SRP⚠️、OCP❌、LSP✅、ISP✅、DIP❌
+  - 完整管线数据流分析（10个插件顺序依赖关系+安全风险标注）
+  - 本项目影响：安全🔴高（rehypeRaw无条件执行，已通过DOMPurify缓解）、Bundle🟡中（建议改用common入口-150KB）、性能🟡中
+  - 评审报告 tasks/review/react-markdown-preview.index.tsx.architecture.md

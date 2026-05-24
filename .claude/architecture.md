@@ -149,7 +149,8 @@ tests/apis/  + tests/pages/  测试文件
   - 文章生成 cron 表达式（`CRON_ARTICLE_INTERVAL`，默认 `*/5 * * * *`）和开关（`CRON_ARTICLE_ENABLED`，默认 `true`）
   - 连接池参数（`DB_POOL_MIN`/`DB_POOL_MAX`，默认 2/10）
   - 上传目录（`UPLOAD_DIR`）
-- **评审报告**: tasks/review/config-index.md（安全）、config-index.quality.md（质量 A-）、config-index.architecture.md（架构 B+）、config-index.committer.md（Committer APPROVE）
+- **安全评审**: B+/8.4（2026-05-24 安全专家评审）— 1项HIGH硬编码默认密码(CWE-798) + 4项MEDIUM + 4项LOW，6项安全亮点（deepFreeze/生产强制/safeParseInt/JWT强度警告/CORS白名单/readonly接口）
+- **评审报告**: tasks/review/config-index.md（安全）、config-index.security.md（安全专家 B+/8.4）、config-index.quality.md（质量 A-）、config-index.architecture.md（架构 B+）、config-index.committer.md（Committer APPROVE）
 
 ## 文章生成调度器（2026-05-18）
 - **模块**: `apis/scheduler/article-generation.scheduler.ts`
