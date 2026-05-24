@@ -728,3 +728,10 @@
   - 新增 `tests/pages/components/MarkdownViewer.test.tsx`：13 个测试场景全部通过
   - 供应链确认：react-markdown 10.1.0（≥9.0），默认启用 HTML 过滤
   - 评审报告 tasks/review/Props.tsx.*.md
+
+## 本次变更（2026-05-24 App.tsx Committer审核验证）
+- [x] **验证 App.tsx Committer审核修复（fix011）**
+  - 死路由已删除、ErrorBoundary 已包裹、7个测试全部通过 ✅
+  - 补充安装缺失依赖 `@uiw/react-markdown-preview`（构建失败根因）
+  - Vite 构建通过、App 测试 7/7 通过
+  - 恢复 `.gitignore` 中 `.env` 忽略规则（被意外删除）
