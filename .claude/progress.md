@@ -818,3 +818,11 @@
   - FIX-R2-05: validate 中间件支持 query/params 验证（validate(schema, source) 支持 body/query/params）
   - 测试同步更新：审计日志测试改为 JSON 解析、畸形 JSON 测试改为期望 400、登录验证消息更新
   - 配置新增 uploadDir 字段（AppConfig.uploadDir，默认 path.resolve(process.cwd(), 'uploads')）
+
+## 本次变更（2026-05-24 apis/config/index.ts 软件质量专家复审）
+- [x] **软件质量专家复审 apis/config/index.ts（175 行，修复后当前版本）**
+  - 综合评级 8.5/10（优秀，此前 10 项问题中 7 项已修复）
+  - 已修复确认：DEFAULTS 集中管理✅、接口 readonly 全覆盖✅、safeParseInt 正则校验✅、JWT 随机生成✅、JWT 强度警告✅、连接池可配置✅、deepFreeze JSDoc 注释✅
+  - 新发现 10 项质量改进：MEDIUM×3（uploadDir 缺 readonly、uploadDir 未纳入 DEFAULTS、IIFE 提取为命名函数）、LOW×4（parseCorsOrigins filter 副作用、CRON_ARTICLE_ENABLED 双重否定、dotenv 缺失文件警告、cron 表达式未校验）、INFO×2（console.error 策略合理、deepFreeze 注释已到位）、MEDIUM×1（模块副作用不可延迟，长期建议）
+  - 测试覆盖：约 120 个用例，覆盖率 100%/97.29%/100%/100%
+  - 评审报告 tasks/review/index.ts.md
