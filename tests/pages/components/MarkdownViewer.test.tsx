@@ -529,6 +529,7 @@ describe('MarkdownViewer — rehypeRewrite callback', () => {
     expect(node.properties.role).toBe('button');
     expect(node.properties.tabindex).toBe('0');
     expect(node.properties['aria-label']).toBe('复制代码');
+    expect(node.properties['aria-live']).toBe('polite');
   });
 
   it('removes data-code from oversized code blocks', () => {

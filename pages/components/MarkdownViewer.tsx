@@ -272,12 +272,13 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
         }
       }
 
-      // 复制按钮 — 注入 ARIA 属性
+      // 复制按钮 — 注入 ARIA 属性 + aria-live 动态通知
       if (node.tagName === 'div') {
         if (props?.className === 'copied' || (Array.isArray(props?.className) && props.className.includes('copied'))) {
           props.role = 'button';
           props.tabindex = '0';
           props['aria-label'] = '复制代码';
+          props['aria-live'] = 'polite';
           if (typeof props['data-code'] === 'string' && props['data-code'].length > MAX_CODE_BLOCK_LENGTH) {
             delete props['data-code'];
             props['aria-label'] = '代码过长，无法复制';

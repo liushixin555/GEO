@@ -201,13 +201,23 @@
 /* ========================================
    Code Block Copy Button — Carbon Design
    覆盖 @uiw/react-markdown-preview 的复制按钮
+   UI-P3-01: CSS 变量支持 i18n 文案替换
    ======================================== */
+
+.markdown-viewer .wmde-markdown,
+.article-content-preview .wmde-markdown {
+  /* UI-P3-01: 复制按钮反馈文案 CSS 变量 */
+  --copy-text-copied: '已复制';
+  --copy-text-failed: '复制失败';
+}
 
 .markdown-viewer .wmde-markdown .copied,
 .article-content-preview .wmde-markdown .copied {
   border-radius: 0 !important;
   cursor: pointer !important;
-  transition: background-color var(--transition-fast) !important;
+  background-color: var(--color-inverse-surface-1, #262626) !important;
+  border: 1px solid var(--color-hairline) !important;
+  transition: background-color var(--transition-fast), opacity var(--transition-fast) !important;
 }
 
 .markdown-viewer .wmde-markdown .copied:hover,
@@ -215,14 +225,20 @@
   opacity: 0.85;
 }
 
+.markdown-viewer .wmde-markdown .copied:active,
+.article-content-preview .wmde-markdown .copied:active {
+  opacity: 0.7;
+}
+
 .markdown-viewer .wmde-markdown .copied.active,
 .article-content-preview .wmde-markdown .copied.active {
   background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
 }
 
 .markdown-viewer .wmde-markdown .copied.active::after,
 .article-content-preview .wmde-markdown .copied.active::after {
-  content: '已复制';
+  content: var(--copy-text-copied);
   position: absolute;
   top: 4px;
   right: 4px;
@@ -241,11 +257,12 @@
 .markdown-viewer .wmde-markdown .copied.copy-failed,
 .article-content-preview .wmde-markdown .copied.copy-failed {
   background-color: var(--color-error) !important;
+  border-color: var(--color-error) !important;
 }
 
 .markdown-viewer .wmde-markdown .copied.copy-failed::after,
 .article-content-preview .wmde-markdown .copied.copy-failed::after {
-  content: '复制失败';
+  content: var(--copy-text-failed);
   position: absolute;
   top: 4px;
   right: 4px;
@@ -285,6 +302,45 @@
 .article-content-preview .wmde-markdown .copied:focus-visible {
   outline: 2px solid var(--color-primary) !important;
   outline-offset: 2px !important;
+}
+
+/* UI-P1-01: 隐藏 GitHub Octicon 锚点图标，用 Carbon Link 图标替代 */
+.markdown-viewer .wmde-markdown .anchor .octicon-link,
+.article-content-preview .wmde-markdown .anchor .octicon-link {
+  display: none !important;
+}
+
+.markdown-viewer .wmde-markdown .anchor::after,
+.article-content-preview .wmde-markdown .anchor::after {
+  content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 32 32' fill='%230f62fe'%3E%3Cpath d='M29.25 6.76a6 6 0 00-8.5 0l1.42 1.42a4 4 0 015.66 0 3.95 3.95 0 010 5.66l-5.66 5.66a4 4 0 01-5.66-5.66l-1.42-1.42a6 6 0 008.5 8.5l5.66-5.66a6 6 0 000-8.5zM4.19 24.6a4 4 0 010-5.66l5.66-5.66a4 4 0 015.66 0 3.95 3.95 0 010 5.66l1.42 1.42a6 6 0 00-8.5-8.5l-5.66 5.66a6 6 0 008.5 8.5z'/%3E%3Cpath d='M11 17h10v2H11z'/%3E%3C/svg%3E");
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+/* UI-P1-01: 隐藏 GitHub Octicon 复制/成功图标，用 Carbon 图标替代 */
+.markdown-viewer .wmde-markdown .copied .octicon-copy,
+.article-content-preview .wmde-markdown .copied .octicon-copy,
+.markdown-viewer .wmde-markdown .copied .octicon-check,
+.article-content-preview .wmde-markdown .copied .octicon-check {
+  display: none !important;
+}
+
+/* UI-P1-01: Carbon Copy 图标（默认状态） */
+.markdown-viewer .wmde-markdown .copied::before,
+.article-content-preview .wmde-markdown .copied::before {
+  content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 32 32' fill='%23ffffff'%3E%3Cpath d='M28 10v18H10V10h18m0-2H10a2 2 0 00-2 2v18a2 2 0 002 2h18a2 2 0 002-2V10a2 2 0 00-2-2z'/%3E%3Cpath d='M4 18H2V4a2 2 0 012-2h14v2H4z'/%3E%3C/svg%3E");
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+/* UI-P1-01: Carbon Checkmark 图标（复制成功状态） */
+.markdown-viewer .wmde-markdown .copied.active::before,
+.article-content-preview .wmde-markdown .copied.active::before {
+  content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 32 32' fill='%23ffffff'%3E%3Cpath d='M16 2a14 14 0 1014 14A14 14 0 0016 2zm0 26a12 12 0 1112-12 12 12 0 01-12 12z'/%3E%3Cpath d='M14 21.5l-5-5 1.41-1.41L14 18.67l9.59-9.59L25 10.5l-11 11z'/%3E%3C/svg%3E");
 }
 
 /* 标题锚点 hover 时显示 — Carbon 设计规范 */

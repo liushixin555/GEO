@@ -346,3 +346,50 @@ URL_PROPERTIES    // 可能包含 URL 的属性名集合（href/src/action/forma
 - [x] 全部 116 个 MarkdownViewer 测试通过
 - [x] 前端构建通过
 - [x] ESLint 无错误
+
+---
+
+## 第八轮评审修复（rehypePlugins.tsx UI 评审，2026-05-25）
+
+基于 `tasks/review/rehypePlugins.tsx.ui.md` UI 专家评审（综合评分 2.5/10），对 `@uiw/react-markdown-preview/src/rehypePlugins.tsx` 进行 UI 对照检查与修复。结论：第三方库不可直接修改，通过封装层 CSS 覆盖 + rehypeRewrite 注入修复。
+
+### 评审问题对照状态
+
+| 评审问题 | 优先级 | 修复措施 | 状态 |
+|---------|--------|---------|------|
+| UI-P1-01 标题锚点图标使用 GitHub Octicon | P1 | CSS 隐藏 `.octicon-link`，用 Carbon Link SVG data URI 替代 | ✅ 本次修复 |
+| UI-P1-02 复制按钮使用原生 div 而非 antd Button | P1 | 第三方库不可修改，通过封装层 ARIA 注入弥补 | ✅ 已有缓解 |
+| UI-P1-03 复制按钮无可访问性支持 | P1 | rehypeRewrite 注入 `role`/`tabindex`/`aria-label`/`aria-live` | ✅ 本次增强 |
+| UI-P1-04 复制按钮图标使用 GitHub Octicon | P1 | CSS 隐藏 `.octicon-copy`/`.octicon-check`，用 Carbon Copy/Checkmark SVG data URI 替代 | ✅ 本次修复 |
+| UI-P2-01 复制按钮无交互状态定义 | P2 | CSS 完善 default/hover/active/pressed 状态 | ✅ 本次修复 |
+| UI-P2-04 标题锚点始终可见 | P2 | CSS `opacity:0` + hover 显示 + transition | ✅ 已有修复 |
+| UI-P3-01 反馈文案硬编码无 i18n | P3 | 抽取为 CSS 变量 `--copy-text-copied`/`--copy-text-failed` | ✅ 本次修复 |
+| UI-P3-02 复制按钮定位溢出风险 | P3 | 第三方库结构限制，CSS 已覆盖定位 | ✅ 已有缓解 |
+| UI-P3-03 data-code DOM 膨胀 | P3 | rehypeRewrite 超过 100KB 删除 data-code | ✅ 已有修复 |
+
+### 本次修复内容
+
+| 修复项 | 文件 | 说明 |
+|--------|------|------|
+| UI-P1-01 Carbon 锚点图标 | `markdown-viewer.css` | CSS 隐藏 `.octicon-link`，`::after` 伪元素注入 Carbon Link SVG data URI |
+| UI-P1-04 Carbon 复制图标 | `markdown-viewer.css` | CSS 隐藏 `.octicon-copy`/`.octicon-check`，`::before` 伪元素注入 Carbon Copy/Checkmark SVG |
+| UI-P1-03 aria-live | `MarkdownViewer.tsx` | 复制按钮注入 `aria-live="polite"`，屏幕阅读器播报复制状态 |
+| UI-P2-01 交互状态完善 | `markdown-viewer.css` | `.copied` 添加默认背景色/边框、`:active` 按下状态、active/failed 边框色 |
+| UI-P3-01 CSS 变量 i18n | `markdown-viewer.css` | `--copy-text-copied`/`--copy-text-failed` CSS 变量，支持多语言覆盖 |
+
+### 涉及文件
+
+- `pages/styles/markdown-viewer.css` — Carbon 图标替代 + 交互状态 + CSS 变量
+- `pages/components/MarkdownViewer.tsx` — aria-live 注入
+- `tests/pages/components/MarkdownViewer.test.tsx` — 更新 aria-live 测试断言（116 个全部通过）
+
+### 验收标准（第八轮）
+
+- [x] GitHub Octicon 锚点图标隐藏，Carbon Link 图标替代
+- [x] GitHub Octicon 复制/成功图标隐藏，Carbon Copy/Checkmark 图标替代
+- [x] 复制按钮注入 aria-live="polite"
+- [x] 复制按钮默认/active/pressed 状态 CSS 完善
+- [x] 反馈文案抽取为 CSS 变量支持 i18n
+- [x] 全部 116 个 MarkdownViewer 测试通过
+- [x] 前端构建通过
+- [x] ESLint 无错误
