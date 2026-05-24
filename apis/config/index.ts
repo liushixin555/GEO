@@ -96,6 +96,24 @@ function parseCorsOrigins(raw: string | undefined): string[] {
           `FATAL: CORS_ORIGINS each entry must start with http:// or https://, got: "${s}"`
         );
       }
+      // Extract hostname portion for validation
+      const withoutProtocol = s.replace(/^https?:\/\//, '');
+      const hostname = withoutProtocol.split('/')[0].split(':')[0];
+      if (hostname.includes('*')) {
+        throw new Error(
+          `FATAL: CORS_ORIGINS must not contain wildcard (*), got: "${s}"`
+        );
+      }
+      if (hostname === '0.0.0.0') {
+        throw new Error(
+          `FATAL: CORS_ORIGINS must not use 0.0.0.0, got: "${s}"`
+        );
+      }
+      if (hostname.length === 0) {
+        throw new Error(
+          `FATAL: CORS_ORIGINS must have a valid hostname, got: "${s}"`
+        );
+      }
       return true;
     });
   if (origins.length === 0) {

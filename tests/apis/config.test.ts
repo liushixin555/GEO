@@ -1061,6 +1061,65 @@ describe('apis/config/index.ts', () => {
     });
   });
 
+  describe('CORS_ORIGINS special value rejection', () => {
+    it('should throw when CORS_ORIGINS contains wildcard hostname', async () => {
+      await expect(
+        loadConfigWithEnv({ CORS_ORIGINS: 'https://*' })
+      ).rejects.toThrow('must not contain wildcard');
+    });
+
+    it('should throw when CORS_ORIGINS contains wildcard subdomain', async () => {
+      await expect(
+        loadConfigWithEnv({ CORS_ORIGINS: 'https://*.example.com' })
+      ).rejects.toThrow('must not contain wildcard');
+    });
+
+    it('should throw when CORS_ORIGINS uses 0.0.0.0', async () => {
+      await expect(
+        loadConfigWithEnv({ CORS_ORIGINS: 'http://0.0.0.0:3000' })
+      ).rejects.toThrow('must not use 0.0.0.0');
+    });
+
+    it('should throw when CORS_ORIGINS is just protocol with no hostname', async () => {
+      await expect(
+        loadConfigWithEnv({ CORS_ORIGINS: 'http://' })
+      ).rejects.toThrow('must have a valid hostname');
+    });
+
+    it('should throw when CORS_ORIGINS is just https:// with no hostname', async () => {
+      await expect(
+        loadConfigWithEnv({ CORS_ORIGINS: 'https://' })
+      ).rejects.toThrow('must have a valid hostname');
+    });
+
+    it('should accept localhost origins', async () => {
+      const config = await loadConfigWithEnv({ CORS_ORIGINS: 'http://localhost:5173' });
+      expect(config.corsOrigins).toEqual(['http://localhost:5173']);
+    });
+
+    it('should accept internal IP addresses', async () => {
+      const config = await loadConfigWithEnv({ CORS_ORIGINS: 'http://192.168.1.1:3000' });
+      expect(config.corsOrigins).toEqual(['http://192.168.1.1:3000']);
+    });
+
+    it('should accept normal domain origins', async () => {
+      const config = await loadConfigWithEnv({ CORS_ORIGINS: 'https://prod.example.com' });
+      expect(config.corsOrigins).toEqual(['https://prod.example.com']);
+    });
+
+    it('should throw when one of multiple origins has wildcard', async () => {
+      await expect(
+        loadConfigWithEnv({ CORS_ORIGINS: 'http://localhost:3000,https://*' })
+      ).rejects.toThrow('must not contain wildcard');
+    });
+
+    it('should throw when one of multiple origins is 0.0.0.0', async () => {
+      await expect(
+        loadConfigWithEnv({ CORS_ORIGINS: 'https://example.com,http://0.0.0.0' })
+      ).rejects.toThrow('must not use 0.0.0.0');
+    });
+  });
+
   describe('production environment comprehensive', () => {
     it('should work in production with all required secrets set', async () => {
       const config = await loadConfigWithEnv({
