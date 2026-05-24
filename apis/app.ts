@@ -65,29 +65,42 @@ app.use('/uploads', (_req, res, next) => {
 app.use(antiCrawlMiddleware);
 app.use(rateLimitMiddleware);
 
-// Swagger setup
-const swaggerSpec = swaggerJSDoc({
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: '薄云商机倍增服务 API',
-      version: '1.0.0',
-      description: '薄云商机倍增服务 Enterprise Management Platform API',
-    },
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
+// Request audit logging — log 4xx/5xx responses for security monitoring
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    if (res.statusCode >= 400) {
+      console.warn('[API]', req.method, req.originalUrl, res.statusCode,
+        `${Date.now() - start}ms`,
+        req.user?.userId || 'anonymous',
+        req.ip);
+    }
+  });
+  next();
+});
+
+// Swagger setup — conditional generation to avoid wasted I/O in production
+if (config.swagger.enabled && process.env.NODE_ENV !== 'production') {
+  const swaggerSpec = swaggerJSDoc({
+    definition: {
+      openapi: '3.0.0',
+      info: {
+        title: '薄云商机倍增服务 API',
+        version: '1.0.0',
+        description: '薄云商机倍增服务 Enterprise Management Platform API',
+      },
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+          },
         },
       },
     },
-  },
-  apis: ['./apis/controller/*.ts'],
-});
-
-if (config.swagger.enabled && process.env.NODE_ENV !== 'production') {
+    apis: ['./apis/controller/*.ts'],
+  });
   app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
   app.get('/api-docs.json', (_req, res) => res.json(swaggerSpec));
 }
@@ -184,7 +197,7 @@ app.delete('/api/knowledge-bases/:id', authMiddleware, roleMiddleware('sysadmin'
 // Knowledge Inventory (sysadmin + admin)
 app.get('/api/knowledge-inventory', authMiddleware, roleMiddleware('sysadmin', 'admin'), knowledgeController.listInventory);
 
-// Knowledge Item routes (sysadmin + admin) - scoped to knowledge base
+// Todo routes (sysadmin + admin)
 app.get('/api/todos', authMiddleware, roleMiddleware('sysadmin', 'admin'), todoController.listTodos);
 app.get('/api/todos/object-options', authMiddleware, roleMiddleware('sysadmin', 'admin'), todoController.getObjectOptions);
 app.get('/api/todos/assignee-candidates', authMiddleware, roleMiddleware('sysadmin', 'admin'), todoController.getAssigneeCandidates);
@@ -231,8 +244,15 @@ app.use((_req, res) => {
 });
 
 // Global error handler — Express identifies by 4-parameter signature
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('[Unhandled Error]', err);
+app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+  console.error('[Unhandled Error]', JSON.stringify({
+    method: req.method,
+    url: req.originalUrl,
+    ip: req.ip,
+    userId: req.user?.userId,
+    userRole: req.user?.role,
+    error: { name: err.name, message: err.message },
+  }));
   res.status(500).json({ code: 500, message: '服务器内部错误' });
 });
 

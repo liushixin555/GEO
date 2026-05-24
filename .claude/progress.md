@@ -479,3 +479,11 @@
   - 核心问题：组件未注册路由为死代码；Swagger `/api-docs` 端点无认证保护，任何可访问开发服务器的人可获取完整API攻击面地图
   - 修复优先级：P0×2（删除死代码或完整实现 + Swagger端点添加认证）、P1×2、P2×1
   - 评审报告 tasks/review/index.tsx.security.md
+
+## 本次变更（2026-05-24 apis/app.ts 评审问题修复）
+- [x] **修复 4 项评审问题**（安全第二轮 SEC-2.04/SEC-2.05/SEC-2.06 + 质量 Q-03）
+  - Q-03: L187 注释错误 "Knowledge Item" → "Todo"（H-1）
+  - Q-06/SEC-2.04: Swagger Spec 条件化生成，`swaggerJSDoc()` 移入 `if` 块内，避免生产环境无谓 I/O
+  - SEC-2.05: 错误日志增加请求上下文（method/url/ip/userId/role）
+  - SEC-2.06: 新增请求级安全审计日志中间件（4xx/5xx 日志）
+  - TypeScript 编译通过、156 个测试全部通过
