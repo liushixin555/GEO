@@ -492,6 +492,184 @@ describe('MarkdownEditor', () => {
     });
   });
 
+  describe('commandsFilter — quote command override', () => {
+    const createQuoteCommand = () => ({
+      name: 'quote',
+      keyCommand: 'quote',
+      shortcuts: 'ctrlcmd+q',
+      prefix: '> ',
+      buttonProps: { 'aria-label': 'Insert a quote (ctrl + q)', title: 'Insert a quote (ctrl + q)' },
+      execute: jest.fn(),
+    });
+
+    const createMockApi = () => ({
+      setSelectionRange: jest.fn((range: { start: number; end: number }) => ({
+        selectedText: 'test',
+        text: 'test text',
+        selection: range,
+      })),
+      replaceSelection: jest.fn(),
+    });
+
+    it('should override shortcut from ctrlcmd+q to ctrlcmd+shift+q (P1-1)', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createQuoteCommand(), false);
+      expect(result.shortcuts).toBe('ctrlcmd+shift+q');
+    });
+
+    it('should use Chinese ARIA labels (P2-1)', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createQuoteCommand(), false);
+      expect(result.buttonProps['aria-label']).toBe('插入引用 (Ctrl+Shift+Q)');
+      expect(result.buttonProps.title).toBe('插入引用 (Ctrl+Shift+Q)');
+    });
+
+    it('should wrap execute with defensive guard and call original (S1)', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createQuoteCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+      const state = {
+        text: 'Hello world',
+        selection: { start: 0, end: 5 },
+        command: { prefix: '> ' },
+      };
+
+      result.execute(state, api);
+      expect(cmd.execute).toHaveBeenCalledWith(state, api);
+    });
+
+    it('should skip execution when prefix is missing (S1)', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createQuoteCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: 'Hello', selection: { start: 0, end: 5 }, command: { prefix: undefined } },
+        api,
+      );
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it('should skip execution when text is not a string (S1)', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createQuoteCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: undefined as any, selection: { start: 0, end: 0 }, command: { prefix: '> ' } },
+        api,
+      );
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it('should skip execution when selection.start is null', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createQuoteCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: 'Hello', selection: { start: null as any, end: 5 }, command: { prefix: '> ' } },
+        api,
+      );
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it('should skip execution when selection is out of bounds', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createQuoteCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: 'Hi', selection: { start: 0, end: 100 }, command: { prefix: '> ' } },
+        api,
+      );
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it('should skip execution when start < 0', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createQuoteCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: 'Hello', selection: { start: -1, end: 3 }, command: { prefix: '> ' } },
+        api,
+      );
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it('should skip execution when start > end', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createQuoteCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: 'Hello', selection: { start: 4, end: 2 }, command: { prefix: '> ' } },
+        api,
+      );
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it('should handle execution error gracefully (Q-6)', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = {
+        ...createQuoteCommand(),
+        execute: jest.fn(() => { throw new Error('insertBeforeEachLine crash'); }),
+      };
+      const result = commandsFilterFn!(cmd, false);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const api = createMockApi();
+
+      expect(() => {
+        result.execute(
+          { text: 'Hello', selection: { start: 0, end: 5 }, command: { prefix: '> ' } },
+          api,
+        );
+      }).not.toThrow();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[MarkdownEditor] quote 命令执行失败:',
+        expect.any(Error),
+      );
+      consoleSpy.mockRestore();
+    });
+
+    it('should not crash when state.selection is null', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createQuoteCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      expect(() => {
+        result.execute(
+          { text: 'Hello', selection: null as any, command: { prefix: '> ' } },
+          api,
+        );
+      }).not.toThrow();
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it('should not wrap commands without execute', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = {
+        name: 'quote',
+        keyCommand: 'quote',
+        shortcuts: 'ctrlcmd+q',
+        prefix: '> ',
+        execute: undefined,
+      };
+      const result = commandsFilterFn!(cmd, false);
+      expect(result).toBe(cmd);
+    });
+  });
+
   describe('commandsFilter — other commands pass through', () => {
     it('should pass through unknown commands unchanged', () => {
       render(<MarkdownEditor value="" />);

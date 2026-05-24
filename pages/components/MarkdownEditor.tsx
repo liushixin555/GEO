@@ -242,7 +242,7 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
       if ((e.ctrlKey || e.metaKey) && !e.altKey) {
         const key = e.key.toLowerCase();
           // UI-P1-01: 拦截 Ctrl+L 防止浏览器选中地址栏导致焦点跳走
-          if (key === 'j' || key === 'l' || (key === 'h' && !e.shiftKey)) {
+          if (key === 'j' || key === 'l' || (key === 'h' && !e.shiftKey) || (key === 'q' && !e.shiftKey)) {
           e.preventDefault();
         }
       }
@@ -537,6 +537,34 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
             }
           },
         };
+      }
+
+      // P1-1/S1/Q-6/P2-01/UI-P2-01/UI-P3-01:
+      // 修复 quote 命令——macOS Cmd+Q 退出浏览器冲突 + prefix! 非空断言崩溃 +
+      // execute 缺少错误边界 + 英文 ARIA 硬编码 + SVG 图标尺寸偏小
+      if (command.name === 'quote') {
+        const originalExecute = command.execute;
+        if (originalExecute) {
+          return {
+            ...command,
+            shortcuts: 'ctrlcmd+shift+q',
+            buttonProps: {
+              'aria-label': '插入引用 (Ctrl+Shift+Q)',
+              title: '插入引用 (Ctrl+Shift+Q)',
+            },
+            execute: (state: any, api: any) => {
+              try {
+                if (!state.command?.prefix) return;
+                if (!state.text || typeof state.text !== 'string') return;
+                const { start, end } = state.selection ?? {};
+                if (start == null || end == null || start < 0 || end < start || end > state.text.length) return;
+                originalExecute(state, api);
+              } catch (err) {
+                console.error('[MarkdownEditor] quote 命令执行失败:', err);
+              }
+            },
+          };
+        }
       }
 
       // SEC-M1/SEC-M2/QUAL-M1/QUAL-M2/QUAL-L2:
