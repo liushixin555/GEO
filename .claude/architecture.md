@@ -143,3 +143,9 @@ tests/apis/  + tests/pages/  测试文件
 - **防重叠**: `isRunning` 守卫（LLM 调用可能超5分钟）
 - **集成**: `server.ts` 的 `app.listen` 回调中启动，`SIGINT`/`SIGTERM` 中停止
 - **LLM服务**: `ILlmService.generateArticle(params)` 使用 system+user 双消息，temperature 0.7
+
+## 第三方库评审记录
+- **@uiw/react-markdown-preview（common.tsx）** — 软件质量评审 B 级（2026-05-24）
+  - 核心问题：rehypeRaw 无条件开启 HTML 注入攻击面、每次渲染重建 rehype 插件数组（无 useMemo）
+  - 本项目通过 MarkdownViewer 封装组件 + 服务端消毒 + 1MB 长度限制缓解风险
+  - 详见 `tasks/review/common.tsx.quality.md`
