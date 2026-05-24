@@ -477,4 +477,93 @@ describe('System Config Controller', () => {
       expect(response.body.message).toBe('更新系统配置失败');
     });
   });
+
+  describe('Controller 直接调用 — 防御性校验覆盖', () => {
+    // schema 中间件已拦截大部分校验，以下用例直接调用 controller 函数覆盖防御性分支
+
+    let mockRes: any;
+    let mockJson: jest.Mock;
+    let mockStatus: jest.Mock;
+
+    beforeEach(() => {
+      mockJson = jest.fn().mockReturnThis();
+      mockStatus = jest.fn().mockReturnValue({ json: mockJson });
+      mockRes = { json: mockJson, status: mockStatus };
+    });
+
+    describe('updateSystemConfigs — configs 校验', () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { updateSystemConfigs } = require('../../apis/controller/system-config.controller');
+
+      it('应返回400当configs不是数组时（直接调用）', async () => {
+        const req = { body: { configs: 'not-array' } } as any;
+        await updateSystemConfigs(req, mockRes);
+
+        expect(mockStatus).toHaveBeenCalledWith(400);
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({ message: expect.stringContaining('不能为空') })
+        );
+      });
+
+      it('应返回400当configs为空数组时（直接调用）', async () => {
+        const req = { body: { configs: [] } } as any;
+        await updateSystemConfigs(req, mockRes);
+
+        expect(mockStatus).toHaveBeenCalledWith(400);
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({ message: expect.stringContaining('不能为空') })
+        );
+      });
+
+      it('应返回400当config_key缺失时（直接调用）', async () => {
+        const req = { body: { configs: [{ config_value: 'test' }] } } as any;
+        await updateSystemConfigs(req, mockRes);
+
+        expect(mockStatus).toHaveBeenCalledWith(400);
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({ message: expect.stringContaining('不能为空') })
+        );
+      });
+
+      it('应返回400当config_value为undefined时（直接调用）', async () => {
+        const req = { body: { configs: [{ config_key: 'yishangshu_username' }] } } as any;
+        await updateSystemConfigs(req, mockRes);
+
+        expect(mockStatus).toHaveBeenCalledWith(400);
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({ message: expect.stringContaining('不能为空') })
+        );
+      });
+
+      it('应返回400当config_key不在白名单中时（直接调用）', async () => {
+        const req = { body: { configs: [{ config_key: 'unknown_key', config_value: 'test' }] } } as any;
+        await updateSystemConfigs(req, mockRes);
+
+        expect(mockStatus).toHaveBeenCalledWith(400);
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({ message: expect.stringContaining('不允许修改的配置项') })
+        );
+      });
+    });
+
+    describe('getSystemConfigs — 直接调用', () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getSystemConfigs } = require('../../apis/controller/system-config.controller');
+
+      it('应返回500当getAll抛出异常时（直接调用）', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          systemConfig: { findMany: jest.fn().mockRejectedValue(new Error('DB error')) },
+        });
+
+        const req = {} as any;
+        await getSystemConfigs(req, mockRes);
+
+        expect(mockStatus).toHaveBeenCalledWith(500);
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({ message: '获取系统配置失败' })
+        );
+      });
+    });
+  });
 });

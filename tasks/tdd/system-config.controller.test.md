@@ -1,15 +1,34 @@
 # TDD 执行报告：System Config Controller
 
 ## 执行时间
-2026-05-24
+2026-05-24（更新）
 
 ## 测试结果
 - 测试套件：1 passed
-- 测试用例：31 passed, 0 failed
-- 覆盖率：Stmts ~95%+, Branch ~90%+, Funcs ~100%, Lines ~95%+
+- 测试用例：37 passed, 0 failed
+- 覆盖率：Stmts 100%, Branch 100%, Funcs 100%, Lines 100%
 
-## 修复的Bug
-1. system-config.controller.test.ts: 更新测试以匹配 schema 行为（空字符串允许，null/number 拒绝）
+## 变更记录
+
+### 2026-05-24 补全测试（31 → 37 用例，覆盖率 80% → 100%）
+
+**问题**：原有 31 个集成测试通过 supertest 走完整中间件链（含 schema validate），controller 内的防御性校验（行 40-41, 46-47, 50-51）被 schema 中间件提前拦截，导致覆盖率仅 80% 行 / 70% 分支。
+
+**解决方案**：新增 `Controller 直接调用 — 防御性校验覆盖` describe 块，通过 `require` 直接调用 controller 函数绕过中间件，覆盖以下防御性分支：
+- configs 不是数组（行 40）
+- configs 为空数组（行 40-41）
+- config_key 缺失（行 46-47）
+- config_value 为 undefined（行 46-47）
+- config_key 不在白名单中（行 50-51）
+- getSystemConfigs 数据库异常直接调用（行 31-33）
+
+**新增 6 个用例**：
+1. `应返回400当configs不是数组时（直接调用）`
+2. `应返回400当configs为空数组时（直接调用）`
+3. `应返回400当config_key缺失时（直接调用）`
+4. `应返回400当config_value为undefined时（直接调用）`
+5. `应返回400当config_key不在白名单中时（直接调用）`
+6. `应返回500当getAll抛出异常时（直接调用）`
 
 ## 测试用例分类
 
@@ -40,6 +59,14 @@
 - PUT /api/system-configs: 多条配置中第二条缺少 config_value 返回 400
 - 数据库错误返回 500（"获取系统配置失败"/"更新系统配置失败"）
 - non-Error 类型异常返回兜底消息
+
+### 直接调用测试（防御性校验覆盖）
+- configs 不是数组 → 400 "不能为空"
+- configs 空数组 → 400 "不能为空"
+- config_key 缺失 → 400 "不能为空"
+- config_value undefined → 400 "不能为空"
+- config_key 不在白名单 → 400 "不允许修改的配置项"
+- getSystemConfigs 数据库异常 → 500 "获取系统配置失败"
 
 ### 安全测试
 - PUT /api/system-configs: config_key 白名单机制防止未授权配置项修改
