@@ -123,3 +123,4 @@
 | 2026-05-24 | tasks/review/Editor.tsx.ui.md | @uiw/react-md-editor Editor.tsx UI 专家评审——⚠️APPROVE WITH CONCERNS 6.5/10（原生UI与Carbon系统性偏差，项目封装层高质量适配，遗留移动端触控+!important+交互反馈） |
 | 2026-05-24 | tasks/tdd/rate-limit.middleware.test.md | rate-limit.middleware.ts TDD 补全——61用例100%覆盖率（+26新增：skip回调7种method+path+articleActionLimiter全量+NODE_ENV分支+双限流器独立性） |
 | 2026-05-24 | tasks/review/Editor.tsx.committer.md | @uiw/react-md-editor Editor.tsx Committer 审核专家评审——✅通过（APPROVE），标准版入口本项目未使用，nohighlight变体选择正确 |
+| 2026-05-24 | tasks/tdd/system-config.controller.test.md | system-config.controller.ts TDD——37用例全通过，Stmts/Branch/Funcs/Lines 100%（含防御性分支直接调用覆盖） |
