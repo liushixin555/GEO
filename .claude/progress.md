@@ -186,3 +186,4 @@
 | 2026-05-25 | progress_tasks/2026-05-25-quote-tsx-review-fix.md | quote.tsx 评审封装层修复——P1-1 Cmd+Q→Ctrl+Shift+Q快捷键+S1 prefix!非空断言防御+Q-6 try-catch错误边界+P2-1中文ARIA，12项新增测试（112总）全通过 |
 | 2026-05-25 | tasks/tdd/knowledge.controller.test.round2.md | knowledge.controller TDD 第3轮补全——259用例（+3），Stmts 99.23% Branch 98.97% Funcs 100% Lines 99.81%（覆盖batchCreateKeywords>500限制+mineKeywords无效source_type+checkProjectOperator非运营者） |
 | 2026-05-25 | tasks/review/strikeThrough.tsx.md | @uiw/react-md-editor strikeThrough.tsx 软件质量专家评审——⚠️APPROVE WITH COMMENTS 7.5/10（M×2 prefix!非空断言+SVG内联定义，L×2 data-name非标准+缺返回类型，INFO×1 快捷键跨平台） |
+| 2026-05-25 | tasks/review/strikeThrough.tsx.architecture.md | @uiw/react-md-editor strikeThrough.tsx 软件架构专家评审——✅APPROVE WITH COMMENTS 7.5分（H×1 inline命令95%同构bold/italic/code无工厂抽象 + M×2 ICommand无分类维度/prefix!非空断言系统性问题 + L×2 SVG同层部署/变量命名 + INFO×2 架构最简洁inline实例/3步线性数据流最清晰） |
