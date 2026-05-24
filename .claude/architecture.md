@@ -163,7 +163,12 @@ tests/apis/  + tests/pages/  测试文件
 - **LLM服务**: `ILlmService.generateArticle(params)` 使用 system+user 双消息，temperature 0.7
 
 ## 第三方库评审记录
+- **@uiw/react-markdown-preview（index.tsx）** — 架构评审 5.4/10（2026-05-24）
+  - 核心架构缺陷：每次渲染重建 10 插件管线（无 useMemo）、与 preview.tsx 安全策略分裂、OCP 违反（用户插件位置固定）、与 common.tsx 代码克隆
+  - SOLID：SRP⚠️、OCP❌、LSP✅、ISP✅、DIP❌
+  - Bundle 影响：index.tsx 使用全量 rehype-prism-plus（+150KB gzip），建议改用 common.tsx 入口
+  - 详见 `tasks/review/react-markdown-preview.index.tsx.architecture.md`
 - **@uiw/react-markdown-preview（common.tsx）** — 软件质量评审 B 级（2026-05-24）
   - 核心问题：rehypeRaw 无条件开启 HTML 注入攻击面、每次渲染重建 rehype 插件数组（无 useMemo）
-  - 本项目通过 MarkdownViewer 封装组件 + 服务端消毒 + 1MB 长度限制缓解风险
+  - 本项目通过 MarkdownViewer 封装组件 + DOMPurify 消毒 + React.memo + 1MB 长度限制缓解风险
   - 详见 `tasks/review/common.tsx.quality.md`
