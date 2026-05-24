@@ -75,6 +75,7 @@
 | 2026-05-24 | `tasks/review/knowledge-base.controller.md` | knowledge-base.controller.ts 代码安全专家评审——✅MEDIUM-LOW 8.0/10（6项已修复+SEC-M-02 schema遗漏status+SEC-M-01归属校验） |
 | 2026-05-24 | `tasks/tdd/skills.controller.test.md` | skills.controller.ts TDD 补全——+22 用例（96 总），Stmts 94.5% Branch 86.11% Funcs 100% Lines 96.34% |
 | 2026-05-24 | `progress_tasks/2026-05-24-rehypePlugins-review-fix.md` | rehypePlugins.tsx 评审修复——patch-package补丁(正则Set+类型守卫+XSS编码+try-catch) + MarkdownViewer React.memo/a11y/代码块长度限制 |
+| 2026-05-24 | `tasks/review/knowledge-base.controller.ts.committer.md` | knowledge-base.controller.ts Committer 审核专家评审——APPROVE 批准合并（三层纵深防御+103测试通过+旧版P1全修复+Zod schema遗漏status建议补全） |
 
 ## 已知问题
 - `apis/service/impl/auth.service.impl.ts` Prisma 类型错误（待 schema 同步）
