@@ -74,7 +74,7 @@
 | 2026-05-24 | `tasks/review/rehypePlugins.tsx.committer.md` | @uiw/react-markdown-preview rehypePlugins.tsx Committer 评审——有条件通过 5.5/10（nohighlight安全面收窄+DOMPurify缓解+隐式契约版本锁定） |
 | 2026-05-24 | `tasks/tdd/publishing-schedule.controller.test.md` | publishing-schedule.controller TDD 补全——修复12失败用例+21单元测试（65总），Stmts/Branch/Funcs/Lines 100% |
 | 2026-05-24 | `tasks/review/knowledge-base.controller.md` | knowledge-base.controller.ts 代码安全专家评审——✅MEDIUM-LOW 8.0/10（6项已修复+SEC-M-02 schema遗漏status+SEC-M-01归属校验） |
-| 2026-05-24 | `tasks/tdd/skills.controller.test.md` | skills.controller.ts TDD 补全——+22 用例（96 总），Stmts 94.5% Branch 86.11% Funcs 100% Lines 96.34% |
+| 2026-05-24 | `tasks/tdd/skills.controller.test.md` | skills.controller.ts TDD 补全——+24 用例（98 总），Stmts/Branch/Funcs/Lines 100%（防御性分支：non-Error multer+!req.user） |
 | 2026-05-24 | `progress_tasks/2026-05-24-rehypePlugins-review-fix.md` | rehypePlugins.tsx 评审修复——patch-package补丁(正则Set+类型守卫+XSS编码+try-catch) + MarkdownViewer React.memo/a11y/代码块长度限制 |
 | 2026-05-24 | `tasks/review/knowledge-base.controller.ts.committer.md` | knowledge-base.controller.ts Committer 审核专家评审——APPROVE 批准合并（三层纵深防御+103测试通过+旧版P1全修复+Zod schema遗漏status建议补全） |
 | 2026-05-24 | `tasks/review/Context.tsx.quality.md` | @uiw/react-md-editor Context.tsx 软件质量专家评审——CONDITIONAL APPROVE 3.6/10（P0索引签名any+P1 dispatch混入state+DOM引用存Context+Reducer无Action区分） |

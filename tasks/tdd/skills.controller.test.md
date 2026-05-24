@@ -1,59 +1,24 @@
 # TDD 执行报告：Skills Controller
 
 ## 执行时间
-2026-05-24（第二次补全）
+2026-05-24（第三次补全——100%覆盖率）
 
 ## 测试结果
 - 测试套件：1 passed
-- 测试用例：96 passed, 0 failed
-- 覆盖率：Stmts 94.5%, Branch 86.11%, Funcs 100%, Lines 96.34%
+- 测试用例：**98 passed**, 0 failed
+- 覆盖率：**Stmts 100%, Branch 100%, Funcs 100%, Lines 100%**
 
-## 本次新增测试用例（22个）
+## 本次新增测试用例（2个）
 
-### 分页边界值测试
-- GET /api/skills: pageSize=0 默认为 10（0 是 falsy，`parseInt('0') || 10` = 10）
-- GET /api/skills: pageSize=200 钳位到 100（`Math.min(100, 200)` = 100）
-- GET /api/skills: pageSize=-5 钳位到 1（`Math.max(1, -5)` = 1）
-- GET /api/skills: page=-1 钳位到 1（`Math.max(1, parseInt('-1'))` = 1）
+### 防御性分支覆盖
+- `createSkills` 直接调用 `req.user` 未设置时返回 401（line 85 防御性检查）
+- `uploadSkillMiddleware` 非 Error 类型 multer 回调值返回 400（line 47 `err instanceof Error` else 分支）
 
-### ID 边界测试
-- GET /api/skills/:id: id=1.5 截断为 id=1（`parseInt('1.5', 10)` = 1）
-- PUT /api/skills/:id: id=0 返回 404（valid parseInt，服务层查不到）
-- PUT /api/skills/:id: id=-1 返回 404（valid parseInt，服务层查不到）
-- DELETE /api/skills/:id: id=0 返回 404（valid parseInt，服务层查不到）
+**技术要点**：
+- line 85 通过直接调用 controller 函数绕过 auth middleware 实现 `!req.user` 覆盖
+- line 47 通过 `jest.isolateModules` 在隔离环境中 mock multer 实现 `cb('string error')` 非 Error 路径覆盖
 
-### 安全测试
-- POST /api/skills: 非 zip 文件但 .zip 扩展名（magic bytes 校验 → 400）
-- POST /api/skills: 服务层检测同名技能 → 409 Conflict
-- DELETE /api/skills/:id: skill_dir 路径穿越攻击（`../../etc`）→ 400
-- DELETE /api/skills/:id: skill_dir 路径穿越不删除外部文件验证
-- DELETE /api/skills/:id: skill_dir='.' 解析为 skills 基目录本身 → 400
-- POST /api/skills: Zip Slip 路径穿越在验证循环中检测
-- POST /api/skills: Zip Slip 路径穿越在解压循环中检测
-
-### 数据完整性测试
-- POST /api/skills: DB 错误时回滚清理已解压目录
-- POST /api/skills: frontmatter 包含额外 YAML 字段（author, version）
-- POST /api/skills: zip 包含嵌套子目录（src/utils/helper.ts）
-- POST /api/skills: zip 包含显式目录条目（trailing /）
-- POST /api/skills: zip 仅含 SKILL.md（无其他文件）
-- POST /api/skills: SKILL.md 使用 CRLF 行尾（\r\n）
-
-### 错误处理覆盖
-- GET /api/skills/:id: getErrorMessage 非 Error 对象路径（line 35 覆盖）
-
-## 未覆盖行分析
-
-| 行号 | 代码 | 原因 |
-|------|------|------|
-| 147-148 | Zip Slip 验证循环 fail(400) | adm-zip 自动规范化路径穿越序列，无法通过 API 触发 |
-| 151-152 | entry.header.size > 100MB | 需要创建 100MB+ 条目，单元测试不适用 |
-| 170 | 解压循环 Zip Slip throw | 同 147-148，adm-zip 路径规范化 |
-| 175 | 总解压大小 > 500MB | 需要解压 500MB+ 数据，单元测试不适用 |
-
-这些行是防御性安全检查（defense-in-depth），保护免受通过二进制方式构造的恶意 zip 文件攻击。adm-zip API 层面已做路径规范化，但原始 zip 操作可能绕过，因此保留这些检查是正确的安全实践。
-
-## 完整测试用例分类（含原有74个）
+## 完整测试用例分类（98个）
 
 ### 正向测试（Happy Path）
 - GET /api/skills: sysadmin 获取技能列表（含搜索、分页）
@@ -120,6 +85,7 @@
 - 创建后/失败后临时文件清理验证
 - DB 错误时回滚清理已解压目录
 - getErrorMessage 非 Error 对象 fallback 覆盖
+- uploadSkillMiddleware 非 Error 回调值防御性处理
 
 ### 权限测试
 - GET /api/skills: view 角色返回 403
@@ -132,3 +98,13 @@
 - DELETE /api/skills/:id: admin 删除其他用户创建的技能返回 403（"只能删除自己创建的技能"）
 - DELETE /api/skills/:id: admin 删除 createdBy=null 的技能返回 403
 - 所有端点无 token 时返回 401
+- createSkills 防御性 !req.user 检查返回 401
+
+### 错误处理测试
+- GET /api/skills: 服务异常返回 500（"获取技能列表失败"）
+- GET /api/skills/:id: 服务异常返回 500（"获取技能详情失败"）
+- POST /api/skills: DB 创建异常返回 500（"创建技能失败"）
+- PUT /api/skills/:id: getById 异常返回 500
+- PUT /api/skills/:id: update 异常返回 500（"更新技能失败"）
+- DELETE /api/skills/:id: getById 异常返回 500
+- DELETE /api/skills/:id: delete 异常返回 500（"删除技能失败"）

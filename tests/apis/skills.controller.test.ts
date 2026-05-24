@@ -1688,4 +1688,42 @@ describe('Skills Controller', () => {
       expect(response.body.message).toBe('非法的技能目录路径');
     });
   });
+
+  // ============================================================
+  // Defensive branch coverage — lines 47, 85
+  // ============================================================
+  describe('Defensive branch coverage', () => {
+    it('should return 401 when req.user is not set in createSkills (line 85)', async () => {
+      const ctrl = require('../../apis/controller/skills.controller');
+      const json = jest.fn();
+      const status = jest.fn().mockReturnValue({ json });
+      const req = { file: { path: '/tmp/test.zip' } };
+      const res = { status, json };
+
+      await ctrl.createSkills(req as any, res as any);
+
+      expect(status).toHaveBeenCalledWith(401);
+      expect(json).toHaveBeenCalledWith({ code: 401, message: '未登录' });
+    });
+
+    it('should handle non-Error value from multer callback (line 47)', () => {
+      jest.isolateModules(() => {
+        jest.mock('multer', () => {
+          return jest.fn().mockImplementation(() => ({
+            single: () => (req: any, res: any, cb: any) => cb('string error'),
+          }));
+        });
+
+        const ctrl = require('../../apis/controller/skills.controller');
+        const json = jest.fn();
+        const status = jest.fn().mockReturnValue({ json });
+        const res = { status, json };
+
+        ctrl.uploadSkillMiddleware({} as any, res as any, () => {});
+
+        expect(status).toHaveBeenCalledWith(400);
+        expect(json).toHaveBeenCalledWith({ code: 400, message: '上传失败' });
+      });
+    });
+  });
 });
