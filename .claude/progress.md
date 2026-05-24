@@ -175,3 +175,4 @@
 | 2026-05-25 | progress_tasks/2026-05-25-publishing-schedule-controller-fix-verify.md | publishing-schedule.controller.ts 评审修复验证——12项修复全部确认已应用，213测试全通过 |
 | 2026-05-25 | progress_tasks/2026-05-25-skills-controller-security-fix.md | skills.controller.ts 安全评审修复——C-4 parseSkillMd ReDoS修复（js-yaml替代正则），其余13项已修复，419测试全通过 |
 | 2026-05-25 | progress_tasks/2026-05-25-italic-tsx-review-fix.md | italic.tsx 评审封装层修复——SEC-M1 prefix!非空断言+SEC-M2输入边界+QUAL-L2错误处理，覆盖italic/bold/strikethrough三命令，+22测试（81总） |
+| 2026-05-25 | tasks/tdd/rmapi-index.tdd.md | rmapi.utils/index.ts barrel文件TDD——25用例100%覆盖率（函数导出验证+re-export同一性+类型导出+无副作用+路径解析+完整性检查），修复resource.util Windows路径分隔符 |
