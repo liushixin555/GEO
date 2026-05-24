@@ -1,1013 +1,902 @@
 {
-  "openapi": "3.0.0",
+  "openapi": "3.1.0",
   "info": {
     "title": "薄云商机倍增服务 API",
     "version": "1.0.0",
     "description": "薄云商机倍增服务 Enterprise Management Platform API"
   },
-  "servers": [],
-  "security": [],
   "paths": {
     "/api/health": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/__object"
-                }
-              }
-            }
-          }
-        },
-        "parameters": [],
-        "tags": [],
-        "summary": "GET /api/health"
-      }
-    },
-    "/api-docs.json": {
-      "get": {
+        "summary": "健康检查",
+        "tags": [
+          "系统"
+        ],
         "responses": {
           "200": {
             "description": "OK"
           },
+          "400": {
+            "description": "参数验证失败"
+          },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/__object"
-                }
-              }
-            }
+            "description": "未认证"
           },
           "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/__object"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/__object"
-                }
-              }
-            }
+            "description": "无权限"
           }
-        },
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "tags": [],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "GET /api-docs.json"
+        }
       }
     },
     "/api/v1/auth/login": {
       "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [],
+        "summary": "用户登录",
         "tags": [
           "认证管理"
         ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "description": "用户登录，返回 JWT Token",
-        "summary": "POST /api/v1/auth/login"
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "username",
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/auth/verify": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/__object"
-                }
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
+        "summary": "验证Token",
         "tags": [
           "认证管理"
         ],
+        "description": "验证 Token 有效性",
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "description": "验证 Token 有效性",
-        "summary": "GET /api/v1/auth/verify"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/auth/logout": {
       "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/__object"
-                }
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
+        "summary": "用户登出",
         "tags": [
           "认证管理"
         ],
+        "description": "用户登出（前端清除 Token）",
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "description": "用户登出（前端清除 Token）",
-        "summary": "POST /api/v1/auth/logout"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/auth/selection": {
       "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/__object"
-                }
+        "summary": "保存选择",
+        "tags": [
+          "认证管理"
+        ],
+        "description": "保存用户选择的公司/项目上下文",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "company_id": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  },
+                  "project_id": {
+                    "nullable": true,
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "company_id"
+                ]
               }
             }
           }
         },
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "tags": [
-          "认证管理"
-        ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "description": "保存用户选择的公司/项目上下文",
-        "summary": "PUT /api/v1/auth/selection"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/auth/companies": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/__object"
-                }
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
+        "summary": "可访问公司列表",
         "tags": [
           "认证管理"
         ],
+        "description": "获取当前用户可访问的公司列表",
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "description": "获取当前用户可访问的公司列表",
-        "summary": "GET /api/v1/auth/companies"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/auth/companies/{id}": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/__object"
-                }
-              }
-            }
-          }
-        },
+        "summary": "公司用户列表",
+        "tags": [
+          "认证管理"
+        ],
+        "description": "获取指定公司的用户列表",
         "parameters": [
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
+            "description": "公司ID"
           }
-        ],
-        "tags": [
-          "认证管理"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "description": "获取指定公司的用户列表",
-        "summary": "GET /api/v1/auth/companies/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/auth/projects": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/__object"
-                }
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
+        "summary": "可访问项目列表",
         "tags": [
           "认证管理"
         ],
+        "description": "获取指定公司下可访问的项目列表",
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "description": "获取指定公司下可访问的项目列表",
-        "summary": "GET /api/v1/auth/projects"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/auth/context": {
       "get": {
+        "summary": "用户上下文",
+        "tags": [
+          "认证管理"
+        ],
+        "description": "获取用户上下文（公司+项目）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK"
           },
+          "400": {
+            "description": "参数验证失败"
+          },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/__object"
-                }
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/companies": {
+      "get": {
+        "summary": "公司列表",
+        "tags": [
+          "公司管理"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      },
+      "post": {
+        "summary": "创建公司",
+        "tags": [
+          "公司管理"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "short_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 50
+                  },
+                  "full_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "address": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "contact_person": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "contact_phone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20,
+                    "pattern": "^[\\d\\-+()#\\s]+$"
+                  },
+                  "operator_ids": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "viewer_ids": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991
+                    }
+                  }
+                },
+                "required": [
+                  "short_name",
+                  "full_name",
+                  "contact_person",
+                  "contact_phone",
+                  "operator_ids"
+                ]
               }
             }
           }
         },
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "tags": [
-          "认证管理"
-        ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "description": "获取用户上下文（公司+项目）",
-        "summary": "GET /api/v1/auth/context"
-      }
-    },
-    "/api/v1/companies/": {
-      "get": {
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
           }
-        },
-        "parameters": [],
-        "tags": [
-          "公司管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "GET /api/v1/companies/"
-      },
-      "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [],
-        "tags": [
-          "公司管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "POST /api/v1/companies/"
+        }
       }
     },
     "/api/v1/companies/{id}": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "公司详情",
+        "tags": [
+          "公司管理"
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "公司管理"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/companies/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       },
       "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
+        "summary": "更新公司",
         "tags": [
           "公司管理"
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "short_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 50
+                  },
+                  "full_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "address": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "contact_person": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "contact_phone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20,
+                    "pattern": "^[\\d\\-+()#\\s]+$"
+                  },
+                  "operator_ids": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "viewer_ids": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991
+                    }
+                  }
+                },
+                "required": [
+                  "short_name",
+                  "full_name",
+                  "contact_person",
+                  "contact_phone",
+                  "operator_ids"
+                ]
+              }
+            }
+          }
+        },
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "PUT /api/v1/companies/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/companies/{id}/status": {
       "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
+        "summary": "切换公司状态",
         "tags": [
           "公司管理"
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "PUT /api/v1/companies/{id}/status"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
-    "/api/v1/skills/": {
+    "/api/v1/users": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [],
-        "tags": [
-          "技能管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "GET /api/v1/skills/"
-      },
-      "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [],
-        "tags": [
-          "技能管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "POST /api/v1/skills/"
-      }
-    },
-    "/api/v1/skills/{id}": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "技能管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "GET /api/v1/skills/{id}"
-      },
-      "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "技能管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "PUT /api/v1/skills/{id}"
-      },
-      "delete": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "技能管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "DELETE /api/v1/skills/{id}"
-      }
-    },
-    "/api/v1/users/": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [],
+        "summary": "用户列表",
         "tags": [
           "用户管理"
         ],
+        "description": "分页查询用户列表（仅 sysadmin）",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sysadmin",
+                "admin",
+                "view"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          }
+        ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/users/"
-      },
-      "post": {
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
           }
-        },
-        "parameters": [],
+        }
+      },
+      "post": {
+        "summary": "创建用户",
         "tags": [
           "用户管理"
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 50
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  },
+                  "cn_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 50
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "sysadmin",
+                      "admin",
+                      "view"
+                    ]
+                  },
+                  "company_id": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "username",
+                  "password",
+                  "cn_name",
+                  "role"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "POST /api/v1/users/"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/users/{id}": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "用户详情",
+        "tags": [
+          "用户管理"
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "用户管理"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/users/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       },
       "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
+        "summary": "更新用户",
         "tags": [
           "用户管理"
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cn_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 50
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "sysadmin",
+                      "admin",
+                      "view"
+                    ]
+                  },
+                  "status": {
+                    "type": "boolean"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "PUT /api/v1/users/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       },
       "delete": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
+        "summary": "删除用户",
         "tags": [
           "用户管理"
         ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "DELETE /api/v1/users/{id}"
-      }
-    },
-    "/api/v1/llm-models/enabled": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/__object"
-                }
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "tags": [
-          "LLM 模型"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "GET /api/v1/llm-models/enabled"
-      }
-    },
-    "/api/v1/llm-models/": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [],
-        "tags": [
-          "LLM 模型"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "GET /api/v1/llm-models/"
-      },
-      "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [],
-        "tags": [
-          "LLM 模型"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "POST /api/v1/llm-models/"
-      }
-    },
-    "/api/v1/llm-models/{id}": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
         "parameters": [
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "LLM 模型"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/llm-models/{id}"
-      },
-      "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "LLM 模型"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "PUT /api/v1/llm-models/{id}"
-      },
-      "delete": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "LLM 模型"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "DELETE /api/v1/llm-models/{id}"
-      }
-    },
-    "/api/v1/system-configs/": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [],
-        "tags": [
-          "系统配置"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "GET /api/v1/system-configs/"
-      },
-      "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [],
-        "tags": [
-          "系统配置"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "PUT /api/v1/system-configs/"
-      }
-    },
-    "/api/v1/publishing-platforms/sync": {
-      "post": {
         "responses": {
           "200": {
             "description": "OK"
           },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/__object"
-                }
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "tags": [
-          "发布平台"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "POST /api/v1/publishing-platforms/sync"
-      }
-    },
-    "/api/v1/publishing-platforms/": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
+          "400": {
+            "description": "参数验证失败"
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/__object"
-                }
-              }
-            }
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
           }
-        },
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "tags": [
-          "发布平台"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "GET /api/v1/publishing-platforms/"
+        }
       }
     },
-    "/api/v1/projects/": {
+    "/api/v1/projects": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [],
+        "summary": "项目列表",
         "tags": [
           "项目管理"
         ],
@@ -1016,509 +905,823 @@
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/projects/"
-      },
-      "post": {
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
           }
-        },
-        "parameters": [],
+        }
+      },
+      "post": {
+        "summary": "创建项目",
         "tags": [
           "项目管理"
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "short_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "full_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "company_id": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  },
+                  "operator_ids": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "viewer_ids": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991
+                    }
+                  }
+                },
+                "required": [
+                  "short_name",
+                  "full_name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "POST /api/v1/projects/"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/projects/{id}": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "项目详情",
+        "tags": [
+          "项目管理"
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "项目管理"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/projects/{id}"
-      },
-      "put": {
         "responses": {
           "200": {
             "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "项目管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "PUT /api/v1/projects/{id}"
-      },
-      "delete": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "项目管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "DELETE /api/v1/projects/{id}"
-      }
-    },
-    "/api/v1/projects/{projectId}/articles": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "projectId",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "项目管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "GET /api/v1/projects/{projectId}/articles"
-      },
-      "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "projectId",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "项目管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "POST /api/v1/projects/{projectId}/articles"
-      }
-    },
-    "/api/v1/projects/{projectId}/articles/{id}": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "projectId",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
           },
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "项目管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "GET /api/v1/projects/{projectId}/articles/{id}"
-      },
-      "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "projectId",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "项目管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "PUT /api/v1/projects/{projectId}/articles/{id}"
-      },
-      "delete": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "projectId",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "项目管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "DELETE /api/v1/projects/{projectId}/articles/{id}"
-      }
-    },
-    "/api/v1/projects/{projectId}/articles/{id}/review": {
-      "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "projectId",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "项目管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "PUT /api/v1/projects/{projectId}/articles/{id}/review"
-      }
-    },
-    "/api/v1/projects/{projectId}/articles/{id}/regenerate": {
-      "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "projectId",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "项目管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "PUT /api/v1/projects/{projectId}/articles/{id}/regenerate"
-      }
-    },
-    "/api/v1/projects/{projectId}/articles/{id}/content": {
-      "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "projectId",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "项目管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "PUT /api/v1/projects/{projectId}/articles/{id}/content"
-      }
-    },
-    "/api/v1/projects/{projectId}/articles/{id}/submit-review": {
-      "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "projectId",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "项目管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "PUT /api/v1/projects/{projectId}/articles/{id}/submit-review"
-      }
-    },
-    "/api/v1/projects/{projectId}/articles/{id}/versions": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "projectId",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "项目管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "GET /api/v1/projects/{projectId}/articles/{id}/versions"
-      }
-    },
-    "/api/v1/upload/": {
-      "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [],
-        "tags": [
-          "文件上传"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "POST /api/v1/upload/"
-      }
-    },
-    "/api/v1/upload/document": {
-      "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [],
-        "tags": [
-          "文件上传"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "POST /api/v1/upload/document"
-      }
-    },
-    "/api/v1/publishing-schedule/": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
+          "400": {
+            "description": "参数验证失败"
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/__object"
-                }
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      },
+      "put": {
+        "summary": "更新项目",
+        "tags": [
+          "项目管理"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "short_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "full_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "company_id": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  },
+                  "operator_ids": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "viewer_ids": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "status": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
               }
             }
           }
         },
-        "parameters": [
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
+            "bearerAuth": []
           }
         ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      },
+      "delete": {
+        "summary": "删除项目",
+        "tags": [
+          "项目管理"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/skills": {
+      "get": {
+        "summary": "技能列表",
+        "tags": [
+          "技能管理"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      },
+      "post": {
+        "summary": "创建技能",
+        "tags": [
+          "技能管理"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/skills/{id}": {
+      "get": {
+        "summary": "技能详情",
+        "tags": [
+          "技能管理"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      },
+      "put": {
+        "summary": "更新技能",
+        "tags": [
+          "技能管理"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      },
+      "delete": {
+        "summary": "删除技能",
+        "tags": [
+          "技能管理"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/llm-models/enabled": {
+      "get": {
+        "summary": "已启用模型列表",
+        "tags": [
+          "LLM 模型"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/llm-models": {
+      "get": {
+        "summary": "模型列表",
+        "tags": [
+          "LLM 模型"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      },
+      "post": {
+        "summary": "创建模型",
+        "tags": [
+          "LLM 模型"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "base_url": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048
+                  },
+                  "api_key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "model_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "provider",
+                  "base_url",
+                  "api_key",
+                  "model_name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/llm-models/{id}": {
+      "get": {
+        "summary": "模型详情",
+        "tags": [
+          "LLM 模型"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      },
+      "put": {
+        "summary": "更新模型",
+        "tags": [
+          "LLM 模型"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "base_url": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048
+                  },
+                  "api_key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "model_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "status": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      },
+      "delete": {
+        "summary": "删除模型",
+        "tags": [
+          "LLM 模型"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/system-configs": {
+      "get": {
+        "summary": "获取系统配置",
+        "tags": [
+          "系统配置"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      },
+      "put": {
+        "summary": "更新系统配置",
+        "tags": [
+          "系统配置"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "configs": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "config_key": {
+                          "type": "string",
+                          "enum": [
+                            "yishangshu_username",
+                            "yishangshu_password"
+                          ]
+                        },
+                        "config_value": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "config_key",
+                        "config_value"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "configs"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/publishing-platforms/sync": {
+      "post": {
+        "summary": "同步发布平台",
+        "tags": [
+          "发布平台"
+        ],
+        "description": "从资源管理系统同步发布平台数据",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/publishing-platforms": {
+      "get": {
+        "summary": "发布平台列表",
+        "tags": [
+          "发布平台"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/publishing-schedule": {
+      "get": {
+        "summary": "发布计划列表",
         "tags": [
           "发布计划"
         ],
@@ -1527,310 +1730,1170 @@
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/publishing-schedule/"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/publishing-schedule/{id}": {
       "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/__object"
-                }
+        "summary": "更新发布计划",
+        "tags": [
+          "发布计划"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "scheduled_publish_at": {
+                    "type": "string"
+                  },
+                  "schedule_type": {
+                    "nullable": true,
+                    "type": "string",
+                    "enum": [
+                      "asap",
+                      "scheduled",
+                      "after"
+                    ]
+                  }
+                },
+                "required": [
+                  "scheduled_publish_at"
+                ],
+                "additionalProperties": false
               }
             }
           }
         },
-        "parameters": [
+        "security": [
           {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
+            "bearerAuth": []
           }
         ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/upload": {
+      "post": {
+        "summary": "上传图片",
         "tags": [
-          "发布计划"
+          "文件上传"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "PUT /api/v1/publishing-schedule/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/upload/document": {
+      "post": {
+        "summary": "上传文档",
+        "tags": [
+          "文件上传"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/articles": {
+      "get": {
+        "summary": "文章列表",
+        "tags": [
+          "文章管理"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "项目ID"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "manual_writing",
+                "generating",
+                "generate_failed",
+                "pending_review",
+                "publishing",
+                "publish_failed",
+                "published"
+              ]
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      },
+      "post": {
+        "summary": "创建文章",
+        "tags": [
+          "文章管理"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "article_type": {
+                    "type": "string",
+                    "maxLength": 50
+                  },
+                  "write_mode": {
+                    "type": "string",
+                    "maxLength": 50
+                  },
+                  "keywords": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "portrait": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "images": {
+                    "nullable": true,
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 2000
+                    }
+                  },
+                  "platforms": {
+                    "nullable": true,
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 100
+                    }
+                  },
+                  "skills": {
+                    "nullable": true,
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "llm_model_id": {
+                    "nullable": true,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "content": {
+                    "type": "string",
+                    "maxLength": 500000
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "draft",
+                      "generating",
+                      "manual_writing"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/articles/{id}": {
+      "get": {
+        "summary": "文章详情",
+        "tags": [
+          "文章管理"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "项目ID"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      },
+      "put": {
+        "summary": "更新文章",
+        "tags": [
+          "文章管理"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "article_type": {
+                    "type": "string",
+                    "maxLength": 50
+                  },
+                  "write_mode": {
+                    "type": "string",
+                    "maxLength": 50
+                  },
+                  "keywords": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "portrait": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "images": {
+                    "nullable": true,
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 2000
+                    }
+                  },
+                  "platforms": {
+                    "nullable": true,
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 100
+                    }
+                  },
+                  "skills": {
+                    "nullable": true,
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "llm_model_id": {
+                    "nullable": true,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "content": {
+                    "type": "string",
+                    "maxLength": 500000
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "draft",
+                      "manual_writing",
+                      "generating",
+                      "generate_failed",
+                      "pending_review",
+                      "publishing",
+                      "publish_failed",
+                      "published"
+                    ]
+                  },
+                  "scheduled_publish_at": {
+                    "nullable": true,
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  "schedule_type": {
+                    "nullable": true,
+                    "type": "string",
+                    "enum": [
+                      "asap",
+                      "scheduled",
+                      "after"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      },
+      "delete": {
+        "summary": "删除文章",
+        "tags": [
+          "文章管理"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "项目ID"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/articles/{id}/review": {
+      "put": {
+        "summary": "审核文章",
+        "tags": [
+          "文章管理"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "approved": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "approved"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/articles/{id}/regenerate": {
+      "put": {
+        "summary": "重新生成文章",
+        "tags": [
+          "文章管理"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "项目ID"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/articles/{id}/content": {
+      "put": {
+        "summary": "更新文章内容",
+        "tags": [
+          "文章管理"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500000
+                  }
+                },
+                "required": [
+                  "content"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/articles/{id}/submit-review": {
+      "put": {
+        "summary": "提交审核",
+        "tags": [
+          "文章管理"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "项目ID"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/articles/{id}/versions": {
+      "get": {
+        "summary": "文章版本列表",
+        "tags": [
+          "文章管理"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "项目ID"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/projects/{projectId}/knowledge/keywords": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "项目关键词列表",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "projectId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "项目ID"
           }
-        ],
-        "tags": [
-          "项目管理"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/projects/{projectId}/knowledge/keywords"
-      }
-    },
-    "/api/v1/projects/{projectId}/knowledge/portraits": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "projectId",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "项目管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "GET /api/v1/projects/{projectId}/knowledge/portraits"
-      }
-    },
-    "/api/v1/projects/{projectId}/knowledge/images": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "projectId",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "项目管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "GET /api/v1/projects/{projectId}/knowledge/images"
-      }
-    },
-    "/api/v1/projects/{projectId}/knowledge/documents": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "projectId",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "项目管理"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "GET /api/v1/projects/{projectId}/knowledge/documents"
-      }
-    },
-    "/api/v1/knowledge-bases": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [],
-        "tags": [
-          "知识库"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "GET /api/v1/knowledge-bases"
-      },
-      "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [],
-        "tags": [
-          "知识库"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "POST /api/v1/knowledge-bases"
-      }
-    },
-    "/api/v1/knowledge-bases/{id}": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "知识库"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "GET /api/v1/knowledge-bases/{id}"
-      },
-      "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "知识库"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "PUT /api/v1/knowledge-bases/{id}"
-      },
-      "delete": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "tags": [
-          "知识库"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "DELETE /api/v1/knowledge-bases/{id}"
-      }
-    },
-    "/api/v1/knowledge-inventory": {
-      "get": {
         "responses": {
           "200": {
             "description": "OK"
           },
+          "400": {
+            "description": "参数验证失败"
+          },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/__object"
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/knowledge/portraits": {
+      "get": {
+        "summary": "项目画像列表",
+        "tags": [
+          "知识库"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "项目ID"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/knowledge/images": {
+      "get": {
+        "summary": "项目图片列表",
+        "tags": [
+          "知识库"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "项目ID"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/knowledge/documents": {
+      "get": {
+        "summary": "项目文档列表",
+        "tags": [
+          "知识库"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "项目ID"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/knowledge-bases": {
+      "get": {
+        "summary": "知识库列表",
+        "tags": [
+          "知识库"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      },
+      "post": {
+        "summary": "创建知识库",
+        "tags": [
+          "知识库"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "description": {
+                    "nullable": true,
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "platform",
+                      "company",
+                      "project"
+                    ]
+                  },
+                  "company_id": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  },
+                  "project_id": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "name",
+                  "scope"
+                ]
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/knowledge-bases/{id}": {
+      "get": {
+        "summary": "知识库详情",
+        "tags": [
+          "知识库"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      },
+      "put": {
+        "summary": "更新知识库",
+        "tags": [
+          "知识库"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "description": {
+                    "nullable": true,
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "platform",
+                      "company",
+                      "project"
+                    ]
+                  },
+                  "status": {
+                    "type": "boolean"
+                  },
+                  "company_id": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  },
+                  "project_id": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  }
                 }
               }
             }
           }
         },
-        "parameters": [
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
+            "bearerAuth": []
           }
         ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      },
+      "delete": {
+        "summary": "删除知识库",
+        "tags": [
+          "知识库"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
+      }
+    },
+    "/api/v1/knowledge-inventory": {
+      "get": {
+        "summary": "知识库清单",
         "tags": [
           "知识库"
         ],
@@ -1839,1101 +2902,1715 @@
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/knowledge-inventory"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/knowledge-bases/{baseId}/keywords": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "关键词列表",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/knowledge-bases/{baseId}/keywords"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       },
       "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "创建关键词",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "POST /api/v1/knowledge-bases/{baseId}/keywords"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/knowledge-bases/{baseId}/keywords/{id}": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "关键词详情",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           },
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/knowledge-bases/{baseId}/keywords/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       },
       "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "更新关键词",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           },
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "PUT /api/v1/knowledge-bases/{baseId}/keywords/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       },
       "delete": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "删除关键词",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           },
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "DELETE /api/v1/knowledge-bases/{baseId}/keywords/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/knowledge-bases/{baseId}/keywords/batch": {
       "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "批量创建关键词",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "POST /api/v1/knowledge-bases/{baseId}/keywords/batch"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/knowledge-bases/{baseId}/keywords/expand": {
       "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "扩展关键词",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "POST /api/v1/knowledge-bases/{baseId}/keywords/expand"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/knowledge-bases/{baseId}/mined-keywords": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "挖掘关键词列表",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/knowledge-bases/{baseId}/mined-keywords"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       },
       "delete": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "删除挖掘关键词",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "DELETE /api/v1/knowledge-bases/{baseId}/mined-keywords"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/knowledge-bases/{baseId}/keywords/mine": {
       "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "挖掘关键词",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "POST /api/v1/knowledge-bases/{baseId}/keywords/mine"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/knowledge-bases/{baseId}/mined-keywords/save": {
       "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "保存挖掘关键词",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "POST /api/v1/knowledge-bases/{baseId}/mined-keywords/save"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/knowledge-bases/{baseId}/mined-keywords/batch-toggle": {
       "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "批量切换挖掘关键词",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "PUT /api/v1/knowledge-bases/{baseId}/mined-keywords/batch-toggle"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/knowledge-bases/{baseId}/portraits": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "画像列表",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/knowledge-bases/{baseId}/portraits"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       },
       "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "创建画像",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "POST /api/v1/knowledge-bases/{baseId}/portraits"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/knowledge-bases/{baseId}/portraits/{id}": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "画像详情",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           },
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/knowledge-bases/{baseId}/portraits/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       },
       "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "更新画像",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           },
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "PUT /api/v1/knowledge-bases/{baseId}/portraits/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       },
       "delete": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "删除画像",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           },
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "DELETE /api/v1/knowledge-bases/{baseId}/portraits/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/knowledge-bases/{baseId}/images": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "图片列表",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/knowledge-bases/{baseId}/images"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       },
       "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "创建图片",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "POST /api/v1/knowledge-bases/{baseId}/images"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/knowledge-bases/{baseId}/images/{id}": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "图片详情",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           },
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/knowledge-bases/{baseId}/images/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       },
       "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "更新图片",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           },
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "PUT /api/v1/knowledge-bases/{baseId}/images/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       },
       "delete": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "删除图片",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           },
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "DELETE /api/v1/knowledge-bases/{baseId}/images/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/knowledge-bases/{baseId}/documents": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "文档列表",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/knowledge-bases/{baseId}/documents"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       },
       "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "创建文档",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "POST /api/v1/knowledge-bases/{baseId}/documents"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/knowledge-bases/{baseId}/documents/{id}": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "文档详情",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           },
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/knowledge-bases/{baseId}/documents/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       },
       "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "更新文档",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           },
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "PUT /api/v1/knowledge-bases/{baseId}/documents/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       },
       "delete": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "删除文档",
+        "tags": [
+          "知识库"
+        ],
         "parameters": [
           {
             "name": "baseId",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "知识库ID"
           },
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "知识库"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "DELETE /api/v1/knowledge-bases/{baseId}/documents/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
-    "/api/v1/todos/": {
+    "/api/v1/todos": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [],
+        "summary": "待办列表",
         "tags": [
           "待办管理"
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "tab",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "my_open",
+              "type": "string",
+              "enum": [
+                "my_open",
+                "my_closed",
+                "all_open",
+                "all_closed"
+              ]
+            }
+          },
+          {
+            "name": "priority",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "P0",
+                "P1",
+                "P2",
+                "P3"
+              ]
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/todos/"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       },
       "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [],
+        "summary": "创建待办",
         "tags": [
           "待办管理"
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "company_id": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  },
+                  "project_id": {
+                    "nullable": true,
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  },
+                  "object_type": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "object_id": {
+                    "nullable": true,
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  },
+                  "action": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": "string"
+                  },
+                  "assignee_id": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  },
+                  "due_at": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "title",
+                  "company_id",
+                  "object_type",
+                  "action",
+                  "assignee_id"
+                ]
+              }
+            }
+          }
+        },
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "POST /api/v1/todos/"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/todos/object-options": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [],
+        "summary": "对象选项列表",
         "tags": [
           "待办管理"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "objectType",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "article",
+                "keyword"
+              ]
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/todos/object-options"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/todos/assignee-candidates": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [],
+        "summary": "候选人列表",
         "tags": [
           "待办管理"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991
+            }
+          }
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/todos/assignee-candidates"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/todos/{id}": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "待办详情",
+        "tags": [
+          "待办管理"
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "待办管理"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/todos/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       },
       "put": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
+        "summary": "更新待办",
         "tags": [
           "待办管理"
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "object_type": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "object_id": {
+                    "nullable": true,
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  },
+                  "action": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "priority": {
+                    "type": "string"
+                  },
+                  "due_at": {
+                    "nullable": true,
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "PUT /api/v1/todos/{id}"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/todos/{id}/close": {
       "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "关闭待办",
+        "tags": [
+          "待办管理"
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "待办管理"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "POST /api/v1/todos/{id}/close"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/todos/{id}/reopen": {
       "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "重新打开待办",
+        "tags": [
+          "待办管理"
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "待办管理"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "POST /api/v1/todos/{id}/reopen"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/todos/{id}/transfer": {
       "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
+        "summary": "转交待办",
         "tags": [
           "待办管理"
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "assignee_id": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  },
+                  "remark": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "assignee_id"
+                ]
+              }
+            }
+          }
+        },
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "POST /api/v1/todos/{id}/transfer"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/todos/{id}/reject": {
       "post": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "驳回待办",
+        "tags": [
+          "待办管理"
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "待办管理"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "POST /api/v1/todos/{id}/reject"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     },
     "/api/v1/todos/{id}/logs": {
       "get": {
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
+        "summary": "待办操作日志",
+        "tags": [
+          "待办管理"
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": true
+            "description": "ID"
           }
-        ],
-        "tags": [
-          "待办管理"
         ],
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "summary": "GET /api/v1/todos/{id}/logs"
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "参数验证失败"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        }
       }
     }
   },
@@ -2946,20 +4623,1364 @@
       }
     },
     "schemas": {
-      "__object": {
+      "Company": {
         "type": "object",
         "properties": {
-          "status": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "shortName": {
             "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "contactPerson": {
+            "type": "string"
+          },
+          "contactPhone": {
+            "type": "string"
+          },
+          "status": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/User"
+            }
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Project"
+            }
+          },
+          "knowledgeBases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeBase"
+            }
+          },
+          "selectedByUsers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/User"
+            }
+          },
+          "todos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Todo"
+            }
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "required": [
-          "status"
+          "id",
+          "shortName",
+          "fullName",
+          "contactPerson",
+          "contactPhone",
+          "status",
+          "createdAt",
+          "updatedAt",
+          "users",
+          "projects",
+          "knowledgeBases",
+          "selectedByUsers",
+          "todos"
+        ]
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "username": {
+            "type": "string"
+          },
+          "passwordHash": {
+            "type": "string"
+          },
+          "cnName": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "status": {
+            "type": "boolean"
+          },
+          "companyId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "company": {
+            "$ref": "#/components/schemas/Company"
+          },
+          "selectedCompanyId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "selectedProjectId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "selectedCompany": {
+            "$ref": "#/components/schemas/Company"
+          },
+          "selectedProject": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "operatedProjects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectOperator"
+            }
+          },
+          "viewedProjects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectViewer"
+            }
+          },
+          "createdSkills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Skills"
+            }
+          },
+          "createdArticles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Article"
+            }
+          },
+          "articleVersions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArticleVersion"
+            }
+          },
+          "createdKeywords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeKeyword"
+            }
+          },
+          "createdPortraits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KnowledgePortrait"
+            }
+          },
+          "createdImages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeImage"
+            }
+          },
+          "createdDocuments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeDocument"
+            }
+          },
+          "createdKnowledgeBases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeBase"
+            }
+          },
+          "assignedTodos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Todo"
+            }
+          },
+          "createdTodos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Todo"
+            }
+          },
+          "todoLogOperations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TodoLog"
+            }
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "passwordHash",
+          "cnName",
+          "role",
+          "status",
+          "createdAt",
+          "updatedAt",
+          "operatedProjects",
+          "viewedProjects",
+          "createdSkills",
+          "createdArticles",
+          "articleVersions",
+          "createdKeywords",
+          "createdPortraits",
+          "createdImages",
+          "createdDocuments",
+          "createdKnowledgeBases",
+          "assignedTodos",
+          "createdTodos",
+          "todoLogOperations"
+        ]
+      },
+      "Skills": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "skillDir": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/User"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "skillDir",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "LlmModel": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "baseUrl": {
+            "type": "string"
+          },
+          "apiKey": {
+            "type": "string"
+          },
+          "modelName": {
+            "type": "string"
+          },
+          "status": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "articles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Article"
+            }
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "provider",
+          "baseUrl",
+          "apiKey",
+          "modelName",
+          "status",
+          "createdAt",
+          "updatedAt",
+          "articles"
+        ]
+      },
+      "PublishingPlatform": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rmResourceId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "taxonomy": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number",
+            "format": "double"
+          },
+          "remark": {
+            "type": "string"
+          },
+          "includeRate": {
+            "type": "number",
+            "format": "double"
+          },
+          "publishRate": {
+            "type": "number",
+            "format": "double"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "rmResourceId",
+          "name",
+          "taxonomy",
+          "price",
+          "includeRate",
+          "publishRate",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "SystemConfig": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "configKey": {
+            "type": "string"
+          },
+          "configValue": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "configKey",
+          "configValue",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "Project": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "shortName": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "company": {
+            "$ref": "#/components/schemas/Company"
+          },
+          "operators": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectOperator"
+            }
+          },
+          "viewers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectViewer"
+            }
+          },
+          "articles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Article"
+            }
+          },
+          "selectedByUsers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/User"
+            }
+          },
+          "knowledgeBases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeBase"
+            }
+          },
+          "todos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Todo"
+            }
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "shortName",
+          "fullName",
+          "companyId",
+          "status",
+          "createdAt",
+          "updatedAt",
+          "company",
+          "operators",
+          "viewers",
+          "articles",
+          "selectedByUsers",
+          "knowledgeBases",
+          "todos"
+        ]
+      },
+      "ProjectOperator": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "userId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "projectId",
+          "userId",
+          "project",
+          "user"
+        ]
+      },
+      "ProjectViewer": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "userId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "projectId",
+          "userId",
+          "project",
+          "user"
+        ]
+      },
+      "KnowledgeBase": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/KnowledgeScope"
+          },
+          "companyId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "projectId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "type": "boolean"
+          },
+          "createdBy": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "company": {
+            "$ref": "#/components/schemas/Company"
+          },
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/User"
+          },
+          "keywords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeKeyword"
+            }
+          },
+          "portraits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KnowledgePortrait"
+            }
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeImage"
+            }
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeDocument"
+            }
+          },
+          "minedKeywords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MinedKeyword"
+            }
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "scope",
+          "status",
+          "createdAt",
+          "updatedAt",
+          "keywords",
+          "portraits",
+          "images",
+          "documents",
+          "minedKeywords"
+        ]
+      },
+      "Article": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "projectId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "title": {
+            "type": "string"
+          },
+          "articleType": {
+            "type": "string"
+          },
+          "writeMode": {
+            "type": "string"
+          },
+          "keywords": {
+            "type": "string"
+          },
+          "portrait": {
+            "type": "string"
+          },
+          "images": {
+            "type": "object"
+          },
+          "platforms": {
+            "type": "object"
+          },
+          "skills": {
+            "type": "object"
+          },
+          "llmModelId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "content": {
+            "type": "string"
+          },
+          "version": {
+            "type": "number",
+            "format": "double"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ArticleStatus"
+          },
+          "scheduledPublishAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "scheduleType": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/User"
+          },
+          "llmModel": {
+            "$ref": "#/components/schemas/LlmModel"
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArticleVersion"
+            }
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "title",
+          "version",
+          "status",
+          "createdAt",
+          "updatedAt",
+          "project",
+          "versions"
+        ]
+      },
+      "ArticleVersion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "articleId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "version": {
+            "type": "number",
+            "format": "double"
+          },
+          "content": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "article": {
+            "$ref": "#/components/schemas/Article"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/User"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "articleId",
+          "version",
+          "content",
+          "createdAt",
+          "article"
+        ]
+      },
+      "KnowledgeKeyword": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "baseId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "keyword": {
+            "type": "string"
+          },
+          "seedWord": {
+            "type": "string"
+          },
+          "groupId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdBy": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "base": {
+            "$ref": "#/components/schemas/KnowledgeBase"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/User"
+          },
+          "expandedWords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KeywordExpandedWord"
+            }
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "baseId",
+          "keyword",
+          "createdAt",
+          "updatedAt",
+          "base",
+          "expandedWords"
+        ]
+      },
+      "KeywordExpandedWord": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "keywordId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "word": {
+            "type": "string"
+          },
+          "selected": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "keyword": {
+            "$ref": "#/components/schemas/KnowledgeKeyword"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "keywordId",
+          "word",
+          "selected",
+          "createdAt",
+          "updatedAt",
+          "keyword"
+        ]
+      },
+      "MinedKeyword": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "baseId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "keyword": {
+            "type": "string"
+          },
+          "selected": {
+            "type": "boolean"
+          },
+          "createdBy": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "base": {
+            "$ref": "#/components/schemas/KnowledgeBase"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "baseId",
+          "keyword",
+          "selected",
+          "createdAt",
+          "base"
+        ]
+      },
+      "KnowledgePortrait": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "baseId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "base": {
+            "$ref": "#/components/schemas/KnowledgeBase"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/User"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "baseId",
+          "title",
+          "createdAt",
+          "updatedAt",
+          "base"
+        ]
+      },
+      "KnowledgeImage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "baseId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "base": {
+            "$ref": "#/components/schemas/KnowledgeBase"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/User"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "baseId",
+          "title",
+          "imageUrl",
+          "createdAt",
+          "updatedAt",
+          "base"
+        ]
+      },
+      "KnowledgeDocument": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "baseId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "fileUrl": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "fileType": {
+            "type": "string"
+          },
+          "fileSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdBy": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "base": {
+            "$ref": "#/components/schemas/KnowledgeBase"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/User"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "baseId",
+          "title",
+          "fileUrl",
+          "fileName",
+          "fileType",
+          "fileSize",
+          "createdAt",
+          "updatedAt",
+          "base"
+        ]
+      },
+      "Todo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "title": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "projectId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "objectType": {
+            "type": "string"
+          },
+          "objectId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "action": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/TodoSource"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/TodoPriority"
+          },
+          "assigneeId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TodoStatus"
+          },
+          "dueAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdById": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "company": {
+            "$ref": "#/components/schemas/Company"
+          },
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "assignee": {
+            "$ref": "#/components/schemas/User"
+          },
+          "createdBy": {
+            "$ref": "#/components/schemas/User"
+          },
+          "logs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TodoLog"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "companyId",
+          "objectType",
+          "action",
+          "source",
+          "priority",
+          "assigneeId",
+          "status",
+          "createdById",
+          "createdAt",
+          "updatedAt",
+          "company",
+          "assignee",
+          "createdBy",
+          "logs"
+        ]
+      },
+      "TodoLog": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "todoId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "operatorId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "action": {
+            "$ref": "#/components/schemas/TodoLogAction"
+          },
+          "objectType": {
+            "type": "string"
+          },
+          "objectId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "remark": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "todo": {
+            "$ref": "#/components/schemas/Todo"
+          },
+          "operator": {
+            "$ref": "#/components/schemas/User"
+          }
+        },
+        "required": [
+          "id",
+          "todoId",
+          "operatorId",
+          "action",
+          "createdAt",
+          "todo",
+          "operator"
+        ]
+      },
+      "Role": {
+        "type": "string",
+        "enum": [
+          "sysadmin",
+          "admin",
+          "view"
+        ]
+      },
+      "ArticleStatus": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "manual_writing",
+          "generating",
+          "generate_failed",
+          "pending_review",
+          "publishing",
+          "publish_failed",
+          "published"
+        ]
+      },
+      "KnowledgeScope": {
+        "type": "string",
+        "enum": [
+          "platform",
+          "company",
+          "project"
+        ]
+      },
+      "TodoSource": {
+        "type": "string",
+        "enum": [
+          "manual",
+          "content_iteration",
+          "smart_link",
+          "daily_check",
+          "risk_warning"
+        ]
+      },
+      "TodoPriority": {
+        "type": "string",
+        "enum": [
+          "P0",
+          "P1",
+          "P2",
+          "P3",
+          "P4"
+        ]
+      },
+      "TodoStatus": {
+        "type": "string",
+        "enum": [
+          "open",
+          "closed",
+          "draft"
+        ]
+      },
+      "TodoLogAction": {
+        "type": "string",
+        "enum": [
+          "submit",
+          "close",
+          "reopen",
+          "transfer",
+          "reject"
         ]
       }
     }
   },
   "tags": [
+    {
+      "name": "系统",
+      "description": "健康检查"
+    },
     {
       "name": "认证管理",
       "description": "登录、登出、Token 验证、公司/项目选择"
@@ -3001,16 +6022,16 @@
       "description": "图片与文档上传"
     },
     {
-      "name": "待办管理",
-      "description": "待办任务 CRUD 与流转"
+      "name": "文章管理",
+      "description": "文章 CRUD 与审核"
     },
     {
       "name": "知识库",
       "description": "知识库 CRUD 及子资源"
     },
     {
-      "name": "知识库",
-      "description": "知识库清单查询"
+      "name": "待办管理",
+      "description": "待办任务 CRUD 与流转"
     }
   ]
 }
