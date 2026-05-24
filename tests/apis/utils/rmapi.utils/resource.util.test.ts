@@ -301,5 +301,182 @@ describe('apis/utils/rmapi.utils/resource.util.ts', () => {
 
       expect(result).toHaveLength(0);
     });
+
+    it('should throw when cached JSON is corrupted', async () => {
+      const { getAllRmResources } = require('../../../../apis/utils/rmapi.utils/resource.util');
+
+      (mockedFs.existsSync as jest.Mock).mockReturnValueOnce(true);
+      (mockedFs.readFileSync as jest.Mock).mockReturnValueOnce('{invalid json');
+
+      await expect(getAllRmResources('test-token')).rejects.toThrow();
+    });
+
+    it('should use only cache when all pages are cached', async () => {
+      const { getAllRmResources } = require('../../../../apis/utils/rmapi.utils/resource.util');
+
+      (mockedFs.existsSync as jest.Mock)
+        .mockReturnValueOnce(true)
+        .mockReturnValueOnce(true);
+
+      const cachedPage1: any = {
+        success: true,
+        pagination: { current_page: 1, last_page: 2, per_page: 10, total: 1 },
+        data: [{ id: 1, name: 'Cached1' }],
+        status: 200,
+      };
+      const cachedPage2: any = {
+        success: true,
+        pagination: { current_page: 2, last_page: 2, per_page: 10, total: 1 },
+        data: [{ id: 2, name: 'Cached2' }],
+        status: 200,
+      };
+      (mockedFs.readFileSync as jest.Mock)
+        .mockReturnValueOnce(JSON.stringify(cachedPage1))
+        .mockReturnValueOnce(JSON.stringify(cachedPage2));
+
+      const result = await getAllRmResources('test-token');
+
+      expect(mockedAxios.get).not.toHaveBeenCalled();
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe(1);
+      expect(result[1].id).toBe(2);
+    });
+
+    it('should handle mixed cache across multiple pages', async () => {
+      const { getAllRmResources } = require('../../../../apis/utils/rmapi.utils/resource.util');
+
+      (mockedFs.existsSync as jest.Mock)
+        .mockReturnValueOnce(false)
+        .mockReturnValueOnce(true)
+        .mockReturnValueOnce(false);
+
+      mockedAxios.get
+        .mockResolvedValueOnce(makeResourceResponse(1, 3, [{ id: 1, name: 'A' }]))
+        .mockResolvedValueOnce(makeResourceResponse(3, 3, [{ id: 3, name: 'C' }]));
+
+      const cachedPage2: any = {
+        success: true,
+        pagination: { current_page: 2, last_page: 3, per_page: 10, total: 1 },
+        data: [{ id: 2, name: 'B' }],
+        status: 200,
+      };
+      (mockedFs.readFileSync as jest.Mock).mockReturnValueOnce(JSON.stringify(cachedPage2));
+
+      const result = await getAllRmResources('test-token');
+
+      expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+      expect(result).toHaveLength(3);
+      expect(result.map(r => r.id)).toEqual([1, 2, 3]);
+    });
+
+    it('should throw when page 2 fetch fails after page 1 succeeded', async () => {
+      const { getAllRmResources } = require('../../../../apis/utils/rmapi.utils/resource.util');
+
+      (mockedFs.existsSync as jest.Mock).mockReturnValue(false);
+      mockedAxios.get
+        .mockResolvedValueOnce(makeResourceResponse(1, 2, [{ id: 1, name: 'A' }]))
+        .mockRejectedValueOnce(new Error('ECONNREFUSED'));
+
+      await expect(getAllRmResources('test-token')).rejects.toThrow('ECONNREFUSED');
+    });
+
+    it('should write JSON with 2-space indentation', async () => {
+      const { getAllRmResources } = require('../../../../apis/utils/rmapi.utils/resource.util');
+
+      (mockedFs.existsSync as jest.Mock).mockReturnValue(false);
+      const responseData = makeResourceResponse(1, 1, [{ id: 1, name: 'A' }]);
+      mockedAxios.get.mockResolvedValueOnce(responseData);
+
+      await getAllRmResources('test-token');
+
+      const writtenContent = (mockedFs.writeFileSync as jest.Mock).mock.calls[0][1] as string;
+      const parsed = JSON.parse(writtenContent);
+      expect(parsed.success).toBe(true);
+      expect(writtenContent).toContain('  ');
+    });
+
+    it('should handle many pages (5 pages)', async () => {
+      const { getAllRmResources } = require('../../../../apis/utils/rmapi.utils/resource.util');
+
+      (mockedFs.existsSync as jest.Mock).mockReturnValue(false);
+      for (let i = 1; i <= 5; i++) {
+        mockedAxios.get.mockResolvedValueOnce(
+          makeResourceResponse(i, 5, [{ id: i, name: `Item${i}` }]),
+        );
+      }
+
+      const result = await getAllRmResources('test-token');
+
+      expect(mockedAxios.get).toHaveBeenCalledTimes(5);
+      expect(result).toHaveLength(5);
+    });
+  });
+
+  // ─── getRmResources additional edge cases ──────────────────
+
+  describe('getRmResources – edge cases', () => {
+    it('should handle token with special characters', async () => {
+      const { getRmResources } = require('../../../../apis/utils/rmapi.utils/resource.util');
+      mockedAxios.get.mockResolvedValueOnce(makeResourceResponse(1, 1, []));
+
+      await getRmResources({ token: 'tokén-特殊_字符!@#$%' });
+
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        expect.any(String),
+        { params: { token: 'tokén-特殊_字符!@#$%', page: 1 } },
+      );
+    });
+
+    it('should return response with all RmResourceItem fields', async () => {
+      const { getRmResources } = require('../../../../apis/utils/rmapi.utils/resource.util');
+      const fullItem = {
+        id: 1,
+        taxonomy: 'news',
+        title_limit: 30,
+        name: 'Full Resource',
+        price: 100,
+        in_level: 2,
+        url_type: ['https'],
+        baidu: 1,
+        remark: 'test remark',
+        url: 'https://example.com',
+        case_url: 'https://case.example.com',
+        include_rate: 0.95,
+        publish_rate: 0.85,
+        publish_type_name: 'standard',
+        price_market: 200,
+        price_agenta: 150,
+        price_agentb: 120,
+        price_agentc: 100,
+      };
+      mockedAxios.get.mockResolvedValueOnce(
+        makeResourceResponse(1, 1, [fullItem]),
+      );
+
+      const result = await getRmResources({ token: 'tok' });
+
+      expect(result.data[0]).toEqual(fullItem);
+    });
+
+    it('should propagate timeout error from axios', async () => {
+      const { getRmResources } = require('../../../../apis/utils/rmapi.utils/resource.util');
+      const error: any = new Error('timeout of 5000ms exceeded');
+      error.code = 'ECONNABORTED';
+      mockedAxios.get.mockRejectedValueOnce(error);
+
+      await expect(getRmResources({ token: 'tok' })).rejects.toThrow('timeout of 5000ms exceeded');
+    });
+
+    it('should handle page number 0', async () => {
+      const { getRmResources } = require('../../../../apis/utils/rmapi.utils/resource.util');
+      mockedAxios.get.mockResolvedValueOnce(makeResourceResponse(0, 1, []));
+
+      await getRmResources({ token: 'tok', page: 0 });
+
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        expect.any(String),
+        { params: { token: 'tok', page: 0 } },
+      );
+    });
   });
 });
