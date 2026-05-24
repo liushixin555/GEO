@@ -136,3 +136,4 @@
 | 2026-05-24 | tasks/tdd/user.schema.test.md | user.schema.ts TDD——150用例100%覆盖率（3个Zod schema全量验证：coerce/enum/transform/strict/边界/类型安全/中文错误消息） |
 | 2026-05-24 | tasks/review/bold.tsx.ui.md | bold.tsx UI 专家评审——⚠️有条件通过 4.3/10（P2×2 英文硬编码+原生title非antd Tooltip/Carbon focus ring缺失，P3×3 图标偏小/风格不一致/触摸目标不足） |
 | 2026-05-24 | progress_tasks/2026-05-24-bold-tsx-review-fix.md | bold.tsx 评审封装层修复——I18N-01中文aria-label覆盖+A-02 SVG aria-hidden+V-01图标16px+R-01触摸目标44px |
+| 2026-05-24 | tasks/tdd/article.service.test.md | article.service TDD 第2轮补全——105用例100%覆盖率（+56新增：JsonNull边界/状态枚举全遍历/接口合规性/多级标题提取/版本号Math.floor） |
