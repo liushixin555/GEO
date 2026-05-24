@@ -243,3 +243,23 @@ pluginsFilter?: (type: 'rehype' | 'remark', plugins: PluggableList) => Pluggable
 3. **类型定义重复** — 同一复杂类型写两遍，修改时容易遗漏
 
 **综合评分 5.3/10** — 类型定义功能正确但工程质量不足。建议在 v5 版本中进行一次类型层面的重构清理。
+
+---
+
+## 八、修复记录
+
+**修复日期**: 2026-05-24
+**修复方式**: 通过 `patch-package` 补丁（`patches/@uiw+react-markdown-preview+5.2.1.patch`）
+
+| 问题编号 | 修复状态 | 修复说明 |
+|---|---|---|
+| P1-1 | ✅ 已标记弃用 | `warpperElement` 保留但标记 `@deprecated`，v5 移除 |
+| P1-2 | ✅ 已修复 | `MarkdownPreviewRef` 不再继承 Props，仅暴露 `mdp` |
+| P1-3 | ✅ 已修复 | 提取 `WrapperElementProps` 类型别名，消除重复 |
+| P2-1 | ⏭️ 跳过 | 源文件扩展名由上游控制，不影响运行 |
+| P2-2 | ✅ 已修复 | 显式导入 `CSSProperties`, `HTMLAttributes`, `RefObject` 等类型 |
+| P2-3 | ✅ 已修复 | 添加 JSDoc 说明默认行为 |
+| P2-4 | ✅ 已修复 | 参数名 `plugin` → `plugins`，`type` → `phase` |
+| P3-1 | ✅ 已修复 | 所有属性均已添加 JSDoc 注释 |
+| P3-2 | ✅ 已修复 | `ColorMode` 类型增加 `'auto'` 选项 |
+| P3-3 | ✅ 已修复 | `onMouseOver` 添加 `(bubbling)` 说明 |
