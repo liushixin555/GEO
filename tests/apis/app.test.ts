@@ -1722,8 +1722,8 @@ describe('App - Unhandled Error Structured Fields', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it('should include userRole in structured error log for authenticated requests', async () => {
-    // Send oversized payload with authenticated user to trigger 500
+  it('should include structured fields in error log for unhandled errors', async () => {
+    // Send oversized payload to trigger PayloadTooLargeError → 500
     const largePayload = { data: 'x'.repeat(11 * 1024 * 1024) };
     const res = await agent
       .post('/api/v1/auth/login')
@@ -1733,6 +1733,8 @@ describe('App - Unhandled Error Structured Fields', () => {
     // Late-order test: may be blocked by anti-crawl — skip if not 500
     if (res.status !== 500) return;
 
+    // PayloadTooLargeError occurs during body parsing BEFORE auth middleware,
+    // so userId/userRole will NOT be present. Verify core fields only.
     if (consoleErrorSpy.mock.calls.length > 0) {
       const logCall = consoleErrorSpy.mock.calls.find(
         (call: string[]) => typeof call[0] === 'string' && call[0] === '[Unhandled Error]',
@@ -1742,11 +1744,11 @@ describe('App - Unhandled Error Structured Fields', () => {
         expect(entry).toHaveProperty('method');
         expect(entry).toHaveProperty('url');
         expect(entry).toHaveProperty('ip');
-        expect(entry).toHaveProperty('userId');
-        expect(entry).toHaveProperty('userRole');
         expect(entry).toHaveProperty('error');
         expect(entry.error).toHaveProperty('name');
         expect(entry.error).toHaveProperty('message');
+        // PayloadTooLargeError happens before auth middleware — userId/userRole absent
+        expect(entry.error.name).toBe('PayloadTooLargeError');
       }
     }
   });
@@ -1961,5 +1963,280 @@ describe('App - JSON Body Size Boundary', () => {
       .send(largePayload);
     // Should not be rejected for size (may fail for other reasons)
     expect(response.status).not.toBe(500);
+  });
+});
+
+// ─── AppError Handler Branch (isolated modules for line 128-129) ───
+describe('App - AppError Handler Branch (isolated)', () => {
+  it('should return AppError statusCode and message from global error handler', async () => {
+    let testApp: any;
+    jest.isolateModules(() => {
+      jest.doMock('../../apis/utils/db.util', () => ({
+        getPrisma: jest.fn(),
+        closePrisma: jest.fn(),
+      }));
+      jest.doMock('../../apis/routes/auth.routes', () => {
+        const { Router } = require('express');
+        const { AppError } = require('../../apis/errors');
+        const router = Router();
+        router.get('/verify', (_req: any, _res: any, next: any) => {
+          next(new AppError(422, '自定义业务错误'));
+        });
+        return { __esModule: true, default: router };
+      });
+      testApp = require('../../apis/app').default;
+    });
+
+    const response = await request(testApp)
+      .get('/api/v1/auth/verify')
+      .set('User-Agent', 'test-agent/1.0');
+
+    expect(response.status).toBe(422);
+    expect(response.body).toEqual({ code: 422, message: '自定义业务错误' });
+  });
+
+  it('should handle NotFoundError (404 subclass)', async () => {
+    let testApp: any;
+    jest.isolateModules(() => {
+      jest.doMock('../../apis/utils/db.util', () => ({
+        getPrisma: jest.fn(),
+        closePrisma: jest.fn(),
+      }));
+      jest.doMock('../../apis/routes/auth.routes', () => {
+        const { Router } = require('express');
+        const { NotFoundError } = require('../../apis/errors');
+        const router = Router();
+        router.get('/verify', (_req: any, _res: any, next: any) => {
+          next(new NotFoundError('用户'));
+        });
+        return { __esModule: true, default: router };
+      });
+      testApp = require('../../apis/app').default;
+    });
+
+    const response = await request(testApp)
+      .get('/api/v1/auth/verify')
+      .set('User-Agent', 'test-agent/1.0');
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ code: 404, message: '用户不存在' });
+  });
+
+  it('should handle BusinessError (400 subclass)', async () => {
+    let testApp: any;
+    jest.isolateModules(() => {
+      jest.doMock('../../apis/utils/db.util', () => ({
+        getPrisma: jest.fn(),
+        closePrisma: jest.fn(),
+      }));
+      jest.doMock('../../apis/routes/auth.routes', () => {
+        const { Router } = require('express');
+        const { BusinessError } = require('../../apis/errors');
+        const router = Router();
+        router.get('/verify', (_req: any, _res: any, next: any) => {
+          next(new BusinessError('余额不足'));
+        });
+        return { __esModule: true, default: router };
+      });
+      testApp = require('../../apis/app').default;
+    });
+
+    const response = await request(testApp)
+      .get('/api/v1/auth/verify')
+      .set('User-Agent', 'test-agent/1.0');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ code: 400, message: '余额不足' });
+  });
+
+  it('should handle UnauthorizedError (401 subclass)', async () => {
+    let testApp: any;
+    jest.isolateModules(() => {
+      jest.doMock('../../apis/utils/db.util', () => ({
+        getPrisma: jest.fn(),
+        closePrisma: jest.fn(),
+      }));
+      jest.doMock('../../apis/routes/auth.routes', () => {
+        const { Router } = require('express');
+        const { UnauthorizedError } = require('../../apis/errors');
+        const router = Router();
+        router.get('/verify', (_req: any, _res: any, next: any) => {
+          next(new UnauthorizedError());
+        });
+        return { __esModule: true, default: router };
+      });
+      testApp = require('../../apis/app').default;
+    });
+
+    const response = await request(testApp)
+      .get('/api/v1/auth/verify')
+      .set('User-Agent', 'test-agent/1.0');
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ code: 401, message: '未授权，请先登录' });
+  });
+
+  it('should handle ForbiddenError (403 subclass)', async () => {
+    let testApp: any;
+    jest.isolateModules(() => {
+      jest.doMock('../../apis/utils/db.util', () => ({
+        getPrisma: jest.fn(),
+        closePrisma: jest.fn(),
+      }));
+      jest.doMock('../../apis/routes/auth.routes', () => {
+        const { Router } = require('express');
+        const { ForbiddenError } = require('../../apis/errors');
+        const router = Router();
+        router.get('/verify', (_req: any, _res: any, next: any) => {
+          next(new ForbiddenError('禁止操作'));
+        });
+        return { __esModule: true, default: router };
+      });
+      testApp = require('../../apis/app').default;
+    });
+
+    const response = await request(testApp)
+      .get('/api/v1/auth/verify')
+      .set('User-Agent', 'test-agent/1.0');
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({ code: 403, message: '禁止操作' });
+  });
+
+  it('should handle ConflictError (409 subclass)', async () => {
+    let testApp: any;
+    jest.isolateModules(() => {
+      jest.doMock('../../apis/utils/db.util', () => ({
+        getPrisma: jest.fn(),
+        closePrisma: jest.fn(),
+      }));
+      jest.doMock('../../apis/routes/auth.routes', () => {
+        const { Router } = require('express');
+        const { ConflictError } = require('../../apis/errors');
+        const router = Router();
+        router.get('/verify', (_req: any, _res: any, next: any) => {
+          next(new ConflictError('资源冲突'));
+        });
+        return { __esModule: true, default: router };
+      });
+      testApp = require('../../apis/app').default;
+    });
+
+    const response = await request(testApp)
+      .get('/api/v1/auth/verify')
+      .set('User-Agent', 'test-agent/1.0');
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({ code: 409, message: '资源冲突' });
+  });
+
+  it('should log userId and userRole for authenticated unhandled errors', async () => {
+    let testApp: any;
+    jest.isolateModules(() => {
+      jest.doMock('../../apis/utils/db.util', () => ({
+        getPrisma: jest.fn(),
+        closePrisma: jest.fn(),
+      }));
+      jest.doMock('../../apis/routes/auth.routes', () => {
+        const { Router } = require('express');
+        const { authMiddleware } = require('../../apis/middleware');
+        const router = Router();
+        router.get('/verify', authMiddleware, (_req: any, _res: any, next: any) => {
+          next(new Error('unexpected error with auth'));
+        });
+        return { __esModule: true, default: router };
+      });
+      testApp = require('../../apis/app').default;
+    });
+
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const response = await request(testApp)
+      .get('/api/v1/auth/verify')
+      .set('User-Agent', 'test-agent/1.0')
+      .set('Authorization', `Bearer ${sysadminToken()}`);
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({ code: 500, message: '服务器内部错误' });
+
+    const logCalls = consoleErrorSpy.mock.calls.filter(
+      (call: string[]) => typeof call[0] === 'string' && call[0] === '[Unhandled Error]',
+    );
+    expect(logCalls.length).toBeGreaterThan(0);
+    const logEntry = JSON.parse(logCalls[0][1] as string);
+    expect(logEntry.userId).toBe(1);
+    expect(logEntry.userRole).toBe('sysadmin');
+    expect(logEntry.error.message).toBe('unexpected error with auth');
+
+    consoleErrorSpy.mockRestore();
+  });
+});
+
+// ─── Swagger Enabled Scenario (isolated modules for line 94-97) ───
+describe('App - Swagger Enabled (isolated)', () => {
+  it('should register swagger UI route when SWAGGER_ENABLED=true', async () => {
+    const originalSwagger = process.env.SWAGGER_ENABLED;
+    let testApp: any;
+    jest.isolateModules(() => {
+      process.env.SWAGGER_ENABLED = 'true';
+      jest.doMock('../../apis/utils/db.util', () => ({
+        getPrisma: jest.fn(),
+        closePrisma: jest.fn(),
+      }));
+      testApp = require('../../apis/app').default;
+    });
+    process.env.SWAGGER_ENABLED = originalSwagger;
+
+    const response = await request(testApp)
+      .get('/api-docs/')
+      .set('User-Agent', 'test-agent/1.0');
+
+    // Route registered (not 404), but swagger auth returns 401 without credentials
+    expect(response.status).not.toBe(404);
+    expect(response.status).toBe(401);
+  });
+
+  it('should register swagger JSON endpoint when SWAGGER_ENABLED=true', async () => {
+    const originalSwagger = process.env.SWAGGER_ENABLED;
+    let testApp: any;
+    jest.isolateModules(() => {
+      process.env.SWAGGER_ENABLED = 'true';
+      jest.doMock('../../apis/utils/db.util', () => ({
+        getPrisma: jest.fn(),
+        closePrisma: jest.fn(),
+      }));
+      testApp = require('../../apis/app').default;
+    });
+    process.env.SWAGGER_ENABLED = originalSwagger;
+
+    const response = await request(testApp)
+      .get('/api-docs.json')
+      .set('User-Agent', 'test-agent/1.0');
+
+    expect(response.status).not.toBe(404);
+    expect(response.status).toBe(401);
+    expect(response.headers['www-authenticate']).toBeDefined();
+  });
+
+  it('should set WWW-Authenticate header on swagger auth failure', async () => {
+    const originalSwagger = process.env.SWAGGER_ENABLED;
+    let testApp: any;
+    jest.isolateModules(() => {
+      process.env.SWAGGER_ENABLED = 'true';
+      jest.doMock('../../apis/utils/db.util', () => ({
+        getPrisma: jest.fn(),
+        closePrisma: jest.fn(),
+      }));
+      testApp = require('../../apis/app').default;
+    });
+    process.env.SWAGGER_ENABLED = originalSwagger;
+
+    const response = await request(testApp)
+      .get('/api-docs/')
+      .set('User-Agent', 'test-agent/1.0');
+
+    expect(response.status).toBe(401);
+    expect(response.headers['www-authenticate']).toBe('Basic realm="API Docs"');
+    expect(response.body.message).toBe('需要登录才能访问 API 文档');
   });
 });
