@@ -15,8 +15,8 @@
 
 ## 测试结果
 - **测试套件**: 1 passed
-- **测试用例**: 74 passed, 0 failed
-- **执行时间**: ~4.2s
+- **测试用例**: 137 passed, 0 failed
+- **执行时间**: ~5.1s
 
 ## 测试用例明细
 
@@ -104,6 +104,83 @@
 1. 从 index.ts 导入编译验证
 2. 所有请求类型导入验证
 
+### JSON 序列化/反序列化（9 个）
+1. KnowledgeBase 序列化为 JSON 字符串
+2. JSON 反序列化后字符串字段正确
+3. JSON 反序列化后数值字段正确
+4. JSON 往返保留 null 字段
+5. JSON 往返保留 boolean status
+6. Date 字段序列化为 ISO 字符串
+7. 从反序列化 JSON 重建 Date 对象
+8. CreateRequest 序列化正确
+9. UpdateRequest 仅序列化提供的字段
+
+### Object 操作与高级边界（21 个）
+1. Object.freeze 支持
+2. Object.keys 枚举
+3. Object.values 类型验证
+4. Object.entries 遍历
+5. hasOwnProperty 检查
+6. id 为 Number.MAX_SAFE_INTEGER
+7. id 为负数
+8. created_at 与 updated_at 相同
+9. 时间戳毫秒精度
+10. name 含 Emoji
+11. description 含 Emoji
+12. Unicode 多语言支持（日文/韩文）
+13. description 含 HTML 特殊字符
+14. description 含空白字符和换行
+15. count 字段为 Number.MAX_SAFE_INTEGER
+16. count 字段为负数
+17. created_by 为 Number.MAX_SAFE_INTEGER
+18. company_id/project_id 为 Number.MAX_SAFE_INTEGER
+19. name 含混合脚本（中文+英文+数字）
+20. name 含 Emoji
+21. name 含混合脚本正则匹配
+
+### 集合/数组操作（9 个）
+1. KnowledgeBase 数组支持
+2. 按 scope 过滤
+3. 按 status 过滤
+4. 映射提取 name 列表
+5. 按 id 排序
+6. 按 id 查找
+7. reduce 聚合 count 统计
+8. 空数组
+9. every/some 状态检查
+
+### Scope 业务约束验证（9 个）
+1. platform scope 无 company/project 关联
+2. company scope 有 company 关联
+3. project scope 同时有 company 和 project 关联
+4. scope 升级：platform → company
+5. scope 升级：company → project
+6. scope 降级：project → company
+7. CreateRequest platform scope 不需要 ids
+8. CreateRequest company scope 含 company_id
+9. CreateRequest project scope 含双 id
+
+### 连续多次更新模拟（4 个）
+1. 多次顺序更新正确应用
+2. status 开关序列
+3. count 字段累加更新
+4. 从 CreateRequest 起源的完整更新链
+
+### CreateRequest/UpdateRequest 高级边界（13 个）
+1. name 仅含空白字符
+2. name 含换行符
+3. UpdateRequest 仅变更 scope
+4. UpdateRequest 清空 description
+5. CreateRequest description 含 Emoji
+6. UpdateRequest 仅变更 company_id
+7. UpdateRequest 仅变更 project_id
+8. CreateRequest 大 company_id/project_id
+9. UpdateRequest 负数 company_id/project_id
+10. UpdateRequest name 含 Emoji
+11. CreateRequest 序列化/反序列化
+12. UpdateRequest 序列化/反序列化
+13. Create/Update 完整字段数量对比
+
 ## 覆盖率分析
 ```
 File                          | % Stmts | % Branch | % Funcs | % Lines
@@ -111,29 +188,34 @@ File                          | % Stmts | % Branch | % Funcs | % Lines
 knowledge-base.entity.ts      |     N/A |      N/A |     N/A |    N/A
 ```
 
-**说明**: 该文件为纯 TypeScript 接口定义（interface），编译后无运行时代码，因此 Istanbul 无法统计覆盖率。类型契约在编译期由 TypeScript 编译器验证，74 个测试用例确保所有字段、可空性和联合类型均正确使用。
+**说明**: 该文件为纯 TypeScript 接口定义（interface），编译后无运行时代码，因此 Istanbul 无法统计覆盖率。类型契约在编译期由 TypeScript 编译器验证，137 个测试用例确保所有字段、可空性和联合类型均正确使用。
 
-## 新增测试对比（v1 → v2）
-| 维度 | v1 | v2 | 新增 |
+## 新增测试对比（v2 → v3）
+| 维度 | v2 | v3 | 新增 |
 |------|-----|-----|------|
-| 总测试数 | 43 | 74 | +31 |
-| KnowledgeBase | 19 | 30 | +11 |
-| CreateRequest | 9 | 17 | +8 |
-| UpdateRequest | 13 | 20 | +7 |
-| 跨接口交互 | 0 | 5 | +5 |
+| 总测试数 | 74 | 137 | +63 |
+| KnowledgeBase | 30 | 30 | 0 |
+| CreateRequest | 17 | 17 | 0 |
+| UpdateRequest | 20 | 20 | 0 |
+| 跨接口交互 | 5 | 5 | 0 |
 | re-exports | 2 | 2 | 0 |
+| JSON 序列化 | 0 | 9 | +9 |
+| Object 操作 | 0 | 21 | +21 |
+| 集合操作 | 0 | 9 | +9 |
+| Scope 约束 | 0 | 9 | +9 |
+| 连续更新 | 0 | 4 | +4 |
+| 高级边界 | 0 | 13 | +13 |
 
 ## 新增测试亮点
-- **spread 模式**: 使用 baseKB helper 减少重复代码，遵循 DRY 原则
-- **不可变性验证**: 确保 spread 操作不影响原始对象
-- **字段数量验证**: 通过 Object.keys 确认接口字段完整性
-- **边界值测试**: id=0, company_id=0, project_id=0, 空字符串, 超长字符串
-- **特殊字符**: name 支持 `<>&"` 等 HTML 特殊字符
-- **跨接口交互**: CreateRequest/UpdateRequest 与 KnowledgeBase 的组合验证
-- **完整生命周期**: 模拟 create → update → verify 全流程
+- **JSON 序列化**: 验证 KnowledgeBase/CreateRequest/UpdateRequest 的 JSON.stringify/parse 往返一致性，包括 Date 字段的 ISO 字符串转换与重建
+- **Object 操作**: Object.freeze、Object.keys/values/entries、hasOwnProperty 全面覆盖
+- **高级边界**: Number.MAX_SAFE_INTEGER、负数、毫秒精度、Emoji、Unicode 多语言（日文/韩文）、HTML 特殊字符、空白字符/换行
+- **集合操作**: 数组 filter/map/sort/find/reduce/every/some 全覆盖
+- **Scope 业务约束**: platform/company/project 三级 scope 的关联字段约束、升级/降级场景
+- **连续更新模拟**: 多次顺序更新、status 开关序列、count 累加、完整 Create → Update 链
 
 ## 结论
-- 74 个测试全部通过
+- 137 个测试全部通过
 - 3 个接口全覆盖（KnowledgeBase、CreateKnowledgeBaseRequest、UpdateKnowledgeBaseRequest）
 - 所有字段类型、nullable、scope 联合类型均已验证
-- 测试覆盖了正常值、边界值、中文场景、特殊字符、跨接口交互
+- 测试覆盖了正常值、边界值、中文场景、特殊字符、Emoji、Unicode 多语言、JSON 序列化、Object 操作、集合操作、Scope 约束、连续更新

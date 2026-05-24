@@ -749,4 +749,676 @@ describe('knowledge-base.entity', () => {
       expect(updateReq.name).toBe('更新');
     });
   });
+
+  // ============================================================
+  // JSON 序列化/反序列化
+  // ============================================================
+  describe('JSON serialization / deserialization', () => {
+    const baseKB: KnowledgeBase = {
+      id: 1, name: '序列化测试', description: '描述内容', scope: 'company',
+      company_id: 5, company_name: '测试公司', project_id: null, project_name: null,
+      status: true, created_by: 1, creator_name: '管理员',
+      keyword_count: 10, portrait_count: 5, image_count: 3, document_count: 2,
+      created_at: new Date('2024-06-15T10:30:00.000Z'),
+      updated_at: new Date('2024-06-15T12:45:30.123Z'),
+    };
+
+    it('should serialize KnowledgeBase to JSON string', () => {
+      const json = JSON.stringify(baseKB);
+      expect(json).toContain('"name":"序列化测试"');
+      expect(json).toContain('"scope":"company"');
+      expect(json).toContain('"company_id":5');
+    });
+
+    it('should deserialize JSON back to object with correct string fields', () => {
+      const json = JSON.stringify(baseKB);
+      const parsed = JSON.parse(json);
+      expect(parsed.name).toBe('序列化测试');
+      expect(parsed.description).toBe('描述内容');
+      expect(parsed.scope).toBe('company');
+      expect(parsed.company_name).toBe('测试公司');
+      expect(parsed.creator_name).toBe('管理员');
+    });
+
+    it('should deserialize numeric fields correctly', () => {
+      const json = JSON.stringify(baseKB);
+      const parsed = JSON.parse(json);
+      expect(parsed.id).toBe(1);
+      expect(parsed.company_id).toBe(5);
+      expect(parsed.keyword_count).toBe(10);
+      expect(parsed.portrait_count).toBe(5);
+      expect(parsed.image_count).toBe(3);
+      expect(parsed.document_count).toBe(2);
+    });
+
+    it('should preserve null fields through JSON round-trip', () => {
+      const kb: KnowledgeBase = { ...baseKB, description: null, project_id: null, project_name: null };
+      const json = JSON.stringify(kb);
+      const parsed = JSON.parse(json);
+      expect(parsed.description).toBeNull();
+      expect(parsed.project_id).toBeNull();
+      expect(parsed.project_name).toBeNull();
+    });
+
+    it('should preserve boolean status through JSON round-trip', () => {
+      const kbTrue: KnowledgeBase = { ...baseKB, status: true };
+      const kbFalse: KnowledgeBase = { ...baseKB, status: false };
+      expect(JSON.parse(JSON.stringify(kbTrue)).status).toBe(true);
+      expect(JSON.parse(JSON.stringify(kbFalse)).status).toBe(false);
+    });
+
+    it('should convert Date fields to ISO strings in JSON', () => {
+      const json = JSON.stringify(baseKB);
+      const parsed = JSON.parse(json);
+      expect(typeof parsed.created_at).toBe('string');
+      expect(typeof parsed.updated_at).toBe('string');
+      expect(parsed.created_at).toBe('2024-06-15T10:30:00.000Z');
+      expect(parsed.updated_at).toBe('2024-06-15T12:45:30.123Z');
+    });
+
+    it('should reconstruct Date objects from deserialized JSON', () => {
+      const json = JSON.stringify(baseKB);
+      const parsed = JSON.parse(json);
+      const restored: KnowledgeBase = {
+        ...parsed,
+        created_at: new Date(parsed.created_at),
+        updated_at: new Date(parsed.updated_at),
+      };
+      expect(restored.created_at).toBeInstanceOf(Date);
+      expect(restored.updated_at).toBeInstanceOf(Date);
+      expect(restored.created_at.getTime()).toBe(baseKB.created_at.getTime());
+      expect(restored.updated_at.getTime()).toBe(baseKB.updated_at.getTime());
+    });
+
+    it('should serialize CreateKnowledgeBaseRequest correctly', () => {
+      const req: CreateKnowledgeBaseRequest = {
+        name: '创建请求', description: '描述', scope: 'platform',
+      };
+      const json = JSON.stringify(req);
+      const parsed = JSON.parse(json);
+      expect(parsed.name).toBe('创建请求');
+      expect(parsed.description).toBe('描述');
+      expect(parsed.scope).toBe('platform');
+    });
+
+    it('should serialize UpdateKnowledgeBaseRequest with only provided fields', () => {
+      const req: UpdateKnowledgeBaseRequest = { name: '部分更新', status: false };
+      const json = JSON.stringify(req);
+      const parsed = JSON.parse(json);
+      expect(Object.keys(parsed)).toHaveLength(2);
+      expect(parsed.name).toBe('部分更新');
+      expect(parsed.status).toBe(false);
+    });
+  });
+
+  // ============================================================
+  // Object 操作与高级边界
+  // ============================================================
+  describe('Object operations and advanced edge cases', () => {
+    const baseKB: KnowledgeBase = {
+      id: 1, name: '对象操作测试', description: null, scope: 'platform',
+      company_id: null, company_name: null, project_id: null, project_name: null,
+      status: true, created_by: null, creator_name: null,
+      keyword_count: 0, portrait_count: 0, image_count: 0, document_count: 0,
+      created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+    };
+
+    it('should support Object.freeze on KnowledgeBase', () => {
+      const frozen = Object.freeze({ ...baseKB });
+      expect(Object.isFrozen(frozen)).toBe(true);
+      expect(frozen.name).toBe('对象操作测试');
+    });
+
+    it('should support Object.keys enumeration', () => {
+      const keys = Object.keys(baseKB);
+      expect(keys).toHaveLength(17);
+      expect(keys).toContain('id');
+      expect(keys).toContain('name');
+      expect(keys).toContain('scope');
+      expect(keys).toContain('status');
+    });
+
+    it('should support Object.values with correct types', () => {
+      const values = Object.values(baseKB);
+      expect(values).toContain(1);
+      expect(values).toContain('对象操作测试');
+      expect(values).toContain('platform');
+      expect(values).toContain(true);
+      expect(values).toContain(null);
+    });
+
+    it('should support Object.entries for iteration', () => {
+      const entries = Object.entries(baseKB);
+      expect(entries).toHaveLength(17);
+      const nameEntry = entries.find(([key]) => key === 'name');
+      expect(nameEntry).toEqual(['name', '对象操作测试']);
+    });
+
+    it('should support hasOwnProperty checks', () => {
+      expect(baseKB.hasOwnProperty('id')).toBe(true);
+      expect(baseKB.hasOwnProperty('name')).toBe(true);
+      expect(baseKB.hasOwnProperty('scope')).toBe(true);
+      expect(baseKB.hasOwnProperty('nonexistent')).toBe(false);
+    });
+
+    it('should support id as Number.MAX_SAFE_INTEGER', () => {
+      const kb: KnowledgeBase = { ...baseKB, id: Number.MAX_SAFE_INTEGER };
+      expect(kb.id).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('should support negative id values', () => {
+      const kb: KnowledgeBase = { ...baseKB, id: -1 };
+      expect(kb.id).toBe(-1);
+    });
+
+    it('should support created_at and updated_at being the same Date', () => {
+      const sameDate = new Date('2024-06-15T10:00:00.000Z');
+      const kb: KnowledgeBase = { ...baseKB, created_at: sameDate, updated_at: sameDate };
+      expect(kb.created_at.getTime()).toBe(kb.updated_at.getTime());
+    });
+
+    it('should preserve timestamp millisecond precision', () => {
+      const created = new Date('2024-06-15T10:30:45.123Z');
+      const updated = new Date('2024-06-15T10:30:45.456Z');
+      const kb: KnowledgeBase = { ...baseKB, created_at: created, updated_at: updated };
+      expect(kb.created_at.getMilliseconds()).toBe(123);
+      expect(kb.updated_at.getMilliseconds()).toBe(456);
+    });
+
+    it('should support Emoji characters in name', () => {
+      const kb: KnowledgeBase = { ...baseKB, name: '📚知识库🎉数据' };
+      expect(kb.name).toContain('📚');
+      expect(kb.name).toContain('🎉');
+    });
+
+    it('should support Emoji characters in description', () => {
+      const kb: KnowledgeBase = { ...baseKB, description: '描述📝测试🔧' };
+      expect(kb.description).toContain('📝');
+      expect(kb.description).toContain('🔧');
+    });
+
+    it('should support Unicode characters beyond Chinese (Japanese/Korean)', () => {
+      const kb: KnowledgeBase = {
+        ...baseKB,
+        name: 'ナレッジベース 한국어',
+        description: '日本語テスト 한국어 테스트',
+      };
+      expect(kb.name).toContain('ナレッジ');
+      expect(kb.name).toContain('한국어');
+      expect(kb.description).toContain('日本語');
+    });
+
+    it('should support description with special HTML characters', () => {
+      const kb: KnowledgeBase = {
+        ...baseKB,
+        description: '<script>alert("xss")</script>&<img src=x>',
+      };
+      expect(kb.description).toContain('<script>');
+      expect(kb.description).toContain('&');
+    });
+
+    it('should support whitespace and newlines in description', () => {
+      const kb: KnowledgeBase = {
+        ...baseKB,
+        description: '第一行\n第二行\t制表符  多空格',
+      };
+      expect(kb.description).toContain('\n');
+      expect(kb.description).toContain('\t');
+    });
+
+    it('should support count fields with Number.MAX_SAFE_INTEGER', () => {
+      const kb: KnowledgeBase = {
+        ...baseKB,
+        keyword_count: Number.MAX_SAFE_INTEGER,
+        portrait_count: Number.MAX_SAFE_INTEGER,
+        image_count: Number.MAX_SAFE_INTEGER,
+        document_count: Number.MAX_SAFE_INTEGER,
+      };
+      expect(kb.keyword_count).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('should support negative count values', () => {
+      const kb: KnowledgeBase = {
+        ...baseKB,
+        keyword_count: -1,
+        portrait_count: -100,
+      };
+      expect(kb.keyword_count).toBe(-1);
+      expect(kb.portrait_count).toBe(-100);
+    });
+
+    it('should support created_by as Number.MAX_SAFE_INTEGER', () => {
+      const kb: KnowledgeBase = { ...baseKB, created_by: Number.MAX_SAFE_INTEGER };
+      expect(kb.created_by).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('should support company_id and project_id as Number.MAX_SAFE_INTEGER', () => {
+      const kb: KnowledgeBase = {
+        ...baseKB,
+        company_id: Number.MAX_SAFE_INTEGER,
+        project_id: Number.MAX_SAFE_INTEGER - 1,
+      };
+      expect(kb.company_id).toBe(Number.MAX_SAFE_INTEGER);
+      expect(kb.project_id).toBe(Number.MAX_SAFE_INTEGER - 1);
+    });
+
+    it('should support name with mixed scripts (Chinese + English + numbers)', () => {
+      const kb: KnowledgeBase = { ...baseKB, name: '薄云KB-2024倍增服务v2.0' };
+      expect(kb.name).toMatch(/薄云.*KB.*2024.*v2\.0/);
+    });
+  });
+
+  // ============================================================
+  // 集合/数组操作
+  // ============================================================
+  describe('Collection / Array operations', () => {
+    const makeKB = (id: number, name: string, scope: 'platform' | 'company' | 'project'): KnowledgeBase => ({
+      id, name, description: null, scope,
+      company_id: scope === 'company' ? id * 10 : scope === 'project' ? id * 10 : null,
+      company_name: scope !== 'platform' ? `公司${id}` : null,
+      project_id: scope === 'project' ? id * 100 : null,
+      project_name: scope === 'project' ? `项目${id}` : null,
+      status: true, created_by: 1, creator_name: '管理员',
+      keyword_count: 0, portrait_count: 0, image_count: 0, document_count: 0,
+      created_at: new Date(), updated_at: new Date(),
+    });
+
+    it('should support array of KnowledgeBase objects', () => {
+      const list: KnowledgeBase[] = [
+        makeKB(1, '平台库', 'platform'),
+        makeKB(2, '公司库', 'company'),
+        makeKB(3, '项目库', 'project'),
+      ];
+      expect(list).toHaveLength(3);
+      expect(list[0].scope).toBe('platform');
+      expect(list[1].scope).toBe('company');
+      expect(list[2].scope).toBe('project');
+    });
+
+    it('should support filtering by scope', () => {
+      const list: KnowledgeBase[] = [
+        makeKB(1, 'A', 'platform'),
+        makeKB(2, 'B', 'company'),
+        makeKB(3, 'C', 'project'),
+        makeKB(4, 'D', 'platform'),
+      ];
+      const platformKBs = list.filter(kb => kb.scope === 'platform');
+      expect(platformKBs).toHaveLength(2);
+    });
+
+    it('should support filtering by status', () => {
+      const list: KnowledgeBase[] = [
+        { ...makeKB(1, 'A', 'platform'), status: true },
+        { ...makeKB(2, 'B', 'platform'), status: false },
+        { ...makeKB(3, 'C', 'platform'), status: true },
+      ];
+      const activeKBs = list.filter(kb => kb.status);
+      expect(activeKBs).toHaveLength(2);
+    });
+
+    it('should support mapping to extract names', () => {
+      const list: KnowledgeBase[] = [
+        makeKB(1, '知识库A', 'platform'),
+        makeKB(2, '知识库B', 'company'),
+      ];
+      const names = list.map(kb => kb.name);
+      expect(names).toEqual(['知识库A', '知识库B']);
+    });
+
+    it('should support sorting by id', () => {
+      const list: KnowledgeBase[] = [
+        makeKB(3, 'C', 'platform'),
+        makeKB(1, 'A', 'platform'),
+        makeKB(2, 'B', 'platform'),
+      ];
+      const sorted = [...list].sort((a, b) => a.id - b.id);
+      expect(sorted.map(kb => kb.name)).toEqual(['A', 'B', 'C']);
+    });
+
+    it('should support finding by id', () => {
+      const list: KnowledgeBase[] = [
+        makeKB(1, 'A', 'platform'),
+        makeKB(2, 'B', 'company'),
+        makeKB(3, 'C', 'project'),
+      ];
+      const found = list.find(kb => kb.id === 2);
+      expect(found).toBeDefined();
+      expect(found!.name).toBe('B');
+    });
+
+    it('should support reduce for aggregate counts', () => {
+      const list: KnowledgeBase[] = [
+        { ...makeKB(1, 'A', 'platform'), keyword_count: 10, document_count: 2 },
+        { ...makeKB(2, 'B', 'company'), keyword_count: 20, document_count: 5 },
+        { ...makeKB(3, 'C', 'project'), keyword_count: 30, document_count: 8 },
+      ];
+      const totalKeywords = list.reduce((sum, kb) => sum + kb.keyword_count, 0);
+      const totalDocs = list.reduce((sum, kb) => sum + kb.document_count, 0);
+      expect(totalKeywords).toBe(60);
+      expect(totalDocs).toBe(15);
+    });
+
+    it('should support empty array', () => {
+      const list: KnowledgeBase[] = [];
+      expect(list).toHaveLength(0);
+      expect(list.filter(kb => kb.status)).toHaveLength(0);
+    });
+
+    it('should support every/some with status checks', () => {
+      const allActive: KnowledgeBase[] = [
+        { ...makeKB(1, 'A', 'platform'), status: true },
+        { ...makeKB(2, 'B', 'platform'), status: true },
+      ];
+      const mixed: KnowledgeBase[] = [
+        { ...makeKB(1, 'A', 'platform'), status: true },
+        { ...makeKB(2, 'B', 'platform'), status: false },
+      ];
+      expect(allActive.every(kb => kb.status)).toBe(true);
+      expect(mixed.every(kb => kb.status)).toBe(false);
+      expect(mixed.some(kb => kb.status)).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // Scope 业务约束验证
+  // ============================================================
+  describe('Scope business constraint validation', () => {
+    const baseKB: KnowledgeBase = {
+      id: 1, name: '约束测试', description: null, scope: 'platform',
+      company_id: null, company_name: null, project_id: null, project_name: null,
+      status: true, created_by: null, creator_name: null,
+      keyword_count: 0, portrait_count: 0, image_count: 0, document_count: 0,
+      created_at: new Date(), updated_at: new Date(),
+    };
+
+    it('platform scope should have no company/project association', () => {
+      const kb: KnowledgeBase = {
+        ...baseKB, scope: 'platform',
+        company_id: null, company_name: null,
+        project_id: null, project_name: null,
+      };
+      expect(kb.company_id).toBeNull();
+      expect(kb.company_name).toBeNull();
+      expect(kb.project_id).toBeNull();
+      expect(kb.project_name).toBeNull();
+    });
+
+    it('company scope should have company association', () => {
+      const kb: KnowledgeBase = {
+        ...baseKB, scope: 'company',
+        company_id: 1, company_name: '测试公司',
+        project_id: null, project_name: null,
+      };
+      expect(kb.company_id).toBe(1);
+      expect(kb.company_name).toBe('测试公司');
+      expect(kb.project_id).toBeNull();
+    });
+
+    it('project scope should have both company and project associations', () => {
+      const kb: KnowledgeBase = {
+        ...baseKB, scope: 'project',
+        company_id: 1, company_name: '所属公司',
+        project_id: 10, project_name: '所属项目',
+      };
+      expect(kb.company_id).toBe(1);
+      expect(kb.project_id).toBe(10);
+      expect(kb.company_name).toBe('所属公司');
+      expect(kb.project_name).toBe('所属项目');
+    });
+
+    it('should support scope upgrade from platform to company', () => {
+      const kb: KnowledgeBase = { ...baseKB, scope: 'platform' };
+      const upgraded: KnowledgeBase = {
+        ...kb, scope: 'company',
+        company_id: 5, company_name: '新公司',
+      };
+      expect(upgraded.scope).toBe('company');
+      expect(upgraded.company_id).toBe(5);
+    });
+
+    it('should support scope upgrade from company to project', () => {
+      const kb: KnowledgeBase = {
+        ...baseKB, scope: 'company',
+        company_id: 1, company_name: '公司',
+      };
+      const upgraded: KnowledgeBase = {
+        ...kb, scope: 'project',
+        project_id: 10, project_name: '项目',
+      };
+      expect(upgraded.scope).toBe('project');
+      expect(upgraded.company_id).toBe(1);
+      expect(upgraded.project_id).toBe(10);
+    });
+
+    it('should support scope downgrade from project to company', () => {
+      const kb: KnowledgeBase = {
+        ...baseKB, scope: 'project',
+        company_id: 1, company_name: '公司',
+        project_id: 10, project_name: '项目',
+      };
+      const downgraded: KnowledgeBase = {
+        ...kb, scope: 'company',
+        project_id: null, project_name: null,
+      };
+      expect(downgraded.scope).toBe('company');
+      expect(downgraded.project_id).toBeNull();
+      expect(downgraded.company_id).toBe(1);
+    });
+
+    it('CreateRequest platform scope should not require company_id/project_id', () => {
+      const req: CreateKnowledgeBaseRequest = { name: '平台', scope: 'platform' };
+      expect(req.company_id).toBeUndefined();
+      expect(req.project_id).toBeUndefined();
+    });
+
+    it('CreateRequest company scope should include company_id', () => {
+      const req: CreateKnowledgeBaseRequest = {
+        name: '公司级', scope: 'company', company_id: 1,
+      };
+      expect(req.company_id).toBe(1);
+    });
+
+    it('CreateRequest project scope should include both ids', () => {
+      const req: CreateKnowledgeBaseRequest = {
+        name: '项目级', scope: 'project', company_id: 1, project_id: 10,
+      };
+      expect(req.company_id).toBe(1);
+      expect(req.project_id).toBe(10);
+    });
+  });
+
+  // ============================================================
+  // 连续多次更新模拟
+  // ============================================================
+  describe('Sequential update simulation', () => {
+    const baseKB: KnowledgeBase = {
+      id: 1, name: '初始知识库', description: '初始描述', scope: 'platform',
+      company_id: null, company_name: null, project_id: null, project_name: null,
+      status: true, created_by: 1, creator_name: '管理员',
+      keyword_count: 0, portrait_count: 0, image_count: 0, document_count: 0,
+      created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+    };
+
+    it('should apply multiple sequential updates correctly', () => {
+      let current = { ...baseKB };
+
+      // Update 1: change name
+      const update1: UpdateKnowledgeBaseRequest = { name: '第一次更新' };
+      current = { ...current, ...update1, updated_at: new Date() };
+      expect(current.name).toBe('第一次更新');
+      expect(current.description).toBe('初始描述');
+
+      // Update 2: change description
+      const update2: UpdateKnowledgeBaseRequest = { description: '第二次更新描述' };
+      current = { ...current, ...update2, updated_at: new Date() };
+      expect(current.name).toBe('第一次更新');
+      expect(current.description).toBe('第二次更新描述');
+
+      // Update 3: change scope + add company
+      const update3: UpdateKnowledgeBaseRequest = { scope: 'company', company_id: 5 };
+      current = { ...current, ...update3, company_name: '测试公司', updated_at: new Date() };
+      expect(current.scope).toBe('company');
+      expect(current.company_id).toBe(5);
+      expect(current.name).toBe('第一次更新');
+    });
+
+    it('should handle status toggle sequence', () => {
+      let current = { ...baseKB };
+      expect(current.status).toBe(true);
+
+      const disable: UpdateKnowledgeBaseRequest = { status: false };
+      current = { ...current, ...disable };
+      expect(current.status).toBe(false);
+
+      const enable: UpdateKnowledgeBaseRequest = { status: true };
+      current = { ...current, ...enable };
+      expect(current.status).toBe(true);
+    });
+
+    it('should accumulate count field updates', () => {
+      let current = { ...baseKB };
+      expect(current.keyword_count).toBe(0);
+
+      // Simulate adding keywords
+      current = { ...current, keyword_count: current.keyword_count + 5 };
+      expect(current.keyword_count).toBe(5);
+
+      current = { ...current, keyword_count: current.keyword_count + 10 };
+      expect(current.keyword_count).toBe(15);
+    });
+
+    it('should apply UpdateRequest chain from CreateRequest origin', () => {
+      const createReq: CreateKnowledgeBaseRequest = {
+        name: '新建知识库', scope: 'platform',
+      };
+      let current: KnowledgeBase = {
+        id: 100,
+        description: null,
+        company_id: null, company_name: null,
+        project_id: null, project_name: null,
+        status: true,
+        created_by: 1, creator_name: '创建者',
+        keyword_count: 0, portrait_count: 0, image_count: 0, document_count: 0,
+        created_at: new Date(), updated_at: new Date(),
+        ...createReq,
+      };
+
+      // Update 1
+      const upd1: UpdateKnowledgeBaseRequest = { description: '添加描述' };
+      current = { ...current, ...upd1, updated_at: new Date() };
+
+      // Update 2
+      const upd2: UpdateKnowledgeBaseRequest = { scope: 'company', company_id: 1 };
+      current = { ...current, ...upd2, company_name: '公司A', updated_at: new Date() };
+
+      // Update 3
+      const upd3: UpdateKnowledgeBaseRequest = { name: '最终名称', status: false };
+      current = { ...current, ...upd3, updated_at: new Date() };
+
+      expect(current.id).toBe(100);
+      expect(current.name).toBe('最终名称');
+      expect(current.description).toBe('添加描述');
+      expect(current.scope).toBe('company');
+      expect(current.company_id).toBe(1);
+      expect(current.status).toBe(false);
+      expect(current.created_at).toBeDefined();
+    });
+  });
+
+  // ============================================================
+  // CreateRequest / UpdateRequest 高级边界
+  // ============================================================
+  describe('CreateRequest / UpdateRequest advanced edge cases', () => {
+    it('CreateRequest should support name with whitespace only', () => {
+      const req: CreateKnowledgeBaseRequest = { name: '   ', scope: 'platform' };
+      expect(req.name).toBe('   ');
+      expect(req.name.length).toBe(3);
+    });
+
+    it('CreateRequest should support name with newlines', () => {
+      const req: CreateKnowledgeBaseRequest = { name: '第一行\n第二行', scope: 'platform' };
+      expect(req.name).toContain('\n');
+    });
+
+    it('UpdateRequest should support scope change without other fields', () => {
+      const req: UpdateKnowledgeBaseRequest = { scope: 'project' };
+      expect(Object.keys(req)).toHaveLength(1);
+      expect(req.scope).toBe('project');
+    });
+
+    it('UpdateRequest should support clearing description with empty string', () => {
+      const req: UpdateKnowledgeBaseRequest = { description: '' };
+      expect(req.description).toBe('');
+    });
+
+    it('CreateRequest description should support Emoji', () => {
+      const req: CreateKnowledgeBaseRequest = {
+        name: '测试', scope: 'platform',
+        description: '📚📖 知识库描述 🎯✨',
+      };
+      expect(req.description).toContain('📚');
+      expect(req.description).toContain('🎯');
+    });
+
+    it('UpdateRequest should support company_id change only', () => {
+      const req: UpdateKnowledgeBaseRequest = { company_id: 42 };
+      expect(Object.keys(req)).toEqual(['company_id']);
+      expect(req.company_id).toBe(42);
+    });
+
+    it('UpdateRequest should support project_id change only', () => {
+      const req: UpdateKnowledgeBaseRequest = { project_id: 99 };
+      expect(Object.keys(req)).toEqual(['project_id']);
+      expect(req.project_id).toBe(99);
+    });
+
+    it('CreateRequest should support very large company_id and project_id', () => {
+      const req: CreateKnowledgeBaseRequest = {
+        name: '大ID测试', scope: 'project',
+        company_id: Number.MAX_SAFE_INTEGER,
+        project_id: Number.MAX_SAFE_INTEGER - 1,
+      };
+      expect(req.company_id).toBe(Number.MAX_SAFE_INTEGER);
+      expect(req.project_id).toBe(Number.MAX_SAFE_INTEGER - 1);
+    });
+
+    it('UpdateRequest should support negative company_id and project_id', () => {
+      const req: UpdateKnowledgeBaseRequest = { company_id: -1, project_id: -99 };
+      expect(req.company_id).toBe(-1);
+      expect(req.project_id).toBe(-99);
+    });
+
+    it('UpdateRequest should support name with Unicode emoji', () => {
+      const req: UpdateKnowledgeBaseRequest = { name: '📚更新名称🚀' };
+      expect(req.name).toContain('📚');
+      expect(req.name).toContain('🚀');
+    });
+
+    it('CreateRequest should serialize/deserialize correctly', () => {
+      const req: CreateKnowledgeBaseRequest = {
+        name: '序列化', description: '描述', scope: 'company', company_id: 1,
+      };
+      const json = JSON.stringify(req);
+      const parsed = JSON.parse(json);
+      expect(parsed).toEqual(req);
+    });
+
+    it('UpdateRequest should serialize/deserialize correctly', () => {
+      const req: UpdateKnowledgeBaseRequest = { name: '更新', status: true };
+      const json = JSON.stringify(req);
+      const parsed = JSON.parse(json);
+      expect(parsed).toEqual(req);
+    });
+
+    it('CreateRequest and UpdateRequest should have distinct field counts at full capacity', () => {
+      const fullCreate: CreateKnowledgeBaseRequest = {
+        name: 'A', description: 'B', scope: 'platform', company_id: 1, project_id: 2,
+      };
+      const fullUpdate: UpdateKnowledgeBaseRequest = {
+        name: 'A', description: 'B', scope: 'platform', company_id: 1, project_id: 2, status: true,
+      };
+      expect(Object.keys(fullCreate)).toHaveLength(5);
+      expect(Object.keys(fullUpdate)).toHaveLength(6);
+    });
+  });
 });
