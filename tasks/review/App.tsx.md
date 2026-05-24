@@ -1,428 +1,590 @@
-# 软件质量评审：pages/App.tsx
+# 软件架构评审：pages/App.tsx
 
 **评审日期**: 2026-05-24
-**评审角色**: 软件质量专家（代码质量、架构设计、可维护性、安全性、测试覆盖视角）
-**评审范围**: 前端路由入口文件 `pages/App.tsx`（16 行）及关联组件 `Layout.tsx`、`main.tsx`
-**关联文件**: `pages/components/Layout.tsx`, `pages/main.tsx`, `pages/login/index.tsx`
+**评审角色**: 软件架构专家（组件层次、路由架构、状态管理、横切关注点、可扩展性、依赖管理视角）
+**评审范围**: 前端路由入口文件 `pages/App.tsx`（16行）及架构依赖链：`main.tsx` → `App.tsx` → `Layout.tsx` → 子路由组件
+**关联文件**: `pages/main.tsx`, `pages/components/Layout.tsx`, `pages/login/index.tsx`, `pages/context/AppContext.tsx`, `vite.config.ts`
 
 ---
 
-## 1. 总体评级：6.5/10（及格，存在架构设计缺陷）
+## 1. 总体评级：6.0/10（及格，架构分层不清晰）
 
-文件简洁清晰，但作为应用路由入口，缺少关键的基础设施（错误边界、Suspense、路由常量化），且路由重定向逻辑存在 UX 问题。
+`App.tsx` 本身仅 16 行，代码简洁，但作为前端应用的根路由组件，其架构设计暴露了系统性的分层缺陷：认证逻辑耦合在 Layout 中、路由定义分散在两级文件中、缺少横切关注点的基础设施层（Error Boundary、Suspense、统一状态管理）。
 
 | 评价维度 | 评分 | 状态 |
 |----------|------|------|
-| 代码质量（Code Quality） | 7/10 | 代码简洁，风格统一，但有冗余 import |
-| 架构设计（Architecture） | 5/10 | 认证守卫耦合 Layout，缺乏分层 |
-| 安全性（Security） | 7/10 | 客户端路由保护基本可用 |
-| 可测试性（Testability） | 2/10 | 无任何测试文件 |
-| 可维护性（Maintainability） | 6/10 | 路由路径硬编码，无集中管理 |
-| 性能（Performance） | 8/10 | 轻量级，但无代码分割 |
+| 组件层次（Component Hierarchy） | 5/10 | 认证、布局、路由三层职责混淆 |
+| 路由架构（Routing Architecture） | 6/10 | 两级路由结构合理，但缺少路由配置集中化 |
+| 状态管理（State Management） | 4/10 | 认证状态与 Context 状态碎片化 |
+| 横切关注点（Cross-cutting Concerns） | 3/10 | 无 Error Boundary、无 Suspense、无统一错误处理 |
+| 可扩展性（Scalability） | 5/10 | 新增路由/页面需修改 Layout，无代码分割 |
+| 构建与部署（Build & Deploy） | 7/10 | Vite 配置合理，SPA fallback 已实现 |
+| 依赖架构（Dependency Architecture） | 6/10 | 组件间依赖清晰，但存在循环风险 |
 
 ---
 
-## 2. 逐项分析
+## 2. 架构视图分析
 
-### REV-01: 根路径重定向逻辑错误 — UX 缺陷
+### 2.1 组件依赖图
 
-**严重度**: 🟠 MEDIUM
-**位置**: `App.tsx:11`
-
-```tsx
-<Route path="/" element={<Navigate to="/login" replace />} />
+```
+main.tsx
+├── React.StrictMode
+├── ConfigProvider (antd theme)
+├── AntApp (antd context)
+├── BrowserRouter
+│   └── App.tsx                          ← 评审对象
+│       ├── Route /login → LoginPage
+│       └── Route /* → Layout
+│           ├── AuthLogic (内嵌)          ← 问题：应独立
+│           ├── AppContextProvider        ← 问题：位置不当
+│           ├── AntLayout (Sider + Content)
+│           ├── Sidebar
+│           └── Routes (20+ 子路由)
+│               ├── KnowledgePage
+│               ├── ArticlePage
+│               ├── ... (17 more)
+│               └── Navigate → /publish
+└── global.css
 ```
 
-**问题分析**:
-React Router v6 按路由特异性（specificity）排序，精确路径 `/` 的优先级高于通配符 `/*`。因此访问 `/` 时会命中此规则，直接跳转到 `/login`。
-
-但这是有问题的：
-- **已认证用户**访问 `/` 会被重定向到 `/login`，而非默认页面 `/publish`
-- 该路由**绕过了 Layout 组件**（Layout 内含认证检查逻辑），导致已登录用户被错误地踢回登录页
-- Login 页面不会自动检测已有 token 并跳转（需查看 LoginPage 实现），造成已登录用户需重新登录
-
-**修复方案**:
-
-方案 A — 删除根路径路由，让 Layout 处理：
-```tsx
-<Routes>
-  <Route path="/login" element={<LoginPage />} />
-  <Route path="/*" element={<Layout />} />
-</Routes>
-```
-Layout 已有逻辑：未认证时重定向到 `/login`，认证后展示默认页面。
-
-方案 B — 根路径重定向到默认页面：
-```tsx
-<Route path="/" element={<Navigate to="/publish" replace />} />
-```
+**架构问题**: 这是一个"扁平化"的组件树，所有业务逻辑集中在 Layout 一个节点上。理想架构应有中间层（AuthGuard → LayoutShell → PageRouter）。
 
 ---
 
-### REV-02: 认证守卫架构耦合 — 架构缺陷
+### 2.2 状态管理架构
 
-**严重度**: 🟠 MEDIUM
-**位置**: `Layout.tsx:63-104`（认证逻辑嵌入 Layout 组件）
+```
+                    ┌─────────────────────────┐
+                    │     localStorage        │
+                    │  - token                │
+                    │  - user (JSON)          │
+                    │  - selected_company     │
+                    │  - selected_project     │
+                    │  - redirect_after_login │
+                    └────────┬────────────────┘
+                             │ 读/写
+                    ┌────────▼────────────────┐
+                    │    Layout.tsx           │
+                    │  useState<UserData>     │ ← 认证状态
+                    │  useState<loading>      │
+                    │  useState<collapsed>    │
+                    │  useState<isMobile>     │
+                    └────────┬────────────────┘
+                             │ user.role, user.cn_name (prop drilling)
+                    ┌────────▼────────────────┐
+                    │    Sidebar.tsx          │
+                    └─────────────────────────┘
 
-**问题分析**:
-认证验证逻辑（token 检查、`/api/auth/verify` 调用、用户状态管理）直接写在 Layout 组件中，而非独立的认证守卫组件。这导致：
+                    ┌─────────────────────────┐
+                    │   AppContext            │
+                    │  - companyId/projectId  │ ← 业务状态
+                    │  - companyName/Name     │
+                    │  - setContext()         │
+                    └─────────────────────────┘
+```
 
-1. **职责混乱**: Layout 同时负责 UI 布局（侧边栏、内容区）和认证逻辑
-2. **不可复用**: 如果未来需要不同的布局（如全屏编辑器、打印预览），认证逻辑无法共享
-3. **测试困难**: 测试认证行为需要渲染整个 Layout（包含 Sidebar、所有子路由）
+**问题**:
+1. **认证状态（UserData）不共享**: Layout 管理 user 状态，但通过 props 传给 Sidebar。如果其他组件需要 user 信息，必须再次读 localStorage 或 prop drilling
+2. **AppContext 范围过窄**: 仅管理公司/项目选择，未纳入认证状态
+3. **localStorage 作为唯一状态源**: 5 个 key 散布在 Layout、LoginPage、AppContext 中，无统一管理
 
-**修复方案**:
+---
 
-抽取独立的认证守卫组件：
+## 3. 逐项架构评审
+
+### ARCH-01: 认证守卫与布局组件耦合 — 分层缺陷
+
+**严重度**: 🔴 HIGH（架构层面）
+**位置**: `Layout.tsx:49-136`
+
+**架构分析**:
+
+Layout.tsx 同时承担 4 种架构角色：
+
+| 职责 | 行数 | 架构层 | 应属于 |
+|------|------|--------|--------|
+| 认证验证 + token 刷新 | ~40行 | 安全层 | `AuthGuard` 组件 |
+| 用户状态管理 | ~15行 | 状态层 | `AuthContext` |
+| 响应式断点管理 | ~10行 | UI 基础设施层 | `useResponsive` hook |
+| UI 布局 + 路由 | ~60行 | 表现层 | Layout |
+
+这违反了 **单一职责原则（SRP）** 和 **关注点分离（Separation of Concerns）**。Layout 应该只负责"布局"——侧边栏、内容区的排列，而非认证逻辑。
+
+**影响**:
+- 无法为不同布局模式（全屏编辑器、打印预览、嵌入式）复用认证逻辑
+- 测试认证行为必须渲染整个 Layout（包含 20+ 个路由的子组件）
+- 认证状态变更会触发 Layout 的 re-render，可能影响 UI 性能
+
+**重构方案**:
+
+```
+推荐的三层架构:
+
+App.tsx
+├── AuthProvider (管理认证状态，提供 AuthContext)
+│   ├── ErrorBoundary
+│   ├── Suspense
+│   └── Routes
+│       ├── /login → LoginPage (无认证)
+│       └── /* → AuthGuard (认证检查)
+│           └── Layout (纯布局)
+│               ├── Sidebar
+│               └── PageRoutes
+```
+
 ```tsx
-// components/AuthGuard.tsx
-const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+// 认证状态提升为独立 Context
+const AuthContext = createContext<{ user: UserData | null; logout: () => void }>();
+
+// AuthProvider: 在 App.tsx 外层提供
+const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
-  // ... 认证逻辑从 Layout 移入
-  if (loading) return <Spin />;
+  // ... token 验证、verify API 调用逻辑从 Layout 移入
+  return <AuthContext.Provider value={{ user, logout }}>{children}</AuthContext.Provider>;
+};
+
+// AuthGuard: 纯粹的认证门控
+const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
 };
-
-// App.tsx 中使用
-<Route path="/*" element={
-  <AuthGuard>
-    <Layout user={user} />
-  </AuthGuard>
-} />
 ```
 
 ---
 
-### REV-03: 缺少 React Error Boundary — 稳定性缺陷
+### ARCH-02: AppContext 位置不当 — 生命周期错配
+
+**严重度**: 🟠 MEDIUM
+**位置**: `Layout.tsx:139`
+
+**架构分析**:
+
+```tsx
+// Layout.tsx:139 — AppContextProvider 在认证检查之后
+if (!user) {
+  return <Navigate to="/login" replace />;  // 第134行
+}
+return (
+  <AppContextProvider>                       // 第139行 — 仅在认证后挂载
+    <AntLayout>...</AntLayout>
+  </AppContextProvider>
+);
+```
+
+问题：
+1. **每次认证状态变化 AppContext 被销毁重建**: 如果 token 过期导致 user 变为 null，AppContextProvider 会 unmount，所有子组件状态丢失
+2. **LoginPage 无法访问 AppContext**: 登录后需要恢复 company/project 选择时，需要通过 localStorage 间接传递
+3. **与认证状态的初始化竞争**: `Layout.tsx:89-94` 中手动同步 `user.selected_company` 到 localStorage，本质上是两个状态系统的手动桥接
+
+**重构方案**: 将 AppContextProvider 提升到认证层之上（与 AuthProvider 同级），确保生命周期独立。
+
+---
+
+### ARCH-03: 两级路由分散定义 — 配置集中化缺失
+
+**严重度**: 🟡 MEDIUM
+**位置**: `App.tsx:8-12` + `Layout.tsx:175-196`
+
+**架构分析**:
+
+路由定义分散在两个文件中，且使用不同的模式：
+
+| 文件 | 模式 | 路由数 | 问题 |
+|------|------|--------|------|
+| `App.tsx` | 静态路由 | 3条 | 含不可达路由（第11行） |
+| `Layout.tsx` | 内联定义 | 20+条 | 无路由守卫、无元信息 |
+
+**不可达路由问题** (`App.tsx:11`):
+```tsx
+<Route path="/login" element={<LoginPage />} />   // 精确匹配 /login
+<Route path="/*" element={<Layout />} />           // 通配符匹配一切
+<Route path="/" element={<Navigate to="/login" replace />} />  // 永远不会被匹配到
+```
+
+React Router v6 的路由匹配基于特异性排序。`/*` 通配符已匹配所有路径（包括 `/`），因此第 11 行的精确 `/` 路由是 **死代码**。但由于 React Router v6 会在同一 `<Routes>` 中按特异性排序（精确路径优先于通配符），实际上第 11 行确实会匹配 `/`。然而，这意味着已认证用户访问 `/` 会被强制跳转到 `/login`（绕过 Layout 的认证检查），这是一个架构逻辑错误。
+
+**重构方案**: 引入集中式路由配置：
+
+```tsx
+// pages/router/routes.ts
+export interface RouteConfig {
+  path: string;
+  component: React.LazyExoticComponent<React.FC>;
+  auth: boolean;
+  roles?: string[];
+  title?: string;
+}
+
+export const routes: RouteConfig[] = [
+  { path: '/login', component: lazy(() => import('../login')), auth: false },
+  { path: '/publish', component: lazy(() => import('../publish')), auth: true },
+  { path: '/sysadmin', component: lazy(() => import('../sysadmin')), auth: true, roles: ['sysadmin'] },
+  // ...
+];
+
+// pages/router/Router.tsx — 统一路由渲染
+const AppRouter: React.FC = () => {
+  const { user } = useAuth();
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <Routes>
+        {routes.map(route => (
+          <Route key={route.path} path={route.path} element={
+            route.auth && !user ? <Navigate to="/login" /> :
+            route.roles && !route.roles.includes(user?.role) ? <Navigate to="/publish" /> :
+            <route.component />
+          } />
+        ))}
+      </Routes>
+    </Suspense>
+  );
+};
+```
+
+---
+
+### ARCH-04: 缺少 Error Boundary — 稳定性架构缺陷
 
 **严重度**: 🔴 HIGH
 **位置**: `App.tsx`（缺失）、`main.tsx`（缺失）
 
-**问题分析**:
-应用根组件没有任何错误边界（Error Boundary）。根据 React 文档，渲染阶段抛出的错误如果没有被 Error Boundary 捕获，会导致整个组件树卸载（白屏）。
+**架构分析**:
 
-风险场景：
-- 子组件渲染异常（如 `JSON.parse` 失败、undefined 属性访问）
-- 网络请求返回意外数据结构
-- 第三方库内部错误
+当前组件树中无任何 Error Boundary。React 的错误处理模型要求 Error Boundary 作为"隔舱壁"（bulkhead pattern）来隔离故障传播。
+
+```
+当前架构:
+  StrictMode → ConfigProvider → BrowserRouter → App → Routes → [任何子组件崩溃] → 整个应用白屏
+
+推荐架构:
+  StrictMode → ErrorBoundary(root) → ConfigProvider → ErrorBoundary(route) → BrowserRouter → App → Routes → [子组件崩溃隔离]
+```
+
+**风险量化**:
+- Layout.tsx 中 `JSON.parse(userData)` （第 86 行）可能因 localStorage 数据损坏而抛出异常
+- 子页面组件中的任何渲染错误会传播到根节点，导致白屏
+- 无降级策略，用户体验完全中断
 
 **修复方案**:
+
 ```tsx
-// 在 main.tsx 中添加
-<React.StrictMode>
-  <ErrorBoundary fallback={<ErrorFallback />}>
-    <ConfigProvider ...>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </ConfigProvider>
-  </ErrorBoundary>
-</React.StrictMode>
+// pages/components/ErrorBoundary.tsx
+class ErrorBoundary extends React.Component<
+  { fallback?: React.ReactNode; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('[ErrorBoundary]', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback ?? <Result status="error" title="页面出现异常" extra={<Button onClick={() => window.location.reload()}>刷新页面</Button>} />;
+    }
+    return this.props.children;
+  }
+}
+
+// main.tsx 中包裹
+root.render(
+  <React.StrictMode>
+    <ErrorBoundary>
+      <ConfigProvider ...>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </ConfigProvider>
+    </ErrorBoundary>
+  </React.StrictMode>
+);
 ```
 
 ---
 
-### REV-04: 缺少 Suspense 边界 — 扩展性缺陷
+### ARCH-05: 无代码分割 — 性能架构缺陷
 
-**严重度**: 🟢 LOW
-**位置**: `App.tsx`（缺失）
+**严重度**: 🟠 MEDIUM
+**位置**: `Layout.tsx:1-22`（20+ 个同步 import）
 
-**问题分析**:
-当前所有页面组件在 `Layout.tsx` 中被同步导入（20+ 个 import），无代码分割。虽然当前不是问题，但：
-- 未来引入 `React.lazy()` 时，缺少 Suspense 会导致组件挂起时应用无响应
-- 首屏加载包含所有页面代码，包括用户可能不会访问的页面
+**架构分析**:
+
+Layout.tsx 同步导入了 20+ 个页面组件（SystemAdminPage、CompanyPage、UserPage、SkillPage 等），全部打包到同一个 chunk 中。
+
+```
+当前 bundle 结构:
+  main.js (所有代码 + 20+ 页面组件)
+
+推荐 bundle 结构:
+  main.js (框架 + App + Layout)
+  ├── login.[hash].js
+  ├── publish.[hash].js
+  ├── article.[hash].js
+  ├── knowledge.[hash].js
+  └── ... (按需加载)
+```
+
+**影响**:
+- 首屏加载包含用户可能永远不访问的页面代码（如 sysadmin 页面对普通用户）
+- 随着页面增多，首屏 bundle 线性增长
+- Vite 的 `build.rollupOptions.output.manualChunks` 未配置
 
 **修复方案**:
+
 ```tsx
-// App.tsx
-<Suspense fallback={<Spin />}>
+// Layout.tsx 中使用 React.lazy
+const SystemAdminPage = lazy(() => import('../sysadmin'));
+const ArticlePage = lazy(() => import('../article'));
+// ...
+
+// 在 Layout 的 Routes 外层包裹 Suspense
+<Suspense fallback={<div className="page-loading"><Spin /></div>}>
   <Routes>
-    ...
+    <Route path="/sysadmin" element={<SystemAdminPage />} />
+    // ...
   </Routes>
 </Suspense>
 ```
 
 ---
 
-### REV-05: 无路由常量管理 — 可维护性问题
+### ARCH-06: 路由级别无角色权限控制 — 安全架构缺陷
 
-**严重度**: 🟡 MEDIUM
-**位置**: `App.tsx:9-11`、`Layout.tsx:176-195`
+**严重度**: 🔴 HIGH
+**位置**: `Layout.tsx:175-196`
 
-**问题分析**:
-路由路径以字符串字面量硬编码在多个文件中：
+**架构分析**:
 
-| 文件 | 路由路径数量 |
-|------|-------------|
-| App.tsx | 3 个 |
-| Layout.tsx | 20+ 个 |
+所有 20+ 条路由对任何已认证用户开放，权限控制仅在 Sidebar 的菜单显示层面：
 
-隐患：
-- 路径拼写错误不会在编译时报错
-- 修改路径需要在多处同步更新
-- 路由名称没有与导航菜单关联
-
-**修复方案**:
-```tsx
-// pages/constants/routes.ts
-export const ROUTES = {
-  LOGIN: '/login',
-  PUBLISH: '/publish',
-  ARTICLE: '/article',
-  KNOWLEDGE: '/knowledge',
-  // ...
-} as const;
 ```
+当前权限架构:
+  API 层: roleMiddleware('sysadmin', 'admin')  ← 后端强制执行 ✅
+  路由层: 无权限检查                              ← 前端缺失 ❌
+  菜单层: Sidebar 按角色隐藏菜单项                  ← 可绕过 ❌
+```
+
+| 角色 | 可见菜单 | 可访问路由 | 安全风险 |
+|------|---------|-----------|---------|
+| view | /publish | 全部 20+ 路由 | 可直接访问 /sysadmin、/users |
+| admin | 业务菜单 | 全部 20+ 路由 | 可直接访问 /sysadmin |
+| sysadmin | 全部 | 全部 20+ 路由 | 无额外风险 |
+
+虽然后端 API 有 roleMiddleware 保护，但前端缺少路由守卫会导致：
+1. 用户看到不应看到的 UI（虽然 API 调用会失败）
+2. 不必要的 API 请求增加服务器负载
+3. 不专业的用户体验
+
+**修复方案**: 见 ARCH-03 中的集中式路由配置，添加 `roles` 字段。
 
 ---
 
-### REV-06: 冗余的 React 导入 — 代码规范
+### ARCH-07: 组件间通信依赖 prop drilling — 可维护性问题
 
 **严重度**: 🟢 LOW
-**位置**: `App.tsx:1`
+**位置**: `Layout.tsx:161-166` → `Sidebar.tsx`
+
+**架构分析**:
 
 ```tsx
-import React from 'react';
+// Layout.tsx 传递给 Sidebar
+<Sidebar
+  userRole={user.role}     // 从 Layout 的 user state 解构
+  cnName={user.cn_name}    // 从 Layout 的 user state 解构
+  onLogout={handleLogout}  // Layout 内定义的函数
+  collapsed={collapsed}    // Layout 的 UI 状态
+  onCollapse={setCollapsed}
+  isMobile={isMobile}
+/>
 ```
 
-**问题分析**:
-项目使用 Vite + React 18，Vite 的 `@vitejs/plugin-react` 默认启用自动 JSX runtime（`react-jsx`），无需显式导入 React。`tsconfig.page.json` 中应已配置 `"jsx": "react-jsx"`。
+5 个 props 的传递链路为：Layout → Sidebar。当前只有一层，问题不严重。但如果 Sidebar 内部组件也需要 user 信息，drilling 会加深。
 
-该导入不影响功能，但属于冗余代码。
-
-**修复方案**: 删除 `import React from 'react'`。
+**建议**: 将 `handleLogout` 和 `user` 信息纳入 AuthContext，Sidebar 通过 `useAuth()` 获取。
 
 ---
 
-### REV-07: 无 404 页面处理 — UX 问题
+### ARCH-08: Vite 配置中 API 代理无环境区分 — 部署架构问题
 
 **严重度**: 🟢 LOW
-**位置**: `Layout.tsx:195`
+**位置**: `vite.config.ts:34-46`
 
-```tsx
-<Route path="*" element={<Navigate to="/publish" replace />} />
+**架构分析**:
+
+```typescript
+server: {
+  proxy: {
+    '/api': { target: 'http://localhost:8080', changeOrigin: true },
+    '/uploads': { target: 'http://localhost:8080', changeOrigin: true },
+  },
+},
 ```
 
-**问题分析**:
-未知路径被静默重定向到 `/publish`，用户不会得到"页面不存在"的反馈。例如用户手动输入 `/dashboard`，会突然出现在发布管理页面，没有任何提示。
+开发环境通过 Vite proxy 转发 API 请求，但 `vite.config.ts` 中硬编码了 `localhost:8080`。在生产构建中，前端静态文件由 Express 提供服务（同源），API 请求天然同源。这个设计是合理的。
 
-**修复方案**: 创建 `NotFound.tsx` 页面，或使用 antd `Result` 组件显示 404：
-```tsx
-<Route path="*" element={<Result status="404" title="404" subTitle="页面不存在" />} />
-```
+但 SPA fallback 的自定义中间件（第 12-24 行）仅在开发环境生效，生产环境需要 Express 配置对应的 fallback。经验证，`vite.config.ts` 中的注释表明团队已意识到这个问题，但需确认 Express 侧是否有对应配置。
 
 ---
 
-### REV-08: 无单元测试 — 质量保障缺失
+### ARCH-09: 认证状态的竞态条件 — 并发架构问题
 
 **严重度**: 🟠 MEDIUM
-**位置**: 测试文件缺失
+**位置**: `Layout.tsx:69-105` + `login/index.tsx:12-17`
 
-**问题分析**:
-`App.tsx` 没有对应的测试文件。作为路由入口，应覆盖以下测试场景：
+**架构分析**:
 
-| 测试场景 | 预期行为 |
-|----------|----------|
-| 访问 `/login` | 渲染 LoginPage |
-| 访问 `/publish` | 渲染 Layout（需 mock 认证） |
-| 访问不存在的路径 | 渲染 Layout（通配符匹配） |
-| 访问 `/` | 重定向到 `/login` |
+**竞态场景 1**: LoginPage 和 Layout 都独立检查 token
 
-**修复方案**: 创建 `tests/pages/App.test.tsx`。
+```tsx
+// login/index.tsx:12 — 有 token 就跳转
+useEffect(() => {
+  const token = localStorage.getItem('token');
+  if (token) navigate('/publish', { replace: true });
+}, []);
 
----
-
-### REV-09: Layout 组件过度膨胀 — 架构关注点
-
-**严重度**: 🟡 MEDIUM
-**位置**: `Layout.tsx`（203 行）
-
-**问题分析**:
-虽然不在 `App.tsx` 范围内，但 Layout 作为 `App.tsx` 的核心子组件，承担了过多职责：
-
-| 职责 | 行数 | 应拆分至 |
-|------|------|----------|
-| 认证验证 | ~40 行 | AuthGuard |
-| 用户状态管理 | ~15 行 | AuthContext |
-| 移动端响应式 | ~20 行 | useResponsive hook |
-| 路由定义 | ~20 行 | 独立路由配置 |
-| UI 布局 | ~50 行 | 保留在 Layout |
-
-建议在后续迭代中逐步重构。
-
----
-
-## 3. 安全性评估
-
-| 检查项 | 状态 | 说明 |
-|--------|------|------|
-| 路由级认证保护 | ✅ | Layout 内有 token 验证 + API verify |
-| 未认证重定向 | ✅ | 无 token 时重定向到 /login |
-| 重定向路径保存 | ✅ | 存储原始路径到 `redirect_after_login` |
-| Token 存储 | ⚠️ | localStorage 可被 XSS 读取（已知风险，后端评审已覆盖） |
-| 登出清理 | ✅ | 清除 token、user、selected_company/project |
-| 路由级权限控制 | ⚠️ | Sidebar 按角色显示菜单，但路由本身无权限检查（如 `/sysadmin` 可直接访问） |
-
-**安全建议**: Layout 中的路由应增加角色校验，非 sysadmin 访问 `/sysadmin` 应返回 403。
-
----
-
-## 4. 与 DESIGN.md 合规性
-
-`App.tsx` 本身不直接渲染 UI，仅作为路由容器。合规性体现在：
-- `main.tsx` 中的 ConfigProvider 配置了 IBM Carbon 色彩系统 ✅
-- `Layout.tsx` 使用 antd Layout 组件 ✅
-- 字体使用 IBM Plex Sans（本地捆绑） ✅
-- 边框圆角设为 0（IBM Carbon 风格） ✅
-
----
-
-## 5. 修复优先级路线图
-
-### P0: 应修复（影响用户体验和稳定性）
-
-| 编号 | 修复项 | 工作量 | 影响 |
-|------|--------|--------|------|
-| REV-01 | 根路径重定向逻辑修正 | 0.5h | 修复已认证用户访问 `/` 的 UX 问题 |
-| REV-03 | 添加 Error Boundary | 1h | 防止渲染错误导致白屏 |
-
-### P1: 建议修复（提升架构质量）
-
-| 编号 | 修复项 | 工作量 | 影响 |
-|------|--------|--------|------|
-| REV-02 | 抽取 AuthGuard 组件 | 2h | 分离认证与布局职责 |
-| REV-05 | 路由常量集中管理 | 1h | 消除硬编码路径 |
-| REV-08 | 编写单元测试 | 1h | 保障路由逻辑正确性 |
-
-### P2: 可选优化（提升代码质量）
-
-| 编号 | 修复项 | 工作量 | 影响 |
-|------|--------|--------|------|
-| REV-04 | 添加 Suspense 边界 | 0.5h | 为代码分割做准备 |
-| REV-06 | 移除冗余 React import | 0.1h | 代码整洁 |
-| REV-07 | 添加 404 页面 | 0.5h | 改善用户体验 |
-| REV-09 | Layout 职责拆分 | 4h | 长期架构优化 |
-
----
-
-## 6. 结论
-
-`App.tsx` 作为一个 16 行的路由入口文件，代码风格简洁清晰。但作为应用的根组件，缺少 Error Boundary（REV-03）是一个稳定性隐患，根路径重定向逻辑（REV-01）会导致已认证用户的 UX 问题。认证守卫耦合在 Layout 组件中（REV-02）是最大的架构债务，建议在下一个迭代中重构为独立的 AuthGuard 组件。
-
-整体评分 **6.5/10**：功能可用，但缺乏防御性编程和测试覆盖。建议优先完成 P0 修复，P1 项在下个迭代中安排。
-
----
-
-## 7. Committer 审核意见
-
-**审核日期**: 2026-05-24
-**审核角色**: 代码 Committer 审核专家
-
-### 7.1 评审报告质量评价
-
-| 评价维度 | 评分 | 说明 |
-|----------|------|------|
-| 问题识别准确性 | 9/10 | 9 个发现均准确，根路径重定向问题分析到位 |
-| 优先级划分 | 8/10 | P0/P1/P2 分级合理 |
-| 修复方案可行性 | 8/10 | 方案简洁实用，与项目现有模式兼容 |
-| 架构建议合理性 | 7/10 | AuthGuard 拆分建议正确，但需考虑现有代码的迁移成本 |
-
-### 7.2 逐项审核裁决
-
-#### REV-01: 根路径重定向逻辑 — ✅ 同意
-
-**验证**: React Router v6 确实按特异性排序，`/` 精确匹配优先于 `/*`。
-
-**审核意见**: 发现准确。推荐方案 A（删除根路由），Layout 已有完善的认证检查逻辑，无需在 App 层额外处理。修复工作量 0.5h 合理。
-
-#### REV-02: 认证守卫架构耦合 — ✅ 同意，建议后续迭代处理
-
-**审核意见**: 发现准确，是最大的架构债务。但需注意：
-- Layout 中认证逻辑与 `AppContext` 初始化有耦合（第 88-94 行），拆分需一并处理
-- 建议分两步：先抽取 AuthContext（共享用户状态），再抽取 AuthGuard（认证逻辑）
-- 工作量 2h 偏低，考虑迁移和回归测试，实际 3-4h
-
-#### REV-03: 缺少 Error Boundary — ✅ 同意
-
-**审核意见**: 发现准确，是必须修复的项。建议：
-- Error Boundary 应放在 `main.tsx` 中，包裹整个应用
-- `fallback` 组件应使用 antd `Result` 组件（遵循 DESIGN.md）
-- 添加错误上报逻辑（未来接入 Sentry 等）
-
-#### REV-04: 缺少 Suspense — ⚠️ 部分同意
-
-**审核意见**: 发现方向正确，但当前优先级应更低：
-- 项目目前没有使用 `React.lazy()`，Suspense 不会被触发
-- 建议与代码分割一起实施，而非单独添加
-- 标记为 **信息性建议**，不阻塞
-
-#### REV-05: 路由常量管理 — ✅ 同意
-
-**审核意见**: 发现准确。补充建议：
-- 路由常量应同时用于 Sidebar 菜单配置和 Breadcrumb 生成
-- 可考虑使用类型化路由方案（如 `typed-react-router` 或自定义类型）
-
-#### REV-06: 冗余 React import — ✅ 同意
-
-**验证**: 确认 `tsconfig.page.json` 配置了 `"jsx": "react-jsx"`。
-
-**审核意见**: 发现准确。这是全局性问题，建议统一清理所有前端文件的冗余 React import。
-
-#### REV-07: 404 页面 — ✅ 同意
-
-**审核意见**: 发现准确。使用 antd `Result` 组件符合项目规范。
-
-#### REV-08: 无单元测试 — ✅ 同意
-
-**审核意见**: 发现准确。测试优先级建议调整：
-- 最关键的测试：认证重定向逻辑
-- 次要测试：路由匹配
-- 可使用 `MemoryRouter` 进行隔离测试
-
-#### REV-09: Layout 过度膨胀 — ✅ 同意
-
-**审核意见**: 发现准确。Layout.tsx 203 行承担 5 种职责确实过多，但属于长期优化，不阻塞当前迭代。
-
-### 7.3 评审报告未覆盖的问题
-
-#### REV-10: BrowserRouter 无法感知后端路由
-
-**位置**: `main.tsx:65`
-**问题**: 使用 `BrowserRouter` 时，直接访问非根路径（如 `/publish`）会向后端发送请求。如果后端没有配置 SPA fallback（所有非 API 路径返回 `index.html`），用户会得到 404。
-
-**建议**: 在 Express 中添加 SPA fallback：
-```typescript
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../dist/pages/index.html'));
+// Layout.tsx:79 — 有 token 就 verify
+axios.get('/api/auth/verify', ...).catch(() => {
+  localStorage.removeItem('token');  // verify 失败才清除
 });
 ```
 
-或使用 Vite 开发服务器的 `historyApiFallback` 配置。
+如果 token 已过期：
+1. LoginPage 检测到 token 存在，跳转到 `/publish`
+2. Layout 的 verify API 返回 401，清除 token，重定向到 `/login`
+3. 用户看到闪烁：`/login` → `/publish` → `/login`
 
-#### REV-11: 路由级别缺少角色权限控制
+**竞态场景 2**: 多标签页共享 localStorage
 
-**位置**: `Layout.tsx:176-195`
-**问题**: 所有已认证路由均可被任何角色访问。例如 `view` 角色用户可以直接在地址栏输入 `/sysadmin` 访问系统管理页面。
-**建议**: 添加路由级别的角色守卫：
+用户在标签页 A 登出（清除 token），标签页 B 的 Layout 仍持有旧的 user state，直到下一次 location.pathname 变化触发 useEffect 重新执行。期间标签页 B 的 API 请求会使用已失效的 token。
+
+**修复方案**:
+1. LoginPage 不应仅检查 token 是否存在，应调用 verify API 确认有效性
+2. 监听 `storage` 事件实现跨标签页状态同步
+
 ```tsx
-const RoleGuard: React.FC<{ allowed: string[]; children: React.ReactNode }> = ({ allowed, children }) => {
-  const { role } = useAuth();
-  if (!allowed.includes(role)) return <Navigate to="/publish" replace />;
-  return <>{children}</>;
-};
+useEffect(() => {
+  const handler = (e: StorageEvent) => {
+    if (e.key === 'token' && !e.newValue) {
+      setUser(null);  // 其他标签页登出时同步清除
+    }
+  };
+  window.addEventListener('storage', handler);
+  return () => window.removeEventListener('storage', handler);
+}, []);
 ```
 
-### 7.4 最终裁决
+---
 
-| 裁决项 | 结论 |
-|--------|------|
-| **合并状态** | ✅ **通过 — 建议 P0 项在当前迭代修复** |
-| **总体质量评级** | 6.5/10（同意原评审评级） |
-| **评审报告质量** | 良好（8.5/10），覆盖全面，修复方案可行 |
+### ARCH-10: main.tsx 中主题配置与组件耦合 — 配置架构问题
 
-### 7.5 Committer 签署
+**严重度**: 🟢 LOW
+**位置**: `main.tsx:14-62`
 
-- **审核人**: Committer 审核专家
-- **审核结论**: 报告质量高，问题识别准确。P0 的两项修复（根路径重定向 + Error Boundary）应在当前迭代完成。AuthGuard 拆分是最大的架构改善，建议在下一个迭代中作为重构任务安排。
+**架构分析**:
+
+49 行的主题配置硬编码在 `main.tsx` 中，这是应用入口而非配置文件。主题 token 包含 12 个色彩值 + 6 个组件级配置，如果需要动态主题切换（暗色模式、品牌定制），修改 main.tsx 不够灵活。
+
+**建议**: 抽取为 `pages/theme/carbon.ts`，与 DESIGN.md 保持同步。
+
+---
+
+## 4. 架构成熟度评估
+
+基于 ATAM（Architecture Tradeoff Analysis Method）评估：
+
+| 质量属性 | 当前状态 | 目标状态 | 差距 |
+|----------|---------|---------|------|
+| **可修改性** | 新增页面需修改 Layout.tsx | 路由配置驱动，零侵入 | 大 |
+| **可用性** | 子组件崩溃导致白屏 | Error Boundary 隔离故障 | 大 |
+| **性能** | 首屏加载全部页面代码 | 按需加载 | 中 |
+| **安全性** | 路由级别无权限控制 | 角色守卫 + 路由元信息 | 大 |
+| **可测试性** | 认证逻辑与 UI 耦合 | 独立 AuthGuard 可单独测试 | 大 |
+| **可扩展性** | 状态管理碎片化 | 统一 AuthContext + AppContext | 中 |
+
+---
+
+## 5. 目标架构蓝图
+
+```
+推荐的分层架构:
+
+┌─────────────────────────────────────────────────────┐
+│                    main.tsx (入口层)                  │
+│  StrictMode → ErrorBoundary → ConfigProvider → Router │
+├─────────────────────────────────────────────────────┤
+│                   App.tsx (路由层)                    │
+│  AuthProvider → Suspense → Routes                    │
+│  ├── /login → LoginPage (公开)                       │
+│  └── /* → AuthGuard → LayoutShell                   │
+│       └── AppContextProvider → Layout                │
+│           ├── Sidebar (从 AuthContext 获取用户)       │
+│           └── PageRouter (配置驱动 + 角色守卫)        │
+│               ├── /publish → PublishingSchedulePage  │
+│               ├── /sysadmin → [sysadmin] → SysAdmin  │
+│               └── ... (lazy loaded)                  │
+├─────────────────────────────────────────────────────┤
+│                   基础设施层                          │
+│  ├── AuthContext (认证状态)                           │
+│  ├── AppContext (业务选择状态)                        │
+│  ├── ErrorBoundary (故障隔离)                        │
+│  ├── routes.ts (路由配置)                            │
+│  └── theme/carbon.ts (主题配置)                      │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## 6. 修复优先级路线图
+
+### P0: 必须修复（阻塞后续开发）
+
+| 编号 | 架构问题 | 工作量 | 收益 |
+|------|---------|--------|------|
+| ARCH-01 | 认证守卫抽取为独立 AuthGuard | 3h | 解耦认证与布局 |
+| ARCH-04 | 添加 Error Boundary | 1h | 防止白屏 |
+| ARCH-06 | 路由级别角色守卫 | 2h | 前端权限闭环 |
+
+### P1: 建议修复（提升架构质量）
+
+| 编号 | 架构问题 | 工作量 | 收益 |
+|------|---------|--------|------|
+| ARCH-02 | AppContext 位置调整 | 1h | 状态生命周期正确 |
+| ARCH-03 | 路由配置集中化 | 2h | 可维护性大幅提升 |
+| ARCH-05 | React.lazy 代码分割 | 2h | 首屏性能优化 |
+| ARCH-09 | 认证竞态条件修复 | 1.5h | 消除闪烁和跨标签页不一致 |
+
+### P2: 可选优化（长期架构改进）
+
+| 编号 | 架构问题 | 工作量 | 收益 |
+|------|---------|--------|------|
+| ARCH-07 | 认证状态纳入 Context | 1h | 消除 prop drilling |
+| ARCH-08 | 部署架构文档化 | 0.5h | 运维清晰 |
+| ARCH-10 | 主题配置抽取 | 0.5h | 配置集中管理 |
+
+---
+
+## 7. 与已有质量评审的关系
+
+本评审与 `tasks/review/App.tsx.md`（原软件质量专家评审，6.5/10）互补。质量评审侧重代码级问题（冗余 import、404 页面、测试覆盖），本架构评审侧重系统级设计（分层、状态管理、横切关注点）。
+
+**重合项**: ARCH-01 ≈ REV-02, ARCH-04 ≈ REV-03, ARCH-05 ≈ REV-04
+**新增项**: ARCH-02（AppContext 位置）、ARCH-06（角色守卫）、ARCH-09（竞态条件）、ARCH-10（主题配置）
+
+---
+
+## 8. 结论
+
+`pages/App.tsx` 作为 16 行的路由入口文件本身无重大问题，但它所引发的架构依赖链暴露了前端应用在分层设计上的系统性不足：
+
+1. **最核心问题**: 认证逻辑嵌入 Layout（ARCH-01）导致整个安全层无法独立演进、测试、复用
+2. **最紧迫问题**: 无 Error Boundary（ARCH-04）意味着任何子组件的渲染异常会导致全应用白屏
+3. **最隐蔽问题**: 路由级别无角色守卫（ARCH-06）虽不影响后端安全，但会导致用户体验和前端架构可信度的下降
+4. **最影响扩展的问题**: 路由定义分散在两个文件中（ARCH-03），每次新增页面都要修改 Layout.tsx
+
+**综合评分 6.0/10**：功能可用，但架构分层不清晰，建议在下一个迭代中完成 P0 的三项重构。
+
+---
+
+*软件架构专家评审完成 — 2026-05-24*
