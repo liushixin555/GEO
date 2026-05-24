@@ -535,6 +535,7 @@ describe('mapArticle', () => {
     content: 'Article content here',
     version: 2,
     status: 'draft',
+    scheduleType: null,
     scheduledPublishAt: new Date('2024-12-01'),
     createdBy: 1,
     createdAt: new Date('2024-03-01'),
@@ -558,6 +559,7 @@ describe('mapArticle', () => {
       content: 'Article content here',
       version: 2,
       status: 'draft',
+      schedule_type: null,
       scheduled_publish_at: new Date('2024-12-01'),
       created_by: 1,
       created_at: basePrisma.createdAt,
@@ -1333,5 +1335,761 @@ describe('mapTodoLog', () => {
   test('operatorId 为 0 时正确映射', () => {
     const result = mapTodoLog({ ...basePrisma, operatorId: 0 });
     expect(result.operator_id).toBe(0);
+  });
+});
+
+// ============================================================
+// 增强测试：scheduleType 边界（mapArticle 遗漏字段）
+// ============================================================
+describe('mapArticle - scheduleType 边界', () => {
+  const base = {
+    id: 1,
+    projectId: 10,
+    title: 'T',
+    articleType: null,
+    writeMode: null,
+    keywords: null,
+    portrait: null,
+    images: null,
+    platforms: null,
+    skills: null,
+    llmModelId: null,
+    content: '',
+    version: 0,
+    status: 'draft',
+    scheduleType: null,
+    scheduledPublishAt: null,
+    createdBy: null,
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01'),
+  };
+
+  test('scheduleType 为 null 时映射为 null', () => {
+    const result = mapArticle(base);
+    expect(result.schedule_type).toBeNull();
+  });
+
+  test('scheduleType 为 undefined 时映射为 null', () => {
+    const { scheduleType, ...rest } = base;
+    const result = mapArticle(rest);
+    expect(result.schedule_type).toBeNull();
+  });
+
+  test('scheduleType 有值时正确映射', () => {
+    const result = mapArticle({ ...base, scheduleType: 'scheduled' });
+    expect(result.schedule_type).toBe('scheduled');
+  });
+
+  test('scheduleType 为空字符串时保持为空字符串', () => {
+    const result = mapArticle({ ...base, scheduleType: '' });
+    expect(result.schedule_type).toBe('');
+  });
+});
+
+// ============================================================
+// 增强测试：apiKey 脱敏边界值
+// ============================================================
+describe('mapLlmModel - apiKey 脱敏边界', () => {
+  const base = {
+    id: 1,
+    provider: 'OpenAI',
+    baseUrl: 'https://api.openai.com',
+    apiKey: 'sk-test-key-value-here',
+    modelName: 'gpt-4',
+    status: true,
+    createdAt: new Date('2024-03-01'),
+    updatedAt: new Date('2024-08-01'),
+  };
+
+  test('apiKey 恰好 8 字符：前4+****+后4 无重叠', () => {
+    const result = mapLlmModel({ ...base, apiKey: '12345678' });
+    expect(result.api_key).toBe('1234****5678');
+  });
+
+  test('apiKey 为 1 字符时：slice(0,4) 和 slice(-4) 都返回同一字符', () => {
+    const result = mapLlmModel({ ...base, apiKey: 'a' });
+    expect(result.api_key).toBe('a****a');
+  });
+
+  test('apiKey 为 4 字符时：slice(0,4)=全串，slice(-4)=全串', () => {
+    const result = mapLlmModel({ ...base, apiKey: 'abcd' });
+    expect(result.api_key).toBe('abcd****abcd');
+  });
+
+  test('apiKey 为 5 字符时', () => {
+    const result = mapLlmModel({ ...base, apiKey: 'abcde' });
+    expect(result.api_key).toBe('abcd****bcde');
+  });
+
+  test('apiKey 为 7 字符时', () => {
+    const result = mapLlmModel({ ...base, apiKey: 'abcdefg' });
+    expect(result.api_key).toBe('abcd****defg');
+  });
+});
+
+// ============================================================
+// 增强测试：不可变性（输入对象不被修改）
+// ============================================================
+describe('不可变性测试', () => {
+  test('mapCompany 不修改输入对象', () => {
+    const input = {
+      id: 1,
+      shortName: 'Co',
+      fullName: 'Company',
+      address: 'Addr',
+      contactPerson: 'Alice',
+      contactPhone: '123',
+      status: true,
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-01'),
+      deletedAt: null,
+    };
+    const snapshot = { ...input };
+    mapCompany(input);
+    expect(input).toEqual(snapshot);
+  });
+
+  test('mapUser 不修改输入对象', () => {
+    const input = {
+      id: 1,
+      username: 'u',
+      cnName: 'n',
+      role: 'admin' as const,
+      status: true,
+      companyId: 10,
+      company: { shortName: 'Co' },
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-01'),
+    };
+    const snapshot = { ...input };
+    mapUser(input);
+    expect(input).toEqual(snapshot);
+  });
+
+  test('mapProject 不修改输入的 operators/viewers 数组', () => {
+    const ops = [{ userId: 1, user: { id: 1, cnName: 'A' } }];
+    const input = {
+      id: 1,
+      shortName: 'P',
+      fullName: 'P',
+      description: '',
+      companyId: 10,
+      company: { shortName: 'C' },
+      operators: ops,
+      viewers: [],
+      status: true,
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-01'),
+    };
+    const opsSnapshot = [...ops];
+    mapProject(input);
+    expect(input.operators).toEqual(opsSnapshot);
+  });
+
+  test('mapTodo 不修改输入的 dueAt Date 对象', () => {
+    const dueAt = new Date('2024-12-31T00:00:00Z');
+    const input = {
+      id: 1, title: 'T', companyId: 10, company: { shortName: 'C' },
+      projectId: null, project: null, objectType: 'article', objectId: null,
+      action: 'review', source: 'system', priority: 'high',
+      assigneeId: 5, assignee: { cnName: 'A' }, status: 'pending',
+      createdById: 3, createdBy: { cnName: 'B' },
+      dueAt,
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-01'),
+    };
+    const originalTime = dueAt.getTime();
+    mapTodo(input);
+    expect(dueAt.getTime()).toBe(originalTime);
+  });
+});
+
+// ============================================================
+// 增强测试：Object.freeze 输入兼容
+// ============================================================
+describe('Object.freeze 输入兼容', () => {
+  test('mapCompany 冻结输入后仍能正常映射', () => {
+    const input = Object.freeze({
+      id: 1,
+      shortName: 'Co',
+      fullName: 'Company',
+      address: null,
+      contactPerson: null,
+      contactPhone: null,
+      status: true,
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-01'),
+      deletedAt: null,
+    });
+    const result = mapCompany(input);
+    expect(result.id).toBe(1);
+    expect(result.short_name).toBe('Co');
+  });
+
+  test('mapSkills 冻结输入后仍能正常映射', () => {
+    const input = Object.freeze({
+      id: 1, name: 'S', description: null, skillDir: null,
+      createdBy: null, creator: null,
+      createdAt: new Date('2024-01-01'), updatedAt: new Date('2024-01-01'),
+    });
+    const result = mapSkills(input);
+    expect(result.id).toBe(1);
+    expect(result.creator_name).toBeNull();
+  });
+
+  test('mapTodo 冻结输入后仍能正常映射', () => {
+    const input = Object.freeze({
+      id: 1, title: 'T', companyId: 10, company: { shortName: 'C' },
+      projectId: null, project: null, objectType: 'article', objectId: null,
+      action: 'review', source: 'system', priority: 'high',
+      assigneeId: 5, assignee: { cnName: 'A' }, status: 'pending',
+      createdById: 3, createdBy: { cnName: 'B' },
+      dueAt: null,
+      createdAt: new Date('2024-01-01'), updatedAt: new Date('2024-01-01'),
+    });
+    const result = mapTodo(input);
+    expect(result.id).toBe(1);
+    expect(result.due_at).toBeNull();
+  });
+});
+
+// ============================================================
+// 增强测试：属性数量验证（防止多余或遗漏字段）
+// ============================================================
+describe('属性数量验证', () => {
+  test('mapCompany 返回恰好 10 个属性', () => {
+    const result = mapCompany({
+      id: 1, shortName: 'S', fullName: 'F', address: null,
+      contactPerson: null, contactPhone: null, status: true,
+      createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
+    });
+    expect(Object.keys(result)).toHaveLength(10);
+  });
+
+  test('mapSkills 返回恰好 8 个属性', () => {
+    const result = mapSkills({
+      id: 1, name: 'N', description: null, skillDir: null,
+      createdBy: null, creator: null,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    expect(Object.keys(result)).toHaveLength(8);
+  });
+
+  test('mapUser 返回恰好 9 个属性', () => {
+    const result = mapUser({
+      id: 1, username: 'u', cnName: 'n', role: 'admin', status: true,
+      companyId: null, company: null,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    expect(Object.keys(result)).toHaveLength(9);
+  });
+
+  test('mapLlmModel 返回恰好 8 个属性', () => {
+    const result = mapLlmModel({
+      id: 1, provider: 'P', baseUrl: null, apiKey: null,
+      modelName: 'M', status: true,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    expect(Object.keys(result)).toHaveLength(8);
+  });
+
+  test('mapSystemConfig 返回恰好 5 个属性', () => {
+    const result = mapSystemConfig({
+      id: 1, configKey: 'K', configValue: 'V',
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    expect(Object.keys(result)).toHaveLength(5);
+  });
+
+  test('mapProject 返回恰好 13 个属性', () => {
+    const result = mapProject({
+      id: 1, shortName: 'S', fullName: 'F', description: null,
+      companyId: 10, company: { shortName: 'C' },
+      operators: [], viewers: [], status: true,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    expect(Object.keys(result)).toHaveLength(13);
+  });
+
+  test('mapArticle 返回恰好 19 个属性', () => {
+    const result = mapArticle({
+      id: 1, projectId: 10, title: 'T', articleType: null,
+      writeMode: null, keywords: null, portrait: null,
+      images: null, platforms: null, skills: null,
+      llmModelId: null, content: '', version: 0, status: 'draft',
+      scheduleType: null, scheduledPublishAt: null, createdBy: null,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    expect(Object.keys(result)).toHaveLength(19);
+  });
+
+  test('mapArticleVersion 返回恰好 6 个属性', () => {
+    const result = mapArticleVersion({
+      id: 1, articleId: 10, version: 1, content: '',
+      createdBy: null, createdAt: new Date(),
+    });
+    expect(Object.keys(result)).toHaveLength(6);
+  });
+
+  test('mapPublishingPlatform 返回恰好 10 个属性', () => {
+    const result = mapPublishingPlatform({
+      id: 1, rmResourceId: null, name: 'N', taxonomy: null,
+      price: 0, remark: null, includeRate: 0, publishRate: 0,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    expect(Object.keys(result)).toHaveLength(10);
+  });
+
+  test('mapKeyword 返回恰好 8 个属性', () => {
+    const result = mapKeyword({
+      id: 1, baseId: 10, keyword: 'K', seedWord: null,
+      groupId: null, createdBy: null,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    expect(Object.keys(result)).toHaveLength(8);
+  });
+
+  test('mapPortrait 返回恰好 7 个属性', () => {
+    const result = mapPortrait({
+      id: 1, baseId: 10, title: 'T', content: null,
+      createdBy: null, createdAt: new Date(), updatedAt: new Date(),
+    });
+    expect(Object.keys(result)).toHaveLength(7);
+  });
+
+  test('mapKnowledgeImage 返回恰好 8 个属性', () => {
+    const result = mapKnowledgeImage({
+      id: 1, baseId: 10, title: 'T', description: null,
+      imageUrl: null, createdBy: null,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    expect(Object.keys(result)).toHaveLength(8);
+  });
+
+  test('mapKnowledgeDocument 返回恰好 11 个属性', () => {
+    const result = mapKnowledgeDocument({
+      id: 1, baseId: 10, title: 'T', description: null,
+      fileUrl: null, fileName: null, fileType: null, fileSize: 0,
+      createdBy: null, createdAt: new Date(), updatedAt: new Date(),
+    });
+    expect(Object.keys(result)).toHaveLength(11);
+  });
+
+  test('mapMinedKeyword 返回恰好 6 个属性', () => {
+    const result = mapMinedKeyword({
+      id: 1, baseId: 10, keyword: 'K', selected: false,
+      createdBy: null, createdAt: new Date(),
+    });
+    expect(Object.keys(result)).toHaveLength(6);
+  });
+
+  test('mapTodo 返回恰好 19 个属性', () => {
+    const result = mapTodo({
+      id: 1, title: 'T', companyId: 10, company: { shortName: 'C' },
+      projectId: null, project: null, objectType: 'article', objectId: null,
+      action: 'review', source: 'system', priority: 'high',
+      assigneeId: 5, assignee: { cnName: 'A' }, status: 'pending',
+      createdById: 3, createdBy: { cnName: 'B' }, dueAt: null,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    expect(Object.keys(result)).toHaveLength(19);
+  });
+
+  test('mapTodoLog 返回恰好 9 个属性', () => {
+    const result = mapTodoLog({
+      id: 1, todoId: 10, operatorId: 5, operator: { cnName: 'O' },
+      action: 'create', objectType: null, objectId: null,
+      remark: null, createdAt: new Date(),
+    });
+    expect(Object.keys(result)).toHaveLength(9);
+  });
+});
+
+// ============================================================
+// 增强测试：JSON 序列化安全
+// ============================================================
+describe('JSON 序列化安全', () => {
+  test('mapCompany 结果可 JSON.stringify/parse 往返', () => {
+    const date = new Date('2024-06-15T08:30:00Z');
+    const result = mapCompany({
+      id: 1, shortName: 'Co', fullName: 'Company', address: 'Addr',
+      contactPerson: 'P', contactPhone: '123', status: true,
+      createdAt: date, updatedAt: date, deletedAt: null,
+    });
+    const json = JSON.stringify(result);
+    const parsed = JSON.parse(json);
+    expect(parsed.id).toBe(1);
+    expect(parsed.short_name).toBe('Co');
+    expect(parsed.deleted_at).toBeNull();
+  });
+
+  test('mapLlmModel 脱敏后 apiKey 可安全序列化', () => {
+    const result = mapLlmModel({
+      id: 1, provider: 'P', baseUrl: 'https://api.test.com',
+      apiKey: 'sk-secret-key-12345',
+      modelName: 'm', status: true,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    const json = JSON.stringify(result);
+    expect(json).not.toContain('sk-secret-key-12345');
+    expect(json).toContain('sk-s****2345');
+  });
+
+  test('mapTodo 结果可 JSON.stringify/parse 往返', () => {
+    const dueAt = new Date('2024-12-31T10:00:00Z');
+    const result = mapTodo({
+      id: 1, title: 'T', companyId: 10, company: { shortName: 'C' },
+      projectId: null, project: null, objectType: 'article', objectId: null,
+      action: 'review', source: 'system', priority: 'high',
+      assigneeId: 5, assignee: { cnName: 'A' }, status: 'pending',
+      createdById: 3, createdBy: { cnName: 'B' }, dueAt,
+      createdAt: new Date('2024-01-01'), updatedAt: new Date('2024-01-01'),
+    });
+    const json = JSON.stringify(result);
+    const parsed = JSON.parse(json);
+    expect(parsed.due_at).toBe(dueAt.toISOString());
+    expect(parsed.company_name).toBe('C');
+  });
+
+  test('mapArticle 含数组和 null 字段可安全序列化', () => {
+    const result = mapArticle({
+      id: 1, projectId: 10, title: 'T', articleType: 'seo',
+      writeMode: 'auto', keywords: 'k1,k2', portrait: 'p',
+      images: ['a.jpg'], platforms: ['wechat'],
+      skills: 5, llmModelId: 3, content: 'c', version: 1,
+      status: 'draft', scheduleType: null, scheduledPublishAt: null,
+      createdBy: 1,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    const json = JSON.stringify(result);
+    const parsed = JSON.parse(json);
+    expect(parsed.images).toEqual(['a.jpg']);
+    expect(parsed.platforms).toEqual(['wechat']);
+    expect(parsed.schedule_type).toBeNull();
+  });
+});
+
+// ============================================================
+// 增强测试：深拷贝独立性
+// ============================================================
+describe('深拷贝独立性', () => {
+  test('mapArticle 返回的 images 数组不影响后续调用', () => {
+    const input = {
+      id: 1, projectId: 10, title: 'T', articleType: null,
+      writeMode: null, keywords: null, portrait: null,
+      images: ['a.jpg', 'b.jpg'], platforms: null, skills: null,
+      llmModelId: null, content: '', version: 0, status: 'draft',
+      scheduleType: null, scheduledPublishAt: null, createdBy: null,
+      createdAt: new Date(), updatedAt: new Date(),
+    };
+    const result1 = mapArticle(input);
+    const result2 = mapArticle({ ...input, images: ['c.jpg'] });
+    expect(result1.images).toEqual(['a.jpg', 'b.jpg']);
+    expect(result2.images).toEqual(['c.jpg']);
+  });
+
+  test('mapProject 返回的 operator_ids 不影响后续调用', () => {
+    const input = {
+      id: 1, shortName: 'P', fullName: 'P', description: '',
+      companyId: 10, company: { shortName: 'C' },
+      operators: [{ userId: 1, user: { id: 1, cnName: 'A' } }],
+      viewers: [],
+      status: true,
+      createdAt: new Date(), updatedAt: new Date(),
+    };
+    const result1 = mapProject(input);
+    const result2 = mapProject({
+      ...input,
+      operators: [{ userId: 2, user: { id: 2, cnName: 'B' } }],
+    });
+    expect(result1.operator_ids).toEqual([1]);
+    expect(result2.operator_ids).toEqual([2]);
+  });
+});
+
+// ============================================================
+// 增强测试：mapTodo dueAt 边界
+// ============================================================
+describe('mapTodo - dueAt 边界', () => {
+  const makeInput = (dueAt: any) => ({
+    id: 1, title: 'T', companyId: 10, company: { shortName: 'C' },
+    projectId: null, project: null, objectType: 'article', objectId: null,
+    action: 'review', source: 'system', priority: 'high',
+    assigneeId: 5, assignee: { cnName: 'A' }, status: 'pending',
+    createdById: 3, createdBy: { cnName: 'B' }, dueAt,
+    createdAt: new Date('2024-01-01'), updatedAt: new Date('2024-01-01'),
+  });
+
+  test('dueAt 为 1970-01-01 时正确转换', () => {
+    const epoch = new Date('1970-01-01T00:00:00Z');
+    const result = mapTodo(makeInput(epoch));
+    expect(result.due_at).toBe('1970-01-01T00:00:00.000Z');
+  });
+
+  test('dueAt 为远未来日期时正确转换', () => {
+    const far = new Date('2099-12-31T23:59:59Z');
+    const result = mapTodo(makeInput(far));
+    expect(result.due_at).toBe('2099-12-31T23:59:59.000Z');
+  });
+
+  test('dueAt 含毫秒时保留毫秒精度', () => {
+    const ms = new Date('2024-06-15T10:30:45.123Z');
+    const result = mapTodo(makeInput(ms));
+    expect(result.due_at).toBe('2024-06-15T10:30:45.123Z');
+  });
+});
+
+// ============================================================
+// 增强测试：mapProject null operators/viewers
+// ============================================================
+describe('mapProject - null operators/viewers', () => {
+  const base = {
+    id: 1, shortName: 'P', fullName: 'P', description: '',
+    companyId: 10, company: { shortName: 'C' },
+    status: true,
+    createdAt: new Date(), updatedAt: new Date(),
+  };
+
+  test('operators 为 null 时默认为空数组', () => {
+    const result = mapProject({ ...base, operators: null as any, viewers: [] });
+    expect(result.operator_ids).toEqual([]);
+    expect(result.operator_names).toEqual([]);
+  });
+
+  test('viewers 为 null 时默认为空数组', () => {
+    const result = mapProject({ ...base, operators: [], viewers: null as any });
+    expect(result.viewer_ids).toEqual([]);
+    expect(result.viewer_names).toEqual([]);
+  });
+
+  test('operators/viewers 同时为 null 时默认为空数组', () => {
+    const result = mapProject({ ...base, operators: null as any, viewers: null as any });
+    expect(result.operator_ids).toEqual([]);
+    expect(result.operator_names).toEqual([]);
+    expect(result.viewer_ids).toEqual([]);
+    expect(result.viewer_names).toEqual([]);
+  });
+});
+
+// ============================================================
+// 增强测试：连续映射幂等性
+// ============================================================
+describe('连续映射幂等性', () => {
+  test('mapCompany 对同一输入多次调用结果一致', () => {
+    const input = {
+      id: 1, shortName: 'Co', fullName: 'Full', address: 'A',
+      contactPerson: 'P', contactPhone: '123', status: true,
+      createdAt: new Date('2024-01-01'), updatedAt: new Date('2024-01-01'),
+      deletedAt: null,
+    };
+    const r1 = mapCompany(input);
+    const r2 = mapCompany(input);
+    expect(r1).toEqual(r2);
+  });
+
+  test('mapLlmModel 对同一输入多次调用脱敏结果一致', () => {
+    const input = {
+      id: 1, provider: 'P', baseUrl: 'url',
+      apiKey: 'sk-abc-def-ghi',
+      modelName: 'm', status: true,
+      createdAt: new Date(), updatedAt: new Date(),
+    };
+    const r1 = mapLlmModel(input);
+    const r2 = mapLlmModel(input);
+    expect(r1.api_key).toBe(r2.api_key);
+    expect(r1.api_key).toBe('sk-a****-ghi');
+  });
+
+  test('mapTodo 对同一输入多次调用 due_at 一致', () => {
+    const input = {
+      id: 1, title: 'T', companyId: 10, company: { shortName: 'C' },
+      projectId: null, project: null, objectType: 'article', objectId: null,
+      action: 'review', source: 'system', priority: 'high',
+      assigneeId: 5, assignee: { cnName: 'A' }, status: 'pending',
+      createdById: 3, createdBy: { cnName: 'B' },
+      dueAt: new Date('2024-12-31T10:00:00Z'),
+      createdAt: new Date(), updatedAt: new Date(),
+    };
+    const r1 = mapTodo(input);
+    const r2 = mapTodo(input);
+    expect(r1.due_at).toBe(r2.due_at);
+  });
+});
+
+// ============================================================
+// 增强测试：原型链安全
+// ============================================================
+describe('原型链安全', () => {
+  test('mapUser 返回纯对象（无原型污染）', () => {
+    const input = {
+      id: 1, username: 'u', cnName: 'n', role: 'admin' as const,
+      status: true, companyId: null, company: null,
+      createdAt: new Date(), updatedAt: new Date(),
+    };
+    const result = mapUser(input);
+    expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+    expect('toString' in result).toBe(true);
+    expect(result.hasOwnProperty('toString')).toBe(false);
+  });
+
+  test('mapProject 返回纯对象', () => {
+    const result = mapProject({
+      id: 1, shortName: 'P', fullName: 'P', description: '',
+      companyId: 10, company: { shortName: 'C' },
+      operators: [], viewers: [], status: true,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+  });
+});
+
+// ============================================================
+// 增强测试：解构模式
+// ============================================================
+describe('解构模式', () => {
+  test('mapCompany 返回值可安全解构', () => {
+    const result = mapCompany({
+      id: 1, shortName: 'Co', fullName: 'Full', address: 'A',
+      contactPerson: 'P', contactPhone: '123', status: true,
+      createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
+    });
+    const { id, short_name, full_name } = result;
+    expect(id).toBe(1);
+    expect(short_name).toBe('Co');
+    expect(full_name).toBe('Full');
+  });
+
+  test('mapUser 返回值可安全解构并传递', () => {
+    const result = mapUser({
+      id: 1, username: 'u', cnName: '名', role: 'admin' as const,
+      status: true, companyId: 10, company: { shortName: 'C' },
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    const { cn_name, company_name, ...rest } = result;
+    expect(cn_name).toBe('名');
+    expect(company_name).toBe('C');
+    expect(rest.id).toBe(1);
+    expect(Object.keys(rest)).toHaveLength(7);
+  });
+
+  test('mapArticle 返回值可用 Object.entries 遍历', () => {
+    const result = mapArticle({
+      id: 1, projectId: 10, title: 'T', articleType: null,
+      writeMode: null, keywords: null, portrait: null,
+      images: null, platforms: null, skills: null,
+      llmModelId: null, content: '', version: 0, status: 'draft',
+      scheduleType: null, scheduledPublishAt: null, createdBy: null,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    const entries = Object.entries(result);
+    expect(entries.length).toBe(19);
+    const titleEntry = entries.find(([k]) => k === 'title');
+    expect(titleEntry).toEqual(['title', 'T']);
+  });
+});
+
+// ============================================================
+// 增强测试：集合操作（Set/Map）
+// ============================================================
+describe('集合操作', () => {
+  test('mapCompany 多个结果可放入 Set 去重', () => {
+    const input = {
+      id: 1, shortName: 'Co', fullName: 'Full', address: 'A',
+      contactPerson: 'P', contactPhone: '123', status: true,
+      createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
+    };
+    const r1 = mapCompany(input);
+    const r2 = mapCompany(input);
+    const set = new Set([r1, r2]);
+    expect(set.size).toBe(2);
+  });
+
+  test('mapUser 结果数组可用 find/filter', () => {
+    const results = [
+      mapUser({ id: 1, username: 'a', cnName: 'A', role: 'admin' as const, status: true, companyId: null, company: null, createdAt: new Date(), updatedAt: new Date() }),
+      mapUser({ id: 2, username: 'b', cnName: 'B', role: 'view' as const, status: true, companyId: 10, company: { shortName: 'C' }, createdAt: new Date(), updatedAt: new Date() }),
+    ];
+    const admins = results.filter(u => u.role === 'admin');
+    expect(admins).toHaveLength(1);
+    expect(admins[0].cn_name).toBe('A');
+    const found = results.find(u => u.id === 2);
+    expect(found?.company_name).toBe('C');
+  });
+});
+
+// ============================================================
+// 增强测试：属性描述符
+// ============================================================
+describe('属性描述符', () => {
+  test('mapCompany 返回对象所有属性可写、可枚举、可配置', () => {
+    const result = mapCompany({
+      id: 1, shortName: 'Co', fullName: 'Full', address: 'A',
+      contactPerson: 'P', contactPhone: '123', status: true,
+      createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
+    });
+    for (const key of Object.keys(result)) {
+      const desc = Object.getOwnPropertyDescriptor(result, key);
+      expect(desc!.writable).toBe(true);
+      expect(desc!.enumerable).toBe(true);
+      expect(desc!.configurable).toBe(true);
+    }
+  });
+
+  test('mapSkills 返回对象所有属性可写、可枚举、可配置', () => {
+    const result = mapSkills({
+      id: 1, name: 'N', description: null, skillDir: null,
+      createdBy: null, creator: null,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    for (const key of Object.keys(result)) {
+      const desc = Object.getOwnPropertyDescriptor(result, key);
+      expect(desc!.writable).toBe(true);
+      expect(desc!.enumerable).toBe(true);
+      expect(desc!.configurable).toBe(true);
+    }
+  });
+});
+
+// ============================================================
+// 增强测试：函数参数传递
+// ============================================================
+describe('函数参数传递', () => {
+  test('所有 map 函数可作为高阶函数参数', () => {
+    const prismaCompanies = [
+      { id: 1, shortName: 'A', fullName: 'AA', address: null, contactPerson: null, contactPhone: null, status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null },
+      { id: 2, shortName: 'B', fullName: 'BB', address: null, contactPerson: null, contactPhone: null, status: false, createdAt: new Date(), updatedAt: new Date(), deletedAt: null },
+    ];
+    const results = prismaCompanies.map(mapCompany);
+    expect(results).toHaveLength(2);
+    expect(results[0].short_name).toBe('A');
+    expect(results[1].short_name).toBe('B');
+  });
+
+  test('mapMinedKeyword 可用于 filter + map 链', () => {
+    const prismaItems = [
+      { id: 1, baseId: 10, keyword: 'A', selected: true, createdBy: null, createdAt: new Date() },
+      { id: 2, baseId: 10, keyword: 'B', selected: false, createdBy: null, createdAt: new Date() },
+      { id: 3, baseId: 10, keyword: 'C', selected: true, createdBy: null, createdAt: new Date() },
+    ];
+    const selected = prismaItems.filter(i => i.selected).map(mapMinedKeyword);
+    expect(selected).toHaveLength(2);
+    expect(selected.map(s => s.keyword)).toEqual(['A', 'C']);
+  });
+
+  test('mapKeyword 可用于 reduce 聚合', () => {
+    const prismaKeywords = [
+      { id: 1, baseId: 10, keyword: 'A', seedWord: null, groupId: 1, createdBy: null, createdAt: new Date(), updatedAt: new Date() },
+      { id: 2, baseId: 10, keyword: 'B', seedWord: null, groupId: 1, createdBy: null, createdAt: new Date(), updatedAt: new Date() },
+      { id: 3, baseId: 10, keyword: 'C', seedWord: null, groupId: 2, createdBy: null, createdAt: new Date(), updatedAt: new Date() },
+    ];
+    const grouped = prismaKeywords.map(mapKeyword).reduce((acc, kw) => {
+      const gid = kw.group_id ?? 'null';
+      if (!acc[gid]) acc[gid] = [];
+      acc[gid].push(kw.keyword);
+      return acc;
+    }, {} as Record<string, string[]>);
+    expect(Object.keys(grouped)).toHaveLength(2);
+    expect(grouped[1]).toEqual(['A', 'B']);
+    expect(grouped[2]).toEqual(['C']);
   });
 });

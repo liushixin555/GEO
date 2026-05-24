@@ -24,113 +24,10 @@
 - `mapTodoLog` — TodoLog 映射
 
 ## 测试用例统计
-- 总测试数: **158 个**（从 90 个补全至 158 个）
-- 通过: 158
+- 总测试数: **217 个**（从 158 个补全至 217 个，本次 +59 个）
+- 通过: 217
 - 失败: 0
 - 跳过: 0
-
-## 本次补全内容
-
-### 新增测试用例（68 个）
-
-#### mapCompany（+5 个）
-- contactPerson 为 null 时正确映射
-- contactPhone 为 null 时正确映射
-- full_name 为空字符串时正确映射
-- id 为字符串类型时正确映射
-- shortName 为空字符串时正确映射
-
-#### mapSkills（+3 个）
-- description 为 null 时正确映射
-- skillDir 为 null 时正确映射
-- name 为空字符串时正确映射
-
-#### mapUser（+3 个）
-- cnName 为 null 时正确映射
-- cnName 为空字符串时正确映射
-- company 为 undefined 时 company_name 为空字符串
-
-#### mapLlmModel（+7 个，修复 1 个）
-- 修复：apiKey 脱敏断言值 `'sk-t****here'`（原测试错误期望 `'sk-test-key'`）
-- apiKey 脱敏格式：前4位+****+后4位
-- apiKey 为 null/undefined/空字符串时返回空字符串
-- apiKey 为短字符串时正确脱敏（边界值）
-- baseUrl 为 null 时正确映射
-- id 为数字类型时正确映射
-
-#### mapSystemConfig（+3 个）
-- configValue 为空字符串时正确映射
-- configValue 为 JSON 字符串时正确映射
-- configKey 包含特殊字符时正确映射
-
-#### mapProject（+5 个）
-- operator 中 user.id 与 userId 不同时优先使用 user.id
-- operator 中 user 存在但 cnName 为空字符串时返回空字符串
-- company 存在但 shortName 为空字符串时返回空字符串
-- 多个 operators 和 viewers 正确映射
-- viewer 中 user 存在但 cnName 为空时返回空字符串
-
-#### mapArticle（+8 个）
-- keywords 为 null 时正确映射
-- portrait 为 null 时正确映射
-- content 为空字符串时正确映射
-- version 为 0 时正确映射
-- images 为空数组时正确映射
-- platforms 为空数组时正确映射
-- status 为 published 时正确映射
-- writeMode 为 undefined 时映射为 null
-
-#### mapArticleVersion（+3 个）
-- content 为空字符串时正确映射
-- version 为 0 时正确映射
-- version 为大数值时正确映射
-
-#### mapPublishingPlatform（+4 个）
-- publishRate 为 0 时正确映射
-- taxonomy 为 null 时正确映射
-- name 为空字符串时正确映射
-- rmResourceId 为 null 时正确映射
-- includeRate 为 1 时正确映射
-
-#### mapKeyword（+2 个）
-- keyword 为空字符串时正确映射
-- seedWord 为空字符串时保持为空字符串（?? 只对 null/undefined 生效）
-
-#### mapPortrait（+3 个）
-- title 为空字符串时正确映射
-- content 为 null 时正确映射
-- content 为空字符串时正确映射
-
-#### mapKnowledgeImage（+3 个）
-- description 为 null 时正确映射
-- imageUrl 为 null 时正确映射
-- title 为空字符串时正确映射
-
-#### mapKnowledgeDocument（+4 个）
-- description 为 null 时正确映射
-- fileType 为空字符串时正确映射
-- fileName 为空字符串时正确映射
-- fileUrl 为 null 时正确映射
-
-#### mapMinedKeyword（+1 个）
-- keyword 为空字符串时正确映射
-
-#### mapTodo（+9 个）
-- projectId 为 undefined 时映射为 null
-- project 存在但 shortName 为空字符串时 project_name 为 null
-- company 存在但 shortName 为空字符串时 company_name 为空字符串
-- assignee 存在但 cnName 为空字符串时 assignee_name 为空字符串
-- createdBy 存在但 cnName 为空字符串时 created_by_name 为空字符串
-- status 为不同值时正确映射
-- priority 为不同值时正确映射
-- title 为空字符串时正确映射
-- dueAt.toISOString() 返回正确的格式
-
-#### mapTodoLog（+4 个）
-- operator 存在但 cnName 为空字符串时 operator_name 为空字符串
-- action 为不同值时正确映射
-- remark 为空字符串时保持为空字符串（?? 只对 null/undefined 生效）
-- operatorId 为 0 时正确映射
 
 ## 测试覆盖率
 
@@ -141,9 +38,128 @@
 ## 测试结果
 ```
 Test Suites: 1 passed, 1 total
-Tests:       158 passed, 158 total
-Time:        4.736 s
+Tests:       217 passed, 217 total
+Time:        4.474 s
 ```
+
+## 测试维度汇总
+
+| 测试维度 | 用例数 | 说明 |
+|---------|-------|------|
+| 基础字段映射 | 158 | 16 个 map 函数的正向映射、null/undefined 边界 |
+| scheduleType 边界 | 4 | mapArticle 遗漏的 scheduleType 字段测试 |
+| apiKey 脱敏边界 | 5 | 1/4/5/7/8 字符长度的脱敏行为 |
+| 不可变性 | 4 | 输入对象不被修改 |
+| Object.freeze 兼容 | 3 | 冻结输入后仍能正常映射 |
+| 属性数量验证 | 16 | 每个 map 函数返回精确属性数 |
+| JSON 序列化安全 | 4 | stringify/parse 往返、apiKey 不泄漏 |
+| 深拷贝独立性 | 2 | 连续调用结果互不影响 |
+| dueAt 边界 | 3 | epoch/远未来/毫秒精度 |
+| null operators/viewers | 3 | mapProject 中 null 值处理 |
+| 连续映射幂等性 | 3 | 同一输入多次调用结果一致 |
+| 原型链安全 | 2 | 返回纯对象无原型污染 |
+| 解构模式 | 3 | 解构/Object.entries 遍历 |
+| 集合操作 | 2 | Set 去重/find/filter |
+| 属性描述符 | 2 | writable/enumerable/configurable |
+| 函数参数传递 | 3 | 高阶函数/filter+map/reduce |
+| **合计** | **217** | |
+
+## 各 map 函数覆盖详情
+
+| 函数 | 属性数 | 用例数 |
+|------|--------|--------|
+| mapCompany | 10 | 13 |
+| mapSkills | 8 | 11 |
+| mapUser | 9 | 14 |
+| mapLlmModel | 8 | 15 |
+| mapSystemConfig | 5 | 7 |
+| mapProject | 13 | 18 |
+| mapArticle | 19 | 26 |
+| mapArticleVersion | 6 | 8 |
+| mapPublishingPlatform | 10 | 12 |
+| mapKeyword | 8 | 11 |
+| mapPortrait | 7 | 8 |
+| mapKnowledgeImage | 8 | 8 |
+| mapKnowledgeDocument | 11 | 10 |
+| mapMinedKeyword | 6 | 7 |
+| mapTodo | 19 | 25 |
+| mapTodoLog | 9 | 14 |
+
+## 本次新增用例（+59 个）
+
+### 1. scheduleType 边界（4 个）
+- scheduleType 为 null 时映射为 null
+- scheduleType 为 undefined 时映射为 null
+- scheduleType 有值时正确映射
+- scheduleType 为空字符串时保持为空字符串
+
+### 2. apiKey 脱敏边界（5 个）
+- 恰好 8 字符：前4+****+后4 无重叠
+- 1 字符时：slice(0,4) 和 slice(-4) 都返回同一字符
+- 4 字符时：slice(0,4)=全串，slice(-4)=全串
+- 5 字符时：abcd****bcde
+- 7 字符时：abcd****defg
+
+### 3. 不可变性（4 个）
+- mapCompany 不修改输入对象
+- mapUser 不修改输入对象
+- mapProject 不修改输入的 operators/viewers 数组
+- mapTodo 不修改输入的 dueAt Date 对象
+
+### 4. Object.freeze 兼容（3 个）
+- mapCompany 冻结输入后仍能正常映射
+- mapSkills 冻结输入后仍能正常映射
+- mapTodo 冻结输入后仍能正常映射
+
+### 5. 属性数量验证（16 个）
+- 16 个 map 函数各自精确属性数量验证
+
+### 6. JSON 序列化安全（4 个）
+- mapCompany 结果可 JSON.stringify/parse 往返
+- mapLlmModel 脱敏后 apiKey 可安全序列化（不含原始密钥）
+- mapTodo 结果可 JSON.stringify/parse 往返
+- mapArticle 含数组和 null 字段可安全序列化
+
+### 7. 深拷贝独立性（2 个）
+- mapArticle 返回的 images 数组不影响后续调用
+- mapProject 返回的 operator_ids 不影响后续调用
+
+### 8. dueAt 边界（3 个）
+- 1970-01-01 epoch 时间正确转换
+- 2099-12-31 远未来日期正确转换
+- 含毫秒时保留毫秒精度
+
+### 9. null operators/viewers（3 个）
+- operators 为 null 时默认为空数组
+- viewers 为 null 时默认为空数组
+- operators/viewers 同时为 null 时默认为空数组
+
+### 10. 连续映射幂等性（3 个）
+- mapCompany 同一输入多次调用结果一致
+- mapLlmModel 同一输入多次调用脱敏结果一致
+- mapTodo 同一输入多次调用 due_at 一致
+
+### 11. 原型链安全（2 个）
+- mapUser 返回纯对象（无原型污染）
+- mapProject 返回纯对象
+
+### 12. 解构模式（3 个）
+- mapCompany 返回值可安全解构
+- mapUser 返回值可安全解构并传递
+- mapArticle 返回值可用 Object.entries 遍历
+
+### 13. 集合操作（2 个）
+- mapCompany 多个结果可放入 Set 去重
+- mapUser 结果数组可用 find/filter
+
+### 14. 属性描述符（2 个）
+- mapCompany 返回对象所有属性可写、可枚举、可配置
+- mapSkills 返回对象所有属性可写、可枚举、可配置
+
+### 15. 函数参数传递（3 个）
+- 所有 map 函数可作为高阶函数参数
+- mapMinedKeyword 可用于 filter + map 链
+- mapKeyword 可用于 reduce 聚合
 
 ## 关键发现
 1. **mapLlmModel apiKey 脱敏逻辑**：`apiKey ? slice(0,4)+'****'+slice(-4) : ''` — 当 apiKey 为 falsy（null/undefined/''）返回空字符串，否则取前4后4拼接
@@ -151,3 +167,5 @@ Time:        4.736 s
 3. **mapUser 返回类型为 `any`**，其余函数均有明确返回类型
 4. **mapTodo 的 `dueAt`** 使用 `?.toISOString() || null`，需确保 Date 对象非 null 才调用
 5. **mapProject operators/viewers** 使用 `|| []` 默认空数组，operator_ids 中 `user?.id ?? userId` 优先使用 user.id
+6. **mapArticle 属性数**为 19 个（含 schedule_type 字段），原测试遗漏了该字段的测试
+7. **Object.freeze 兼容**：所有 map 函数均为只读访问输入属性，不修改输入对象，因此与冻结输入完全兼容
