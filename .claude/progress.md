@@ -426,3 +426,27 @@
   - 核心问题：此页面为死代码，用户无法通过任何导航到达；按钮 href 与后端 Swagger UI 路由冲突
   - 建议替代方案：侧边栏外链 / 增强页面内容 / 删除死代码
   - 评审报告 tasks/review/index.tsx.md
+
+## 本次变更（2026-05-24 apis/app.ts TDD 测试补全）
+- [x] **apis/app.ts 测试用例补全** — 从 127 个增加到 156 个测试用例
+  - 新增 Auth Companies Detail 路由 401 测试（1个）
+  - 新增 CORS Preflight OPTIONS 预检请求测试（4个）
+  - 新增 Token 格式边界测试：空Bearer、无前缀、Basic auth、错误签名、部分payload（5个）
+  - 新增正向角色检查测试：admin/sysadmin 通过角色检查（8个）
+  - 新增速率限制 headers 和请求测试（2个）
+  - 新增 Login 路由边界测试：空值、空body、有效凭证（3个）
+  - 新增 404 HTTP 方法测试（4个）
+  - 新增静态文件边界和 Swagger 启用场景测试（2个）
+  - 覆盖率：Stmts 98%, Branch 71.42%, Funcs 83.33%, Lines 98.65%
+  - 发现：authMiddleware 仅验证 JWT 签名，不校验 payload 字段完整性
+  - 发现：health check 路由在 rate limit 中间件之前，不受速率限制
+
+## 本次变更（2026-05-24 apis/app.ts Committer审核专家评审）
+- [x] **Committer审核专家评审 apis/app.ts（239 行）**
+  - 综合判定：通过（APPROVE）— 安全基础优秀 + 测试覆盖充分 + 功能完整
+  - 测试文件：1319 行，156 个测试用例全部通过（比预估 120 个更充分）
+  - API 契约正确性：96/96 路由与 Controller 导出函数 100% 匹配
+  - 中间件链正确性：trust proxy → helmet → CORS → body → static → anti-crawl → rate-limit → auth → RBAC，全部到位
+  - 交叉审核五份已有评审（质量/安全×2/架构），所有问题均不构成合并阻塞
+  - 建议合并前修正 L187 注释错误（Knowledge Item → Todo），其余为技术债务
+  - 评审报告 tasks/review/app.ts.committer.md
