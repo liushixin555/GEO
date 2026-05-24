@@ -2079,4 +2079,463 @@ describe('KnowledgeBase Controller', () => {
       );
     });
   });
+
+  // =========================================================
+  // Service 未覆盖分支补全测试
+  // =========================================================
+  describe('Service 未覆盖分支补全', () => {
+    // --- list: admin 有 operator projects 时走 line 86 ---
+    test('list: admin 有 operator projects 走 project scope 过滤（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      const mockUserFindFirst = jest.fn().mockResolvedValue({ id: 2, companyId: 2 });
+      const mockOperatorFindMany = jest.fn().mockResolvedValue([{ projectId: 10 }, { projectId: 20 }]);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+        user: { findFirst: mockUserFindFirst },
+        projectOperator: { findMany: mockOperatorFindMany },
+      });
+
+      const req = { query: { page: '1', pageSize: '10' }, user: { userId: 2, role: 'admin' } } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await listKnowledgeBases(req, res);
+      expect(res.json).toHaveBeenCalled();
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where.AND).toBeDefined();
+      expect(where.AND[0].OR).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ scope: 'project', projectId: { in: [10, 20] } }),
+        ])
+      );
+    });
+
+    // --- list: admin 无 companyId 时仍可见 platform ---
+    test('list: admin 无 companyId 仍可见 platform（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      const mockUserFindFirst = jest.fn().mockResolvedValue({ id: 2, companyId: null });
+      const mockOperatorFindMany = jest.fn().mockResolvedValue([]);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+        user: { findFirst: mockUserFindFirst },
+        projectOperator: { findMany: mockOperatorFindMany },
+      });
+
+      const req = { query: { page: '1', pageSize: '10' }, user: { userId: 2, role: 'admin' } } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await listKnowledgeBases(req, res);
+      expect(res.json).toHaveBeenCalled();
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where.AND[0].OR).toEqual([{ scope: 'platform', status: true }]);
+    });
+
+    // --- get: admin 获取 project 知识库（自己是 operator）---
+    test('get: admin 获取 project 知识库（有权限，直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockKBFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'project',
+        projectId: 10,
+        company: null,
+        project: { shortName: '测试项目' },
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      const mockOperatorFindFirst = jest.fn().mockResolvedValue({ userId: 2, projectId: 10 });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockKBFindFirst },
+        projectOperator: { findFirst: mockOperatorFindFirst },
+      });
+
+      const req = { params: { id: '1' }, user: { userId: 2, role: 'admin' } } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await getKnowledgeBase(req, res);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
+    });
+
+    // --- get: admin 获取 platform 知识库（status=false 不可见）---
+    test('get: admin 获取 platform 知识库（status=false 返回 404，直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockKBFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'platform',
+        status: false,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockKBFindFirst },
+      });
+
+      const req = { params: { id: '1' }, user: { userId: 2, role: 'admin' } } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await getKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '知识库不存在' })
+      );
+    });
+
+    // --- get: admin 获取 company 知识库（自己公司的，可见）---
+    test('get: admin 获取自己公司的 company 知识库（可见，直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockKBFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'company',
+        companyId: 2,
+        company: { shortName: '我的公司' },
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      const mockUserFindFirst = jest.fn().mockResolvedValue({ id: 2, companyId: 2 });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockKBFindFirst },
+        user: { findFirst: mockUserFindFirst },
+      });
+
+      const req = { params: { id: '1' }, user: { userId: 2, role: 'admin' } } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await getKnowledgeBase(req, res);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
+    });
+
+    // --- update: scope→company 使用 existing.companyId 回退（lines 229-230）---
+    test('update: scope→company 无 company_id 但 existing 有 companyId 使用回退（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'platform',
+        createdBy: 1,
+        companyId: 5,
+        projectId: null,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'company',
+        company: { shortName: '已有公司' },
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const req = {
+        params: { id: '1' },
+        body: { scope: 'company' },
+        user: { userId: 1, username: 'sysadmin', role: 'sysadmin' },
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await updateKnowledgeBase(req, res);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ scope: 'company', companyId: 5, projectId: null }),
+        })
+      );
+    });
+
+    // --- update: scope→project 使用 existing.projectId 回退（lines 235-236）---
+    test('update: scope→project 无 project_id 但 existing 有 projectId 使用回退（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'company',
+        createdBy: 1,
+        companyId: 5,
+        projectId: 10,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'project',
+        company: { shortName: '已有公司' },
+        project: { shortName: '已有项目' },
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const req = {
+        params: { id: '1' },
+        body: { scope: 'project' },
+        user: { userId: 1, username: 'sysadmin', role: 'sysadmin' },
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await updateKnowledgeBase(req, res);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ scope: 'project', projectId: 10, companyId: 5 }),
+        })
+      );
+    });
+
+    // --- update: scope→project 使用 existing.projectId 和 existing.companyId ---
+    test('update: scope→project 同时提供 company_id 覆盖 existing（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'company',
+        createdBy: 1,
+        companyId: 5,
+        projectId: 10,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'project',
+        company: { shortName: '新公司' },
+        project: { shortName: '已有项目' },
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const req = {
+        params: { id: '1' },
+        body: { scope: 'project', company_id: 99 },
+        user: { userId: 1, username: 'sysadmin', role: 'sysadmin' },
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await updateKnowledgeBase(req, res);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ scope: 'project', companyId: 99, projectId: 10 }),
+        })
+      );
+    });
+
+    // --- update: 更新 status=true ---
+    test('update: 更新 status=true 成功（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        status: false,
+        createdBy: 1,
+        companyId: null,
+        projectId: null,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        status: true,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const req = {
+        params: { id: '1' },
+        body: { status: true },
+        user: { userId: 1, username: 'sysadmin', role: 'sysadmin' },
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await updateKnowledgeBase(req, res);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: true }),
+        })
+      );
+    });
+
+    // --- create: sysadmin 创建 company 知识库成功 ---
+    test('create: sysadmin 创建 company 知识库成功（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'company',
+        companyId: 2,
+        company: { shortName: '测试公司' },
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const req = {
+        body: { name: '公司知识库', scope: 'company', company_id: 2 },
+        user: { userId: 1, username: 'sysadmin', role: 'sysadmin' },
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ scope: 'company', companyId: 2 }),
+        })
+      );
+    });
+
+    // --- create: sysadmin 创建 project 知识库成功 ---
+    test('create: sysadmin 创建 project 知识库成功（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'project',
+        companyId: null,
+        projectId: 5,
+        company: null,
+        project: { shortName: '测试项目' },
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const req = {
+        body: { name: '项目知识库', scope: 'project', project_id: 5 },
+        user: { userId: 1, username: 'sysadmin', role: 'sysadmin' },
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ scope: 'project', projectId: 5 }),
+        })
+      );
+    });
+
+    // --- update: admin 更新自己创建的、company_id 变更到自己公司 ---
+    test('update: admin 更新自己创建的知识库的 company_id（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        createdBy: 2,
+        companyId: null,
+        projectId: null,
+      });
+      const mockUserFindFirst = jest.fn().mockResolvedValue({ id: 2, companyId: 2 });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        company: { shortName: '我的公司' },
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+        user: { findFirst: mockUserFindFirst },
+      });
+
+      const req = {
+        params: { id: '1' },
+        body: { company_id: 2 },
+        user: { userId: 2, username: 'admin', role: 'admin' },
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await updateKnowledgeBase(req, res);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
+    });
+
+    // --- delete: 删除成功时 data 为 null ---
+    test('delete: 成功删除返回 data=null（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        createdBy: 1,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({});
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const req = {
+        params: { id: '1' },
+        user: { userId: 1, username: 'sysadmin', role: 'sysadmin' },
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await deleteKnowledgeBase(req, res);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 0, data: null, message: '删除知识库成功' })
+      );
+    });
+  });
+
+  // =========================================================
+  // Service 层直接测试 — getAccessibleBaseIds
+  // =========================================================
+  describe('KnowledgeBaseServiceImpl.getAccessibleBaseIds', () => {
+    const { KnowledgeBaseServiceImpl } = require('../../apis/service/impl/knowledge-base.service.impl');
+
+    test('返回项目可访问的知识库 ID 列表（含公司 scope）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockProjectFindFirst = jest.fn().mockResolvedValue({ id: 1, companyId: 10 });
+      const mockKBFindMany = jest.fn().mockResolvedValue([{ id: 1 }, { id: 2 }, { id: 3 }]);
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockProjectFindFirst },
+        knowledgeBase: { findMany: mockKBFindMany },
+      });
+
+      const service = new KnowledgeBaseServiceImpl();
+      const ids = await service.getAccessibleBaseIds(1);
+
+      expect(ids).toEqual([1, 2, 3]);
+      expect(mockProjectFindFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 1, deletedAt: null } })
+      );
+      // 验证 OR 条件包含 platform + project + company
+      const where = mockKBFindMany.mock.calls[0][0].where;
+      expect(where.OR).toHaveLength(3);
+      expect(where.OR).toEqual(
+        expect.arrayContaining([
+          { scope: 'platform', status: true },
+          { scope: 'project', projectId: 1, status: true },
+          { scope: 'company', companyId: 10, status: true },
+        ])
+      );
+    });
+
+    test('项目无 companyId 时不含 company scope', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockProjectFindFirst = jest.fn().mockResolvedValue({ id: 2, companyId: null });
+      const mockKBFindMany = jest.fn().mockResolvedValue([{ id: 5 }]);
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockProjectFindFirst },
+        knowledgeBase: { findMany: mockKBFindMany },
+      });
+
+      const service = new KnowledgeBaseServiceImpl();
+      const ids = await service.getAccessibleBaseIds(2);
+
+      expect(ids).toEqual([5]);
+      const where = mockKBFindMany.mock.calls[0][0].where;
+      expect(where.OR).toHaveLength(2);
+      expect(where.OR).toEqual(
+        expect.arrayContaining([
+          { scope: 'platform', status: true },
+          { scope: 'project', projectId: 2, status: true },
+        ])
+      );
+    });
+
+    test('项目不存在抛出 NotFoundError', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockProjectFindFirst = jest.fn().mockResolvedValue(null);
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockProjectFindFirst },
+        knowledgeBase: { findMany: jest.fn() },
+      });
+
+      const service = new KnowledgeBaseServiceImpl();
+      await expect(service.getAccessibleBaseIds(999)).rejects.toThrow('项目不存在');
+    });
+  });
 });
