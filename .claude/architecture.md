@@ -210,3 +210,8 @@ tests/apis/  + tests/pages/  测试文件
   - 核心UI缺陷：GitHub Octicon 图标与 Carbon Design System 冲突、复制按钮为 div 非 antd Button、零可访问性支持（无 role/tabindex/aria-label）、触控目标 16x16 远低于 48px 标准
   - 本项目通过 MarkdownViewer 封装层 + markdown-viewer.css 50+ 行 !important 覆盖缓解，但仍未覆盖：可访问性、图标替换、键盘支持
   - 详见 `tasks/review/rehypePlugins.tsx.ui.md`
+- **@uiw/react-md-editor（Context.tsx）** — Committer 评审 ⚠️有条件通过 3.4/10（2026-05-24）
+  - 核心缺陷：索引签名 `[key: string]: any` 瓦解类型系统、Reducer 无 Action 区分、DOM 引用混入 Context state、dispatch 混入 state
+  - 综合五份评审：架构 3.0/10、质量 3.6/10、安全 Critical×2、UI 2.8/10
+  - Committer 裁定：有条件通过，4 项强制要求 MC-1~MC-4（封装组件+安全防护+样式对齐+类型加固）
+  - 详见 `tasks/review/Context.tsx.committer.md`
