@@ -34,8 +34,10 @@ app.get('/api/health', (_req, res) => {
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-  hsts: false, // HTTP server — disable HSTS to prevent browser forcing HTTPS
+  hsts: false, // HTTP server — disable HSTS
   contentSecurityPolicy: false, // swagger-ui needs inline scripts/styles
+  crossOriginEmbedderPolicy: false, // HTTP origin — COEP/COOP require HTTPS
+  crossOriginOpenerPolicy: false,
 }));
 
 // CORS — whitelist-based configuration
@@ -107,7 +109,7 @@ const swaggerSpec = swaggerJSDoc({
       },
     },
   },
-  apis: ['./apis/controller/*.ts'],
+  apis: ['./apis/controller/*.ts', './dist/apis/controller/*.js'],
 });
 app.use('/api-docs', swaggerAuthMiddleware, swaggerUI.serve, swaggerUI.setup(swaggerSpec));
 app.get('/api-docs.json', swaggerAuthMiddleware, (_req: Request, res: Response) => res.json(swaggerSpec));
