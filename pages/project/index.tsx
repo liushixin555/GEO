@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Row, Col, Card, Input, Select, Switch, Tag, Spin, Pagination, Breadcrumb, Button, Descriptions, Table, App } from 'antd';
 import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 import ProjectForm from './ProjectForm';
 
 interface ProjectItem {
@@ -41,10 +41,7 @@ const ProjectPage: React.FC = () => {
   useEffect(() => {
     const fetchCompanies = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get('/api/v1/auth/companies', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await apiClient.get('/auth/companies');
         setCompanies(res.data.data.map((c: any) => ({ id: c.id, short_name: c.short_name })));
       } catch {
         // ignore
@@ -56,16 +53,12 @@ const ProjectPage: React.FC = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const params: any = { page, pageSize };
       if (search) params.search = search;
       if (filterCompany) params.company_id = filterCompany;
       if (filterStatus !== '') params.status = filterStatus;
 
-      const res = await axios.get('/api/v1/projects', {
-        headers: { Authorization: `Bearer ${token}` },
-        params,
-      });
+      const res = await apiClient.get('/projects', { params });
       setData(res.data.data.list);
       setTotal(res.data.data.total);
     } catch {
@@ -81,11 +74,8 @@ const ProjectPage: React.FC = () => {
 
   const handleToggleStatus = async (item: ProjectItem) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`/api/v1/projects/${item.id}`, {
+      await apiClient.put(`/projects/${item.id}`, {
         status: !item.status,
-      }, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       message.success(item.status ? '项目已禁用' : '项目已启用');
       fetchData();

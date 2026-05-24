@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Button, Alert } from 'antd';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 
 interface SkillsItem {
   id: number;
@@ -38,7 +38,6 @@ const SkillForm: React.FC<SkillFormProps> = ({ item, isSysadmin, onClose, onSave
     setSaving(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
       const payload: any = {
         name: values.name?.trim(),
         category: values.category?.trim(),
@@ -46,13 +45,9 @@ const SkillForm: React.FC<SkillFormProps> = ({ item, isSysadmin, onClose, onSave
       };
 
       if (isEdit) {
-        await axios.put(`/api/v1/skills/${item!.id}`, payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await apiClient.put(`/skills/${item!.id}`, payload);
       } else {
-        await axios.post('/api/v1/skills', payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await apiClient.post('/skills', payload);
       }
       onSaved();
       onClose();

@@ -14,7 +14,7 @@ import {
   EditOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 import { formatDate } from '../utils/date';
 import { getSafeUser } from '../utils/auth';
 import TodoForm from './TodoForm';
@@ -96,15 +96,11 @@ const TodoPage: React.FC = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const params: Record<string, string | number> = { page, pageSize, tab: activeTab };
       if (search) params.search = search;
       if (filterPriority) params.priority = filterPriority;
 
-      const res = await axios.get('/api/v1/todos', {
-        headers: { Authorization: `Bearer ${token}` },
-        params,
-      });
+      const res = await apiClient.get('/todos', { params });
       setData(res.data.data.list);
       setTotal(res.data.data.total);
     } catch {
@@ -146,10 +142,7 @@ const TodoPage: React.FC = () => {
 
   const handleClose = async (id: number) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(`/api/v1/todos/${id}/close`, null, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiClient.post(`/todos/${id}/close`);
       message.success('待办已关闭');
       fetchData();
     } catch (err: any) {
@@ -159,10 +152,7 @@ const TodoPage: React.FC = () => {
 
   const handleReopen = async (id: number) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(`/api/v1/todos/${id}/reopen`, null, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiClient.post(`/todos/${id}/reopen`);
       message.success('待办已重新打开');
       fetchData();
     } catch (err: any) {
@@ -172,10 +162,7 @@ const TodoPage: React.FC = () => {
 
   const handleReject = async (id: number) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(`/api/v1/todos/${id}/reject`, null, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiClient.post(`/todos/${id}/reject`);
       message.success('待办已驳回');
       fetchData();
     } catch (err: any) {
@@ -189,11 +176,7 @@ const TodoPage: React.FC = () => {
     setTransferVisible(true);
     setTransferLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get('/api/v1/users', {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { pageSize: 200 },
-      });
+      const res = await apiClient.get('/users', { params: { pageSize: 200 } });
       setUsers(res.data.data.list.filter((u: UserItem) => u.id !== item.assignee_id));
     } catch {
       setUsers([]);
@@ -208,10 +191,9 @@ const TodoPage: React.FC = () => {
       return;
     }
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(`/api/v1/todos/${transferTodo.id}/transfer`, {
+      await apiClient.post(`/todos/${transferTodo.id}/transfer`, {
         assignee_id: transferTargetId,
-      }, { headers: { Authorization: `Bearer ${token}` } });
+      });
       message.success('转交成功');
       setTransferVisible(false);
       fetchData();

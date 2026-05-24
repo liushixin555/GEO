@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Select, Button, Alert } from 'antd';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 import { getSafeUser } from '../utils/auth';
 
 interface KnowledgeBaseItem {
@@ -63,8 +63,7 @@ const KnowledgeBaseForm: React.FC<KnowledgeBaseFormProps> = ({ item, onClose, on
 
   const fetchAccessibleData = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const companiesRes = await axios.get('/api/v1/auth/companies', { headers: { Authorization: `Bearer ${token}` } });
+      const companiesRes = await apiClient.get('/auth/companies');
       setCompanies(companiesRes.data.data.map((c: any) => ({ id: c.id, short_name: c.short_name })));
     } catch {
       // ignore
@@ -73,9 +72,7 @@ const KnowledgeBaseForm: React.FC<KnowledgeBaseFormProps> = ({ item, onClose, on
 
   const fetchProjects = async (companyId: number) => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get('/api/v1/auth/projects', {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await apiClient.get('/auth/projects', {
         params: { company_id: companyId },
       });
       setProjects(res.data.data.map((p: any) => ({ id: p.id, short_name: p.short_name, company_id: companyId })));
@@ -99,7 +96,6 @@ const KnowledgeBaseForm: React.FC<KnowledgeBaseFormProps> = ({ item, onClose, on
     setSaving(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
       const payload: any = {
         name: values.name?.trim(),
         description: values.description?.trim() || null,
@@ -114,13 +110,9 @@ const KnowledgeBaseForm: React.FC<KnowledgeBaseFormProps> = ({ item, onClose, on
       }
 
       if (isEdit) {
-        await axios.put(`/api/v1/knowledge-bases/${item!.id}`, payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await apiClient.put(`/knowledge-bases/${item!.id}`, payload);
       } else {
-        await axios.post('/api/v1/knowledge-bases', payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await apiClient.post('/knowledge-bases', payload);
       }
       onSaved();
       onClose();

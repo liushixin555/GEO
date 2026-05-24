@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Button, Alert, Select } from 'antd';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 
 interface ProjectItem {
   id: number;
@@ -63,10 +63,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ item, companies, onClose, onS
     setOperators([]);
     setViewers([]);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`/api/v1/auth/companies/${companyId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiClient.get(`/auth/companies/${companyId}`);
       setOperators(res.data.data.operators || []);
       setViewers(res.data.data.viewers || []);
     } catch {
@@ -83,7 +80,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ item, companies, onClose, onS
     setSaving(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
       const payload: any = {
         short_name: values.short_name?.trim(),
         full_name: values.full_name?.trim(),
@@ -94,13 +90,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ item, companies, onClose, onS
       };
 
       if (isEdit) {
-        await axios.put(`/api/v1/projects/${item!.id}`, payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await apiClient.put(`/projects/${item!.id}`, payload);
       } else {
-        await axios.post('/api/v1/projects', payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await apiClient.post('/projects', payload);
       }
       onSaved();
       onClose();

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Collapse, Row, Col, Card, Button, Form, Input, Typography, Spin, Alert, Switch, Popconfirm, App, Breadcrumb } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 import LlmModelForm from './LlmModelForm';
 
 interface LlmModelItem {
@@ -32,10 +32,7 @@ const SystemAdminPage: React.FC = () => {
   const fetchModels = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get('/api/v1/llm-models', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiClient.get('/llm-models');
       setModels(res.data.data);
     } catch {
       // ignore
@@ -47,10 +44,7 @@ const SystemAdminPage: React.FC = () => {
   const fetchConfigs = useCallback(async () => {
     setConfigsLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get('/api/v1/system-configs', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiClient.get('/system-configs');
       const configs: Record<string, string> = {};
       for (const c of res.data.data) {
         configs[c.config_key] = c.config_value;
@@ -77,10 +71,9 @@ const SystemAdminPage: React.FC = () => {
 
   const handleToggleStatus = async (item: LlmModelItem) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`/api/v1/llm-models/${item.id}`, {
+      await apiClient.put(`/llm-models/${item.id}`, {
         status: !item.status,
-      }, { headers: { Authorization: `Bearer ${token}` } });
+      });
       fetchModels();
     } catch {
       // ignore
@@ -89,10 +82,7 @@ const SystemAdminPage: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/api/v1/llm-models/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiClient.delete(`/llm-models/${id}`);
       fetchModels();
     } catch (err: any) {
       setError(err.response?.data?.message || '删除失败');
@@ -100,13 +90,12 @@ const SystemAdminPage: React.FC = () => {
   };
 
   const saveConfigs = async (keys: { username: string; password: string }, prefix: string) => {
-    const token = localStorage.getItem('token');
-    await axios.put('/api/v1/system-configs', {
+    await apiClient.put('/system-configs', {
       configs: [
         { config_key: `${prefix}_username`, config_value: keys.username },
         { config_key: `${prefix}_password`, config_value: keys.password },
       ],
-    }, { headers: { Authorization: `Bearer ${token}` } });
+    });
   };
 
   const handleSaveYishangshu = async (values: any) => {
@@ -146,10 +135,7 @@ const SystemAdminPage: React.FC = () => {
   const handleSyncPlatforms = async () => {
     setPlatformSyncing(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post('/api/v1/publishing-platforms/sync', {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiClient.post('/publishing-platforms/sync');
       message.success(res.data.message || '同步成功');
     } catch (err: any) {
       message.error(err.response?.data?.message || '同步失败');

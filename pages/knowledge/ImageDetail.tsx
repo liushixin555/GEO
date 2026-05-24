@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Input, Button, Alert, Typography, Spin, Upload, Image, App, Breadcrumb } from 'antd';
 import { ArrowLeftOutlined, InboxOutlined } from '@ant-design/icons';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 import { getSafeUser } from '../utils/auth';
 
 const ImageDetail: React.FC = () => {
@@ -28,10 +28,7 @@ const ImageDetail: React.FC = () => {
     if (isNew || !baseId || isNaN(baseId)) return;
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`/api/v1/knowledge-bases/${baseId}/images/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiClient.get(`/knowledge-bases/${baseId}/images/${id}`);
       setData(res.data.data);
       setImageUrl(res.data.data.image_url);
       form.setFieldsValue({ title: res.data.data.title, description: res.data.data.description || '' });
@@ -43,10 +40,7 @@ const ImageDetail: React.FC = () => {
   useEffect(() => {
     const fetchBaseName = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get(`/api/v1/knowledge-bases/${baseId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await apiClient.get(`/knowledge-bases/${baseId}`);
         setBaseName(res.data.data.name);
       } catch { /* ignore */ }
     };
@@ -70,11 +64,10 @@ const ImageDetail: React.FC = () => {
   const handleUpload = async (file: File) => {
     setUploading(true);
     try {
-      const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('file', file);
-      const res = await axios.post('/api/v1/upload', formData, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
+      const res = await apiClient.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
       setImageUrl(res.data.data.url);
       // 自动填充标题为文件名（去掉扩展名）
@@ -92,17 +85,12 @@ const ImageDetail: React.FC = () => {
     setSaving(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
       const payload = { ...values, image_url: imageUrl };
       if (isNew) {
-        await axios.post(`/api/v1/knowledge-bases/${baseId}/images`, payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await apiClient.post(`/knowledge-bases/${baseId}/images`, payload);
         message.success('创建成功');
       } else {
-        await axios.put(`/api/v1/knowledge-bases/${baseId}/images/${id}`, payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await apiClient.put(`/knowledge-bases/${baseId}/images/${id}`, payload);
         message.success('更新成功');
       }
       navigate(`/knowledge/${baseId}`);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Row, Col, Card, Input, Select, Switch, Tag, Spin, Pagination, Breadcrumb, Button, Descriptions } from 'antd';
 import { EditOutlined, PlusOutlined } from '@ant-design/icons';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 import { getSafeUser } from '../utils/auth';
 import UserForm from './UserForm';
 
@@ -42,14 +42,12 @@ const UserPage: React.FC = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const params: any = { page, pageSize };
       if (search) params.search = search;
       if (filterRole) params.role = filterRole;
       if (filterStatus !== '') params.status = filterStatus;
 
-      const res = await axios.get('/api/v1/users', {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await apiClient.get('/users', {
         params,
       });
       setData(res.data.data.list);
@@ -67,11 +65,8 @@ const UserPage: React.FC = () => {
 
   const handleToggleStatus = async (item: UserItem) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`/api/v1/users/${item.id}`, {
+      await apiClient.put(`/users/${item.id}`, {
         status: !item.status,
-      }, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       fetchData();
     } catch {

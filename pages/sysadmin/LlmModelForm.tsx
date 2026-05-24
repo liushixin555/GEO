@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Button, Alert } from 'antd';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 
 interface LlmModelItem {
   id: number;
@@ -39,7 +39,6 @@ const LlmModelForm: React.FC<LlmModelFormProps> = ({ item, onClose, onSaved }) =
     setSaving(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
       const payload = {
         provider: values.provider?.trim(),
         base_url: values.base_url?.trim(),
@@ -48,13 +47,9 @@ const LlmModelForm: React.FC<LlmModelFormProps> = ({ item, onClose, onSaved }) =
       };
 
       if (isEdit) {
-        await axios.put(`/api/v1/llm-models/${item!.id}`, payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await apiClient.put(`/llm-models/${item!.id}`, payload);
       } else {
-        await axios.post('/api/v1/llm-models', payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await apiClient.post('/llm-models', payload);
       }
       onSaved();
       onClose();

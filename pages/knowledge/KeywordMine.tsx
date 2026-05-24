@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Row, Col, Card, Typography, Spin, Popconfirm, App, Breadcrumb, Button, Table, Radio, Tag, Space, Empty } from 'antd';
 import { ArrowLeftOutlined, SearchOutlined, DeleteOutlined, SwapOutlined, CheckSquareOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 
 interface MinedKeywordItem {
   id: number;
@@ -29,10 +29,7 @@ const KeywordMine: React.FC = () => {
   useEffect(() => {
     const fetchBase = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get(`/api/v1/knowledge-bases/${baseId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await apiClient.get(`/knowledge-bases/${baseId}`);
         setBaseName(res.data.data.name);
       } catch { /* ignore */ }
     };
@@ -43,10 +40,7 @@ const KeywordMine: React.FC = () => {
     if (!baseId) return;
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`/api/v1/knowledge-bases/${baseId}/mined-keywords`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiClient.get(`/knowledge-bases/${baseId}/mined-keywords`);
       const list: MinedKeywordItem[] = res.data.data || [];
       setMinedKeywords(list);
       setSelectedRowKeys(list.filter(k => k.selected).map(k => k.id));
@@ -58,10 +52,8 @@ const KeywordMine: React.FC = () => {
   const handleMine = async () => {
     setMining(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post(`/api/v1/knowledge-bases/${baseId}/keywords/mine`,
+      const res = await apiClient.post(`/knowledge-bases/${baseId}/keywords/mine`,
         { source_type: sourceType },
-        { headers: { Authorization: `Bearer ${token}` } },
       );
       const data = res.data.data;
       message.success(`新挖掘出 ${data.mined} 个关键词${data.duplicates > 0 ? `，${data.duplicates} 个已存在` : ''}`);
@@ -80,10 +72,8 @@ const KeywordMine: React.FC = () => {
 
     setSaving(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post(`/api/v1/knowledge-bases/${baseId}/mined-keywords/save`,
+      const res = await apiClient.post(`/knowledge-bases/${baseId}/mined-keywords/save`,
         { keywords: selected },
-        { headers: { Authorization: `Bearer ${token}` } },
       );
       message.success(res.data.message || `成功保存 ${selected.length} 个关键词`);
       navigate(`/knowledge/${baseId}`);
@@ -96,10 +86,8 @@ const KeywordMine: React.FC = () => {
     const allIds = minedKeywords.map(k => k.id);
     setSelectedRowKeys(allIds);
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`/api/v1/knowledge-bases/${baseId}/mined-keywords/batch-toggle`,
+      await apiClient.put(`/knowledge-bases/${baseId}/mined-keywords/batch-toggle`,
         { ids: allIds, selected: true },
-        { headers: { Authorization: `Bearer ${token}` } },
       );
     } catch { /* ignore */ }
   };
@@ -112,10 +100,7 @@ const KeywordMine: React.FC = () => {
 
   const handleClear = async () => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/api/v1/knowledge-bases/${baseId}/mined-keywords`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiClient.delete(`/knowledge-bases/${baseId}/mined-keywords`);
       message.success('已清空');
       setMinedKeywords([]);
       setSelectedRowKeys([]);
@@ -126,9 +111,7 @@ const KeywordMine: React.FC = () => {
 
   const handleDeleteSingle = async (id: number) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/api/v1/knowledge-bases/${baseId}/mined-keywords`, {
-        headers: { Authorization: `Bearer ${token}` },
+      await apiClient.delete(`/knowledge-bases/${baseId}/mined-keywords`, {
         data: { ids: [id] },
       });
       setMinedKeywords(prev => prev.filter(k => k.id !== id));

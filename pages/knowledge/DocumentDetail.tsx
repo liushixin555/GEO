@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Input, Button, Alert, Typography, Spin, Upload, App, Breadcrumb, Descriptions } from 'antd';
 import { ArrowLeftOutlined, InboxOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FilePptOutlined, FileMarkdownOutlined, FileTextOutlined, FileOutlined, DownloadOutlined } from '@ant-design/icons';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 import { getSafeUser } from '../utils/auth';
 
 const FILE_TYPE_ICONS: Record<string, React.ReactNode> = {
@@ -63,10 +63,7 @@ const DocumentDetail: React.FC = () => {
     if (isNew || !baseId || isNaN(baseId)) return;
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`/api/v1/knowledge-bases/${baseId}/documents/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiClient.get(`/knowledge-bases/${baseId}/documents/${id}`);
       setData(res.data.data);
       setFileUrl(res.data.data.file_url);
       setFileName(res.data.data.file_name);
@@ -81,10 +78,7 @@ const DocumentDetail: React.FC = () => {
   useEffect(() => {
     const fetchBaseName = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get(`/api/v1/knowledge-bases/${baseId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await apiClient.get(`/knowledge-bases/${baseId}`);
         setBaseName(res.data.data.name);
       } catch { /* ignore */ }
     };
@@ -107,11 +101,10 @@ const DocumentDetail: React.FC = () => {
   const handleUpload = async (file: File) => {
     setUploading(true);
     try {
-      const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('file', file);
-      const res = await axios.post('/api/v1/upload/document', formData, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
+      const res = await apiClient.post('/upload/document', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
       setFileUrl(res.data.data.url);
       setFileName(res.data.data.originalName);
@@ -131,17 +124,12 @@ const DocumentDetail: React.FC = () => {
     setSaving(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
       const payload = { ...values, file_url: fileUrl, file_name: fileName, file_type: fileType, file_size: fileSize };
       if (isNew) {
-        await axios.post(`/api/v1/knowledge-bases/${baseId}/documents`, payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await apiClient.post(`/knowledge-bases/${baseId}/documents`, payload);
         message.success('创建成功');
       } else {
-        await axios.put(`/api/v1/knowledge-bases/${baseId}/documents/${id}`, payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await apiClient.put(`/knowledge-bases/${baseId}/documents/${id}`, payload);
         message.success('更新成功');
       }
       navigate(`/knowledge/${baseId}`);

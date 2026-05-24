@@ -3,7 +3,7 @@ import { Row, Col, Card, Input, Spin, Pagination, Breadcrumb, Button, Table, Pop
 import { DeleteOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 import { getSafeUser } from '../utils/auth';
 import { formatDate, formatDateTime } from '../utils/date';
 
@@ -32,14 +32,10 @@ const SkillPage: React.FC = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const params: Record<string, unknown> = { page, pageSize };
       if (search) params.search = search;
 
-      const res = await axios.get('/api/v1/skills', {
-        headers: { Authorization: `Bearer ${token}` },
-        params,
-      });
+      const res = await apiClient.get('/skills', { params });
       setData(res.data.data.list);
       setTotal(res.data.data.total);
     } catch {
@@ -57,10 +53,7 @@ const SkillPage: React.FC = () => {
 
   const handleDelete = async (item: SkillsItem) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/api/v1/skills/${item.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiClient.delete(`/skills/${item.id}`);
       message.success('删除成功');
       fetchData();
     } catch (err: any) {
@@ -71,11 +64,10 @@ const SkillPage: React.FC = () => {
   const handleUpload = async (rawFile: File) => {
     setUploading(true);
     try {
-      const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('file', rawFile);
-      await axios.post('/api/v1/skills', formData, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
+      await apiClient.post('/skills', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
       message.success('技能上传成功');
       setShowUpload(false);

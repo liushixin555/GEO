@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Form, Input, Button, Breadcrumb, Alert, Row, Col, Divider, Spin, Select, Tag } from 'antd';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 
 interface FormData {
   short_name: string;
@@ -41,9 +41,7 @@ const CompanyForm: React.FC = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get('/api/v1/users', {
-          headers: { Authorization: `Bearer ${token}` },
+        const res = await apiClient.get('/users', {
           params: { page: 1, pageSize: 100, status: 'true' },
         });
         setUsers(res.data.data.list);
@@ -57,10 +55,7 @@ const CompanyForm: React.FC = () => {
   const fetchCompany = async (companyId: number) => {
     try {
       setFetching(true);
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`/api/v1/companies/${companyId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await apiClient.get(`/companies/${companyId}`);
       const data = response.data.data;
       setCompanyDisabled(!data.status);
       form.setFieldsValue({
@@ -83,7 +78,6 @@ const CompanyForm: React.FC = () => {
     setServerError('');
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
       const payload: any = {
         short_name: values.short_name,
         full_name: values.full_name,
@@ -95,13 +89,9 @@ const CompanyForm: React.FC = () => {
       };
 
       if (isEdit && id) {
-        await axios.put(`/api/v1/companies/${id}`, payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await apiClient.put(`/companies/${id}`, payload);
       } else {
-        await axios.post('/api/v1/companies', payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await apiClient.post('/companies', payload);
       }
 
       navigate('/company');

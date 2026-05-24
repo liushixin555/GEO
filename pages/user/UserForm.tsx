@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Select, Button, Alert } from 'antd';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 
 interface UserItem {
   id: number;
@@ -40,7 +40,6 @@ const UserForm: React.FC<UserFormProps> = ({ item, isSysadmin, onClose, onSaved 
     setSaving(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
       const payload: any = {
         username: values.username?.trim(),
         cn_name: values.cn_name?.trim(),
@@ -50,13 +49,9 @@ const UserForm: React.FC<UserFormProps> = ({ item, isSysadmin, onClose, onSaved 
 
       if (isEdit) {
         delete payload.username;
-        await axios.put(`/api/v1/users/${item!.id}`, payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await apiClient.put(`/users/${item!.id}`, payload);
       } else {
-        await axios.post('/api/v1/users', payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await apiClient.post('/users', payload);
       }
       onSaved();
       onClose();

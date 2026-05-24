@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Row, Col, Card, Button, Spin, Alert, Breadcrumb, Switch, Tag, App, Table, Descriptions } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 
 interface Company {
   id: number;
@@ -26,10 +26,7 @@ const CompanyPage: React.FC = () => {
   const fetchCompanies = useCallback(async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await axios.get('/api/v1/companies', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await apiClient.get('/companies');
       setCompanies(response.data.data);
     } catch (err: any) {
       setError(err.response?.data?.message || '获取公司列表失败');
@@ -45,10 +42,7 @@ const CompanyPage: React.FC = () => {
   const handleToggleStatus = async (id: number, status: boolean) => {
     setTogglingId(id);
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`/api/v1/companies/${id}/status`, { status }, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiClient.put(`/companies/${id}/status`, { status });
       message.success(status ? '公司已启用' : '公司已禁用');
       fetchCompanies();
     } catch (err: any) {

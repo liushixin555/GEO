@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Input, Button, Alert, Typography, Spin, App, Breadcrumb, Table, Pagination, Checkbox } from 'antd';
 import { ArrowLeftOutlined, ThunderboltOutlined } from '@ant-design/icons';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 import { getSafeUser } from '../utils/auth';
 
 const EXPAND_PAGE_SIZE = 10;
@@ -38,10 +38,7 @@ const KeywordDetail: React.FC = () => {
     if (isNew || !baseId || isNaN(baseId)) return;
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`/api/v1/knowledge-bases/${baseId}/keywords/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiClient.get(`/knowledge-bases/${baseId}/keywords/${id}`);
       const kwData = res.data.data;
       setData(kwData);
       form.setFieldValue('keyword', kwData.keyword);
@@ -56,10 +53,7 @@ const KeywordDetail: React.FC = () => {
   useEffect(() => {
     const fetchBaseName = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get(`/api/v1/knowledge-bases/${baseId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await apiClient.get(`/knowledge-bases/${baseId}`);
         setBaseName(res.data.data.name);
       } catch { /* ignore */ }
     };
@@ -89,10 +83,8 @@ const KeywordDetail: React.FC = () => {
     if (!baseId) return;
     setExpanding(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post(`/api/v1/knowledge-bases/${baseId}/keywords/expand`,
+      const res = await apiClient.post(`/knowledge-bases/${baseId}/keywords/expand`,
         { keyword: keyword.trim() },
-        { headers: { Authorization: `Bearer ${token}` } },
       );
       const newKeywords: string[] = res.data.data || [];
       setExpandedWords(prev => {
@@ -122,10 +114,8 @@ const KeywordDetail: React.FC = () => {
       setSaving(true);
       setError('');
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.post(`/api/v1/knowledge-bases/${baseId}/keywords/batch`,
+        const res = await apiClient.post(`/knowledge-bases/${baseId}/keywords/batch`,
           { keywords: selectedWords, seed_word: seedWord },
-          { headers: { Authorization: `Bearer ${token}` } },
         );
         message.success(res.data.message || `成功创建 ${selectedWords.length} 个关键词`);
         navigate(`/knowledge/${baseId}`);
@@ -141,14 +131,11 @@ const KeywordDetail: React.FC = () => {
       setSaving(true);
       setError('');
       try {
-        const token = localStorage.getItem('token');
         const payload = {
           keyword: keyword.trim(),
           expanded_words: expandedWords.map(w => ({ word: w.word, selected: w.selected })),
         };
-        await axios.put(`/api/v1/knowledge-bases/${baseId}/keywords/${id}`, payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await apiClient.put(`/knowledge-bases/${baseId}/keywords/${id}`, payload);
         message.success('更新成功');
         navigate(`/knowledge/${baseId}`);
       } catch (err: any) {

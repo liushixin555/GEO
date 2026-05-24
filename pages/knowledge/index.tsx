@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Row, Col, Card, Input, Select, Tag, Spin, Pagination, App, Breadcrumb, Button, Descriptions, Table, Statistic, Typography, Space } from 'antd';
 import { EditOutlined, PlusOutlined, TagsOutlined, SolutionOutlined, PictureOutlined, FileTextOutlined, AppstoreOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 import KnowledgeBaseForm from './KnowledgeBaseForm';
 import { getSafeUser } from '../utils/auth';
 import { formatDate, formatDateTime } from '../utils/date';
@@ -108,15 +108,11 @@ const KnowledgePage: React.FC = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const params: Record<string, unknown> = { page, pageSize };
       if (search) params.search = search;
       if (filterScope) params.scope = filterScope;
 
-      const res = await axios.get('/api/v1/knowledge-bases', {
-        headers: { Authorization: `Bearer ${token}` },
-        params,
-      });
+      const res = await apiClient.get('/knowledge-bases', { params });
       setData(res.data.data.list);
       setTotal(res.data.data.total);
     } catch {
@@ -130,15 +126,11 @@ const KnowledgePage: React.FC = () => {
   const fetchInventory = useCallback(async () => {
     setInvLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const params: Record<string, unknown> = { page: invPage, pageSize: invPageSize };
       if (invCategory) params.category = invCategory;
       if (invSearch) params.search = invSearch;
 
-      const res = await axios.get('/api/v1/knowledge-inventory', {
-        headers: { Authorization: `Bearer ${token}` },
-        params,
-      });
+      const res = await apiClient.get('/knowledge-inventory', { params });
       setInvData(res.data.data.list);
       setInvTotal(res.data.data.total);
       setInvStats(res.data.data.stats);

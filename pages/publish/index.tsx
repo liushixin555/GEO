@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Row, Col, Input, Select, Tag, Typography, Spin, Pagination, Button, Modal, DatePicker, Breadcrumb, App, Card, Descriptions, Radio } from 'antd';
 import dayjs from 'dayjs';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 import { formatDateTime } from '../utils/date';
 import { getSafeUser } from '../utils/auth';
 
@@ -79,13 +79,11 @@ const PublishingSchedulePage: React.FC = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const params: any = { page, pageSize };
       if (search) params.search = search;
       if (filterStatus) params.status = filterStatus;
 
-      const res = await axios.get('/api/v1/publishing-schedule', {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await apiClient.get('/publishing-schedule', {
         params,
       });
       setData(res.data.data.list);
@@ -99,9 +97,7 @@ const PublishingSchedulePage: React.FC = () => {
 
   const fetchPendingCount = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get('/api/v1/publishing-schedule', {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await apiClient.get('/publishing-schedule', {
         params: { page: 1, pageSize: 1, status: 'publishing' },
       });
       // pendingCount = publishing articles without scheduled_publish_at
@@ -113,8 +109,7 @@ const PublishingSchedulePage: React.FC = () => {
         return;
       }
       // Fetch all publishing articles (up to a reasonable limit) to count unscheduled
-      const allRes = await axios.get('/api/v1/publishing-schedule', {
-        headers: { Authorization: `Bearer ${token}` },
+      const allRes = await apiClient.get('/publishing-schedule', {
         params: { page: 1, pageSize: 200, status: 'publishing' },
       });
       const unscheduled = allRes.data.data.list.filter((item: ScheduleItem) => !item.scheduled_publish_at).length;
@@ -151,14 +146,11 @@ const PublishingSchedulePage: React.FC = () => {
     }
     setEditSaving(true);
     try {
-      const token = localStorage.getItem('token');
       const body: Record<string, string | null> = {
         schedule_type: editScheduleType,
         scheduled_publish_at: editScheduleType === 'asap' ? null : editDate,
       };
-      await axios.put(`/api/v1/publishing-schedule/${editItem.id}`, body, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiClient.put(`/publishing-schedule/${editItem.id}`, body);
       message.success('发布计划已更新');
       setEditModalOpen(false);
       fetchData();

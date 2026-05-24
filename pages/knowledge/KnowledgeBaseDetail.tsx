@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Tabs, Row, Col, Card, Input, Typography, Spin, Pagination, Popconfirm, App, Breadcrumb, Image, Tag, Alert, Button, Table, Modal, Form } from 'antd';
 import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ArrowLeftOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FilePptOutlined, FileMarkdownOutlined, FileTextOutlined, FileOutlined, DownloadOutlined, SearchOutlined, ThunderboltOutlined, FormOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 import { getSafeUser } from '../utils/auth';
 import { formatDate } from '../utils/date';
 
@@ -139,10 +139,7 @@ const KnowledgeBaseDetail: React.FC = () => {
   useEffect(() => {
     const fetchBase = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get(`/api/v1/knowledge-bases/${baseId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await apiClient.get(`/knowledge-bases/${baseId}`);
         setBaseName(res.data.data.name);
         setBaseScope(res.data.data.scope);
       } catch {
@@ -156,12 +153,9 @@ const KnowledgeBaseDetail: React.FC = () => {
     if (!baseId) return;
     setKwLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const params: any = { page: kwPage, pageSize };
       if (kwSearch) params.search = kwSearch;
-      const res = await axios.get(`/api/v1/knowledge-bases/${baseId}/keywords`, {
-        headers: { Authorization: `Bearer ${token}` }, params,
-      });
+      const res = await apiClient.get(`/knowledge-bases/${baseId}/keywords`, { params });
       setKeywords(res.data.data.list);
       setKwTotal(res.data.data.total);
     } catch { /* ignore */ } finally { setKwLoading(false); }
@@ -171,12 +165,9 @@ const KnowledgeBaseDetail: React.FC = () => {
     if (!baseId) return;
     setPtLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const params: any = { page: ptPage, pageSize };
       if (ptSearch) params.search = ptSearch;
-      const res = await axios.get(`/api/v1/knowledge-bases/${baseId}/portraits`, {
-        headers: { Authorization: `Bearer ${token}` }, params,
-      });
+      const res = await apiClient.get(`/knowledge-bases/${baseId}/portraits`, { params });
       setPortraits(res.data.data.list);
       setPtTotal(res.data.data.total);
     } catch { /* ignore */ } finally { setPtLoading(false); }
@@ -186,12 +177,9 @@ const KnowledgeBaseDetail: React.FC = () => {
     if (!baseId) return;
     setImgLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const params: any = { page: imgPage, pageSize };
       if (imgSearch) params.search = imgSearch;
-      const res = await axios.get(`/api/v1/knowledge-bases/${baseId}/images`, {
-        headers: { Authorization: `Bearer ${token}` }, params,
-      });
+      const res = await apiClient.get(`/knowledge-bases/${baseId}/images`, { params });
       setImages(res.data.data.list);
       setImgTotal(res.data.data.total);
     } catch { /* ignore */ } finally { setImgLoading(false); }
@@ -201,12 +189,9 @@ const KnowledgeBaseDetail: React.FC = () => {
     if (!baseId) return;
     setDocLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const params: any = { page: docPage, pageSize };
       if (docSearch) params.search = docSearch;
-      const res = await axios.get(`/api/v1/knowledge-bases/${baseId}/documents`, {
-        headers: { Authorization: `Bearer ${token}` }, params,
-      });
+      const res = await apiClient.get(`/knowledge-bases/${baseId}/documents`, { params });
       setDocuments(res.data.data.list);
       setDocTotal(res.data.data.total);
     } catch { /* ignore */ } finally { setDocLoading(false); }
@@ -221,10 +206,7 @@ const KnowledgeBaseDetail: React.FC = () => {
 
   const handleDeleteKeyword = async (item: KeywordItem) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/api/v1/knowledge-bases/${baseId}/keywords/${item.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiClient.delete(`/knowledge-bases/${baseId}/keywords/${item.id}`);
       message.success('删除成功');
       fetchKeywords();
     } catch (err: any) { message.error(err.response?.data?.message || '删除失败'); }
@@ -239,10 +221,8 @@ const KnowledgeBaseDetail: React.FC = () => {
     if (unique.length === 0) { message.warning('请输入至少一个关键词'); return; }
     setManualSaving(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post(`/api/v1/knowledge-bases/${baseId}/keywords/batch`,
+      const res = await apiClient.post(`/knowledge-bases/${baseId}/keywords/batch`,
         { keywords: unique, seed_word: '手工输入' },
-        { headers: { Authorization: `Bearer ${token}` } },
       );
       message.success(res.data.message || `成功添加 ${unique.length} 个关键词`);
       setManualInputVisible(false);
@@ -255,10 +235,7 @@ const KnowledgeBaseDetail: React.FC = () => {
 
   const handleDeletePortrait = async (item: PortraitItem) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/api/v1/knowledge-bases/${baseId}/portraits/${item.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiClient.delete(`/knowledge-bases/${baseId}/portraits/${item.id}`);
       message.success('删除成功');
       fetchPortraits();
     } catch (err: any) { message.error(err.response?.data?.message || '删除失败'); }
@@ -266,10 +243,7 @@ const KnowledgeBaseDetail: React.FC = () => {
 
   const handleDeleteImage = async (item: ImageItem) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/api/v1/knowledge-bases/${baseId}/images/${item.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiClient.delete(`/knowledge-bases/${baseId}/images/${item.id}`);
       message.success('删除成功');
       fetchImages();
     } catch (err: any) { message.error(err.response?.data?.message || '删除失败'); }
@@ -277,10 +251,7 @@ const KnowledgeBaseDetail: React.FC = () => {
 
   const handleDeleteDocument = async (item: DocumentItem) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/api/v1/knowledge-bases/${baseId}/documents/${item.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiClient.delete(`/knowledge-bases/${baseId}/documents/${item.id}`);
       message.success('删除成功');
       fetchDocuments();
     } catch (err: any) { message.error(err.response?.data?.message || '删除失败'); }

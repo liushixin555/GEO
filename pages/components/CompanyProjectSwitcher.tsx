@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button, Modal, Select, Typography, Space, App } from 'antd';
 import { SwapOutlined, HomeOutlined, ProjectOutlined } from '@ant-design/icons';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 import { useAppContext } from '../context/AppContext';
 
 interface SelectionItem {
@@ -20,13 +20,10 @@ const CompanyProjectSwitcher: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const fetchContext = useCallback(async (targetCompanyId?: number) => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
     try {
       const params: { company_id?: number } = {};
       if (targetCompanyId) params.company_id = targetCompanyId;
-      const res = await axios.get('/api/v1/auth/context', {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await apiClient.get('/auth/context', {
         params,
       });
       return res.data.data;
@@ -70,14 +67,11 @@ const CompanyProjectSwitcher: React.FC = () => {
     setContext(company, project);
 
     // Persist selection to server
-    const token = localStorage.getItem('token');
-    if (token && company) {
+    if (company) {
       try {
-        await axios.put('/api/v1/auth/selection', {
+        await apiClient.put('/auth/selection', {
           company_id: company.id,
           project_id: project?.id ?? null,
-        }, {
-          headers: { Authorization: `Bearer ${token}` },
         });
       } catch {
         // Ignore save errors — localStorage is the source of truth on client

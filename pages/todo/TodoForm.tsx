@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Form, Select, App } from 'antd';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 
 interface TodoFormProps {
   visible: boolean;
@@ -132,11 +132,6 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
 
   const isEdit = !!todo;
 
-  const authHeaders = () => {
-    const token = localStorage.getItem('token');
-    return { Authorization: `Bearer ${token}` };
-  };
-
   // Load companies on open
   useEffect(() => {
     if (!visible) return;
@@ -158,7 +153,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
 
   const loadCompanies = async () => {
     try {
-      const res = await axios.get('/api/v1/auth/companies', { headers: authHeaders() });
+      const res = await apiClient.get('/auth/companies');
       const list = res.data.data || [];
       setCompanies(list.map((c: any) => ({ id: c.id, name: c.short_name || c.full_name })));
       if (todo?.company_id) {
@@ -177,8 +172,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
 
   const loadProjects = async (companyId: number) => {
     try {
-      const res = await axios.get('/api/v1/auth/projects', {
-        headers: authHeaders(),
+      const res = await apiClient.get('/auth/projects', {
         params: { company_id: companyId },
       });
       const list = res.data.data || [];
@@ -196,8 +190,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
       return;
     }
     try {
-      const res = await axios.get('/api/v1/todos/object-options', {
-        headers: authHeaders(),
+      const res = await apiClient.get('/todos/object-options', {
         params: { projectId, objectType, action },
       });
       setObjectOptions(res.data.data || []);
@@ -208,8 +201,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
 
   const loadAssignees = async (projectId: number) => {
     try {
-      const res = await axios.get('/api/v1/todos/assignee-candidates', {
-        headers: authHeaders(),
+      const res = await apiClient.get('/todos/assignee-candidates', {
         params: { projectId },
       });
       setAssignees(res.data.data || []);
@@ -251,24 +243,22 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
     try {
       const values = await form.validateFields();
       setLoading(true);
-      const token = localStorage.getItem('token');
-
       // Find selected object name for title
       const selectedObj = objectOptions.find(o => o.id === values.object_id);
       const title = generateTitle(values.action, values.object_type, selectedObj?.name);
 
       if (isEdit) {
-        await axios.put(`/api/v1/todos/${todo!.id}`, {
+        await apiClient.put(`/todos/${todo!.id}`, {
           title,
           object_type: values.object_type,
           object_id: values.object_id || null,
           action: values.action,
           priority: values.priority,
           due_at: computeDueAt(values.due_label),
-        }, { headers: { Authorization: `Bearer ${token}` } });
+        });
         message.success('待办更新成功');
       } else {
-        await axios.post('/api/v1/todos', {
+        await apiClient.post('/todos', {
           title,
           company_id: values.company_id,
           project_id: values.project_id || null,
@@ -278,7 +268,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
           priority: values.priority || 'P2',
           assignee_id: values.assignee_id,
           due_at: computeDueAt(values.due_label),
-        }, { headers: { Authorization: `Bearer ${token}` } });
+        });
         message.success('待办创建成功');
       }
 

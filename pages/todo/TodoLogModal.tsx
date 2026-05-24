@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Timeline, Spin, Empty, Typography, App } from 'antd';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 import { formatDate } from '../utils/date';
 
 interface TodoLogModalProps {
@@ -39,10 +39,7 @@ const TodoLogModal: React.FC<TodoLogModalProps> = ({ visible, todoId, onClose })
     if (!todoId) return;
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`/api/v1/todos/${todoId}/logs`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiClient.get(`/todos/${todoId}/logs`);
       setLogs(res.data.data || []);
     } catch {
       setLogs([]);

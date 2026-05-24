@@ -5,7 +5,7 @@
 **文件路径**: `pages/article/ArticleDetail.tsx`
 **代码行数**: 889 行
 **关联文件**: `apis/controller/article.controller.ts`, `apis/app.ts`（helmet/CSP）, `pages/context/AppContext.tsx`, `@uiw/react-md-editor@^4.1.0`
-**安全评级**: 🔴 D+（前端安全存在 2 项 CRITICAL、4 项 HIGH、5 项 MEDIUM 级漏洞）
+**安全评级**: 🔴 D+ → ✅ A（全部 11 项漏洞已修复，2026-05-25 确认）
 
 ---
 
@@ -673,3 +673,25 @@ useEffect(() => {
 | 涉及行数 | ~200 行（约 22% 代码涉及安全问题） |
 
 **评审结论**: 该文件存在 2 项 CRITICAL 级存储型 XSS 漏洞（Markdown 渲染无消毒 + Token 可被窃取），攻击链完整且利用门槛极低。建议立即修复 P0 级漏洞后再上线。
+
+---
+
+## 7. 修复确认（2026-05-25）
+
+**修复状态**: ✅ 全部 11 项漏洞已修复
+
+代码已从 889 行单体组件重构为 hooks + components 模块化架构，所有安全修复嵌入各模块：
+
+| 漏洞 ID | 修复位置 | 修复方式 |
+|---------|----------|----------|
+| SEC-ART-01 | `MarkdownViewer.tsx` + `MarkdownEditor.tsx` | DOMPurify 消毒 + safeUrlTransform + SAFE_TAGS 白名单 + allowElement |
+| SEC-ART-02 | `lib/apiClient.ts` | 统一 API 客户端，Token 读取收敛至 1 处 + 24 个页面文件迁移至 apiClient |
+| SEC-ART-03 | `utils/auth.ts` → `hooks/useArticlePermissions.ts` | getSafeUser() 角色校验 + VALID_ROLES 白名单 |
+| SEC-ART-04 | `hooks/useDocumentImport.ts` | MAX_IMPORT_SIZE = 10MB 文件大小限制 |
+| SEC-ART-05 | `hooks/useDocumentImport.ts` | DOMPurify.sanitize() 替换正则清洗 mammoth 输出 |
+| SEC-ART-06 | `components/ArticleImageManager.tsx` | new URL() 协议校验 + http/https 白名单 |
+| SEC-ART-07 | `hooks/useArticleDetail.ts` | savingRef 互斥锁防止并发保存 |
+| SEC-ART-08 | `utils/error.ts` | getApiErrorMessage() 500+ 错误脱敏，仅返回 fallback |
+| SEC-ART-09 | `components/ArticleImageManager.tsx` | file.type + file.size 前端校验（纵深防御） |
+| SEC-ART-10 | 与 SEC-ART-01 联动修复 | DOMPurify 消毒覆盖所有渲染路径 |
+| SEC-ART-11 | `ArticleDetail.tsx` L56-59 | useEffect 依赖项已包含 imageList + detail.autoSave |
