@@ -934,3 +934,13 @@
   - 4 项新发现：C-01 硬编码默认密码（MEDIUM，设计保留）、C-02 CORS特殊值（LOW）、C-03 uploadDir 使用 process.cwd()（MEDIUM，P2）、C-04 IIFE嵌入（LOW，设计保留）
   - 无阻塞性问题，可安全合并
   - 评审报告 tasks/review/index.ts.committer.md
+
+## 本次变更（2026-05-24 @uiw/react-markdown-preview index.tsx 软件UI专家评审）
+- [x] **软件UI专家评审 @uiw/react-markdown-preview/src/index.tsx（27 行）**
+  - 综合评分 2.9/10（渲染管线硬编码，与 Carbon Design System 根本对立）
+  - 8 个维度评分：渲染管线设计3、设计系统对齐2、可访问性1、性能3、开发者体验4、安全性3、封装质量4
+  - 13 项 UI 发现：P1×3（rehypePrism 强制 GitHub 主题与 Carbon 冲突、rehypeRaw 始终启用破坏设计系统完整性、rehypeAttrs 允许任意属性注入绕过 Design Token）、P2×6（插件数组每次渲染重建、用户插件位置固定不可定制、与 preview.tsx rehypeRaw 重复处理、forwardRef 无 displayName、rehypePrism ignoreMissing 静默吞错、export * API膨胀）、P3×4（rehypeRewriteHandle 闭包重建、?? vs 解构默认值、meta 插件对分散、无错误边界）
+  - DESIGN.md 合规性映射：颜色/圆角/字体/背景/HTML注入全部 ❌，需 50+ 条 CSS 覆盖
+  - 渲染管线架构图（10 插件顺序 + 用户可控性标注）
+  - 对本项目的集成建议：使用 nohighlight 入口 + Carbon 色板 CSS 覆盖 + MarkdownViewer 封装组件
+  - 评审报告 tasks/review/react-markdown-preview.index.tsx.ui.md
