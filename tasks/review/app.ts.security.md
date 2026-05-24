@@ -9,9 +9,11 @@
 
 ---
 
-## 1. 安全总体评级：A-（安全基线优秀，存在少量中等风险项）
+## 1. 安全总体评级：A（安全基线优秀，全部改进项已修复）
 
 与原始评审（C 级）相比，当前版本已完成 CORS 白名单、Helmet 增强、JWT 密钥管理、全局错误处理、请求体大小限制、Swagger 条件化、审计日志等全部关键修复。安全态势已发生质变。
+
+**第二轮修复**: SEC-APP-02/03/04/05/06/07/08 全部 7 项安全改进已完成修复。
 
 | 安全域 | 原始评分 | 当前评分 | 变化 | 状态 |
 |--------|---------|---------|------|------|
@@ -24,7 +26,7 @@
 | 安全可观测性（Logging） | N/A | 8/10 | 新增 | 4xx/5xx 审计日志 + 结构化错误输出 |
 | API 文档暴露面 | N/A | 9/10 | 新增 | Swagger 双重条件化，生产环境零暴露 |
 
-**综合评级**: C → **A-**（安全基线已达到企业级标准，残余风险为演进级改进项）
+**综合评级**: C → A- → **A**（安全基线已达到企业级标准，全部改进项已修复）
 
 ---
 
@@ -208,7 +210,7 @@ if (!origin || allowed.includes(origin)) {
 
 ---
 
-### SEC-APP-02: Health Check 端点绕过全部安全中间件
+### SEC-APP-02: Health Check 端点绕过全部安全中间件 → ✅ 已修复
 
 **严重度**: 🟡 MEDIUM
 **位置**: `app.ts:30-32`
@@ -232,7 +234,9 @@ app.get('/api/health', (_req, res) => {
 - 无认证要求是健康检查的标准做法（Kubernetes/Nginx 探活依赖此端点）
 - **实际风险**: LOW — 无数据泄露，但 DoS 风险在极端场景下存在
 
-**建议**: 如需更严格保护，可添加独立的轻量级速率限制（如 1000 req/min）:
+**建议**: ~~如需更严格保护，可添加独立的轻量级速率限制（如 1000 req/min）~~:
+
+**已修复**: 添加了独立轻量级速率限制（1000 req/min）:
 
 ```typescript
 import rateLimit from 'express-rate-limit';
@@ -251,10 +255,10 @@ app.get('/api/health', healthLimiter, (_req, res) => {
 
 ---
 
-### SEC-APP-03: 静态文件路径依赖 `process.cwd()`
+### SEC-APP-03: 静态文件路径依赖 `process.cwd()` → ✅ 已修复
 
 **严重度**: 🟡 MEDIUM
-**位置**: `app.ts:61`
+**位置**: `config/index.ts:125-131`
 **CWE**: CWE-22 (Path Traversal)
 
 ```typescript
@@ -268,29 +272,30 @@ express.static(path.resolve(process.cwd(), 'uploads'))
   - 预期目录不存在 → 404（功能性问题）
   - 解析到非预期目录 → 意外文件暴露（安全问题）
 
-**建议**: 使用 `__dirname` 或 `import.meta.dirname` 替代 `process.cwd()`:
+**建议**: ~~使用 `__dirname` 或 `import.meta.dirname` 替代 `process.cwd()`~~ **已修复**:
 
+已使用 `__dirname` 替代 `process.cwd()`:
 ```typescript
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-// 解析到项目根目录的 uploads（假设编译后结构: dist/apis/app.js）
-express.static(path.resolve(__dirname, '../../uploads'))
-```
-
-或更安全的方案 — 从配置读取 uploads 路径:
-```typescript
-// config/index.ts
-uploadDir: process.env.UPLOAD_DIR || path.resolve(process.cwd(), 'uploads'),
+// config/index.ts — resolveUploadDir
+function resolveUploadDir(raw: string | undefined): string {
+  if (raw) {
+    if (raw.includes('..')) {
+      throw new Error('FATAL: UPLOAD_DIR must not contain path traversal sequences (..)');
+    }
+    return path.resolve(raw);
+  }
+  // Default: resolve from project root via __dirname
+  // Compiled: dist/apis/config/index.js → project root is ../../..
+  return path.resolve(__dirname, '..', '..', '..', 'uploads');
+}
 ```
 
 ---
 
-### SEC-APP-04: JSON 请求体 10MB 限制偏高
+### SEC-APP-04: JSON 请求体 10MB 限制偏高 → ✅ 已修复
 
 **严重度**: 🟢 LOW
-**位置**: `app.ts:55`
+**位置**: `app.ts:59`
 **OWASP**: A05:2021 Security Misconfiguration
 
 ```typescript
@@ -304,18 +309,17 @@ app.use(express.json({ limit: '10mb' }));
 
 **风险判定**: LOW — 已有限制，10MB 不是无限。但结合 rate-limit (100 req/min)，理论上每分钟可消耗 1GB 内存解析 JSON。
 
-**建议**: 区分路由设置不同限制:
-```typescript
-// 通用 API 路由
-app.use('/api', express.json({ limit: '1mb' }));
+**建议**: ~~区分路由设置不同限制~~ **已修复**: 已将通用 JSON body 限制从 10MB 收紧至 1MB:
 
-// 文件上传等特殊路由（在路由模块内单独处理）
-// upload 路由使用 multer 处理 multipart/form-data，不受此限制影响
+```typescript
+app.use(express.json({ limit: '1mb' }));
 ```
+
+upload 路由使用 multer 处理 multipart/form-data，不受此限制影响。
 
 ---
 
-### SEC-APP-05: `trust proxy` 固定为 1 — 需验证基础设施匹配
+### SEC-APP-05: `trust proxy` 固定为 1 — 需验证基础设施匹配 → ✅ 已修复
 
 **严重度**: 🟢 LOW
 **位置**: `app.ts:27`
@@ -332,14 +336,23 @@ app.set('trust proxy', 1);
   - 反爬虫按代理 IP 而非客户端 IP 封禁（误封/漏封）
   - 审计日志 IP 信息不准确
 
-**建议**: 根据实际代理层数设置值，或从配置读取:
+**建议**: ~~根据实际代理层数设置值，或从配置读取~~ **已修复**:
+
+`trust proxy` 值现在从环境变量 `TRUST_PROXY` 读取，默认值 1:
 ```typescript
-app.set('trust proxy', safeParseInt(process.env.TRUST_PROXY_COUNT, 1, 'TRUST_PROXY_COUNT', { min: 0 }));
+// config/index.ts
+server: {
+  port: safeParseInt(process.env.PORT, DEFAULTS.PORT, 'PORT', { min: 1, max: 65535 }),
+  trustProxy: safeParseInt(process.env.TRUST_PROXY, 1, 'TRUST_PROXY', { min: 0, max: 10 }),
+}
+
+// app.ts
+app.set('trust proxy', config.server.trustProxy);
 ```
 
 ---
 
-### SEC-APP-06: 缺少显式 Content-Security-Policy（Swagger UI 页面）
+### SEC-APP-06: 缺少显式 Content-Security-Policy（Swagger UI 页面） → ✅ 已修复
 
 **严重度**: 🟢 LOW
 **位置**: `app.ts:35-38`（Helmet 配置）
@@ -350,7 +363,9 @@ app.set('trust proxy', safeParseInt(process.env.TRUST_PROXY_COUNT, 1, 'TRUST_PRO
 - Swagger UI 端点（`/api-docs`）提供 HTML 页面，可加载内联脚本和外部资源
 - 虽然仅非生产环境可用，但在 staging 环境中如存在 XSS，CSP 可提供额外防线
 
-**建议**: 为 Swagger UI 端点添加专用 CSP:
+**建议**: ~~为 Swagger UI 端点添加专用 CSP~~ **已修复**:
+
+已为 Swagger UI 端点添加专用 CSP:
 ```typescript
 app.use('/api-docs', helmet.contentSecurityPolicy({
   directives: {
@@ -358,12 +373,12 @@ app.use('/api-docs', helmet.contentSecurityPolicy({
     scriptSrc: ["'self'", "'unsafe-inline'"],
     styleSrc: ["'self'", "'unsafe-inline'"],
   },
-}));
+}), swaggerAuthMiddleware, swaggerUI.serve, swaggerUI.setup(swaggerSpec));
 ```
 
 ---
 
-### SEC-APP-07: 无请求超时配置
+### SEC-APP-07: 无请求超时配置 → ✅ 已修复
 
 **严重度**: 🟢 LOW
 **位置**: `server.ts`（Express/Node.js 层面）
@@ -374,17 +389,18 @@ app.use('/api-docs', helmet.contentSecurityPolicy({
 - 慢速 POST 攻击（Slowloris 变体）可保持连接打开 indefinitely
 - 10MB JSON 请求体 + 无超时 = 攻击者可缓慢发送数据占用连接
 
-**建议**: 在 `server.ts` 中设置超时:
+**建议**: ~~在 `server.ts` 中设置超时~~ **已修复**:
+
+已在 `server.ts` 中添加请求超时配置:
 ```typescript
-const server = app.listen(config.server.port);
-server.timeout = 30_000;      // 30 秒连接超时
-server.headersTimeout = 35_000; // 略大于 server.timeout
-server.requestTimeout = 30_000;
+server.timeout = 30_000;         // 30s idle connection timeout
+server.headersTimeout = 35_000;  // slightly > server.timeout
+server.requestTimeout = 30_000;  // 30s total request timeout
 ```
 
 ---
 
-### SEC-APP-08: 审计日志与错误日志格式不一致
+### SEC-APP-08: 审计日志与错误日志格式不一致 → ✅ 已修复
 
 **严重度**: 🟢 LOW（可用性/运维安全）
 **位置**: `app.ts:68-80` vs `app.ts:131-145`
@@ -395,18 +411,20 @@ server.requestTimeout = 30_000;
 - 格式不一致增加日志采集系统的解析复杂度
 - 安全事件响应时需要分别编写两种解析规则
 
-**建议**: 统一为结构化 JSON 格式，便于日志系统集成（ELK/Sentry/Datadog）:
+**建议**: ~~统一为结构化 JSON 格式~~ **已修复**:
+
+已将错误日志统一为结构化 JSON 格式（与审计日志一致）:
 ```typescript
-res.on('finish', () => {
-  if (res.statusCode >= 400) {
-    console.warn(JSON.stringify({
-      level: 'warn', type: 'api_access',
-      method: req.method, url: req.originalUrl,
-      status: res.statusCode, duration: Date.now() - start,
-      userId: req.user?.userId || 'anonymous', ip: req.ip,
-    }));
-  }
-});
+console.error(JSON.stringify({
+  level: 'error',
+  type: 'unhandled_error',
+  method: req.method,
+  url: req.originalUrl,
+  ip: req.ip,
+  userId: req.user?.userId || 'anonymous',
+  userRole: req.user?.role,
+  error: { name: err.name, message: err.message },
+}));
 ```
 
 ---
@@ -483,27 +501,27 @@ L131-145 全局错误处理                   ✅ 结构化错误 + 不泄露内
 
 ## 7. 安全改进路线图
 
-### P0: 建议在下个迭代修复
+### P0: ✅ 全部已修复
 
-| 编号 | 改进项 | 工作量 | 收益 |
+| 编号 | 改进项 | 工作量 | 状态 |
 |------|--------|--------|------|
-| SEC-APP-03 | 静态文件路径用 `__dirname` 或配置替代 `process.cwd()` | 0.5h | 消除路径解析不确定性 |
-| SEC-APP-07 | 添加请求超时配置 | 0.5h | 防御 Slowloris 类攻击 |
+| SEC-APP-03 | 静态文件路径用 `__dirname` 替代 `process.cwd()` | 0.5h | ✅ 已修复 |
+| SEC-APP-07 | 添加请求超时配置 | 0.5h | ✅ 已修复 |
 
-### P1: 建议在中期迭代修复
+### P1: ✅ 全部已修复
 
-| 编号 | 改进项 | 工作量 | 收益 |
+| 编号 | 改进项 | 工作量 | 状态 |
 |------|--------|--------|------|
-| SEC-APP-04 | 区分路由设置 JSON body 大小限制 | 1h | 减少 DoS 攻击面 |
-| SEC-APP-02 | Health check 添加独立轻量级限流 | 0.5h | 防止健康检查端点被滥用 |
-| SEC-APP-05 | trust proxy 值从配置读取 | 0.5h | 适配不同部署架构 |
-| SEC-APP-08 | 统一日志格式为结构化 JSON | 0.5h | 提升日志系统可集成性 |
+| SEC-APP-04 | JSON body 限制从 10MB 收紧至 1MB | 1h | ✅ 已修复 |
+| SEC-APP-02 | Health check 添加独立轻量级限流 | 0.5h | ✅ 已修复 |
+| SEC-APP-05 | trust proxy 值从配置读取 | 0.5h | ✅ 已修复 |
+| SEC-APP-08 | 统一日志格式为结构化 JSON | 0.5h | ✅ 已修复 |
 
-### P2: 低优先级改进
+### P2: ✅ 全部已修复
 
-| 编号 | 改进项 | 工作量 | 收益 |
+| 编号 | 改进项 | 工作量 | 状态 |
 |------|--------|--------|------|
-| SEC-APP-06 | Swagger UI 端点添加 CSP | 0.5h | 非生产环境 XSS 纵深防御 |
+| SEC-APP-06 | Swagger UI 端点添加 CSP | 0.5h | ✅ 已修复 |
 
 ---
 
@@ -535,10 +553,11 @@ L131-145 全局错误处理                   ✅ 结构化错误 + 不泄露内
 5. **Swagger 生产环境零暴露** — 双重条件化 + 延迟加载，攻击面完全消除
 6. **路由模块化加固** — 权限边界下沉到路由模块，关注点分离提升安全审计效率
 
-**残余风险**均为纵深防御改进（静态文件路径确定性、请求超时、日志格式统一），不构成已知可利用漏洞。
+**残余风险**均为纵深防御改进（静态文件路径确定性、请求超时、日志格式统一），不构成已知可利用漏洞。**全部改进项已在第二轮修复中完成。**
 
-**综合安全评级**: **A-**
+**综合安全评级**: **A**
 
 ---
 
 *代码安全专家评审完成 — 2026-05-24*
+*第二轮安全修复完成 — 2026-05-24*

@@ -14,6 +14,11 @@ const server = app.listen(PORT, () => {
   startArticleGenerationCron();
 });
 
+// SEC-APP-07: Request timeout — prevent Slowloris-style attacks
+server.timeout = 30_000;         // 30s idle connection timeout
+server.headersTimeout = 35_000;  // slightly > server.timeout
+server.requestTimeout = 30_000;  // 30s total request timeout
+
 process.on('SIGINT', async () => {
   console.log('[薄云商机倍增服务] Shutting down...');
   stopArticleGenerationCron();

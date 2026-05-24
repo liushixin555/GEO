@@ -45,7 +45,7 @@ export interface CronConfig {
 }
 
 export interface AppConfig {
-  readonly server: { readonly port: number };
+  readonly server: { readonly port: number; readonly trustProxy: number };
   readonly database: DatabaseConfig;
   readonly jwt: JwtConfig;
   readonly swagger: { readonly enabled: boolean };
@@ -123,16 +123,21 @@ function validateCronExpression(expr: string, name: string): string {
 }
 
 function resolveUploadDir(raw: string | undefined): string {
-  const dir = raw || path.resolve(process.cwd(), 'uploads');
-  if (dir.includes('..')) {
-    throw new Error('FATAL: UPLOAD_DIR must not contain path traversal sequences (..)');
+  if (raw) {
+    if (raw.includes('..')) {
+      throw new Error('FATAL: UPLOAD_DIR must not contain path traversal sequences (..)');
+    }
+    return path.resolve(raw);
   }
-  return path.resolve(dir);
+  // Default: resolve from project root via __dirname
+  // Compiled: dist/apis/config/index.js → project root is ../../..
+  return path.resolve(__dirname, '..', '..', '..', 'uploads');
 }
 
 const config: Readonly<AppConfig> = deepFreeze({
   server: {
     port: safeParseInt(process.env.PORT, DEFAULTS.PORT, 'PORT', { min: 1, max: 65535 }),
+    trustProxy: safeParseInt(process.env.TRUST_PROXY, 1, 'TRUST_PROXY', { min: 0, max: 10 }),
   },
   database: {
     host: process.env.DB_HOST || DEFAULTS.DB_HOST,
