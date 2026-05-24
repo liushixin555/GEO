@@ -19,18 +19,6 @@ function isNotFoundError(err: unknown): boolean {
   return err instanceof Error && err.message === MSG_NOT_FOUND;
 }
 
-/**
- * @swagger
- * /api/companies:
- *   get:
- *     summary: List all companies
- *     tags: [Company]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of companies
- */
 export async function listCompanies(_req: Request, res: Response): Promise<void> {
   try {
     const companies = await companyService.list();
@@ -40,26 +28,6 @@ export async function listCompanies(_req: Request, res: Response): Promise<void>
   }
 }
 
-/**
- * @swagger
- * /api/companies/{id}:
- *   get:
- *     summary: Get company detail by ID
- *     tags: [Company]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Company detail
- *       404:
- *         description: Company not found
- */
 export async function getCompany(req: Request, res: Response): Promise<void> {
   try {
     const id = parseInt(req.params.id as string, 10);
@@ -78,51 +46,6 @@ export async function getCompany(req: Request, res: Response): Promise<void> {
   }
 }
 
-/**
- * @swagger
- * /api/companies:
- *   post:
- *     summary: Create a new company
- *     tags: [Company]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - short_name
- *               - full_name
- *               - contact_person
- *               - contact_phone
- *               - operator_ids
- *             properties:
- *               short_name:
- *                 type: string
- *               full_name:
- *                 type: string
- *               address:
- *                 type: string
- *               contact_person:
- *                 type: string
- *               contact_phone:
- *                 type: string
- *               operator_ids:
- *                 type: array
- *                 items:
- *                   type: integer
- *               viewer_ids:
- *                 type: array
- *                 items:
- *                   type: integer
- *     responses:
- *       201:
- *         description: Company created
- *       400:
- *         description: Validation error
- */
 export async function createCompany(req: Request, res: Response): Promise<void> {
   try {
     const parsed = createCompanySchema.safeParse(req.body);
@@ -139,57 +62,6 @@ export async function createCompany(req: Request, res: Response): Promise<void> 
   }
 }
 
-/**
- * @swagger
- * /api/companies/{id}:
- *   put:
- *     summary: Update a company
- *     tags: [Company]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - short_name
- *               - full_name
- *               - contact_person
- *               - contact_phone
- *               - operator_ids
- *             properties:
- *               short_name:
- *                 type: string
- *               full_name:
- *                 type: string
- *               address:
- *                 type: string
- *               contact_person:
- *                 type: string
- *               contact_phone:
- *                 type: string
- *               operator_ids:
- *                 type: array
- *                 items:
- *                   type: integer
- *               viewer_ids:
- *                 type: array
- *                 items:
- *                   type: integer
- *     responses:
- *       200:
- *         description: Company updated
- *       404:
- *         description: Company not found
- */
 export async function updateCompany(req: Request, res: Response): Promise<void> {
   try {
     const id = parseInt(req.params.id as string, 10);
@@ -216,39 +88,6 @@ export async function updateCompany(req: Request, res: Response): Promise<void> 
   }
 }
 
-/**
- * @swagger
- * /api/companies/{id}/status:
- *   put:
- *     summary: Toggle company status (enable/disable)
- *     tags: [Company]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - status
- *             properties:
- *               status:
- *                 type: boolean
- *     responses:
- *       200:
- *         description: Company status updated
- *       400:
- *         description: Invalid parameters
- *       404:
- *         description: Company not found
- */
 export async function toggleCompanyStatus(req: Request, res: Response): Promise<void> {
   try {
     const id = parseInt(req.params.id as string, 10);

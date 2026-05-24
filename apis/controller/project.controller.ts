@@ -5,39 +5,6 @@ import { success, fail, paginate, created } from '../utils';
 
 const projectService: IProjectService = new ProjectServiceImpl();
 
-/**
- * @swagger
- * /api/projects:
- *   get:
- *     summary: List projects
- *     tags: [Project]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *       - in: query
- *         name: pageSize
- *         schema:
- *           type: integer
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *       - in: query
- *         name: company_id
- *         schema:
- *           type: integer
- *       - in: query
- *         name: status
- *         schema:
- *           type: boolean
- *     responses:
- *       200:
- *         description: List of projects
- */
 export async function listProjects(req: Request, res: Response): Promise<void> {
   try {
     const page = parseInt(req.query.page as string, 10) || 1;
@@ -62,26 +29,6 @@ export async function listProjects(req: Request, res: Response): Promise<void> {
   }
 }
 
-/**
- * @swagger
- * /api/projects/{id}:
- *   get:
- *     summary: Get project by ID
- *     tags: [Project]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Project detail
- *       404:
- *         description: Project not found
- */
 export async function getProject(req: Request, res: Response): Promise<void> {
   try {
     const id = parseInt(req.params.id as string, 10);
@@ -106,47 +53,6 @@ export async function getProject(req: Request, res: Response): Promise<void> {
   }
 }
 
-/**
- * @swagger
- * /api/projects:
- *   post:
- *     summary: Create a new project
- *     tags: [Project]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - short_name
- *               - full_name
- *               - company_id
- *             properties:
- *               short_name:
- *                 type: string
- *               full_name:
- *                 type: string
- *               description:
- *                 type: string
- *               company_id:
- *                 type: integer
- *               operator_ids:
- *                 type: array
- *                 items:
- *                   type: integer
- *               viewer_ids:
- *                 type: array
- *                 items:
- *                   type: integer
- *     responses:
- *       201:
- *         description: Project created
- *       400:
- *         description: Validation error
- */
 export async function createProject(req: Request, res: Response): Promise<void> {
   try {
     const { short_name, full_name } = req.body;
@@ -182,51 +88,6 @@ export async function createProject(req: Request, res: Response): Promise<void> 
   }
 }
 
-/**
- * @swagger
- * /api/projects/{id}:
- *   put:
- *     summary: Update a project
- *     tags: [Project]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               short_name:
- *                 type: string
- *               full_name:
- *                 type: string
- *               description:
- *                 type: string
- *               company_id:
- *                 type: integer
- *               operator_ids:
- *                 type: array
- *                 items:
- *                   type: integer
- *               viewer_ids:
- *                 type: array
- *                 items:
- *                   type: integer
- *               status:
- *                 type: boolean
- *     responses:
- *       200:
- *         description: Project updated
- *       404:
- *         description: Project not found
- */
 export async function updateProject(req: Request, res: Response): Promise<void> {
   try {
     const id = parseInt(req.params.id as string, 10);
@@ -263,26 +124,6 @@ export async function updateProject(req: Request, res: Response): Promise<void> 
   }
 }
 
-/**
- * @swagger
- * /api/projects/{id}:
- *   delete:
- *     summary: Delete a project
- *     tags: [Project]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Project deleted
- *       404:
- *         description: Project not found
- */
 export async function deleteProject(req: Request, res: Response): Promise<void> {
   try {
     const id = parseInt(req.params.id as string, 10);

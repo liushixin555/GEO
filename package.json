@@ -23,6 +23,7 @@
     "db:studio": "npx prisma studio",
     "db:generate": "npx prisma generate",
     "start": "node dist/apis/server.js",
+    "swagger:gen": "npx ts-node apis/scripts/generate-swagger.ts",
     "postinstall": "npx prisma generate"
   },
   "dependencies": {
@@ -53,7 +54,6 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.27.0",
-    "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "zod": "^4.4.3"
   },
@@ -86,6 +86,7 @@
     "jest-environment-jsdom": "^29.7.0",
     "prisma": "^5.22.0",
     "supertest": "^7.0.0",
+    "swagger-autogen-ast": "^1.0.13",
     "ts-jest": "^29.2.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3",

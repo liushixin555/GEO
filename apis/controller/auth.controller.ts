@@ -5,34 +5,6 @@ import { success, fail } from '../utils';
 
 const authService = new AuthServiceImpl();
 
-/**
- * @swagger
- * /api/auth/login:
- *   post:
- *     summary: User login
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - username
- *               - password
- *             properties:
- *               username:
- *                 type: string
- *               password:
- *                 type: string
- *     responses:
- *       200:
- *         description: Login successful
- *       401:
- *         description: Invalid credentials
- *       403:
- *         description: No accessible company/project
- */
 export async function login(req: Request, res: Response): Promise<void> {
   try {
     const { username, password } = req.body;
@@ -60,34 +32,10 @@ export async function login(req: Request, res: Response): Promise<void> {
   }
 }
 
-/**
- * @swagger
- * /api/auth/logout:
- *   post:
- *     summary: User logout
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Logout successful
- */
 export async function logout(_req: Request, res: Response): Promise<void> {
   success(res, null, '登出成功');
 }
 
-/**
- * @swagger
- * /api/auth/verify:
- *   get:
- *     summary: Verify token validity
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Token is valid
- */
 export async function verify(_req: Request, res: Response): Promise<void> {
   const token = _req.headers.authorization?.substring(7);
   if (!token) {
@@ -102,29 +50,6 @@ export async function verify(_req: Request, res: Response): Promise<void> {
   success(res, { valid: true, user: result.user }, 'token有效');
 }
 
-/**
- * @swagger
- * /api/auth/selection:
- *   put:
- *     summary: Save user's selected company/project
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - company_id
- *             properties:
- *               company_id:
- *                 type: integer
- *               project_id:
- *                 type: integer
- *                 nullable: true
- */
 export async function saveSelection(req: Request, res: Response): Promise<void> {
   try {
     const user = req.user;
@@ -156,15 +81,6 @@ export async function saveSelection(req: Request, res: Response): Promise<void> 
   }
 }
 
-/**
- * @swagger
- * /api/auth/companies:
- *   get:
- *     summary: Get accessible companies for current user
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- */
 export async function getAccessibleCompanies(req: Request, res: Response): Promise<void> {
   try {
     const user = req.user;
@@ -179,21 +95,6 @@ export async function getAccessibleCompanies(req: Request, res: Response): Promi
   }
 }
 
-/**
- * @swagger
- * /api/auth/projects:
- *   get:
- *     summary: Get accessible projects for current user
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: company_id
- *         required: true
- *         schema:
- *           type: integer
- */
 export async function getAccessibleProjects(req: Request, res: Response): Promise<void> {
   try {
     const user = req.user;
@@ -213,24 +114,6 @@ export async function getAccessibleProjects(req: Request, res: Response): Promis
   }
 }
 
-/**
- * @swagger
- * /api/auth/context:
- *   get:
- *     summary: Get accessible companies and projects for the current user
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: company_id
- *         schema:
- *           type: integer
- *         description: Company ID to fetch projects for
- *     responses:
- *       200:
- *         description: Context data with companies and projects
- */
 export async function getContext(req: Request, res: Response): Promise<void> {
   try {
     const user = req.user;
@@ -249,21 +132,6 @@ export async function getContext(req: Request, res: Response): Promise<void> {
   }
 }
 
-/**
- * @swagger
- * /api/auth/companies/{id}:
- *   get:
- *     summary: Get company users (operators/viewers) for project form
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- */
 export async function getCompanyDetail(req: Request, res: Response): Promise<void> {
   try {
     const id = parseInt(req.params.id as string, 10);
