@@ -15,7 +15,7 @@ const DEFAULTS = {
   DB_POOL_MAX: 10,
   JWT_EXPIRES_IN: '2h',
   RATE_LIMIT_WINDOW_MS: 60000,
-  RATE_LIMIT_MAX: 100,
+  RATE_LIMIT_MAX: 500,
   CRON_ARTICLE_INTERVAL: '*/5 * * * *',
   CORS_ORIGIN: 'http://localhost:5173',
 } as const;
