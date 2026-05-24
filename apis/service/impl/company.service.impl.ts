@@ -23,7 +23,7 @@ export class CompanyServiceImpl implements ICompanyService {
 
     const users = await prisma.user.findMany({
       where: { companyId: id, status: true, role: { in: ['admin', 'view'] } },
-      select: { id: true, role: true, cnName: true, username: true },
+      select: { id: true, role: true, cnName: true },
     });
 
     const operators = users.filter(u => u.role === 'admin');
@@ -32,9 +32,9 @@ export class CompanyServiceImpl implements ICompanyService {
     return {
       ...mapCompany(company),
       operator_ids: operators.map(u => u.id),
-      operators: operators.map(u => ({ id: u.id, cn_name: u.cnName, username: u.username })),
+      operators: operators.map(u => ({ id: u.id, cn_name: u.cnName })),
       viewer_ids: viewers.map(u => u.id),
-      viewers: viewers.map(u => ({ id: u.id, cn_name: u.cnName, username: u.username })),
+      viewers: viewers.map(u => ({ id: u.id, cn_name: u.cnName })),
     };
   }
 
@@ -122,6 +122,10 @@ export class CompanyServiceImpl implements ICompanyService {
     const prisma = getPrisma();
     const existing = await prisma.company.findUnique({ where: { id } });
     if (!existing || existing.deletedAt) throw new NotFoundError('公司');
+
+    if (existing.status === status) {
+      throw new BusinessError(`公司已处于${status ? '启用' : '禁用'}状态`);
+    }
 
     const company = await prisma.company.update({
       where: { id },

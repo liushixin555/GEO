@@ -143,19 +143,19 @@ describe('CompanyServiceImpl', () => {
       expect(result.short_name).toBe('ACME');
       expect(result.operator_ids).toEqual([10, 11]);
       expect(result.operators).toEqual([
-        { id: 10, cn_name: '张三', username: 'zhangsan' },
-        { id: 11, cn_name: '王五', username: 'wangwu' },
+        { id: 10, cn_name: '张三' },
+        { id: 11, cn_name: '王五' },
       ]);
       expect(result.viewer_ids).toEqual([20, 21]);
       expect(result.viewers).toEqual([
-        { id: 20, cn_name: '李四', username: 'lisi' },
-        { id: 21, cn_name: '赵六', username: 'zhaoliu' },
+        { id: 20, cn_name: '李四' },
+        { id: 21, cn_name: '赵六' },
       ]);
 
       // Verify findMany query
       expect(mockFindMany).toHaveBeenCalledWith({
         where: { companyId: 2, status: true, role: { in: ['admin', 'view'] } },
-        select: { id: true, role: true, cnName: true, username: true },
+        select: { id: true, role: true, cnName: true },
       });
     });
 
@@ -179,7 +179,7 @@ describe('CompanyServiceImpl', () => {
       const result = await service.getById(3);
 
       expect(result.operator_ids).toEqual([10]);
-      expect(result.operators).toEqual([{ id: 10, cn_name: '张三', username: 'zhangsan' }]);
+      expect(result.operators).toEqual([{ id: 10, cn_name: '张三' }]);
       expect(result.viewer_ids).toEqual([]);
       expect(result.viewers).toEqual([]);
     });
@@ -199,7 +199,7 @@ describe('CompanyServiceImpl', () => {
       expect(result.operator_ids).toEqual([]);
       expect(result.operators).toEqual([]);
       expect(result.viewer_ids).toEqual([20]);
-      expect(result.viewers).toEqual([{ id: 20, cn_name: '李四', username: 'lisi' }]);
+      expect(result.viewers).toEqual([{ id: 20, cn_name: '李四' }]);
     });
 
     it('should return detail with no users at all', async () => {
@@ -1158,23 +1158,30 @@ describe('CompanyServiceImpl', () => {
     });
 
     // --- toggleStatus ---
-    it('toggleStatus: should toggle to same status (no-op semantically)', async () => {
+    it('toggleStatus: should reject redundant enable (already enabled)', async () => {
       const existing = makePrismaCompany({ id: 1, status: true });
-      const updated = makePrismaCompany({ id: 1, status: true });
 
       const mockFindUnique = jest.fn().mockResolvedValue(existing);
-      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      const mockUpdate = jest.fn().mockResolvedValue(existing);
       mockedGetPrisma.mockReturnValue({
         company: { findUnique: mockFindUnique, update: mockUpdate },
       } as any);
 
-      const result = await service.toggleStatus(1, true);
+      await expect(service.toggleStatus(1, true)).rejects.toThrow('公司已处于启用状态');
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
 
-      expect(result.status).toBe(true);
-      expect(mockUpdate).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { status: true },
-      });
+    it('toggleStatus: should reject redundant disable (already disabled)', async () => {
+      const existing = makePrismaCompany({ id: 2, status: false });
+
+      const mockFindUnique = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(existing);
+      mockedGetPrisma.mockReturnValue({
+        company: { findUnique: mockFindUnique, update: mockUpdate },
+      } as any);
+
+      await expect(service.toggleStatus(2, false)).rejects.toThrow('公司已处于禁用状态');
+      expect(mockUpdate).not.toHaveBeenCalled();
     });
 
     it('toggleStatus: should handle prisma update error', async () => {
@@ -1739,7 +1746,7 @@ describe('CompanyServiceImpl', () => {
       // Verify the query filters out sysadmin role
       expect(mockFindMany).toHaveBeenCalledWith({
         where: { companyId: 1, status: true, role: { in: ['admin', 'view'] } },
-        select: { id: true, role: true, cnName: true, username: true },
+        select: { id: true, role: true, cnName: true },
       });
       expect(result.operators).toHaveLength(1);
       expect(result.viewers).toHaveLength(1);
@@ -1760,7 +1767,7 @@ describe('CompanyServiceImpl', () => {
 
       expect(mockFindMany).toHaveBeenCalledWith({
         where: { companyId: 1, status: true, role: { in: ['admin', 'view'] } },
-        select: { id: true, role: true, cnName: true, username: true },
+        select: { id: true, role: true, cnName: true },
       });
       expect(result.operators).toHaveLength(1);
       expect(result.viewers).toHaveLength(0);

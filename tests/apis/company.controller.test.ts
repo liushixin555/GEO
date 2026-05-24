@@ -364,7 +364,7 @@ describe('Company Controller', () => {
       expect(response.status).toBe(200);
       expect(response.body.data.operator_ids).toEqual([10, 11]);
       expect(response.body.data.operators).toHaveLength(2);
-      expect(response.body.data.operators[0]).toEqual({ id: 10, cn_name: '管理员A', username: 'adminA' });
+      expect(response.body.data.operators[0]).toEqual({ id: 10, cn_name: '管理员A' });
       expect(response.body.data.viewer_ids).toEqual([]);
       expect(response.body.data.viewers).toEqual([]);
     });
@@ -393,7 +393,7 @@ describe('Company Controller', () => {
       expect(response.body.data.operator_ids).toEqual([]);
       expect(response.body.data.operators).toEqual([]);
       expect(response.body.data.viewer_ids).toEqual([20]);
-      expect(response.body.data.viewers).toEqual([{ id: 20, cn_name: '观察者A', username: 'viewerA' }]);
+      expect(response.body.data.viewers).toEqual([{ id: 20, cn_name: '观察者A' }]);
     });
 
     it('should return CompanyDetail with multiple operators and viewers', async () => {
