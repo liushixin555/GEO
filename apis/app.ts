@@ -134,12 +134,15 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
     res.status(err.statusCode).json({ code: err.statusCode, message: err.message });
     return;
   }
-  console.error('[Unhandled Error]', JSON.stringify({
+  console.error(JSON.stringify({
+    level: 'error',
+    type: 'unhandled_error',
     method: req.method,
     url: req.originalUrl,
     ip: req.ip,
     userId: req.user?.userId,
     userRole: req.user?.role,
+    timestamp: new Date().toISOString(),
     error: { name: err.name, message: err.message },
   }));
   res.status(500).json({ code: 500, message: '服务器内部错误' });

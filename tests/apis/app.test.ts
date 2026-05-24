@@ -1510,11 +1510,17 @@ describe('App - Global Error Handler Deep', () => {
     expect([400, 500]).toContain(response.status);
 
     if (response.status === 500) {
-      // If error handler caught it, it should log structured error
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        '[Unhandled Error]',
-        expect.any(String),
+      // If error handler caught it, it should log structured error as single JSON argument
+      const errorCalls = consoleErrorSpy.mock.calls.filter(
+        (call: string[]) => {
+          if (typeof call[0] !== 'string') return false;
+          try {
+            const parsed = JSON.parse(call[0]);
+            return parsed.type === 'unhandled_error';
+          } catch { return false; }
+        },
       );
+      expect(errorCalls.length).toBeGreaterThan(0);
     }
   });
 
@@ -1730,17 +1736,23 @@ describe('App - Unhandled Error Structured Fields', () => {
       .set('Authorization', `Bearer ${adminToken()}`)
       .send(largePayload);
 
-    // Late-order test: may be blocked by anti-crawl — skip if not 500
+    // late-order test: may be blocked by anti-crawl — skip if not 500
     if (res.status !== 500) return;
 
     // PayloadTooLargeError occurs during body parsing BEFORE auth middleware,
     // so userId/userRole will NOT be present. Verify core fields only.
     if (consoleErrorSpy.mock.calls.length > 0) {
       const logCall = consoleErrorSpy.mock.calls.find(
-        (call: string[]) => typeof call[0] === 'string' && call[0] === '[Unhandled Error]',
+        (call: string[]) => {
+          if (typeof call[0] !== 'string') return false;
+          try {
+            const parsed = JSON.parse(call[0]);
+            return parsed.type === 'unhandled_error';
+          } catch { return false; }
+        },
       );
       if (logCall) {
-        const entry = JSON.parse(logCall[1] as string);
+        const entry = JSON.parse(logCall[0] as string);
         expect(entry).toHaveProperty('method');
         expect(entry).toHaveProperty('url');
         expect(entry).toHaveProperty('ip');
@@ -2189,6 +2201,10 @@ describe('App - Swagger Enabled (isolated)', () => {
         getPrisma: jest.fn(),
         closePrisma: jest.fn(),
       }));
+      jest.doMock('@scalar/express-api-reference', () => ({
+        apiReference: () => (_req: any, _res: any, next: any) => next(),
+      }));
+      jest.doMock('../../apis/swagger-spec.json', () => ({ openapi: '3.0.0', info: { title: 'Test', version: '1.0.0' }, paths: {} }));
       testApp = require('../../apis/app').default;
     });
     process.env.SWAGGER_ENABLED = originalSwagger;
@@ -2211,6 +2227,10 @@ describe('App - Swagger Enabled (isolated)', () => {
         getPrisma: jest.fn(),
         closePrisma: jest.fn(),
       }));
+      jest.doMock('@scalar/express-api-reference', () => ({
+        apiReference: () => (_req: any, _res: any, next: any) => next(),
+      }));
+      jest.doMock('../../apis/swagger-spec.json', () => ({ openapi: '3.0.0', info: { title: 'Test', version: '1.0.0' }, paths: {} }));
       testApp = require('../../apis/app').default;
     });
     process.env.SWAGGER_ENABLED = originalSwagger;
@@ -2233,6 +2253,10 @@ describe('App - Swagger Enabled (isolated)', () => {
         getPrisma: jest.fn(),
         closePrisma: jest.fn(),
       }));
+      jest.doMock('@scalar/express-api-reference', () => ({
+        apiReference: () => (_req: any, _res: any, next: any) => next(),
+      }));
+      jest.doMock('../../apis/swagger-spec.json', () => ({ openapi: '3.0.0', info: { title: 'Test', version: '1.0.0' }, paths: {} }));
       testApp = require('../../apis/app').default;
     });
     process.env.SWAGGER_ENABLED = originalSwagger;
