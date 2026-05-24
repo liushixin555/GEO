@@ -707,3 +707,14 @@
   - 防御层完整性评估：CSRF/XSS/SQL注入/暴力破解/DDoS/CORS滥用/信息泄露/请求体DoS/路径遍历/JWT伪造 全部有对应防御
   - 安全改进路线图：P0×2（静态文件路径+请求超时）、P1×4（JSON body 限制+Health 限流+trust proxy 配置化+日志格式统一）、P2×1（Swagger CSP）
   - 评审报告 tasks/review/app.ts.security.md
+
+## 本次变更（2026-05-24 apis/app.ts Committer审核专家重构后复审）
+- [x] **Committer审核专家复审 apis/app.ts（147 行，路由模块化重构后复审）**
+  - 综合判定：通过（APPROVE）— Composition Root 回归本职，安全基线 A-，测试覆盖充分
+  - 重构验证：文件从 239 行减至 147 行（-38%），Controller 导入从 16 个降为 0 个，13 个 Router 模块
+  - 抽查 3 个路由模块（auth/article/todo）验证中间件链与路由路径与重构前等价
+  - 测试完备性：184 个用例，行覆盖率 90%，含审计日志深度测试 10 个用例
+  - 历史问题解决情况：HIGH×3 全部解决（路由平铺、中间件重复、注释错误），CRITICAL×6 安全漏洞全部修复
+  - 交叉审核六份已有评审（质量 B/B+、安全 C→A-、架构 B-→B+），所有阻塞项已通过重构解决
+  - 剩余 9 项 P2-P3 建议（API 版本化、CORS 日志、静态文件路径、日志格式统一等）不阻塞合并
+  - 评审报告 tasks/review/app.ts.committer.md
