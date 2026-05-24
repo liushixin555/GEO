@@ -6,7 +6,7 @@ if [ "$1" != "--inner" ]; then
   echo "已后台启动，PID: $!"
   exit 0
 fi
-mapfile -t tasks < <(find . -type f -name "*.tsx" | sort)
+mapfile -t tasks < <(find ./pages -type f -name "*.tsx" | sort)
 for ((i=0; i<100; i++)); do
 for f in "${tasks[@]}"; do
 
