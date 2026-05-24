@@ -38,3 +38,4 @@
 - 所有 API（除 `POST /api/auth/login`）要求：JWT 鉴权 + 反爬虫 + 限流
 - 限流熔断策略在配置文件中配置
 - 重复使用的代码必须封装为 components
+- **Swagger API 文档由 swagger-autogen-ast 自动生成** — 新增/修改路由后运行 `npm run swagger:gen` 重新生成 `apis/swagger-spec.json`，禁止手动编辑该文件

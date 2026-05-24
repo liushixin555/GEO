@@ -2,7 +2,7 @@
 
 ## 技术栈
 - TypeScript 全栈
-- **后端**: Express + PostgreSQL + JWT + Swagger/OpenAPI 3.0
+- **后端**: Express + PostgreSQL + JWT + Swagger/OpenAPI 3.0 (swagger-autogen-ast 自动生成)
 - **前端**: React 18 + Ant Design (antd) + @ant-design/icons + Vite
 - **样式**: IBM Carbon Design System（见 DESIGN.md）
 - **测试**: Jest + Supertest（接口）+ React Testing Library（页面）
@@ -18,6 +18,8 @@ tests/apis/  + tests/pages/  测试文件
 
 ## 关键文件
 - `apis/app.ts` — Express 入口（helmet, cors, 限流, 反爬虫, swagger, 路由）
+- `apis/scripts/generate-swagger.ts` — Swagger spec 生成脚本（swagger-autogen-ast + 后处理增强标签/安全/描述）
+- `apis/swagger-spec.json` — 自动生成的 OpenAPI 3.0 spec（66 路由，npm run swagger:gen 重新生成）
 - `apis/server.ts` — 启动 HTTP 服务器
 - `apis/controller/auth.controller.ts` — 认证端点：登录、登出、验证、保存选择、获取公司/项目、获取上下文、获取公司用户
 - `apis/controller/company.controller.ts` — 公司 CRUD（仅 sysadmin，仅公司管理页面使用）

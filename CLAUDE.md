@@ -30,6 +30,9 @@ npm run test:api         # backend tests only
 npm run test:page        # frontend tests only
 npx jest --config jest.config.ts --no-cache --testPathPattern="tests/apis/auth"  # single test file
 
+# Swagger API doc generation
+npm run swagger:gen      # regenerate apis/swagger-spec.json via AST analysis
+
 # Database
 npm run db:migrate       # run Prisma migration
 npm run db:migrate:create  # create migration without applying
