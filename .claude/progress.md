@@ -515,3 +515,13 @@
   - 3 项低等问题：页面信息密度过低、未使用 React.memo、图标颜色未显式控制
   - 推荐处理：删除死代码文件（后端已自带 Swagger UI），或在 Sidebar 添加外链菜单项
   - 评审报告 tasks/review/api-docs.index.tsx.committer.md
+
+## 本次变更（2026-05-24 apis/config/index.ts Committer审核专家评审）
+- [x] **Committer审核专家评审 apis/config/index.ts（147 行）**
+  - 综合判定：通过（APPROVE）— 安全基础优秀 + 测试覆盖充分 + 配置管理规范
+  - 测试文件：808 行，约 116 个测试用例，覆盖率 >95%
+  - API 契约正确性：15 个接口属性类型与实际值 100% 匹配，6 个下游消费者完全兼容
+  - 安全评审修复验证：commit 60c96fd 的 6 项修复全部正确到位
+  - 交叉审核两份已有评审（安全评审 + 质量评审 A-），所有问题均不阻塞合并
+  - 建议合并后 P1 修复：Q-01 子接口 readonly 对齐（5min）、Q-06 JWT 强度校验（3min）
+  - 评审报告 tasks/review/config-index.committer.md
