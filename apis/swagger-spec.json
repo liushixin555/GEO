@@ -4532,6 +4532,7 @@
         "tags": [
           "发布计划"
         ],
+        "description": "查询文章发布排期列表，admin 仅可见所属公司项目文章，view 仅可见授权项目文章",
         "security": [
           {
             "bearerAuth": []
@@ -4556,7 +4557,7 @@
                     "data": {
                       "type": "array",
                       "items": {
-                        "$ref": "#/components/schemas/PublishingPlatform"
+                        "$ref": "#/components/schemas/Article"
                       }
                     }
                   }
@@ -4633,6 +4634,7 @@
         "tags": [
           "发布计划"
         ],
+        "description": "更新指定文章的发布排期时间和排期类型，admin 只能更新所属项目文章",
         "requestBody": {
           "required": true,
           "content": {
@@ -4683,7 +4685,7 @@
                       "example": "操作成功"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/PublishingPlatform"
+                      "$ref": "#/components/schemas/Article"
                     }
                   }
                 }

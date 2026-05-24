@@ -84,8 +84,8 @@ export const routes: RouteDescriptor[] = [
   { method: 'get',    path: '/api/v1/publishing-platforms', summary: '发布平台列表', tags: ['发布平台'], response: list('PublishingPlatform') },
 
   // ── 发布计划 ────────────────────────────────────────────────
-  { method: 'get',    path: '/api/v1/publishing-schedule', summary: '发布计划列表', tags: ['发布计划'], response: list('PublishingPlatform') },
-  { method: 'put',    path: '/api/v1/publishing-schedule/{id}', summary: '更新发布计划', tags: ['发布计划'], params: [INT_ID], validate: { schema: updatePublishingScheduleSchema, source: 'body' }, response: ref('PublishingPlatform') },
+  { method: 'get',    path: '/api/v1/publishing-schedule', summary: '发布计划列表', description: '查询文章发布排期列表，admin 仅可见所属公司项目文章，view 仅可见授权项目文章', tags: ['发布计划'], response: list('Article') },
+  { method: 'put',    path: '/api/v1/publishing-schedule/{id}', summary: '更新发布计划', description: '更新指定文章的发布排期时间和排期类型，admin 只能更新所属项目文章', tags: ['发布计划'], params: [INT_ID], validate: { schema: updatePublishingScheduleSchema, source: 'body' }, response: ref('Article') },
 
   // ── 文件上传 ────────────────────────────────────────────────
   { method: 'post',   path: '/api/v1/upload', summary: '上传图片', tags: ['文件上传'], response: { type: 'item', schema: { type: 'object', properties: { url: { type: 'string' }, filename: { type: 'string' } } } } },
