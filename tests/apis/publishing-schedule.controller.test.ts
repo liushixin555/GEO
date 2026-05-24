@@ -329,7 +329,7 @@ describe('PublishingSchedule Controller', () => {
       expect(response.body.code).toBe(0);
       expect(response.body.data.scheduled_publish_at).toBe('2025-06-01T10:00:00.000Z');
       expect(response.body.message).toBe('更新发布计划成功');
-      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '2025-06-01T10:00:00.000Z', 1, 'sysadmin');
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '2025-06-01T10:00:00.000Z', null, 1, 'sysadmin');
     });
 
     it('should update successfully for admin role', async () => {
@@ -342,7 +342,7 @@ describe('PublishingSchedule Controller', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.code).toBe(0);
-      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '2025-06-01T10:00:00.000Z', 2, 'admin');
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '2025-06-01T10:00:00.000Z', null, 2, 'admin');
     });
 
     it('should update successfully when scheduled_publish_at is null', async () => {
@@ -356,7 +356,7 @@ describe('PublishingSchedule Controller', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.code).toBe(0);
-      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, null, 1, 'sysadmin');
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, null, null, 1, 'sysadmin');
     });
 
     it('should update successfully when scheduled_publish_at is undefined (not sent)', async () => {
@@ -369,7 +369,7 @@ describe('PublishingSchedule Controller', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.code).toBe(0);
-      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, undefined, 1, 'sysadmin');
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, undefined, null, 1, 'sysadmin');
     });
 
     it('should update successfully when body is empty', async () => {
@@ -487,7 +487,73 @@ describe('PublishingSchedule Controller', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.code).toBe(0);
-      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '', 1, 'sysadmin');
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '', null, 1, 'sysadmin');
+    });
+
+    // ========== schedule_type tests ==========
+    it('should return 400 when schedule_type is invalid', async () => {
+      const response = await agent
+        .put('/api/publishing-schedule/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ scheduled_publish_at: '2025-06-01T10:00:00.000Z', schedule_type: 'invalid' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('schedule_type参数无效');
+    });
+
+    it('should update successfully with schedule_type=asap', async () => {
+      const updatedItem = { ...mockScheduleItem, schedule_type: 'asap' };
+      mockUpdateSchedule.mockResolvedValue(updatedItem);
+
+      const response = await agent
+        .put('/api/publishing-schedule/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ schedule_type: 'asap', scheduled_publish_at: null });
+
+      expect(response.status).toBe(200);
+      expect(response.body.code).toBe(0);
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, null, 'asap', 1, 'sysadmin');
+    });
+
+    it('should update successfully with schedule_type=scheduled', async () => {
+      const updatedItem = { ...mockScheduleItem, schedule_type: 'scheduled', scheduled_publish_at: '2025-06-01T10:00:00.000Z' };
+      mockUpdateSchedule.mockResolvedValue(updatedItem);
+
+      const response = await agent
+        .put('/api/publishing-schedule/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ schedule_type: 'scheduled', scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.code).toBe(0);
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '2025-06-01T10:00:00.000Z', 'scheduled', 1, 'sysadmin');
+    });
+
+    it('should update successfully with schedule_type=after', async () => {
+      const updatedItem = { ...mockScheduleItem, schedule_type: 'after', scheduled_publish_at: '2025-06-01T10:00:00.000Z' };
+      mockUpdateSchedule.mockResolvedValue(updatedItem);
+
+      const response = await agent
+        .put('/api/publishing-schedule/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ schedule_type: 'after', scheduled_publish_at: '2025-06-01T10:00:00.000Z' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.code).toBe(0);
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '2025-06-01T10:00:00.000Z', 'after', 1, 'sysadmin');
+    });
+
+    it('should update with schedule_type=null', async () => {
+      mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
+
+      const response = await agent
+        .put('/api/publishing-schedule/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ schedule_type: null, scheduled_publish_at: null });
+
+      expect(response.status).toBe(200);
+      expect(response.body.code).toBe(0);
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, null, null, 1, 'sysadmin');
     });
   });
 
