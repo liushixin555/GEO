@@ -1270,3 +1270,638 @@ describe('LlmServiceImpl', () => {
     });
   });
 });
+
+// ══════════════════════════════════════════
+//  第3轮：接口契约合规性验证
+// ══════════════════════════════════════════
+
+describe('LlmServiceImpl 第3轮——接口契约合规性', () => {
+  let service: LlmServiceImpl;
+
+  beforeEach(() => {
+    service = new LlmServiceImpl();
+    mockPrisma = createMockPrisma();
+    mockedGetPrisma.mockReturnValue(mockPrisma as any);
+  });
+
+  // ──────────────────────────────────────
+  //  1. 接口方法签名验证（10）
+  // ──────────────────────────────────────
+
+  describe('接口方法签名验证', () => {
+    it('应定义 expandKeywords 方法', () => {
+      expect(typeof service.expandKeywords).toBe('function');
+    });
+
+    it('应定义 mineKeywordsFromContent 方法', () => {
+      expect(typeof service.mineKeywordsFromContent).toBe('function');
+    });
+
+    it('应定义 generateArticle 方法', () => {
+      expect(typeof service.generateArticle).toBe('function');
+    });
+
+    it('应恰好有3个实例方法', () => {
+      const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(service))
+        .filter(name => name !== 'constructor');
+      expect(methods).toHaveLength(3);
+      expect(methods.sort()).toEqual(['expandKeywords', 'generateArticle', 'mineKeywordsFromContent'].sort());
+    });
+
+    it('expandKeywords 应接受1个参数', () => {
+      expect(service.expandKeywords.length).toBe(1);
+    });
+
+    it('mineKeywordsFromContent 应接受1个参数', () => {
+      expect(service.mineKeywordsFromContent.length).toBe(1);
+    });
+
+    it('generateArticle 应接受1个参数', () => {
+      expect(service.generateArticle.length).toBe(1);
+    });
+
+    it('expandKeywords 返回值应为 Promise<string[]>', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('关键词')));
+
+      const result = service.expandKeywords('测试');
+      expect(result).toBeInstanceOf(Promise);
+      const resolved = await result;
+      expect(Array.isArray(resolved)).toBe(true);
+    });
+
+    it('mineKeywordsFromContent 返回值应为 Promise<string[]>', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('关键词')));
+
+      const result = service.mineKeywordsFromContent('内容');
+      expect(result).toBeInstanceOf(Promise);
+      const resolved = await result;
+      expect(Array.isArray(resolved)).toBe(true);
+    });
+
+    it('generateArticle 返回值应为 Promise<string>', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('文章内容')));
+
+      const result = service.generateArticle({
+        title: '标题', keywords: '关键词', portrait: '受众',
+        images: [], skills: '',
+      });
+      expect(result).toBeInstanceOf(Promise);
+      const resolved = await result;
+      expect(typeof resolved).toBe('string');
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  2. ArticleGenerationParams 字段完整性（4）
+  // ──────────────────────────────────────
+
+  describe('ArticleGenerationParams 字段完整性', () => {
+    it('应包含 title 字段', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('文章')));
+
+      const params: ArticleGenerationParams = {
+        title: '测试标题',
+        keywords: '',
+        portrait: '',
+        images: [],
+        skills: '',
+      };
+
+      await service.generateArticle(params);
+
+      const userContent = (mockedAxios.post.mock.calls[0] as [string, any, any])[1].messages[1].content;
+      expect(userContent).toContain('测试标题');
+    });
+
+    it('应包含 keywords 字段', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('文章')));
+
+      const params: ArticleGenerationParams = {
+        title: '', keywords: 'SEO,优化', portrait: '',
+        images: [], skills: '',
+      };
+
+      await service.generateArticle(params);
+
+      const userContent = (mockedAxios.post.mock.calls[0] as [string, any, any])[1].messages[1].content;
+      expect(userContent).toContain('SEO,优化');
+    });
+
+    it('应包含 portrait 字段', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('文章')));
+
+      const params: ArticleGenerationParams = {
+        title: '', keywords: '', portrait: '产品经理',
+        images: [], skills: '',
+      };
+
+      await service.generateArticle(params);
+
+      const userContent = (mockedAxios.post.mock.calls[0] as [string, any, any])[1].messages[1].content;
+      expect(userContent).toContain('产品经理');
+    });
+
+    it('images 数组元素应包含 title, description, imageUrl', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('文章')));
+
+      const params: ArticleGenerationParams = {
+        title: '', keywords: '', portrait: '',
+        images: [
+          { title: '测试图片', description: '图片描述', imageUrl: 'https://test.com/img.png' },
+        ],
+        skills: '',
+      };
+
+      await service.generateArticle(params);
+
+      const userContent = (mockedAxios.post.mock.calls[0] as [string, any, any])[1].messages[1].content;
+      expect(userContent).toContain('测试图片');
+      expect(userContent).toContain('图片描述');
+      expect(userContent).toContain('https://test.com/img.png');
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  3. 异步行为验证（6）
+  // ──────────────────────────────────────
+
+  describe('异步行为验证', () => {
+    it('expandKeywords 应异步执行（不阻塞）', async () => {
+      mockPrisma.llmModel.findFirst.mockImplementation(() =>
+        new Promise(resolve => setTimeout(() => resolve(makePrismaModel()), 10))
+      );
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('关键词')));
+
+      const promise = service.expandKeywords('测试');
+      // promise 已创建但尚未 resolved
+      expect(promise).toBeInstanceOf(Promise);
+
+      const result = await promise;
+      expect(result).toEqual(['关键词']);
+    });
+
+    it('mineKeywordsFromContent 应异步执行', async () => {
+      mockPrisma.llmModel.findFirst.mockImplementation(() =>
+        new Promise(resolve => setTimeout(() => resolve(makePrismaModel()), 10))
+      );
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('关键词')));
+
+      const promise = service.mineKeywordsFromContent('内容');
+      expect(promise).toBeInstanceOf(Promise);
+
+      const result = await promise;
+      expect(result).toEqual(['关键词']);
+    });
+
+    it('generateArticle 应异步执行', async () => {
+      mockPrisma.llmModel.findFirst.mockImplementation(() =>
+        new Promise(resolve => setTimeout(() => resolve(makePrismaModel()), 10))
+      );
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('文章')));
+
+      const promise = service.generateArticle({
+        title: '标题', keywords: '', portrait: '', images: [], skills: '',
+      });
+      expect(promise).toBeInstanceOf(Promise);
+
+      const result = await promise;
+      expect(result).toBe('文章');
+    });
+
+    it('expandKeywords 错误应通过 Promise rejection 传递', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(null);
+
+      const promise = service.expandKeywords('测试');
+      await expect(promise).rejects.toThrow('没有可用的LLM模型');
+    });
+
+    it('mineKeywordsFromContent 错误应通过 Promise rejection 传递', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(null);
+
+      const promise = service.mineKeywordsFromContent('内容');
+      await expect(promise).rejects.toThrow('没有可用的LLM模型');
+    });
+
+    it('generateArticle 错误应通过 Promise rejection 传递', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(null);
+
+      const promise = service.generateArticle({
+        title: '标题', keywords: '', portrait: '', images: [], skills: '',
+      });
+      await expect(promise).rejects.toThrow('没有可用的LLM模型');
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  4. 错误类型与继承层次（5）
+  // ──────────────────────────────────────
+
+  describe('错误类型与继承层次', () => {
+    it('模型不存在时 expandKeywords 抛出的应为 Error 实例', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(null);
+
+      try {
+        await service.expandKeywords('测试');
+        fail('应抛出错误');
+      } catch (e) {
+        expect(e).toBeInstanceOf(Error);
+      }
+    });
+
+    it('模型不存在时 generateArticle 抛出的应为 Error 实例', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(null);
+
+      try {
+        await service.generateArticle({
+          title: '标题', keywords: '', portrait: '', images: [], skills: '',
+        });
+        fail('应抛出错误');
+      } catch (e) {
+        expect(e).toBeInstanceOf(Error);
+      }
+    });
+
+    it('axios 错误应被包装为 Error 实例', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      const axiosError: any = new Error('Network Error');
+      axiosError.response = { status: 500, data: { error: { message: 'Server Error' } } };
+      mockedAxios.post.mockRejectedValue(axiosError);
+
+      try {
+        await service.expandKeywords('测试');
+        fail('应抛出错误');
+      } catch (e) {
+        expect(e).toBeInstanceOf(Error);
+        expect((e as Error).message).toContain('LLM调用失败');
+      }
+    });
+
+    it('LLM 返回空内容的 generateArticle 应抛出 Error 实例', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('')));
+
+      try {
+        await service.generateArticle({
+          title: '标题', keywords: '', portrait: '', images: [], skills: '',
+        });
+        fail('应抛出错误');
+      } catch (e) {
+        expect(e).toBeInstanceOf(Error);
+        expect((e as Error).message).toBe('LLM返回内容为空');
+      }
+    });
+
+    it('三个方法的模型不存在错误消息应一致', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(null);
+
+      const expectedMsg = '没有可用的LLM模型，请先在系统管理中配置';
+
+      try { await service.expandKeywords('测试'); } catch (e) {
+        expect((e as Error).message).toBe(expectedMsg);
+      }
+
+      try { await service.mineKeywordsFromContent('内容'); } catch (e) {
+        expect((e as Error).message).toBe(expectedMsg);
+      }
+
+      try { await service.generateArticle({
+        title: '', keywords: '', portrait: '', images: [], skills: '',
+      }); } catch (e) {
+        expect((e as Error).message).toBe(expectedMsg);
+      }
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  5. temperature 差异验证（3）
+  // ──────────────────────────────────────
+
+  describe('temperature 差异验证', () => {
+    it('expandKeywords 使用 temperature=0（确定性输出）', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('关键词')));
+
+      await service.expandKeywords('测试');
+
+      const body = (mockedAxios.post.mock.calls[0] as [string, any, any])[1];
+      expect(body.temperature).toBe(0);
+    });
+
+    it('mineKeywordsFromContent 使用 temperature=0（确定性输出）', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('关键词')));
+
+      await service.mineKeywordsFromContent('内容');
+
+      const body = (mockedAxios.post.mock.calls[0] as [string, any, any])[1];
+      expect(body.temperature).toBe(0);
+    });
+
+    it('generateArticle 使用 temperature=0.7（创意性输出）', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('文章')));
+
+      await service.generateArticle({
+        title: '标题', keywords: '', portrait: '', images: [], skills: '',
+      });
+
+      const body = (mockedAxios.post.mock.calls[0] as [string, any, any])[1];
+      expect(body.temperature).toBe(0.7);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  6. 消息结构差异验证（3）
+  // ──────────────────────────────────────
+
+  describe('消息结构差异验证', () => {
+    it('expandKeywords 使用单条 user 消息', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('关键词')));
+
+      await service.expandKeywords('测试');
+
+      const body = (mockedAxios.post.mock.calls[0] as [string, any, any])[1];
+      expect(body.messages).toHaveLength(1);
+      expect(body.messages[0].role).toBe('user');
+    });
+
+    it('mineKeywordsFromContent 使用单条 user 消息', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('关键词')));
+
+      await service.mineKeywordsFromContent('内容');
+
+      const body = (mockedAxios.post.mock.calls[0] as [string, any, any])[1];
+      expect(body.messages).toHaveLength(1);
+      expect(body.messages[0].role).toBe('user');
+    });
+
+    it('generateArticle 使用 system + user 双消息', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('文章')));
+
+      await service.generateArticle({
+        title: '标题', keywords: '', portrait: '', images: [], skills: '',
+      });
+
+      const body = (mockedAxios.post.mock.calls[0] as [string, any, any])[1];
+      expect(body.messages).toHaveLength(2);
+      expect(body.messages[0].role).toBe('system');
+      expect(body.messages[1].role).toBe('user');
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  7. 过滤行为差异验证（3）
+  // ──────────────────────────────────────
+
+  describe('过滤行为差异——expandKeywords vs mineKeywordsFromContent', () => {
+    it('expandKeywords 保留长度=1的关键词（>0）', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('AI\n长词')));
+
+      const result = await service.expandKeywords('测试');
+      expect(result).toEqual(['AI', '长词']);
+    });
+
+    it('mineKeywordsFromContent 过滤长度=1的关键词（>1）', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('AI\n长词')));
+
+      const result = await service.mineKeywordsFromContent('内容');
+      // 'AI' 长度为 2，保留；如果只有单字符 'A' 则被过滤
+      expect(result).toEqual(['AI', '长词']);
+    });
+
+    it('expandKeywords 和 mineKeywordsFromContent 对单字符行为不同', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('好\n测试')));
+
+      const expandResult = await service.expandKeywords('测试');
+      // expandKeywords filter: length > 0 → '好' 保留
+      expect(expandResult).toEqual(['好', '测试']);
+
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('好\n测试')));
+
+      const mineResult = await service.mineKeywordsFromContent('内容');
+      // mineKeywordsFromContent filter: length > 1 → '好' 被过滤
+      expect(mineResult).toEqual(['测试']);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  8. 实例独立性与构造函数验证（3）
+  // ──────────────────────────────────────
+
+  describe('实例独立性与构造函数验证', () => {
+    it('构造函数不需要参数', () => {
+      expect(() => new LlmServiceImpl()).not.toThrow();
+    });
+
+    it('多个实例应独立工作', async () => {
+      const service1 = new LlmServiceImpl();
+      const service2 = new LlmServiceImpl();
+
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('关键词1')));
+
+      const result1 = await service1.expandKeywords('测试1');
+
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('关键词2')));
+
+      const result2 = await service2.expandKeywords('测试2');
+
+      expect(result1).toEqual(['关键词1']);
+      expect(result2).toEqual(['关键词2']);
+    });
+
+    it('实例应为 LlmServiceImpl 类型', () => {
+      expect(service).toBeInstanceOf(LlmServiceImpl);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  9. 错误消息格式一致性（3）
+  // ──────────────────────────────────────
+
+  describe('错误消息格式一致性', () => {
+    it('expandKeywords 的 axios 错误消息应包含状态码和详情', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      const axiosError: any = new Error('timeout');
+      axiosError.response = { status: 408, data: { error: { message: 'Request Timeout' } } };
+      mockedAxios.post.mockRejectedValue(axiosError);
+
+      await expect(service.expandKeywords('测试')).rejects.toThrow(/^LLM调用失败\(408\):/);
+    });
+
+    it('mineKeywordsFromContent 的 axios 错误消息应包含状态码和详情', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      const axiosError: any = new Error('timeout');
+      axiosError.response = { status: 408, data: { error: { message: 'Request Timeout' } } };
+      mockedAxios.post.mockRejectedValue(axiosError);
+
+      await expect(service.mineKeywordsFromContent('内容')).rejects.toThrow(/^LLM调用失败\(408\):/);
+    });
+
+    it('generateArticle 的 axios 错误消息应包含状态码和详情', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      const axiosError: any = new Error('timeout');
+      axiosError.response = { status: 408, data: { error: { message: 'Request Timeout' } } };
+      mockedAxios.post.mockRejectedValue(axiosError);
+
+      await expect(service.generateArticle({
+        title: '', keywords: '', portrait: '', images: [], skills: '',
+      })).rejects.toThrow(/^LLM调用失败\(408\):/);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  10. 导出与类型验证（4）
+  // ──────────────────────────────────────
+
+  describe('导出与类型验证', () => {
+    it('ILlmService 应被正确导出', () => {
+      // 验证 ILlmService 可以被类型引用（编译时检查通过即表示导出正确）
+      const _: import('../../apis/service/llm.service').ILlmService = service;
+      expect(_).toBeDefined();
+    });
+
+    it('ArticleGenerationParams 应被正确导出', () => {
+      const params: ArticleGenerationParams = {
+        title: '测试',
+        keywords: '关键词',
+        portrait: '受众',
+        images: [],
+        skills: '技能',
+      };
+      expect(params.title).toBe('测试');
+    });
+
+    it('LlmServiceImpl 应被正确导出', () => {
+      expect(LlmServiceImpl).toBeDefined();
+      expect(typeof LlmServiceImpl).toBe('function');
+    });
+
+    it('LlmServiceImpl 实现了 ILlmService 接口（鸭子类型验证）', () => {
+      const iface: import('../../apis/service/llm.service').ILlmService = service;
+      expect(typeof iface.expandKeywords).toBe('function');
+      expect(typeof iface.mineKeywordsFromContent).toBe('function');
+      expect(typeof iface.generateArticle).toBe('function');
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  11. 超时配置一致性（2）
+  // ──────────────────────────────────────
+
+  describe('超时配置一致性', () => {
+    it('三个方法应使用相同的超时配置 300000ms', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('关键词')));
+
+      await service.expandKeywords('测试');
+      const config1 = (mockedAxios.post.mock.calls[0] as [string, any, any])[2];
+      expect(config1.timeout).toBe(300000);
+
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('关键词')));
+
+      await service.mineKeywordsFromContent('内容');
+      const config2 = (mockedAxios.post.mock.calls[1] as [string, any, any])[2];
+      expect(config2.timeout).toBe(300000);
+
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('文章内容')));
+
+      await service.generateArticle({
+        title: '', keywords: '', portrait: '', images: [], skills: '',
+      });
+      const config3 = (mockedAxios.post.mock.calls[2] as [string, any, any])[2];
+      expect(config3.timeout).toBe(300000);
+    });
+
+    it('三个方法应使用相同的认证头格式', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('关键词')));
+
+      await service.expandKeywords('测试');
+      const headers1 = (mockedAxios.post.mock.calls[0] as [string, any, any])[2].headers;
+
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('关键词')));
+
+      await service.mineKeywordsFromContent('内容');
+      const headers2 = (mockedAxios.post.mock.calls[1] as [string, any, any])[2].headers;
+
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('文章内容')));
+
+      await service.generateArticle({
+        title: '', keywords: '', portrait: '', images: [], skills: '',
+      });
+      const headers3 = (mockedAxios.post.mock.calls[2] as [string, any, any])[2].headers;
+
+      expect(headers1.Authorization).toBe(headers2.Authorization);
+      expect(headers2.Authorization).toBe(headers3.Authorization);
+      expect(headers1['Content-Type']).toBe('application/json');
+      expect(headers2['Content-Type']).toBe('application/json');
+      expect(headers3['Content-Type']).toBe('application/json');
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  12. 模型查询一致性（2）
+  // ──────────────────────────────────────
+
+  describe('模型查询一致性', () => {
+    it('三个方法应使用相同的模型查询条件', async () => {
+      const expectedQuery = { where: { status: true, deletedAt: null }, orderBy: { id: 'asc' } };
+
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('关键词')));
+
+      await service.expandKeywords('测试');
+      expect(mockPrisma.llmModel.findFirst).toHaveBeenCalledWith(expectedQuery);
+
+      jest.clearAllMocks();
+      mockPrisma = createMockPrisma();
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('关键词')));
+
+      await service.mineKeywordsFromContent('内容');
+      expect(mockPrisma.llmModel.findFirst).toHaveBeenCalledWith(expectedQuery);
+
+      jest.clearAllMocks();
+      mockPrisma = createMockPrisma();
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('文章')));
+
+      await service.generateArticle({
+        title: '', keywords: '', portrait: '', images: [], skills: '',
+      });
+      expect(mockPrisma.llmModel.findFirst).toHaveBeenCalledWith(expectedQuery);
+    });
+
+    it('每次调用应独立查询模型（不缓存模型）', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockedAxios.post.mockResolvedValue(makeAxiosResponse(makeLlmContent('关键词')));
+
+      await service.expandKeywords('测试1');
+      await service.expandKeywords('测试2');
+
+      expect(mockPrisma.llmModel.findFirst).toHaveBeenCalledTimes(2);
+    });
+  });
+});

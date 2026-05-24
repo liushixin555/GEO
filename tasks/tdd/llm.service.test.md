@@ -7,12 +7,12 @@
 `tests/apis/llm.service.test.ts`
 
 ## 测试时间
-2026-05-25（更新）
+2026-05-25（第3轮更新）
 
 ## 测试结果
 - **测试套件**: 1 passed
-- **测试用例**: 97 passed, 0 failed
-- **总耗时**: ~5.6s
+- **测试用例**: 145 passed, 0 failed（第1轮 60 + 第2轮 37 + 第3轮 48）
+- **总耗时**: ~6.0s
 
 ## 覆盖率
 
@@ -171,3 +171,28 @@
 
 - 匹配：`1.` `2、` `3)` `4 ` `5\t` `10.` `100.`
 - 不匹配：`1:`（冒号不在字符类中）、`1-`（破折号不在字符类中）
+
+## 第3轮新增测试用例——接口契约合规性验证（+48 个）
+
+| 测试类别 | 用例数 | 覆盖场景 |
+|---------|-------|---------|
+| 接口方法签名验证 | 10 | 3个方法存在性、方法数量、参数数量、返回类型（Promise\<string[]\> vs Promise\<string\>） |
+| ArticleGenerationParams 字段完整性 | 4 | title、keywords、portrait、images元素结构（title+description+imageUrl） |
+| 异步行为验证 | 6 | 3个方法异步执行不阻塞、错误通过Promise rejection传递 |
+| 错误类型与继承层次 | 5 | Error实例验证、axios错误包装、LLM空内容错误、三方法模型不存在错误消息一致性 |
+| temperature 差异验证 | 3 | expandKeywords=0、mineKeywordsFromContent=0、generateArticle=0.7 |
+| 消息结构差异验证 | 3 | expandKeywords/mineKeywordsFromContent=单user消息、generateArticle=system+user双消息 |
+| 过滤行为差异验证 | 3 | expandKeywords保留单字符（>0）、mineKeywordsFromContent过滤单字符（>1）、同输入不同结果 |
+| 实例独立性与构造函数 | 3 | 无参构造、多实例独立工作、instanceof验证 |
+| 错误消息格式一致性 | 3 | 三方法axios错误消息正则匹配（状态码+详情） |
+| 导出与类型验证 | 4 | ILlmService导出、ArticleGenerationParams导出、LlmServiceImpl导出、鸭子类型接口实现 |
+| 超时配置一致性 | 2 | 三方法相同timeout=300000ms、相同认证头格式 |
+| 模型查询一致性 | 2 | 三方法相同查询条件（status+deletedAt+orderBy）、每次调用独立查询不缓存 |
+
+### 第3轮关键验证发现
+
+1. **接口契约完整性**：LlmServiceImpl 恰好实现 ILlmService 的 3 个方法，方法签名、参数数量、返回类型完全匹配
+2. **行为差异已确认**：expandKeywords(>0) vs mineKeywordsFromContent(>1) 的过滤阈值差异通过对比测试验证
+3. **temperature 设计意图**：关键词提取类方法使用 temperature=0 确保确定性输出，文章生成使用 0.7 增加创意性
+4. **无状态设计**：每次方法调用独立查询模型配置，不缓存模型信息，支持运行时模型切换
+5. **错误一致性**：三方法共享相同的错误处理链路和格式，错误均为 Error 实例
