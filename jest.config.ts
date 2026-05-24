@@ -7,7 +7,7 @@ const config: Config = {
       testEnvironment: 'node',
       roots: ['<rootDir>/tests/apis'],
       transform: {
-        '^.+\\.tsx?$': 'ts-jest',
+        '^.+\\.tsx?$': ['ts-jest', { diagnostics: false }],
       },
       moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
       moduleNameMapper: {
