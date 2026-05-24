@@ -68,7 +68,7 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 ## Key Conventions
 
 - **TDD**: write tests first, then code; run tests after every change
-- **Three roles**: sysadmin (full access + 系统管理), admin (company operations), view (发布管理 only)
+- **Three roles**: sysadmin (full access + 系统管理), admin (company operations), view (仅在被授权后查看每日检测报告，无其他任何权限)
 - **禁止使用GEO字眼**: 项目中禁止使用GEO字眼，薄云GEO应称为薄云商机倍增服务，GEO文章应称为文章管理，GEO成绩应称为发布管理
 - **All API routes** (except `POST /api/auth/login`) require JWT auth + anti-crawl + rate-limit headers
 - **Backend tests**: set env vars directly (`process.env.JWT_SECRET='test-secret'`) instead of jest.mock; add `.set('User-Agent', 'test-agent/1.0')` to supertest calls
@@ -85,6 +85,7 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 2. **前端必须遵守 DESIGN.md** — 所有页面样式必须遵循 DESIGN.md 定义的 IBM Carbon Design System 规范（颜色、字体、间距、形状、组件）
 3. **时间必须格式化为中国时区** — 所有页面显示时间必须使用 `pages/utils/date.ts` 中的 `formatDate` / `formatDateTime`（强制 Asia/Shanghai UTC+8），禁止使用 `new Date().getFullYear()` 等本地时区方法
 4. **严格测试** — 执行 `pnpm build` 、`pnpm lint`和 `pnpm test`，补全测试用例，进行测试，输出测试结果，并分析测试覆盖率
+5. **view 角色权限铁律** — view 角色只有被授权后查看每日检测报告的权限（每日检测功能待开发），除此之外没有任何权限。路由守卫、侧边栏菜单、API 权限校验中必须严格拦截 view 角色
 
 ### 任务结束铁律（每次任务结束后必须执行）
 1. **更新任务描述** — 参考 `tasks/dev001.登录功能.md` 格式，更新本次任务对应的 tasks/ 文档（功能说明、业务规则、验收标准等）
