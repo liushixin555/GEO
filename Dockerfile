@@ -32,6 +32,9 @@ RUN mkdir -p /etc/nginx/conf.d
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 RUN rm -f /etc/nginx/sites-enabled/default
 
+# Copy env file
+COPY .env .env
+
 # Copy entrypoint
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
