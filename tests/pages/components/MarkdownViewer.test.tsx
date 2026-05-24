@@ -481,3 +481,115 @@ describe('MarkdownViewer — React.memo optimization', () => {
     expect(container?.className).toContain('b');
   });
 });
+
+describe('MarkdownViewer — ErrorBoundary', () => {
+  // 直接测试 ErrorBoundary 类的 fallback 渲染
+  it('MarkdownErrorBoundary renders fallback on child error', () => {
+    const ThrowComponent = (): React.ReactElement => {
+      throw new Error('Render crash');
+    };
+    // 动态导入 MarkdownErrorBoundary
+    const MarkdownErrorBoundary = require('../../../pages/components/MarkdownViewer').MarkdownErrorBoundary;
+    expect(() =>
+      render(<MarkdownErrorBoundary><ThrowComponent /></MarkdownErrorBoundary>)
+    ).not.toThrow();
+    expect(screen.getByText('内容渲染异常，请刷新页面重试')).toBeInTheDocument();
+  });
+
+  it('renders normally when no error occurs', () => {
+    render(<MarkdownViewer content="正常内容" />);
+    expect(screen.getByTestId('markdown-preview')).toBeInTheDocument();
+  });
+});
+
+describe('MarkdownViewer — rehypeRewrite callback', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockProps = {};
+    mockMatchMediaResult = { matches: false, addEventListener: jest.fn(), removeEventListener: jest.fn() };
+    (window.matchMedia as jest.Mock).mockReturnValue(mockMatchMediaResult);
+    mockToken = { colorBgBase: '#ffffff' };
+  });
+
+  it('passes rehypeRewrite callback to MarkdownPreview', () => {
+    render(<MarkdownViewer content="test" />);
+    expect(typeof mockProps.rehypeRewrite).toBe('function');
+  });
+
+  it('injects ARIA attributes to copied button div', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+
+    const node = {
+      type: 'element',
+      tagName: 'div',
+      properties: { className: 'copied', 'data-code': 'console.log("hello")' } as Record<string, any>,
+    };
+    rewrite(node, 0, null);
+    expect(node.properties.role).toBe('button');
+    expect(node.properties.tabindex).toBe('0');
+    expect(node.properties['aria-label']).toBe('复制代码');
+  });
+
+  it('removes data-code from oversized code blocks', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+
+    const longCode = 'x'.repeat(200_000);
+    const node = {
+      type: 'element',
+      tagName: 'div',
+      properties: { className: 'copied', 'data-code': longCode } as Record<string, any>,
+    };
+    rewrite(node, 0, null);
+    expect(node.properties['data-code']).toBeUndefined();
+    expect(node.properties['aria-label']).toBe('代码过长，无法复制');
+  });
+
+  it('handles copied button with className array', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+
+    const node = {
+      type: 'element',
+      tagName: 'div',
+      properties: { className: ['copied', 'active'], 'data-code': 'test' } as Record<string, any>,
+    };
+    rewrite(node, 0, null);
+    expect(node.properties.role).toBe('button');
+    expect(node.properties['aria-label']).toBe('复制代码');
+  });
+
+  it('ignores non-copied div elements', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+
+    const node = {
+      type: 'element',
+      tagName: 'div',
+      properties: { className: 'other-class' } as Record<string, any>,
+    };
+    rewrite(node, 0, null);
+    expect(node.properties.role).toBeUndefined();
+  });
+
+  it('ignores non-div elements', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+
+    const node = {
+      type: 'element',
+      tagName: 'span',
+      properties: { className: 'copied' } as Record<string, any>,
+    };
+    rewrite(node, 0, null);
+    expect(node.properties.role).toBeUndefined();
+  });
+});
+
+describe('MarkdownViewer — displayName', () => {
+  it('has correct displayName for React DevTools', () => {
+    // MarkdownViewer 是 memo 包裹的，检查 displayName
+    expect(MarkdownViewer.displayName).toBe('MarkdownViewer');
+  });
+});

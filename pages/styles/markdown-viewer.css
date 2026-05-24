@@ -95,8 +95,11 @@
 .markdown-viewer .wmde-markdown pre,
 .article-content-preview .wmde-markdown pre {
   background: var(--color-inverse-canvas) !important;
+  border: 1px solid var(--color-hairline) !important;
   border-radius: 0 !important;
   padding: 16px !important;
+  font-family: 'IBM Plex Sans', monospace !important;
+  overflow-x: auto !important;
 }
 
 .markdown-viewer .wmde-markdown pre code,
@@ -303,4 +306,73 @@
 .article-content-preview .wmde-markdown h5:hover .anchor,
 .article-content-preview .wmde-markdown h6:hover .anchor {
   opacity: 1;
+}
+
+/* ========================================
+   语法高亮 Token 颜色 — Carbon 色板
+   防御性 CSS：即使当前使用 nohighlight 入口，
+   也确保 Prism token 类名对齐 Carbon Design System
+   ======================================== */
+
+.markdown-viewer .wmde-markdown .token.comment,
+.markdown-viewer .wmde-markdown .token.prolog,
+.markdown-viewer .wmde-markdown .token.doctype,
+.markdown-viewer .wmde-markdown .token.cdata,
+.article-content-preview .wmde-markdown .token.comment,
+.article-content-preview .wmde-markdown .token.prolog,
+.article-content-preview .wmde-markdown .token.doctype,
+.article-content-preview .wmde-markdown .token.cdata {
+  color: var(--color-ink-subtle, #8c8c8c) !important;
+}
+
+.markdown-viewer .wmde-markdown .token.keyword,
+.markdown-viewer .wmde-markdown .token.operator,
+.article-content-preview .wmde-markdown .token.keyword,
+.article-content-preview .wmde-markdown .token.operator {
+  color: var(--color-blue-60, #0043ce) !important;
+}
+
+.markdown-viewer .wmde-markdown .token.string,
+.markdown-viewer .wmde-markdown .token.attr-value,
+.article-content-preview .wmde-markdown .token.string,
+.article-content-preview .wmde-markdown .token.attr-value {
+  color: var(--color-blue-80, #002d9c) !important;
+}
+
+.markdown-viewer .wmde-markdown .token.function,
+.markdown-viewer .wmde-markdown .token.class-name,
+.article-content-preview .wmde-markdown .token.function,
+.article-content-preview .wmde-markdown .token.class-name {
+  color: var(--color-primary, #0f62fe) !important;
+}
+
+.markdown-viewer .wmde-markdown .token.number,
+.markdown-viewer .wmde-markdown .token.boolean,
+.article-content-preview .wmde-markdown .token.number,
+.article-content-preview .wmde-markdown .token.boolean {
+  color: var(--color-ink-muted, #525252) !important;
+}
+
+.markdown-viewer .wmde-markdown .token.punctuation,
+.article-content-preview .wmde-markdown .token.punctuation {
+  color: var(--color-inverse-ink-muted, #c6c6c6) !important;
+}
+
+.markdown-viewer .wmde-markdown .token.tag,
+.markdown-viewer .wmde-markdown .token.attr-name,
+.article-content-preview .wmde-markdown .token.tag,
+.article-content-preview .wmde-markdown .token.attr-name {
+  color: var(--color-blue-60, #0043ce) !important;
+}
+
+.markdown-viewer .wmde-markdown .token.builtin,
+.article-content-preview .wmde-markdown .token.builtin {
+  color: var(--color-blue-80, #002d9c) !important;
+}
+
+.markdown-viewer .wmde-markdown .token.variable,
+.markdown-viewer .wmde-markdown .token.constant,
+.article-content-preview .wmde-markdown .token.variable,
+.article-content-preview .wmde-markdown .token.constant {
+  color: var(--color-inverse-ink, #ffffff) !important;
 }

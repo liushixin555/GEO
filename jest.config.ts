@@ -26,6 +26,7 @@ const config: Config = {
             module: 'commonjs',
             esModuleInterop: true,
             lib: ['ES2020', 'DOM', 'DOM.Iterable'],
+            types: ['jest', '@testing-library/jest-dom'],
           },
         }],
       },

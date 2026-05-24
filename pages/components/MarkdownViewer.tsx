@@ -88,7 +88,7 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-class MarkdownErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class MarkdownErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
@@ -274,4 +274,7 @@ const MarkdownViewer = memo(MarkdownViewerBase);
 MarkdownViewer.displayName = 'MarkdownViewer';
 
 // React.memo 阻断无关状态变更传播到 Markdown 渲染管线（审核报告 A-04）
-export default React.memo(MarkdownViewer);
+const MemoizedMarkdownViewer = React.memo(MarkdownViewer);
+MemoizedMarkdownViewer.displayName = 'MarkdownViewer';
+
+export default MemoizedMarkdownViewer;
