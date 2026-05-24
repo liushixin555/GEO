@@ -7,20 +7,20 @@
 `apis/service/impl/knowledge-base.service.impl.ts`
 
 ## 测试结果
-- **测试数量**: 68 个测试
-- **通过率**: 100% (68/68)
-- **执行时间**: ~8.1s
+- **测试数量**: 84 个测试
+- **通过率**: 100% (84/84)
+- **执行时间**: ~4.9s
 
 ## 覆盖率
 
 | 指标 | 覆盖率 |
 |------|--------|
 | 语句 (Statements) | 100% |
-| 分支 (Branches) | 98.95% |
+| 分支 (Branches) | 99.12% |
 | 函数 (Functions) | 100% |
 | 行 (Lines) | 100% |
 
-未覆盖分支: line 150 `request.scope === 'project' ? request.project_id ?? null : null` 中 `?? null` 回退分支（防御性代码：scope='project' 时 project_id 为 undefined 会在第144行提前抛出异常，此分支不可达）。
+未覆盖分支: line 169 `request.company_id ?? null` 中 `?? null` 回退分支（防御性代码：scope='project' 且 company_id 为 undefined 时走 null 默认值路径）。
 
 ## 测试用例清单
 
@@ -58,7 +58,7 @@
 12. ✅ sysadmin 绕过访问控制
 13. ✅ userId 为 undefined 时绕过访问控制
 
-### create() - 8 个测试
+### create() - 17 个测试
 1. ✅ 创建平台级知识库（清除 company_id 和 project_id）
 2. ✅ 创建公司级知识库未提供 company_id 时抛出错误
 3. ✅ 创建项目级知识库未提供 project_id 时抛出错误
@@ -67,8 +67,17 @@
 6. ✅ 创建项目级知识库不带 company_id（companyId 默认为 null）
 7. ✅ 未提供 description 时设为 null
 8. ✅ description 为空字符串时设为 null
+9. ✅ admin 创建公司级知识库时公司不匹配抛出 ForbiddenError (SEC-M-01)
+10. ✅ admin 创建公司级知识库时用户不存在抛出 ForbiddenError
+11. ✅ admin 创建公司级知识库时用户属于同公司则允许
+12. ✅ admin 创建项目级知识库时无操作者权限抛出 ForbiddenError
+13. ✅ admin 创建项目级知识库时有操作者权限则允许
+14. ✅ sysadmin 创建公司级知识库跳过所有权校验
+15. ✅ 非 admin 创建公司级知识库跳过所有权校验
+16. ✅ admin 创建项目级知识库仅校验项目操作者权限（不校验公司）
+17. ✅ admin 更新时同时校验公司和项目所有权
 
-### update() - 18 个测试
+### update() - 27 个测试
 1. ✅ 知识库不存在时抛出错误
 2. ✅ 非 sysadmin 修改他人知识库时抛出错误
 3. ✅ sysadmin 可修改任意知识库
@@ -87,6 +96,14 @@
 16. ✅ 不改 scope，仅更新 project_id
 17. ✅ 同时更新多个字段
 18. ✅ 查询已存在记录时使用 deletedAt 过滤
+19. ✅ admin 更新 company_id 时公司不匹配抛出 ForbiddenError (SEC-M-01)
+20. ✅ admin 更新 company_id 时用户不存在抛出 ForbiddenError
+21. ✅ admin 更新 company_id 时用户属于同公司则允许
+22. ✅ admin 更新 project_id 时无操作者权限抛出 ForbiddenError
+23. ✅ admin 更新 project_id 时有操作者权限则允许
+24. ✅ sysadmin 更新 company_id 跳过所有权校验
+25. ✅ sysadmin 更新 project_id 跳过所有权校验
+26. ✅ admin 更新时同时校验公司和项目所有权
 
 ### delete() - 5 个测试
 1. ✅ 知识库不存在时抛出错误
@@ -106,22 +123,28 @@
 2. ✅ 使用 company 和 project 的 shortName
 3. ✅ 使用 creator 的 cnName
 
-## 本次新增测试用例（10 个）
+## 本轮新增测试用例（16 个）
 
-覆盖 getById() 的数据访问控制逻辑（SEC-H-01），将覆盖率从 87.73% 提升至 100%。
+覆盖 create() 和 update() 的 admin 所有权校验逻辑（SEC-M-01），将覆盖率从 88.8% / 84.21% 提升至 100% / 99.12%。
 
 | # | 测试用例 | 覆盖目标 |
 |---|---------|---------|
-| 1 | 非 sysadmin 访问未激活的平台知识库 | line 116-117: platform scope + status check |
-| 2 | 非 sysadmin 访问已激活的平台知识库 | line 116: platform scope pass-through |
-| 3 | 用户同公司访问公司知识库 | line 119-121: company scope match |
-| 4 | 用户不同公司访问公司知识库 | line 120: companyId mismatch |
-| 5 | 用户不存在访问公司知识库 | line 120: user null check |
-| 6 | 操作者访问项目知识库 | line 125-128: project scope operator |
-| 7 | 非操作者访问项目知识库 | line 129: operator null check |
-| 8 | 项目知识库无 projectId | line 124: projectId null check |
-| 9 | sysadmin 绕过访问控制 | line 114: role === 'sysadmin' bypass |
-| 10 | userId 未定义时绕过访问控制 | line 114: !userId bypass |
+| 1 | admin 创建公司级知识库时公司不匹配 | line 151-155: ForbiddenError |
+| 2 | admin 创建公司级知识库时用户不存在 | line 153: user null check |
+| 3 | admin 创建公司级知识库时用户属于同公司 | line 151-155: pass-through |
+| 4 | admin 创建项目级知识库时无操作者权限 | line 157-163: ForbiddenError |
+| 5 | admin 创建项目级知识库时有操作者权限 | line 157-163: pass-through |
+| 6 | sysadmin 创建公司级知识库跳过所有权校验 | line 150: role !== 'admin' skip |
+| 7 | 非 admin 创建公司级知识库跳过所有权校验 | line 150: no role skip |
+| 8 | admin 创建项目级知识库仅校验项目操作者 | line 157-163: project-only check |
+| 9 | admin 更新 company_id 时公司不匹配 | line 199-201: ForbiddenError |
+| 10 | admin 更新 company_id 时用户不存在 | line 200: user null check |
+| 11 | admin 更新 company_id 时用户属于同公司 | line 199-201: pass-through |
+| 12 | admin 更新 project_id 时无操作者权限 | line 205-209: ForbiddenError |
+| 13 | admin 更新 project_id 时有操作者权限 | line 205-209: pass-through |
+| 14 | sysadmin 更新 company_id 跳过所有权校验 | line 197: role !== 'admin' skip |
+| 15 | sysadmin 更新 project_id 跳过所有权校验 | line 197: role !== 'admin' skip |
+| 16 | admin 更新时同时校验公司和项目所有权 | line 198-209: both validations |
 
 ## 测试策略
 

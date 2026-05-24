@@ -802,6 +802,149 @@ describe('KnowledgeBaseServiceImpl', () => {
         }),
       );
     });
+
+    // ── Admin ownership validation (SEC-M-01) ──
+    it('should throw ForbiddenError when admin creates company scope with mismatched company', async () => {
+      const request = {
+        name: '公司知识库',
+        scope: 'company' as const,
+        company_id: 10,
+      };
+      const mockUserFindFirst = jest.fn().mockResolvedValue({ id: 1, companyId: 99, deletedAt: null });
+      mockedGetPrisma.mockReturnValue({
+        user: { findFirst: mockUserFindFirst },
+      } as any);
+
+      await expect(service.create(request, 1, 'admin')).rejects.toThrow('无权关联该公司');
+    });
+
+    it('should throw ForbiddenError when admin creates company scope but user not found', async () => {
+      const request = {
+        name: '公司知识库',
+        scope: 'company' as const,
+        company_id: 10,
+      };
+      const mockUserFindFirst = jest.fn().mockResolvedValue(null);
+      mockedGetPrisma.mockReturnValue({
+        user: { findFirst: mockUserFindFirst },
+      } as any);
+
+      await expect(service.create(request, 1, 'admin')).rejects.toThrow('无权关联该公司');
+    });
+
+    it('should allow admin to create company scope when user belongs to same company', async () => {
+      const request = {
+        name: '公司知识库',
+        scope: 'company' as const,
+        company_id: 10,
+      };
+      const mockUserFindFirst = jest.fn().mockResolvedValue({ id: 1, companyId: 10, deletedAt: null });
+      const created = makePrismaKnowledgeBase({ id: 1, scope: 'company', companyId: 10, company: { shortName: 'ACME' } });
+      const mockCreate = jest.fn().mockResolvedValue(created);
+      mockedGetPrisma.mockReturnValue({
+        user: { findFirst: mockUserFindFirst },
+        knowledgeBase: { create: mockCreate },
+      } as any);
+
+      const result = await service.create(request, 1, 'admin');
+
+      expect(result.id).toBe(1);
+      expect(mockCreate).toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenError when admin creates project scope without operator', async () => {
+      const request = {
+        name: '项目知识库',
+        scope: 'project' as const,
+        project_id: 20,
+      };
+      const mockOperatorFindFirst = jest.fn().mockResolvedValue(null);
+      mockedGetPrisma.mockReturnValue({
+        projectOperator: { findFirst: mockOperatorFindFirst },
+      } as any);
+
+      await expect(service.create(request, 1, 'admin')).rejects.toThrow('无权关联该项目');
+    });
+
+    it('should allow admin to create project scope when user is operator', async () => {
+      const request = {
+        name: '项目知识库',
+        scope: 'project' as const,
+        project_id: 20,
+      };
+      const mockOperatorFindFirst = jest.fn().mockResolvedValue({ userId: 1, projectId: 20 });
+      const created = makePrismaKnowledgeBase({ id: 1, scope: 'project', projectId: 20 });
+      const mockCreate = jest.fn().mockResolvedValue(created);
+      mockedGetPrisma.mockReturnValue({
+        projectOperator: { findFirst: mockOperatorFindFirst },
+        knowledgeBase: { create: mockCreate },
+      } as any);
+
+      const result = await service.create(request, 1, 'admin');
+
+      expect(result.id).toBe(1);
+      expect(mockCreate).toHaveBeenCalled();
+    });
+
+    it('should skip ownership validation for sysadmin creating company scope', async () => {
+      const request = {
+        name: '公司知识库',
+        scope: 'company' as const,
+        company_id: 10,
+      };
+      const created = makePrismaKnowledgeBase({ id: 1, scope: 'company', companyId: 10 });
+      const mockCreate = jest.fn().mockResolvedValue(created);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      } as any);
+
+      const result = await service.create(request, 1, 'sysadmin');
+
+      expect(result.id).toBe(1);
+      expect(mockCreate).toHaveBeenCalled();
+    });
+
+    it('should skip ownership validation for non-admin creating company scope', async () => {
+      const request = {
+        name: '公司知识库',
+        scope: 'company' as const,
+        company_id: 10,
+      };
+      const created = makePrismaKnowledgeBase({ id: 1, scope: 'company', companyId: 10 });
+      const mockCreate = jest.fn().mockResolvedValue(created);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      } as any);
+
+      const result = await service.create(request, 1);
+
+      expect(result.id).toBe(1);
+      expect(mockCreate).toHaveBeenCalled();
+    });
+
+    it('should only validate project ownership (not company) for admin creating project scope', async () => {
+      const request = {
+        name: '项目知识库',
+        scope: 'project' as const,
+        project_id: 20,
+        company_id: 10,
+      };
+      const mockOperatorFindFirst = jest.fn().mockResolvedValue({ userId: 1, projectId: 20 });
+      const created = makePrismaKnowledgeBase({ id: 1, scope: 'project', projectId: 20, companyId: 10 });
+      const mockCreate = jest.fn().mockResolvedValue(created);
+      mockedGetPrisma.mockReturnValue({
+        projectOperator: { findFirst: mockOperatorFindFirst },
+        knowledgeBase: { create: mockCreate },
+      } as any);
+
+      const result = await service.create(request, 1, 'admin');
+
+      expect(result.id).toBe(1);
+      // project scope only validates project operator, not company ownership
+      expect(mockOperatorFindFirst).toHaveBeenCalledWith({
+        where: { userId: 1, projectId: 20, deletedAt: null },
+      });
+    });
   });
 
   // ──────────────────────────────────────
@@ -1098,6 +1241,131 @@ describe('KnowledgeBaseServiceImpl', () => {
       await service.update(1, { name: '更新' }, 1, 'admin');
 
       expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 1, deletedAt: null } });
+    });
+
+    // ── Admin ownership validation (SEC-M-01) ──
+    it('should throw ForbiddenError when admin updates company_id to mismatched company', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1, scope: 'company' });
+      const mockKbFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUserFindFirst = jest.fn().mockResolvedValue({ id: 1, companyId: 99, deletedAt: null });
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockKbFindFirst },
+        user: { findFirst: mockUserFindFirst },
+      } as any);
+
+      await expect(service.update(1, { company_id: 10 }, 1, 'admin')).rejects.toThrow('无权关联该公司');
+    });
+
+    it('should throw ForbiddenError when admin updates company_id but user not found', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1, scope: 'company' });
+      const mockKbFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUserFindFirst = jest.fn().mockResolvedValue(null);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockKbFindFirst },
+        user: { findFirst: mockUserFindFirst },
+      } as any);
+
+      await expect(service.update(1, { company_id: 10 }, 1, 'admin')).rejects.toThrow('无权关联该公司');
+    });
+
+    it('should allow admin to update company_id when user belongs to same company', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1, scope: 'company', companyId: 10 });
+      const updated = makePrismaKnowledgeBase({ id: 1, companyId: 10 });
+      const mockKbFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUserFindFirst = jest.fn().mockResolvedValue({ id: 1, companyId: 10, deletedAt: null });
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockKbFindFirst, update: mockUpdate },
+        user: { findFirst: mockUserFindFirst },
+      } as any);
+
+      const result = await service.update(1, { company_id: 10 }, 1, 'admin');
+
+      expect(result.id).toBe(1);
+      expect(mockUpdate).toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenError when admin updates project_id without operator', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1, scope: 'project' });
+      const mockKbFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockOperatorFindFirst = jest.fn().mockResolvedValue(null);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockKbFindFirst },
+        projectOperator: { findFirst: mockOperatorFindFirst },
+      } as any);
+
+      await expect(service.update(1, { project_id: 20 }, 1, 'admin')).rejects.toThrow('无权关联该项目');
+    });
+
+    it('should allow admin to update project_id when user is operator', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1, scope: 'project', projectId: 10 });
+      const updated = makePrismaKnowledgeBase({ id: 1, projectId: 20 });
+      const mockKbFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockOperatorFindFirst = jest.fn().mockResolvedValue({ userId: 1, projectId: 20 });
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockKbFindFirst, update: mockUpdate },
+        projectOperator: { findFirst: mockOperatorFindFirst },
+      } as any);
+
+      const result = await service.update(1, { project_id: 20 }, 1, 'admin');
+
+      expect(result.id).toBe(1);
+      expect(mockOperatorFindFirst).toHaveBeenCalledWith({
+        where: { userId: 1, projectId: 20, deletedAt: null },
+      });
+    });
+
+    it('should skip ownership validation for sysadmin updating company_id', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1, scope: 'company' });
+      const updated = makePrismaKnowledgeBase({ id: 1, companyId: 99 });
+      const mockKbFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockKbFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.update(1, { company_id: 99 }, 1, 'sysadmin');
+
+      expect(result.id).toBe(1);
+      expect(mockUpdate).toHaveBeenCalled();
+    });
+
+    it('should skip ownership validation for sysadmin updating project_id', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1, scope: 'project' });
+      const updated = makePrismaKnowledgeBase({ id: 1, projectId: 99 });
+      const mockKbFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockKbFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.update(1, { project_id: 99 }, 1, 'sysadmin');
+
+      expect(result.id).toBe(1);
+      expect(mockUpdate).toHaveBeenCalled();
+    });
+
+    it('should validate both company and project ownership for admin update', async () => {
+      const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1, scope: 'project', companyId: 10, projectId: 20 });
+      const updated = makePrismaKnowledgeBase({ id: 1, companyId: 10, projectId: 30 });
+      const mockKbFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUserFindFirst = jest.fn().mockResolvedValue({ id: 1, companyId: 10, deletedAt: null });
+      const mockOperatorFindFirst = jest.fn().mockResolvedValue({ userId: 1, projectId: 30 });
+      const mockUpdate = jest.fn().mockResolvedValue(updated);
+      mockedGetPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockKbFindFirst, update: mockUpdate },
+        user: { findFirst: mockUserFindFirst },
+        projectOperator: { findFirst: mockOperatorFindFirst },
+      } as any);
+
+      const result = await service.update(1, { company_id: 10, project_id: 30 }, 1, 'admin');
+
+      expect(result.id).toBe(1);
+      expect(mockUserFindFirst).toHaveBeenCalledWith({ where: { id: 1, deletedAt: null } });
+      expect(mockOperatorFindFirst).toHaveBeenCalledWith({
+        where: { userId: 1, projectId: 30, deletedAt: null },
+      });
     });
   });
 

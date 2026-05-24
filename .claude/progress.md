@@ -149,3 +149,4 @@
 | 2026-05-25 | tasks/review/fullscreen.tsx.md | fullscreen.tsx 软件 UI 专家评审——⚠️CONDITIONAL APPROVE 3.4/10（CRITICAL×1按钮点击不触发+HIGH×3无aria-pressed/快捷键冲突/图标不规范+MEDIUM×3+LOW×2） |
 | 2026-05-25 | tasks/tdd/company.service.test.round3.md | company.service TDD 第3轮——85用例100%覆盖率（+17新增：update公司不存在null/操作顺序验证/validateUserIds查询参数/副作用验证/update路径viewer校验） |
 | 2026-05-25 | progress_tasks/2026-05-25-fullscreen-review-fix.md | fullscreen.tsx 评审修复——commandsFilter覆盖（P0按钮点击失效+P1快捷键冲突+P2中文ARIA+P2 antd图标），12测试全通过 |
+| 2026-05-25 | tasks/tdd/knowledge-base.service.test.md | knowledge-base.service TDD 第2轮补全——84用例100%覆盖率（+16新增：create/update admin所有权校验SEC-M-01全覆盖） |
