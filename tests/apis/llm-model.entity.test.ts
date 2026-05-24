@@ -1806,4 +1806,999 @@ describe('llm-model.entity', () => {
       expect(updateReq.model_name).toBe('updated-model');
     });
   });
+
+  // ============================================================
+  // JSON 序列化往返测试
+  // ============================================================
+  describe('JSON serialization round-trip', () => {
+    it('LlmModel should survive JSON round-trip with all fields', () => {
+      const original: LlmModel = {
+        id: 42,
+        provider: 'openai',
+        base_url: 'https://api.openai.com/v1',
+        api_key: 'sk-test-key',
+        model_name: 'gpt-4o',
+        status: true,
+        created_at: new Date('2024-06-15T08:30:00Z'),
+        updated_at: new Date('2024-06-20T10:00:00Z'),
+      };
+      const json = JSON.stringify(original);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (key === 'created_at' || key === 'updated_at') return new Date(value);
+        return value;
+      });
+      expect(parsed.id).toBe(42);
+      expect(parsed.provider).toBe('openai');
+      expect(parsed.base_url).toBe('https://api.openai.com/v1');
+      expect(parsed.api_key).toBe('sk-test-key');
+      expect(parsed.model_name).toBe('gpt-4o');
+      expect(parsed.status).toBe(true);
+      expect(parsed.created_at).toBeInstanceOf(Date);
+      expect(parsed.updated_at).toBeInstanceOf(Date);
+    });
+
+    it('LlmModel with disabled status should survive JSON round-trip', () => {
+      const original: LlmModel = {
+        id: 99,
+        provider: 'legacy',
+        base_url: 'https://old-api.com',
+        api_key: 'old-key',
+        model_name: 'old-model',
+        status: false,
+        created_at: new Date('2023-01-01T00:00:00Z'),
+        updated_at: new Date('2023-06-01T00:00:00Z'),
+      };
+      const json = JSON.stringify(original);
+      const parsed = JSON.parse(json);
+      expect(parsed.status).toBe(false);
+      expect(parsed.provider).toBe('legacy');
+    });
+
+    it('CreateLlmModelRequest should survive JSON round-trip exactly', () => {
+      const original: CreateLlmModelRequest = {
+        provider: 'anthropic',
+        base_url: 'https://api.anthropic.com',
+        api_key: 'sk-ant-test',
+        model_name: 'claude-3-opus',
+      };
+      const json = JSON.stringify(original);
+      const parsed = JSON.parse(json);
+      expect(parsed).toEqual(original);
+    });
+
+    it('UpdateLlmModelRequest with all fields should survive JSON round-trip', () => {
+      const original: UpdateLlmModelRequest = {
+        provider: 'google',
+        base_url: 'https://generativelanguage.googleapis.com',
+        api_key: 'AIzaTest',
+        model_name: 'gemini-pro',
+        status: false,
+      };
+      const json = JSON.stringify(original);
+      const parsed = JSON.parse(json);
+      expect(parsed).toEqual(original);
+    });
+
+    it('UpdateLlmModelRequest empty object should serialize to empty JSON', () => {
+      const original: UpdateLlmModelRequest = {};
+      const json = JSON.stringify(original);
+      expect(json).toBe('{}');
+      const parsed = JSON.parse(json);
+      expect(Object.keys(parsed)).toHaveLength(0);
+    });
+
+    it('UpdateLlmModelRequest partial update should survive JSON round-trip', () => {
+      const original: UpdateLlmModelRequest = { status: true };
+      const json = JSON.stringify(original);
+      const parsed = JSON.parse(json);
+      expect(parsed.status).toBe(true);
+      expect(Object.keys(parsed)).toHaveLength(1);
+    });
+
+    it('Date fields should serialize to ISO strings', () => {
+      const model: LlmModel = {
+        id: 1,
+        provider: 'test',
+        base_url: 'https://test.com',
+        api_key: 'key',
+        model_name: 'model',
+        status: true,
+        created_at: new Date('2024-01-15T12:30:45.123Z'),
+        updated_at: new Date('2024-06-20T08:00:00.000Z'),
+      };
+      const json = JSON.stringify(model);
+      const parsed = JSON.parse(json);
+      expect(parsed.created_at).toBe('2024-01-15T12:30:45.123Z');
+      expect(parsed.updated_at).toBe('2024-06-20T08:00:00.000Z');
+    });
+
+    it('LlmModel array should survive JSON round-trip', () => {
+      const models: LlmModel[] = [
+        { id: 1, provider: 'openai', base_url: 'u1', api_key: 'k1', model_name: 'gpt-4', status: true, created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01') },
+        { id: 2, provider: 'anthropic', base_url: 'u2', api_key: 'k2', model_name: 'claude-3', status: false, created_at: new Date('2024-02-01'), updated_at: new Date('2024-02-01') },
+      ];
+      const json = JSON.stringify(models);
+      const parsed = JSON.parse(json);
+      expect(parsed).toHaveLength(2);
+      expect(parsed[0].provider).toBe('openai');
+      expect(parsed[1].status).toBe(false);
+    });
+  });
+
+  // ============================================================
+  // Object.freeze 不可变性（拒绝修改验证）
+  // ============================================================
+  describe('Object.freeze immutability', () => {
+    it('frozen LlmModel should reject provider mutation', () => {
+      const model: LlmModel = {
+        id: 1,
+        provider: 'openai',
+        base_url: 'https://test.com',
+        api_key: 'key',
+        model_name: 'model',
+        status: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      Object.freeze(model);
+      expect(() => { (model as any).provider = 'anthropic'; }).toThrow();
+      expect(model.provider).toBe('openai');
+    });
+
+    it('frozen LlmModel should reject status mutation', () => {
+      const model: LlmModel = {
+        id: 1,
+        provider: 'test',
+        base_url: 'https://test.com',
+        api_key: 'key',
+        model_name: 'model',
+        status: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      Object.freeze(model);
+      expect(() => { (model as any).status = false; }).toThrow();
+      expect(model.status).toBe(true);
+    });
+
+    it('frozen LlmModel should reject id mutation', () => {
+      const model: LlmModel = {
+        id: 1,
+        provider: 'test',
+        base_url: 'https://test.com',
+        api_key: 'key',
+        model_name: 'model',
+        status: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      Object.freeze(model);
+      expect(() => { (model as any).id = 999; }).toThrow();
+      expect(model.id).toBe(1);
+    });
+
+    it('frozen CreateLlmModelRequest should reject mutation', () => {
+      const req: CreateLlmModelRequest = {
+        provider: 'openai',
+        base_url: 'https://test.com',
+        api_key: 'key',
+        model_name: 'gpt-4',
+      };
+      Object.freeze(req);
+      expect(() => { (req as any).provider = 'anthropic'; }).toThrow();
+      expect(req.provider).toBe('openai');
+    });
+
+    it('frozen UpdateLlmModelRequest should reject mutation', () => {
+      const req: UpdateLlmModelRequest = { status: true };
+      Object.freeze(req);
+      expect(() => { (req as any).status = false; }).toThrow();
+      expect(req.status).toBe(true);
+    });
+
+    it('frozen empty UpdateLlmModelRequest should reject adding new fields', () => {
+      const req: UpdateLlmModelRequest = {};
+      Object.freeze(req);
+      expect(() => { (req as any).provider = 'test'; }).toThrow();
+      expect(req.provider).toBeUndefined();
+    });
+  });
+
+  // ============================================================
+  // 可选字段类型收窄
+  // ============================================================
+  describe('type narrowing for optional fields', () => {
+    it('UpdateLlmModelRequest.provider narrows after undefined check', () => {
+      const req: UpdateLlmModelRequest = { provider: 'openai' };
+      if (req.provider !== undefined) {
+        const provider: string = req.provider;
+        expect(typeof provider).toBe('string');
+        expect(provider).toBe('openai');
+      }
+    });
+
+    it('UpdateLlmModelRequest.base_url narrows after undefined check', () => {
+      const req: UpdateLlmModelRequest = { base_url: 'https://test.com' };
+      if (req.base_url !== undefined) {
+        const url: string = req.base_url;
+        expect(url).toBe('https://test.com');
+      }
+    });
+
+    it('UpdateLlmModelRequest.api_key narrows after undefined check', () => {
+      const req: UpdateLlmModelRequest = { api_key: 'sk-test' };
+      if (req.api_key !== undefined) {
+        const key: string = req.api_key;
+        expect(key).toBe('sk-test');
+      }
+    });
+
+    it('UpdateLlmModelRequest.model_name narrows after undefined check', () => {
+      const req: UpdateLlmModelRequest = { model_name: 'gpt-4' };
+      if (req.model_name !== undefined) {
+        const name: string = req.model_name;
+        expect(name).toBe('gpt-4');
+      }
+    });
+
+    it('UpdateLlmModelRequest.status narrows after undefined check', () => {
+      const req: UpdateLlmModelRequest = { status: true };
+      if (req.status !== undefined) {
+        const status: boolean = req.status;
+        expect(status).toBe(true);
+      }
+    });
+
+    it('should handle optional field fallback with nullish coalescing', () => {
+      const req: UpdateLlmModelRequest = {};
+      const provider = req.provider ?? 'default-provider';
+      const model_name = req.model_name ?? 'default-model';
+      const status = req.status ?? true;
+      expect(provider).toBe('default-provider');
+      expect(model_name).toBe('default-model');
+      expect(status).toBe(true);
+    });
+
+    it('should not use fallback when value is provided', () => {
+      const req: UpdateLlmModelRequest = { provider: 'openai', status: false };
+      const provider = req.provider ?? 'default';
+      const status = req.status ?? true;
+      expect(provider).toBe('openai');
+      expect(status).toBe(false);
+    });
+  });
+
+  // ============================================================
+  // 结构相等与深拷贝
+  // ============================================================
+  describe('structural equality and deep copy', () => {
+    it('two LlmModel objects with same values should be structurally equal', () => {
+      const date = new Date('2024-01-01T00:00:00Z');
+      const model1: LlmModel = { id: 1, provider: 'openai', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4', status: true, created_at: date, updated_at: date };
+      const model2: LlmModel = { id: 1, provider: 'openai', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4', status: true, created_at: date, updated_at: date };
+      expect(model1).toEqual(model2);
+      expect(model1).not.toBe(model2);
+    });
+
+    it('spread copy of LlmModel should be structurally equal but different reference', () => {
+      const date = new Date('2024-06-01');
+      const original: LlmModel = { id: 1, provider: 'openai', base_url: 'u', api_key: 'k', model_name: 'gpt-4', status: true, created_at: date, updated_at: date };
+      const copy = { ...original };
+      expect(copy).toEqual(original);
+      expect(copy).not.toBe(original);
+      expect(copy.created_at).toBe(original.created_at); // shallow copy shares Date ref
+    });
+
+    it('spread copy should create shallow copy of Date references', () => {
+      const date = new Date('2024-01-01');
+      const original: LlmModel = { id: 1, provider: 'test', base_url: 'u', api_key: 'k', model_name: 'm', status: true, created_at: date, updated_at: date };
+      const copy = { ...original };
+      expect(copy.created_at).toBe(original.created_at); // same Date reference
+    });
+
+    it('JSON parse/stringify should create deep copy of LlmModel', () => {
+      const original: LlmModel = {
+        id: 1,
+        provider: 'openai',
+        base_url: 'https://api.openai.com/v1',
+        api_key: 'sk-test',
+        model_name: 'gpt-4',
+        status: true,
+        created_at: new Date('2024-01-01'),
+        updated_at: new Date('2024-06-01'),
+      };
+      const deepCopy = JSON.parse(JSON.stringify(original));
+      expect(deepCopy.id).toBe(original.id);
+      expect(deepCopy.provider).toBe(original.provider);
+      expect(deepCopy.status).toBe(original.status);
+      expect(typeof deepCopy.created_at).toBe('string'); // Date becomes string
+    });
+
+    it('two CreateLlmModelRequest objects with same values should be structurally equal', () => {
+      const req1: CreateLlmModelRequest = { provider: 'openai', base_url: 'u', api_key: 'k', model_name: 'gpt-4' };
+      const req2: CreateLlmModelRequest = { provider: 'openai', base_url: 'u', api_key: 'k', model_name: 'gpt-4' };
+      expect(req1).toEqual(req2);
+      expect(req1).not.toBe(req2);
+    });
+
+    it('spread copy of UpdateLlmModelRequest should be independent', () => {
+      const original: UpdateLlmModelRequest = { provider: 'openai', status: true };
+      const copy = { ...original };
+      copy.provider = 'anthropic';
+      copy.status = false;
+      expect(original.provider).toBe('openai');
+      expect(original.status).toBe(true);
+    });
+
+    it('JSON round-trip should create independent copy of CreateLlmModelRequest', () => {
+      const original: CreateLlmModelRequest = { provider: 'openai', base_url: 'u', api_key: 'k', model_name: 'gpt-4' };
+      const copy = JSON.parse(JSON.stringify(original));
+      copy.provider = 'anthropic';
+      expect(original.provider).toBe('openai');
+      expect(copy.provider).toBe('anthropic');
+    });
+  });
+
+  // ============================================================
+  // 解构模式（rest 运算符、默认值）
+  // ============================================================
+  describe('destructuring patterns', () => {
+    it('should destructure LlmModel fields', () => {
+      const model: LlmModel = {
+        id: 1,
+        provider: 'openai',
+        base_url: 'https://api.openai.com/v1',
+        api_key: 'sk-test',
+        model_name: 'gpt-4',
+        status: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      const { id, provider, base_url, api_key, model_name, status, created_at, updated_at } = model;
+      expect(id).toBe(1);
+      expect(provider).toBe('openai');
+      expect(base_url).toBe('https://api.openai.com/v1');
+      expect(api_key).toBe('sk-test');
+      expect(model_name).toBe('gpt-4');
+      expect(status).toBe(true);
+      expect(created_at).toBeInstanceOf(Date);
+      expect(updated_at).toBeInstanceOf(Date);
+    });
+
+    it('should use rest operator for partial update', () => {
+      const model: LlmModel = {
+        id: 1,
+        provider: 'openai',
+        base_url: 'https://api.openai.com/v1',
+        api_key: 'sk-test',
+        model_name: 'gpt-4',
+        status: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      const { id, created_at, updated_at, ...rest } = model;
+      expect(id).toBe(1);
+      expect(rest).toEqual({
+        provider: 'openai',
+        base_url: 'https://api.openai.com/v1',
+        api_key: 'sk-test',
+        model_name: 'gpt-4',
+        status: true,
+      });
+    });
+
+    it('should destructure CreateLlmModelRequest fields', () => {
+      const req: CreateLlmModelRequest = {
+        provider: 'anthropic',
+        base_url: 'https://api.anthropic.com',
+        api_key: 'sk-ant-test',
+        model_name: 'claude-3',
+      };
+      const { provider, base_url, api_key, model_name } = req;
+      expect(provider).toBe('anthropic');
+      expect(base_url).toBe('https://api.anthropic.com');
+      expect(api_key).toBe('sk-ant-test');
+      expect(model_name).toBe('claude-3');
+    });
+
+    it('should destructure UpdateLlmModelRequest with default values', () => {
+      const req: UpdateLlmModelRequest = {};
+      const { provider = 'default', status = true } = req;
+      expect(provider).toBe('default');
+      expect(status).toBe(true);
+    });
+
+    it('should destructure UpdateLlmModelRequest preserving actual values', () => {
+      const req: UpdateLlmModelRequest = { provider: 'openai', status: false };
+      const { provider = 'default', status = true } = req;
+      expect(provider).toBe('openai');
+      expect(status).toBe(false);
+    });
+
+    it('should use rest operator on UpdateLlmModelRequest', () => {
+      const req: UpdateLlmModelRequest = { provider: 'openai', status: true, model_name: 'gpt-4' };
+      const { provider, ...rest } = req;
+      expect(provider).toBe('openai');
+      expect(rest).toEqual({ status: true, model_name: 'gpt-4' });
+    });
+
+    it('should destructure LlmModel with computed property access', () => {
+      const model: LlmModel = {
+        id: 1,
+        provider: 'openai',
+        base_url: 'https://test.com',
+        api_key: 'key',
+        model_name: 'gpt-4',
+        status: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      const keys = ['provider', 'model_name'] as const;
+      const values = keys.map(k => model[k]);
+      expect(values).toEqual(['openai', 'gpt-4']);
+    });
+  });
+
+  // ============================================================
+  // Object.assign 合并操作
+  // ============================================================
+  describe('Object.assign merge operations', () => {
+    it('should merge CreateLlmModelRequest into LlmModel base', () => {
+      const createReq: CreateLlmModelRequest = {
+        provider: 'openai',
+        base_url: 'https://api.openai.com/v1',
+        api_key: 'sk-test',
+        model_name: 'gpt-4',
+      };
+      const model = Object.assign(
+        { id: 1, status: true, created_at: new Date(), updated_at: new Date() },
+        createReq,
+      ) as LlmModel;
+      expect(model.provider).toBe('openai');
+      expect(model.model_name).toBe('gpt-4');
+      expect(model.id).toBe(1);
+    });
+
+    it('should apply UpdateLlmModelRequest via Object.assign', () => {
+      const model: LlmModel = {
+        id: 1,
+        provider: 'openai',
+        base_url: 'https://api.openai.com/v1',
+        api_key: 'old-key',
+        model_name: 'gpt-3.5',
+        status: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      const update: UpdateLlmModelRequest = { api_key: 'new-key', status: false };
+      Object.assign(model, update);
+      expect(model.api_key).toBe('new-key');
+      expect(model.status).toBe(false);
+      expect(model.provider).toBe('openai'); // unchanged
+    });
+
+    it('should apply empty UpdateLlmModelRequest without effect', () => {
+      const model: LlmModel = {
+        id: 1,
+        provider: 'openai',
+        base_url: 'https://test.com',
+        api_key: 'key',
+        model_name: 'gpt-4',
+        status: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      const originalProvider = model.provider;
+      Object.assign(model, {});
+      expect(model.provider).toBe(originalProvider);
+    });
+
+    it('should count update fields using Object.assign', () => {
+      const update: UpdateLlmModelRequest = { provider: 'new', status: true };
+      const target = {};
+      Object.assign(target, update);
+      expect(Object.keys(target)).toHaveLength(2);
+    });
+  });
+
+  // ============================================================
+  // 集合高级操作
+  // ============================================================
+  describe('collection advanced operations', () => {
+    const createModels = (): LlmModel[] => [
+      { id: 1, provider: 'openai', base_url: 'u1', api_key: 'k1', model_name: 'gpt-4', status: true, created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01') },
+      { id: 2, provider: 'anthropic', base_url: 'u2', api_key: 'k2', model_name: 'claude-3', status: true, created_at: new Date('2024-02-01'), updated_at: new Date('2024-02-01') },
+      { id: 3, provider: 'google', base_url: 'u3', api_key: 'k3', model_name: 'gemini', status: false, created_at: new Date('2024-03-01'), updated_at: new Date('2024-03-01') },
+      { id: 4, provider: 'openai', base_url: 'u4', api_key: 'k4', model_name: 'gpt-3.5', status: false, created_at: new Date('2024-04-01'), updated_at: new Date('2024-04-01') },
+      { id: 5, provider: 'deepseek', base_url: 'u5', api_key: 'k5', model_name: 'deepseek-chat', status: true, created_at: new Date('2024-05-01'), updated_at: new Date('2024-05-01') },
+    ];
+
+    it('should reduce models to provider count map', () => {
+      const models = createModels();
+      const countByProvider = models.reduce<Record<string, number>>((acc, m) => {
+        acc[m.provider] = (acc[m.provider] || 0) + 1;
+        return acc;
+      }, {});
+      expect(countByProvider['openai']).toBe(2);
+      expect(countByProvider['anthropic']).toBe(1);
+      expect(countByProvider['google']).toBe(1);
+      expect(countByProvider['deepseek']).toBe(1);
+    });
+
+    it('should check every model has non-empty provider', () => {
+      const models = createModels();
+      const allHaveProvider = models.every(m => m.provider.length > 0);
+      expect(allHaveProvider).toBe(true);
+    });
+
+    it('should check some models are disabled', () => {
+      const models = createModels();
+      const someDisabled = models.some(m => !m.status);
+      expect(someDisabled).toBe(true);
+    });
+
+    it('should group models by status', () => {
+      const models = createModels();
+      const grouped = models.reduce<Record<string, LlmModel[]>>((acc, m) => {
+        const key = String(m.status);
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(m);
+        return acc;
+      }, {});
+      expect(grouped['true']).toHaveLength(3);
+      expect(grouped['false']).toHaveLength(2);
+    });
+
+    it('should reduce to total api_key length', () => {
+      const models = createModels();
+      const totalKeyLength = models.reduce((sum, m) => sum + m.api_key.length, 0);
+      expect(totalKeyLength).toBe(10); // k1+k2+k3+k4+k5 = 2*5
+    });
+
+    it('should check every model has valid id > 0', () => {
+      const models = createModels();
+      expect(models.every(m => m.id > 0)).toBe(true);
+    });
+
+    it('should check some models are openai provider', () => {
+      const models = createModels();
+      expect(models.some(m => m.provider === 'openai')).toBe(true);
+    });
+
+    it('should filter and map in chain', () => {
+      const models = createModels();
+      const enabledNames = models.filter(m => m.status).map(m => m.model_name);
+      expect(enabledNames).toEqual(['gpt-4', 'claude-3', 'deepseek-chat']);
+    });
+
+    it('should find index of model by provider', () => {
+      const models = createModels();
+      const idx = models.findIndex(m => m.provider === 'google');
+      expect(idx).toBe(2);
+    });
+
+    it('should return -1 from findIndex for non-existent provider', () => {
+      const models = createModels();
+      const idx = models.findIndex(m => m.provider === 'nonexistent');
+      expect(idx).toBe(-1);
+    });
+
+    it('should flatMap model names with provider prefix', () => {
+      const models = createModels();
+      const displayNames = models.flatMap(m => [`${m.provider}/${m.model_name}`]);
+      expect(displayNames).toHaveLength(5);
+      expect(displayNames[0]).toBe('openai/gpt-4');
+    });
+
+    it('should use reduce to build id-to-model map', () => {
+      const models = createModels();
+      const idMap = models.reduce<Map<number, LlmModel>>((map, m) => {
+        map.set(m.id, m);
+        return map;
+      }, new Map());
+      expect(idMap.get(1)!.provider).toBe('openai');
+      expect(idMap.get(3)!.model_name).toBe('gemini');
+      expect(idMap.has(99)).toBe(false);
+    });
+  });
+
+  // ============================================================
+  // 连续更新链
+  // ============================================================
+  describe('consecutive update chains', () => {
+    it('should apply 3 consecutive updates preserving integrity', () => {
+      let model: LlmModel = {
+        id: 1,
+        provider: 'openai',
+        base_url: 'https://api.openai.com/v1',
+        api_key: 'sk-initial',
+        model_name: 'gpt-3.5-turbo',
+        status: true,
+        created_at: new Date('2024-01-01'),
+        updated_at: new Date('2024-01-01'),
+      };
+
+      // Update 1: change model
+      model = { ...model, ...{ model_name: 'gpt-4' } as UpdateLlmModelRequest, updated_at: new Date('2024-03-01') };
+      expect(model.model_name).toBe('gpt-4');
+      expect(model.api_key).toBe('sk-initial');
+
+      // Update 2: change key + disable
+      model = { ...model, ...{ api_key: 'sk-updated', status: false } as UpdateLlmModelRequest, updated_at: new Date('2024-06-01') };
+      expect(model.api_key).toBe('sk-updated');
+      expect(model.status).toBe(false);
+      expect(model.model_name).toBe('gpt-4');
+
+      // Update 3: switch provider entirely
+      model = { ...model, ...{ provider: 'anthropic', base_url: 'https://api.anthropic.com', model_name: 'claude-3', status: true } as UpdateLlmModelRequest, updated_at: new Date('2024-09-01') };
+      expect(model.provider).toBe('anthropic');
+      expect(model.status).toBe(true);
+      expect(model.api_key).toBe('sk-updated'); // retained from update 2
+      expect(model.id).toBe(1); // always retained
+    });
+
+    it('should handle status toggle sequence', () => {
+      let model: LlmModel = {
+        id: 1,
+        provider: 'test',
+        base_url: 'u',
+        api_key: 'k',
+        model_name: 'm',
+        status: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(model.status).toBe(true);
+
+      model = { ...model, status: false, updated_at: new Date() };
+      expect(model.status).toBe(false);
+
+      model = { ...model, status: true, updated_at: new Date() };
+      expect(model.status).toBe(true);
+
+      model = { ...model, status: false, updated_at: new Date() };
+      expect(model.status).toBe(false);
+    });
+
+    it('should handle empty updates interspersed with real updates', () => {
+      let model: LlmModel = {
+        id: 1,
+        provider: 'openai',
+        base_url: 'u',
+        api_key: 'k',
+        model_name: 'gpt-3.5',
+        status: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+
+      // Empty update
+      model = { ...model, ...{} as UpdateLlmModelRequest, updated_at: new Date() };
+      expect(model.model_name).toBe('gpt-3.5');
+
+      // Real update
+      model = { ...model, ...{ model_name: 'gpt-4' } as UpdateLlmModelRequest, updated_at: new Date() };
+      expect(model.model_name).toBe('gpt-4');
+
+      // Empty update
+      model = { ...model, ...{} as UpdateLlmModelRequest, updated_at: new Date() };
+      expect(model.model_name).toBe('gpt-4');
+    });
+
+    it('should handle 5 consecutive partial updates', () => {
+      let model: LlmModel = {
+        id: 1,
+        provider: 'p1',
+        base_url: 'u1',
+        api_key: 'k1',
+        model_name: 'm1',
+        status: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+
+      const updates: UpdateLlmModelRequest[] = [
+        { provider: 'p2' },
+        { base_url: 'u2' },
+        { api_key: 'k2' },
+        { model_name: 'm2' },
+        { status: false },
+      ];
+
+      updates.forEach((update) => {
+        model = { ...model, ...update, updated_at: new Date() };
+      });
+
+      expect(model.provider).toBe('p2');
+      expect(model.base_url).toBe('u2');
+      expect(model.api_key).toBe('k2');
+      expect(model.model_name).toBe('m2');
+      expect(model.status).toBe(false);
+      expect(model.id).toBe(1);
+    });
+  });
+
+  // ============================================================
+  // 日期操作（时区、算术）
+  // ============================================================
+  describe('Date operations', () => {
+    it('should support created_at with millisecond precision', () => {
+      const date = new Date('2024-06-15T12:30:45.123Z');
+      const model: LlmModel = {
+        id: 1, provider: 'test', base_url: 'u', api_key: 'k', model_name: 'm', status: true,
+        created_at: date,
+        updated_at: date,
+      };
+      expect(model.created_at.getMilliseconds()).toBe(123);
+    });
+
+    it('should support date arithmetic between created_at and updated_at', () => {
+      const created = new Date('2024-01-01T00:00:00Z');
+      const updated = new Date('2024-06-01T00:00:00Z');
+      const model: LlmModel = {
+        id: 1, provider: 'test', base_url: 'u', api_key: 'k', model_name: 'm', status: true,
+        created_at: created,
+        updated_at: updated,
+      };
+      const diffMs = model.updated_at.getTime() - model.created_at.getTime();
+      const diffDays = diffMs / (1000 * 60 * 60 * 24);
+      expect(diffDays).toBeGreaterThan(150);
+      expect(diffDays).toBeLessThan(153);
+    });
+
+    it('should support updating updated_at to current time', () => {
+      const before = new Date();
+      const model: LlmModel = {
+        id: 1, provider: 'test', base_url: 'u', api_key: 'k', model_name: 'm', status: true,
+        created_at: new Date('2024-01-01'),
+        updated_at: before,
+      };
+      model.updated_at = new Date();
+      expect(model.updated_at.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    });
+
+    it('should support dates from different years', () => {
+      const models: LlmModel[] = [
+        { id: 1, provider: 'a', base_url: 'u', api_key: 'k', model_name: 'm', status: true, created_at: new Date('2020-01-01'), updated_at: new Date('2020-01-01') },
+        { id: 2, provider: 'b', base_url: 'u', api_key: 'k', model_name: 'm', status: true, created_at: new Date('2025-06-15'), updated_at: new Date('2025-06-15') },
+      ];
+      expect(models[0].created_at.getFullYear()).toBe(2020);
+      expect(models[1].created_at.getFullYear()).toBe(2025);
+    });
+
+    it('should support sorting models by created_at', () => {
+      const models: LlmModel[] = [
+        { id: 3, provider: 'c', base_url: 'u', api_key: 'k', model_name: 'm', status: true, created_at: new Date('2024-06-01'), updated_at: new Date() },
+        { id: 1, provider: 'a', base_url: 'u', api_key: 'k', model_name: 'm', status: true, created_at: new Date('2024-01-01'), updated_at: new Date() },
+        { id: 2, provider: 'b', base_url: 'u', api_key: 'k', model_name: 'm', status: true, created_at: new Date('2024-03-01'), updated_at: new Date() },
+      ];
+      const sorted = [...models].sort((a, b) => a.created_at.getTime() - b.created_at.getTime());
+      expect(sorted[0].id).toBe(1);
+      expect(sorted[1].id).toBe(2);
+      expect(sorted[2].id).toBe(3);
+    });
+
+    it('should detect stale models via date comparison', () => {
+      const staleThreshold = new Date('2024-01-01');
+      const models: LlmModel[] = [
+        { id: 1, provider: 'old', base_url: 'u', api_key: 'k', model_name: 'm', status: true, created_at: new Date('2023-06-01'), updated_at: new Date('2023-06-01') },
+        { id: 2, provider: 'new', base_url: 'u', api_key: 'k', model_name: 'm', status: true, created_at: new Date('2024-06-01'), updated_at: new Date('2024-06-01') },
+      ];
+      const stale = models.filter(m => m.updated_at < staleThreshold);
+      expect(stale).toHaveLength(1);
+      expect(stale[0].provider).toBe('old');
+    });
+
+    it('should support Date.now() for updated_at assignment', () => {
+      const before = Date.now();
+      const model: LlmModel = {
+        id: 1, provider: 'test', base_url: 'u', api_key: 'k', model_name: 'm', status: true,
+        created_at: new Date('2024-01-01'),
+        updated_at: new Date(before),
+      };
+      const after = Date.now();
+      expect(model.updated_at.getTime()).toBeGreaterThanOrEqual(before);
+      expect(model.updated_at.getTime()).toBeLessThanOrEqual(after);
+    });
+  });
+
+  // ============================================================
+  // Set/Map 操作
+  // ============================================================
+  describe('Set/Map operations', () => {
+    it('should collect unique providers into Set', () => {
+      const models: LlmModel[] = [
+        { id: 1, provider: 'openai', base_url: 'u', api_key: 'k', model_name: 'm', status: true, created_at: new Date(), updated_at: new Date() },
+        { id: 2, provider: 'openai', base_url: 'u', api_key: 'k', model_name: 'm', status: true, created_at: new Date(), updated_at: new Date() },
+        { id: 3, provider: 'anthropic', base_url: 'u', api_key: 'k', model_name: 'm', status: true, created_at: new Date(), updated_at: new Date() },
+        { id: 4, provider: 'google', base_url: 'u', api_key: 'k', model_name: 'm', status: true, created_at: new Date(), updated_at: new Date() },
+      ];
+      const providers = new Set(models.map(m => m.provider));
+      expect(providers.size).toBe(3);
+      expect(providers.has('openai')).toBe(true);
+      expect(providers.has('anthropic')).toBe(true);
+      expect(providers.has('google')).toBe(true);
+    });
+
+    it('should store models in Map keyed by id', () => {
+      const models: LlmModel[] = [
+        { id: 1, provider: 'openai', base_url: 'u', api_key: 'k', model_name: 'gpt-4', status: true, created_at: new Date(), updated_at: new Date() },
+        { id: 2, provider: 'anthropic', base_url: 'u', api_key: 'k', model_name: 'claude-3', status: true, created_at: new Date(), updated_at: new Date() },
+      ];
+      const modelMap = new Map(models.map(m => [m.id, m]));
+      expect(modelMap.get(1)!.model_name).toBe('gpt-4');
+      expect(modelMap.get(2)!.provider).toBe('anthropic');
+      expect(modelMap.has(3)).toBe(false);
+    });
+
+    it('should use Map for update request deduplication', () => {
+      const updates: UpdateLlmModelRequest[] = [
+        { provider: 'openai' },
+        { model_name: 'gpt-4' },
+        { provider: 'anthropic' }, // duplicate key concept
+      ];
+      const providerUpdates = updates.filter(u => u.provider !== undefined);
+      expect(providerUpdates).toHaveLength(2);
+    });
+
+    it('should build Map from CreateLlmModelRequest array', () => {
+      const requests: CreateLlmModelRequest[] = [
+        { provider: 'openai', base_url: 'u1', api_key: 'k1', model_name: 'gpt-4' },
+        { provider: 'anthropic', base_url: 'u2', api_key: 'k2', model_name: 'claude-3' },
+      ];
+      const reqMap = new Map(requests.map((r, i) => [i, r]));
+      expect(reqMap.get(0)!.provider).toBe('openai');
+      expect(reqMap.get(1)!.provider).toBe('anthropic');
+    });
+
+    it('should collect unique model names into Set', () => {
+      const models: LlmModel[] = [
+        { id: 1, provider: 'openai', base_url: 'u', api_key: 'k', model_name: 'gpt-4', status: true, created_at: new Date(), updated_at: new Date() },
+        { id: 2, provider: 'openai', base_url: 'u', api_key: 'k', model_name: 'gpt-4', status: true, created_at: new Date(), updated_at: new Date() },
+        { id: 3, provider: 'openai', base_url: 'u', api_key: 'k', model_name: 'gpt-3.5', status: true, created_at: new Date(), updated_at: new Date() },
+      ];
+      const names = new Set(models.map(m => m.model_name));
+      expect(names.size).toBe(2);
+      expect(names.has('gpt-4')).toBe(true);
+      expect(names.has('gpt-3.5')).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // hasOwnProperty 与属性描述符
+  // ============================================================
+  describe('property ownership and descriptors', () => {
+    it('should verify hasOwnProperty for all LlmModel fields', () => {
+      const model: LlmModel = {
+        id: 1, provider: 'test', base_url: 'u', api_key: 'k', model_name: 'm', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Object.prototype.hasOwnProperty.call(model, 'id')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(model, 'provider')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(model, 'base_url')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(model, 'api_key')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(model, 'model_name')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(model, 'status')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(model, 'created_at')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(model, 'updated_at')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(model, 'nonexistent')).toBe(false);
+    });
+
+    it('should verify hasOwnProperty for UpdateLlmModelRequest partial fields', () => {
+      const req: UpdateLlmModelRequest = { provider: 'test' };
+      expect(Object.prototype.hasOwnProperty.call(req, 'provider')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(req, 'status')).toBe(false);
+      expect(Object.prototype.hasOwnProperty.call(req, 'api_key')).toBe(false);
+    });
+
+    it('should verify all fields are enumerable', () => {
+      const model: LlmModel = {
+        id: 1, provider: 'test', base_url: 'u', api_key: 'k', model_name: 'm', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      Object.keys(model).forEach(key => {
+        const desc = Object.getOwnPropertyDescriptor(model, key);
+        expect(desc!.enumerable).toBe(true);
+        expect(desc!.writable).toBe(true);
+        expect(desc!.configurable).toBe(true);
+      });
+    });
+
+    it('should verify CreateLlmModelRequest fields are writable and configurable', () => {
+      const req: CreateLlmModelRequest = {
+        provider: 'test', base_url: 'u', api_key: 'k', model_name: 'm',
+      };
+      const desc = Object.getOwnPropertyDescriptor(req, 'provider');
+      expect(desc!.writable).toBe(true);
+      expect(desc!.configurable).toBe(true);
+    });
+
+    it('should allow property reassignment on unfrozen model', () => {
+      const model: LlmModel = {
+        id: 1, provider: 'openai', base_url: 'u', api_key: 'k', model_name: 'gpt-3', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      model.provider = 'anthropic';
+      model.model_name = 'claude-3';
+      expect(model.provider).toBe('anthropic');
+      expect(model.model_name).toBe('claude-3');
+    });
+  });
+
+  // ============================================================
+  // 函数参数传递与返回值
+  // ============================================================
+  describe('function parameter passing and return values', () => {
+    const mockCreate = (req: CreateLlmModelRequest, id: number): LlmModel => ({
+      id,
+      ...req,
+      status: true,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+
+    const mockUpdate = (model: LlmModel, req: UpdateLlmModelRequest): LlmModel => ({
+      ...model,
+      ...req,
+      updated_at: new Date(),
+    });
+
+    it('should pass CreateLlmModelRequest to function and receive LlmModel', () => {
+      const createReq: CreateLlmModelRequest = {
+        provider: 'openai',
+        base_url: 'https://api.openai.com/v1',
+        api_key: 'sk-test',
+        model_name: 'gpt-4',
+      };
+      const result = mockCreate(createReq, 1);
+      expect(result.id).toBe(1);
+      expect(result.provider).toBe('openai');
+      expect(result.status).toBe(true);
+      expect(result.created_at).toBeInstanceOf(Date);
+    });
+
+    it('should pass LlmModel and UpdateLlmModelRequest to update function', () => {
+      const original: LlmModel = {
+        id: 1, provider: 'openai', base_url: 'u', api_key: 'old-key', model_name: 'gpt-3',
+        status: true, created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const updateReq: UpdateLlmModelRequest = { api_key: 'new-key', model_name: 'gpt-4' };
+      const result = mockUpdate(original, updateReq);
+      expect(result.api_key).toBe('new-key');
+      expect(result.model_name).toBe('gpt-4');
+      expect(result.id).toBe(1);
+      expect(result.provider).toBe('openai');
+    });
+
+    it('should pass empty update without side effects', () => {
+      const original: LlmModel = {
+        id: 1, provider: 'openai', base_url: 'u', api_key: 'k', model_name: 'gpt-4',
+        status: true, created_at: new Date(), updated_at: new Date(),
+      };
+      const result = mockUpdate(original, {});
+      expect(result.provider).toBe(original.provider);
+      expect(result.model_name).toBe(original.model_name);
+      expect(result.status).toBe(original.status);
+    });
+
+    it('should support creating model from request via spread in function', () => {
+      const createModel = (req: CreateLlmModelRequest): LlmModel => ({
+        id: Math.floor(Math.random() * 1000),
+        ...req,
+        status: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+      const req: CreateLlmModelRequest = {
+        provider: 'anthropic',
+        base_url: 'https://api.anthropic.com',
+        api_key: 'sk-ant-test',
+        model_name: 'claude-3',
+      };
+      const model = createModel(req);
+      expect(model.provider).toBe('anthropic');
+      expect(model.status).toBe(true);
+      expect(typeof model.id).toBe('number');
+    });
+  });
 });
