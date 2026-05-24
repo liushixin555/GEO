@@ -139,3 +139,4 @@
 | 2026-05-24 | tasks/tdd/article.service.test.md | article.service TDD 第2轮补全——105用例100%覆盖率（+56新增：JsonNull边界/状态枚举全遍历/接口合规性/多级标题提取/版本号Math.floor） |
 | 2026-05-24 | tasks/review/code.tsx.md | code.tsx 软件架构专家评审——7.4分APPROVE（4项MEDIUM同级耦合/职责过重/接口矛盾/两阶段文档+3项LOW序列化/可配置性/契约） |
 | 2026-05-24 | progress_tasks/2026-05-24-company-entity-review-fix.md | company.entity.ts 评审修复验证——8项全部已修复确认+移除未使用eslint-disable+362测试全通过 |
+| 2026-05-24 | tasks/review/code.tsx.security.md | code.tsx 代码安全专家评审——7.8分APPROVE（MEDIUM×3 非空断言+过期状态+LOW×3 输入校验/Unicode/快捷键） |
