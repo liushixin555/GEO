@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Input, Button, Alert, Typography, Spin, Upload, App, Breadcrumb, Descriptions } from 'antd';
 import { ArrowLeftOutlined, InboxOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FilePptOutlined, FileMarkdownOutlined, FileTextOutlined, FileOutlined, DownloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
+import { getSafeUser } from '../utils/auth';
 
 const FILE_TYPE_ICONS: Record<string, React.ReactNode> = {
   pdf: <FilePdfOutlined style={{ fontSize: 32, color: '#da1e28' }} />,
@@ -44,7 +45,7 @@ const DocumentDetail: React.FC = () => {
   const [searchParams] = useSearchParams();
   const isEditMode = isNew || searchParams.get('mode') === 'edit';
   const { message } = App.useApp();
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = getSafeUser();
 
   const [data, setData] = useState<DocumentData | null>(null);
   const [baseName, setBaseName] = useState('');

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Row, Col, Card, Input, Select, Switch, Tag, Spin, Pagination, Breadcrumb, Button, Descriptions } from 'antd';
 import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import axios from 'axios';
+import { getSafeUser } from '../utils/auth';
 import UserForm from './UserForm';
 
 interface UserItem {
@@ -25,7 +26,7 @@ const roleColors: Record<string, string> = {
 };
 
 const UserPage: React.FC = () => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = getSafeUser();
 
   const [data, setData] = useState<UserItem[]>([]);
   const [total, setTotal] = useState(0);

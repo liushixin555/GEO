@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Input, Button, Alert, Typography, Spin, Upload, Image, App, Breadcrumb } from 'antd';
 import { ArrowLeftOutlined, InboxOutlined } from '@ant-design/icons';
 import axios from 'axios';
+import { getSafeUser } from '../utils/auth';
 
 const ImageDetail: React.FC = () => {
   const { baseId: baseIdStr, id } = useParams<{ baseId: string; id: string }>();
@@ -12,7 +13,7 @@ const ImageDetail: React.FC = () => {
   const [searchParams] = useSearchParams();
   const isEditMode = isNew || searchParams.get('mode') === 'edit';
   const { message } = App.useApp();
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = getSafeUser();
 
   const [data, setData] = useState<{ title: string; description: string | null; image_url: string; created_by: number | null } | null>(null);
   const [baseName, setBaseName] = useState('');

@@ -16,6 +16,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import axios from 'axios';
 import { formatDate } from '../utils/date';
+import { getSafeUser } from '../utils/auth';
 import TodoForm from './TodoForm';
 import TodoLogModal from './TodoLogModal';
 
@@ -71,7 +72,7 @@ const SOURCE_CONFIG: Record<string, string> = {
 };
 
 const TodoPage: React.FC = () => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = getSafeUser();
   const { message } = App.useApp();
 
   const [data, setData] = useState<TodoItem[]>([]);

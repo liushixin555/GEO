@@ -75,7 +75,7 @@ const ArticleContentEditor: React.FC<ArticleContentEditorProps> = ({
         value={content}
         onChange={(val) => onContentChange(val || '')}
         height={600}
-        preview="live"
+        preview="edit"
       />
     ) : (
       <div className="article-content-preview" style={{ minHeight: 300 }}>

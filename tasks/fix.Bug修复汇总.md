@@ -435,3 +435,49 @@ components: {
 - `pages/components/AuthGuard.tsx` — 加载页品牌信息
 - `pages/router/routes.tsx` — PlaceholderPage Result 组件 + Typography.Title
 - `pages/styles/global.css` — 移动端按钮尺寸 + sidebar-brand 字重 + skip-to-content 样式
+
+---
+
+## fix017. ArticleDetail.tsx 安全评审漏洞修复
+
+### 问题
+根据 `tasks/review/ArticleDetail.tsx.security.md` 安全评审报告（D+ 级），前端文章模块存在 2 项 CRITICAL、4 项 HIGH、4 项 MEDIUM 级安全漏洞。
+
+### 修复
+
+**SEC-ART-01（CRITICAL）MDEditor live preview XSS**：
+- `ArticleContentEditor.tsx`：`preview="live"` 改为 `preview="edit"`，消除实时预览中未消毒 HTML 的 XSS 攻击面
+- 用户切换到"浏览"模式时通过已消毒的 `MarkdownViewer` 组件查看
+
+**SEC-ART-02（CRITICAL）Token 大面积暴露**：
+- `pages/article/index.tsx`：从 raw `axios` + `localStorage.getItem('token')` 迁移到统一 `apiClient`（拦截器自动注入 token）
+- 减少 token 在组件中的直接读取
+
+**SEC-ART-03（HIGH）用户对象解析无校验**：
+- 新建 `pages/utils/auth.ts`：`getSafeUser()` 函数，校验 `id`（必须为 number）和 `role`（白名单 `sysadmin/admin/view`，非法值降级为 `view`）
+- 修复 12 个文件：article/index.tsx、useArticlePermissions.ts、knowledge 模块（6 个文件）、user/index.tsx、todo/index.tsx、skills/index.tsx、publish/index.tsx
+
+**SEC-ART-08（MEDIUM）服务端错误信息直接展示**：
+- 新建 `pages/utils/error.ts`：`getApiErrorMessage()` 函数，4xx 错误保留服务端消息（如"参数错误"），5xx 错误脱敏返回通用消息
+- article 模块所有 hooks（useArticleDetail、useArticleActions、useDocumentImport）和 ArticleImageManager 组件替换为脱敏处理
+
+**已在前次重构中修复的问题（无需额外改动）**：
+- SEC-ART-04（文件大小限制）：useDocumentImport 已有 10MB 限制
+- SEC-ART-05（mammoth HTML 清洗）：已使用 DOMPurify 消毒
+- SEC-ART-06（URL 协议校验）：ArticleImageManager 已有 http/https 白名单
+- SEC-ART-07（竞态条件）：useArticleDetail 已有 savingRef 防并发
+- SEC-ART-09（上传文件类型校验）：ArticleImageManager 已有 image/ 类型检查
+
+### 涉及文件
+- `pages/article/components/ArticleContentEditor.tsx` — MDEditor preview 模式
+- `pages/article/index.tsx` — 迁移到 apiClient + getSafeUser
+- `pages/article/hooks/useArticlePermissions.ts` — getSafeUser 替换 JSON.parse
+- `pages/article/hooks/useArticleDetail.ts` — getApiErrorMessage 脱敏
+- `pages/article/hooks/useArticleActions.ts` — getApiErrorMessage 脱敏
+- `pages/article/hooks/useDocumentImport.ts` — getApiErrorMessage 脱敏
+- `pages/article/components/ArticleImageManager.tsx` — getApiErrorMessage 脱敏
+- `pages/utils/auth.ts`（新建）— getSafeUser 安全函数
+- `pages/utils/error.ts`（新建）— getApiErrorMessage 脱敏函数
+- 12 个页面文件 — getSafeUser 替换 JSON.parse
+- `tests/pages/utils/auth.test.ts`（新建）— 7 个测试
+- `tests/pages/utils/error.test.ts`（新建）— 6 个测试

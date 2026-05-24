@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { App } from 'antd';
 import apiClient from '../../lib/apiClient';
+import { getApiErrorMessage } from '../../utils/error';
 import type { ArticleData } from '../types';
 
 export function useArticleActions(
@@ -18,7 +19,7 @@ export function useArticleActions(
       message.success(approved ? '审核通过，自动发布中' : '审核不通过，已退回草稿');
       refetch();
     } catch (err: any) {
-      message.error(err.response?.data?.message || '审核操作失败');
+      message.error(getApiErrorMessage(err, '审核操作失败'));
     }
   }, [article, projectId, id, refetch, message]);
 
@@ -29,7 +30,7 @@ export function useArticleActions(
       message.success('已重新提交AI生成');
       refetch();
     } catch (err: any) {
-      message.error(err.response?.data?.message || '重新生成失败');
+      message.error(getApiErrorMessage(err, '重新生成失败'));
     }
   }, [article, projectId, id, refetch, message]);
 
@@ -40,7 +41,7 @@ export function useArticleActions(
       message.success('已提交审核');
       refetch();
     } catch (err: any) {
-      message.error(err.response?.data?.message || '提交审核失败');
+      message.error(getApiErrorMessage(err, '提交审核失败'));
     }
   }, [article, projectId, id, refetch, message]);
 

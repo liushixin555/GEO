@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Input, Button, Alert, Typography, Spin, App, Breadcrumb, Table, Pagination, Checkbox } from 'antd';
 import { ArrowLeftOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import axios from 'axios';
+import { getSafeUser } from '../utils/auth';
 
 const EXPAND_PAGE_SIZE = 10;
 
@@ -19,7 +20,7 @@ const KeywordDetail: React.FC = () => {
   const isNew = id === 'add';
   const [searchParams] = useSearchParams();
   const isEditMode = isNew || searchParams.get('mode') === 'edit';
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = getSafeUser();
 
   const [data, setData] = useState<{ keyword: string; created_by: number | null; expanded_words?: { id: number; word: string; selected: boolean }[] } | null>(null);
   const [loading, setLoading] = useState(!isNew);

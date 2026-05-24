@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Select, Button, Alert } from 'antd';
 import axios from 'axios';
+import { getSafeUser } from '../utils/auth';
 
 interface KnowledgeBaseItem {
   id: number;
@@ -38,7 +39,7 @@ interface KnowledgeBaseFormProps {
 
 const KnowledgeBaseForm: React.FC<KnowledgeBaseFormProps> = ({ item, onClose, onSaved }) => {
   const isEdit = !!item;
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = getSafeUser();
   const [form] = Form.useForm();
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);

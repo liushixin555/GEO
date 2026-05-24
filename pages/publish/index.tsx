@@ -3,6 +3,7 @@ import { Row, Col, Input, Select, Tag, Typography, Spin, Pagination, Button, Mod
 import dayjs from 'dayjs';
 import axios from 'axios';
 import { formatDateTime } from '../utils/date';
+import { getSafeUser } from '../utils/auth';
 
 const { Title } = Typography;
 
@@ -170,7 +171,7 @@ const PublishingSchedulePage: React.FC = () => {
     }
   };
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = getSafeUser();
 
   return (
     <div className="page-container">

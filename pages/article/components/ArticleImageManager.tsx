@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Upload, Image, Segmented, Input, Spin, App } from 'antd';
 import { InboxOutlined, LinkOutlined, DeleteOutlined, CheckOutlined } from '@ant-design/icons';
 import apiClient from '../../lib/apiClient';
+import { getApiErrorMessage } from '../../utils/error';
 import type { KbImage } from '../types';
 
 interface ArticleImageManagerProps {
@@ -38,7 +39,7 @@ const ArticleImageManager: React.FC<ArticleImageManagerProps> = ({
       });
       imageListChange([...imageList, res.data.data.url]);
     } catch (err: any) {
-      message.error(err.response?.data?.message || '上传失败');
+      message.error(getApiErrorMessage(err, '上传失败'));
     } finally {
       setUploading(false);
     }

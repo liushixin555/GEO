@@ -1,22 +1,10 @@
 import { useMemo } from 'react';
+import { getSafeUser } from '../../utils/auth';
 import type { ArticleData } from '../types';
 import { EDITABLE_STATUSES } from '../types';
 
-interface User {
-  id?: number;
-  role?: string;
-}
-
-function getCurrentUser(): User {
-  try {
-    return JSON.parse(localStorage.getItem('user') || '{}');
-  } catch {
-    return {};
-  }
-}
-
 export function useArticlePermissions(article: ArticleData | null) {
-  const user = useMemo(() => getCurrentUser(), []);
+  const user = useMemo(() => getSafeUser(), []);
 
   return useMemo(() => {
     const isOwnerOrAdmin = (article?.created_by != null && article.created_by === user.id) || user.role === 'sysadmin';

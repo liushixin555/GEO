@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Row, Col, Card, Input, Select, Tag, Typography, Spin, Pagination, Empty, Popconfirm, App, Breadcrumb, Button, Table, Flex } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
+import { getSafeUser } from '../utils/auth';
 import { useAppContext } from '../context/AppContext';
 import { formatDate } from '../utils/date';
 
@@ -30,7 +31,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 
 const ArticlePage: React.FC = () => {
   const { projectId } = useAppContext();
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = getSafeUser();
   const navigate = useNavigate();
   const { message } = App.useApp();
 
@@ -46,15 +47,11 @@ const ArticlePage: React.FC = () => {
     if (!projectId) return;
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const params: any = { page, pageSize };
       if (search) params.search = search;
       if (filterStatus) params.status = filterStatus;
 
-      const res = await axios.get(`/api/v1/projects/${projectId}/articles`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params,
-      });
+      const res = await apiClient.get(`/projects/${projectId}/articles`, { params });
       setData(res.data.data.list);
       setTotal(res.data.data.total);
     } catch {
@@ -70,14 +67,12 @@ const ArticlePage: React.FC = () => {
 
   const handleDelete = async (item: ArticleItem) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/api/v1/projects/${projectId}/articles/${item.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiClient.delete(`/projects/${projectId}/articles/${item.id}`);
       message.success('删除成功');
       fetchData();
     } catch (err: any) {
-      message.error(err.response?.data?.message || '删除失败');
+      console.error('[Article] 删除失败:', err.response?.status, err.response?.data);
+      message.error('删除失败');
     }
   };
 

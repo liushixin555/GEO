@@ -4,6 +4,7 @@ import { DeleteOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
 import axios from 'axios';
+import { getSafeUser } from '../utils/auth';
 import { formatDate, formatDateTime } from '../utils/date';
 
 interface SkillsItem {
@@ -16,7 +17,7 @@ interface SkillsItem {
 }
 
 const SkillPage: React.FC = () => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = getSafeUser();
   const { message } = App.useApp();
 
   const [data, setData] = useState<SkillsItem[]>([]);

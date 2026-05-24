@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { App, Form } from 'antd';
 import mammoth from 'mammoth';
 import DOMPurify from 'dompurify';
+import { getApiErrorMessage } from '../../utils/error';
 
 type FormInstance = ReturnType<typeof Form.useForm<import('../types').ArticleFormValues>>[0];
 
@@ -62,7 +63,8 @@ export function useDocumentImport(
       onContentImport(markdown);
       message.success(`已导入文档「${file.name}」`);
     } catch (err: any) {
-      message.error('文档解析失败：' + (err.message || '未知错误'));
+      console.error('[DocumentImport] 解析失败:', err);
+      message.error(getApiErrorMessage(err, '文档解析失败'));
     }
     return false;
   }, [form, onContentImport, message]);

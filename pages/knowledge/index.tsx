@@ -5,6 +5,7 @@ import { EditOutlined, PlusOutlined, TagsOutlined, SolutionOutlined, PictureOutl
 import type { ColumnsType } from 'antd/es/table';
 import axios from 'axios';
 import KnowledgeBaseForm from './KnowledgeBaseForm';
+import { getSafeUser } from '../utils/auth';
 import { formatDate, formatDateTime } from '../utils/date';
 
 /* ==================== Knowledge Base ==================== */
@@ -78,7 +79,7 @@ const categoryLabels: Record<string, string> = {
 /* ==================== Page Component ==================== */
 
 const KnowledgePage: React.FC = () => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = getSafeUser();
   const navigate = useNavigate();
   const { message } = App.useApp();
 

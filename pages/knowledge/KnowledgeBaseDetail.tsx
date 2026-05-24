@@ -4,6 +4,7 @@ import { Tabs, Row, Col, Card, Input, Typography, Spin, Pagination, Popconfirm, 
 import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ArrowLeftOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FilePptOutlined, FileMarkdownOutlined, FileTextOutlined, FileOutlined, DownloadOutlined, SearchOutlined, ThunderboltOutlined, FormOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import axios from 'axios';
+import { getSafeUser } from '../utils/auth';
 import { formatDate } from '../utils/date';
 
 const scopeLabels: Record<string, { text: string; color: string }> = {
@@ -78,7 +79,7 @@ function formatFileSize(bytes: number): string {
 const KnowledgeBaseDetail: React.FC = () => {
   const { baseId: baseIdStr } = useParams<{ baseId: string }>();
   const baseId = parseInt(baseIdStr || '0', 10);
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = getSafeUser();
   const navigate = useNavigate();
   const { message } = App.useApp();
   const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('kb_active_tab') || 'documents');

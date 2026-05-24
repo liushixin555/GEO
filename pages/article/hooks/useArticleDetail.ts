@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { App, Form } from 'antd';
 import apiClient from '../../lib/apiClient';
+import { getApiErrorMessage } from '../../utils/error';
 import type { ArticleData, ArticleFormValues, WriteMode } from '../types';
 
 type FormInstance = ReturnType<typeof Form.useForm<ArticleFormValues>>[0];
@@ -48,7 +49,7 @@ export function useArticleDetail(
       setContent(data.content || '');
       return data;
     } catch (err: any) {
-      message.error(err.response?.data?.message || '加载文章失败');
+      message.error(getApiErrorMessage(err, '加载文章失败'));
     } finally {
       setLoading(false);
     }
@@ -93,7 +94,7 @@ export function useArticleDetail(
         return { action: 'updated' as const };
       }
     } catch (err: any) {
-      const msg = err.response?.data?.message || '保存失败';
+      const msg = getApiErrorMessage(err, '保存失败');
       setError(msg);
       throw err;
     } finally {
@@ -111,7 +112,7 @@ export function useArticleDetail(
       message.success('正文已保存');
       fetchArticle();
     } catch (err: any) {
-      message.error(err.response?.data?.message || '保存正文失败');
+      message.error(getApiErrorMessage(err, '保存正文失败'));
     } finally {
       setContentSaving(false);
       savingRef.current = false;
@@ -160,7 +161,7 @@ export function useArticleDetail(
       message.success('文章已删除');
       return true;
     } catch (err: any) {
-      message.error(err.response?.data?.message || '删除失败');
+      message.error(getApiErrorMessage(err, '删除失败'));
       return false;
     } finally {
       setDeleting(false);
