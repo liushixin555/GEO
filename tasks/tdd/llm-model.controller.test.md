@@ -1,13 +1,14 @@
 # TDD 执行报告：LLM Model Controller
 
 ## 执行时间
-2026-05-24（第二轮补全）
+- 2026-05-24（第二轮补全）
+- 2026-05-24（第三轮补全）
 
 ## 测试结果
 - 测试套件：1 passed
-- 测试用例：190 passed, 0 failed
-- 覆盖率：Stmts 98.44%, Branch 95.91%, Funcs 100%, Lines 100%
-- 相关测试总计：386 passed（含 service、entity 测试）
+- 测试用例：221 passed, 0 failed
+- 覆盖率：Stmts 99.22%, Branch 97.95%, Funcs 100%, Lines 100%
+- 相关测试总计：417 passed（含 service、entity 测试）
 
 ## 修复的Bug
 1. llm-model.controller.ts: 修复 IPv6 主机名检测的 SSRF 防护（BLOCKED_HOSTNAMES 正则现在匹配带方括号的 IPv6 地址如 [::1]）
@@ -16,13 +17,13 @@
 
 ## 覆盖率对比
 
-| 维度 | 第一轮 | 第二轮补全 | 提升 |
-|------|--------|------------|------|
-| Stmts | 91.47% | 98.44% | +6.97% |
-| Branch | 81.63% | 95.91% | +14.28% |
-| Funcs | 100% | 100% | - |
-| Lines | 97.89% | 100% | +2.11% |
-| 用例数 | 157 | 190 | +33 |
+| 维度 | 第一轮 | 第二轮补全 | 第三轮补全 | 提升(累计) |
+|------|--------|------------|------------|------------|
+| Stmts | 91.47% | 98.44% | 99.22% | +7.75% |
+| Branch | 81.63% | 95.91% | 97.95% | +16.32% |
+| Funcs | 100% | 100% | 100% | - |
+| Lines | 97.89% | 100% | 100% | +2.11% |
+| 用例数 | 157 | 190 | 221 | +64 |
 
 ## 第二轮新增测试分类（+33 用例）
 
@@ -141,3 +142,53 @@
 - 集成测试通过 supertest 调用完整 Express 应用，经过 auth + Zod 中间件
 - 直接控制器单元测试通过 `require` 导入控制器函数，创建 mock req/res 对象，绕过中间件直接测试控制器内部防御性代码
 - 此策略解决了 Zod 中间件拦截请求导致控制器内部验证分支无法覆盖的问题
+
+## 第三轮新增测试分类（+31 用例）
+
+### parseId 分支覆盖（第 11 行）
+- `getLlmModel` params 无 id（undefined）→ 返回 400（覆盖 `if (!raw) return null`）
+- `getLlmModel` params id 为空字符串 → 返回 400
+- `updateLlmModel` params 无 id → 返回 400
+- `updateLlmModel` params id 为空字符串 → 返回 400
+- `deleteLlmModel` params 无 id → 返回 400
+- `deleteLlmModel` params id 为空字符串 → 返回 400
+- `getLlmModel` params id 带前后空格（如 " 1 "）→ 正确解析为有效 ID
+
+### listLlmModels / listEnabledLlmModels 直接单元测试
+- listLlmModels 成功返回数据
+- listLlmModels 数据库错误返回 500
+- listEnabledLlmModels 成功返回数据
+- listEnabledLlmModels 数据库错误返回 500
+
+### deleteLlmModel 直接单元测试
+- 成功删除返回 200 + null data
+- 模型不存在返回 404
+- 通用数据库错误返回 500
+
+### getLlmModel 直接单元测试
+- 模型不存在返回 404
+- 通用数据库错误返回 500
+
+### createLlmModel 直接单元测试（补充边界）
+- 创建成功返回 201
+- base_url 为 null → 400
+- model_name 纯空格 → 400
+- base_url SSRF 检查失败 → 400
+- base_url 纯空格 → 400
+- base_url 无效协议（ftp://）→ 400
+- 数据库错误返回 500
+
+### updateLlmModel 直接单元测试（补充边界）
+- base_url 更新成功
+- base_url SSRF 检查失败 → 400
+- base_url 纯空格 → 400
+- base_url 无效协议 → 400
+- 模型不存在返回 404
+- 通用数据库错误返回 500
+- 单独更新 api_key 成功
+- 单独更新 model_name 成功
+
+## 未覆盖分支说明
+- 第 57 行 `validateOptionalString` 中 `if (value === undefined) return null;` 是防御性编程的死代码。
+  控制器在调用 `validateOptionalString` 前总是检查 `if (field !== undefined)`，因此该分支在设计上不可达。
+  这是有意的防御性编程，保留该分支作为安全保障。
