@@ -15,6 +15,10 @@ jest.mock('../../apis/utils/db.util', () => ({
   closePrisma: jest.fn(),
 }));
 
+jest.mock('../../apis/middleware/anti-crawl.middleware', () => ({
+  antiCrawlMiddleware: (_req: any, _res: any, next: any) => next(),
+}));
+
 import app from '../../apis/app';
 
 const agent = request.agent(app).set('User-Agent', 'test-agent/1.0');
@@ -3250,6 +3254,496 @@ describe('Article Controller', () => {
             id: 1, projectId: 1, title: 'A', status: 'manual_writing', createdBy: 1,
             deletedAt: new Date(),
             createdAt: new Date(), updatedAt: new Date(),
+          }),
+        },
+      });
+
+      const response = await agent
+        .delete(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(200);
+    });
+  });
+
+  // ============= Zod schema validation edge cases =============
+
+  describe('POST /api/projects/:projectId/articles - Zod validation edge cases', () => {
+    it('should return 400 when title exceeds 500 characters', async () => {
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'x'.repeat(501) });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
+    });
+
+    it('should return 400 when article_type exceeds 50 characters', async () => {
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ article_type: 'x'.repeat(51) });
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when keywords exceeds 500 characters', async () => {
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ keywords: 'x'.repeat(501) });
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when portrait exceeds 2000 characters', async () => {
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ portrait: 'x'.repeat(2001) });
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when images array exceeds 20 items', async () => {
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ images: Array(21).fill('img.jpg') });
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when platforms array exceeds 10 items', async () => {
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ platforms: Array(11).fill('wechat') });
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when content exceeds 500000 characters on create', async () => {
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'x'.repeat(500_001) });
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when llm_model_id is negative', async () => {
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ llm_model_id: -1 });
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when llm_model_id is decimal', async () => {
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ llm_model_id: 1.5 });
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 with extra field scheduled_publish_at (Zod strict)', async () => {
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Test', scheduled_publish_at: '2026-07-01T10:00:00Z' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
+    });
+
+    it('should return 400 when image URL exceeds 2000 characters', async () => {
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ images: ['x'.repeat(2001)] });
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when platform name exceeds 100 characters', async () => {
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ platforms: ['x'.repeat(101)] });
+      expect(response.status).toBe(400);
+    });
+  });
+
+  describe('PUT /api/projects/:projectId/articles/:id - Zod validation edge cases', () => {
+    const existingDraft = {
+      id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+      images: null, platforms: null, status: 'draft', createdBy: 1,
+      createdAt: new Date(), updatedAt: new Date(),
+    };
+
+    it('should return 400 when title exceeds 500 characters on update', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(existingDraft) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'x'.repeat(501) });
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when scheduled_publish_at is invalid format', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(existingDraft) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ scheduled_publish_at: 'not-a-date' });
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when content exceeds 500000 characters on update', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(existingDraft) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'x'.repeat(500_001) });
+      expect(response.status).toBe(400);
+    });
+
+    it('should strip schedule_type from update (not in allowed fields)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existingDraft, title: 'Updated' });
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(existingDraft),
+          update: mockUpdate,
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Updated', schedule_type: 'asap' });
+
+      expect(response.status).toBe(200);
+      const updateData = mockUpdate.mock.calls[0][0].data;
+      expect(updateData.scheduleType).toBeUndefined();
+      expect(updateData.schedule_type).toBeUndefined();
+    });
+  });
+
+  describe('GET /api/projects/:projectId/articles - Zod validation edge cases', () => {
+    it('should return 400 for invalid status filter value', async () => {
+      const response = await agent
+        .get(`${BASE}?status=invalid_status`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
+    });
+  });
+
+  // ============= Sysadmin self-review bypass =============
+
+  describe('PUT /api/projects/:projectId/articles/:id/review - sysadmin self-review', () => {
+    it('should allow sysadmin to review own article (bypasses SoD check)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const pendingArticle = {
+        id: 1, projectId: 1, title: 'Self Review', keywords: null, portrait: null,
+        images: null, platforms: null, status: 'pending_review', createdBy: 1,
+        createdAt: new Date(), updatedAt: new Date(),
+      };
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(pendingArticle),
+          update: jest.fn().mockResolvedValue({ ...pendingArticle, status: 'publishing' }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`) // userId=1 = createdBy=1
+        .send({ approved: true });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe('publishing');
+    });
+
+    it('should allow sysadmin to reject own article', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const pendingArticle = {
+        id: 1, projectId: 1, title: 'Self Reject', keywords: null, portrait: null,
+        images: null, platforms: null, status: 'pending_review', createdBy: 1,
+        createdAt: new Date(), updatedAt: new Date(),
+      };
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(pendingArticle),
+          update: jest.fn().mockResolvedValue({ ...pendingArticle, status: 'draft' }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ approved: false });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe('draft');
+    });
+  });
+
+  // ============= handleServerError error mapping =============
+
+  describe('handleServerError - specific error message mapping', () => {
+    it('should return 404 when update service throws 文章不存在', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = {
+        id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+        images: null, platforms: null, status: 'draft', createdBy: 1,
+        createdAt: new Date(), updatedAt: new Date(),
+      };
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(existing),
+          update: jest.fn().mockRejectedValue(new Error('文章不存在')),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Updated' });
+      expect(response.status).toBe(404);
+      expect(response.body.message).toBe('文章不存在');
+    });
+
+    it('should return 404 when delete service throws 文章不存在', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = {
+        id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+        images: null, platforms: null, status: 'draft', createdBy: 1,
+        createdAt: new Date(), updatedAt: new Date(),
+      };
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(existing),
+          update: jest.fn().mockRejectedValue(new Error('文章不存在')),
+        },
+      });
+
+      const response = await agent
+        .delete(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(404);
+      expect(response.body.message).toBe('文章不存在');
+    });
+
+    it('should return 404 when content update service throws 文章不存在', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = {
+        id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+        images: null, platforms: null, status: 'draft', createdBy: 1,
+        content: 'old', version: 1,
+        createdAt: new Date(), updatedAt: new Date(),
+      };
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(existing),
+          update: jest.fn().mockRejectedValue(new Error('文章不存在')),
+        },
+        articleVersion: { create: jest.fn().mockResolvedValue({}) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'new' });
+      expect(response.status).toBe(404);
+      expect(response.body.message).toBe('文章不存在');
+    });
+
+    it('should return 404 when review service throws 文章不存在', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const pending = {
+        id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+        images: null, platforms: null, status: 'pending_review', createdBy: 2,
+        createdAt: new Date(), updatedAt: new Date(),
+      };
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(pending),
+          update: jest.fn().mockRejectedValue(new Error('文章不存在')),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ approved: true });
+      expect(response.status).toBe(404);
+      expect(response.body.message).toBe('文章不存在');
+    });
+
+    it('should return 400 when regenerate service throws 文章当前状态不支持重新生成', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+            images: null, platforms: null, status: 'published', createdBy: 1,
+            content: 'c', version: 1,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+          update: jest.fn().mockRejectedValue(new Error('文章当前状态不支持重新生成')),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/regenerate`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('文章当前状态不支持重新生成');
+    });
+
+    it('should return 400 when submit-review service throws 文章当前状态不支持审核操作', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+            images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+            content: 'c', version: 1,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+          update: jest.fn().mockRejectedValue(new Error('文章当前状态不支持审核操作')),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('文章当前状态不支持审核操作');
+    });
+
+    it('should return 404 when versions service throws 文章不存在', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = {
+        id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+        images: null, platforms: null, status: 'draft', createdBy: 1,
+        content: 'c', version: 1,
+        createdAt: new Date(), updatedAt: new Date(),
+      };
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(existing),
+        },
+        articleVersion: {
+          findMany: jest.fn().mockRejectedValue(new Error('文章不存在')),
+        },
+      });
+
+      const response = await agent
+        .get(`${BASE}/1/versions`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(404);
+      expect(response.body.message).toBe('文章不存在');
+    });
+  });
+
+  // ============= Content edge cases =============
+
+  describe('PUT /api/projects/:projectId/articles/:id/content - null/undefined content', () => {
+    it('should return 400 when content is null', async () => {
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: null });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('content参数无效');
+    });
+
+    it('should return 400 when content is boolean', async () => {
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: true });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('content参数无效');
+    });
+
+    it('should return 400 when content is array', async () => {
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: ['text'] });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('content参数无效');
+    });
+  });
+
+  // ============= Admin non-operator for all endpoints =============
+
+  describe('PUT /api/projects/:projectId/articles/:id/content - admin non-operator 500', () => {
+    it('should return 500 when projectService throws for admin on content update', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = {
+        id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+        images: null, platforms: null, status: 'draft', createdBy: 2,
+        content: 'old', version: 1,
+        createdAt: new Date(), updatedAt: new Date(),
+      };
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue(existing) },
+        project: { findFirst: jest.fn().mockRejectedValue(new Error('Project DB error')) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`)
+        .send({ content: 'new' });
+      expect(response.status).toBe(500);
+    });
+  });
+
+  // ============= Additional status coverage for delete =============
+
+  describe('DELETE /api/projects/:projectId/articles/:id - additional status coverage', () => {
+    it('should delete generate_failed article as sysadmin', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+            images: null, platforms: null, status: 'generate_failed', createdBy: 1,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+          update: jest.fn().mockResolvedValue({
+            id: 1, status: 'generate_failed', deletedAt: new Date(),
+          }),
+        },
+      });
+
+      const response = await agent
+        .delete(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(200);
+    });
+
+    it('should delete draft article created by sysadmin', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+            images: null, platforms: null, status: 'draft', createdBy: 1,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+          update: jest.fn().mockResolvedValue({
+            id: 1, status: 'draft', deletedAt: new Date(),
           }),
         },
       });
