@@ -18,6 +18,8 @@ const DEFAULTS = {
   RATE_LIMIT_MAX: 500,
   CRON_ARTICLE_INTERVAL: '*/5 * * * *',
   CORS_ORIGIN: 'http://localhost:5173',
+  UPLOAD_IMAGE_MAX_SIZE: 10,
+  UPLOAD_DOCUMENT_MAX_SIZE: 30,
 } as const;
 
 export interface DatabaseConfig {
@@ -44,6 +46,11 @@ export interface CronConfig {
   readonly articleGenerationEnabled: boolean;
 }
 
+export interface UploadConfig {
+  readonly imageMaxSize: number;
+  readonly documentMaxSize: number;
+}
+
 export interface AppConfig {
   readonly server: { readonly port: number; readonly trustProxy: number };
   readonly database: DatabaseConfig;
@@ -53,6 +60,7 @@ export interface AppConfig {
   readonly cron: CronConfig;
   readonly corsOrigins: readonly string[];
   readonly uploadDir: string;
+  readonly upload: UploadConfig;
 }
 
 function safeParseInt(
@@ -222,6 +230,10 @@ const config: Readonly<AppConfig> = deepFreeze({
   },
   corsOrigins: parseCorsOrigins(process.env.CORS_ORIGINS),
   uploadDir: resolveUploadDir(process.env.UPLOAD_DIR),
+  upload: {
+    imageMaxSize: safeParseInt(process.env.UPLOAD_IMAGE_MAX_SIZE, DEFAULTS.UPLOAD_IMAGE_MAX_SIZE, 'UPLOAD_IMAGE_MAX_SIZE', { min: 1, max: 100 }) * 1024 * 1024,
+    documentMaxSize: safeParseInt(process.env.UPLOAD_DOCUMENT_MAX_SIZE, DEFAULTS.UPLOAD_DOCUMENT_MAX_SIZE, 'UPLOAD_DOCUMENT_MAX_SIZE', { min: 1, max: 100 }) * 1024 * 1024,
+  },
 });
 
 export default config;

@@ -280,7 +280,7 @@ describe('Upload Document Controller - Integration', () => {
     try { fs.unlinkSync(exePath); } catch {}
   });
 
-  it('should reject file exceeding 30MB with 400 (LIMIT_FILE_SIZE)', async () => {
+  it('should reject file exceeding 30MB with 413 (LIMIT_FILE_SIZE)', async () => {
     // Create a large JSON file just over 30MB
     const largePath = path.join(uploadsDir, '_test_large_doc.json');
     const data = { x: 'a'.repeat(31 * 1024 * 1024) };
@@ -291,7 +291,7 @@ describe('Upload Document Controller - Integration', () => {
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', largePath);
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(413);
     expect(response.body.message).toContain('文件大小超过限制');
 
     try { fs.unlinkSync(largePath); } catch {}

@@ -228,7 +228,7 @@ describe('Upload Controller - Integration', () => {
       .attach('file', largePath);
 
     expect(response.status).toBe(413);
-    expect(response.body.message).toBe('文件大小超过 10MB 限制');
+    expect(response.body.message).toBe('文件大小超过限制（最大 10MB）');
 
     cleanup(largePath);
   }, 30000);
