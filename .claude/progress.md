@@ -185,3 +185,4 @@
 | 2026-05-25 | progress_tasks/2026-05-25-nohighlight-patch-review-fix.md | nohighlight.tsx patch层评审修复第二轮——P2-02 displayName + P2-03 ||→?? 一致性，6文件patch更新 |
 | 2026-05-25 | progress_tasks/2026-05-25-quote-tsx-review-fix.md | quote.tsx 评审封装层修复——P1-1 Cmd+Q→Ctrl+Shift+Q快捷键+S1 prefix!非空断言防御+Q-6 try-catch错误边界+P2-1中文ARIA，12项新增测试（112总）全通过 |
 | 2026-05-25 | tasks/tdd/knowledge.controller.test.round2.md | knowledge.controller TDD 第3轮补全——259用例（+3），Stmts 99.23% Branch 98.97% Funcs 100% Lines 99.81%（覆盖batchCreateKeywords>500限制+mineKeywords无效source_type+checkProjectOperator非运营者） |
+| 2026-05-25 | tasks/review/strikeThrough.tsx.md | @uiw/react-md-editor strikeThrough.tsx 软件质量专家评审——⚠️APPROVE WITH COMMENTS 7.5/10（M×2 prefix!非空断言+SVG内联定义，L×2 data-name非标准+缺返回类型，INFO×1 快捷键跨平台） |
