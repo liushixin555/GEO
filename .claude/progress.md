@@ -580,3 +580,11 @@
   - 重导入一致性验证（Node.js 模块缓存）
   - 模块结构汇总验证
   - TDD 报告：tasks/tdd/controller.index.test.md
+
+## 本次变更（2026-05-24 article.controller.ts 软件质量专家评审）
+- [x] **软件质量专家评审 apis/controller/article.controller.ts（553 行）**
+  - 综合评级 B（良好，有改进空间）
+  - 17 项质量发现：CRITICAL×2（TOCTOU竞态条件、STATUS_TRANSITIONS死代码）、HIGH×5（~22%代码重复、字符串匹配错误处理、createArticle未用created()、updateArticleContent缺Zod、scheduled_publish_at未校验未来时间）、MEDIUM×6（无依赖注入、skills字段unknown、类型信息丢失、getAuthUser价值有限、regenerate无频率限制、delete缺关联清理指引）、LOW×4（魔法数字、无日志、try-catch控制流、VALID_CREATE_STATUSES死代码）
+  - 正面评价：安全意识强（白名单三重防护）、权限分层清晰、防御性编程
+  - 修复优先级：P0×2（竞态条件+死代码清理）、P1×5、P2×6、P3×4
+  - 评审报告 tasks/review/article.controller.ts.quality.md
