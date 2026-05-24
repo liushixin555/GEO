@@ -924,3 +924,13 @@
   - 本项目缓解措施：MarkdownViewer.tsx 使用 DOMPurify 预消毒（FORBID_TAGS + FORBID_ATTR + 1MB 长度限制），有效缓解 #1 和 #2
   - 修复优先级：P0×2（URL过滤+rehypeRaw可选化）、P1×2（allowElement强化+rehype-attr属性过滤）、P2×1（useImperativeHandle精简）、P3×3
   - 评审报告 tasks/review/react-markdown-preview.index.tsx.security.md
+
+## 本次变更（2026-05-24 apis/config/index.ts Committer审核专家复审）
+- [x] **Committer审核专家复审 apis/config/index.ts（174 行）**
+  - 综合判定：通过（APPROVE）— 四重防御层设计精良，145 个测试全部通过
+  - 测试文件：1066 行，145 个测试用例全部通过（比旧版审核 116 个增加至 145 个）
+  - TypeScript 编译验证：`tsc --noEmit` 零错误，6 个下游消费者零冲突
+  - 前序评审修复验证：质量评审 Q-01~Q-09 中 7 项已修复（DEFAULTS集中管理、接口readonly、浮点拒绝、JWT强度警告、连接池可配置、deepFreeze JSDoc、dotenv简化）
+  - 4 项新发现：C-01 硬编码默认密码（MEDIUM，设计保留）、C-02 CORS特殊值（LOW）、C-03 uploadDir 使用 process.cwd()（MEDIUM，P2）、C-04 IIFE嵌入（LOW，设计保留）
+  - 无阻塞性问题，可安全合并
+  - 评审报告 tasks/review/index.ts.committer.md
