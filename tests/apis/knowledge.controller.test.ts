@@ -15,6 +15,10 @@ jest.mock('../../apis/utils/db.util', () => ({
   closePrisma: jest.fn(),
 }));
 
+jest.mock('../../apis/middleware/anti-crawl.middleware', () => ({
+  antiCrawlMiddleware: (_req: any, _res: any, next: any) => next(),
+}));
+
 import app from '../../apis/app';
 
 const agent = request.agent(app).set('User-Agent', 'test-agent/1.0');
@@ -2203,7 +2207,7 @@ describe('checkProjectOperator - sysadmin bypass', () => {
         count: jest.fn().mockResolvedValue(0),
       },
     });
-    const res = await agent.get('/api/projects/1/knowledge/keywords').set('Authorization', auth());
+    const res = await agent.get('/api/v1/projects/1/knowledge/keywords').set('Authorization', auth());
     expect(res.status).toBe(200);
   });
 });
@@ -2224,7 +2228,7 @@ describe('checkBaseAccess - platform scope (admin)', () => {
         count: jest.fn().mockResolvedValue(0),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/keywords').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/keywords').set('Authorization', auth(adminToken));
     expect(res.status).toBe(200);
   });
 });
@@ -2244,7 +2248,7 @@ describe('Error catch - getKeyword 知识库不存在 branch', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/keywords/1').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth(adminToken));
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -2264,7 +2268,7 @@ describe('Error catch - updateKeyword 关键词不存在 branch', () => {
         update: jest.fn().mockRejectedValue(new Error('关键词不存在')),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/keywords/1').set('Authorization', auth()).send({ keyword: '新' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth()).send({ keyword: '新' });
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('关键词不存在');
   });
@@ -2283,7 +2287,7 @@ describe('Error catch - deleteKeyword 关键词不存在 branch', () => {
         update: jest.fn().mockRejectedValue(new Error('关键词不存在')),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/keywords/1').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth());
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('关键词不存在');
   });
@@ -2299,7 +2303,7 @@ describe('Error catch - batchCreateKeywords with duplicates', () => {
         findMany: jest.fn().mockResolvedValue([{ keyword: 'A' }, { keyword: 'B' }]),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/keywords/batch').set('Authorization', auth()).send({ keywords: ['A', 'B', 'C'], seed_word: '种子' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/batch').set('Authorization', auth()).send({ keywords: ['A', 'B', 'C'], seed_word: '种子' });
     expect(res.status).toBe(200);
     expect(res.body.message).toContain('已存在被跳过');
   });
@@ -2311,7 +2315,7 @@ describe('Error catch - batchCreateKeywords with duplicates', () => {
         findMany: jest.fn().mockResolvedValue([]),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/999/keywords/batch').set('Authorization', auth()).send({ keywords: ['A'] });
+    const res = await agent.post('/api/v1/knowledge-bases/999/keywords/batch').set('Authorization', auth()).send({ keywords: ['A'] });
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -2332,7 +2336,7 @@ describe('Error catch - listPortraits 知识库不存在 branch', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/portraits').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/portraits').set('Authorization', auth(adminToken));
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -2351,7 +2355,7 @@ describe('Error catch - getPortrait multi-branch', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/portraits/1').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/portraits/1').set('Authorization', auth(adminToken));
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -2370,7 +2374,7 @@ describe('Error catch - updatePortrait 500 branch', () => {
         update: jest.fn(),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/portraits/1').set('Authorization', auth()).send({ title: '新标题' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/portraits/1').set('Authorization', auth()).send({ title: '新标题' });
     expect(res.status).toBe(500);
     expect(res.body.message).toBe('更新画像失败');
   });
@@ -2389,7 +2393,7 @@ describe('Error catch - deletePortrait 500 branch', () => {
         update: jest.fn(),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/portraits/1').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/10/portraits/1').set('Authorization', auth());
     expect(res.status).toBe(500);
     expect(res.body.message).toBe('删除画像失败');
   });
@@ -2410,7 +2414,7 @@ describe('Error catch - listImages 知识库不存在 branch', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/images').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/images').set('Authorization', auth(adminToken));
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -2429,7 +2433,7 @@ describe('Error catch - getImage multi-branch', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/images/1').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/images/1').set('Authorization', auth(adminToken));
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -2448,7 +2452,7 @@ describe('Error catch - updateImage 500 branch', () => {
         update: jest.fn(),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/images/1').set('Authorization', auth()).send({ title: '新标题' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/images/1').set('Authorization', auth()).send({ title: '新标题' });
     expect(res.status).toBe(500);
     expect(res.body.message).toBe('更新图片失败');
   });
@@ -2467,7 +2471,7 @@ describe('Error catch - deleteImage 500 branch', () => {
         update: jest.fn(),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/images/1').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/10/images/1').set('Authorization', auth());
     expect(res.status).toBe(500);
     expect(res.body.message).toBe('删除图片失败');
   });
@@ -2488,7 +2492,7 @@ describe('Error catch - listDocuments 知识库不存在 branch', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/documents').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/documents').set('Authorization', auth(adminToken));
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -2507,7 +2511,7 @@ describe('Error catch - getDocument multi-branch', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/documents/1').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/documents/1').set('Authorization', auth(adminToken));
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -2526,7 +2530,7 @@ describe('Error catch - updateDocument 500 branch', () => {
         update: jest.fn(),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/documents/1').set('Authorization', auth()).send({ title: '新标题' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/documents/1').set('Authorization', auth()).send({ title: '新标题' });
     expect(res.status).toBe(500);
     expect(res.body.message).toBe('更新文档失败');
   });
@@ -2545,7 +2549,7 @@ describe('Error catch - deleteDocument 500 branch', () => {
         update: jest.fn(),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/documents/1').set('Authorization', auth());
+    const res = await agent.delete('/api/v1/knowledge-bases/10/documents/1').set('Authorization', auth());
     expect(res.status).toBe(500);
     expect(res.body.message).toBe('删除文档失败');
   });
@@ -2566,7 +2570,7 @@ describe('updateImage - title unchanged skip dup check', () => {
         update: jest.fn().mockResolvedValue({ ...existing, description: '新描述' }),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/images/1').set('Authorization', auth()).send({ description: '新描述' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/images/1').set('Authorization', auth()).send({ description: '新描述' });
     expect(res.status).toBe(200);
   });
 });
@@ -2584,7 +2588,7 @@ describe('updateDocument - title unchanged skip dup check', () => {
         update: jest.fn().mockResolvedValue({ ...existing, description: '新描述' }),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/documents/1').set('Authorization', auth()).send({ description: '新描述' });
+    const res = await agent.put('/api/v1/knowledge-bases/10/documents/1').set('Authorization', auth()).send({ description: '新描述' });
     expect(res.status).toBe(200);
   });
 });
@@ -2610,7 +2614,7 @@ describe('mineKeywords - source_type=document only', () => {
         createMany: jest.fn().mockResolvedValue({ count: 2 }),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/keywords/mine').set('Authorization', auth()).send({ source_type: 'document' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/mine').set('Authorization', auth()).send({ source_type: 'document' });
     expect(res.status).toBe(200);
     axios.post.mockRestore();
   });
@@ -2635,7 +2639,7 @@ describe('mineKeywords - source_type=portrait only', () => {
         createMany: jest.fn().mockResolvedValue({ count: 2 }),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/keywords/mine').set('Authorization', auth()).send({ source_type: 'portrait' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/mine').set('Authorization', auth()).send({ source_type: 'portrait' });
     expect(res.status).toBe(200);
     axios.post.mockRestore();
   });
@@ -2660,7 +2664,7 @@ describe('mineKeywords - source_type=image only', () => {
         createMany: jest.fn().mockResolvedValue({ count: 2 }),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/keywords/mine').set('Authorization', auth()).send({ source_type: 'image' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/mine').set('Authorization', auth()).send({ source_type: 'image' });
     expect(res.status).toBe(200);
     axios.post.mockRestore();
   });
@@ -2679,7 +2683,7 @@ describe('mineKeywords - 知识库不存在返回404', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/keywords/mine').set('Authorization', auth(adminToken)).send({ source_type: 'all' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/mine').set('Authorization', auth(adminToken)).send({ source_type: 'all' });
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -2706,7 +2710,7 @@ describe('Knowledge Inventory - search keyword', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
     });
-    const res = await agent.get('/api/knowledge-inventory?category=keyword&search=SEO').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-inventory?category=keyword&search=SEO').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
   });
@@ -2731,7 +2735,7 @@ describe('Knowledge Inventory - search portrait', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
     });
-    const res = await agent.get('/api/knowledge-inventory?category=portrait&search=目标').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-inventory?category=portrait&search=目标').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
   });
@@ -2756,7 +2760,7 @@ describe('Knowledge Inventory - search image', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
     });
-    const res = await agent.get('/api/knowledge-inventory?category=image&search=目标').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-inventory?category=image&search=目标').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
   });
@@ -2783,7 +2787,7 @@ describe('Knowledge Inventory - project scope base', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
     });
-    const res = await agent.get('/api/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list[0].scope).toBe('project');
   });
@@ -2807,7 +2811,7 @@ describe('Knowledge Inventory - company scope base', () => {
       knowledgeImage: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
     });
-    const res = await agent.get('/api/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list[0].scope).toBe('company');
   });
@@ -2828,7 +2832,7 @@ describe('Mined Keywords - saveMinedKeywords 知识库不存在', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/mined-keywords/save').set('Authorization', auth(adminToken)).send({ keywords: ['A'] });
+    const res = await agent.post('/api/v1/knowledge-bases/10/mined-keywords/save').set('Authorization', auth(adminToken)).send({ keywords: ['A'] });
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -2847,7 +2851,7 @@ describe('Mined Keywords - toggleMinedKeywordsBatch 知识库不存在', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.put('/api/knowledge-bases/10/mined-keywords/batch-toggle').set('Authorization', auth(adminToken)).send({ ids: [1], selected: true });
+    const res = await agent.put('/api/v1/knowledge-bases/10/mined-keywords/batch-toggle').set('Authorization', auth(adminToken)).send({ ids: [1], selected: true });
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -2866,7 +2870,7 @@ describe('Mined Keywords - deleteMinedKeywords 知识库不存在', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.delete('/api/knowledge-bases/10/mined-keywords').set('Authorization', auth(adminToken));
+    const res = await agent.delete('/api/v1/knowledge-bases/10/mined-keywords').set('Authorization', auth(adminToken));
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -2885,7 +2889,7 @@ describe('Mined Keywords - listMinedKeywords 知识库不存在', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/mined-keywords').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/mined-keywords').set('Authorization', auth(adminToken));
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -2906,7 +2910,7 @@ describe('Error catch - listKeywords 知识库不存在 branch', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.get('/api/knowledge-bases/10/keywords').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/knowledge-bases/10/keywords').set('Authorization', auth(adminToken));
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -2927,7 +2931,7 @@ describe('Error catch - createKeyword 知识库不存在', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/keywords').set('Authorization', auth(adminToken)).send({ keyword: 'test' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords').set('Authorization', auth(adminToken)).send({ keyword: 'test' });
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -2946,7 +2950,7 @@ describe('Error catch - createPortrait 知识库不存在 via checkBaseAccess', 
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/portraits').set('Authorization', auth(adminToken)).send({ title: 't', content: 'c' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/portraits').set('Authorization', auth(adminToken)).send({ title: 't', content: 'c' });
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -2965,7 +2969,7 @@ describe('Error catch - createImage 知识库不存在 via checkBaseAccess', () 
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/images').set('Authorization', auth(adminToken)).send({ title: '图片', image_url: '/test.png' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth(adminToken)).send({ title: '图片', image_url: '/test.png' });
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -2984,7 +2988,7 @@ describe('Error catch - createDocument 知识库不存在 via checkBaseAccess', 
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/documents').set('Authorization', auth(adminToken)).send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth(adminToken)).send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -3018,7 +3022,7 @@ describe('Project Knowledge - sysadmin listProjectKeywords', () => {
         count: jest.fn().mockResolvedValue(1),
       },
     });
-    const res = await agent.get('/api/projects/1/knowledge/keywords').set('Authorization', auth());
+    const res = await agent.get('/api/v1/projects/1/knowledge/keywords').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
   });
@@ -3046,7 +3050,7 @@ describe('Project Knowledge - listProjectKeywords error 500', () => {
         count: jest.fn().mockResolvedValue(0),
       },
     });
-    const res = await agent.get('/api/projects/1/knowledge/keywords').set('Authorization', auth(adminToken));
+    const res = await agent.get('/api/v1/projects/1/knowledge/keywords').set('Authorization', auth(adminToken));
     expect(res.status).toBe(500);
     expect(res.body.message).toBe('获取关键词列表失败');
   });
@@ -3073,7 +3077,7 @@ describe('Knowledge Inventory - pagination', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
     });
-    const res = await agent.get('/api/knowledge-inventory?page=2&pageSize=2').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-inventory?page=2&pageSize=2').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.total).toBe(5);
     expect(res.body.data.list).toHaveLength(2);
@@ -3100,7 +3104,7 @@ describe('Knowledge Inventory - no creator IDs to batch lookup', () => {
       knowledgeImage: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
     });
-    const res = await agent.get('/api/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list[0].creatorName).toBe('-');
   });
@@ -3133,7 +3137,7 @@ describe('Knowledge Inventory - multiple bases', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
     });
-    const res = await agent.get('/api/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(2);
     const names = res.body.data.list.map((i: any) => i.baseName);
@@ -3158,8 +3162,400 @@ describe('Mined Keywords - saveMinedKeywords with duplicates', () => {
         updateMany: jest.fn().mockResolvedValue({ count: 2 }),
       },
     });
-    const res = await agent.post('/api/knowledge-bases/10/mined-keywords/save').set('Authorization', auth()).send({ keywords: ['A', 'B'] });
+    const res = await agent.post('/api/v1/knowledge-bases/10/mined-keywords/save').set('Authorization', auth()).send({ keywords: ['A', 'B'] });
     expect(res.status).toBe(200);
     expect(res.body.message).toContain('已存在被跳过');
+  });
+});
+
+// ==================== 补全覆盖：updateKeyword 关键词不存在 error branch ====================
+
+describe('Keywords - updateKeyword 关键词不存在 error catch', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('update中service.findFirst返回null抛出关键词不存在返回404', async () => {
+    mockPrisma({
+      $queryRaw: jest.fn()
+        .mockResolvedValueOnce([{ id: 1, base_id: 10, keyword: '旧', seed_word: null, group_id: null, created_by: 1, created_at: new Date(), updated_at: new Date() }])
+        .mockResolvedValueOnce([]),
+      knowledgeKeyword: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+    });
+    const res = await agent.put('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth()).send({ keyword: '新' });
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('关键词不存在');
+  });
+});
+
+// ==================== 补全覆盖：deleteKeyword 关键词不存在 error branch ====================
+
+describe('Keywords - deleteKeyword 关键词不存在 error catch', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('delete中service.findFirst返回null抛出关键词不存在返回404', async () => {
+    mockPrisma({
+      $queryRaw: jest.fn()
+        .mockResolvedValueOnce([{ id: 1, base_id: 10, keyword: 'SEO', seed_word: null, group_id: null, created_by: 1, created_at: new Date(), updated_at: new Date() }])
+        .mockResolvedValueOnce([]),
+      knowledgeKeyword: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+    });
+    const res = await agent.delete('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth());
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('关键词不存在');
+  });
+});
+
+// ==================== 补全覆盖：Portraits invalid id ====================
+
+describe('Portraits - getPortrait 无效的id返回400', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('无效的portrait id返回400', async () => {
+    const res = await agent.get('/api/v1/knowledge-bases/10/portraits/abc').set('Authorization', auth());
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('无效的画像ID');
+  });
+});
+
+// ==================== 补全覆盖：Images invalid id ====================
+
+describe('Images - getImage 无效的id返回400', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('无效的image id返回400', async () => {
+    const res = await agent.get('/api/v1/knowledge-bases/10/images/abc').set('Authorization', auth());
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('无效的图片ID');
+  });
+});
+
+// ==================== 补全覆盖：Documents invalid id ====================
+
+describe('Documents - getDocument 无效的id返回400', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('无效的document id返回400', async () => {
+    const res = await agent.get('/api/v1/knowledge-bases/10/documents/abc').set('Authorization', auth());
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('无效的文档ID');
+  });
+});
+
+// ==================== 补全覆盖：Project Knowledge list error branches ====================
+
+describe('Project Knowledge - listProjectPortraits error 500', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('listProjectPortraits服务异常返回500', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      project: {
+        findFirst: jest.fn()
+          .mockResolvedValueOnce({
+            id: 1, shortName: '项目A', fullName: '项目A全称', companyId: 2, status: true, deletedAt: null,
+            company: { shortName: '公司' },
+            operators: [{ userId: 2, user: { id: 2, cnName: '管理员' } }],
+            viewers: [],
+          })
+          .mockResolvedValueOnce({ id: 1, deletedAt: null }),
+        count: jest.fn().mockResolvedValue(0),
+      },
+      knowledgeBase: {
+        findMany: jest.fn().mockRejectedValue(new Error('DB error')),
+        count: jest.fn().mockResolvedValue(0),
+      },
+    });
+    const res = await agent.get('/api/v1/projects/1/knowledge/portraits').set('Authorization', auth(adminToken));
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe('获取画像列表失败');
+  });
+});
+
+describe('Project Knowledge - listProjectImages error 500', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('listProjectImages服务异常返回500', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      project: {
+        findFirst: jest.fn()
+          .mockResolvedValueOnce({
+            id: 1, shortName: '项目A', fullName: '项目A全称', companyId: 2, status: true, deletedAt: null,
+            company: { shortName: '公司' },
+            operators: [{ userId: 2, user: { id: 2, cnName: '管理员' } }],
+            viewers: [],
+          })
+          .mockResolvedValueOnce({ id: 1, deletedAt: null }),
+        count: jest.fn().mockResolvedValue(0),
+      },
+      knowledgeBase: {
+        findMany: jest.fn().mockRejectedValue(new Error('DB error')),
+        count: jest.fn().mockResolvedValue(0),
+      },
+    });
+    const res = await agent.get('/api/v1/projects/1/knowledge/images').set('Authorization', auth(adminToken));
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe('获取图片列表失败');
+  });
+});
+
+describe('Project Knowledge - listProjectDocuments error 500', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('listProjectDocuments服务异常返回500', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      project: {
+        findFirst: jest.fn()
+          .mockResolvedValueOnce({
+            id: 1, shortName: '项目A', fullName: '项目A全称', companyId: 2, status: true, deletedAt: null,
+            company: { shortName: '公司' },
+            operators: [{ userId: 2, user: { id: 2, cnName: '管理员' } }],
+            viewers: [],
+          })
+          .mockResolvedValueOnce({ id: 1, deletedAt: null }),
+        count: jest.fn().mockResolvedValue(0),
+      },
+      knowledgeBase: {
+        findMany: jest.fn().mockRejectedValue(new Error('DB error')),
+        count: jest.fn().mockResolvedValue(0),
+      },
+    });
+    const res = await agent.get('/api/v1/projects/1/knowledge/documents').set('Authorization', auth(adminToken));
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe('获取文档列表失败');
+  });
+});
+
+// ==================== 补全覆盖：Inventory category=portrait with creator ====================
+
+describe('Knowledge Inventory - category=portrait with creator', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('按画像分类查询显示创建者名称', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findMany: jest.fn().mockResolvedValue([{ id: 10, name: '测试库', scope: 'platform', project: null, company: null }]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+      knowledgeKeyword: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgePortrait: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([{ id: 1, baseId: 10, title: '画像A', createdBy: 1, updatedAt: new Date() }]),
+      },
+      knowledgeImage: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
+    });
+    const res = await agent.get('/api/v1/knowledge-inventory?category=portrait').set('Authorization', auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data.list).toHaveLength(1);
+    expect(res.body.data.list[0].creatorName).toBe('管理员');
+  });
+});
+
+// ==================== 补全覆盖：Inventory category=image ====================
+
+describe('Knowledge Inventory - category=image with creator', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('按图片分类查询显示创建者名称', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findMany: jest.fn().mockResolvedValue([{ id: 10, name: '测试库', scope: 'platform', project: null, company: null }]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+      knowledgeKeyword: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgePortrait: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeImage: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([{ id: 1, baseId: 10, title: '图片A', createdBy: 1, updatedAt: new Date() }]),
+      },
+      knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
+    });
+    const res = await agent.get('/api/v1/knowledge-inventory?category=image').set('Authorization', auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data.list).toHaveLength(1);
+    expect(res.body.data.list[0].creatorName).toBe('管理员');
+  });
+});
+
+// ==================== 补全覆盖：Inventory category=document ====================
+
+describe('Knowledge Inventory - category=document with creator', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('按文档分类查询显示创建者名称', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findMany: jest.fn().mockResolvedValue([{ id: 10, name: '测试库', scope: 'platform', project: null, company: null }]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+      knowledgeKeyword: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgePortrait: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeImage: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeDocument: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([{ id: 1, baseId: 10, title: '文档A', createdBy: 1, updatedAt: new Date() }]),
+      },
+      user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
+    });
+    const res = await agent.get('/api/v1/knowledge-inventory?category=document').set('Authorization', auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data.list).toHaveLength(1);
+    expect(res.body.data.list[0].creatorName).toBe('管理员');
+  });
+});
+
+// ==================== 补全覆盖：Inventory search=document with OR condition ====================
+
+describe('Knowledge Inventory - search document with OR condition', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('搜索文档时使用OR条件查询标题和文件名', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findMany: jest.fn().mockResolvedValue([{ id: 10, name: '测试库', scope: 'platform', project: null, company: null }]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+      knowledgeKeyword: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgePortrait: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeImage: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeDocument: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([{ id: 1, baseId: 10, title: '报告', fileName: '报告.pdf', createdBy: 1, updatedAt: new Date() }]),
+      },
+      user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
+    });
+    const res = await agent.get('/api/v1/knowledge-inventory?category=document&search=报告').set('Authorization', auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data.list).toHaveLength(1);
+    expect(res.body.data.list[0].name).toBe('报告');
+  });
+});
+
+// ==================== 补全覆盖：mineKeywords default source_type=all ====================
+
+describe('mineKeywords - default source_type=all', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('不指定source_type默认为all', async () => {
+    const axios = require('axios');
+    jest.spyOn(axios, 'post').mockResolvedValue({
+      data: { choices: [{ message: { content: '关键词1\n关键词2' } }] },
+    });
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeDocument: {
+        findMany: jest.fn().mockResolvedValue([{ title: '文档1', description: '描述' }]),
+      },
+      knowledgePortrait: {
+        findMany: jest.fn().mockResolvedValue([{ title: '画像1', content: '内容' }]),
+      },
+      knowledgeImage: {
+        findMany: jest.fn().mockResolvedValue([{ title: '图片1', description: '描述' }]),
+      },
+      llmModel: { findFirst: jest.fn().mockResolvedValue({ id: 1, baseUrl: 'http://localhost:11434', modelName: 'test', apiKey: 'key' }) },
+      minedKeyword: {
+        findMany: jest.fn()
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([{ id: 1, baseId: 10, keyword: '关键词1', selected: false, createdBy: 1, createdAt: new Date() }]),
+        createMany: jest.fn().mockResolvedValue({ count: 2 }),
+      },
+    });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/mine').set('Authorization', auth()).send({});
+    expect(res.status).toBe(200);
+    axios.post.mockRestore();
+  });
+});
+
+// ==================== 补全覆盖：mineKeywords with descriptions ====================
+
+describe('mineKeywords - all source types with descriptions', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('挖掘关键词包含描述字段', async () => {
+    const axios = require('axios');
+    jest.spyOn(axios, 'post').mockResolvedValue({
+      data: { choices: [{ message: { content: '关键词A\n关键词B' } }] },
+    });
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeDocument: {
+        findMany: jest.fn().mockResolvedValue([{ title: '文档1', description: '文档描述' }]),
+      },
+      knowledgePortrait: {
+        findMany: jest.fn().mockResolvedValue([{ title: '画像1', content: '画像内容' }]),
+      },
+      knowledgeImage: {
+        findMany: jest.fn().mockResolvedValue([{ title: '图片1', description: '图片描述' }]),
+      },
+      llmModel: { findFirst: jest.fn().mockResolvedValue({ id: 1, baseUrl: 'http://localhost:11434', modelName: 'test', apiKey: 'key' }) },
+      minedKeyword: {
+        findMany: jest.fn()
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([{ id: 1, baseId: 10, keyword: '关键词A', selected: false, createdBy: 1, createdAt: new Date() }]),
+        createMany: jest.fn().mockResolvedValue({ count: 2 }),
+      },
+    });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/mine').set('Authorization', auth()).send({ source_type: 'all' });
+    expect(res.status).toBe(200);
+    axios.post.mockRestore();
+  });
+});
+
+// ==================== 补全覆盖：mineKeywords error 500 ====================
+
+describe('mineKeywords - 知识库不存在返回404 via service', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('mineKeywords中checkBaseAccess抛出知识库不存在返回404', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'company', companyId: 99, status: true, company: { shortName: '其他' }, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
+      },
+    });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/mine').set('Authorization', auth(adminToken)).send({ source_type: 'all' });
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('知识库不存在');
+  });
+});
+
+// ==================== 补全覆盖：Inventory creator not found fallback ====================
+
+describe('Knowledge Inventory - creator not in user table', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('创建者ID存在但用户表中无记录时显示"-"', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findMany: jest.fn().mockResolvedValue([{ id: 10, name: '测试库', scope: 'platform', project: null, company: null }]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+      knowledgeKeyword: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([{ id: 1, baseId: 10, keyword: 'SEO', createdBy: 999, updatedAt: new Date() }]),
+      },
+      knowledgePortrait: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeImage: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      user: { findMany: jest.fn().mockResolvedValue([]) },
+    });
+    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data.list[0].creatorName).toBe('-');
   });
 });

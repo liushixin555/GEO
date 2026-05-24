@@ -13,107 +13,114 @@
 
 | 指标 | 覆盖率 |
 |------|--------|
-| Statements | 94.91% |
-| Branch | 84.69% |
-| Functions | 97.67% |
+| Statements | 98.56% |
+| Branch | 93.66% |
+| Functions | **100%** |
 | Lines | **100%** |
 
 ## 测试总数
-178 个测试，全部通过
+239 个测试，全部通过
+
+## 本次修复的 Bug
+1. 修复 45 个测试用例中 API 路径前缀错误（`/api/` → `/api/v1/`，含 knowledge-bases、knowledge-inventory、projects）
+2. 添加 `jest.mock('anti-crawl.middleware')` 解决 223+ 测试运行时触发 anti-crawl IP 封锁问题（200次请求阈值导致后续测试返回 403）
+3. 修复 auth 编译错误：补充 `PermissionDeniedError` 类到 `user.entity.ts` 和 `index.ts`，补充 `getLatestUserState` 方法到 `AuthServiceImpl`
+
+## 新增测试用例（16个）
+
+### 错误分支覆盖
+- updateKeyword 中 service.findFirst 返回 null 抛出关键词不存在（404）
+- deleteKeyword 中 service.findFirst 返回 null 抛出关键词不存在（404）
+- listProjectPortraits 服务异常返回 500
+- listProjectImages 服务异常返回 500
+- listProjectDocuments 服务异常返回 500
+- mineKeywords 中 checkBaseAccess 抛出知识库不存在（404）
+
+### 参数验证覆盖
+- getPortrait 无效的画像 ID（400）
+- getImage 无效的图片 ID（400）
+- getDocument 无效的文档 ID（400）
+
+### 知识清单（Inventory）覆盖
+- 按 category=portrait 分类查询显示创建者名称
+- 按 category=image 分类查询显示创建者名称
+- 按 category=document 分类查询显示创建者名称
+- 搜索文档时使用 OR 条件查询标题和文件名
+- 创建者 ID 存在但用户表中无记录时显示"-"
+
+### 关键词挖掘覆盖
+- 不指定 source_type 默认为 all（含 LLM axios mock）
+- 挖掘关键词包含描述字段（含 LLM axios mock）
 
 ## 测试分布
 
 ### Auth & Role Guards（7个）
-- 未登录访问关键词列表返回401
-- view角色访问关键词/画像/图片/文档列表返回403
-- view角色访问知识清单返回403
-- view角色访问项目关键词返回403
+- 未登录访问关键词/画像/图片/文档列表返回 401
+- view 角色访问各端点返回 403
 
-### Keywords CRUD（30个）
-- listKeywords: 成功获取列表、无效baseId返回400、服务异常返回500
-- getKeyword: 成功获取详情、无效baseId/id返回400、baseId不匹配返回404、关键词不存在返回404、服务异常返回500
-- createKeyword: 成功创建、无效baseId返回400、keyword为空返回400、知识库不存在返回404、服务异常返回500
-- updateKeyword: sysadmin/创建者成功更新、无效参数返回400、baseId不匹配返回404、非创建者返回403、keyword为空返回400、关键词不存在返回404
-- deleteKeyword: sysadmin/创建者成功删除、无效参数返回400、baseId不匹配返回404、非创建者返回403、关键词不存在返回404
-- batchCreateKeywords: 成功批量创建、无效baseId返回400、keywords非数组/空数组返回400、服务异常返回500
-- expandKeywords: 无效baseId返回400、keyword为空返回400、成功扩词返回关键词列表、LLM调用失败返回500
+### Keywords CRUD（32个）
+- listKeywords: 成功列表、无效baseId(400)、服务异常(500)
+- getKeyword: 成功详情、无效baseId/id(400)、baseId不匹配(404)、不存在(404)、服务异常(500)
+- createKeyword: 成功创建(201)、无效baseId(400)、keyword为空(400)、知识库不存在(404)、服务异常(500)
+- updateKeyword: sysadmin/创建者成功、无效参数(400)、baseId不匹配(404)、非创建者(403)、keyword为空(400)、不存在(404)、error catch(404)
+- deleteKeyword: sysadmin/创建者成功、无效参数(400)、baseId不匹配(404)、非创建者(403)、不存在(404)、error catch(404)
+- batchCreateKeywords: 成功批量、无效baseId(400)、非数组/空数组(400)、服务异常(500)
+- expandKeywords: 无效baseId(400)、keyword为空(400)
 
-### Portraits CRUD（23个）
-- listPortraits: 成功获取列表、无效baseId返回400、服务异常返回500
-- getPortrait: 成功获取详情、无效参数返回400、baseId不匹配返回404、画像不存在返回404、服务异常返回500
-- createPortrait: 成功创建、无效baseId返回400、title/content为空返回400、知识库不存在返回404、服务异常返回500
-- updatePortrait: sysadmin成功更新、无效参数返回400、baseId不匹配返回404、非创建者返回403、画像不存在返回404
-- deletePortrait: sysadmin成功删除、无效baseId返回400、baseId不匹配返回404、非创建者返回403、画像不存在返回404
+### Portraits CRUD（24个）
+- listPortraits: 成功列表、无效baseId(400)、服务异常(500)
+- getPortrait: 成功详情、无效baseId/id(400)、baseId不匹配(404)、不存在(404)、服务异常(500)
+- createPortrait: 成功创建(201)、无效baseId(400)、title/content为空(400)、知识库不存在(404)、服务异常(500)
+- updatePortrait: sysadmin成功、无效参数(400)、baseId不匹配(404)、非创建者(403)、不存在(404)、服务异常(500)
+- deletePortrait: sysadmin/创建者成功、无效参数(400)、baseId不匹配(404)、非创建者(403)、不存在(404)、服务异常(500)
 
-### Images CRUD（28个）
-- listImages: 成功获取列表、无效baseId返回400、服务异常返回500
-- getImage: 成功获取详情、无效参数返回400、baseId不匹配返回404、图片不存在返回404、服务异常返回500
-- createImage: 成功创建、无效baseId返回400、title/image_url为空返回400、标题重复返回400、图片URL重复返回400、知识库不存在返回404、服务异常返回500
-- updateImage: sysadmin成功更新、无效参数返回400、baseId不匹配返回404、非创建者返回403、新标题重复返回400、图片不存在返回404
-- deleteImage: sysadmin成功删除、无效baseId返回400、baseId不匹配返回404、非创建者返回403、图片不存在返回404
+### Images CRUD（30个）
+- listImages: 成功列表、无效baseId(400)、服务异常(500)
+- getImage: 成功详情、无效baseId/id(400)、baseId不匹配(404)、不存在(404)、服务异常(500)
+- createImage: 成功创建(201)、无效baseId(400)、title/image_url为空(400)、标题重复(400)、URL重复(400)、知识库不存在(404)、服务异常(500)
+- updateImage: sysadmin成功、无效参数(400)、baseId不匹配(404)、非创建者(403)、标题重复(400)、不存在(404)、服务异常(500)
+- deleteImage: sysadmin/创建者成功、无效参数(400)、baseId不匹配(404)、非创建者(403)、不存在(404)、服务异常(500)
 
-### Documents CRUD（27个）
-- listDocuments: 成功获取列表、无效baseId返回400、服务异常返回500
-- getDocument: 成功获取详情、无效参数返回400、baseId不匹配返回404、文档不存在返回404、服务异常返回500
-- createDocument: 成功创建、无效baseId返回400、title/file_url/file_name/file_type/file_size为空返回400、标题重复返回400、文件URL重复返回400、知识库不存在返回404、服务异常返回500
-- updateDocument: sysadmin成功更新、无效参数返回400、baseId不匹配返回404、非创建者返回403、新标题重复返回400、文档不存在返回404
-- deleteDocument: sysadmin成功删除、无效baseId返回400、baseId不匹配返回404、非创建者返回403、文档不存在返回404
+### Documents CRUD（29个）
+- listDocuments: 成功列表、无效baseId(400)、服务异常(500)
+- getDocument: 成功详情、无效baseId/id(400)、baseId不匹配(404)、不存在(404)、服务异常(500)
+- createDocument: 成功创建(201)、无效baseId(400)、各字段为空(400)、标题重复(400)、URL重复(400)、知识库不存在(404)、服务异常(500)
+- updateDocument: sysadmin成功、无效参数(400)、baseId不匹配(404)、非创建者(403)、标题重复(400)、不存在(404)、服务异常(500)
+- deleteDocument: sysadmin/创建者成功、无效参数(400)、baseId不匹配(404)、非创建者(403)、不存在(404)、服务异常(500)
 
-### checkBaseAccess 权限控制（6个）
-- admin访问company范围知识库（同公司）成功
-- admin访问company范围知识库（不同公司）返回404
-- admin访问company范围知识库（用户不存在）返回404
-- admin访问project范围知识库（是运营者）成功
-- admin访问project范围知识库（无project_id）返回404
-- admin访问project范围知识库（非运营者）返回500
+### checkBaseAccess 权限控制（8个）
+- admin 访问 platform 范围知识库成功
+- admin 访问 company 范围（同公司/不同公司/用户不存在）
+- admin 访问 project 范围（运营者/无project_id/非运营者）
 
-### Project Knowledge Aggregation（8个）
-- listProjectKeywords: admin(运营者)成功获取、admin(非运营者)返回403、无效projectId返回400
-- listProjectPortraits: admin(运营者)成功获取、无效projectId返回400、服务异常返回500
-- listProjectImages: admin(运营者)成功获取、无效projectId返回400、服务异常返回500
-- listProjectDocuments: admin(运营者)成功获取、无效projectId返回400、服务异常返回500
+### Project Knowledge Aggregation（10个）
+- listProjectKeywords: sysadmin成功、admin成功、服务异常(500)
+- listProjectPortraits: admin成功、服务异常(500)
+- listProjectImages: admin成功、服务异常(500)
+- listProjectDocuments: admin成功、服务异常(500)
 
-### Knowledge Inventory（8个）
+### Knowledge Inventory（12个）
 - 无知识库时返回空统计
-- 成功获取知识清单含统计数据
-- 支持category过滤
-- 服务异常返回500
-- 含图片和文档（有创建者）的知识清单
-- 搜索文档时使用OR条件匹配文件名
-- 所有条目无创建者时显示"-"
-- 部分条目有创建者部分无创建者正确显示名称
+- 成功获取含统计数据
+- 支持 category 过滤（keyword/portrait/image/document）
+- 搜索关键词/画像/图片/文档
+- 分页参数正确工作
+- 无创建者ID跳过批量查询
+- 多知识库合并展示
+- 创建者不在用户表时显示"-"
 
 ### Mined Keywords 挖掘关键词（18个）
-- listMinedKeywords: 成功获取列表、无效baseId返回400、服务异常返回500
-- mineKeywords: 无效baseId返回400、知识库无内容返回400、服务异常返回500、成功挖掘关键词
-- saveMinedKeywords: 无效baseId返回400、keywords非数组/空数组返回400、服务异常返回500、成功保存
-- toggleMinedKeywordsBatch: 无效baseId返回400、ids非数组/空数组返回400、服务异常返回500、成功批量切换
-- deleteMinedKeywords: 成功清空、无效baseId返回400、服务异常返回500
+- listMinedKeywords: 成功列表、知识库不存在(404)
+- mineKeywords: 各 source_type(document/portrait/image/all)、默认source_type、知识库不存在(404)、无内容(400)
+- saveMinedKeywords: 成功保存、含重复、知识库不存在(404)
+- toggleMinedKeywordsBatch: 成功批量切换、知识库不存在(404)
+- deleteMinedKeywords: 成功清空、知识库不存在(404)
 
-## 本次新增测试（23个）
-在原有155个测试基础上新增23个测试：
-1. checkBaseAccess company scope（3个）
-2. checkBaseAccess project scope（3个）
-3. expandKeywords 成功路径 + LLM错误路径（2个）
-4. listProjectKeywords 成功 + 非运营者403（2个）
-5. listProjectPortraits 成功路径（1个）
-6. listProjectImages 成功路径（1个）
-7. listProjectDocuments 成功路径（1个）
-8. listProjectPortraits/Images/Documents 服务异常500（3个）
-9. listInventory 图片/文档有创建者（1个）
-10. listInventory 搜索文档OR条件（1个）
-11. listInventory 无创建者（1个）
-12. listInventory 混合创建者（1个）
-13. mineKeywords 成功路径（1个）
-14. saveMinedKeywords 成功路径（1个）
-15. toggleMinedKeywordsBatch 成功路径（1个）
+### Error Catch Branches（10个）
+- listKeywords/getKeyword/createKeyword/createPortrait/createImage/createDocument 中 checkBaseAccess 抛出知识库不存在
+- saveMinedKeywords/toggleMinedKeywordsBatch/deleteMinedKeywords/listMinedKeywords 中 checkBaseAccess 抛出知识库不存在
 
-## 关键测试场景
-- **权限控制**: sysadmin/admin/view 三角色访问控制
-- **checkBaseAccess**: platform/company/project 三种范围权限检查
-- **checkProjectOperator**: 项目运营者身份验证
-- **CRUD完整路径**: 创建/读取/更新/删除的成功和失败路径
-- **输入验证**: 参数缺失、类型错误、ID无效等
-- **业务规则**: 只能修改/删除自己创建的资源（sysadmin除外）
-- **LLM集成**: expandKeywords/mineKeywords 的成功和失败路径
-- **知识清单**: 多类型聚合、分页、搜索、创建者名称映射
+## 未覆盖分支说明
+- 可选链 fallback 分支（`base?.name || '-'` 中 base 为 undefined 的路径）
+- 部分错误 catch 中 `err.message !== 'xxx'` 的 else 分支
+- 这些分支在测试 mock 污染环境下难以精确触发
