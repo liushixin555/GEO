@@ -47,6 +47,8 @@ function useSystemColorMode(): 'light' | 'dark' {
 }
 
 const ALLOWED_URL_PROTOCOLS = ['http://', 'https://', 'mailto:', 'tel:', '/', '#', './', '../'];
+const ALLOWED_URL_PARSED_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:']);
+const SAFE_INPUT_TYPES = new Set(['checkbox']);
 
 const EVENT_ATTRS = [
   'onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur',
@@ -61,7 +63,7 @@ const DANGEROUS_ATTRS = [
 ];
 
 // S3/A-03 修复：显式标签白名单（白名单方式比黑名单更安全）
-const SAFE_TAGS = new Set([
+export const SAFE_TAGS = new Set([
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
   'p', 'div', 'span', 'br', 'hr',
   'blockquote', 'pre', 'code', 'kbd', 'samp',
@@ -75,8 +77,17 @@ const SAFE_TAGS = new Set([
 ]);
 
 export const safeUrlTransform: (url: string) => string = (url) => {
-  const lower = url.toLowerCase().trim();
-  if (ALLOWED_URL_PROTOCOLS.some((p) => lower.startsWith(p))) return url;
+  const trimmed = url.trim();
+  // 快速路径：允许相对路径和锚点
+  if (ALLOWED_URL_PROTOCOLS.some((p) => trimmed.toLowerCase().startsWith(p))) return url;
+  // 使用 URL 解析进行严格协议校验
+  try {
+    const parsed = new URL(trimmed, 'https://placeholder.com');
+    if (ALLOWED_URL_PARSED_PROTOCOLS.has(parsed.protocol)) return url;
+  } catch {
+    // URL 解析失败（可能是相对路径），安全放行
+    return url;
+  }
   return '';
 };
 
@@ -261,7 +272,16 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
           wrapperElement={{ 'data-color-mode': resolvedColorMode }}
           urlTransform={safeUrlTransform}
           rehypeRewrite={rehypeRewrite}
-          allowElement={(element) => SAFE_TAGS.has(element.tagName.toLowerCase())}
+          allowElement={(element) => {
+            const tag = element.tagName.toLowerCase();
+            if (!SAFE_TAGS.has(tag)) return false;
+            // input 仅允许 checkbox 类型（S3 加固）
+            if (tag === 'input') {
+              const type = (element.properties as Record<string, unknown>)?.type;
+              return typeof type === 'string' && SAFE_INPUT_TYPES.has(type);
+            }
+            return true;
+          }}
         />
       </div>
     </MarkdownErrorBoundary>

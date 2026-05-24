@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Segmented, Button, Popconfirm, Grid, Alert } from 'antd';
 import { EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import MDEditor from '@uiw/react-md-editor';
-import MarkdownViewer from '../../components/MarkdownViewer';
+import MarkdownViewer, { safeUrlTransform, SAFE_TAGS } from '../../components/MarkdownViewer';
 import type { ArticleData } from '../types';
 import { STATUS_CONFIG } from '../types';
 
@@ -98,6 +98,10 @@ const ArticleContentEditor: React.FC<ArticleContentEditorProps> = ({
         onChange={(val) => onContentChange(val || '')}
         height={editorHeight}
         preview="edit"
+        previewOptions={{
+          urlTransform: safeUrlTransform,
+          allowElement: (element: { tagName: string }) => SAFE_TAGS.has(element.tagName.toLowerCase()),
+        }}
       />
     ) : (
       <div className="article-content-preview" style={{ minHeight: 300 }}>
