@@ -573,3 +573,26 @@ if (existing.status === 'published') {
 | 综合评级 | **B+** |
 | 问题统计 | CRITICAL × 1 / HIGH × 3 / MEDIUM × 4 / LOW × 3 / INFO × 2 |
 | 核心结论 | 该控制器是项目中安全防护最完善的控制器，得益于多轮安全修复。剩余主要风险为 TOCTOU 竞态（需事务化）和 `skills: z.unknown()` 注入风险 |
+
+---
+
+## 修复实施记录（2026-05-24）
+
+基于安全评审、质量评审、架构评审、Committer 二轮评审的综合修复。
+
+### 已修复项
+
+| 问题编号 | 优先级 | 修复措施 | 修复文件 | 状态 |
+|---------|--------|---------|---------|------|
+| M-1 | P2 | `PermissionDeniedError` 替换为 `ForbiddenError`，简化 catch 块 | article.controller.ts | ✅ |
+| M-2 | P2 | 新增 `parseId()` 函数统一 parseInt + `> 0` 边界检查 | article.controller.ts | ✅ |
+| M-4 | P2 | `regenerateArticle` 添加状态预检；`submitForReview` 添加内容非空检查 | article.controller.ts | ✅ |
+| H-1 | P1 | `skills: z.unknown()` 替换为 `z.array(z.number().int().nonnegative()).max(50).nullable().optional()` | article.schema.ts | ✅ |
+| NEW-1 | P2 | Service 层 `update/delete/review/regenerate` 统一使用 `throw new NotFoundError('文章')` | article.service.impl.ts | ✅ |
+
+### 代码变更统计
+
+- `article.controller.ts`: 删除 `PermissionDeniedError` 类定义，导入 `ForbiddenError`，`handleServerError` 增加 `ForbiddenError` 分支，10 个 handler 中 admin 权限检查从 try-catch 简化为直接 await，新增 `parseId()` 辅助函数，`regenerateArticle` 增加状态预检，`submitForReview` 增加内容非空检查
+- `article.schema.ts`: `skills` 字段从 `z.unknown()` 改为 `z.array(z.number().int().nonnegative()).max(50).nullable().optional()`
+- `article.service.impl.ts`: 4 处 `throw new Error('文章不存在')` 改为 `throw new NotFoundError('文章')`
+- `article.controller.test.ts`: 更新 skills 测试数据（标量→数组），更新 regenerate 状态预检相关测试
