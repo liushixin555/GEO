@@ -66,6 +66,12 @@
     - `fullscreen` 命令：修复按钮点击不触发全屏（移除 shortcuts 条件守卫）、重映射快捷键（ctrlcmd+0→ctrlcmd+shift+f）、中文 ARIA 标注、antd FullscreenOutlined 图标（16px）
     - `link` 命令：快捷键Ctrl+L→Ctrl+K（行业标准，消除浏览器地址栏冲突）、URL方案白名单过滤（拦截javascript:/data: XSS穿透）、URL分支提取域名作默认链接文本（消除空链接文本WCAG 2.4.4违规）、URL检测改用正则、antd LinkOutlined图标16px、中文ARIA、try-catch错误边界、选区越界防护
     - `Ctrl+L` 浏览器拦截：`preventBrowserShortcut` 中拦截 Ctrl+L 防止焦点跳走到地址栏
+    - `preview`/`edit`/`live` 模式切换命令（commands/preview.tsx 评审修复，2026-05-25）：
+      - 替换辨识度极低方括号SVG为antd语义图标（EditOutlined/SplitCellsOutlined/EyeOutlined）16px
+      - 修复execute双路径死代码——移除shortcuts条件guard，统一按钮点击和快捷键dispatch路径
+      - api.textArea可选链空值防护（S-01/A-07）
+      - 中文buttonProps覆盖英文硬编码aria-label/title
+      - CSS选中态视觉样式（Carbon product-tab底部下划线）
     - **list.tsx 安全评审**（APPROVE，综合安全评分 7.5/10，攻击面极小）：
       - MEDIUM-01: `checkedListCommand` 不处理已勾选项 `- [x] `，导致切换时双重前缀叠加（内容完整性缺陷）
       - MEDIUM-02: `prefix!` 非空断言绕过类型契约，undefined 传播可致 TypeError（DoS 级别）
