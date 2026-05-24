@@ -180,3 +180,4 @@
 | 2026-05-25 | tasks/tdd/rmapi-index.tdd.md | rmapi.utils/index.ts barrel文件TDD——25用例100%覆盖率（函数导出验证+re-export同一性+类型导出+无副作用+路径解析+完整性检查），修复resource.util Windows路径分隔符 |
 | 2026-05-25 | tasks/review/commands-preview.tsx.committer.md | @uiw/react-md-editor commands/preview.tsx Committer审核专家评审——CONDITIONAL APPROVE 3.2分（P1×2 零antd集成+图标辨识度低，P2×3 SVG无障碍+标签未国际化+交互双路径，P3×4 图标尺寸非标+无选中态+快捷键冲突+命名语义误导） |
 | 2026-05-25 | tasks/review/quote.tsx.architecture.md | quote.tsx 软件架构专家评审——✅APPROVE WITH COMMENTS 6.5分（H×1 块级命令管道与list.tsx 90%重复无共享抽象 + M×3 ICommand无分类维度/纯计算与副作用混合/prefix!非空断言 + L×2 SVG同层部署/变量命名 + INFO×2 架构最简洁块级命令/hr对比） |
+| 2026-05-25 | tasks/review/quote.tsx.ui.md | quote.tsx 软件 UI 专家评审——⚠️合格（图标12px偏小/Ctrl+Q macOS冲突/英文硬编码缺i18n/第三方库CSS继承兼容，DESIGN.md合规需CSS覆盖+图标替换+中文ARIA） |
