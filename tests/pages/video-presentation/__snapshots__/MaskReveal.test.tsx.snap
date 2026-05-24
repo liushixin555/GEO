@@ -1,0 +1,34 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`MaskReveal 快照测试 show=false 匹配快照 1`] = `
+<DocumentFragment>
+  <span
+    class="mask-reveal"
+    style="display: inline-block; transition-delay: 0ms;"
+  >
+    text
+  </span>
+</DocumentFragment>
+`;
+
+exports[`MaskReveal 快照测试 show=true 匹配快照 1`] = `
+<DocumentFragment>
+  <span
+    class="mask-reveal in"
+    style="display: inline-block; transition-delay: 0ms;"
+  >
+    text
+  </span>
+</DocumentFragment>
+`;
+
+exports[`MaskReveal 快照测试 完整 props 匹配快照 1`] = `
+<DocumentFragment>
+  <span
+    class="mask-reveal in extra"
+    style="display: inline-block; transition-delay: 200ms; transition-duration: 500ms;"
+  >
+    content
+  </span>
+</DocumentFragment>
+`;
