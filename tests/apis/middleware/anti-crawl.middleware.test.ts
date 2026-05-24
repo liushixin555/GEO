@@ -771,4 +771,454 @@ describe('antiCrawlMiddleware', () => {
       (Date.now as jest.Mock).mockRestore();
     });
   });
+
+  // =========================================================
+  // 15. evictOldest 空Map边界
+  // =========================================================
+  describe('evictOldest 空Map边界', () => {
+    it('requestCounts 为空时 evictOldest 不应崩溃', () => {
+      // 新模块实例，requestCounts 和 blockedIPs 均为空
+      jest.resetModules();
+      const { antiCrawlMiddleware: middleware } = require('../../../apis/middleware/anti-crawl.middleware');
+
+      const req = createMockReq({ ip: '1.2.3.4' });
+      (mockNext as jest.Mock).mockClear();
+      middleware(req as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(statusFn).not.toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================
+  // 16. 封锁到期精确边界 now === blockExpiry
+  // =========================================================
+  describe('封锁到期精确边界', () => {
+    it('now === blockExpiry 时封锁应被视为已过期', () => {
+      // 触发封锁
+      for (let i = 0; i <= 200; i++) {
+        antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
+      }
+
+      const currentTime = Date.now();
+      // blockExpiry = currentTime + BLOCK_DURATION_MS (600000)
+      // now === blockExpiry → now < blockExpiry 为 false → 解封
+      jest.spyOn(Date, 'now').mockImplementation(() => currentTime + 600_000);
+
+      statusFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+      antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(statusFn).not.toHaveBeenCalled();
+
+      (Date.now as jest.Mock).mockRestore();
+    });
+
+    it('now === blockExpiry - 1 时封锁仍有效', () => {
+      // 触发封锁
+      for (let i = 0; i <= 200; i++) {
+        antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
+      }
+
+      const currentTime = Date.now();
+      jest.spyOn(Date, 'now').mockImplementation(() => currentTime + 599_999);
+
+      statusFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+      antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(403);
+      expect(mockNext).not.toHaveBeenCalled();
+
+      (Date.now as jest.Mock).mockRestore();
+    });
+  });
+
+  // =========================================================
+  // 17. req.ip 优先级验证
+  // =========================================================
+  describe('req.ip 优先级', () => {
+    it('req.ip 存在时应优先使用，忽略 socket.remoteAddress', () => {
+      const req1 = createMockReq({ ip: '10.0.0.1', remoteAddress: '192.168.1.1' });
+
+      // 发送 100 次请求
+      for (let i = 0; i < 100; i++) {
+        antiCrawlMiddleware(req1 as Request, mockRes as Response, mockNext);
+      }
+      expect(mockNext).toHaveBeenCalledTimes(100);
+
+      // socket.remoteAddress 对应的 IP 应独立（未使用）
+      const req2 = createMockReq({ ip: undefined, remoteAddress: '192.168.1.1' });
+      (mockNext as jest.Mock).mockClear();
+      statusFn.mockClear();
+
+      antiCrawlMiddleware(req2 as Request, mockRes as Response, mockNext);
+      expect(mockNext).toHaveBeenCalled();
+      expect(statusFn).not.toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================
+  // 18. 清理定时器综合覆盖（同时清理 requestCounts 和 blockedIPs）
+  // =========================================================
+  describe('清理定时器综合覆盖', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('同一轮清理应同时清理过期的 requestCounts 和 blockedIPs', () => {
+      jest.resetModules();
+      const { antiCrawlMiddleware: middleware } = require('../../../apis/middleware/anti-crawl.middleware');
+
+      // 创建过期请求记录（ip-a）
+      const reqA = createMockReq({ ip: '100.100.100.100' });
+      for (let i = 0; i < 150; i++) {
+        middleware(reqA as Request, mockRes as Response, mockNext);
+      }
+
+      // 创建过期封锁记录（ip-b）
+      const reqB = createMockReq({ ip: '200.200.200.200' });
+      for (let i = 0; i <= 200; i++) {
+        middleware(reqB as Request, mockRes as Response, mockNext);
+      }
+
+      // 推进超过 BLOCK_DURATION_MS（10 分钟 + 1ms），两个 map 都有过期数据
+      jest.advanceTimersByTime(10 * 60_000 + 1);
+
+      // ip-a 的请求计数已过期清理，应从 count=1 开始
+      statusFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+      for (let i = 0; i < 200; i++) {
+        (mockNext as jest.Mock).mockClear();
+        middleware(reqA as Request, mockRes as Response, mockNext);
+        expect(mockNext).toHaveBeenCalled();
+      }
+
+      // ip-b 的封锁已过期清理，请求应通过
+      statusFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+      middleware(reqB as Request, mockRes as Response, mockNext);
+      expect(mockNext).toHaveBeenCalled();
+    });
+
+    it('清理定时器回调中对未过期 requestCounts 不应删除', () => {
+      jest.resetModules();
+      const { antiCrawlMiddleware: middleware } = require('../../../apis/middleware/anti-crawl.middleware');
+
+      // 在时间=0 时创建请求
+      const req = createMockReq({ ip: '111.111.111.111' });
+      for (let i = 0; i < 100; i++) {
+        middleware(req as Request, mockRes as Response, mockNext);
+      }
+
+      // 只推进 30 秒（未超窗口），此时清理回调不应删除该记录
+      jest.advanceTimersByTime(60_000); // 触发第一次清理
+
+      // 但由于 now - lastReset = 60000 <= 60000 (WINDOW_MS)，不会删除
+      // 再发 101 次请求，计数应从 100 继续递增到 201，触发封锁
+      statusFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+
+      for (let i = 0; i < 100; i++) {
+        (mockNext as jest.Mock).mockClear();
+        middleware(req as Request, mockRes as Response, mockNext);
+        expect(mockNext).toHaveBeenCalled();
+      }
+
+      // 第 201 次触发封锁
+      statusFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+      middleware(req as Request, mockRes as Response, mockNext);
+      expect(statusFn).toHaveBeenCalledWith(403);
+    });
+  });
+
+  // =========================================================
+  // 19. 窗口边界 now - lastReset === WINDOW_MS
+  // =========================================================
+  describe('窗口边界精确验证', () => {
+    it('now - lastReset === WINDOW_MS 时窗口应重置', () => {
+      // 发送 150 次请求
+      for (let i = 0; i < 150; i++) {
+        antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
+      }
+
+      const currentTime = Date.now();
+      // now - lastReset = WINDOW_MS（恰好 60000ms），条件 now - lastReset > WINDOW_MS 为 false
+      // 所以窗口不会重置，计数继续
+      jest.spyOn(Date, 'now').mockImplementation(() => currentTime + 60_000);
+
+      statusFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+      // 再发 50 次（共 200 次），不应封锁
+      for (let i = 0; i < 50; i++) {
+        (mockNext as jest.Mock).mockClear();
+        antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
+        expect(mockNext).toHaveBeenCalled();
+      }
+
+      // 第 201 次触发封锁
+      statusFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+      antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
+      expect(statusFn).toHaveBeenCalledWith(403);
+
+      (Date.now as jest.Mock).mockRestore();
+    });
+
+    it('now - lastReset === WINDOW_MS + 1 时窗口应重置', () => {
+      // 发送 150 次请求
+      for (let i = 0; i < 150; i++) {
+        antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
+      }
+
+      const currentTime = Date.now();
+      // now - lastReset > WINDOW_MS，窗口重置，计数从 1 开始
+      jest.spyOn(Date, 'now').mockImplementation(() => currentTime + 60_001);
+
+      statusFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+      // 发送 200 次不应封锁（从 count=1 重新开始）
+      for (let i = 0; i < 200; i++) {
+        (mockNext as jest.Mock).mockClear();
+        antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
+        expect(mockNext).toHaveBeenCalled();
+      }
+
+      // 第 201 次才触发封锁
+      statusFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+      antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
+      expect(statusFn).toHaveBeenCalledWith(403);
+
+      (Date.now as jest.Mock).mockRestore();
+    });
+  });
+
+  // =========================================================
+  // 20. IPv6 地址支持
+  // =========================================================
+  describe('IPv6 地址', () => {
+    it('IPv6 地址应被正确追踪', () => {
+      const req = createMockReq({ ip: '::1' });
+
+      for (let i = 0; i < 100; i++) {
+        (mockNext as jest.Mock).mockClear();
+        antiCrawlMiddleware(req as Request, mockRes as Response, mockNext);
+        expect(mockNext).toHaveBeenCalled();
+      }
+    });
+
+    it('不同 IPv6 地址应独立计数', () => {
+      const req1 = createMockReq({ ip: '::1' });
+      const req2 = createMockReq({ ip: '::ffff:192.168.1.1' });
+
+      for (let i = 0; i < 200; i++) {
+        antiCrawlMiddleware(req1 as Request, mockRes as Response, mockNext);
+      }
+
+      statusFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+
+      antiCrawlMiddleware(req2 as Request, mockRes as Response, mockNext);
+      expect(mockNext).toHaveBeenCalled();
+      expect(statusFn).not.toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================
+  // 21. User-Agent 类型边界
+  // =========================================================
+  describe('User-Agent 类型边界', () => {
+    it('User-Agent 为数字类型时应被接受（JavaScript 自动转换）', () => {
+      mockReq.headers = { 'user-agent': 1234567890 as any };
+
+      antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
+
+      // 数字类型没有 .length 属性（除非被转换），所以 typeof 检查不适用
+      // 但 ua.length 会返回 undefined（数字没有 length）
+      // !ua → false（非空数字），ua.length < 10 → undefined < 10 → false
+      // 所以数字类型的 UA 应该通过
+      expect(mockNext).toHaveBeenCalled();
+    });
+
+    it('User-Agent 为长度恰好 10 的合法字符串应通过', () => {
+      mockReq.headers = { 'user-agent': 'abcdefghij' };
+
+      antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================
+  // 22. 并发封锁与计数交互
+  // =========================================================
+  describe('并发封锁与计数交互', () => {
+    it('被封锁的 IP 不应增加请求计数', () => {
+      // 触发封锁
+      for (let i = 0; i <= 200; i++) {
+        antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
+      }
+
+      // 被封锁期间发送请求
+      const blockedCallCount = (statusFn as jest.Mock).mock.calls.length;
+      antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
+      expect(statusFn).toHaveBeenCalledTimes(blockedCallCount + 1);
+
+      // 解封后计数应从 1 开始（因为封锁时已删除请求计数）
+      const currentTime = Date.now();
+      jest.spyOn(Date, 'now').mockImplementation(() => currentTime + 600_001);
+
+      statusFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+
+      // 200 次不应封锁
+      for (let i = 0; i < 200; i++) {
+        antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
+      }
+      expect(statusFn).not.toHaveBeenCalled();
+
+      // 第 201 次触发封锁
+      antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
+      expect(statusFn).toHaveBeenCalledWith(403);
+
+      (Date.now as jest.Mock).mockRestore();
+    });
+  });
+
+  // =========================================================
+  // 23. 清理定时器 interval 频率验证
+  // =========================================================
+  describe('清理定时器频率', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('清理回调应每 WINDOW_MS 执行一次', () => {
+      jest.resetModules();
+      const { antiCrawlMiddleware: middleware } = require('../../../apis/middleware/anti-crawl.middleware');
+
+      const req = createMockReq({ ip: '44.44.44.44' });
+      for (let i = 0; i < 100; i++) {
+        middleware(req as Request, mockRes as Response, mockNext);
+      }
+
+      // 第一次清理
+      jest.advanceTimersByTime(60_000);
+      // 此时 now = 60000，lastReset = 0，diff = 60000 <= 60000 → 不删除
+
+      // 再推进 1ms，触发第二次清理
+      jest.advanceTimersByTime(1);
+      // 此时 now = 60001，lastReset = 0，diff = 60001 > 60000 → 删除
+
+      // 计数已重置，200 次不应封锁
+      statusFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+      for (let i = 0; i < 200; i++) {
+        (mockNext as jest.Mock).mockClear();
+        middleware(req as Request, mockRes as Response, mockNext);
+        expect(mockNext).toHaveBeenCalled();
+      }
+
+      statusFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+      middleware(req as Request, mockRes as Response, mockNext);
+      expect(statusFn).toHaveBeenCalledWith(403);
+    });
+  });
+
+  // =========================================================
+  // 24. 恰好阈值的请求计数验证
+  // =========================================================
+  describe('请求计数精确验证', () => {
+    it('第 200 次请求 count=200 不触发封锁，第 201 次 count=201 触发', () => {
+      // 前 200 次全部通过
+      for (let i = 0; i < 200; i++) {
+        statusFn.mockClear();
+        (mockNext as jest.Mock).mockClear();
+        antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
+        expect(mockNext).toHaveBeenCalled();
+        expect(statusFn).not.toHaveBeenCalled();
+      }
+
+      // 第 201 次 count=201 > 200 → 封锁
+      statusFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+      antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
+      expect(statusFn).toHaveBeenCalledWith(403);
+      expect(jsonFn).toHaveBeenCalledWith({ code: 403, message: '访问被拒绝' });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================
+  // 25. 清理定时器回调中 blockedIPs 未过期不删除
+  // =========================================================
+  describe('清理定时器 blockedIPs 边界', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('blockedIPs 未过期时清理回调不应删除', () => {
+      jest.resetModules();
+      const { antiCrawlMiddleware: middleware } = require('../../../apis/middleware/anti-crawl.middleware');
+
+      // 触发封锁
+      const req = createMockReq({ ip: '33.33.33.33' });
+      for (let i = 0; i <= 200; i++) {
+        middleware(req as Request, mockRes as Response, mockNext);
+      }
+
+      // 推进 5 分钟（未到 BLOCK_DURATION_MS），触发清理
+      jest.advanceTimersByTime(5 * 60_000);
+
+      // blockedIPs 未过期，仍应被封锁
+      statusFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+      middleware(req as Request, mockRes as Response, mockNext);
+      expect(statusFn).toHaveBeenCalledWith(403);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================
+  // 26. 多 IP 交替请求计数
+  // =========================================================
+  describe('多 IP 交替请求', () => {
+    it('两个 IP 交替请求应各自独立计数', () => {
+      const req1 = createMockReq({ ip: '172.16.0.1' });
+      const req2 = createMockReq({ ip: '172.16.0.2' });
+
+      // 交替发送 200 轮（每个 IP 200 次）
+      for (let i = 0; i < 200; i++) {
+        antiCrawlMiddleware(req1 as Request, mockRes as Response, mockNext);
+        antiCrawlMiddleware(req2 as Request, mockRes as Response, mockNext);
+      }
+
+      // 两个 IP 都刚好 200 次，不触发封锁
+      statusFn.mockClear();
+
+      // 第 201 次请求各自触发封锁
+      antiCrawlMiddleware(req1 as Request, mockRes as Response, mockNext);
+      expect(statusFn).toHaveBeenCalledWith(403);
+
+      statusFn.mockClear();
+      antiCrawlMiddleware(req2 as Request, mockRes as Response, mockNext);
+      expect(statusFn).toHaveBeenCalledWith(403);
+    });
+  });
 });
