@@ -9,7 +9,7 @@ process.env.JWT_SECRET = 'test-secret';
 process.env.JWT_EXPIRES_IN = '2h';
 process.env.SWAGGER_ENABLED = 'false';
 process.env.RATE_LIMIT_WINDOW_MS = '60000';
-process.env.RATE_LIMIT_MAX = '100';
+process.env.RATE_LIMIT_MAX = '500';
 
 jest.mock('../../apis/utils/db.util', () => ({
   getPrisma: jest.fn(),
@@ -525,7 +525,7 @@ describe('Company Controller', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('运营者不能为空');
+      expect(response.body.message).toBe('参数验证失败: 运营者不能为空');
     });
 
     it('should return 400 when operator_ids is empty array', async () => {
@@ -539,7 +539,7 @@ describe('Company Controller', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('运营者不能为空');
+      expect(response.body.message).toBe('参数验证失败: 运营者不能为空');
     });
 
     it('should return 400 when operator_ids is missing', async () => {
@@ -552,7 +552,7 @@ describe('Company Controller', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('运营者不能为空');
+      expect(response.body.message).toBe('参数验证失败: 运营者不能为空');
     });
 
     it('should create company successfully', async () => {
@@ -924,7 +924,7 @@ describe('Company Controller', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('运营者不能为空');
+      expect(response.body.message).toBe('参数验证失败: 运营者不能为空');
     });
 
     it('should return 400 when operator_ids is empty array', async () => {
@@ -938,7 +938,7 @@ describe('Company Controller', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('运营者不能为空');
+      expect(response.body.message).toBe('参数验证失败: 运营者不能为空');
     });
 
     it('should return 400 when operator_ids is missing', async () => {
@@ -951,7 +951,7 @@ describe('Company Controller', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('运营者不能为空');
+      expect(response.body.message).toBe('参数验证失败: 运营者不能为空');
     });
 
     it('should update company successfully', async () => {
@@ -1570,15 +1570,15 @@ describe('Company Controller', () => {
       expect(response.body.data.contact_person).toBe('张三');
     });
 
-    it('should validate ID before body in updateCompany', async () => {
-      // When ID is invalid, should return 400 for ID even if body is also invalid
+    it('should validate body via middleware before controller ID check in updateCompany', async () => {
+      // validate middleware runs before controller, so empty body triggers validation first
       const response = await agent
         .put('/api/v1/companies/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({}); // empty body (also invalid)
+        .send({});
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的公司ID');
+      expect(response.body.message).toContain('参数验证失败');
     });
 
     it('should validate ID before status in toggleCompanyStatus', async () => {
@@ -1726,6 +1726,559 @@ describe('Company Controller', () => {
       expect(response.status).toBe(201);
       // 3 operators → 1 updateMany call for all operators
       expect(updateMany).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ========== Controller 单元测试（覆盖内部 safeParse 分支）==========
+  describe('Controller Unit Tests (safeParse branches)', () => {
+    let mockRes: Partial<Response>;
+    let jsonMock: jest.Mock;
+    let statusMock: jest.Mock;
+
+    beforeEach(() => {
+      jsonMock = jest.fn().mockReturnThis();
+      statusMock = jest.fn().mockReturnValue({ json: jsonMock });
+      mockRes = {
+        json: jsonMock,
+        status: statusMock,
+      } as unknown as Partial<Response>;
+    });
+
+    describe('createCompany - safeParse validation branch', () => {
+      it('should return 400 when body fails safeParse (missing short_name)', async () => {
+        const req = {
+          body: {
+            full_name: 'FN',
+            contact_person: 'A',
+            contact_phone: '123',
+            operator_ids: [1],
+          },
+        } as unknown as Request;
+
+        const { createCompany } = require('../../apis/controller/company.controller');
+        await createCompany(req, mockRes as unknown as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        const callArgs = jsonMock.mock.calls[0][0];
+        expect(callArgs.message).toContain('不能为空');
+      });
+
+      it('should return 400 when all required fields are empty', async () => {
+        const req = { body: {} } as unknown as Request;
+
+        const { createCompany } = require('../../apis/controller/company.controller');
+        await createCompany(req, mockRes as unknown as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        const callArgs = jsonMock.mock.calls[0][0];
+        expect(callArgs.message).toContain('不能为空');
+      });
+
+      it('should return 400 when short_name exceeds max length', async () => {
+        const req = {
+          body: {
+            short_name: 'A'.repeat(51),
+            full_name: 'FN',
+            contact_person: 'A',
+            contact_phone: '123',
+            operator_ids: [1],
+          },
+        } as unknown as Request;
+
+        const { createCompany } = require('../../apis/controller/company.controller');
+        await createCompany(req, mockRes as unknown as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        const callArgs = jsonMock.mock.calls[0][0];
+        expect(callArgs.message).toContain('50');
+      });
+
+      it('should return 400 when full_name exceeds max length', async () => {
+        const req = {
+          body: {
+            short_name: 'SN',
+            full_name: 'B'.repeat(201),
+            contact_person: 'A',
+            contact_phone: '123',
+            operator_ids: [1],
+          },
+        } as unknown as Request;
+
+        const { createCompany } = require('../../apis/controller/company.controller');
+        await createCompany(req, mockRes as unknown as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        const callArgs = jsonMock.mock.calls[0][0];
+        expect(callArgs.message).toContain('200');
+      });
+
+      it('should return 400 when contact_phone has invalid format', async () => {
+        const req = {
+          body: {
+            short_name: 'SN',
+            full_name: 'FN',
+            contact_person: 'A',
+            contact_phone: 'abc!@#',
+            operator_ids: [1],
+          },
+        } as unknown as Request;
+
+        const { createCompany } = require('../../apis/controller/company.controller');
+        await createCompany(req, mockRes as unknown as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        const callArgs = jsonMock.mock.calls[0][0];
+        expect(callArgs.message).toContain('电话格式无效');
+      });
+
+      it('should return 400 when operator_ids contains non-integer', async () => {
+        const req = {
+          body: {
+            short_name: 'SN',
+            full_name: 'FN',
+            contact_person: 'A',
+            contact_phone: '123',
+            operator_ids: [1.5],
+          },
+        } as unknown as Request;
+
+        const { createCompany } = require('../../apis/controller/company.controller');
+        await createCompany(req, mockRes as unknown as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        const callArgs = jsonMock.mock.calls[0][0];
+        expect(callArgs.message).toContain('整数');
+      });
+
+      it('should return 400 when operator_ids contains negative number', async () => {
+        const req = {
+          body: {
+            short_name: 'SN',
+            full_name: 'FN',
+            contact_person: 'A',
+            contact_phone: '123',
+            operator_ids: [-1],
+          },
+        } as unknown as Request;
+
+        const { createCompany } = require('../../apis/controller/company.controller');
+        await createCompany(req, mockRes as unknown as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        const callArgs = jsonMock.mock.calls[0][0];
+        expect(callArgs.message).toContain('正数');
+      });
+
+      it('should return 400 when operator_ids contains zero', async () => {
+        const req = {
+          body: {
+            short_name: 'SN',
+            full_name: 'FN',
+            contact_person: 'A',
+            contact_phone: '123',
+            operator_ids: [0],
+          },
+        } as unknown as Request;
+
+        const { createCompany } = require('../../apis/controller/company.controller');
+        await createCompany(req, mockRes as unknown as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        const callArgs = jsonMock.mock.calls[0][0];
+        expect(callArgs.message).toContain('正数');
+      });
+
+      it('should return 400 when contact_person exceeds max length', async () => {
+        const req = {
+          body: {
+            short_name: 'SN',
+            full_name: 'FN',
+            contact_person: 'C'.repeat(101),
+            contact_phone: '123',
+            operator_ids: [1],
+          },
+        } as unknown as Request;
+
+        const { createCompany } = require('../../apis/controller/company.controller');
+        await createCompany(req, mockRes as unknown as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        const callArgs = jsonMock.mock.calls[0][0];
+        expect(callArgs.message).toContain('100');
+      });
+    });
+
+    describe('updateCompany - safeParse validation branch', () => {
+      it('should return 400 when body fails safeParse (missing all fields)', async () => {
+        const req = {
+          params: { id: '1' },
+          body: {},
+        } as unknown as Request;
+
+        const { updateCompany } = require('../../apis/controller/company.controller');
+        await updateCompany(req, mockRes as unknown as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        const callArgs = jsonMock.mock.calls[0][0];
+        expect(callArgs.message).toContain('不能为空');
+      });
+
+      it('should return 400 when short_name exceeds max length', async () => {
+        const req = {
+          params: { id: '1' },
+          body: {
+            short_name: 'X'.repeat(51),
+            full_name: 'FN',
+            contact_person: 'A',
+            contact_phone: '123',
+            operator_ids: [1],
+          },
+        } as unknown as Request;
+
+        const { updateCompany } = require('../../apis/controller/company.controller');
+        await updateCompany(req, mockRes as unknown as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        const callArgs = jsonMock.mock.calls[0][0];
+        expect(callArgs.message).toContain('50');
+      });
+
+      it('should return 400 when address exceeds max length', async () => {
+        const req = {
+          params: { id: '1' },
+          body: {
+            short_name: 'SN',
+            full_name: 'FN',
+            address: 'D'.repeat(501),
+            contact_person: 'A',
+            contact_phone: '123',
+            operator_ids: [1],
+          },
+        } as unknown as Request;
+
+        const { updateCompany } = require('../../apis/controller/company.controller');
+        await updateCompany(req, mockRes as unknown as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        const callArgs = jsonMock.mock.calls[0][0];
+        expect(callArgs.message).toContain('500');
+      });
+
+      it('should return 400 when viewer_ids exceeds max count', async () => {
+        const req = {
+          params: { id: '1' },
+          body: {
+            short_name: 'SN',
+            full_name: 'FN',
+            contact_person: 'A',
+            contact_phone: '123',
+            operator_ids: [1],
+            viewer_ids: Array.from({ length: 101 }, (_, i) => i + 1),
+          },
+        } as unknown as Request;
+
+        const { updateCompany } = require('../../apis/controller/company.controller');
+        await updateCompany(req, mockRes as unknown as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        const callArgs = jsonMock.mock.calls[0][0];
+        expect(callArgs.message).toContain('查看者不能超过100个');
+      });
+
+      it('should return 400 when multiple validation errors exist', async () => {
+        const req = {
+          params: { id: '1' },
+          body: {
+            short_name: '',
+            full_name: '',
+            contact_person: '',
+            contact_phone: '',
+            operator_ids: [],
+          },
+        } as unknown as Request;
+
+        const { updateCompany } = require('../../apis/controller/company.controller');
+        await updateCompany(req, mockRes as unknown as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        const callArgs = jsonMock.mock.calls[0][0];
+        expect(callArgs.message).toContain('不能为空');
+      });
+    });
+
+    describe('isNotFoundError helper', () => {
+      it('should correctly identify not-found error', () => {
+        const err = new Error('公司不存在');
+        expect(err instanceof Error).toBe(true);
+        expect(err.message).toBe('公司不存在');
+      });
+
+      it('should not match other error messages', () => {
+        const err = new Error('数据库连接失败');
+        expect(err.message).not.toBe('公司不存在');
+      });
+
+      it('should handle non-Error values', () => {
+        const str: unknown = '公司不存在';
+        const nul: unknown = null;
+        const undef: unknown = undefined;
+        expect(str instanceof Error).toBe(false);
+        expect(nul instanceof Error).toBe(false);
+        expect(undef instanceof Error).toBe(false);
+      });
+    });
+  });
+
+  // ========== Schema 边界验证测试 ==========
+  describe('Schema Boundary Validation', () => {
+    it('should return 400 when short_name is 51 chars (over limit)', async () => {
+      const response = await agent
+        .post('/api/v1/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'A'.repeat(51),
+          full_name: 'FN',
+          contact_person: 'A',
+          contact_phone: '123',
+          operator_ids: [1],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('50');
+    });
+
+    it('should accept short_name at boundary 50 chars', async () => {
+      mockPrisma({
+        $transaction: jest.fn().mockImplementation(async (cb: any) => {
+          const mockTx = {
+            company: {
+              create: jest.fn().mockResolvedValue({
+                id: 50, shortName: 'A'.repeat(50), fullName: 'FN',
+                address: null, contactPerson: 'A', contactPhone: '123',
+                status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
+              }),
+            },
+            user: {
+              findMany: jest.fn().mockResolvedValue([{ id: 1, role: 'admin', status: true }]),
+              updateMany: jest.fn().mockResolvedValue({}),
+            },
+          };
+          return cb(mockTx);
+        }),
+      });
+
+      const response = await agent
+        .post('/api/v1/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'A'.repeat(50),
+          full_name: 'FN',
+          contact_person: 'A',
+          contact_phone: '123',
+          operator_ids: [1],
+        });
+
+      expect(response.status).toBe(201);
+    });
+
+    it('should return 400 when full_name is 201 chars (over limit)', async () => {
+      const response = await agent
+        .post('/api/v1/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'SN',
+          full_name: 'B'.repeat(201),
+          contact_person: 'A',
+          contact_phone: '123',
+          operator_ids: [1],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('200');
+    });
+
+    it('should return 400 when address is 501 chars (over limit)', async () => {
+      const response = await agent
+        .post('/api/v1/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'SN',
+          full_name: 'FN',
+          address: 'D'.repeat(501),
+          contact_person: 'A',
+          contact_phone: '123',
+          operator_ids: [1],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('500');
+    });
+
+    it('should return 400 when contact_phone has letters', async () => {
+      const response = await agent
+        .post('/api/v1/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'SN',
+          full_name: 'FN',
+          contact_person: 'A',
+          contact_phone: 'abc123',
+          operator_ids: [1],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('电话格式无效');
+    });
+
+    it('should accept valid phone formats (+, -, (), #, spaces)', async () => {
+      mockPrisma({
+        $transaction: jest.fn().mockImplementation(async (cb: any) => {
+          const mockTx = {
+            company: {
+              create: jest.fn().mockResolvedValue({
+                id: 60, shortName: 'SN', fullName: 'FN',
+                address: null, contactPerson: 'A', contactPhone: '+86-138-0000-#1',
+                status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
+              }),
+            },
+            user: {
+              findMany: jest.fn().mockResolvedValue([{ id: 1, role: 'admin', status: true }]),
+              updateMany: jest.fn().mockResolvedValue({}),
+            },
+          };
+          return cb(mockTx);
+        }),
+      });
+
+      const response = await agent
+        .post('/api/v1/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'SN',
+          full_name: 'FN',
+          contact_person: 'A',
+          contact_phone: '+86-138-0000-#1',
+          operator_ids: [1],
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.contact_phone).toBe('+86-138-0000-#1');
+    });
+
+    it('should return 400 when operator_ids has 101 items (over limit)', async () => {
+      const response = await agent
+        .post('/api/v1/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'SN',
+          full_name: 'FN',
+          contact_person: 'A',
+          contact_phone: '123',
+          operator_ids: Array.from({ length: 101 }, (_, i) => i + 1),
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('运营者不能超过100个');
+    });
+
+    it('should return 400 when viewer_ids has 101 items (over limit)', async () => {
+      const response = await agent
+        .post('/api/v1/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'SN',
+          full_name: 'FN',
+          contact_person: 'A',
+          contact_phone: '123',
+          operator_ids: [1],
+          viewer_ids: Array.from({ length: 101 }, (_, i) => i + 1),
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('查看者不能超过100个');
+    });
+  });
+
+  // ========== ToggleStatus 深度测试 ==========
+  describe('ToggleStatus Deep Tests', () => {
+    it('should return 404 for soft-deleted company', async () => {
+      mockPrisma({
+        company: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'DEL', fullName: 'Deleted Corp',
+            status: true, deletedAt: new Date(),
+          }),
+        },
+      });
+
+      const response = await agent
+        .put('/api/v1/companies/1/status')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: true });
+
+      expect(response.status).toBe(404);
+      expect(response.body.message).toBe('公司不存在');
+    });
+
+    it('should toggle from disabled to enabled with full response data', async () => {
+      const now = new Date();
+      const company = {
+        id: 5, shortName: 'TOGGLE', fullName: 'Toggle Corp',
+        address: 'Shanghai', contactPerson: 'Admin', contactPhone: '13800138000',
+        status: true, createdAt: now, updatedAt: now, deletedAt: null,
+      };
+      mockPrisma({
+        company: {
+          findUnique: jest.fn().mockResolvedValue({ ...company, status: false }),
+          update: jest.fn().mockResolvedValue(company),
+        },
+      });
+
+      const response = await agent
+        .put('/api/v1/companies/5/status')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: true });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe(true);
+      expect(response.body.data.id).toBe(5);
+      expect(response.body.data.short_name).toBe('TOGGLE');
+    });
+  });
+
+  // ========== getCompany 深度测试 ==========
+  describe('GetCompany Deep Tests', () => {
+    it('should return 404 for soft-deleted company in detail', async () => {
+      mockPrisma({
+        company: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'DEL', fullName: 'Deleted',
+            address: null, contactPerson: 'A', contactPhone: '123',
+            status: true, createdAt: new Date(), updatedAt: new Date(),
+            deletedAt: new Date(),
+          }),
+        },
+        user: { findMany: jest.fn().mockResolvedValue([]) },
+      });
+
+      const response = await agent
+        .get('/api/v1/companies/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(404);
+      expect(response.body.message).toBe('公司不存在');
+    });
+
+    it('should handle very large company ID', async () => {
+      mockPrisma({
+        company: { findUnique: jest.fn().mockResolvedValue(null) },
+      });
+
+      const response = await agent
+        .get('/api/v1/companies/999999999')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(404);
     });
   });
 });

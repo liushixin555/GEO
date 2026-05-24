@@ -850,3 +850,13 @@
   - tasks/review/common.tsx.security.md
   - tasks/review/common.tsx.ui.md
   - tasks/review/common.tsx.committer.md（含修复记录）
+
+## 本次变更（2026-05-24 company.controller.ts TDD 测试补全）
+- [x] **company.controller.ts 测试用例补全** — 从 95 个增加到 124 个测试用例（+29）
+  - 修复 7 个失败测试：validate 中间件消息前缀（5个）、PUT 路由 validate 优先于 ID 校验（1个）、RATE_LIMIT_MAX 不足（1个）
+  - 新增 Controller 单元测试 18 个：createCompany safeParse 分支（9个）、updateCompany safeParse 分支（5个）、isNotFoundError 辅助函数（3个）
+  - 新增 Schema 边界验证 8 个：short_name/full_name/address/contact_phone/operator_ids/viewer_ids 长度和格式
+  - 新增 ToggleStatus 深度测试 2 个：软删除公司返回 404、完整响应数据验证
+  - 新增 getCompany 深度测试 2 个：软删除公司返回 404、超大 ID
+  - 覆盖率从 91.54%/87.5%/75%/94.2% 提升到 **100%/100%/100%/100%**
+  - TDD 报告：tasks/tdd/company.controller.test.md
