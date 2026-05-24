@@ -5,21 +5,21 @@
 **文件路径**: `pages/api-docs/index.tsx`
 **代码行数**: 24 行
 **关联文件**: `pages/components/Layout.tsx`, `pages/components/Sidebar.tsx`, `pages/App.tsx`, `apis/app.ts:69-92`, `apis/config/index.ts:130-132`
-**安全评级**: ⚠️ MEDIUM（中风险 — 死代码 + 路径冲突 + Swagger 端点无认证）
+**安全评级**: ✅ RESOLVED（全部 5 项安全问题已修复，2026-05-24 验证）
 
 ---
 
-## 1. 安全总体评级：⚠️ MEDIUM
+## 1. 安全总体评级：✅ RESOLVED（2026-05-24 修复验证）
 
-`ApiDocsPage` 是一个仅 24 行的纯展示组件，本身代码安全性较好（无用户输入处理、无动态渲染、无 API 调用）。但**该组件从未被任何路由或菜单引用**（死代码），且其链接目标（后端 Swagger 端点）存在认证缺失问题，形成一个从死代码指向不安全端点的"幽灵链接"。
+`ApiDocsPage` 已注册路由（`/swagger`，仅 sysadmin）和侧边栏菜单。Swagger 端点已添加 `swaggerAuthMiddleware`（HTTP Basic Auth + 角色校验）。`target="_blank"` 已添加 `rel="noopener noreferrer"`。前端路径 `/swagger` 与后端 `/api-docs` 无冲突。
 
 | 安全域 | 评分 | 状态 |
 |--------|------|------|
-| 组件安全性（自身） | 9/10 | 纯静态组件，无安全风险 |
-| 代码活性（是否被引用） | 0/10 | ❌ 死代码，未路由、未菜单化 |
-| 链接目标安全性 | 3/10 | ❌ Swagger 端点无认证保护 |
-| target="_blank" 安全性 | 5/10 | ⚠️ 缺少 rel="noopener noreferrer" |
-| 访问控制 | 0/10 | ❌ 组件无角色检查（虽未路由） |
+| 组件安全性（自身） | 9/10 | ✅ 纯静态组件，无安全风险 |
+| 代码活性（是否被引用） | 10/10 | ✅ 已注册路由 `/swagger` + 侧边栏菜单 |
+| 链接目标安全性 | 9/10 | ✅ Swagger 端点已有 swaggerAuthMiddleware 认证保护 |
+| target="_blank" 安全性 | 10/10 | ✅ 已添加 rel="noopener noreferrer" |
+| 访问控制 | 10/10 | ✅ 路由 roles: ['sysadmin'] + 后端 ALLOWED_ROLES |
 
 ---
 
