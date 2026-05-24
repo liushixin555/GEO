@@ -498,6 +498,14 @@
   - 提供完整重构方案代码示例
   - 评审报告 tasks/review/api-docs.index.tsx.ui.md
 
+## 本次变更（2026-05-24 apis/config/index.ts 软件质量专家评审）
+- [x] **软件质量专家评审 apis/config/index.ts（147 行）**
+  - 综合评级 A-（高质量配置模块，少量可改进点）
+  - 10 项质量发现：MEDIUM×4（子接口readonly缺失、默认值分散、JWT强度未校验、模块副作用不可延迟）、LOW×6（dotenv路径、IIFE认知复杂度、safeParseInt浮点截断、cron未校验、连接池硬编码、deepFreeze边缘情况）
+  - 正面评价：safeParseInt 三重防护、deepFreeze 不可变保护、parseCorsOrigins 独立校验、JWT 随机生成、114 个测试用例
+  - 建议优先修复 Q-01（子接口 readonly 对齐）和 Q-06（JWT 强度校验），共 8 分钟
+  - 评审报告 tasks/review/config-index.quality.md
+
 ## 本次变更（2026-05-24 pages/api-docs/index.tsx Committer审核专家评审）
 - [x] **Committer审核专家评审 pages/api-docs/index.tsx（24 行）**
   - 综合判定：❌ 拒绝合并（REJECT）— 死代码 + 路由冲突 + 零测试 + 安全漏洞
