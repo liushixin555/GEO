@@ -1,109 +1,212 @@
-# apis/controller/knowledge-base.controller.ts — 软件架构专家评审报告
+# apis/controller/knowledge-base.controller.ts — 代码安全专家评审报告
 
 **评审日期**: 2026-05-24
-**评审角色**: 软件架构专家（分层架构 + 依赖管理 + 错误策略 + 关注点分离 + 可扩展性 + 可测试性）
+**评审角色**: 代码安全专家（OWASP Top 10 + API 安全 + 输入验证 + 信息泄露 + 权限控制）
 **文件路径**: `apis/controller/knowledge-base.controller.ts`
-**代码行数**: 166 行（5 个导出函数 + 1 个模块级常量 + 1 个辅助函数）
-**测试文件**: `tests/apis/knowledge-base.controller.test.ts`（1851 行，含 73 个测试用例）
-**关联文件**: `apis/service/knowledge-base.service.ts`, `apis/service/impl/knowledge-base.service.impl.ts`, `apis/entity/knowledge-base.entity.ts`, `apis/utils/response.util.ts`, `apis/app.ts`
-**已有评审**: 安全评审（knowledge-base.controller.security.md）、Committer 评审（knowledge-base.controller.committer.md）、质量评审（knowledge-base.controller.quality.md）、开发评审（knowledge-base.controller.dev.md）
+**代码行数**: 166 行（5 个导出函数 + 1 个辅助函数 + 1 个模块级常量）
+**关联文件**: `apis/routes/knowledge.routes.ts`, `apis/schema/knowledge-base.schema.ts`, `apis/middleware/validate.ts`, `apis/service/impl/knowledge-base.service.impl.ts`, `apis/middleware/auth.middleware.ts`, `apis/entity/knowledge-base.entity.ts`
+**安全评级**: ✅ MEDIUM-LOW（中低风险 — 核心安全机制到位，存在归属校验缺失与 Zod schema 遗漏字段等设计缺陷）
 
 ---
 
-## 一、架构上下文
+## 一、安全评价总览
 
-### 1.1 系统分层
+从代码安全专家视角审视，`knowledge-base.controller.ts`（166 行版本）的整体安全态势为**中低风险**，较上一版（123 行）有**显著改善**。
+
+### 已修复的安全问题（对比上一版评审）
+
+| 编号 | 问题 | 修复方式 | 验证结果 |
+|------|------|----------|----------|
+| SEC-H-01 | `getById` 无数据级访问控制 | Service 层 `getById(id, userId, role)` 添加了与 `list` 一致的权限过滤 | ✅ 已修复 |
+| SEC-H-02 | 输入验证严重不足 | 路由层引入 Zod schema `validate()` + Controller 层手动校验双重防御 | ✅ 已修复 |
+| SEC-M-02 | `company_id`/`project_id` 无整数验证 | Zod `positiveInt` + `validateInteger()` 双重保障 | ✅ 已修复 |
+| SEC-M-04 | `update` 批量赋值风险 | Controller 显式构造 `UpdateKnowledgeBaseRequest` + Zod schema 自动剥离未知字段 | ✅ 已修复 |
+| SEC-L-01 | `description` 无长度限制 | Zod `max(2000)` + Controller 手动校验 | ✅ 已修复 |
+| SEC-L-02 | `search` 无长度限制 | `rawSearch.slice(0, 100)` 截断 | ✅ 部分修复 |
+
+### 安全防御架构（三层纵深防御）
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  app.ts (路由注册 + 全局中间件)                         │
-│  helmet → cors → anti-crawl → rate-limit             │
-│  → authMiddleware → roleMiddleware → controller      │
-├─────────────────────────────────────────────────────┤
-│  controller (参数提取 + 输入验证 + 响应构造)             │
-│  knowledge-base.controller.ts                        │
-│  ├─ validateInteger() 辅助函数                        │
-│  ├─ VALID_SCOPES 枚举常量                             │
-│  └─ 5 个导出 async 函数                               │
-├─────────────────────────────────────────────────────┤
-│  service interface (IKnowledgeBaseService)            │
-│  service impl (KnowledgeBaseServiceImpl)              │
-│  ├─ mapKnowledgeBase() 数据映射                       │
-│  ├─ 权限过滤（role + companyId + projectId）           │
-│  ├─ 所有权检查（createdBy）                            │
-│  └─ 软删除（deletedAt）                               │
-├─────────────────────────────────────────────────────┤
-│  Prisma ORM → PostgreSQL                             │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│  Layer 1: 路由层 (knowledge.routes.ts)                          │
+│  ├─ authMiddleware       → JWT 认证 ✅                          │
+│  ├─ roleMiddleware        → sysadmin/admin 角色限制 ✅           │
+│  └─ validate(ZodSchema)  → POST/PUT 请求体 Zod 校验 ✅          │
+├─────────────────────────────────────────────────────────────────┤
+│  Layer 2: 控制器层 (knowledge-base.controller.ts)               │
+│  ├─ req.user 存在性检查  → 401 未登录 ✅                        │
+│  ├─ parseInt + isNaN      → ID 参数类型校验 ✅                   │
+│  ├─ VALID_SCOPES 常量     → scope 枚举校验 ✅                    │
+│  ├─ validateInteger()     → company_id/project_id 整数校验 ✅    │
+│  ├─ name 类型/长度/空白    → 名称完整性校验 ✅                    │
+│  └─ description 长度      → 描述长度校验 ✅                       │
+├─────────────────────────────────────────────────────────────────┤
+│  Layer 3: 服务层 (knowledge-base.service.impl.ts)               │
+│  ├─ getById 数据级访问控制 → scope + companyId + projectId 过滤 ✅│
+│  ├─ update/delete 所有权检查 → 非创建者不可操作 ✅               │
+│  ├─ scope 业务逻辑验证     → company 必须选公司，project 必须选项目 ✅│
+│  ├─ Prisma 参数化查询      → SQL 注入免疫 ✅                     │
+│  └─ 软删除                 → deletedAt 而非物理删除 ✅            │
+└─────────────────────────────────────────────────────────────────┘
 ```
-
-### 1.2 路由注册
-
-在 `app.ts:178-182` 中注册了 5 条 RESTful 路由，均受 `authMiddleware` + `roleMiddleware('sysadmin', 'admin')` 保护。另有 22 条子资源路由（keywords/portraits/images/documents）注册在 `app.ts:200-226`，挂载在 `/api/knowledge-bases/:baseId/` 下。
-
-### 1.3 历次评审后的代码演进
-
-本文件已经历多轮评审修复，与首版（123 行）相比的关键改进：
-
-| 改进项 | 原状态 | 当前状态 | 来源 |
-|--------|--------|----------|------|
-| getById 数据级访问控制 | 无，admin 可遍历任意知识库 | 已传递 userId/role，service 层含权限过滤 | SEC-H-01 |
-| update 批量赋值防护 | `req.body` 整体传入 | 显式构造 `UpdateKnowledgeBaseRequest` | SEC-M-04 |
-| 输入验证 | 仅 truthy 检查 | name 类型/长度 + description 长度 + scope 枚举 + 整数验证 | SEC-H-02 |
-| validateInteger 辅助函数 | 不存在 | 已添加，静默吞没无效值（见质量评审 H-1） | SEC-M-02 |
-| name/description 验证 | 缺失 | name 非空/200 字符限制，description 2000 字符限制 | SEC-H-02 |
-| 测试用例数 | 51 个 | 73 个（+22 个防御性和边界测试） | 质量评审 |
 
 ---
 
-## 二、架构问题清单
+## 二、安全防御正面发现
 
-### CRITICAL 级别
+| 防御措施 | 位置 | 评价 |
+|----------|------|------|
+| JWT 认证中间件 | `auth.middleware.ts` | ✅ 基于 jsonwebtoken 库，token 过期处理正确 |
+| 角色授权 — sysadmin + admin | `knowledge.routes.ts:19` | ✅ 所有 5 个端点均限制为 sysadmin/admin 角色 |
+| Zod schema 校验（POST/PUT） | `knowledge.routes.ts:22-23` + `knowledge-base.schema.ts` | ✅ 类型/长度/枚举全面校验，自动剥离未知字段 |
+| Controller 手动校验（防御纵深） | 第 66-78、102-116 行 | ✅ 与 Zod 形成双重防御 |
+| ID 参数验证 | 第 44、99、149 行 | ✅ `parseInt + isNaN` 一致执行 |
+| Scope 验证 | 第 8、73-76、103-106 行 | ✅ `VALID_SCOPES` 常量 + `includes` 检查 |
+| `validateInteger()` | 第 10-16 行 | ✅ 类型 + 整数 + 正数三重校验 |
+| 数据级访问控制（getById） | Service 第 105-135 行 | ✅ 与 list 一致的 scope/company/project 过滤 |
+| 所有权检查（update/delete） | Service 第 173-175、220-222 行 | ✅ 非 sysadmin 只能操作自己创建的 |
+| `err: unknown` 类型安全 | 所有 5 个 catch 块 | ✅ 防止 `any` 类型逃逸 |
+| catch-all 通用错误消息 | 第 37、56、92、141、162 行 | ✅ 未泄露 `err.message`，返回通用消息 |
+| 分页参数夹紧 | 第 20-22 行 | ✅ `Math.max(1, ...)` / `Math.min(100, ...)` |
+| 状态参数类型守卫 | 第 26 行 | ✅ `req.query.status === 'true'` 正确实现布尔解析 |
+| 搜索长度限制 | 第 24 行 | ✅ `rawSearch.slice(0, 100)` 防止超长搜索 |
+| name trim() | 第 84 行 | ✅ `name: name.trim()` 去除首尾空白 |
+| Prisma 参数化查询 | Service 层 | ✅ 天然防止 SQL 注入 |
+| 软删除 | Service 第 224 行 | ✅ 使用 `deletedAt` 而非物理删除 |
+| 显式请求对象构造 | 第 119-126 行 | ✅ 防止批量赋值 |
+| `req.user` 存在性检查 | 所有 5 个函数 | ✅ 统一 401 响应 |
+| 无 console.log | 整个文件 | ✅ 生产代码无调试输出 |
 
-#### C-1: 控制器承担了错误翻译职责 — 关注点未分离
+---
 
-**位置**: 全部 5 个 catch 块（第 33-39、52-58、88-94、133-143、156-164 行）
+## 三、安全漏洞详情（仍存在的问题）
 
-**问题描述**: 每个 controller 函数的 catch 块都包含一组 `err.message === '...'` 字符串匹配，将 service 层抛出的 `Error` 翻译为 HTTP 状态码。这是典型的**错误翻译层**，属于横切关注点，不应由每个控制器函数重复实现。
+### SEC-M-01: `company_id`/`project_id` 未验证归属关系 — admin 可关联任意公司/项目（OWASP A01）
+
+**严重级别**: MEDIUM
+**位置**: 第 77-78 行（createKnowledgeBase）、第 124-125 行（updateKnowledgeBase）
+**OWASP 分类**: A01:2021 — Broken Access Control
 
 ```typescript
-// listKnowledgeBases — 第 33-39 行
-catch (err: unknown) {
-  if (err instanceof Error && err.message === '知识库不存在') {
-    fail(res, 404, err.message);
-  } else {
-    fail(res, 500, '获取知识库列表失败');
+// createKnowledgeBase — 第 77-78 行
+const validCompanyId = validateInteger(company_id, 'company_id');
+const validProjectId = validateInteger(project_id, 'project_id');
+// ❌ 仅验证了整数格式，未验证当前 admin 是否有权关联该公司/项目
+```
+
+**攻击场景**:
+
+```bash
+# admin-A（属于公司1）创建知识库时关联到公司2
+curl -X POST http://target/api/knowledge-bases \
+  -H "Authorization: Bearer <admin-A-token>" \
+  -H "User-Agent: test-agent/1.0" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "恶意知识库", "scope": "company", "company_id": 2}'
+```
+
+**影响分析**:
+1. **数据完整性破坏**: 知识库可以关联到管理员无权访问的公司或项目
+2. **信息混淆**: 其他公司的 admin 可能看到不属于他们的知识库
+3. **权限提升路径**: 通过关联到其他公司的项目，可能间接获取该项目的知识库资源
+
+**修复方案**: 在 Service 层添加归属关系验证：
+
+```typescript
+if (request.scope === 'company' && request.company_id) {
+  if (role !== 'sysadmin') {
+    const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
+    if (!user || user.companyId !== request.company_id) {
+      throw new ForbiddenError('无权关联该公司');
+    }
   }
 }
+```
 
-// updateKnowledgeBase — 第 133-143 行（最复杂，匹配 4 种错误）
-catch (err: unknown) {
-  if (err instanceof Error && err.message === '知识库不存在') {
+---
+
+### SEC-M-02: `updateKnowledgeBaseSchema` 遗漏 `status` 字段 — 状态更新静默失败
+
+**严重级别**: MEDIUM
+**位置**: `apis/schema/knowledge-base.schema.ts:27-33` + Controller 第 123 行
+**OWASP 分类**: A04:2021 — Insecure Design
+
+```typescript
+// knowledge-base.schema.ts — update schema 缺少 status 字段
+export const updateKnowledgeBaseSchema = z.object({
+  name: name.optional(),
+  description,
+  scope: scope.optional(),
+  company_id: positiveInt.optional(),
+  project_id: positiveInt.optional(),
+  // ❌ 缺少 status: z.boolean().optional()
+});
+
+// knowledge-base.controller.ts — 第 119-126 行
+const updateRequest: UpdateKnowledgeBaseRequest = {
+  name: req.body.name,
+  description: req.body.description,
+  scope: req.body.scope,
+  status: req.body.status,     // ← Zod 已剥离 status，此处永远为 undefined
+  company_id: validateInteger(req.body.company_id, 'company_id'),
+  project_id: validateInteger(req.body.project_id, 'project_id'),
+};
+```
+
+**根因分析**:
+1. Zod `safeParse` 默认行为是**剥离未知字段**（非 `.strict()` 报错、非 `.passthrough()` 保留）
+2. `validate()` 中间件（`validate.ts:22`）将 `req.body = result.data`，因此 `status` 被丢弃
+3. Controller 构造 `updateRequest` 时 `status: req.body.status` 永远为 `undefined`
+4. Service 层 `if (request.status !== undefined)` 永远为 false — **状态更新永远不会生效**
+
+**影响范围**: 前端调用 `PUT /api/knowledge-bases/:id` 传入 `{ status: false }` 试图禁用知识库时，请求被 Zod 接受（不报错），但 `status` 字段被静默丢弃，知识库状态不变。前端无任何错误提示，用户误以为操作成功。
+
+**修复方案**:
+
+```typescript
+// knowledge-base.schema.ts
+export const updateKnowledgeBaseSchema = z.object({
+  name: name.optional(),
+  description,
+  scope: scope.optional(),
+  status: z.boolean().optional(),    // ← 添加 status 字段
+  company_id: positiveInt.optional(),
+  project_id: positiveInt.optional(),
+});
+```
+
+---
+
+### SEC-M-03: Service 层异常通过字符串精确匹配 — 脆弱的安全检测（OWASP A04）
+
+**严重级别**: MEDIUM
+**位置**: 第 33-39、52-58、88-94、133-143、156-163 行（所有 5 个 catch 块）
+**OWASP 分类**: A04:2021 — Insecure Design
+
+```typescript
+} catch (err: unknown) {
+  if (err instanceof Error && err.message === '知识库不存在') {     // ❌ 精确字符串匹配
     fail(res, 404, err.message);
   } else if (err instanceof Error && err.message === '只能修改自己创建的知识库') {
     fail(res, 403, err.message);
   } else if (err instanceof Error && (err.message === '公司公共知识库必须选择公司' || err.message === '项目私有知识库必须选择项目')) {
     fail(res, 400, err.message);
   } else {
-    fail(res, 500, '更新知识库失败');
+    fail(res, 500, '更新知识库失败');    // ✓ catch-all 未泄露 err.message
   }
 }
 ```
 
-**架构缺陷分析**:
+**安全影响**:
+1. **维护风险**: Service 层修改错误消息（如改为 `"该知识库不存在"`）→ Controller 匹配失效 → 业务异常被当作 500 返回
+2. **覆盖不完整**: `updateKnowledgeBase` 的 catch 块匹配 4 种不同错误消息，随业务增长容易遗漏
+3. **设计脆弱**: 字符串匹配是隐式契约，缺乏编译时保障
+4. **`err.message` 直接返回给前端**: 匹配成功时 `fail(res, 404, err.message)` 将 Service 层错误消息直接透传给客户端，如果 Service 层消息包含内部实现细节则会泄露
 
-1. **脆弱耦合**: service 层的 `throw new Error('知识库不存在')` 与 controller 层的 `err.message === '知识库不存在'` 形成隐式字符串契约。service 层任何消息文本变更（如改为 `"该知识库不存在"`）将导致 controller 的匹配静默失效 — 业务异常被降级为 500 返回，且无任何编译时或运行时警告
-
-2. **违反 DRY**: `err.message === '知识库不存在' → 404` 的映射在 list/get/update/delete 四个函数中重复出现
-
-3. **扩展成本高**: 新增一种业务异常（如 `"知识库已被占用"`）需同时修改 service 的 throw 和所有相关 controller 的 catch 块，且无类型系统保障遗漏
-
-4. **认知负载**: `updateKnowledgeBase` 的 catch 块有 4 层 if-else 嵌套，阅读者需要逐一匹配 7 种错误消息字符串才能理解错误路由逻辑
-
-**修复建议**: 引入自定义异常类 + Express 全局错误处理中间件
+**修复方案**: 引入类型安全的异常体系：
 
 ```typescript
-// 1. apis/errors/index.ts — 自定义异常
+// apis/errors/index.ts
 export class AppError extends Error {
   constructor(message: string, public statusCode: number, public code: string) {
     super(message);
@@ -115,396 +218,266 @@ export class NotFoundError extends AppError {
 export class ForbiddenError extends AppError {
   constructor(message: string) { super(message, 403, 'FORBIDDEN'); }
 }
-export class ValidationError extends AppError {
-  constructor(message: string) { super(message, 400, 'VALIDATION_ERROR'); }
-}
 
-// 2. Service 层抛出自定义异常
-if (!item) throw new NotFoundError('知识库');
-if (role !== 'sysadmin' && existing.createdBy !== userId)
-  throw new ForbiddenError('只能修改自己创建的知识库');
-
-// 3. app.ts — 全局错误中间件（一次定义，全项目复用）
-app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
-  if (err instanceof AppError) return fail(res, err.statusCode, err.message);
-  logger.error('[UnhandledError]', err);
-  fail(res, 500, '服务器内部错误');
-});
-
-// 4. Controller 简化为纯业务编排（无 try-catch）
-export async function getKnowledgeBase(req: Request, res: Response): Promise<void> {
-  const id = parseInt(req.params.id as string, 10);
-  if (isNaN(id)) { fail(res, 400, '无效的知识库ID'); return; }
-  const user = req.user;
-  if (!user) { fail(res, 401, '未登录'); return; }
-  const { userId, role } = user;
-  const item = await knowledgeBaseService.getById(id, userId, role);
-  success(res, item);
-}
-```
-
-**影响范围**: 全项目所有 controller（15+ 文件），属于系统性架构改进。建议以本模块为试点验证方案后再推广。
-
----
-
-### HIGH 级别
-
-#### H-1: 硬编码的服务实例化 — 无依赖注入
-
-**位置**: 第 6 行
-
-```typescript
-const knowledgeBaseService = new KnowledgeBaseServiceImpl();
-```
-
-**问题描述**: Controller 在模块顶层直接 `new` 了具体实现类 `KnowledgeBaseServiceImpl`，违反**依赖倒置原则（DIP）**。虽然 `IKnowledgeBaseService` 接口存在，但 controller 完全绕过了它。
-
-**影响分析**:
-
-| 影响维度 | 具体表现 |
-|----------|----------|
-| 可测试性 | 单元测试无法注入 mock service，只能通过 `jest.mock('../service/impl/knowledge-base.service.impl')` 进行模块级 mock，隔离粒度粗 |
-| 可替换性 | 若需切换实现（如缓存装饰器、远程 service 代理、测试替身），必须修改 controller 源码 |
-| 生命周期 | service 在模块加载时创建（`import` 阶段），与应用进程同生命周期，无法延迟初始化或控制创建时机 |
-| 接口虚设 | `IKnowledgeBaseService` 接口声明了 6 个方法，但 controller 直接引用 impl 类，接口未发挥契约作用 |
-
-**修复建议**（轻量级 DI，无需引入 IoC 框架）:
-
-```typescript
-// 方案 A: 工厂函数 + 默认参数
-export function createController(service: IKnowledgeBaseService = new KnowledgeBaseServiceImpl()) {
-  return {
-    listKnowledgeBases: async (req: Request, res: Response) => { ... },
-    getKnowledgeBase: async (req: Request, res: Response) => { ... },
-  };
-}
-// 生产环境: createController()
-// 测试环境: createController(mockService)
-
-// 方案 B: 模块级 setter（适用于 app.ts 集中式注册）
-let knowledgeBaseService: IKnowledgeBaseService = new KnowledgeBaseServiceImpl();
-export function setService(service: IKnowledgeBaseService) {
-  knowledgeBaseService = service;
-}
-```
-
----
-
-#### H-2: 授权逻辑分散在 controller 和 service 两层
-
-**位置**:
-- Controller 层: 第 29、48、81、129、152 行（`req.user` 空值检查 + 解构 `userId/role`）
-- Service 层: `knowledge-base.service.impl.ts` 第 114-132 行（getById 数据级访问控制）、第 173-175 行（update 所有权检查）、第 220-222 行（delete 所有权检查）
-
-**问题描述**: 认证检查（用户是否存在）在 controller 层，授权检查（用户是否有权操作）分散在 controller 和 service 两层。两层都涉及 `userId` 和 `role`，但职责边界模糊。
-
-```typescript
-// Controller 层 — 认证（每次调用都重复）
-const user = req.user;
-if (!user) { fail(res, 401, '未登录'); return; }
-const { userId, role } = user;
-
-// Service 层 — 授权（同一个 userId/role 再次传递）
-if (role !== 'sysadmin' && existing.createdBy !== userId) {
-  throw new Error('只能修改自己创建的知识库');
-}
-```
-
-**架构缺陷**:
-
-1. **双重传递**: `userId` 和 `role` 从 controller → service 的每次调用都传递，service.list 方法签名膨胀到 7 个参数
-2. **职责不清**: controller 不知道 service 内部做了哪些授权检查；service 不知道 controller 已经做了哪些认证检查。如果 controller 漏传 `userId`，service 的授权检查会静默失效
-3. **一致性风险**: `listKnowledgeBases` 的 admin 可见性过滤在 service 层（第 63-89 行），`getKnowledgeBase` 的可见性也在 service 层（第 114-132 行）— 两处逻辑需手动保持一致
-
-**修复建议**: 统一授权层位置 — 将用户上下文封装为类型化对象
-
-```typescript
-interface UserContext {
-  userId: number;
-  role: string;
-  companyId?: number;
-}
-
-// Service 接口
-interface IKnowledgeBaseService {
-  list(query: ListQuery, user: UserContext): Promise<{ list: KnowledgeBase[]; total: number }>;
-  getById(id: number, user: UserContext): Promise<KnowledgeBase>;
-  update(id: number, request: UpdateKnowledgeBaseRequest, user: UserContext): Promise<KnowledgeBase>;
-  // 而非 update(id, request, userId, role)
-}
-
-// Controller 统一提取 UserContext
-function extractUser(req: Request): UserContext | null {
-  if (!req.user) return null;
-  const { userId, role } = req.user;
-  return { userId, role };
-}
-```
-
----
-
-#### H-3: update 的 `status` 字段直接透传 — 无类型验证
-
-**位置**: 第 123 行
-
-```typescript
-const updateRequest: UpdateKnowledgeBaseRequest = {
-  ...
-  status: req.body.status,  // ← 无类型验证
-  ...
-};
-```
-
-**问题描述**: `req.body.status` 可能是任意值（字符串 `"true"`、数字 `1`、数组 `[]`），但直接透传到 `UpdateKnowledgeBaseRequest`。service 层第 180 行 `if (request.status !== undefined) data.status = request.status` 会将非布尔值原样写入数据库。
-
-虽然 Prisma 的 `Boolean` 类型会在 SQL 层拒绝非布尔值，但这是**依赖 ORM 的隐式验证**，controller 层缺少显式防御。
-
-**修复建议**:
-
-```typescript
-status: typeof req.body.status === 'boolean' ? req.body.status : undefined,
-```
-
----
-
-### MEDIUM 级别
-
-#### M-1: Service.list 方法签名过长 — 7 个参数
-
-**位置**: `apis/service/knowledge-base.service.ts` 接口定义
-
-```typescript
-list(page: number, pageSize: number, search?: string, scope?: string, status?: boolean, userId?: number, role?: string)
-```
-
-**问题描述**: 7 个参数的方法签名远超清洁代码建议的 3-4 个参数上限。随着筛选条件增加（如 `sort`、`dateRange`），签名会持续膨胀。当前所有参数都是标量值，调用方需要记住参数顺序。
-
-**修复建议**: 参数对象模式（Parameter Object）
-
-```typescript
-interface ListKnowledgeBasesQuery {
-  page: number;
-  pageSize: number;
-  search?: string;
-  scope?: string;
-  status?: boolean;
-}
-
-list(query: ListKnowledgeBasesQuery, user?: UserContext): Promise<{ list: KnowledgeBase[]; total: number }>;
-```
-
----
-
-#### M-2: 路由注册集中式膨胀 — app.ts 单文件承载 27+ 条路由
-
-**位置**: `apis/app.ts:178-226`
-
-**问题描述**: 所有路由（含 knowledge-base 的 27 条路由）集中在 `app.ts` 中注册。随着模块增长（当前已有 13 个 controller），`app.ts` 已成为路由注册瓶颈。每个新模块都需修改 app.ts，增加了合并冲突风险。
-
-**修复建议**: 引入 Express Router 模块化
-
-```typescript
-// apis/routes/knowledge-base.routes.ts
-import { Router } from 'express';
-import { authMiddleware, roleMiddleware } from '../middleware';
-import * as ctrl from '../controller/knowledge-base.controller';
-
-const router = Router();
-router.get('/', authMiddleware, roleMiddleware('sysadmin', 'admin'), ctrl.listKnowledgeBases);
-router.post('/', authMiddleware, roleMiddleware('sysadmin', 'admin'), ctrl.createKnowledgeBase);
-// ...
-export default router;
-
-// app.ts
-import knowledgeBaseRoutes from './routes/knowledge-base.routes';
-app.use('/api/knowledge-bases', knowledgeBaseRoutes);
-```
-
----
-
-#### M-3: Controller 参数提取、验证与业务编排混合
-
-**位置**: 全部 5 个函数
-
-**问题描述**: 每个 controller 函数都包含四个职责：参数提取（parseInt/解构）→ 输入验证（if 条件）→ 业务编排（调用 service）→ 响应构造（success/fail）。虽然当前每个函数 12-28 行，可读性尚可，但职责混合导致：
-
-1. **验证逻辑膨胀**: `createKnowledgeBase` 有 12 行验证代码（第 63-78 行），占比 43%
-2. **updateKnowledgeBase 更甚**: 18 行验证 + 构造代码（第 98-126 行），占比 60%
-3. **控制器函数无法聚焦核心职责**（请求到响应的映射），被验证细节淹没
-
-**修复建议**: 将验证逻辑提取为独立的 schema（Zod），使 controller 函数简化为 "解析 → 调用 → 响应" 三行模式。
-
----
-
-#### M-4: listKnowledgeBases 中不合理的 catch 分支
-
-**位置**: 第 33-36 行
-
-```typescript
-catch (err: unknown) {
-  if (err instanceof Error && err.message === '知识库不存在') {
-    fail(res, 404, err.message);
+// Controller 统一错误处理
+} catch (err: unknown) {
+  if (err instanceof AppError) {
+    fail(res, err.statusCode, err.message);
   } else {
-    fail(res, 500, '获取知识库列表失败');
+    fail(res, 500, '服务器内部错误');
   }
 }
 ```
 
-**问题描述**: `list` 是列表查询接口，service 层的 `list` 方法在任何正常情况下都不会抛出 `'知识库不存在'` — 它在无结果时返回空数组。这个 404 分支从语义上看不合理（列表为空应返回 200 + 空数组），增加了代码阅读者的认知负担。
-
-**修复建议**: 简化为通用的 500 catch-all（或随 C-1 修复一起消除 try-catch）
-
 ---
 
-### LOW 级别
+### SEC-L-01: `validateInteger()` 静默吞没无效输入 — `fieldName` 参数未使用
 
-#### L-1: `VALID_SCOPES` 与 entity 类型定义重复
-
-**位置**: 第 8 行
-
-```typescript
-const VALID_SCOPES = ['platform', 'company', 'project'] as const;
-```
-
-`KnowledgeBase.scope` 类型已定义为 `'platform' | 'company' | 'project'`（entity 层），两处需同步维护。
-
-**修复建议**: 从 entity 类型推导
-
-```typescript
-import { KnowledgeBase } from '../entity';
-type ValidScope = KnowledgeBase['scope'];
-const VALID_SCOPES: readonly ValidScope[] = ['platform', 'company', 'project'];
-```
-
----
-
-#### L-2: `validateInteger` 的 `fieldName` 参数从未使用
-
-**位置**: 第 10 行
+**严重级别**: LOW
+**位置**: 第 10-16 行
+**OWASP 分类**: A04:2021 — Insecure Design
 
 ```typescript
 function validateInteger(value: unknown, fieldName: string): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
+    return undefined;    // ❌ 静默返回 undefined，不报错
+  }
+  return value;
+}
 ```
 
-`fieldName` 在函数体内从未引用，当前仅作为调用者意图标记。更好的做法是在错误消息中使用它（参见质量评审 H-1）。
+**影响分析**:
+1. 当用户传入 `company_id: "abc"` 或 `company_id: -1` 时，函数返回 `undefined` 而非抛出错误
+2. `fieldName` 参数声明了但从未使用，无法定位是哪个字段无效
+3. 在 create 场景中，`scope=company` + 无效 `company_id` → Service 层会抛出 "公司公共知识库必须选择公司" → 间接防御生效
+4. **但在 update 场景中**: 如果 `scope` 不变（仍为 "company"）且已有 `companyId`，无效的 `company_id` 被静默忽略，原值不变 → 用户以为更新成功但实际未更新
+
+**缓解因素**: 路由层 Zod `positiveInt` 在 POST/PUT 请求中已提供第一层防御，Controller 层 `validateInteger()` 仅作为第二层防线。实际触发此问题的概率较低。
+
+**修复建议**:
+
+```typescript
+function validateInteger(value: unknown, fieldName: string): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
+    throw new BadRequestError(`${fieldName} 必须为正整数`);
+  }
+  return value;
+}
+```
 
 ---
 
-#### L-3: Controller 导出独立函数而非对象
+### SEC-L-02: `listKnowledgeBases` 中 `scope` 查询参数未校验
 
-**位置**: 全部 5 个 `export async function`
+**严重级别**: LOW
+**位置**: 第 25 行
+**OWASP 分类**: A05:2021 — Security Misconfiguration
 
-当前使用独立函数导出 + `import * as knowledgeBaseController from '...'` 模式。这是可接受的 Node.js/Express 模式，但不利于 H-1 中提到的依赖注入改造。若后续实施 DI，建议切换为对象导出。
+```typescript
+const scope = req.query.scope as string | undefined;  // ❌ 未校验是否为合法 scope
+```
 
----
+与 `createKnowledgeBase`（第 73-76 行）和 `updateKnowledgeBase`（第 103-106 行）中使用 `VALID_SCOPES` 校验不同，`listKnowledgeBases` 的 `scope` 查询参数直接传入 Service 层。
 
-## 三、架构质量评价
+**缓解因素**: Service 层执行 `where.scope = scope`，Prisma 对 enum 字段做精确匹配，无效值只会返回空结果集，不会造成安全漏洞。但违反了"验证一切输入"的原则。
 
-| 维度 | 评分 | 说明 |
-|------|------|------|
-| 分层清晰度 | 7/10 | Controller-Service 分层存在，边界可识别，但授权/验证职责有交叉 |
-| 关注点分离 | 5.5/10 | 错误翻译、授权检查、输入验证跨越两层，controller 承担了过多职责 |
-| 依赖管理 | 4/10 | 硬编码实例化，无 DI，接口声明了但未被依赖 |
-| 可测试性 | 6/10 | 73 个测试用例充分，但依赖 jest.mock 而非 DI 注入 mock |
-| 可扩展性 | 5.5/10 | 方法签名膨胀、路由集中注册、错误处理重复是扩展瓶颈 |
-| RESTful 设计 | 8.5/10 | 资源命名规范，HTTP 方法/状态码正确，created() 使用准确 |
-| 错误策略 | 4.5/10 | `err: unknown` + 通用消息是亮点，但字符串匹配翻译是最脆弱环节 |
-| 安全架构 | 7.5/10 | 中间件链设计合理，getById 已修复数据级访问控制，status 透传待修 |
-| 输入验证 | 7/10 | name/description/scope/integer 验证完整，status 和 description 类型验证有遗漏 |
+**修复建议**:
 
-**综合架构评分: 6.1/10 — 及格偏上（基础扎实，系统性改进空间明显）**
+```typescript
+const rawScope = req.query.scope as string | undefined;
+const scope = rawScope && VALID_SCOPES.includes(rawScope as any) ? rawScope : undefined;
+```
 
 ---
 
-## 四、架构优点（正面评价）
+### SEC-L-03: Controller 层手动校验与 Zod 校验冗余 — 维护负担
 
-| 优点 | 位置 | 说明 |
-|------|------|------|
-| 接口驱动设计 | `IKnowledgeBaseService` | 接口存在，为 DI 和实现替换提供了扩展点 |
-| RESTful 规范 | 5 个端点 | 资源命名（`/api/knowledge-bases`）、HTTP 方法、状态码全部正确 |
-| 中间件洋葱模型 | `app.ts` | `helmet → cors → anti-crawl → rate-limit → auth → role → controller` 层次清晰 |
-| 统一响应格式 | `success/fail/paginate/created` | 工具函数保证了 API 响应一致性 |
-| Mass Assignment 防护 | 第 119-126 行 | 显式构造 `UpdateKnowledgeBaseRequest`，字段白名单模式 |
-| Entity 层隔离 | `mapKnowledgeBase()` | Prisma 模型映射为业务实体，数据库字段名不泄露 |
-| 软删除设计 | service 层 | `deletedAt` 替代物理删除，数据可恢复 |
-| `err: unknown` 类型安全 | 全部 catch 块 | 项目中最佳错误处理实践，优于其他 controller 的 `err: any` |
-| 通用错误消息 | catch-all | 未泄露 `err.message`，安全意识好 |
-| 分页参数夹紧 | 第 20-22 行 | `Math.max/Math.min` 双边界约束 |
-| search 长度截断 | 第 24 行 | `rawSearch.slice(0, 100)` 防止超长搜索 |
-| `created()` 工具函数 | 第 87 行 | 项目中首个正确使用 HTTP 201 的 controller |
-| `validateInteger` 辅助函数 | 第 10-16 行 | 防御性整数验证，过滤非整数/负数/零值 |
+**严重级别**: LOW（代码质量/可维护性风险）
+**位置**: 第 66-78、102-116 行
+**OWASP 分类**: A04:2021 — Insecure Design
+
+当前 POST/PUT 请求经过两层校验：
+1. **路由层**: `validate(createKnowledgeBaseSchema)` / `validate(updateKnowledgeBaseSchema)` — Zod schema
+2. **Controller 层**: 手动 `if (!name)` / `if (name.length > 200)` / `if (!VALID_SCOPES.includes(scope))` 等
+
+两层校验形成了**防御纵深**，但也带来了维护负担：
+- Zod schema 和 Controller 手动校验需要**同步维护**（如修改 name 最大长度需改两处）
+- `VALID_SCOPES` 常量（Controller）与 `z.enum([...])`（Schema）是两份独立的 scope 定义
+
+**建议**: 保留 Zod 作为唯一验证层（已有 `validate()` 中间件），Controller 层信任 Zod 已校验的数据。或者，将 `VALID_SCOPES` 统一到 schema 中导出使用。
 
 ---
 
-## 五、架构改进路线图
+### SEC-L-04: 搜索 `insensitive` 模式性能风险
 
-### Phase 1 — 基础架构加固（预估 2-3 小时）
+**严重级别**: LOW（性能/可用性风险）
+**位置**: Service 层 `knowledge-base.service.impl.ts:49`
+**OWASP 分类**: A05:2021 — Security Misconfiguration
 
-| 优先级 | 改进项 | 影响范围 | 工作量 | 收益 |
-|--------|--------|----------|--------|------|
-| P0 | C-1: 自定义异常 + 全局错误中间件 | 全项目 | 2h | 消除字符串匹配脆弱性，简化所有 controller |
-| P0 | H-3: status 字段类型验证 | 1 行代码 | 2min | 防止非布尔值写入数据库 |
+```typescript
+where.OR = [
+  { name: { contains: search, mode: 'insensitive' } },
+  { description: { contains: search, mode: 'insensitive' } },
+];
+```
 
-### Phase 2 — 架构解耦（预估 3-4 小时）
+PostgreSQL 的 `insensitive` 模式使用 `ILIKE` 或 `LOWER()`，无法利用标准 B-tree 索引。当 `knowledge_base` 表数据量增大时，可能导致数据库负载过高，构成 DoS 攻击面。
 
-| 优先级 | 改进项 | 影响范围 | 工作量 | 收益 |
-|--------|--------|----------|--------|------|
-| P1 | H-1: 轻量级 DI 改造 | 全项目 controller | 2h | 提升可测试性和可替换性 |
-| P1 | H-2: UserContext 封装 + 授权统一 | service 接口 | 1h | 简化方法签名，明确职责边界 |
-| P1 | M-4: list 中不合理 catch 分支清理 | 1 个函数 | 2min | 减少认知负载 |
-
-### Phase 3 — 规模化准备（预估 3-4 小时）
-
-| 优先级 | 改进项 | 影响范围 | 工作量 | 收益 |
-|--------|--------|----------|--------|------|
-| P2 | M-1: Service 方法参数对象化 | service 接口 | 1h | 防止签名膨胀 |
-| P2 | M-2: 路由模块化拆分 | app.ts + routes/ | 2h | 降低 app.ts 复杂度 |
-| P3 | L-1: scope 枚举统一管理 | entity + controller | 30min | 消除同步维护风险 |
+**缓解因素**: `search` 已限制为 100 字符（Controller 第 24 行），降低了超长搜索串的风险。
 
 ---
 
-## 六、与项目其他 Controller 的架构一致性对比
+## 四、攻击面总结
 
-| 模式 | knowledge-base | company | article | auth |
-|------|---------------|---------|---------|------|
-| 服务实例化 | `new Impl()` | `new Impl()` | `new Impl()` | `new Impl()` |
-| 验证方式 | 内联 if + `validateInteger` | `validateCompanyBody()` | `pickAllowedFields()` | 内联 if |
-| 错误处理 | `err: unknown` + 字符串匹配 | `err: any` + 字符串匹配 | `err: unknown` + 字符串匹配 | 简单 catch |
-| err 类型 | `unknown` ✅ | `any` ❌ | `unknown` ✅ | `unknown` ✅ |
-| 通用错误消息 | 不泄露 ✅ | 泄露 ❌ | 不泄露 ✅ | 不泄露 ✅ |
-| 字段白名单 | 解构 + UpdateRequest | 解构提取 | `pickAllowedFields()` | N/A |
-| Mass Assignment | 显式构造 ✅ | 隐式 | `pickAllowedFields()` | N/A |
-| created() 使用 | 正确 ✅ | ❌ 用 success() | ❌ 用 success() | N/A |
-| 自定义异常 | 无 | 无 | 无 | 无 |
-| 分页参数约束 | ✅ 夹紧 | ❌ 无约束 | ❌ 无约束 | N/A |
-| 整数验证 | ✅ validateInteger | ❌ 无 | ❌ 无 | N/A |
-
-**结论**: knowledge-base controller 是项目内**架构质量最高的 controller**，在错误处理、输入验证、HTTP 语义上均领先同类文件。上述 C-1/H-1/H-2 问题属于**全项目系统性架构问题**，非本模块独有。建议以本模块为试点，验证改进方案后再推广。
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                     攻击面分析图（166 行版本）                      │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  攻击者 (sysadmin / admin)                                       │
+│       │                                                          │
+│       ▼                                                          │
+│  ┌──────────────────────────┐                                    │
+│  │ Layer 1: 路由层           │                                    │
+│  │ JWT Auth            ✅   │ ← 已防御                            │
+│  │ Role: sysadmin/admin ✅  │ ← 已防御                            │
+│  │ Rate Limit          ✅   │ ← 已防御                            │
+│  │ Anti-Crawl          ✅   │ ← 已防御                            │
+│  │ Zod Schema (POST/PUT) ✅ │ ← 已防御（新增）                     │
+│  └──────────┬───────────────┘                                    │
+│             ▼                                                    │
+│  ┌──────────────────────────┐                                    │
+│  │ Layer 2: 控制器层         │                                    │
+│  │                          │                                    │
+│  │ ✅ user 存在性检查       │                                    │
+│  │ ✅ ID parseInt+isNaN     │                                    │
+│  │ ✅ VALID_SCOPES 枚举     │                                    │
+│  │ ✅ validateInteger()     │                                    │
+│  │ ✅ name 类型+长度+trim   │                                    │
+│  │ ✅ description 长度      │                                    │
+│  │ ✅ search 截断 100       │                                    │
+│  │ ✅ 分页参数夹紧          │                                    │
+│  │ ✅ 显式请求对象构造      │                                    │
+│  │                          │                                    │
+│  │ ⚠️ validateInteger 静默  │ ← SEC-L-01: 无效输入被吞没          │
+│  │ ⚠️ scope 查询参数未校验  │ ← SEC-L-02: list 的 scope 无校验   │
+│  │ ⚠️ status 字段被 Zod 剥离│ ← SEC-M-02: 状态更新静默失败        │
+│  └──────────┬───────────────┘                                    │
+│             ▼                                                    │
+│  ┌──────────────────────────┐                                    │
+│  │ Layer 3: 服务层           │                                    │
+│  │                          │                                    │
+│  │ ✅ getById 数据级权限     │ ← SEC-H-01 已修复                   │
+│  │ ✅ update/delete 所有权   │                                    │
+│  │ ✅ scope 业务逻辑验证     │                                    │
+│  │ ✅ 软删除                │                                    │
+│  │                          │                                    │
+│  │ ❌ 关联归属未验证         │ ← SEC-M-01: company_id/project_id  │
+│  │ ⚠️ 字符串匹配异常检测    │ ← SEC-M-03: 脆弱的错误检测          │
+│  └──────────┬───────────────┘                                    │
+│             ▼                                                    │
+│  ┌──────────────────────────┐                                    │
+│  │ Prisma / Database        │                                    │
+│  │                          │                                    │
+│  │ ✅ 参数化查询            │ ← SQL 注入已防御                     │
+│  │ ✅ 显式字段赋值          │ ← 批量赋值已防御                     │
+│  └──────────────────────────┘                                    │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 七、评审结论
+## 五、修复优先级与工作量估算
 
-**判定: 有条件通过（CONDITIONAL APPROVE）— 架构基础扎实，存在系统性改进空间**
+### 第一阶段：紧急修复（0.5 天）
 
-### 核心结论
+| 优先级 | 编号 | 问题 | 修复方案 | 工作量 |
+|--------|------|------|----------|--------|
+| P1 | SEC-M-02 | Zod schema 遗漏 status 字段 | 添加 `status: z.boolean().optional()` | 5min |
+| P1 | SEC-M-01 | 关联归属未验证 | Service 层添加归属校验 | 2h |
 
-1. **最脆弱环节**: C-1（错误翻译层）是当前架构最大的脆弱点。字符串匹配的错误路由缺乏编译期保障，service 层一条消息文本变更就能让 controller 的错误处理静默失效。这是生产事故的潜在风险点
+### 第二阶段：短期改进（1 天）
 
-2. **最有价值改进**: H-1（DI 改造）将显著提升可测试性（从 jest.mock 模块级 mock 提升到构造函数注入），并为后续缓存装饰器、远程 service 代理等扩展模式铺路
+| 优先级 | 编号 | 问题 | 修复方案 | 工作量 |
+|--------|------|------|----------|--------|
+| P2 | SEC-M-03 | 异常检测脆弱 | 引入 AppError 异常体系 | 3h |
+| P2 | SEC-L-01 | validateInteger 静默吞没 | 改为抛出 BadRequestError | 15min |
+| P2 | SEC-L-02 | scope 查询参数未校验 | 添加 VALID_SCOPES 校验 | 10min |
 
-3. **已修复的关键问题**: 相比首版代码，getById 数据级访问控制（SEC-H-01）和 update 批量赋值防护（SEC-M-04）已修复，安全架构显著改善。综合评分从 5.5 提升至 6.1
+### 第三阶段：加固优化
 
-4. **需立即修复**: H-3（status 字段透传）仅需 2 分钟修改，但影响数据完整性
-
-5. **架构共识**: 本模块的架构模式与全项目一致（分层、实例化、错误处理），问题具有普遍性。其代码质量（`err: unknown`、`created()`、分页夹紧、显式 UpdateRequest、`validateInteger`）在同项目中处于领先地位，适合作为架构改进的试点模块
-
-### 建议行动
-
-- **立即**: 修复 H-3（status 类型验证，2 分钟）
-- **本周**: 以本模块为试点实施 C-1（自定义异常 + 全局错误中间件）
-- **下一迭代**: 推进 H-1（轻量级 DI）+ M-1（参数对象化），验证后推广至全项目
+| 优先级 | 编号 | 问题 | 修复方案 | 工作量 |
+|--------|------|------|----------|--------|
+| P3 | SEC-L-03 | 双重校验维护负担 | 统一到 Zod 或统一常量 | 1h |
+| P3 | SEC-L-04 | insensitive 搜索性能 | 添加 pg_trgm 索引 | 1h |
 
 ---
 
-*软件架构专家评审完成 — 2026-05-24*
+## 六、与 OWASP Top 10 (2021) 映射
+
+| OWASP 编号 | 分类 | 本文件涉及 | 具体问题 |
+|------------|------|-----------|----------|
+| A01 | 失效的访问控制 | ✅ | SEC-M-01: 关联归属未验证 |
+| A02 | 加密机制失败 | — | 不涉及（JWT 认证在中间件层处理） |
+| A03 | 注入 | — | ✅ 已防御（Zod + Prisma 双重防护） |
+| A04 | 不安全的设计 | ✅ | SEC-M-02: Zod schema 遗漏字段; SEC-M-03: 字符串匹配异常; SEC-L-01: 静默吞没; SEC-L-03: 双重校验 |
+| A05 | 安全配置错误 | ✅ | SEC-L-02: scope 查询参数未校验; SEC-L-04: insensitive 搜索 |
+| A06 | 过期组件 | — | 不涉及（需依赖审计） |
+| A07 | 身份认证失败 | — | 不涉及（中间件层处理） |
+| A08 | 软件和数据完整性失败 | — | ✅ 已防御（Zod schema + 显式请求对象） |
+| A09 | 安全日志和监控不足 | ✅ | catch-all 未记录详细错误日志 |
+| A10 | 服务端请求伪造 | — | 不涉及 |
+
+---
+
+## 七、与上一版（123 行）安全对比
+
+| 安全维度 | 上一版（123 行） | 当前版（166 行） | 变化 |
+|----------|-----------------|-----------------|------|
+| getById 数据级权限 | ❌ 无数据级过滤 | ✅ userId + role 过滤 | 🔼 显著改善 |
+| 输入验证 | ❌ 仅 truthy 检查 | ✅ Zod + 手动双重校验 | 🔼 显著改善 |
+| 整数类型验证 | ❌ company_id/project_id 无验证 | ✅ Zod positiveInt + validateInteger | 🔼 显著改善 |
+| 批量赋值防护 | ❌ req.body 整体传入 update | ✅ 显式 UpdateKnowledgeBaseRequest | 🔼 显著改善 |
+| description 长度 | ❌ 无限制 | ✅ max(2000) | 🔼 改善 |
+| 搜索长度 | ❌ 无限制 | ✅ 截断 100 字符 | 🔼 改善 |
+| status 字段 | ✅ 可正常更新 | ❌ Zod schema 遗漏，静默失败 | 🔽 新引入问题 |
+| 关联归属验证 | ❌ 未验证 | ❌ 未验证 | ➡️ 未变 |
+| 异常检测方式 | ❌ 字符串匹配 | ❌ 字符串匹配 | ➡️ 未变 |
+| 整体安全评级 | ⚠️ MEDIUM（中风险） | ✅ MEDIUM-LOW（中低风险） | 🔼 提升 |
+
+---
+
+## 八、评审结论
+
+**判定: ✅ MEDIUM-LOW — 安全态势显著改善，需修复 schema 遗漏与归属校验**
+
+### 核心改善
+
+1. **三层纵深防御已建立**: 路由层 Zod 校验 → Controller 手动校验 → Service 业务逻辑，形成了完整的安全防御链
+2. **getById 数据级权限已修复**: 消除了 IDOR 漏洞，admin 无法再遍历查看任意知识库
+3. **输入验证全面覆盖**: Zod schema 在路由层拦截了类型混淆、超长字符串、非法枚举等攻击向量
+4. **批量赋值已防御**: 显式构造 `UpdateKnowledgeBaseRequest` + Zod 自动剥离未知字段
+
+### 需要关注的问题
+
+1. **SEC-M-02（P1）**: `updateKnowledgeBaseSchema` 遗漏 `status` 字段，导致知识库启用/禁用功能静默失败 — 这是当前最紧急的问题
+2. **SEC-M-01（P1）**: `company_id`/`project_id` 归属关系未验证，admin 可关联任意公司/项目
+3. **SEC-M-03（P2）**: 字符串精确匹配的错误检测方式仍为脆弱设计，建议统一引入 `AppError` 异常体系
+
+### 安全评分
+
+| 维度 | 上一版评分 | 当前版评分 | 说明 |
+|------|-----------|-----------|------|
+| 认证与授权 | 7/10 | 9/10 | getById 数据级权限已修复 |
+| 输入验证 | 4/10 | 9/10 | Zod + 手动双重防御 |
+| 错误处理 | 7/10 | 7/10 | 仍为字符串匹配，未变 |
+| 数据保护 | 5/10 | 7/10 | 批量赋值已防御，归属校验缺失 |
+| 代码质量 | 7/10 | 8/10 | 代码结构清晰，但双重校验冗余 |
+| **综合评分** | **6.0/10** | **8.0/10** | **显著改善** |
+
+---
+
+*代码安全专家评审完成 — 2026-05-24*
