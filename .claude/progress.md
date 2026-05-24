@@ -594,3 +594,12 @@
   - 新增 Controller !user 防御性分支直接函数测试 5 个：直接导入 controller 函数，构造无 user 的 mock req/res，覆盖 auth 中间件不可达的防御性分支
   - 覆盖率从 91.93%/93.97%/100%/100% 提升到 **100%/100%/100%/100%**
   - TDD 报告：tasks/tdd/knowledge-base.controller.test.md
+
+## 本次变更（2026-05-24 article.controller.ts 代码安全专家评审）
+- [x] **代码安全专家评审 apis/controller/article.controller.ts（553 行，已修复版）**
+  - 综合安全评级 B+（良好，前轮 CRITICAL-1/2、HIGH-1~4、MEDIUM-3/4 已全部修复）
+  - 已修复安全措施评估：8/8 项修复有效（白名单过滤、状态机、Zod schema、职责分离、错误处理、内容限制、创建者检查、防御性认证）
+  - 新发现 11 项安全问题：HIGH×2（TOCTOU 竞态条件、updateArticleContent 无 Zod 验证+存储型XSS风险）、MEDIUM×5（字符串匹配错误处理、skills字段z.unknown()、版本列表无分页、状态验证逻辑分散、generating分支补丁式修复）、LOW×4（死代码、Service单例、权限检查重复、时序侧信道）
+  - 安全评分提升：输入验证 3→7、认证授权 5→8、数据泄露 4→8
+  - 评审结论：✅ 通过（附建议），核心安全问题已修复，剩余为改进项
+  - 评审报告 tasks/review/article.controller.ts.md
