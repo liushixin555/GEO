@@ -192,3 +192,4 @@
 | 2026-05-25 | tasks/tdd/publishing-platform.controller.test.round2.md | publishing-platform.controller TDD 第2轮——100用例 Stmts/Branch/Funcs/Lines 100%（+45新增：Token异常/审计日志/异常类型/响应结构/特殊字符/排序组合/验证顺序） |
 | 2026-05-25 | tasks/review/table.tsx.architecture.md | @uiw/react-md-editor table.tsx 软件架构专家评审——⚠️APPROVE WITH COMMENTS 5.0分（H×2 inline管道错配块级模板/execute圈复杂度3无抽象 + M×2 ICommand无分类维度/4处prefix!密度最高 + L×2 模板硬编码/SVG同层 + INFO×2 无快捷键/Add分支补丁） |
 | 2026-05-25 | tasks/review/table.tsx.security.md | @uiw/react-md-editor table.tsx 代码安全专家评审——✅APPROVE 8.0/10（H×0 MEDIUM×1 非空断言CWE-476 + LOW×4 selectWord语义错位/选区边界/DoS/SVG无障碍，XSS/注入/信息泄露面为零） |
+| 2026-05-25 | tasks/tdd/publishing-schedule.controller.test.round2.md | publishing-schedule.controller TDD 第二轮验证——86用例全通过，Stmts/Branch/Funcs/Lines 100%（四维全覆盖确认无回归） |
