@@ -147,3 +147,5 @@
 | 2026-05-24 | progress_tasks/2026-05-24-code-tsx-review-fix.md | code.tsx 评审封装层修复——Ctrl+J→Ctrl+E快捷键重映射+非空断言防护+中文ARIA标注+TOOLBAR_LABELS匹配顺序修复 |
 | 2026-05-25 | tasks/tdd/auth.service.test.round3.md | auth.service TDD 第3轮补全——78用例100%覆盖率（+10新增：selectedProject降级/sysadmin无项目持久化/project_id=0边界/verifyToken全字段/getAccessibleCompanies companyId=0/sysadmin忽略companyId参数） |
 | 2026-05-25 | tasks/review/fullscreen.tsx.md | fullscreen.tsx 软件 UI 专家评审——⚠️CONDITIONAL APPROVE 3.4/10（CRITICAL×1按钮点击不触发+HIGH×3无aria-pressed/快捷键冲突/图标不规范+MEDIUM×3+LOW×2） |
+| 2026-05-25 | tasks/tdd/company.service.test.round3.md | company.service TDD 第3轮——85用例100%覆盖率（+17新增：update公司不存在null/操作顺序验证/validateUserIds查询参数/副作用验证/update路径viewer校验） |
+| 2026-05-25 | progress_tasks/2026-05-25-fullscreen-review-fix.md | fullscreen.tsx 评审修复——commandsFilter覆盖（P0按钮点击失效+P1快捷键冲突+P2中文ARIA+P2 antd图标），12测试全通过 |

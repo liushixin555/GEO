@@ -762,3 +762,33 @@ components: {
 ### 涉及文件
 - `pages/components/MarkdownEditor.tsx` — annotateToolbar 逻辑修复 + SVG aria-hidden 注入
 - `pages/styles/markdown-editor.css` — SVG 图标尺寸 + 移动端触摸目标
+
+---
+
+## fix027. fullscreen 命令评审修复（按钮点击失效 + 快捷键冲突 + 图标不规范）
+
+### 问题
+根据 `tasks/review/` 目录下 3 份评审报告（UI 评审 3.4/10、安全评审 8.5/10、Committer 审核 5.5/10），`@uiw/react-md-editor` 的 `fullscreen.tsx` 存在 CRITICAL 级别功能缺陷（按钮点击不触发全屏）和多项 UI 规范问题。
+
+### 修复
+
+**U1（CRITICAL）execute 按钮点击不触发全屏**：
+- 原始 execute 函数将 `shortcuts` 参数作为执行前置条件，按钮点击时 `shortcuts` 为 `undefined`，导致 dispatch 不执行
+- 修复：移除 `shortcuts` 条件判断，仅依赖 `dispatch && executeCommandState` 守卫
+
+**U3（HIGH）快捷键 ctrlcmd+0 与浏览器冲突**：
+- 重映射为 `ctrlcmd+shift+f`
+
+**U4（HIGH）图标不符合 Carbon/antd 规范**：
+- 替换为 antd `FullscreenOutlined`（fontSize: 16）
+
+**U5（MEDIUM）ARIA 标注英文**：
+- 覆盖为中文：`aria-label: '切换全屏模式'`，`title: '切换全屏模式 (Ctrl+Shift+F)'`
+
+**U7（MEDIUM）focus() 位置不当**：
+- 从条件判断之前移到 dispatch 之后
+
+### 涉及文件
+- `pages/components/MarkdownEditor.tsx` — commandsFilter 添加 fullscreen 命令覆盖
+- `tests/pages/components/MarkdownEditor.test.tsx`（新建）— 12 个测试用例
+- `tasks/fix.fullscreen命令评审修复.md`（新建）— 修复文档

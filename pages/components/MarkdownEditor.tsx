@@ -22,6 +22,7 @@ import React, { useCallback, useEffect, forwardRef, useImperativeHandle, useRef,
 import MDEditor from '@uiw/react-md-editor/nohighlight';
 import DOMPurify from 'dompurify';
 import { Empty } from 'antd';
+import { FullscreenOutlined } from '@ant-design/icons';
 import { safeUrlTransform, SAFE_TAGS } from './MarkdownViewer';
 import '../styles/markdown-editor.css';
 
@@ -268,6 +269,25 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
   const commandsFilter = useCallback(
     (command: any, isExtra: boolean) => {
       if (command.name === 'help') return false;
+
+      // P0/P1/P2: 修复 fullscreen 命令——按钮点击失效 + 快捷键冲突 + 中文标注 + antd 图标
+      if (command.name === 'fullscreen') {
+        return {
+          ...command,
+          shortcuts: 'ctrlcmd+shift+f',
+          buttonProps: {
+            'aria-label': '切换全屏模式',
+            title: '切换全屏模式 (Ctrl+Shift+F)',
+          },
+          icon: <FullscreenOutlined style={{ fontSize: 16 }} />,
+          execute: (state: any, api: any, dispatch?: any, executeCommandState?: any) => {
+            if (dispatch && executeCommandState) {
+              dispatch({ fullscreen: !executeCommandState.fullscreen });
+              api.textArea.focus();
+            }
+          },
+        };
+      }
 
       if (command.name === 'code' || command.name === 'codeBlock') {
         const wrapped = { ...command };
