@@ -74,7 +74,8 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 - **Backend tests**: set env vars directly (`process.env.JWT_SECRET='test-secret'`) instead of jest.mock; add `.set('User-Agent', 'test-agent/1.0')` to supertest calls
 - **JWT expires in 2 hours**; token + user stored in localStorage on frontend
 - **Config-driven**: port, DB URL, JWT secret/expiry, Swagger toggle, rate-limit params all via `.env` or `config/`
-- **Memory**: 每次任务结束后，将价值信息（架构变更、新增功能、技术决策、踩坑经验）持久化保存到本项目 `.claude/` 目录下的对应文件（rules.md / architecture.md / frontend.md / progress.md），禁止保存到用户目录 `~/.claude/projects/`
+- **Memory**: 每次任务结束后，将价值信息（架构变更、新增功能、技术决策、踩坑经验）持久化保存到本项目 `.claude/` 目录下的对应文件（rules.md / architecture.md / frontend.md），禁止保存到用户目录 `~/.claude/projects/`
+- **progress.md 防膨胀**: 每次变更记录保存到 `.claude/progress_tasks/` 目录下的独立文件（如 `2026-05-24-bugfix-429.md`），`progress.md` 只做索引（模块状态表 + 变更索引表），禁止在 `progress.md` 中直接追加详细变更内容
 - **Git commit 必须使用中文**: 所有 commit 消息的描述部分必须使用中文，格式：`<类型>: <中文描述>`，例如 `feat: 添加知识库模块`，禁止使用英文
 - **Git**: 每次任务结束后，执行 `git add` + `git commit` + `git push`，将所有变更提交并推送到远程仓库
 
@@ -92,4 +93,4 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 2. **更新 `tasks/fix.Bug修复汇总.md`** — 如果本次涉及 Bug 修复，追加记录
 3. **更新 `tasks/db.数据模型变更汇总.md`** — 如果本次涉及数据库 schema 变更，追加记录
 4. **执行 `git add` + `git commit` + `git push`** — 将所有变更提交并推送到远程仓库，commit 消息使用中文
-5. **更新记忆** — 每次任务结束后，将价值信息持久化保存到本项目 `.claude/` 目录下的对应文件，禁止保存到用户目录 `~/.claude/projects/`
+5. **更新记忆** — 每次任务结束后，将价值信息持久化保存到本项目 `.claude/` 目录下的对应文件以及本项目的CLAUDE.md文件，禁止保存到用户目录 `~/.claude/projects/`
