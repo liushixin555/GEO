@@ -1401,6 +1401,241 @@ describe('apis/config/index.ts', () => {
     });
   });
 
+  describe('server.trustProxy', () => {
+    it('should default to 1 when TRUST_PROXY not set', async () => {
+      const config = await loadConfigPure();
+      expect(config.server.trustProxy).toBe(1);
+    });
+
+    it('should override TRUST_PROXY via env var', async () => {
+      const config = await loadConfigWithEnv({ TRUST_PROXY: '0' });
+      expect(config.server.trustProxy).toBe(0);
+    });
+
+    it('should accept TRUST_PROXY=10 (maximum)', async () => {
+      const config = await loadConfigWithEnv({ TRUST_PROXY: '10' });
+      expect(config.server.trustProxy).toBe(10);
+    });
+
+    it('should throw when TRUST_PROXY exceeds 10', async () => {
+      await expect(loadConfigWithEnv({ TRUST_PROXY: '11' })).rejects.toThrow(
+        'FATAL: TRUST_PROXY must be <= 10'
+      );
+    });
+
+    it('should throw when TRUST_PROXY is negative', async () => {
+      await expect(loadConfigWithEnv({ TRUST_PROXY: '-1' })).rejects.toThrow(
+        'FATAL: TRUST_PROXY must be >= 0'
+      );
+    });
+
+    it('should accept TRUST_PROXY=0 (disabled)', async () => {
+      const config = await loadConfigWithEnv({ TRUST_PROXY: '0' });
+      expect(config.server.trustProxy).toBe(0);
+    });
+
+    it('should prevent modification of trustProxy', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config.server as { port: number; trustProxy: number }).trustProxy = 5;
+      }).toThrow();
+    });
+  });
+
+  describe('upload config (imageMaxSize / documentMaxSize)', () => {
+    it('should default imageMaxSize to 10MB (10485760 bytes)', async () => {
+      const config = await loadConfigPure();
+      expect(config.upload.imageMaxSize).toBe(10 * 1024 * 1024);
+    });
+
+    it('should default documentMaxSize to 30MB (31457280 bytes)', async () => {
+      const config = await loadConfigPure();
+      expect(config.upload.documentMaxSize).toBe(30 * 1024 * 1024);
+    });
+
+    it('should override UPLOAD_IMAGE_MAX_SIZE and convert to bytes', async () => {
+      const config = await loadConfigWithEnv({ UPLOAD_IMAGE_MAX_SIZE: '5' });
+      expect(config.upload.imageMaxSize).toBe(5 * 1024 * 1024);
+    });
+
+    it('should override UPLOAD_DOCUMENT_MAX_SIZE and convert to bytes', async () => {
+      const config = await loadConfigWithEnv({ UPLOAD_DOCUMENT_MAX_SIZE: '50' });
+      expect(config.upload.documentMaxSize).toBe(50 * 1024 * 1024);
+    });
+
+    it('should accept UPLOAD_IMAGE_MAX_SIZE=1 (minimum)', async () => {
+      const config = await loadConfigWithEnv({ UPLOAD_IMAGE_MAX_SIZE: '1' });
+      expect(config.upload.imageMaxSize).toBe(1 * 1024 * 1024);
+    });
+
+    it('should accept UPLOAD_IMAGE_MAX_SIZE=100 (maximum)', async () => {
+      const config = await loadConfigWithEnv({ UPLOAD_IMAGE_MAX_SIZE: '100' });
+      expect(config.upload.imageMaxSize).toBe(100 * 1024 * 1024);
+    });
+
+    it('should throw when UPLOAD_IMAGE_MAX_SIZE exceeds 100', async () => {
+      await expect(loadConfigWithEnv({ UPLOAD_IMAGE_MAX_SIZE: '101' })).rejects.toThrow(
+        'FATAL: UPLOAD_IMAGE_MAX_SIZE must be <= 100'
+      );
+    });
+
+    it('should throw when UPLOAD_IMAGE_MAX_SIZE is zero', async () => {
+      await expect(loadConfigWithEnv({ UPLOAD_IMAGE_MAX_SIZE: '0' })).rejects.toThrow(
+        'FATAL: UPLOAD_IMAGE_MAX_SIZE must be >= 1'
+      );
+    });
+
+    it('should throw when UPLOAD_DOCUMENT_MAX_SIZE is zero', async () => {
+      await expect(loadConfigWithEnv({ UPLOAD_DOCUMENT_MAX_SIZE: '0' })).rejects.toThrow(
+        'FATAL: UPLOAD_DOCUMENT_MAX_SIZE must be >= 1'
+      );
+    });
+
+    it('should throw when UPLOAD_DOCUMENT_MAX_SIZE exceeds 100', async () => {
+      await expect(loadConfigWithEnv({ UPLOAD_DOCUMENT_MAX_SIZE: '101' })).rejects.toThrow(
+        'FATAL: UPLOAD_DOCUMENT_MAX_SIZE must be <= 100'
+      );
+    });
+
+    it('should throw when UPLOAD_IMAGE_MAX_SIZE is non-numeric', async () => {
+      await expect(loadConfigWithEnv({ UPLOAD_IMAGE_MAX_SIZE: 'abc' })).rejects.toThrow(
+        'FATAL: UPLOAD_IMAGE_MAX_SIZE must be a valid integer'
+      );
+    });
+
+    it('should throw when UPLOAD_DOCUMENT_MAX_SIZE is non-numeric', async () => {
+      await expect(loadConfigWithEnv({ UPLOAD_DOCUMENT_MAX_SIZE: 'abc' })).rejects.toThrow(
+        'FATAL: UPLOAD_DOCUMENT_MAX_SIZE must be a valid integer'
+      );
+    });
+
+    it('should prevent modification of upload.imageMaxSize', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config.upload as { imageMaxSize: number; documentMaxSize: number }).imageMaxSize = 999;
+      }).toThrow();
+    });
+
+    it('should prevent modification of upload.documentMaxSize', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config.upload as { imageMaxSize: number; documentMaxSize: number }).documentMaxSize = 999;
+      }).toThrow();
+    });
+  });
+
+  describe('bodyLimitMb', () => {
+    it('should default to 10 when BODY_LIMIT_MB not set', async () => {
+      const config = await loadConfigPure();
+      expect(config.bodyLimitMb).toBe(10);
+    });
+
+    it('should override BODY_LIMIT_MB via env var', async () => {
+      const config = await loadConfigWithEnv({ BODY_LIMIT_MB: '20' });
+      expect(config.bodyLimitMb).toBe(20);
+    });
+
+    it('should accept BODY_LIMIT_MB=1 (minimum)', async () => {
+      const config = await loadConfigWithEnv({ BODY_LIMIT_MB: '1' });
+      expect(config.bodyLimitMb).toBe(1);
+    });
+
+    it('should accept BODY_LIMIT_MB=100 (maximum)', async () => {
+      const config = await loadConfigWithEnv({ BODY_LIMIT_MB: '100' });
+      expect(config.bodyLimitMb).toBe(100);
+    });
+
+    it('should throw when BODY_LIMIT_MB exceeds 100', async () => {
+      await expect(loadConfigWithEnv({ BODY_LIMIT_MB: '101' })).rejects.toThrow(
+        'FATAL: BODY_LIMIT_MB must be <= 100'
+      );
+    });
+
+    it('should throw when BODY_LIMIT_MB is zero', async () => {
+      await expect(loadConfigWithEnv({ BODY_LIMIT_MB: '0' })).rejects.toThrow(
+        'FATAL: BODY_LIMIT_MB must be >= 1'
+      );
+    });
+
+    it('should throw when BODY_LIMIT_MB is non-numeric', async () => {
+      await expect(loadConfigWithEnv({ BODY_LIMIT_MB: 'abc' })).rejects.toThrow(
+        'FATAL: BODY_LIMIT_MB must be a valid integer'
+      );
+    });
+
+    it('should throw when BODY_LIMIT_MB is negative', async () => {
+      await expect(loadConfigWithEnv({ BODY_LIMIT_MB: '-5' })).rejects.toThrow(
+        'FATAL: BODY_LIMIT_MB must be >= 1'
+      );
+    });
+
+    it('should prevent modification of bodyLimitMb', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config as Record<string, unknown>).bodyLimitMb = 999;
+      }).toThrow();
+    });
+  });
+
+  describe('AppConfig interface completeness', () => {
+    it('should expose all required top-level config keys', async () => {
+      const config = await loadConfigWithEnv({});
+      const keys = Object.keys(config);
+      expect(keys).toContain('server');
+      expect(keys).toContain('database');
+      expect(keys).toContain('jwt');
+      expect(keys).toContain('swagger');
+      expect(keys).toContain('rateLimit');
+      expect(keys).toContain('cron');
+      expect(keys).toContain('corsOrigins');
+      expect(keys).toContain('uploadDir');
+      expect(keys).toContain('upload');
+      expect(keys).toContain('bodyLimitMb');
+    });
+
+    it('should have correct types for all config values', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(typeof config.server.port).toBe('number');
+      expect(typeof config.server.trustProxy).toBe('number');
+      expect(typeof config.database.host).toBe('string');
+      expect(typeof config.database.port).toBe('number');
+      expect(typeof config.database.name).toBe('string');
+      expect(typeof config.database.user).toBe('string');
+      expect(typeof config.database.password).toBe('string');
+      expect(typeof config.database.pool.min).toBe('number');
+      expect(typeof config.database.pool.max).toBe('number');
+      expect(typeof config.jwt.secret).toBe('string');
+      expect(typeof config.jwt.expiresIn).toBe('string');
+      expect(typeof config.swagger.enabled).toBe('boolean');
+      expect(typeof config.rateLimit.windowMs).toBe('number');
+      expect(typeof config.rateLimit.max).toBe('number');
+      expect(typeof config.cron.articleGenerationInterval).toBe('string');
+      expect(typeof config.cron.articleGenerationEnabled).toBe('boolean');
+      expect(Array.isArray(config.corsOrigins)).toBe(true);
+      expect(typeof config.uploadDir).toBe('string');
+      expect(typeof config.upload.imageMaxSize).toBe('number');
+      expect(typeof config.upload.documentMaxSize).toBe('number');
+      expect(typeof config.bodyLimitMb).toBe('number');
+    });
+
+    it('should have upload property with imageMaxSize and documentMaxSize', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(config).toHaveProperty('upload');
+      expect(config.upload).toHaveProperty('imageMaxSize');
+      expect(config.upload).toHaveProperty('documentMaxSize');
+      expect(typeof config.upload.imageMaxSize).toBe('number');
+      expect(typeof config.upload.documentMaxSize).toBe('number');
+    });
+
+    it('should have server property with both port and trustProxy', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(config.server).toHaveProperty('port');
+      expect(config.server).toHaveProperty('trustProxy');
+      expect(typeof config.server.port).toBe('number');
+      expect(typeof config.server.trustProxy).toBe('number');
+    });
+  });
+
   describe('production environment with dotenv mocked', () => {
     it('should throw in production with dotenv mocked and no DB_PASSWORD', async () => {
       jest.resetModules();
