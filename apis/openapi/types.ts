@@ -10,6 +10,13 @@ export interface PathParam {
   schema?: Record<string, unknown>;
 }
 
+export type ResponseType = 'item' | 'list' | 'void';
+
+export interface RouteResponse {
+  type?: ResponseType;
+  schema?: Record<string, unknown>;
+}
+
 export interface RouteDescriptor {
   method: HttpMethod;
   path: string;
@@ -22,4 +29,5 @@ export interface RouteDescriptor {
     source: ValidationSource;
   };
   params?: PathParam[];
+  response?: RouteResponse;
 }

@@ -131,11 +131,18 @@ export function buildOpenApiSpec(): OpenApiSpec {
     }
 
     // Responses
+    const errorBody = {
+      type: 'object',
+      properties: {
+        code: { type: 'integer', description: '错误码' },
+        message: { type: 'string', description: '错误信息' },
+      },
+    };
     operation.responses = {
-      200: { description: 'OK' },
-      400: { description: '参数验证失败' },
-      401: { description: '未认证' },
-      403: { description: '无权限' },
+      200: buildResponse(route.response),
+      400: { description: '参数验证失败', content: { 'application/json': { schema: errorBody } } },
+      401: { description: '未认证', content: { 'application/json': { schema: errorBody } } },
+      403: { description: '无权限', content: { 'application/json': { schema: errorBody } } },
     };
 
     pathObj[route.method] = operation;
@@ -149,6 +156,38 @@ export function buildOpenApiSpec(): OpenApiSpec {
   mergePrismaSchemas(spec);
 
   return spec;
+}
+
+function ref(name: string): Record<string, unknown> {
+  return { $ref: `#/components/schemas/${name}` };
+}
+
+function successEnvelope(dataSchema?: Record<string, unknown>): Record<string, unknown> {
+  const props: Record<string, unknown> = {
+    code: { type: 'integer', example: 0 },
+    message: { type: 'string', example: '操作成功' },
+  };
+  if (dataSchema) props.data = dataSchema;
+  return { type: 'object', properties: props };
+}
+
+function buildResponse(r?: import('./types').RouteResponse): Record<string, unknown> {
+  const responseType = r?.type ?? 'void';
+  const schema = r?.schema;
+  let body: Record<string, unknown>;
+
+  if (responseType === 'void' || !schema) {
+    body = successEnvelope();
+  } else if (responseType === 'list') {
+    body = successEnvelope({ type: 'array', items: schema });
+  } else {
+    body = successEnvelope(schema);
+  }
+
+  return {
+    description: 'OK',
+    content: { 'application/json': { schema: body } },
+  };
 }
 
 function mergePrismaSchemas(spec: OpenApiSpec): void {
