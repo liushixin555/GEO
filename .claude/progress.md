@@ -525,3 +525,17 @@
   - 交叉审核两份已有评审（安全评审 + 质量评审 A-），所有问题均不阻塞合并
   - 建议合并后 P1 修复：Q-01 子接口 readonly 对齐（5min）、Q-06 JWT 强度校验（3min）
   - 评审报告 tasks/review/config-index.committer.md
+
+## 本次变更（2026-05-24 article.controller.ts TDD 测试补全）
+- [x] **article.controller.ts 测试用例补全** — 从 181 个增加到 213 个测试用例（+32）
+  - 新增 Zod 验证边界测试 17 个：title/keywords/article_type/portrait/images/platforms/content 长度限制、llm_model_id 类型限制、Zod strict extra 字段拒绝、scheduled_publish_at 格式校验、invalid status 枚举
+  - 新增 sysadmin 自审绕过 SoD 检查测试 2 个：sysadmin 可审核/拒绝自己的文章
+  - 新增 handleServerError 错误映射测试 7 个：服务层抛出特定错误→对应HTTP状态码
+  - 新增 content 类型验证 3 个：null/boolean/array→400
+  - 新增字段白名单验证 1 个：schedule_type 通过 Zod 但被 pickAllowedFields 剥离
+  - 新增 admin projectService 异常 1 个
+  - 新增 delete 状态覆盖 2 个：generate_failed/draft sysadmin 删除
+  - 修复 anti-crawl 中间件 IP 封禁问题：mock antiCrawlMiddleware 避免 200+ 请求后 403
+  - 修复 mock 缺少 articleVersion 模型问题
+  - 覆盖率：controller 92.85%/86.44%/100%/100%，service 95.55%/93.5%/100%/100%
+  - TDD 报告：tasks/tdd/article.controller.test.md
