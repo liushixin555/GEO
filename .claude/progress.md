@@ -632,3 +632,12 @@
   - P3×3：属性缺乏 JSDoc 文档、data-color-mode 不支持 auto 模式、onMouseOver 冒泡事件选择未说明
   - 正面评价：类型继承正确（Omit<Options, 'children'>）、事件类型携带泛型参数、弃用标记完备
   - 评审报告 tasks/review/Props.tsx.quality.md
+
+## 本次变更（2026-05-24 apis/app.ts 软件质量专家第三轮复审）
+- [x] **软件质量专家评审 apis/app.ts（259 行，修复后复审）**
+  - 综合评级 B+（从 B 提升，修复质量扎实，可维护性瓶颈依旧）
+  - 验证五项修复落地质量：Q-03注释修正✅、Q-06/SEC-2.04 Swagger条件化✅、SEC-2.05错误上下文✅、SEC-2.06审计日志✅
+  - 剩余质量问题 7 项：HIGH×1（96条路由平铺）、MEDIUM×3（中间件重复90+、无API版本化、无请求验证层）、LOW×3（角色硬编码、路由分组不一致、日志格式不统一）
+  - 新发现 RQ-07：审计日志（空格分隔）与错误日志（JSON.stringify）格式不一致
+  - 修复优先级：P0×2（路由拆分+Router级中间件）、P1×3（zod验证+API版本化+日志格式统一）、P2×2（角色常量化+路由分组）
+  - 评审报告 tasks/review/app.ts.md

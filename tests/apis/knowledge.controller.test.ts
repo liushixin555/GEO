@@ -2177,3 +2177,989 @@ describe('Knowledge Inventory - mixed creators', () => {
     expect(withoutCreator.creatorName).toBe('-');
   });
 });
+
+// ==================== checkProjectOperator - sysadmin bypass ====================
+
+describe('checkProjectOperator - sysadmin bypass', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('sysadmin访问项目关键词无需运营者身份', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      project: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 1, shortName: '项目A', fullName: '项目A全称', companyId: 2, status: true, deletedAt: null,
+          company: { shortName: '公司' },
+          operators: [{ userId: 99, user: { id: 99, cnName: '其他' } }],
+          viewers: [],
+        }),
+      },
+      knowledgeBase: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0),
+      },
+      knowledgeKeyword: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0),
+      },
+    });
+    const res = await agent.get('/api/projects/1/knowledge/keywords').set('Authorization', auth());
+    expect(res.status).toBe(200);
+  });
+});
+
+// ==================== checkBaseAccess - platform scope for admin ====================
+
+describe('checkBaseAccess - platform scope (admin)', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('admin访问platform范围知识库成功', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'platform', status: true, company: null, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
+      },
+      knowledgeKeyword: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0),
+      },
+    });
+    const res = await agent.get('/api/knowledge-bases/10/keywords').set('Authorization', auth(adminToken));
+    expect(res.status).toBe(200);
+  });
+});
+
+// ==================== Error catch - specific error message branches ====================
+
+describe('Error catch - getKeyword 知识库不存在 branch', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('getKeyword中checkBaseAccess抛出知识库不存在返回404', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'company', companyId: 99, status: true, company: { shortName: '其他' }, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
+      },
+    });
+    const res = await agent.get('/api/knowledge-bases/10/keywords/1').set('Authorization', auth(adminToken));
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('知识库不存在');
+  });
+});
+
+describe('Error catch - updateKeyword 关键词不存在 branch', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('updateKeyword中service.update抛出关键词不存在返回404', async () => {
+    mockPrisma({
+      $queryRaw: jest.fn()
+        .mockResolvedValueOnce([{ id: 1, base_id: 10, keyword: '旧', seed_word: null, group_id: null, created_by: 1, created_at: new Date(), updated_at: new Date() }])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]),
+      knowledgeKeyword: {
+        findFirst: jest.fn().mockResolvedValueOnce({ id: 1, baseId: 10, keyword: '旧', createdBy: 1 }).mockResolvedValueOnce(null),
+        update: jest.fn().mockRejectedValue(new Error('关键词不存在')),
+      },
+    });
+    const res = await agent.put('/api/knowledge-bases/10/keywords/1').set('Authorization', auth()).send({ keyword: '新' });
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('关键词不存在');
+  });
+});
+
+describe('Error catch - deleteKeyword 关键词不存在 branch', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('deleteKeyword中service.delete抛出关键词不存在返回404', async () => {
+    mockPrisma({
+      $queryRaw: jest.fn()
+        .mockResolvedValueOnce([{ id: 1, base_id: 10, keyword: 'SEO', seed_word: null, group_id: null, created_by: 1, created_at: new Date(), updated_at: new Date() }])
+        .mockResolvedValueOnce([]),
+      knowledgeKeyword: {
+        findFirst: jest.fn().mockResolvedValueOnce({ id: 1, baseId: 10, keyword: 'SEO', createdBy: 1 }).mockResolvedValueOnce(null),
+        update: jest.fn().mockRejectedValue(new Error('关键词不存在')),
+      },
+    });
+    const res = await agent.delete('/api/knowledge-bases/10/keywords/1').set('Authorization', auth());
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('关键词不存在');
+  });
+});
+
+describe('Error catch - batchCreateKeywords with duplicates', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('批量创建含重复项返回成功消息含跳过信息', async () => {
+    mockPrisma({
+      knowledgeKeyword: {
+        createMany: jest.fn().mockResolvedValue({ count: 2 }),
+        findMany: jest.fn().mockResolvedValue([{ keyword: 'A' }, { keyword: 'B' }]),
+      },
+    });
+    const res = await agent.post('/api/knowledge-bases/10/keywords/batch').set('Authorization', auth()).send({ keywords: ['A', 'B', 'C'], seed_word: '种子' });
+    expect(res.status).toBe(200);
+    expect(res.body.message).toContain('已存在被跳过');
+  });
+
+  test('批量创建知识库不存在返回404', async () => {
+    mockPrisma({
+      knowledgeKeyword: {
+        createMany: jest.fn().mockRejectedValue(new Error('知识库不存在')),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    });
+    const res = await agent.post('/api/knowledge-bases/999/keywords/batch').set('Authorization', auth()).send({ keywords: ['A'] });
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('知识库不存在');
+  });
+});
+
+// ==================== Error catch - portrait specific branches ====================
+
+describe('Error catch - listPortraits 知识库不存在 branch', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('listPortraits中checkBaseAccess抛出知识库不存在返回404', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'company', companyId: 99, status: true, company: { shortName: '其他' }, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
+      },
+    });
+    const res = await agent.get('/api/knowledge-bases/10/portraits').set('Authorization', auth(adminToken));
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('知识库不存在');
+  });
+});
+
+describe('Error catch - getPortrait multi-branch', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('getPortrait中checkBaseAccess抛出知识库不存在', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'company', companyId: 99, status: true, company: { shortName: '其他' }, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
+      },
+    });
+    const res = await agent.get('/api/knowledge-bases/10/portraits/1').set('Authorization', auth(adminToken));
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('知识库不存在');
+  });
+});
+
+describe('Error catch - updatePortrait 500 branch', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('updatePortrait中service.update抛出非画像不存在异常返回500', async () => {
+    const existing = { id: 1, baseId: 10, title: '旧', content: '旧内容', createdBy: 1, createdAt: new Date(), updatedAt: new Date() };
+    mockPrisma({
+      knowledgePortrait: {
+        findFirst: jest.fn()
+          .mockResolvedValueOnce(existing)
+          .mockRejectedValueOnce(new Error('DB crash')),
+        update: jest.fn(),
+      },
+    });
+    const res = await agent.put('/api/knowledge-bases/10/portraits/1').set('Authorization', auth()).send({ title: '新标题' });
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe('更新画像失败');
+  });
+});
+
+describe('Error catch - deletePortrait 500 branch', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('deletePortrait中service.delete抛出非画像不存在异常返回500', async () => {
+    const existing = { id: 1, baseId: 10, title: 'x', content: 'y', createdBy: 1, createdAt: new Date(), updatedAt: new Date() };
+    mockPrisma({
+      knowledgePortrait: {
+        findFirst: jest.fn()
+          .mockResolvedValueOnce(existing)
+          .mockRejectedValueOnce(new Error('DB crash')),
+        update: jest.fn(),
+      },
+    });
+    const res = await agent.delete('/api/knowledge-bases/10/portraits/1').set('Authorization', auth());
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe('删除画像失败');
+  });
+});
+
+// ==================== Error catch - image specific branches ====================
+
+describe('Error catch - listImages 知识库不存在 branch', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('listImages中checkBaseAccess抛出知识库不存在返回404', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'company', companyId: 99, status: true, company: { shortName: '其他' }, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
+      },
+    });
+    const res = await agent.get('/api/knowledge-bases/10/images').set('Authorization', auth(adminToken));
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('知识库不存在');
+  });
+});
+
+describe('Error catch - getImage multi-branch', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('getImage中checkBaseAccess抛出知识库不存在', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'company', companyId: 99, status: true, company: { shortName: '其他' }, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
+      },
+    });
+    const res = await agent.get('/api/knowledge-bases/10/images/1').set('Authorization', auth(adminToken));
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('知识库不存在');
+  });
+});
+
+describe('Error catch - updateImage 500 branch', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('updateImage中service.update抛出非图片不存在异常返回500', async () => {
+    const existing = { id: 1, baseId: 10, title: '旧标题', imageUrl: '/test.png', createdBy: 1, createdAt: new Date(), updatedAt: new Date() };
+    mockPrisma({
+      knowledgeImage: {
+        findFirst: jest.fn()
+          .mockResolvedValueOnce(existing)
+          .mockRejectedValueOnce(new Error('DB crash')),
+        update: jest.fn(),
+      },
+    });
+    const res = await agent.put('/api/knowledge-bases/10/images/1').set('Authorization', auth()).send({ title: '新标题' });
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe('更新图片失败');
+  });
+});
+
+describe('Error catch - deleteImage 500 branch', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('deleteImage中service.delete抛出非图片不存在异常返回500', async () => {
+    const existing = { id: 1, baseId: 10, title: 'x', imageUrl: '/y', createdBy: 1, createdAt: new Date(), updatedAt: new Date() };
+    mockPrisma({
+      knowledgeImage: {
+        findFirst: jest.fn()
+          .mockResolvedValueOnce(existing)
+          .mockRejectedValueOnce(new Error('DB crash')),
+        update: jest.fn(),
+      },
+    });
+    const res = await agent.delete('/api/knowledge-bases/10/images/1').set('Authorization', auth());
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe('删除图片失败');
+  });
+});
+
+// ==================== Error catch - document specific branches ====================
+
+describe('Error catch - listDocuments 知识库不存在 branch', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('listDocuments中checkBaseAccess抛出知识库不存在返回404', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'company', companyId: 99, status: true, company: { shortName: '其他' }, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
+      },
+    });
+    const res = await agent.get('/api/knowledge-bases/10/documents').set('Authorization', auth(adminToken));
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('知识库不存在');
+  });
+});
+
+describe('Error catch - getDocument multi-branch', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('getDocument中checkBaseAccess抛出知识库不存在', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'company', companyId: 99, status: true, company: { shortName: '其他' }, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
+      },
+    });
+    const res = await agent.get('/api/knowledge-bases/10/documents/1').set('Authorization', auth(adminToken));
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('知识库不存在');
+  });
+});
+
+describe('Error catch - updateDocument 500 branch', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('updateDocument中service.update抛出非文档不存在异常返回500', async () => {
+    const existing = { id: 1, baseId: 10, title: '旧标题', fileName: 'test.pdf', createdBy: 1, createdAt: new Date(), updatedAt: new Date() };
+    mockPrisma({
+      knowledgeDocument: {
+        findFirst: jest.fn()
+          .mockResolvedValueOnce(existing)
+          .mockRejectedValueOnce(new Error('DB crash')),
+        update: jest.fn(),
+      },
+    });
+    const res = await agent.put('/api/knowledge-bases/10/documents/1').set('Authorization', auth()).send({ title: '新标题' });
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe('更新文档失败');
+  });
+});
+
+describe('Error catch - deleteDocument 500 branch', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('deleteDocument中service.delete抛出非文档不存在异常返回500', async () => {
+    const existing = { id: 1, baseId: 10, title: 'x', fileName: 'y', createdBy: 1, createdAt: new Date(), updatedAt: new Date() };
+    mockPrisma({
+      knowledgeDocument: {
+        findFirst: jest.fn()
+          .mockResolvedValueOnce(existing)
+          .mockRejectedValueOnce(new Error('DB crash')),
+        update: jest.fn(),
+      },
+    });
+    const res = await agent.delete('/api/knowledge-bases/10/documents/1').set('Authorization', auth());
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe('删除文档失败');
+  });
+});
+
+// ==================== updateImage/Document - title unchanged path ====================
+
+describe('updateImage - title unchanged skip dup check', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('标题未变时跳过重复检查直接更新', async () => {
+    const existing = { id: 1, baseId: 10, title: '标题', imageUrl: '/test.png', createdBy: 1, createdAt: new Date(), updatedAt: new Date() };
+    mockPrisma({
+      knowledgeImage: {
+        findFirst: jest.fn()
+          .mockResolvedValueOnce(existing)     // getById
+          .mockResolvedValueOnce(existing),    // update's internal findFirst (no dup check since title same)
+        update: jest.fn().mockResolvedValue({ ...existing, description: '新描述' }),
+      },
+    });
+    const res = await agent.put('/api/knowledge-bases/10/images/1').set('Authorization', auth()).send({ description: '新描述' });
+    expect(res.status).toBe(200);
+  });
+});
+
+describe('updateDocument - title unchanged skip dup check', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('标题未变时跳过重复检查直接更新', async () => {
+    const existing = { id: 1, baseId: 10, title: '标题', fileName: 'test.pdf', createdBy: 1, createdAt: new Date(), updatedAt: new Date() };
+    mockPrisma({
+      knowledgeDocument: {
+        findFirst: jest.fn()
+          .mockResolvedValueOnce(existing)
+          .mockResolvedValueOnce(existing),
+        update: jest.fn().mockResolvedValue({ ...existing, description: '新描述' }),
+      },
+    });
+    const res = await agent.put('/api/knowledge-bases/10/documents/1').set('Authorization', auth()).send({ description: '新描述' });
+    expect(res.status).toBe(200);
+  });
+});
+
+// ==================== mineKeywords - individual source types ====================
+
+describe('mineKeywords - source_type=document only', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('仅从文档挖掘关键词', async () => {
+    const axios = require('axios');
+    jest.spyOn(axios, 'post').mockResolvedValue({
+      data: { choices: [{ message: { content: '文档关键词1\n文档关键词2' } }] },
+    });
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeDocument: { findMany: jest.fn().mockResolvedValue([{ id: 1, title: '文档1', description: '描述' }]) },
+      llmModel: { findFirst: jest.fn().mockResolvedValue({ id: 1, baseUrl: 'http://localhost:11434', modelName: 'test', apiKey: 'key' }) },
+      minedKeyword: {
+        findMany: jest.fn()
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([{ id: 1, baseId: 10, keyword: '文档关键词1', selected: false, createdBy: 1, createdAt: new Date() }]),
+        createMany: jest.fn().mockResolvedValue({ count: 2 }),
+      },
+    });
+    const res = await agent.post('/api/knowledge-bases/10/keywords/mine').set('Authorization', auth()).send({ source_type: 'document' });
+    expect(res.status).toBe(200);
+    axios.post.mockRestore();
+  });
+});
+
+describe('mineKeywords - source_type=portrait only', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('仅从画像挖掘关键词', async () => {
+    const axios = require('axios');
+    jest.spyOn(axios, 'post').mockResolvedValue({
+      data: { choices: [{ message: { content: '画像关键词1\n画像关键词2' } }] },
+    });
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgePortrait: { findMany: jest.fn().mockResolvedValue([{ id: 1, title: '画像1', content: '内容' }]) },
+      llmModel: { findFirst: jest.fn().mockResolvedValue({ id: 1, baseUrl: 'http://localhost:11434', modelName: 'test', apiKey: 'key' }) },
+      minedKeyword: {
+        findMany: jest.fn()
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([{ id: 1, baseId: 10, keyword: '画像关键词1', selected: false, createdBy: 1, createdAt: new Date() }]),
+        createMany: jest.fn().mockResolvedValue({ count: 2 }),
+      },
+    });
+    const res = await agent.post('/api/knowledge-bases/10/keywords/mine').set('Authorization', auth()).send({ source_type: 'portrait' });
+    expect(res.status).toBe(200);
+    axios.post.mockRestore();
+  });
+});
+
+describe('mineKeywords - source_type=image only', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('仅从图片挖掘关键词', async () => {
+    const axios = require('axios');
+    jest.spyOn(axios, 'post').mockResolvedValue({
+      data: { choices: [{ message: { content: '图片关键词1\n图片关键词2' } }] },
+    });
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeImage: { findMany: jest.fn().mockResolvedValue([{ id: 1, title: '图片1', description: '描述' }]) },
+      llmModel: { findFirst: jest.fn().mockResolvedValue({ id: 1, baseUrl: 'http://localhost:11434', modelName: 'test', apiKey: 'key' }) },
+      minedKeyword: {
+        findMany: jest.fn()
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([{ id: 1, baseId: 10, keyword: '图片关键词1', selected: false, createdBy: 1, createdAt: new Date() }]),
+        createMany: jest.fn().mockResolvedValue({ count: 2 }),
+      },
+    });
+    const res = await agent.post('/api/knowledge-bases/10/keywords/mine').set('Authorization', auth()).send({ source_type: 'image' });
+    expect(res.status).toBe(200);
+    axios.post.mockRestore();
+  });
+});
+
+describe('mineKeywords - 知识库不存在返回404', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('mineKeywords中checkBaseAccess抛出知识库不存在', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'company', companyId: 99, status: true, company: { shortName: '其他' }, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
+      },
+    });
+    const res = await agent.post('/api/knowledge-bases/10/keywords/mine').set('Authorization', auth(adminToken)).send({ source_type: 'all' });
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('知识库不存在');
+  });
+});
+
+// ==================== listInventory - search by keyword/portrait/image ====================
+
+describe('Knowledge Inventory - search keyword', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('搜索关键词时使用contains条件', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findMany: jest.fn().mockResolvedValue([{ id: 10, name: '测试库', scope: 'platform', project: null, company: null }]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+      knowledgeKeyword: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([{ id: 1, baseId: 10, keyword: 'SEO优化', createdBy: 1, updatedAt: new Date() }]),
+      },
+      knowledgePortrait: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeImage: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
+    });
+    const res = await agent.get('/api/knowledge-inventory?category=keyword&search=SEO').set('Authorization', auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data.list).toHaveLength(1);
+  });
+});
+
+describe('Knowledge Inventory - search portrait', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('搜索画像时使用contains条件', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findMany: jest.fn().mockResolvedValue([{ id: 10, name: '测试库', scope: 'platform', project: null, company: null }]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+      knowledgeKeyword: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgePortrait: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([{ id: 1, baseId: 10, title: '目标画像', createdBy: 1, updatedAt: new Date() }]),
+      },
+      knowledgeImage: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
+    });
+    const res = await agent.get('/api/knowledge-inventory?category=portrait&search=目标').set('Authorization', auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data.list).toHaveLength(1);
+  });
+});
+
+describe('Knowledge Inventory - search image', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('搜索图片时使用contains条件', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findMany: jest.fn().mockResolvedValue([{ id: 10, name: '测试库', scope: 'platform', project: null, company: null }]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+      knowledgeKeyword: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgePortrait: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeImage: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([{ id: 1, baseId: 10, title: '目标图片', createdBy: 1, updatedAt: new Date() }]),
+      },
+      knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
+    });
+    const res = await agent.get('/api/knowledge-inventory?category=image&search=目标').set('Authorization', auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data.list).toHaveLength(1);
+  });
+});
+
+// ==================== listInventory - project scope base ====================
+
+describe('Knowledge Inventory - project scope base', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('项目范围知识库显示project_name', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findMany: jest.fn().mockResolvedValue([{ id: 10, name: '测试库', scope: 'project', project_name: '项目A', company_name: null, project: { shortName: '项目A' }, company: null }]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+      knowledgeKeyword: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([{ id: 1, baseId: 10, keyword: 'SEO', createdBy: 1, updatedAt: new Date() }]),
+      },
+      knowledgePortrait: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeImage: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
+    });
+    const res = await agent.get('/api/knowledge-inventory').set('Authorization', auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data.list[0].scope).toBe('project');
+  });
+});
+
+describe('Knowledge Inventory - company scope base', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('公司范围知识库显示company_name', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findMany: jest.fn().mockResolvedValue([{ id: 10, name: '测试库', scope: 'company', company_name: '测试公司', project_name: null, project: null, company: { shortName: '测试公司' } }]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+      knowledgeKeyword: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgePortrait: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([{ id: 1, baseId: 10, title: '画像', createdBy: null, updatedAt: new Date() }]),
+      },
+      knowledgeImage: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+    });
+    const res = await agent.get('/api/knowledge-inventory').set('Authorization', auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data.list[0].scope).toBe('company');
+  });
+});
+
+// ==================== Mined Keywords - specific error branches ====================
+
+describe('Mined Keywords - saveMinedKeywords 知识库不存在', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('saveMinedKeywords中checkBaseAccess抛出知识库不存在返回404', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'company', companyId: 99, status: true, company: { shortName: '其他' }, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
+      },
+    });
+    const res = await agent.post('/api/knowledge-bases/10/mined-keywords/save').set('Authorization', auth(adminToken)).send({ keywords: ['A'] });
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('知识库不存在');
+  });
+});
+
+describe('Mined Keywords - toggleMinedKeywordsBatch 知识库不存在', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('toggleMinedKeywordsBatch中checkBaseAccess抛出知识库不存在返回404', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'company', companyId: 99, status: true, company: { shortName: '其他' }, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
+      },
+    });
+    const res = await agent.put('/api/knowledge-bases/10/mined-keywords/batch-toggle').set('Authorization', auth(adminToken)).send({ ids: [1], selected: true });
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('知识库不存在');
+  });
+});
+
+describe('Mined Keywords - deleteMinedKeywords 知识库不存在', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('deleteMinedKeywords中checkBaseAccess抛出知识库不存在返回404', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'company', companyId: 99, status: true, company: { shortName: '其他' }, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
+      },
+    });
+    const res = await agent.delete('/api/knowledge-bases/10/mined-keywords').set('Authorization', auth(adminToken));
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('知识库不存在');
+  });
+});
+
+describe('Mined Keywords - listMinedKeywords 知识库不存在', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('listMinedKeywords中checkBaseAccess抛出知识库不存在返回404', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'company', companyId: 99, status: true, company: { shortName: '其他' }, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
+      },
+    });
+    const res = await agent.get('/api/knowledge-bases/10/mined-keywords').set('Authorization', auth(adminToken));
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('知识库不存在');
+  });
+});
+
+// ==================== listKeywords 知识库不存在 branch ====================
+
+describe('Error catch - listKeywords 知识库不存在 branch', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('listKeywords中checkBaseAccess抛出知识库不存在返回404', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'company', companyId: 99, status: true, company: { shortName: '其他' }, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
+      },
+    });
+    const res = await agent.get('/api/knowledge-bases/10/keywords').set('Authorization', auth(adminToken));
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('知识库不存在');
+  });
+});
+
+// ==================== createKeyword/Portrait/Image/Document 知识库不存在 ====================
+
+describe('Error catch - createKeyword 知识库不存在', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('createKeyword中checkBaseAccess抛出知识库不存在返回404', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'company', companyId: 99, status: true, company: { shortName: '其他' }, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
+      },
+    });
+    const res = await agent.post('/api/knowledge-bases/10/keywords').set('Authorization', auth(adminToken)).send({ keyword: 'test' });
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('知识库不存在');
+  });
+});
+
+describe('Error catch - createPortrait 知识库不存在 via checkBaseAccess', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('createPortrait中checkBaseAccess抛出知识库不存在返回404', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'company', companyId: 99, status: true, company: { shortName: '其他' }, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
+      },
+    });
+    const res = await agent.post('/api/knowledge-bases/10/portraits').set('Authorization', auth(adminToken)).send({ title: 't', content: 'c' });
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('知识库不存在');
+  });
+});
+
+describe('Error catch - createImage 知识库不存在 via checkBaseAccess', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('createImage中checkBaseAccess抛出知识库不存在返回404', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'company', companyId: 99, status: true, company: { shortName: '其他' }, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
+      },
+    });
+    const res = await agent.post('/api/knowledge-bases/10/images').set('Authorization', auth(adminToken)).send({ title: '图片', image_url: '/test.png' });
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('知识库不存在');
+  });
+});
+
+describe('Error catch - createDocument 知识库不存在 via checkBaseAccess', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('createDocument中checkBaseAccess抛出知识库不存在返回404', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'company', companyId: 99, status: true, company: { shortName: '其他' }, project: null, creator: null, _count: { keywords: 0, portraits: 0, images: 0, documents: 0 } }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
+      },
+    });
+    const res = await agent.post('/api/knowledge-bases/10/documents').set('Authorization', auth(adminToken)).send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('知识库不存在');
+  });
+});
+
+// ==================== Project Knowledge - sysadmin success paths ====================
+
+describe('Project Knowledge - sysadmin listProjectKeywords', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('sysadmin成功获取项目关键词(无运营者身份)', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      project: {
+        findFirst: jest.fn()
+          .mockResolvedValueOnce({
+            id: 1, shortName: '项目A', fullName: '项目A全称', companyId: 2, status: true, deletedAt: null,
+            company: { shortName: '公司' },
+            operators: [{ userId: 99, user: { id: 99, cnName: '其他' } }],
+            viewers: [],
+          })
+          .mockResolvedValueOnce({ id: 1, shortName: '项目A', deletedAt: null }),
+        count: jest.fn().mockResolvedValue(0),
+      },
+      knowledgeBase: {
+        findMany: jest.fn().mockResolvedValue([{ id: 10 }]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+      knowledgeKeyword: {
+        findMany: jest.fn().mockResolvedValue([{ id: 1, baseId: 10, keyword: 'SEO', createdBy: 1, createdAt: new Date(), updatedAt: new Date() }]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+    });
+    const res = await agent.get('/api/projects/1/knowledge/keywords').set('Authorization', auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data.list).toHaveLength(1);
+  });
+});
+
+describe('Project Knowledge - listProjectKeywords error 500', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('listProjectKeywords服务异常返回500', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      project: {
+        findFirst: jest.fn()
+          .mockResolvedValueOnce({
+            id: 1, shortName: '项目A', fullName: '项目A全称', companyId: 2, status: true, deletedAt: null,
+            company: { shortName: '公司' },
+            operators: [{ userId: 2, user: { id: 2, cnName: '管理员' } }],
+            viewers: [],
+          })
+          .mockResolvedValueOnce({ id: 1, deletedAt: null }),
+        count: jest.fn().mockResolvedValue(0),
+      },
+      knowledgeBase: {
+        findMany: jest.fn().mockRejectedValue(new Error('DB error')),
+        count: jest.fn().mockResolvedValue(0),
+      },
+    });
+    const res = await agent.get('/api/projects/1/knowledge/keywords').set('Authorization', auth(adminToken));
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe('获取关键词列表失败');
+  });
+});
+
+// ==================== Inventory - pagination ====================
+
+describe('Knowledge Inventory - pagination', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('分页参数正确工作', async () => {
+    const items = Array.from({ length: 5 }, (_, i) => ({
+      id: i + 1, baseId: 10, keyword: `关键词${i + 1}`, createdBy: 1, updatedAt: new Date(),
+    }));
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findMany: jest.fn().mockResolvedValue([{ id: 10, name: '测试库', scope: 'platform', project: null, company: null }]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+      knowledgeKeyword: { count: jest.fn().mockResolvedValue(5), findMany: jest.fn().mockResolvedValue(items) },
+      knowledgePortrait: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeImage: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
+    });
+    const res = await agent.get('/api/knowledge-inventory?page=2&pageSize=2').set('Authorization', auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data.total).toBe(5);
+    expect(res.body.data.list).toHaveLength(2);
+  });
+});
+
+// ==================== Inventory - no creator IDs ====================
+
+describe('Knowledge Inventory - no creator IDs to batch lookup', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('无创建者ID时跳过批量查询用户', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findMany: jest.fn().mockResolvedValue([{ id: 10, name: '测试库', scope: 'platform', project: null, company: null }]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+      knowledgeKeyword: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([{ id: 1, baseId: 10, keyword: 'SEO', createdBy: null, updatedAt: new Date() }]),
+      },
+      knowledgePortrait: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeImage: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+    });
+    const res = await agent.get('/api/knowledge-inventory').set('Authorization', auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data.list[0].creatorName).toBe('-');
+  });
+});
+
+// ==================== Inventory - multiple bases ====================
+
+describe('Knowledge Inventory - multiple bases', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('多个知识库的内容合并展示', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: 10, name: '库A', scope: 'platform', project: null, company: null },
+          { id: 11, name: '库B', scope: 'platform', project: null, company: null },
+        ]),
+        count: jest.fn().mockResolvedValue(2),
+      },
+      knowledgeKeyword: {
+        count: jest.fn().mockResolvedValue(2),
+        findMany: jest.fn().mockResolvedValue([
+          { id: 1, baseId: 10, keyword: '关键词A', createdBy: 1, updatedAt: new Date() },
+          { id: 2, baseId: 11, keyword: '关键词B', createdBy: 1, updatedAt: new Date() },
+        ]),
+      },
+      knowledgePortrait: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeImage: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
+    });
+    const res = await agent.get('/api/knowledge-inventory').set('Authorization', auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data.list).toHaveLength(2);
+    const names = res.body.data.list.map((i: any) => i.baseName);
+    expect(names).toContain('库A');
+    expect(names).toContain('库B');
+  });
+});
+
+// ==================== saveMinedKeywords - success with duplicates ====================
+
+describe('Mined Keywords - saveMinedKeywords with duplicates', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('保存含重复关键词返回跳过信息', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeKeyword: {
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findMany: jest.fn().mockResolvedValue([{ keyword: 'A' }]),
+      },
+      minedKeyword: {
+        updateMany: jest.fn().mockResolvedValue({ count: 2 }),
+      },
+    });
+    const res = await agent.post('/api/knowledge-bases/10/mined-keywords/save').set('Authorization', auth()).send({ keywords: ['A', 'B'] });
+    expect(res.status).toBe(200);
+    expect(res.body.message).toContain('已存在被跳过');
+  });
+});

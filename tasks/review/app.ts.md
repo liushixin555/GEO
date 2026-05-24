@@ -1,292 +1,96 @@
-# 安全评审：apis/app.ts（第二轮）
+# 软件质量专家评审：apis/app.ts（第三轮 — 修复后复审）
 
 **评审日期**: 2026-05-24
-**评审角色**: 代码安全专家（OWASP Top 10 2021 / CWE / SANS 标准）
-**评审范围**: Express 应用入口文件 `apis/app.ts`（239 行）及安全依赖链：中间件链、配置层、路由注册
-**关联文件**: `apis/middleware/auth.middleware.ts`, `apis/middleware/anti-crawl.middleware.ts`, `apis/middleware/rate-limit.middleware.ts`, `apis/config/index.ts`, `apis/server.ts`
-**前置评审**: 第一轮评审（2026-05-23，评级 C → 修复后 B+），参见 `tasks/review/app.md`
+**评审角色**: 软件质量专家（ISO 25010 / Clean Code / SOLID / 设计模式视角）
+**评审范围**: Express 应用入口文件 `apis/app.ts`（259 行）
+**前置评审**: 质量评审第一轮（app.quality.md，评级 B）、安全评审（app.md，C→已修复）、架构评审（app.architecture.md，B-）、Committer 评审（app.ts.committer.md，APPROVE）
+**本轮性质**: 修复后复审 — 验证 Q-03/Q-06/SEC-2.04/SEC-2.05/SEC-2.06 五项修复的实际落地质量，并评估剩余质量状况
 
 ---
 
-## 1. 安全总体评级：B（基础安全框架完善，纵深防御仍有缺口）
+## 1. 质量总体评级：B+（修复质量扎实，可维护性瓶颈依旧）
 
-相较于第一轮评审（评级 C），`app.ts` 已完成 P0 全部修复和大部分 P1/P2 项，安全状况显著改善。当前代码具备完整的安全中间件链（trust proxy → health check → helmet → CORS 白名单 → body limit → anti-crawl → rate-limit → JWT auth → RBAC），但纵深防御层仍有提升空间。
+| 质量维度 | 第一轮评分 | 本轮评分 | 变化 | 说明 |
+|----------|-----------|---------|------|------|
+| 可维护性（Maintainability） | 5/10 | 5.5/10 | ↑ 微升 | 注释修正+Swagger条件化减少认知负担，但路由平铺未解 |
+| 可读性（Readability） | 7/10 | 8/10 | ↑ | 注释修正消除误导，审计日志中间件注释清晰 |
+| 架构设计（Architecture） | 6/10 | 6.5/10 | ↑ 微升 | Swagger条件化实现干净，审计日志关注点分离合理 |
+| 一致性（Consistency） | 6/10 | 7/10 | ↑ | Q-03注释修正、审计日志风格与全局错误处理一致 |
+| 可测试性（Testability） | 7/10 | 7.5/10 | ↑ | Swagger条件化使测试可验证禁用逻辑 |
+| 性能（Performance） | 8/10 | 8.5/10 | ↑ | Swagger条件生成消除生产环境无用I/O |
+| 安全基础（Security Baseline） | 9/10 | 9.5/10 | ↑ | 审计日志+错误上下文补齐可观测性缺口 |
 
-| 安全域 | 第一轮评分 | 本轮评分 | 状态 |
-|--------|-----------|---------|------|
-| 认证（Authentication） | 7/10 | 8/10 | JWT 实现正确，密钥管理已修复 |
-| 授权（Authorization） | 8/10 | 8/10 | RBAC 粒度合理，覆盖全面 |
-| 传输安全（Transport） | 2/10 | 7/10 | CORS 白名单 + Helmet + trust proxy 已就位 |
-| 输入验证（Input Validation） | 3/10 | 6/10 | Body limit 已设，但缺少请求级 schema 校验 |
-| 错误处理（Error Handling） | 2/10 | 7/10 | 全局错误处理 + 404 fallback 已就位 |
-| 数据保护（Data Protection） | 5/10 | 6/10 | 上传文件仍公开访问，CORS 绕过风险存在 |
-| 可观测性（Observability） | —/10 | 3/10 | 无请求级日志、无安全事件审计 |
-| 弹性（Resilience） | —/10 | 5/10 | 无请求超时、无优雅降级 |
-
----
-
-## 2. 第一轮修复验证（12 项）
-
-| 编号 | 修复内容 | 验证结果 | 当前代码位置 |
-|------|----------|---------|-------------|
-| SEC-01 | CORS 白名单 | ✅ 已修复，动态 origin 校验 | `app.ts:42-53` |
-| SEC-02 | JWT Secret 强制验证 | ✅ 已修复，生产环境拒绝启动 | `config/index.ts` |
-| SEC-03 | Body 大小限制 | ✅ 已修复，10mb 显式限制 | `app.ts:56` |
-| SEC-04 | Helmet 安全头 | ✅ 已修复，`referrerPolicy` 增强 | `app.ts:36-39` |
-| SEC-05 | 全局错误处理 | ✅ 已修复，404 + error handler | `app.ts:229-237` |
-| SEC-06 | 上传文件认证 | ❌ 未修复，签名 URL 方案待设计 | `app.ts:59-62` |
-| SEC-07 | trust proxy | ✅ 已修复 | `app.ts:28` |
-| SEC-08 | 反爬虫内存限制 | ✅ 已修复，MAX_ENTRIES=10000 | `anti-crawl.middleware.ts` |
-| SEC-09 | Refresh Token | ❌ 未修复，设计决策延后 | — |
-| SEC-10 | 数据库凭据验证 | ✅ 已修复，生产环境拒绝启动 | `config/index.ts` |
-| SEC-11 | Swagger 生产环境保护 | ✅ 已修复，双重检查 | `app.ts:90-93` |
-| SEC-12 | Health check 位置 | ✅ 已修复，移至中间件前 | `app.ts:31-33` |
-
-**修复率**: 10/12（83%），剩余 2 项为架构级变更，不阻塞合并。
+**综合评级**: B→B+，修复质量扎实，无回退风险。评级上限受限于路由平铺（Q-01）和中间件重复（Q-02）两个架构级问题。
 
 ---
 
-## 3. 新发现漏洞清单（按 OWASP Top 10 2021 映射）
+## 2. 修复验证 — 五项修复的落地质量
 
-### SEC-2.01: 静态文件服务无认证 — OWASP A01:2021 Broken Access Control（延续）
-
-**严重度**: 🔴 HIGH
-**位置**: `app.ts:59-62`
-**CWE**: CWE-284 (Improper Access Control)
+### 2.1 FIX-01: 注释修正（Q-03） — ✅ 高质量
 
 ```typescript
-app.use('/uploads', (_req, res, next) => {
-  res.set('Cross-Origin-Resource-Policy', 'cross-origin');
-  next();
-}, express.static(path.resolve(process.cwd(), 'uploads')));
+// Line 200: 修正后
+// Todo routes (sysadmin + admin)
 ```
 
-**风险分析**:
-- `/uploads` 路径注册于认证中间件之前，所有已上传文件（图片、文档）对公网公开可访问
-- 攻击者无需认证即可枚举和下载所有上传内容，包含企业知识库文档、肖像图片等敏感资料
-- `path.resolve(process.cwd(), 'uploads')` 依赖运行时工作目录，若部署路径变更可能指向错误目录
-- 无上传文件类型白名单校验（在 controller 层实现但 app.ts 层无防护），恶意 HTML/SVG 文件可通过直接 URL 访问触发存储型 XSS
+**评价**: 注释准确反映代码意图，与下方 `todoController.*` 调用完全匹配。简单、正确、无遗漏。
 
-**影响**:
-- 企业知识库文档泄露（商业机密风险）
-- 用户肖像/图片泄露（隐私合规风险，违反 GDPR/PIPL）
-- SVG 上传 → 直接 URL 访问 → 存储型 XSS
-
-**修复方案**:
-```typescript
-// 方案 A: 签名 URL（推荐）
-// 上传时生成带过期时间的签名 token，通过 Nginx X-Accel-Redirect 内部重定向验证
-app.get('/uploads/:token/:filename', validateSignedUrl, serveUploadFile);
-
-// 方案 B: 最小化 — 至少阻止目录列表和危险文件类型
-app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads'), {
-  dotfiles: 'deny',
-  index: false,           // 禁止目录索引
-  setHeaders: (res, filePath) => {
-    // SVG/HTML 等危险类型强制 Content-Disposition: attachment
-    const ext = path.extname(filePath).toLowerCase();
-    if (['.svg', '.html', '.htm'].includes(ext)) {
-      res.set('Content-Disposition', 'attachment');
-      res.set('Content-Type', 'application/octet-stream');
-    }
-  },
-}));
-```
-
----
-
-### SEC-2.02: CORS `!origin` 绕过 — OWASP A05:2021 Security Misconfiguration
-
-**严重度**: 🟡 MEDIUM
-**位置**: `app.ts:44-45`
-**CWE**: CWE-942 (Overly Permissive Cross-domain Whitelist)
+### 2.2 FIX-02: Swagger 条件生成（Q-06 / SEC-2.04） — ✅ 高质量
 
 ```typescript
-origin: (origin, callback) => {
-  const allowed = config.corsOrigins;
-  if (!origin || allowed.includes(origin)) {
-    callback(null, true);
-  }
-```
-
-**风险分析**:
-- `!origin` 条件允许所有**无 Origin 头**的请求通过 CORS 检查
-- 以下工具/场景不发 Origin 头：`curl`、`wget`、Postman、服务端请求、部分移动端 SDK
-- 攻击者可通过省略 Origin 头绕过 CORS 策略，直接调用 API
-- 虽然 Bearer Token 提供了第二层防护，但 CORS 应作为独立安全层运作
-- 实际影响：恶意网站可通过 `fetch('https://api.example.com/api/users', { mode: 'no-cors' })` 发起请求，虽然浏览器 CORS 会阻止读取响应，但 **POST/PUT/DELETE 等变更操作仍可能成功**（取决于浏览器实现）
-
-**修复方案**:
-```typescript
-origin: (origin, callback) => {
-  const allowed = config.corsOrigins;
-  // 仅允许有 Origin 头且在白名单内的请求
-  // 服务端间调用（无 Origin）应使用 API Key 机制而非 CORS
-  if (allowed.includes(origin || '')) {
-    callback(null, true);
-  } else {
-    callback(new Error('Not allowed by CORS'));
-  }
-},
-```
-
-**注意**: 移除 `!origin` 可能影响 Postman/curl 调试体验，建议仅在 `NODE_ENV=production` 时启用严格模式。
-
----
-
-### SEC-2.03: CORS 错误未正确处理 — OWASP A05:2021 Security Misconfiguration
-
-**严重度**: 🟡 MEDIUM
-**位置**: `app.ts:48`
-**CWE**: CWE-755 (Improper Handling of Exceptional Conditions)
-
-```typescript
-callback(new Error('Not allowed by CORS'));
-```
-
-**风险分析**:
-- 当 origin 不在白名单时，`callback(new Error(...))` 会触发 Express 错误处理链
-- 全局错误处理（`app.ts:234`）捕获后返回 `500` 状态码和通用错误消息
-- CORS 拒绝应返回 `403` 而非 `500`，否则：
-  1. 监控系统无法区分真实服务器错误和安全拦截
-  2. 前端无法通过 HTTP 状态码判断是否为 CORS 问题
-  3. 可能触发不必要的告警
-
-**修复方案**:
-```typescript
-// 自定义 CORS 错误处理
-const corsOptions = {
-  origin: (origin, callback) => {
-    const allowed = config.corsOrigins;
-    if (!origin || allowed.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(null, false); // 不传 Error，让 cors 模块返回 204 No Content
-    }
-  },
-  // ...
-};
-```
-
-或添加 CORS 专用错误处理中间件：
-```typescript
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  if (err.message === 'Not allowed by CORS') {
-    res.status(403).json({ code: 403, message: '跨域请求被拒绝' });
-    return;
-  }
-  // ... 其他错误处理
-});
-```
-
----
-
-### SEC-2.04: Swagger Spec 无条件生成 — OWASP A01:2021 Broken Access Control
-
-**严重度**: 🟡 MEDIUM
-**位置**: `app.ts:69-88`
-**CWE**: CWE-200 (Exposure of Sensitive Information)
-
-```typescript
-// 第 69-88 行：swaggerJSDoc() 在模块加载时无条件执行
-const swaggerSpec = swaggerJSDoc({
-  definition: { ... },
-  apis: ['./apis/controller/*.ts'],
-});
-
-// 第 90-93 行：仅 serving 有条件判断
+// Lines 82-106: 条件化后
 if (config.swagger.enabled && process.env.NODE_ENV !== 'production') {
-  app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
-}
-```
-
-**风险分析**:
-- `swaggerJSDoc()` 扫描所有 `controller/*.ts` 文件并解析 JSDoc 注释，在**任何环境**下都执行
-- 虽然不暴露 HTTP 端点，但：
-  1. 增加启动时间（文件 I/O + 正则解析）
-  2. `swaggerSpec` 对象常驻内存，包含所有 API 端点定义
-  3. 若后续代码意外导出 `swaggerSpec`（如用于测试），可能泄露 API 结构
-- 生产环境不应持有 API 文档对象的内存引用
-
-**修复方案**:
-```typescript
-let swaggerSpec: object | null = null;
-if (config.swagger.enabled && process.env.NODE_ENV !== 'production') {
-  swaggerSpec = swaggerJSDoc({
-    definition: { ... },
-    apis: ['./apis/controller/*.ts'],
-  });
+  const swaggerSpec = swaggerJSDoc({ ... });
   app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
   app.get('/api-docs.json', (_req, res) => res.json(swaggerSpec));
 }
 ```
 
----
+**评价**:
+- `swaggerJSDoc()` 调用、`swaggerUI.serve` 挂载、`/api-docs.json` 端点三者统一纳入条件块，一致性优秀
+- `swaggerSpec` 作用域从模块级降为块级，生产环境零内存占用
+- 双重条件（config + NODE_ENV）保持不变，安全纵深正确
+- 消除了生产环境无意义的文件I/O和正则解析开销
 
-### SEC-2.05: 全局错误处理信息不足 — OWASP A09:2021 Security Logging and Monitoring Failures
+**唯一微小瑕疵**: 注释 `// Swagger setup — conditional generation to avoid wasted I/O in production` 使用英文，而错误消息使用中文。但此为风格统一性问题，不影响质量。
 
-**严重度**: 🟡 MEDIUM
-**位置**: `app.ts:234-237`
-**CWE**: CWE-778 (Insufficient Logging)
+### 2.3 FIX-03: 全局错误处理增加请求上下文（SEC-2.05） — ✅ 高质量
 
 ```typescript
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('[Unhandled Error]', err);
-  res.status(500).json({ code: 500, message: '服务器内部错误' });
-});
-```
-
-**风险分析**:
-- 错误日志仅记录 Error 对象本身，缺少请求上下文：
-  - 无请求 URL、HTTP 方法
-  - 无客户端 IP
-  - 无触发用户 ID/角色
-  - 无请求时间戳
-- `console.error` 为同步阻塞 I/O，高并发下可能影响性能
-- 无法将错误与具体请求关联，事件调查困难
-- 无结构化日志格式，难以接入 ELK/Sentry 等监控系统
-
-**修复方案**:
-```typescript
+// Lines 247-257
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
-  const errorContext = {
+  console.error('[Unhandled Error]', JSON.stringify({
     method: req.method,
     url: req.originalUrl,
     ip: req.ip,
     userId: req.user?.userId,
     userRole: req.user?.role,
-    timestamp: new Date().toISOString(),
-    error: {
-      name: err.name,
-      message: err.message,
-      stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined,
-    },
-  };
-  console.error('[Unhandled Error]', JSON.stringify(errorContext));
+    error: { name: err.name, message: err.message },
+  }));
   res.status(500).json({ code: 500, message: '服务器内部错误' });
 });
 ```
 
----
+**评价**:
+- `JSON.stringify` 结构化输出，可直接接入 ELK/Sentry 等日志系统
+- `error: { name, message }` 子对象只取安全字段，不泄露堆栈信息（生产环境安全）
+- `req.user?.userId` 可选链处理匿名请求（如 CORS 错误），防御性编程正确
+- `_next` 命名约定正确（Express 4参数签名识别）
+- 保持 `res.status(500)` 不泄露内部信息，安全基线未降低
 
-### SEC-2.06: 缺少请求级安全审计日志 — OWASP A09:2021 Security Logging and Monitoring Failures
+**改进建议**: 可考虑在生产环境中添加 `timestamp` 字段，避免依赖日志采集系统的时间戳：
 
-**严重度**: 🟡 MEDIUM
-**位置**: 全局（缺失）
-**CWE**: CWE-778 (Insufficient Logging)
-
-**风险分析**:
-- 当前应用**无请求级日志中间件**，无法回答以下安全审计问题：
-  1. 谁在什么时间访问了什么资源？
-  2. 认证失败发生在哪些 IP？
-  3. 权限拒绝事件（403）的频率和来源？
-  4. 异常请求模式（如突发大量 401/403）？
-- 对安全事件的事后调查缺乏数据支撑
-- 违反 OWASP ASVS 7.x（日志和监控）要求
-
-**修复方案**:
 ```typescript
-// 轻量级请求日志中间件（放在 authMiddleware 之后）
+const errorContext = {
+  // ... 现有字段
+  timestamp: new Date().toISOString(),
+};
+```
+
+### 2.4 FIX-04: 请求级安全审计日志中间件（SEC-2.06） — ✅ 高质量
+
+```typescript
+// Lines 68-80
 app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   res.on('finish', () => {
@@ -301,209 +105,288 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 ```
 
+**评价**:
+- **位置正确**: 放在 rate-limit 之后、路由之前，确保所有受保护路由的 4xx/5xx 响应都被记录
+- **性能考量**: `res.on('finish')` 事件仅在响应完成时触发，不影响请求处理延迟
+- **响应时间**: `Date.now() - start` 提供性能基线数据，可用于后续识别慢请求
+- **日志级别**: `console.warn` 区分于全局错误的 `console.error`，便于日志过滤
+- **匿名处理**: `req.user?.userId || 'anonymous'` 正确处理未认证请求
+- **选择性日志**: 仅记录 >= 400 的响应，避免正常请求日志淹没安全事件
+
+**微小瑕疵**: 日志格式为空格分隔的半结构化文本（非 JSON），与全局错误处理的 `JSON.stringify` 格式不一致。建议长期统一为结构化 JSON：
+
+```typescript
+console.warn(JSON.stringify({
+  level: 'warn', type: 'api_access',
+  method: req.method, url: req.originalUrl,
+  status: res.statusCode, duration: Date.now() - start,
+  userId: req.user?.userId || 'anonymous', ip: req.ip,
+}));
+```
+
+### 2.5 修复总结
+
+| 修复项 | 落地质量 | 回归风险 | 测试覆盖 |
+|--------|---------|---------|---------|
+| Q-03 注释修正 | ✅ 完美 | 无 | N/A |
+| Q-06/SEC-2.04 Swagger 条件化 | ✅ 优秀 | 极低 | 已有 Swagger 禁用测试 |
+| SEC-2.05 错误上下文 | ✅ 优秀 | 无 | 已有全局错误处理测试 |
+| SEC-2.06 审计日志 | ✅ 优秀 | 无 | 需补充审计日志测试 |
+
+**修复质量总评**: 所有修复均为最小侵入式改动，不改变现有行为，不引入新的依赖，不增加代码复杂度。修复风格与项目现有代码一致。
+
 ---
 
-### SEC-2.07: 缺少请求超时配置 — OWASP A05:2021 Security Misconfiguration
+## 3. 剩余质量问题清单（更新）
+
+### RQ-01: 96 条路由平铺在单一文件 — 可维护性瓶颈（延续）
+
+**严重度**: 🟠 HIGH
+**位置**: `app.ts:108-240`（133 行连续路由注册，占文件 51%）
+**ISO 25010**: 可维护性 — 模块化性
+
+**量化分析**（更新）:
+
+| 指标 | 值 | 变化 |
+|------|---|------|
+| 文件总行数 | 259 行 | ↑20 行（新增审计日志+Swagger条件化） |
+| 路由注册行数 | 133 行 | 不变 |
+| 路由注册占比 | 51% | ↓（从 55% 降至 51%，因非路由代码增加） |
+| 路由总数 | 96 条 | 不变 |
+| 业务域 | 14 个 | 不变 |
+
+**当前影响评估**: 随着文件增长至 259 行，路由平铺问题更加凸显。中间件配置和审计日志代码（L25-80）已经成熟稳定，不需要频繁修改；而路由注册（L108-240）是唯一的高频变更区域。将两者混合在同一文件中，每次添加路由都需要跳过前 80 行基础设施代码。
+
+**修复方案**: 不变，参考第一轮 Q-01。
+
+**预估工时**: 6h（路由拆分 4h + Router 级中间件 2h）
+
+---
+
+### RQ-02: 中间件链重复 90+ 次 — DRY 违反（延续）
+
+**严重度**: 🟡 MEDIUM
+**位置**: `app.ts:108-240`
+
+中间件组合频率分布（不变）:
+
+| 中间件组合 | 次数 | 适用域 |
+|-----------|------|--------|
+| `authMiddleware, roleMiddleware('sysadmin')` | 14 | company, user, llm-model, system-config |
+| `authMiddleware, roleMiddleware('sysadmin', 'admin')` | 78 | skills, project, article, knowledge, upload, kb, todo |
+| `authMiddleware, roleMiddleware('sysadmin', 'admin', 'view')` | 1 | publishing-schedule(list) |
+| `authMiddleware`（仅认证） | 7 | auth 路由 |
+| 无认证 | 1 | login |
+
+**新增关注点**: 审计日志中间件（FIX-04）添加后，所有路由现在拥有**三层中间件**（auth → role → controller），进一步放大了重复问题。如果未来需要在中间件链中插入新层（如请求验证 middleware），修改点将从 90+ 增至更多。
+
+**修复方案**: Router 级中间件（与 RQ-01 配合）。
+
+---
+
+### RQ-03: 无 API 版本化 — 扩展性缺陷（延续）
+
+**严重度**: 🟡 MEDIUM
+**位置**: 全部路由前缀 `/api/`
+**SOLID**: 开闭原则
+
+项目已进入正式开发阶段（14 个业务域、96 条路由），API 版本化的紧迫性增加。当前所有前端代码硬编码 `/api/xxx` 路径，一旦需要破坏性 API 变更，需要同时修改前端所有调用点。
+
+**建议**: 在 RQ-01 路由拆分重构时一并加入 `/api/v1/` 前缀，增量成本极低（仅 `app.use` 挂载路径变更）。
+
+---
+
+### RQ-04: 无请求验证层 — 缺少 Schema Validation（延续）
+
+**严重度**: 🟡 MEDIUM
+**位置**: 全部 POST/PUT 路由
+
+**新增关注**: 随着业务域增长（当前 14 个 controller），手动验证逻辑的维护成本持续上升。`article.controller.ts` 评审中已发现 Zod 补全需求（P1 级），表明各 controller 验证不充分。
+
+**建议**: 引入 `zod` + 验证中间件工厂，作为独立基础设施模块实施。
+
+---
+
+### RQ-05: 角色字符串硬编码 — 魔法值（延续）
 
 **严重度**: 🟢 LOW
-**位置**: 全局（缺失）
-**CWE**: CWE-400 (Uncontrolled Resource Consumption)
+**位置**: `app.ts:108-240`
 
-**风险分析**:
-- 无服务端请求超时（`server.setTimeout`），慢查询或外部 API 调用（如 LLM 模型调用）可能长时间占用连接
-- LLM 相关操作（文章生成、关键词挖掘）响应时间可达 30-60 秒，若无超时保护，恶意客户端可并发大量请求耗尽连接池
-- Node.js 默认 HTTP 超时为 2 分钟，但 Express 不自动终止处理中的请求
-
-**修复方案**:
-```typescript
-// server.ts 中
-const server = app.listen(config.port);
-server.timeout = 60_000;     // 60s 超时
-server.keepAliveTimeout = 5_000;
-```
-
-或使用 `connect-timeout` 中间件对不同路由设置不同超时。
+`'sysadmin'`、`'admin'`、`'view'` 仍在 90+ 处以字符串字面量出现。TypeScript 的 `Role` 枚举在 Prisma schema 中定义，但 `app.ts` 未引用它，依赖手动拼写正确性。
 
 ---
 
-### SEC-2.08: 反爬虫 User-Agent 检查过弱 — OWASP A05:2021 Security Misconfiguration
+### RQ-06: 路由分组逻辑不一致（延续）
 
 **严重度**: 🟢 LOW
-**位置**: `anti-crawl.middleware.ts:57-62`
-**CWE**: CWE-807 (Reliance on Untrusted Inputs in a Security Decision)
+**位置**: `app.ts:176-239`
 
-```typescript
-const ua = req.headers['user-agent'];
-if (!ua || ua.length < 10) {
-  res.status(403).json({ code: 403, message: '访问被拒绝' });
-  return;
-}
-```
-
-**风险分析**:
-- 仅检查 User-Agent 长度 ≥ 10，任何包含 10+ 字符的字符串均可通过
-- 常见爬虫（Scrapy、requests）默认携带合法 User-Agent，可轻松绕过
-- `curl/7.88.1`（12 字符）即可通过检查
-- 这提供了**零实际防护**，仅过滤了最基础的脚本攻击
-
-**建议**: User-Agent 检查不应作为独立安全层，应与 rate-limit + IP 信誉 + 行为分析配合使用。当前实现的价值在于过滤低级自动化脚本，可接受但不应过度依赖。
+Knowledge 相关路由仍分散在四处，被 Todo 路由隔开。注释已修正（FIX-01），但物理分组未调整。
 
 ---
 
-### SEC-2.09: 认证错误消息区分度不足 — OWASP A07:2021 Identification and Authentication Failures
+### RQ-07: 审计日志与错误日志格式不一致 — 新发现
 
 **严重度**: 🟢 LOW
-**位置**: `auth.middleware.ts:23, 33`
-**CWE**: CWE-204 (Observable Response Discrepancy)
+**位置**: `app.ts:68-80` vs `app.ts:247-257`
 
-```typescript
-// Token 缺失
-res.status(401).json({ code: 401, message: '未登录，请先登录' });
-// Token 无效/过期
-res.status(401).json({ code: 401, message: '登录已过期，请重新登录' });
+审计日志使用空格分隔的半结构化文本格式：
+```
+[API] GET /api/users 403 12ms anonymous 192.168.1.1
 ```
 
-**风险分析**:
-- 两种不同的 401 消息允许攻击者区分"无 token"和"无效 token"
-- 攻击者可利用此差异判断 token 格式是否正确，辅助 token 篡改攻击
-- 虽然影响有限（JWT 签名验证无法绕过），但统一错误消息是安全最佳实践
-
-**修复方案**: 统一两种场景的错误消息：
-```typescript
-res.status(401).json({ code: 401, message: '认证失败，请重新登录' });
+错误日志使用 JSON.stringify 结构化格式：
+```json
+{"method":"GET","url":"/api/users","ip":"192.168.1.1","userId":null,"error":{"name":"Error","message":"..."}}
 ```
 
+两种格式增加了日志解析的复杂度，建议统一。
+
 ---
 
-### SEC-2.10: roleMiddleware 角色匹配未标准化 — OWASP A01:2021 Broken Access Control
+## 4. 代码质量度量（更新）
 
-**严重度**: 🟢 LOW
-**位置**: `auth.middleware.ts:43`
-**CWE**: CWE-863 (Incorrect Authorization)
+### 4.1 代码行数分析
 
-```typescript
-if (!allowedRoles.includes(req.user.role)) {
+| 区块 | 行范围 | 行数 | 占比 | 变化 |
+|------|--------|------|------|------|
+| import 声明 | 1-23 | 23 | 9% | 不变 |
+| Express 实例 + 基础配置 | 25-33 | 9 | 3% | 不变 |
+| Helmet + CORS + Body | 35-57 | 23 | 9% | 不变 |
+| 静态文件 | 59-62 | 4 | 2% | 不变 |
+| 反爬虫 + 限流 | 64-66 | 3 | 1% | 不变 |
+| **审计日志中间件（新）** | **68-80** | **13** | **5%** | **+13** |
+| **Swagger 条件化** | **82-106** | **25** | **10%** | **重构** |
+| 路由注册 | 108-239 | 132 | 51% | 不变 |
+| 404 + 错误处理 | 241-258 | 18 | 7% | **重构** |
+| export | 259 | 1 | 0.4% | 不变 |
+
+### 4.2 依赖关系分析
+
+```
+app.ts 直接依赖:
+├── express          → Express 核心框架
+├── cors             → CORS 中间件
+├── helmet           → 安全头中间件
+├── swagger-jsdoc    → Swagger 规范生成
+├── swagger-ui-express → Swagger UI
+├── path             → Node.js 内置
+├── config           → 项目配置层
+├── middleware       → 项目中间件（auth, rateLimit, antiCrawl, role）
+└── 16 个 controller → 业务处理函数
 ```
 
-**风险分析**:
-- 角色比较为**严格字符串匹配**（区分大小写）
-- 若 JWT payload 中角色值大小写不一致（如 `Admin` vs `admin`），会导致权限拒绝
-- 当前系统通过 `enum Role` 约束，实际风险较低，但缺乏防御性编程
-- 建议添加大小写标准化：`req.user.role.toLowerCase()`
+**直接 import 数**: 23 个（6 外部库 + 1 内置 + 1 配置 + 1 中间件聚合 + 2 特殊中间件 + 12 controller）
+
+**评价**: 16 个 controller import 是路由平铺的直接后果。拆分为 Router 模块后，app.ts 仅需导入路由模块（约 14 个），controller 依赖下沉到各路由文件。
+
+### 4.3 中间件链顺序评审（完整版）
+
+```
+L28  trust proxy = 1                    ← 反向代理场景 req.ip 正确
+L31-33  health check                    ← 在安全中间件前，不受限流影响
+L36-39  helmet (CORP + Referrer-Policy) ← 安全响应头
+L42-53  cors (白名单 + methods)         ← 跨域策略
+L56    express.json (10mb)              ← 请求体解析 + 大小限制
+L59-62  static files (CORP header)      ← 静态文件服务
+L65    antiCrawlMiddleware              ← User-Agent 检查
+L66    rateLimitMiddleware              ← 速率限制
+L68-80  审计日志中间件                   ← 4xx/5xx 请求日志（新增）
+L82-106 Swagger (条件化)                ← API 文档（新增条件化）
+L108+   业务路由                        ← 认证+授权+处理
+L241-244 404 fallback                  ← 兜底路由
+L246-258 全局错误处理                   ← 结构化错误日志（新增上下文）
+```
+
+**评价**: 中间件链顺序**每层位置都有明确的安全/功能理由**。新增的审计日志中间件（L68-80）放在 rate-limit 之后、路由之前是正确的——确保限流触发的 429 响应也能被记录。全局错误处理（L246-258）作为最后防线，结构化输出保证所有未处理异常都可追踪。
 
 ---
 
-## 4. 攻击面分析（更新）
+## 5. 质量对比：修复前 vs 修复后
 
-### 4.1 攻击面矩阵
-
-| 攻击向量 | 可利用性 | 影响 | 当前防护 | 变更 |
-|----------|----------|------|----------|------|
-| JWT 伪造 | 低 | 完全控制 | ✅ 生产环境密钥强制 | ↑ 改善 |
-| CORS 劫持 | 中 | 数据泄露 | ⚠️ 白名单但 `!origin` 绕过 | ↑ 部分改善 |
-| 大 payload DoS | 低 | 服务不可用 | ✅ 10mb 显式限制 | ↑ 改善 |
-| 错误信息泄露 | 低 | 信息泄露 | ✅ 全局错误处理 | ↑ 改善 |
-| 上传文件未授权访问 | 高 | 数据泄露 | ❌ 无认证 | → 未变 |
-| 静态文件存储型 XSS | 中 | 跨站脚本 | ❌ 无 Content-Type 强制 | 新发现 |
-| CORS 绕过（无 Origin） | 中 | API 滥用 | ⚠️ Bearer Token 第二层 | 新发现 |
-| Swagger 内存信息泄露 | 低 | API 结构暴露 | ⚠️ Spec 无条件生成 | 新发现 |
-| 安全事件不可追踪 | 高 | 审计盲区 | ❌ 无请求日志 | 新发现 |
-
-### 4.2 最危险攻击链（SEC-2.01 + SEC-2.02）
-
-1. 攻击者使用 `curl`（无 Origin 头）绕过 CORS 检查
-2. 尝试暴力枚举 `/uploads/` 目录下的文件名
-3. 下载企业知识库文档、用户肖像等敏感资料
-4. 若存在 SVG 上传，构造恶意 SVG 通过直接 URL 访问触发存储型 XSS
-
-**缓解因素**: Bearer Token 保护了上传接口本身，攻击者无法上传文件，只能枚举已上传文件名。
+| 质量指标 | 修复前（239行） | 修复后（259行） | 改善 |
+|----------|----------------|----------------|------|
+| 生产环境 Swagger 内存占用 | swaggerSpec 常驻 | 条件化，不持有 | ✅ |
+| 生产环境 Swagger 启动 I/O | 无条件扫描 controller | 条件化跳过 | ✅ |
+| 错误日志可追踪性 | 仅 Error 对象 | method+url+ip+userId+role | ✅ |
+| 安全审计能力 | 无 | 4xx/5xx 请求日志 | ✅ |
+| 注释准确性 | L187 注释错误 | 已修正 | ✅ |
+| 日志格式一致性 | N/A | 半结构化 vs JSON 混合 | ⚠️ 新问题 |
+| 路由平铺 | 96 条 | 96 条（不变） | — |
+| 中间件重复 | 90+ 次 | 90+ 次（不变） | — |
 
 ---
 
-## 5. 安全合规性检查（更新）
+## 6. 修复优先级路线图（更新）
 
-| 检查项 | 标准 | 第一轮 | 本轮 | 备注 |
-|--------|------|--------|------|------|
-| HTTPS 强制 | HSTS 头 | ⚠️ | ✅ | Helmet 默认启用 |
-| CORS 策略 | 白名单 | ❌ | ✅ | 有 `!origin` 绕过 |
-| 密钥管理 | 环境变量 | ❌ | ✅ | 生产环境强制 |
-| 访问控制 | RBAC | ✅ | ✅ | — |
-| 输入验证 | Body 限制 | ❌ | ✅ | 10mb |
-| 错误处理 | 无泄露 | ❌ | ✅ | — |
-| 日志审计 | 请求日志 | ❌ | ❌ | 仍无请求级日志 |
-| 文件访问控制 | 认证/签名 | ❌ | ❌ | 签名 URL 待设计 |
-| 请求超时 | 超时配置 | — | ❌ | 无超时保护 |
-| Swagger 保护 | 非生产环境 | ⚠️ | ✅ | — |
+### P0: 高优先级（下一迭代）
 
----
+| 编号 | 修复项 | 工作量 | 依赖 | 收益 |
+|------|--------|--------|------|------|
+| RQ-01 | 路由拆分为 Router 模块 | 4h | 无 | 合并冲突减少 90%+，代码审查效率提升 |
+| RQ-02 | Router 级中间件消除重复 | 2h | RQ-01 | 中间件变更从改 80+ 处变为改 1 处 |
 
-## 6. 修复优先级路线图
+### P1: 中优先级（提升代码质量基线）
 
-### P0: 尽快修复（安全审计 + 攻击面缩减）
+| 编号 | 修复项 | 工作量 | 收益 |
+|------|--------|--------|------|
+| RQ-04 | 引入 zod 请求验证中间件 | 8h | 统一验证层 |
+| RQ-03 | API 版本化 /api/v1/ | 0.5h | 配合 RQ-01 零成本加入 |
+| RQ-07 | 统一日志格式为 JSON | 0.5h | 日志解析一致性 |
 
-| 编号 | 修复项 | 工作量 | 风险降低 |
-|------|--------|--------|----------|
-| SEC-2.05 | 错误日志增加请求上下文 | 0.5h | 可观测性 ↑ |
-| SEC-2.06 | 添加请求级安全审计日志 | 1h | 审计能力 ↑ |
-| SEC-2.04 | Swagger Spec 条件生成 | 0.3h | 信息泄露 ↓ |
+### P2: 低优先级（代码整洁度）
 
-### P1: 计划修复（减少攻击面）
-
-| 编号 | 修复项 | 工作量 | 风险降低 |
-|------|--------|--------|----------|
-| SEC-2.01 | 上传文件签名 URL / 危险类型拦截 | 4-8h | 🔴→🟢 |
-| SEC-2.02 | CORS `!origin` 生产环境严格模式 | 0.5h | 🟡→🟢 |
-| SEC-2.03 | CORS 错误返回 403 | 0.3h | 🟡→🟢 |
-
-### P2: 增强防御（安全加固）
-
-| 编号 | 修复项 | 工作量 | 风险降低 |
-|------|--------|--------|----------|
-| SEC-2.07 | 请求超时配置 | 0.5h | 弹性 ↑ |
-| SEC-2.09 | 统一认证错误消息 | 0.1h | 🟢→🟢 |
-| SEC-2.10 | 角色匹配标准化 | 0.2h | 🟢→🟢 |
+| 编号 | 修复项 | 工作量 | 收益 |
+|------|--------|--------|------|
+| RQ-05 | 角色常量化 | 1h | 编译时类型安全 |
+| RQ-06 | 路由分组调整 | 1h | 代码一致性 |
 
 ---
 
-## 7. 代码质量与安全实践评价
+## 7. 重构建议：目标架构（不变）
 
-### 7.1 优点
+```
+apis/
+├── app.ts                    # Express 实例 + 中间件链（< 60 行）
+├── routes/
+│   ├── auth.routes.ts        # /api/v1/auth/*
+│   ├── company.routes.ts     # /api/v1/companies/*
+│   ├── skills.routes.ts      # /api/v1/skills/*
+│   ├── user.routes.ts        # /api/v1/users/*
+│   ├── llm-model.routes.ts   # /api/v1/llm-models/*
+│   ├── system-config.routes.ts
+│   ├── publishing-platform.routes.ts
+│   ├── project.routes.ts     # 含 /articles 子路由
+│   ├── knowledge.routes.ts   # 含 /knowledge-bases + /knowledge-inventory
+│   ├── upload.routes.ts
+│   ├── publishing-schedule.routes.ts
+│   └── todo.routes.ts
+├── middleware/
+│   ├── validate.ts           # zod 验证中间件工厂
+│   └── ...
+└── constants/
+    └── roles.ts              # 角色常量
+```
 
-1. **中间件顺序正确**: health check → helmet → CORS → body parser → static → anti-crawl → rate-limit → routes → 404 → error handler。每层职责清晰
-2. **CORS 白名单配置完善**: 动态 origin 校验 + methods + headers 限制
-3. **认证与授权分离**: `authMiddleware` 验证身份，`roleMiddleware` 验证权限，关注点分离良好
-4. **生产环境保护**: JWT Secret、DB Password、Swagger 均有生产环境强制校验
-5. **错误处理不泄露内部信息**: 统一返回通用 500 消息，无堆栈暴露
-6. **trust proxy 配置**: 正确设置 `trust proxy: 1`，确保反向代理场景下 `req.ip` 准确
-
-### 7.2 需改进
-
-1. **文件应拆分**: 239 行中约 130 行为路由注册，建议将路由拆分到 `routes/` 目录，app.ts 仅保留中间件配置
-2. **路由注册重复模式**: 每条路由都重复 `authMiddleware, roleMiddleware(...)` 调用，可使用路由分组简化：
-   ```typescript
-   const adminRouter = Router();
-   adminRouter.use(authMiddleware, roleMiddleware('sysadmin', 'admin'));
-   adminRouter.get('/projects', projectController.listProjects);
-   // ...
-   ```
-3. **Magic number**: `express.json({ limit: '10mb' })` 中的 `10mb` 应提取为配置项
+重构后 `app.ts` 约 50-60 行，仅负责组装中间件链和挂载路由模块。
 
 ---
 
 ## 8. 结论
 
-`app.ts` 自第一轮评审以来安全状况从 **C 提升至 B**。核心安全框架（认证、授权、传输安全、错误处理）已建立且实现正确。当前主要风险集中在：
+`apis/app.ts` 经过五项修复后，**安全可观测性和生产环境资源管理均达到良好水平**。具体成果：
 
-1. **上传文件公开访问**（SEC-2.01）— 唯一剩余的高危项，但修复需要架构级变更（签名 URL）
-2. **安全可观测性缺失**（SEC-2.05, SEC-2.06）— 无法进行有效的安全事件调查和审计
-3. **CORS 细节问题**（SEC-2.02, SEC-2.03）— 不影响核心安全但有改进空间
+1. **Swagger 条件化**（FIX-02）消除了生产环境无意义的 I/O 和内存占用，实现干净
+2. **错误上下文增强**（FIX-03）使全局错误处理从"仅知出错"升级为"知谁在何时何地出错"
+3. **审计日志中间件**（FIX-04）补齐了 OWASP A09 日志监控缺口，4xx/5xx 请求可追踪
+4. **注释修正**（FIX-01）消除了代码阅读中的误导点
 
-建议按 P0 → P1 → P2 顺序推进，P0 项（安全审计能力）应在下个迭代内完成，P1 中的签名 URL 方案需要独立的架构设计。
+当前评级上限 B+ 受限于**路由平铺**（RQ-01）和**中间件重复**（RQ-02）两个架构级问题。这两个问题不构成功能缺陷或安全漏洞，但随着业务域增长（当前 14 个），日常开发摩擦将持续增加。建议在下一迭代实施路由拆分重构（预估 6h），将评级提升至 A-。
 
-**相比第一轮的关键进步**:
-- 攻击链 "JWT 伪造 → CORS 全开 → 完全控制" 已被阻断
-- 生产环境密钥管理已到位，消除了最高优先级风险
-- 全局错误处理确保不会泄露内部信息
-- 中间件链顺序经过安全考量，每层职责明确
+**综合评级**: **B+**
 
-**综合评级**: **B**（安全基础框架完善，纵深防御可进一步加强）
+**修复质量**: 所有修复均为最小侵入式，无回退风险，代码风格一致。
+
+---
+
+*软件质量专家评审完成（第三轮 — 修复后复审） — 2026-05-24*

@@ -859,6 +859,202 @@ describe('LLM Model Controller', () => {
       expect(response.status).toBe(400);
       expect(response.body.message).toContain('长度不能超过');
     });
+
+    it('should reject too-long api_key', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-' + 'x'.repeat(510), model_name: 'gpt-4o' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('长度不能超过');
+    });
+
+    it('should reject too-long model_name', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-' + 'x'.repeat(200) });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('长度不能超过');
+    });
+
+    it('should reject non-string base_url', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'OpenAI', base_url: 12345, api_key: 'sk-test', model_name: 'gpt-4o' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('字符串');
+    });
+
+    it('should reject non-string api_key', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: true, model_name: 'gpt-4o' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('字符串');
+    });
+
+    it('should reject non-string model_name', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: ['array'] });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('字符串');
+    });
+
+    it('should reject null provider', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: null, base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
+
+    it('should reject null base_url', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'OpenAI', base_url: null, api_key: 'sk-test', model_name: 'gpt-4o' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
+
+    it('should reject null api_key', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: null, model_name: 'gpt-4o' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
+
+    it('should reject null model_name', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: null });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
+
+    // === SSRF 防护补全测试 ===
+    it('should reject 172.16.x.x in base_url (RFC 1918)', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'Evil', base_url: 'http://172.16.0.1/v1', api_key: 'sk-test', model_name: 'evil-model' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    it('should reject 172.31.x.x in base_url (RFC 1918 upper bound)', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'Evil', base_url: 'http://172.31.255.255/v1', api_key: 'sk-test', model_name: 'evil-model' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    it('should reject 0.x.x.x in base_url', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'Evil', base_url: 'http://0.0.0.0/v1', api_key: 'sk-test', model_name: 'evil-model' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    it('should reject IPv6 ::1 (localhost) in base_url', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'Evil', base_url: 'http://[::1]/v1', api_key: 'sk-test', model_name: 'evil-model' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    it('should reject IPv6 fe80: (link-local) in base_url', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'Evil', base_url: 'http://[fe80::1]/v1', api_key: 'sk-test', model_name: 'evil-model' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    it('should reject IPv6 fc00: (unique local) in base_url', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'Evil', base_url: 'http://[fc00::1]/v1', api_key: 'sk-test', model_name: 'evil-model' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    it('should reject IPv6 fd prefix (unique local) in base_url', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'Evil', base_url: 'http://[fd00::1]/v1', api_key: 'sk-test', model_name: 'evil-model' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    it('should accept valid public https URL through SSRF check', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' });
+
+      expect(response.status).toBe(201);
+    });
+
+    it('should reject whitespace-only api_key', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: '   ', model_name: 'gpt-4o' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
+
+    it('should reject whitespace-only model_name', async () => {
+      const response = await agent
+        .post('/api/llm-models')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: '   ' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
   });
 
   // ========== PUT /api/llm-models/:id ==========
@@ -1163,6 +1359,259 @@ describe('LLM Model Controller', () => {
       expect(response.status).toBe(400);
       expect(response.body.message).toContain('Base URL');
     });
+
+    // === Update 额外输入验证测试 ===
+    it('should reject too-long provider during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'A'.repeat(101) });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('长度不能超过');
+    });
+
+    it('should reject too-long api_key during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ api_key: 'sk-' + 'x'.repeat(510) });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('长度不能超过');
+    });
+
+    it('should reject too-long base_url during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ base_url: 'https://api.example.com/' + 'a'.repeat(2100) });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('长度不能超过');
+    });
+
+    it('should reject non-string base_url during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ base_url: 12345 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('字符串');
+    });
+
+    it('should reject non-string api_key during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ api_key: true });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('字符串');
+    });
+
+    it('should reject non-string model_name during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ model_name: 42 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('字符串');
+    });
+
+    it('should reject empty string api_key during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ api_key: '   ' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
+
+    it('should reject empty string model_name during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ model_name: '   ' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
+
+    it('should reject empty string base_url during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ base_url: '   ' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('不能为空');
+    });
+
+    it('should reject ftp:// protocol in base_url during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ base_url: 'ftp://example.com/v1' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('http://');
+    });
+
+    it('should accept boolean true status during update', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: false, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, status: true });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: true });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe(true);
+    });
+
+    it('should reject numeric status during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: 1 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('布尔值');
+    });
+
+    // === Update SSRF 补全测试 ===
+    it('should reject 172.16.x.x in base_url during update (SSRF)', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ base_url: 'http://172.16.0.1/v1' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    it('should reject 10.x.x.x in base_url during update (SSRF)', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ base_url: 'http://10.0.0.1/v1' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    it('should reject 192.168.x.x in base_url during update (SSRF)', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ base_url: 'http://192.168.1.1/v1' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    it('should reject 127.x.x.x in base_url during update (SSRF)', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ base_url: 'http://127.0.0.1/v1' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    it('should reject 0.x.x.x in base_url during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ base_url: 'http://0.0.0.0/v1' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    it('should reject IPv6 ::1 in base_url during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ base_url: 'http://[::1]/v1' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    it('should reject IPv6 fe80: in base_url during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ base_url: 'http://[fe80::1]/v1' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    it('should reject IPv6 fc00: in base_url during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ base_url: 'http://[fc00::1]/v1' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    it('should reject IPv6 fd prefix in base_url during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ base_url: 'http://[fd00::1]/v1' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('内网');
+    });
+
+    it('should return 400 for id = "Infinity" during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/Infinity')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'Anthropic' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的模型ID');
+    });
+
+    it('should return 400 for id = "NaN" during update', async () => {
+      const response = await agent
+        .put('/api/llm-models/NaN')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ provider: 'Anthropic' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的模型ID');
+    });
+
+    it('should update base_url with valid public https URL', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, baseUrl: 'https://api.anthropic.com' });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const response = await agent
+        .put('/api/llm-models/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ base_url: 'https://api.anthropic.com' });
+
+      expect(response.status).toBe(200);
+    });
   });
 
   // ========== DELETE /api/llm-models/:id ==========
@@ -1323,6 +1772,24 @@ describe('LLM Model Controller', () => {
       expect(response.status).toBe(200);
       expect(response.body.data).toBeNull();
       expect(response.body.message).toBe('删除LLM模型成功');
+    });
+
+    it('should return 400 for id = "Infinity" during delete', async () => {
+      const response = await agent
+        .delete('/api/llm-models/Infinity')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的模型ID');
+    });
+
+    it('should return 400 for id = "NaN" during delete', async () => {
+      const response = await agent
+        .delete('/api/llm-models/NaN')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的模型ID');
     });
   });
 });

@@ -5,6 +5,7 @@ import { ArrowLeftOutlined, InboxOutlined, LinkOutlined, DeleteOutlined, CheckOu
 import MDEditor from '@uiw/react-md-editor';
 import axios from 'axios';
 import mammoth from 'mammoth';
+import DOMPurify from 'dompurify';
 import { useAppContext } from '../context/AppContext';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -18,7 +19,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   published: { label: '已发布', color: 'success' },
 };
 
-const EDITABLE_STATUSES = ['draft', 'manual_writing', 'generate_failed', 'publish_failed'];
+const EDITABLE_STATUSES = ['draft', 'manual_writing', 'generate_failed', 'publish_failed', 'pending_review'];
 
 interface ArticleData {
   id: number;
@@ -44,7 +45,7 @@ const ArticleDetail: React.FC = () => {
   const location = useLocation();
   const isNew = id === 'new';
   const { message } = App.useApp();
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {} as any; } })();
 
   const [article, setArticle] = useState<ArticleData | null>(null);
   const [loading, setLoading] = useState(!isNew);
@@ -83,6 +84,7 @@ const ArticleDetail: React.FC = () => {
   // Content state
   const [content, setContent] = useState('');
   const [contentSaving, setContentSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [contentMode, setContentMode] = useState<'preview' | 'edit'>(isNew ? 'edit' : 'preview');
   const contentRef = useRef(content);
   contentRef.current = content;
@@ -427,7 +429,30 @@ const ArticleDetail: React.FC = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!article || !projectId) return;
+    setDeleting(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`/api/projects/${projectId}/articles/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      message.success('文章已删除');
+      navigate('/article');
+    } catch (err: any) {
+      message.error(err.response?.data?.message || '删除失败');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const MAX_IMPORT_SIZE = 10 * 1024 * 1024; // 10MB
+
   const handleImportDocument = async (file: File) => {
+    if (file.size > MAX_IMPORT_SIZE) {
+      message.error(`文件大小不能超过 10MB（当前: ${(file.size / 1024 / 1024).toFixed(1)}MB）`);
+      return false;
+    }
     try {
       let markdown = '';
       const ext = file.name.toLowerCase().split('.').pop();
@@ -436,12 +461,14 @@ const ArticleDetail: React.FC = () => {
         // Markdown: read as text directly
         markdown = await file.text();
       } else if (ext === 'docx' || ext === 'doc') {
-        // docx: use mammoth to convert to HTML, then extract text
+        // docx: use mammoth to convert to HTML, sanitize with DOMPurify, then extract text
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.convertToHtml({ arrayBuffer });
-        // Simple HTML to text: strip tags, preserve line breaks
-        const html = result.value;
-        markdown = html
+        const cleanHtml = DOMPurify.sanitize(result.value, {
+          ALLOWED_TAGS: ['h1', 'h2', 'h3', 'p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'a'],
+          ALLOWED_ATTR: [],
+        });
+        markdown = cleanHtml
           .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n')
           .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n')
           .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n')
@@ -482,6 +509,14 @@ const ArticleDetail: React.FC = () => {
   };
 
   const handleUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      message.error('仅支持上传图片文件');
+      return false;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      message.error('图片大小不能超过 10MB');
+      return false;
+    }
     setUploading(true);
     try {
       const token = localStorage.getItem('token');
@@ -502,6 +537,16 @@ const ArticleDetail: React.FC = () => {
   const handleAddUrl = () => {
     const url = urlInput.trim();
     if (!url) return;
+    try {
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        message.error('仅支持 http/https 协议的图片 URL');
+        return;
+      }
+    } catch {
+      message.error('请输入有效的图片 URL');
+      return;
+    }
     if (imageList.includes(url)) { message.warning('该URL已存在'); return; }
     setImageList([...imageList, url]);
     setUrlInput('');
@@ -514,7 +559,7 @@ const ArticleDetail: React.FC = () => {
   const statusCfg = article ? (STATUS_CONFIG[article.status] || { label: article.status, color: 'default' }) : null;
 
   if (loading) {
-    return <div className="page-container"><Spin /></div>;
+    return <div className="page-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}><Spin size="large" tip="正在加载文章..." /></div>;
   }
 
   if (!isNew && !article) {
@@ -523,7 +568,7 @@ const ArticleDetail: React.FC = () => {
 
   const settingsTab = (
     <Form form={form} onFinish={(values) => handleSaveSettings(values, writeMode === 'ai')} layout="vertical">
-      {error && <Alert type="error" title={error} className="form-alert" showIcon closable onClose={() => setError('')} />}
+      {error && <Alert type="error" message={error} className="form-alert" showIcon closable onClose={() => setError('')} />}
       <Form.Item name="write_mode" label="编写方式" rules={[{ required: true, message: '请选择编写方式' }]}>
         <Radio.Group
           onChange={(e) => setWriteMode(e.target.value)}
@@ -734,11 +779,11 @@ const ArticleDetail: React.FC = () => {
               onChange: (keys) => setSelectedPlatformKeys(keys as string[]),
             }}
             columns={[
-              { title: '平台名称', dataIndex: 'name', width: 200, sorter: true, sortOrder: platformSortBy === 'name' ? (platformSortOrder === 'desc' ? 'descend' : 'ascend') : null },
-              { title: '分类', dataIndex: 'taxonomy', width: 120, sorter: true, sortOrder: platformSortBy === 'taxonomy' ? (platformSortOrder === 'desc' ? 'descend' : 'ascend') : null },
-              { title: '价格', dataIndex: 'price', width: 80, sorter: true, sortOrder: platformSortBy === 'price' ? (platformSortOrder === 'desc' ? 'descend' : 'ascend') : null, render: (v: number) => v != null ? `¥${v}` : '-' },
-              { title: '收录率', dataIndex: 'include_rate', width: 80, sorter: true, sortOrder: platformSortBy === 'include_rate' ? (platformSortOrder === 'desc' ? 'descend' : 'ascend') : null, render: (v: number) => v != null ? `${v}%` : '-' },
-              { title: '发布率', dataIndex: 'publish_rate', width: 80, sorter: true, sortOrder: platformSortBy === 'publish_rate' ? (platformSortOrder === 'desc' ? 'descend' : 'ascend') : null, render: (v: number) => v != null ? `${v}%` : '-' },
+              { title: '平台名称', dataIndex: 'name', width: 200, sorter: true, sortOrder: platformSortBy === 'name' ? (platformSortOrder === 'desc' ? 'descend' : 'ascend') : undefined },
+              { title: '分类', dataIndex: 'taxonomy', width: 120, sorter: true, sortOrder: platformSortBy === 'taxonomy' ? (platformSortOrder === 'desc' ? 'descend' : 'ascend') : undefined },
+              { title: '价格', dataIndex: 'price', width: 80, sorter: true, sortOrder: platformSortBy === 'price' ? (platformSortOrder === 'desc' ? 'descend' : 'ascend') : undefined, render: (v: number) => v != null ? `¥${v}` : '-' },
+              { title: '收录率', dataIndex: 'include_rate', width: 80, sorter: true, sortOrder: platformSortBy === 'include_rate' ? (platformSortOrder === 'desc' ? 'descend' : 'ascend') : undefined, render: (v: number) => v != null ? `${v}%` : '-' },
+              { title: '发布率', dataIndex: 'publish_rate', width: 80, sorter: true, sortOrder: platformSortBy === 'publish_rate' ? (platformSortOrder === 'desc' ? 'descend' : 'ascend') : undefined, render: (v: number) => v != null ? `${v}%` : '-' },
             ]}
             onChange={(_pagination, _filters, sorter) => {
               const s = (Array.isArray(sorter) ? sorter[0] : sorter) as { field?: string; order?: string | null };
@@ -770,7 +815,7 @@ const ArticleDetail: React.FC = () => {
     <div id="article-content-section" data-color-mode="light">
       {article && (
         <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ color: 'var(--color-ink-muted)', fontSize: 13 }}>版本 {(article.version ?? 1.0).toFixed(1)}</span>
+          <span style={{ color: 'var(--color-ink-muted)', fontSize: 12 }}>版本 {article.version ?? 1}</span>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {isContentEditable && (
               <Segmented
@@ -791,13 +836,18 @@ const ArticleDetail: React.FC = () => {
                 <Button size="small" type="primary">提交审核</Button>
               </Popconfirm>
             )}
+            {['generate_failed', 'publish_failed'].includes(article.status) && isContentEditable && (
+              <Popconfirm title="确认重新提交AI生成？" onConfirm={handleRegenerate} okText="确认" cancelText="取消">
+                <Button size="small" type="primary" icon={<ReloadOutlined />}>重新生成</Button>
+              </Popconfirm>
+            )}
           </div>
         </div>
       )}
       {article && article.status === 'pending_review' && (
         <Alert
           type="warning"
-          title="该文章待审核"
+          message="该文章待审核"
           showIcon
           style={{ marginBottom: 12 }}
           action={
@@ -825,7 +875,7 @@ const ArticleDetail: React.FC = () => {
             <MDEditor.Markdown source={content} />
           ) : (
             <div style={{ padding: 48, textAlign: 'center', color: 'var(--color-ink-subtle)' }}>
-              正文内容生成中，请稍侯...
+              {article?.write_mode === 'ai' ? 'AI 正在生成文章内容，请稍候...' : '暂无内容'}
             </div>
           )}
         </div>
@@ -834,15 +884,15 @@ const ArticleDetail: React.FC = () => {
   );
 
   const collapseItems = [
-    { key: 'settings', label: '文章设置', children: settingsTab, forceRender: true },
+    { key: 'settings', label: '文章设置', children: settingsTab },
   ];
 
   if (isNew && writeMode === 'manual') {
-    collapseItems.push({ key: 'content', label: '文章正文', children: contentTab, forceRender: true });
+    collapseItems.push({ key: 'content', label: '文章正文', children: contentTab });
   }
 
   if (!isNew && article) {
-    collapseItems.push({ key: 'content', label: '文章正文', children: contentTab, forceRender: true });
+    collapseItems.push({ key: 'content', label: '文章正文', children: contentTab });
   }
 
   const defaultActiveKeys = isNew ? ['settings', 'content'] : ['content'];
@@ -865,6 +915,11 @@ const ArticleDetail: React.FC = () => {
       />
       {isSettingsEditable && (
         <div className="form-actions">
+          {!isNew && article?.status === 'draft' && (
+            <Popconfirm title="确认删除此文章？" description="删除后不可恢复" onConfirm={handleDelete} okText="确认" cancelText="取消">
+              <Button danger loading={deleting}>删除文章</Button>
+            </Popconfirm>
+          )}
           {(isNew || article?.status === 'draft') && (
           <Button loading={saving} onClick={() => {
             form.validateFields().then((values) => handleSaveSettings(values, false, writeMode === 'manual')).catch((info) => { if (info.errorFields?.length) message.error(info.errorFields[0].errors[0]); });

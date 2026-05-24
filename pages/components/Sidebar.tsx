@@ -15,6 +15,7 @@ import {
   SettingOutlined,
   ThunderboltOutlined,
   CheckSquareOutlined,
+  ApiOutlined,
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
 import CompanyProjectSwitcher from './CompanyProjectSwitcher';
@@ -46,6 +47,7 @@ const menuItems: MenuItemDef[] = [
   { label: '用户管理', path: '/users', roles: ['sysadmin'], icon: <UserOutlined /> },
   { label: '公司管理', path: '/company', roles: ['sysadmin'], icon: <HomeOutlined /> },
   { label: '系统管理', path: '/sysadmin', roles: ['sysadmin'], icon: <SettingOutlined /> },
+  { label: 'API 文档', path: '/swagger', roles: ['sysadmin'], icon: <ApiOutlined /> },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({

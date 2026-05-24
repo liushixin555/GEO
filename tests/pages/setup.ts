@@ -4,10 +4,42 @@ import '@testing-library/jest-dom';
 jest.mock('antd', () => {
   const React = require('react');
   const createComp = (name: string) => {
-    const Comp: any = (props: any) => React.createElement(name, props, props.children);
+    const Comp: any = (props: any) => {
+      // Collapse: render items' children
+      if (name === 'Collapse' && Array.isArray(props.items)) {
+        return React.createElement(name, props,
+          ...props.items.map((item: any) =>
+            React.createElement('div', { key: item.key, 'data-panel': item.key },
+              React.createElement('div', null, item.label),
+              typeof item.children === 'function' ? item.children() : item.children
+            )
+          )
+        );
+      }
+      return React.createElement(name, props, props.children);
+    };
     Comp.displayName = name;
     return new Proxy(Comp, {
       get: (target, prop) => {
+        if (prop === 'useForm') {
+          return () => [
+            {
+              getFieldValue: jest.fn(),
+              getFieldsValue: jest.fn(() => ({})),
+              setFieldValue: jest.fn(),
+              setFieldsValue: jest.fn(),
+              validateFields: jest.fn(() => Promise.resolve({})),
+              isFieldsTouched: jest.fn(() => false),
+            },
+          ];
+        }
+        if (prop === 'useApp') {
+          return () => ({
+            message: { success: jest.fn(), error: jest.fn(), warning: jest.fn() },
+            notification: { success: jest.fn(), error: jest.fn() },
+            modal: { confirm: jest.fn() },
+          });
+        }
         if (typeof prop === 'string') {
           const subName = `${name}.${String(prop)}`;
           target[prop] = (props: any) => React.createElement(subName, props, props.children);

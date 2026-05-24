@@ -20,6 +20,7 @@ import PortraitDetail from '../knowledge/PortraitDetail';
 import ImageDetail from '../knowledge/ImageDetail';
 import DocumentDetail from '../knowledge/DocumentDetail';
 import KeywordMine from '../knowledge/KeywordMine';
+import ApiDocsPage from '../api-docs';
 import { AppContextProvider } from '../context/AppContext';
 import axios from 'axios';
 
@@ -192,6 +193,7 @@ const Layout: React.FC = () => {
             <Route path="/company/add" element={<CompanyForm />} />
             <Route path="/company/edit/:id" element={<CompanyForm />} />
             <Route path="/sysadmin" element={<SystemAdminPage />} />
+            <Route path="/swagger" element={<ApiDocsPage />} />
             <Route path="*" element={<Navigate to="/publish" replace />} />
           </Routes>
         </Content>
