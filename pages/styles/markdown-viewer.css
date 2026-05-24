@@ -376,3 +376,157 @@
 .article-content-preview .wmde-markdown .token.constant {
   color: var(--color-inverse-ink, #ffffff) !important;
 }
+
+/* ========================================
+   暗色模式 — Carbon Gray-100 变量覆盖
+   当 data-color-mode="dark" 时切换调色板
+   ======================================== */
+
+.markdown-viewer .wmde-markdown[data-color-mode="dark"],
+.article-content-preview .wmde-markdown[data-color-mode="dark"] {
+  --color-fg-default: var(--color-inverse-ink, #ffffff);
+  --color-fg-muted: var(--color-inverse-ink-muted, #c6c6c6);
+  --color-fg-subtle: #8c8c8c;
+  --color-canvas-default: var(--color-inverse-canvas, #161616);
+  --color-canvas-subtle: var(--color-inverse-surface-1, #262626);
+  --color-border-default: #525252;
+  --color-border-muted: #525252;
+  color: var(--color-inverse-ink, #ffffff) !important;
+  background: transparent !important;
+}
+
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] h1,
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] h2,
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] h3,
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] h4,
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] h5,
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] h6,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] h1,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] h2,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] h3,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] h4,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] h5,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] h6 {
+  color: var(--color-inverse-ink, #ffffff) !important;
+  border-bottom-color: #525252 !important;
+}
+
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] blockquote,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] blockquote {
+  background: var(--color-inverse-surface-1, #262626) !important;
+  color: var(--color-inverse-ink-muted, #c6c6c6) !important;
+  border-left-color: var(--color-primary) !important;
+}
+
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] code,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] code {
+  background: var(--color-inverse-surface-1, #262626) !important;
+  color: #78a9ff !important;
+}
+
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] pre,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] pre {
+  background: var(--color-inverse-surface-1, #262626) !important;
+  border-color: #525252 !important;
+}
+
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] pre code,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] pre code {
+  color: var(--color-inverse-ink, #ffffff) !important;
+}
+
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] table,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] table {
+  border-color: #525252 !important;
+}
+
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] table th,
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] table td,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] table th,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] table td {
+  border-color: #525252 !important;
+}
+
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] table th,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] table th {
+  background: var(--color-inverse-surface-1, #262626) !important;
+}
+
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] table tbody tr:hover,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] table tbody tr:hover {
+  background-color: var(--color-inverse-surface-1, #262626) !important;
+}
+
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] a,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] a {
+  color: #78a9ff !important;
+}
+
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] a:hover,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] a:hover {
+  color: var(--color-primary) !important;
+}
+
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] hr,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] hr {
+  border-top-color: #525252 !important;
+}
+
+/* ========================================
+   响应式适配 — Carbon 断点体系
+   Tablet ≤1056px · Mobile ≤672px
+   ======================================== */
+
+@media (max-width: 1056px) {
+  .markdown-viewer .wmde-markdown,
+  .article-content-preview .wmde-markdown {
+    padding: 8px 12px !important;
+  }
+
+  .markdown-viewer .wmde-markdown table,
+  .article-content-preview .wmde-markdown table {
+    font-size: 14px !important;
+  }
+
+  .markdown-viewer .wmde-markdown pre,
+  .article-content-preview .wmde-markdown pre {
+    padding: 12px !important;
+    font-size: 13px !important;
+  }
+}
+
+@media (max-width: 672px) {
+  .markdown-viewer .wmde-markdown,
+  .article-content-preview .wmde-markdown {
+    font-size: 14px !important;
+    padding: 4px 8px !important;
+  }
+
+  .markdown-viewer .wmde-markdown h1,
+  .article-content-preview .wmde-markdown h1 { font-size: 1.4em !important; }
+
+  .markdown-viewer .wmde-markdown h2,
+  .article-content-preview .wmde-markdown h2 { font-size: 1.25em !important; }
+
+  .markdown-viewer .wmde-markdown h3,
+  .article-content-preview .wmde-markdown h3 { font-size: 1.1em !important; }
+
+  .markdown-viewer .wmde-markdown blockquote,
+  .article-content-preview .wmde-markdown blockquote {
+    padding: 6px 10px !important;
+  }
+
+  .markdown-viewer .wmde-markdown pre,
+  .article-content-preview .wmde-markdown pre {
+    padding: 8px !important;
+    font-size: 12px !important;
+  }
+
+  .markdown-viewer .wmde-markdown table th,
+  .markdown-viewer .wmde-markdown table td,
+  .article-content-preview .wmde-markdown table th,
+  .article-content-preview .wmde-markdown table td {
+    padding: 4px 8px !important;
+    font-size: 13px !important;
+  }
+}

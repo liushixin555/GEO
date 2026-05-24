@@ -111,11 +111,7 @@ export class MarkdownErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
 
   render() {
     if (this.state.hasError) {
-      return (
-        <div style={{ padding: 16, textAlign: 'center', color: 'var(--color-ink-muted)' }}>
-          内容渲染异常，请刷新页面重试
-        </div>
-      );
+      return <Empty description="内容渲染异常，请刷新页面重试" />;
     }
     return this.props.children;
   }
