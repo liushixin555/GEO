@@ -2,6 +2,7 @@ import { getPrisma } from '../../utils';
 import { LlmModel, CreateLlmModelRequest, UpdateLlmModelRequest } from '../../entity';
 import { mapLlmModel } from '../../map';
 import { ILlmModelService } from '../llm-model.service';
+import { NotFoundError } from '../../errors';
 
 export class LlmModelServiceImpl implements ILlmModelService {
   async list(): Promise<LlmModel[]> {
@@ -23,7 +24,7 @@ export class LlmModelServiceImpl implements ILlmModelService {
   async getById(id: number): Promise<LlmModel> {
     const prisma = getPrisma();
     const item = await prisma.llmModel.findFirst({ where: { id } });
-    if (!item) throw new Error('LLM模型不存在');
+    if (!item) throw new NotFoundError('LLM模型');
     return mapLlmModel(item);
   }
 
