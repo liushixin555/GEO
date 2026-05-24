@@ -1346,4 +1346,799 @@ describe('PublishingScheduleServiceImpl', () => {
       expect(result.schedule_type).toBeNull();
     });
   });
+
+  // ══════════════════════════════════════════
+  //  第3轮：接口契约合规性验证
+  // ══════════════════════════════════════════
+  describe('第3轮：接口契约合规性验证', () => {
+    // ── 接口方法签名验证 ──
+    describe('接口方法签名', () => {
+      it('should implement IPublishingScheduleService interface (list method)', () => {
+        expect(typeof service.list).toBe('function');
+        expect(service.list.length).toBe(1); // single params arg
+      });
+
+      it('should implement IPublishingScheduleService interface (updateSchedule method)', () => {
+        expect(typeof service.updateSchedule).toBe('function');
+        expect(service.updateSchedule.length).toBe(5); // id, scheduledPublishAt, scheduleType, userId, role
+      });
+
+      it('should have list return a Promise', async () => {
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockResolvedValue(0);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        const result = service.list({ page: 1, pageSize: 10 });
+        expect(result).toBeInstanceOf(Promise);
+        await result;
+      });
+
+      it('should have updateSchedule return a Promise', async () => {
+        const mockFindFirst = jest.fn().mockResolvedValue(makeArticle({ status: 'publishing' }));
+        const mockUpdate = jest.fn().mockResolvedValue(makeUpdatedArticle());
+        mockedGetPrisma.mockReturnValue({
+          article: { findFirst: mockFindFirst, update: mockUpdate },
+        } as any);
+
+        const result = service.updateSchedule(1, null, null, 1, 'sysadmin');
+        expect(result).toBeInstanceOf(Promise);
+        await result;
+      });
+
+      it('should accept minimal list params (only page + pageSize)', async () => {
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockResolvedValue(0);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        const result = await service.list({ page: 1, pageSize: 10 });
+        expect(result).toEqual({ list: [], total: 0 });
+      });
+
+      it('should accept full list params', async () => {
+        const mockFindMany = jest.fn().mockResolvedValue([makeArticle()]);
+        const mockCount = jest.fn().mockResolvedValue(1);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        const result = await service.list({
+          page: 1,
+          pageSize: 10,
+          search: 'test',
+          status: 'publishing',
+          projectId: 5,
+          userId: 1,
+          role: 'admin',
+        });
+        expect(result.list).toHaveLength(1);
+        expect(result.total).toBe(1);
+      });
+
+      it('should accept updateSchedule with all-nullable fields as null', async () => {
+        const existing = makeArticle({ status: 'publishing' });
+        const updated = makeUpdatedArticle({ scheduledPublishAt: null, scheduleType: null });
+        const mockFindFirst = jest.fn().mockResolvedValue(existing);
+        const mockUpdate = jest.fn().mockResolvedValue(updated);
+        mockedGetPrisma.mockReturnValue({
+          article: { findFirst: mockFindFirst, update: mockUpdate },
+        } as any);
+
+        const result = await service.updateSchedule(1, null, null, 1, 'sysadmin');
+        expect(result.scheduled_publish_at).toBeNull();
+        expect(result.schedule_type).toBeNull();
+      });
+
+      it('should list return object with list array and total number', async () => {
+        const mockFindMany = jest.fn().mockResolvedValue([makeArticle()]);
+        const mockCount = jest.fn().mockResolvedValue(1);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        const result = await service.list({ page: 1, pageSize: 10 });
+        expect(Array.isArray(result.list)).toBe(true);
+        expect(typeof result.total).toBe('number');
+      });
+
+      it('should updateSchedule return all PublishingScheduleUpdateResult fields', async () => {
+        const existing = makeArticle({ status: 'publishing' });
+        const updated = makeUpdatedArticle();
+        const mockFindFirst = jest.fn().mockResolvedValue(existing);
+        const mockUpdate = jest.fn().mockResolvedValue(updated);
+        mockedGetPrisma.mockReturnValue({
+          article: { findFirst: mockFindFirst, update: mockUpdate },
+        } as any);
+
+        const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', null, 1, 'sysadmin');
+        const expectedKeys = [
+          'id', 'title', 'keywords', 'article_type', 'platforms', 'status',
+          'scheduled_publish_at', 'schedule_type', 'project_id', 'project_name',
+          'company_name', 'created_at', 'updated_at',
+        ];
+        expect(Object.keys(result).sort()).toEqual(expectedKeys.sort());
+      });
+    });
+
+    // ── Prisma异常传播 ──
+    describe('Prisma异常传播', () => {
+      it('should propagate Prisma error from findMany in list', async () => {
+        const mockFindMany = jest.fn().mockRejectedValue(new Error('Connection refused'));
+        const mockCount = jest.fn().mockResolvedValue(0);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        await expect(service.list({ page: 1, pageSize: 10 }))
+          .rejects.toThrow('Connection refused');
+      });
+
+      it('should propagate Prisma error from count in list', async () => {
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockRejectedValue(new Error('Count timeout'));
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        await expect(service.list({ page: 1, pageSize: 10 }))
+          .rejects.toThrow('Count timeout');
+      });
+
+      it('should propagate Prisma error from findFirst in updateSchedule', async () => {
+        const mockFindFirst = jest.fn().mockRejectedValue(new Error('PG connection lost'));
+        mockedGetPrisma.mockReturnValue({
+          article: { findFirst: mockFindFirst },
+        } as any);
+
+        await expect(service.updateSchedule(1, null, null, 1, 'sysadmin'))
+          .rejects.toThrow('PG connection lost');
+      });
+
+      it('should propagate Prisma error from update in updateSchedule', async () => {
+        const existing = makeArticle({ status: 'publishing' });
+        const mockFindFirst = jest.fn().mockResolvedValue(existing);
+        const mockUpdate = jest.fn().mockRejectedValue(new Error('Update deadlock'));
+        mockedGetPrisma.mockReturnValue({
+          article: { findFirst: mockFindFirst, update: mockUpdate },
+        } as any);
+
+        await expect(service.updateSchedule(1, '2025-08-01', null, 1, 'sysadmin'))
+          .rejects.toThrow('Update deadlock');
+      });
+
+      it('should propagate P2025 Prisma error (record not found) from update', async () => {
+        const existing = makeArticle({ status: 'publishing' });
+        const prismaErr: any = new Error('Record not found');
+        prismaErr.code = 'P2025';
+        const mockFindFirst = jest.fn().mockResolvedValue(existing);
+        const mockUpdate = jest.fn().mockRejectedValue(prismaErr);
+        mockedGetPrisma.mockReturnValue({
+          article: { findFirst: mockFindFirst, update: mockUpdate },
+        } as any);
+
+        await expect(service.updateSchedule(1, '2025-08-01', null, 1, 'sysadmin'))
+          .rejects.toThrow('Record not found');
+      });
+
+      it('should propagate generic Error (not AppError) from Prisma without wrapping', async () => {
+        const mockFindMany = jest.fn().mockRejectedValue(new Error('Raw PG error'));
+        const mockCount = jest.fn().mockResolvedValue(0);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        try {
+          await service.list({ page: 1, pageSize: 10 });
+          fail('Should have thrown');
+        } catch (error) {
+          expect(error).toBeInstanceOf(Error);
+          expect(error).not.toBeInstanceOf(NotFoundError);
+          expect(error).not.toBeInstanceOf(BusinessError);
+          expect((error as Error).message).toBe('Raw PG error');
+        }
+      });
+    });
+
+    // ── 数据完整性边界 ──
+    describe('数据完整性边界', () => {
+      it('should handle very large page number with zero results', async () => {
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockResolvedValue(5);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        const result = await service.list({ page: 99999, pageSize: 10 });
+        expect(mockFindMany).toHaveBeenCalledWith(
+          expect.objectContaining({ skip: 999980, take: 10 }),
+        );
+        expect(result.list).toHaveLength(0);
+        expect(result.total).toBe(5);
+      });
+
+      it('should handle pageSize=1 (minimum meaningful pagination)', async () => {
+        const mockFindMany = jest.fn().mockResolvedValue([makeArticle()]);
+        const mockCount = jest.fn().mockResolvedValue(100);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        const result = await service.list({ page: 1, pageSize: 1 });
+        expect(mockFindMany).toHaveBeenCalledWith(
+          expect.objectContaining({ skip: 0, take: 1 }),
+        );
+        expect(result.list).toHaveLength(1);
+      });
+
+      it('should handle special characters in search', async () => {
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockResolvedValue(0);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        await service.list({ page: 1, pageSize: 10, search: "'; DROP TABLE articles;--" });
+
+        expect(mockFindMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              OR: [
+                { title: { contains: "'; DROP TABLE articles;--", mode: 'insensitive' } },
+                { keywords: { contains: "'; DROP TABLE articles;--", mode: 'insensitive' } },
+              ],
+            }),
+          }),
+        );
+      });
+
+      it('should handle unicode/CJK search query', async () => {
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockResolvedValue(0);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        await service.list({ page: 1, pageSize: 10, search: '薄云商机倍增服务🎉' });
+
+        expect(mockFindMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              OR: [
+                { title: { contains: '薄云商机倍增服务🎉', mode: 'insensitive' } },
+                { keywords: { contains: '薄云商机倍增服务🎉', mode: 'insensitive' } },
+              ],
+            }),
+          }),
+        );
+      });
+
+      it('should handle very long search string', async () => {
+        const longSearch = 'a'.repeat(1000);
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockResolvedValue(0);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        await service.list({ page: 1, pageSize: 10, search: longSearch });
+
+        expect(mockFindMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              OR: [
+                { title: { contains: longSearch, mode: 'insensitive' } },
+                { keywords: { contains: longSearch, mode: 'insensitive' } },
+              ],
+            }),
+          }),
+        );
+      });
+
+      it('should handle negative id in updateSchedule', async () => {
+        const mockFindFirst = jest.fn().mockResolvedValue(null);
+        mockedGetPrisma.mockReturnValue({
+          article: { findFirst: mockFindFirst },
+        } as any);
+
+        await expect(service.updateSchedule(-1, null, null, 1, 'sysadmin'))
+          .rejects.toThrow(NotFoundError);
+        expect(mockFindFirst).toHaveBeenCalledWith(
+          expect.objectContaining({ where: { id: -1 } }),
+        );
+      });
+
+      it('should handle zero id in updateSchedule', async () => {
+        const mockFindFirst = jest.fn().mockResolvedValue(null);
+        mockedGetPrisma.mockReturnValue({
+          article: { findFirst: mockFindFirst },
+        } as any);
+
+        await expect(service.updateSchedule(0, null, null, 1, 'sysadmin'))
+          .rejects.toThrow(NotFoundError);
+        expect(mockFindFirst).toHaveBeenCalledWith(
+          expect.objectContaining({ where: { id: 0 } }),
+        );
+      });
+
+      it('should handle very large article dataset in list mapping', async () => {
+        const articles = Array.from({ length: 100 }, (_, i) =>
+          makeArticle({ id: i + 1, title: `文章${i + 1}` }),
+        );
+        const mockFindMany = jest.fn().mockResolvedValue(articles);
+        const mockCount = jest.fn().mockResolvedValue(100);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        const result = await service.list({ page: 1, pageSize: 100 });
+        expect(result.list).toHaveLength(100);
+        expect(result.total).toBe(100);
+        expect(result.list[0].id).toBe(1);
+        expect(result.list[99].id).toBe(100);
+      });
+    });
+
+    // ── 错误继承层次 ──
+    describe('错误继承层次', () => {
+      it('should verify NotFoundError extends AppError via Error', async () => {
+        const mockFindFirst = jest.fn().mockResolvedValue(null);
+        mockedGetPrisma.mockReturnValue({
+          article: { findFirst: mockFindFirst },
+        } as any);
+
+        try {
+          await service.updateSchedule(999, null, null, 1, 'sysadmin');
+          fail('Should have thrown');
+        } catch (error) {
+          expect(error).toBeInstanceOf(Error);
+          expect(error).toBeInstanceOf(NotFoundError);
+          expect((error as any).name).toBe('NotFoundError');
+        }
+      });
+
+      it('should verify BusinessError extends AppError via Error', async () => {
+        const existing = makeArticle({ status: 'draft' });
+        const mockFindFirst = jest.fn().mockResolvedValue(existing);
+        mockedGetPrisma.mockReturnValue({
+          article: { findFirst: mockFindFirst },
+        } as any);
+
+        try {
+          await service.updateSchedule(1, null, null, 1, 'sysadmin');
+          fail('Should have thrown');
+        } catch (error) {
+          expect(error).toBeInstanceOf(Error);
+          expect(error).toBeInstanceOf(BusinessError);
+          expect((error as any).name).toBe('BusinessError');
+        }
+      });
+
+      it('should verify ForbiddenError extends AppError via Error', async () => {
+        const existing = makeArticle({
+          status: 'publishing',
+          project: {
+            id: 10,
+            shortName: '项目A',
+            company: { shortName: '公司A' },
+            operators: [{ userId: 1 }],
+          },
+        });
+        const mockFindFirst = jest.fn().mockResolvedValue(existing);
+        mockedGetPrisma.mockReturnValue({
+          article: { findFirst: mockFindFirst },
+        } as any);
+
+        try {
+          await service.updateSchedule(1, null, null, 99, 'admin');
+          fail('Should have thrown');
+        } catch (error) {
+          expect(error).toBeInstanceOf(Error);
+          expect(error).toBeInstanceOf(ForbiddenError);
+          expect((error as any).name).toBe('ForbiddenError');
+        }
+      });
+
+      it('should verify NotFoundError has statusCode 404', async () => {
+        const mockFindFirst = jest.fn().mockResolvedValue(null);
+        mockedGetPrisma.mockReturnValue({
+          article: { findFirst: mockFindFirst },
+        } as any);
+
+        try {
+          await service.updateSchedule(999, null, null, 1, 'sysadmin');
+          fail('Should have thrown');
+        } catch (error) {
+          expect((error as any).statusCode).toBe(404);
+        }
+      });
+
+      it('should verify BusinessError has statusCode 400', async () => {
+        const existing = makeArticle({ status: 'published' });
+        const mockFindFirst = jest.fn().mockResolvedValue(existing);
+        mockedGetPrisma.mockReturnValue({
+          article: { findFirst: mockFindFirst },
+        } as any);
+
+        try {
+          await service.updateSchedule(1, null, null, 1, 'sysadmin');
+          fail('Should have thrown');
+        } catch (error) {
+          expect((error as any).statusCode).toBe(400);
+        }
+      });
+
+      it('should verify ForbiddenError has statusCode 403', async () => {
+        const existing = makeArticle({
+          status: 'publishing',
+          project: {
+            id: 10,
+            shortName: '项目A',
+            company: { shortName: '公司A' },
+            operators: [],
+          },
+        });
+        const mockFindFirst = jest.fn().mockResolvedValue(existing);
+        mockedGetPrisma.mockReturnValue({
+          article: { findFirst: mockFindFirst },
+        } as any);
+
+        try {
+          await service.updateSchedule(1, null, null, 5, 'admin');
+          fail('Should have thrown');
+        } catch (error) {
+          expect((error as any).statusCode).toBe(403);
+        }
+      });
+
+      it('should verify error types are distinct (not interchangeable)', () => {
+        const notFound = new NotFoundError('文章');
+        const business = new BusinessError('业务错误');
+        const forbidden = new ForbiddenError('权限不足');
+
+        expect(notFound).not.toBeInstanceOf(BusinessError);
+        expect(notFound).not.toBeInstanceOf(ForbiddenError);
+        expect(business).not.toBeInstanceOf(NotFoundError);
+        expect(business).not.toBeInstanceOf(ForbiddenError);
+        expect(forbidden).not.toBeInstanceOf(NotFoundError);
+        expect(forbidden).not.toBeInstanceOf(BusinessError);
+      });
+
+      it('should verify error messages are distinct for different error types', () => {
+        const notFound = new NotFoundError('文章');
+        const business = new BusinessError('自定义业务消息');
+        const forbidden = new ForbiddenError('自定义权限消息');
+
+        expect(notFound.message).toBe('文章不存在');
+        expect(business.message).toBe('自定义业务消息');
+        expect(forbidden.message).toBe('自定义权限消息');
+      });
+    });
+
+    // ── 返回值结构一致性 ──
+    describe('返回值结构一致性', () => {
+      it('should return list items with all PublishingScheduleItem keys', async () => {
+        const mockFindMany = jest.fn().mockResolvedValue([makeArticle()]);
+        const mockCount = jest.fn().mockResolvedValue(1);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        const result = await service.list({ page: 1, pageSize: 10 });
+        const item = result.list[0];
+        const expectedKeys = [
+          'id', 'title', 'keywords', 'article_type', 'platforms', 'status',
+          'scheduled_publish_at', 'schedule_type', 'project_id', 'project_name',
+          'company_name', 'created_by', 'created_by_name', 'created_at', 'updated_at',
+        ];
+        expect(Object.keys(item).sort()).toEqual(expectedKeys.sort());
+      });
+
+      it('should return correct types for all PublishingScheduleItem fields', async () => {
+        const article = makeArticle({
+          keywords: 'SEO',
+          articleType: 'original',
+          platforms: ['新浪'],
+          scheduledPublishAt: new Date('2025-07-01'),
+          scheduleType: 'auto',
+          createdBy: 1,
+        });
+        const mockFindMany = jest.fn().mockResolvedValue([article]);
+        const mockCount = jest.fn().mockResolvedValue(1);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        const result = await service.list({ page: 1, pageSize: 10 });
+        const item = result.list[0];
+
+        expect(typeof item.id).toBe('number');
+        expect(typeof item.title).toBe('string');
+        expect(typeof item.keywords).toBe('string');
+        expect(typeof item.article_type).toBe('string');
+        expect(Array.isArray(item.platforms)).toBe(true);
+        expect(typeof item.status).toBe('string');
+        expect(item.scheduled_publish_at).toBeInstanceOf(Date);
+        expect(typeof item.schedule_type).toBe('string');
+        expect(typeof item.project_id).toBe('number');
+        expect(typeof item.project_name).toBe('string');
+        expect(typeof item.company_name).toBe('string');
+        expect(typeof item.created_by).toBe('number');
+        expect(typeof item.created_by_name).toBe('string');
+        expect(item.created_at).toBeInstanceOf(Date);
+        expect(item.updated_at).toBeInstanceOf(Date);
+      });
+
+      it('should return correct types for all nullable PublishingScheduleItem fields', async () => {
+        const article = makeArticle({
+          keywords: null,
+          articleType: null,
+          platforms: null,
+          scheduledPublishAt: null,
+          scheduleType: null,
+          createdBy: null,
+        });
+        const mockFindMany = jest.fn().mockResolvedValue([article]);
+        const mockCount = jest.fn().mockResolvedValue(1);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        const result = await service.list({ page: 1, pageSize: 10 });
+        const item = result.list[0];
+
+        expect(item.keywords).toBeNull();
+        expect(item.article_type).toBeNull();
+        expect(item.platforms).toBeNull();
+        expect(item.scheduled_publish_at).toBeNull();
+        expect(item.schedule_type).toBeNull();
+        expect(item.created_by).toBeNull();
+        // Non-nullable fields still have values
+        expect(typeof item.id).toBe('number');
+        expect(typeof item.title).toBe('string');
+        expect(typeof item.status).toBe('string');
+        expect(typeof item.project_name).toBe('string');
+        expect(typeof item.company_name).toBe('string');
+        expect(typeof item.created_by_name).toBe('string');
+      });
+
+      it('should return update result with correct types', async () => {
+        const existing = makeArticle({ status: 'publishing' });
+        const updated = makeUpdatedArticle({
+          keywords: 'SEO',
+          articleType: 'original',
+          platforms: ['新浪'],
+          scheduledPublishAt: new Date('2025-09-01'),
+          scheduleType: 'auto',
+        });
+        const mockFindFirst = jest.fn().mockResolvedValue(existing);
+        const mockUpdate = jest.fn().mockResolvedValue(updated);
+        mockedGetPrisma.mockReturnValue({
+          article: { findFirst: mockFindFirst, update: mockUpdate },
+        } as any);
+
+        const result = await service.updateSchedule(1, '2025-09-01', 'auto', 1, 'sysadmin');
+
+        expect(typeof result.id).toBe('number');
+        expect(typeof result.title).toBe('string');
+        expect(typeof result.keywords).toBe('string');
+        expect(typeof result.article_type).toBe('string');
+        expect(Array.isArray(result.platforms)).toBe(true);
+        expect(typeof result.status).toBe('string');
+        expect(result.scheduled_publish_at).toBeInstanceOf(Date);
+        expect(typeof result.schedule_type).toBe('string');
+        expect(typeof result.project_id).toBe('number');
+        expect(typeof result.project_name).toBe('string');
+        expect(typeof result.company_name).toBe('string');
+        expect(result.created_at).toBeInstanceOf(Date);
+        expect(result.updated_at).toBeInstanceOf(Date);
+      });
+    });
+
+    // ── 实例独立性 ──
+    describe('实例独立性', () => {
+      it('should produce independent service instances', () => {
+        const service1 = new PublishingScheduleServiceImpl();
+        const service2 = new PublishingScheduleServiceImpl();
+
+        expect(service1).not.toBe(service2);
+        expect(service1).toBeInstanceOf(PublishingScheduleServiceImpl);
+        expect(service2).toBeInstanceOf(PublishingScheduleServiceImpl);
+      });
+
+      it('should not share state between instances', async () => {
+        const service1 = new PublishingScheduleServiceImpl();
+        const service2 = new PublishingScheduleServiceImpl();
+
+        const mockFindMany1 = jest.fn().mockResolvedValue([makeArticle({ id: 1 })]);
+        const mockCount1 = jest.fn().mockResolvedValue(1);
+        const mockFindMany2 = jest.fn().mockResolvedValue([makeArticle({ id: 2 })]);
+        const mockCount2 = jest.fn().mockResolvedValue(1);
+
+        mockedGetPrisma.mockReturnValueOnce({
+          article: { findMany: mockFindMany1, count: mockCount1 },
+        } as any);
+        mockedGetPrisma.mockReturnValueOnce({
+          article: { findMany: mockFindMany2, count: mockCount2 },
+        } as any);
+
+        const result1 = await service1.list({ page: 1, pageSize: 10 });
+        const result2 = await service2.list({ page: 1, pageSize: 10 });
+
+        expect(result1.list[0].id).toBe(1);
+        expect(result2.list[0].id).toBe(2);
+        expect(mockFindMany1).toHaveBeenCalledTimes(1);
+        expect(mockFindMany2).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    // ── Upsert字段映射一致性 ──
+    describe('Upsert字段映射一致性', () => {
+      it('should map same fields consistently between list and updateSchedule', async () => {
+        const article = makeArticle({
+          id: 42,
+          title: '一致性验证',
+          keywords: '映射,测试',
+          articleType: 'original',
+          platforms: ['新浪', '网易'],
+          status: 'publishing',
+          scheduledPublishAt: new Date('2025-07-01T10:00:00Z'),
+          scheduleType: 'auto',
+          projectId: 10,
+          createdBy: 1,
+          createdAt: new Date('2025-06-01'),
+          updatedAt: new Date('2025-06-15'),
+          project: {
+            id: 10,
+            shortName: '项目A',
+            company: { shortName: '公司A' },
+          },
+          creator: { id: 1, cnName: '张三' },
+        });
+
+        // list 映射
+        const mockFindMany = jest.fn().mockResolvedValue([article]);
+        const mockCount = jest.fn().mockResolvedValue(1);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        const listResult = await service.list({ page: 1, pageSize: 10 });
+        const listItem = listResult.list[0];
+
+        // updateSchedule 映射
+        const existing = makeArticle({ status: 'publishing' });
+        const mockFindFirst = jest.fn().mockResolvedValue(existing);
+        const mockUpdate = jest.fn().mockResolvedValue({
+          ...article,
+          operators: undefined,
+          creator: undefined,
+        });
+        mockedGetPrisma.mockReturnValue({
+          article: { findFirst: mockFindFirst, update: mockUpdate },
+        } as any);
+
+        const updateResult = await service.updateSchedule(42, '2025-07-01T10:00:00Z', 'auto', 1, 'sysadmin');
+
+        // 共享字段应完全一致
+        expect(listItem.id).toBe(updateResult.id);
+        expect(listItem.title).toBe(updateResult.title);
+        expect(listItem.keywords).toBe(updateResult.keywords);
+        expect(listItem.article_type).toBe(updateResult.article_type);
+        expect(listItem.platforms).toEqual(updateResult.platforms);
+        expect(listItem.status).toBe(updateResult.status);
+        expect(listItem.project_id).toBe(updateResult.project_id);
+        expect(listItem.project_name).toBe(updateResult.project_name);
+        expect(listItem.company_name).toBe(updateResult.company_name);
+      });
+
+      it('should map null fields consistently between list and updateSchedule', async () => {
+        const articleWithNulls = makeArticle({
+          keywords: null,
+          articleType: null,
+          platforms: null,
+          scheduledPublishAt: null,
+          scheduleType: null,
+          project: { id: 10, shortName: '项目A', company: null },
+        });
+
+        // list 映射
+        const mockFindMany = jest.fn().mockResolvedValue([articleWithNulls]);
+        const mockCount = jest.fn().mockResolvedValue(1);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        const listResult = await service.list({ page: 1, pageSize: 10 });
+        const listItem = listResult.list[0];
+
+        // updateSchedule 映射
+        const existing = makeArticle({ status: 'publishing' });
+        const mockFindFirst = jest.fn().mockResolvedValue(existing);
+        const mockUpdate = jest.fn().mockResolvedValue({
+          ...articleWithNulls,
+          operators: undefined,
+          creator: undefined,
+        });
+        mockedGetPrisma.mockReturnValue({
+          article: { findFirst: mockFindFirst, update: mockUpdate },
+        } as any);
+
+        const updateResult = await service.updateSchedule(1, null, null, 1, 'sysadmin');
+
+        // null字段应一致映射
+        expect(listItem.keywords).toBeNull();
+        expect(updateResult.keywords).toBeNull();
+        expect(listItem.article_type).toBeNull();
+        expect(updateResult.article_type).toBeNull();
+        expect(listItem.platforms).toBeNull();
+        expect(updateResult.platforms).toBeNull();
+        expect(listItem.scheduled_publish_at).toBeNull();
+        expect(updateResult.scheduled_publish_at).toBeNull();
+        expect(listItem.schedule_type).toBeNull();
+        expect(updateResult.schedule_type).toBeNull();
+      });
+    });
+
+    // ── 排序字段映射 ──
+    describe('排序字段映射', () => {
+      it('should always order list by id descending', async () => {
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockResolvedValue(0);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        await service.list({ page: 1, pageSize: 10 });
+
+        expect(mockFindMany).toHaveBeenCalledWith(
+          expect.objectContaining({ orderBy: { id: 'desc' } }),
+        );
+      });
+
+      it('should maintain consistent ordering with search filter', async () => {
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockResolvedValue(0);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        await service.list({ page: 1, pageSize: 10, search: 'test' });
+
+        expect(mockFindMany).toHaveBeenCalledWith(
+          expect.objectContaining({ orderBy: { id: 'desc' } }),
+        );
+      });
+
+      it('should maintain consistent ordering with permission filter', async () => {
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockResolvedValue(0);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        await service.list({ page: 1, pageSize: 10, userId: 1, role: 'admin' });
+
+        expect(mockFindMany).toHaveBeenCalledWith(
+          expect.objectContaining({ orderBy: { id: 'desc' } }),
+        );
+      });
+
+      it('should maintain consistent ordering on all pages', async () => {
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockResolvedValue(0);
+        mockedGetPrisma.mockReturnValue({
+          article: { findMany: mockFindMany, count: mockCount },
+        } as any);
+
+        await service.list({ page: 5, pageSize: 20 });
+
+        expect(mockFindMany).toHaveBeenCalledWith(
+          expect.objectContaining({ orderBy: { id: 'desc' } }),
+        );
+      });
+    });
+  });
 });
