@@ -993,3 +993,12 @@
   - 前置条件：必须将 MarkdownViewer 导入路径切换为 `@uiw/react-markdown-preview/common`
   - 安全评审已综合 5 份评审报告（质量 7.5、架构 5.4、安全 B-/7.8、UI 2.9、Committer 4.5）
   - 评审报告 tasks/review/react-markdown-preview.index.tsx.committer.md
+
+## 本次变更（2026-05-24 article.controller.ts 软件架构专家评审）
+- [x] **软件架构专家评审 apis/controller/article.controller.ts（553 行）**
+  - 综合评级 B+（良好，安全防护优秀但架构分层有明确改进空间）
+  - 架构层次分析：Controller 承载了 6 项不属于它的职责（认证、授权、验证、状态机、字段过滤、业务分支），22% 代码重复
+  - 11 项架构发现：CRITICAL×1（状态机逻辑跨3处分散，无原子性保证）、HIGH×3（Controller Fat、双重验证、Service层违反DRY）、MEDIUM×4（缺DI容器、异常类孤岛、版本更新非事务性、API设计不一致）、LOW×3（类型断言不安全、常量位置不合理、缺架构文档）
+  - 提出三阶段改进路线图：Phase 1 消除冗余(1-2天) → Phase 2 提取公共模式(2-3天) → Phase 3 状态机重构(3-5天)
+  - 正面评价：纵深防御体系优秀（Zod+白名单+状态机+类型化异常四重防护），项目中安全标杆
+  - 评审报告 tasks/review/article.controller.ts.md（覆盖原软件质量专家评审）
