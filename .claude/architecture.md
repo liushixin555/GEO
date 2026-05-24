@@ -217,3 +217,14 @@ tests/apis/  + tests/pages/  测试文件
   - 综合五份评审：架构 3.0/10、质量 3.6/10、安全 Critical×2、UI 2.8/10
   - Committer 裁定：有条件通过，4 项强制要求 MC-1~MC-4（封装组件+安全防护+样式对齐+类型加固）
   - 详见 `tasks/review/Context.tsx.committer.md`
+- **@uiw/react-md-editor（issue.tsx）** — Committer 审核 APPROVE（2026-05-25）
+  - 命令未被默认工具栏注册（死代码），零实际影响
+  - 核心问题：# 前缀与 H1 标题语义碰撞、prefix! 非空断言、无错误边界、SVG 无障碍缺陷
+  - 封装层防御性覆盖：行首上下文检测 + prefix 空值守卫 + try-catch + 16px SVG + 中文 ARIA
+  - 不建议注册使用（# 语义碰撞不可根治）
+  - 详见 `tasks/review/issue.tsx.committer.md`
+	- **@uiw/react-md-editor（italic.tsx）** — 软件质量评审 7.2/10 APPROVE（2026-05-25）
+	  - 33 行简洁命令模块，功能正确，依赖纯函数工具
+	  - 7 项问题：MEDIUM×3（prefix! 非空断言类型安全、SVG 缺 title/aria-hidden 可访问性、selection 语义混淆）+ LOW×2 + INFO×3
+	  - 与 bold.tsx 代码完全相同（仅 prefix 不同），存在可提取的公共逻辑
+	  - 详见 `tasks/review/italic.tsx.md`
