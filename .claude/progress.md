@@ -368,3 +368,10 @@
 - [x] 10 项架构发现：HIGH×3（认证耦合、Error Boundary、角色守卫）、MEDIUM×4（AppContext 位置、路由集中化、代码分割、竞态条件）、LOW×3
 - [x] 提出目标架构蓝图：AuthProvider → AuthGuard → LayoutShell 三层分层
 - [x] 评审报告 tasks/review/App.tsx.md（覆盖原质量评审）
+
+## 本次变更（2026-05-24 App.tsx 安全评审）
+- [x] 代码安全专家评审 pages/App.tsx
+- [x] 综合安全评级 C+（前端安全基础薄弱）
+- [x] 12 项安全发现：HIGH×3（路由无RBAC、localStorage存储token、用户数据可篡改）、MEDIUM×4（Error Boundary缺失、JSON.parse无保护、重定向未校验、Verify API过度调用）、LOW×5
+- [x] 修复优先级路线图：P0×3、P1×5、P2×4
+- [x] 评审报告 tasks/review/App.tsx.security.md
