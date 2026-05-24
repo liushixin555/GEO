@@ -1410,5 +1410,214 @@ describe('Auth Controller', () => {
       expect(res.statusCode).toBe(401);
       expect(res.body.message).toBe('未登录');
     });
+
+    it('verify should return 401 when req.user is undefined', async () => {
+      const { verify } = require('../../apis/controller/auth.controller');
+      const req = { user: undefined as any };
+      const res = mockRes();
+      await verify(req, res);
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe('未登录');
+    });
+
+    it('verify should return 401 when getLatestUserState throws', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        user: {
+          findUnique: jest.fn().mockRejectedValue(new Error('DB down')),
+        },
+      });
+      const { verify } = require('../../apis/controller/auth.controller');
+      const req = { user: { userId: 1, username: 'sysadmin', role: 'sysadmin', companyId: 1 } };
+      const res = mockRes();
+      await verify(req, res);
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe('登录已过期');
+    });
+  });
+
+  // ============================================================
+  // Direct unit tests for Zod-blocked controller branches
+  // These branches are unreachable via HTTP (Zod validate middleware
+  // rejects invalid input before controller runs), so we call
+  // the controller functions directly.
+  // ============================================================
+  describe('Zod-blocked controller branches (direct unit tests)', () => {
+    function mockRes() {
+      const res: any = {
+        statusCode: 200,
+        body: {},
+        status(code: number) { res.statusCode = code; return res; },
+        json(data: any) { res.body = data; return res; },
+      };
+      return res;
+    }
+
+    it('login should return 400 when username is not a string', async () => {
+      const { login } = require('../../apis/controller/auth.controller');
+      const req = { body: { username: 12345, password: 'pass123' } };
+      const res = mockRes();
+      await login(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('用户名和密码格式不正确');
+    });
+
+    it('login should return 400 when password is not a string', async () => {
+      const { login } = require('../../apis/controller/auth.controller');
+      const req = { body: { username: 'admin', password: 12345 } };
+      const res = mockRes();
+      await login(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('用户名和密码格式不正确');
+    });
+
+    it('login should return 400 when username is boolean', async () => {
+      const { login } = require('../../apis/controller/auth.controller');
+      const req = { body: { username: true, password: 'pass123' } };
+      const res = mockRes();
+      await login(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('用户名和密码格式不正确');
+    });
+
+    it('login should return 400 when password is an object', async () => {
+      const { login } = require('../../apis/controller/auth.controller');
+      const req = { body: { username: 'admin', password: { val: 1 } } };
+      const res = mockRes();
+      await login(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('用户名和密码格式不正确');
+    });
+
+    it('login should return 400 when username exceeds 100 characters', async () => {
+      const { login } = require('../../apis/controller/auth.controller');
+      const req = { body: { username: 'a'.repeat(101), password: 'pass123' } };
+      const res = mockRes();
+      await login(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('输入长度超出限制');
+    });
+
+    it('login should return 400 when password exceeds 200 characters', async () => {
+      const { login } = require('../../apis/controller/auth.controller');
+      const req = { body: { username: 'admin', password: 'p'.repeat(201) } };
+      const res = mockRes();
+      await login(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('输入长度超出限制');
+    });
+
+    it('login should accept username at exactly 100 characters', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        user: { findUnique: jest.fn().mockResolvedValue(null) },
+      });
+      const { login } = require('../../apis/controller/auth.controller');
+      const req = { body: { username: 'a'.repeat(100), password: 'pass123' } };
+      const res = mockRes();
+      await login(req, res);
+      // Should NOT return 400 for length, but 401 for wrong credentials
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe('用户名或密码错误');
+    });
+
+    it('login should accept password at exactly 200 characters', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        user: { findUnique: jest.fn().mockResolvedValue(null) },
+      });
+      const { login } = require('../../apis/controller/auth.controller');
+      const req = { body: { username: 'admin', password: 'p'.repeat(200) } };
+      const res = mockRes();
+      await login(req, res);
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe('用户名或密码错误');
+    });
+
+    it('saveSelection should return 400 when company_id parses to NaN', async () => {
+      const { saveSelection } = require('../../apis/controller/auth.controller');
+      const req = { body: { company_id: 'abc' }, user: { userId: 1, role: 'sysadmin', companyId: 1 } };
+      const res = mockRes();
+      await saveSelection(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('company_id 必须为正整数');
+    });
+
+    it('saveSelection should return 400 when company_id is 0', async () => {
+      const { saveSelection } = require('../../apis/controller/auth.controller');
+      const req = { body: { company_id: 0 }, user: { userId: 1, role: 'sysadmin', companyId: 1 } };
+      const res = mockRes();
+      await saveSelection(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('company_id 必须为正整数');
+    });
+
+    it('saveSelection should return 400 when company_id is negative', async () => {
+      const { saveSelection } = require('../../apis/controller/auth.controller');
+      const req = { body: { company_id: -5 }, user: { userId: 1, role: 'sysadmin', companyId: 1 } };
+      const res = mockRes();
+      await saveSelection(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('company_id 必须为正整数');
+    });
+
+    it('saveSelection should return 400 when project_id is NaN', async () => {
+      const { saveSelection } = require('../../apis/controller/auth.controller');
+      const req = { body: { company_id: 1, project_id: 'abc' }, user: { userId: 1, role: 'sysadmin', companyId: 1 } };
+      const res = mockRes();
+      await saveSelection(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('project_id 必须为正整数或 null');
+    });
+
+    it('saveSelection should return 400 when project_id is 0', async () => {
+      const { saveSelection } = require('../../apis/controller/auth.controller');
+      const req = { body: { company_id: 1, project_id: 0 }, user: { userId: 1, role: 'sysadmin', companyId: 1 } };
+      const res = mockRes();
+      await saveSelection(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('project_id 必须为正整数或 null');
+    });
+
+    it('saveSelection should return 400 when project_id is negative', async () => {
+      const { saveSelection } = require('../../apis/controller/auth.controller');
+      const req = { body: { company_id: 1, project_id: -3 }, user: { userId: 1, role: 'sysadmin', companyId: 1 } };
+      const res = mockRes();
+      await saveSelection(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('project_id 必须为正整数或 null');
+    });
+
+    it('saveSelection should accept project_id as null (bypasses Zod)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const prisma = {
+        company: { findMany: jest.fn().mockResolvedValue([{ id: 1, shortName: 'C1' }]) },
+        project: { findMany: jest.fn().mockResolvedValue([]) },
+        user: { update: jest.fn().mockResolvedValue(undefined) },
+      };
+      getPrisma.mockReturnValue(prisma);
+      const { saveSelection } = require('../../apis/controller/auth.controller');
+      const req = { body: { company_id: 1, project_id: null }, user: { userId: 1, role: 'sysadmin', companyId: 1 } };
+      const res = mockRes();
+      await saveSelection(req, res);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.message).toBe('保存成功');
+    });
+
+    it('saveSelection should accept project_id as undefined', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const prisma = {
+        company: { findMany: jest.fn().mockResolvedValue([{ id: 1, shortName: 'C1' }]) },
+        project: { findMany: jest.fn().mockResolvedValue([]) },
+        user: { update: jest.fn().mockResolvedValue(undefined) },
+      };
+      getPrisma.mockReturnValue(prisma);
+      const { saveSelection } = require('../../apis/controller/auth.controller');
+      const req = { body: { company_id: 1 }, user: { userId: 1, role: 'sysadmin', companyId: 1 } };
+      const res = mockRes();
+      await saveSelection(req, res);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.message).toBe('保存成功');
+    });
   });
 });
