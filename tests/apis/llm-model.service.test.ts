@@ -1257,4 +1257,612 @@ describe('LlmModelServiceImpl', () => {
       expect(mockPrisma.llmModel.findMany).toHaveBeenCalledWith({ orderBy: { id: 'asc' } });
     });
   });
+
+  // ══════════════════════════════════════════
+  //  第3轮 TDD：接口契约合规性验证
+  // ══════════════════════════════════════════
+
+  // ──────────────────────────────────────
+  //  ILlmModelService 接口契约
+  // ──────────────────────────────────────
+
+  describe('ILlmModelService 接口契约', () => {
+    it('服务实例应包含接口要求的全部6个方法', () => {
+      const methods = ['list', 'listEnabled', 'getById', 'create', 'update', 'delete'];
+      for (const method of methods) {
+        expect(typeof (service as any)[method]).toBe('function');
+      }
+    });
+
+    it('服务实例不应包含接口之外的方法', () => {
+      const ownMethods = Object.getOwnPropertyNames(Object.getPrototypeOf(service))
+        .filter(name => name !== 'constructor' && typeof (service as any)[name] === 'function');
+      const interfaceMethods = ['list', 'listEnabled', 'getById', 'create', 'update', 'delete'];
+      for (const method of ownMethods) {
+        expect(interfaceMethods).toContain(method);
+      }
+    });
+
+    it('可通过接口类型引用服务实例', () => {
+      const svc: import('../../apis/service/llm-model.service').ILlmModelService = service;
+      expect(svc).toBe(service);
+      expect(typeof svc.list).toBe('function');
+      expect(typeof svc.listEnabled).toBe('function');
+      expect(typeof svc.getById).toBe('function');
+      expect(typeof svc.create).toBe('function');
+      expect(typeof svc.update).toBe('function');
+      expect(typeof svc.delete).toBe('function');
+    });
+
+    it('list 方法签名应接受0个参数', () => {
+      expect(service.list.length).toBe(0);
+    });
+
+    it('listEnabled 方法签名应接受0个参数', () => {
+      expect(service.listEnabled.length).toBe(0);
+    });
+
+    it('getById 方法签名应接受1个参数', () => {
+      expect(service.getById.length).toBe(1);
+    });
+
+    it('create 方法签名应接受1个参数', () => {
+      expect(service.create.length).toBe(1);
+    });
+
+    it('update 方法签名应接受2个参数', () => {
+      expect(service.update.length).toBe(2);
+    });
+
+    it('delete 方法签名应接受1个参数', () => {
+      expect(service.delete.length).toBe(1);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  实体类型字段完整性
+  // ──────────────────────────────────────
+
+  describe('LlmModel 实体字段完整性', () => {
+    it('list 返回的对象应包含 LlmModel 的8个字段', async () => {
+      const item = makePrismaModel();
+      mockPrisma.llmModel.findMany.mockResolvedValue([item]);
+
+      const result = await service.list();
+
+      const expectedKeys = ['id', 'provider', 'base_url', 'api_key', 'model_name', 'status', 'created_at', 'updated_at'].sort();
+      const actualKeys = Object.keys(result[0]).sort();
+      expect(actualKeys).toEqual(expectedKeys);
+    });
+
+    it('getById 返回的对象应包含 LlmModel 的8个字段', async () => {
+      const item = makePrismaModel();
+      mockPrisma.llmModel.findFirst.mockResolvedValue(item);
+
+      const result = await service.getById(1);
+
+      const expectedKeys = ['id', 'provider', 'base_url', 'api_key', 'model_name', 'status', 'created_at', 'updated_at'].sort();
+      const actualKeys = Object.keys(result).sort();
+      expect(actualKeys).toEqual(expectedKeys);
+    });
+
+    it('create 返回的对象应包含 LlmModel 的8个字段', async () => {
+      mockPrisma.llmModel.create.mockResolvedValue(makePrismaModel());
+
+      const result = await service.create({
+        provider: 'test',
+        base_url: 'https://test.com',
+        api_key: 'sk-test',
+        model_name: 'test-model',
+      });
+
+      const expectedKeys = ['id', 'provider', 'base_url', 'api_key', 'model_name', 'status', 'created_at', 'updated_at'].sort();
+      const actualKeys = Object.keys(result).sort();
+      expect(actualKeys).toEqual(expectedKeys);
+    });
+
+    it('update 返回的对象应包含 LlmModel 的8个字段', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockPrisma.llmModel.update.mockResolvedValue(makePrismaModel());
+
+      const result = await service.update(1, { provider: 'test' });
+
+      const expectedKeys = ['id', 'provider', 'base_url', 'api_key', 'model_name', 'status', 'created_at', 'updated_at'].sort();
+      const actualKeys = Object.keys(result).sort();
+      expect(actualKeys).toEqual(expectedKeys);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  listEnabled 返回类型 Pick 验证
+  // ──────────────────────────────────────
+
+  describe('listEnabled 返回类型 Pick<LlmModel, "id"|"provider"|"model_name">', () => {
+    it('返回对象应仅包含 id、provider、model_name 三个字段', async () => {
+      mockPrisma.llmModel.findMany.mockResolvedValue([
+        { id: 1, provider: 'openai', modelName: 'gpt-4' },
+      ]);
+
+      const result = await service.listEnabled();
+
+      const keys = Object.keys(result[0]).sort();
+      expect(keys).toEqual(['id', 'model_name', 'provider']);
+    });
+
+    it('返回对象不应包含 base_url、api_key、status、created_at、updated_at', async () => {
+      mockPrisma.llmModel.findMany.mockResolvedValue([
+        { id: 1, provider: 'openai', modelName: 'gpt-4' },
+      ]);
+
+      const result = await service.listEnabled();
+
+      expect((result[0] as any).base_url).toBeUndefined();
+      expect((result[0] as any).api_key).toBeUndefined();
+      expect((result[0] as any).status).toBeUndefined();
+      expect((result[0] as any).created_at).toBeUndefined();
+      expect((result[0] as any).updated_at).toBeUndefined();
+    });
+
+    it('id 应为 number 类型', async () => {
+      mockPrisma.llmModel.findMany.mockResolvedValue([
+        { id: 1, provider: 'openai', modelName: 'gpt-4' },
+      ]);
+
+      const result = await service.listEnabled();
+
+      expect(typeof result[0].id).toBe('number');
+    });
+
+    it('provider 应为 string 类型', async () => {
+      mockPrisma.llmModel.findMany.mockResolvedValue([
+        { id: 1, provider: 'openai', modelName: 'gpt-4' },
+      ]);
+
+      const result = await service.listEnabled();
+
+      expect(typeof result[0].provider).toBe('string');
+    });
+
+    it('model_name 应为 string 类型', async () => {
+      mockPrisma.llmModel.findMany.mockResolvedValue([
+        { id: 1, provider: 'openai', modelName: 'gpt-4' },
+      ]);
+
+      const result = await service.listEnabled();
+
+      expect(typeof result[0].model_name).toBe('string');
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  异步行为验证
+  // ──────────────────────────────────────
+
+  describe('异步行为验证', () => {
+    it('list 应返回 Promise', () => {
+      mockPrisma.llmModel.findMany.mockResolvedValue([]);
+      const result = service.list();
+      expect(result).toBeInstanceOf(Promise);
+      return result;
+    });
+
+    it('listEnabled 应返回 Promise', () => {
+      mockPrisma.llmModel.findMany.mockResolvedValue([]);
+      const result = service.listEnabled();
+      expect(result).toBeInstanceOf(Promise);
+      return result;
+    });
+
+    it('getById 应返回 Promise', () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      const result = service.getById(1);
+      expect(result).toBeInstanceOf(Promise);
+      return result;
+    });
+
+    it('create 应返回 Promise', () => {
+      mockPrisma.llmModel.create.mockResolvedValue(makePrismaModel());
+      const result = service.create({ provider: 'a', base_url: 'b', api_key: 'c', model_name: 'd' });
+      expect(result).toBeInstanceOf(Promise);
+      return result;
+    });
+
+    it('update 应返回 Promise', () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockPrisma.llmModel.update.mockResolvedValue(makePrismaModel());
+      const result = service.update(1, {});
+      expect(result).toBeInstanceOf(Promise);
+      return result;
+    });
+
+    it('delete 应返回 Promise<void>', () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockPrisma.llmModel.update.mockResolvedValue(makePrismaModel());
+      const result = service.delete(1);
+      expect(result).toBeInstanceOf(Promise);
+      return result;
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  并发调用安全性
+  // ──────────────────────────────────────
+
+  describe('并发调用安全性', () => {
+    it('同时调用多次 list 应各自返回独立结果', async () => {
+      mockPrisma.llmModel.findMany
+        .mockResolvedValueOnce([makePrismaModel({ id: 1 })])
+        .mockResolvedValueOnce([makePrismaModel({ id: 2 })])
+        .mockResolvedValueOnce([makePrismaModel({ id: 3 })]);
+
+      const [r1, r2, r3] = await Promise.all([service.list(), service.list(), service.list()]);
+
+      expect(r1[0].id).toBe(1);
+      expect(r2[0].id).toBe(2);
+      expect(r3[0].id).toBe(3);
+    });
+
+    it('同时调用 list 和 listEnabled 应互不影响', async () => {
+      mockPrisma.llmModel.findMany
+        .mockResolvedValueOnce([makePrismaModel({ id: 1 })])
+        .mockResolvedValueOnce([{ id: 1, provider: 'openai', modelName: 'gpt-4' }]);
+
+      const [listResult, enabledResult] = await Promise.all([service.list(), service.listEnabled()]);
+
+      expect(listResult).toHaveLength(1);
+      expect(listResult[0].api_key).toBeDefined();
+      expect(enabledResult).toHaveLength(1);
+      expect((enabledResult[0] as any).api_key).toBeUndefined();
+    });
+
+    it('同时调用 create 和 getById 应互不影响', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel({ id: 10 }));
+      mockPrisma.llmModel.create.mockResolvedValue(makePrismaModel({ id: 20 }));
+
+      const [getResult, createResult] = await Promise.all([service.getById(10), service.create({
+        provider: 'test', base_url: 'https://test.com', api_key: 'sk-test', model_name: 'test',
+      })]);
+
+      expect(getResult.id).toBe(10);
+      expect(createResult.id).toBe(20);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  日期边界值
+  // ──────────────────────────────────────
+
+  describe('日期边界值', () => {
+    it('应正确处理 epoch 日期', async () => {
+      const epochDate = new Date(0);
+      const item = makePrismaModel({ createdAt: epochDate, updatedAt: epochDate });
+      mockPrisma.llmModel.findFirst.mockResolvedValue(item);
+
+      const result = await service.getById(1);
+
+      expect(result.created_at).toEqual(epochDate);
+      expect(result.updated_at).toEqual(epochDate);
+    });
+
+    it('应正确处理远未来日期', async () => {
+      const farFuture = new Date('2099-12-31T23:59:59Z');
+      const item = makePrismaModel({ createdAt: farFuture, updatedAt: farFuture });
+      mockPrisma.llmModel.findFirst.mockResolvedValue(item);
+
+      const result = await service.getById(1);
+
+      expect(result.created_at).toEqual(farFuture);
+      expect(result.updated_at).toEqual(farFuture);
+    });
+
+    it('应保持日期引用不变（不产生新的 Date 对象）', async () => {
+      const originalDate = new Date('2025-06-15T12:00:00Z');
+      const item = makePrismaModel({ createdAt: originalDate, updatedAt: originalDate });
+      mockPrisma.llmModel.findMany.mockResolvedValue([item]);
+
+      const result = await service.list();
+
+      expect(result[0].created_at).toBe(originalDate);
+      expect(result[0].updated_at).toBe(originalDate);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  id 边界值
+  // ──────────────────────────────────────
+
+  describe('id 边界值', () => {
+    it('应正确处理 id 为 Number.MAX_SAFE_INTEGER', async () => {
+      const maxId = Number.MAX_SAFE_INTEGER;
+      const item = makePrismaModel({ id: maxId });
+      mockPrisma.llmModel.findFirst.mockResolvedValue(item);
+
+      const result = await service.getById(maxId);
+
+      expect(result.id).toBe(maxId);
+    });
+
+    it('应正确处理 id 为 1 的模型', async () => {
+      const item = makePrismaModel({ id: 1 });
+      mockPrisma.llmModel.findFirst.mockResolvedValue(item);
+
+      const result = await service.getById(1);
+
+      expect(result.id).toBe(1);
+    });
+
+    it('delete 应正确处理大 id', async () => {
+      const bigId = 999999;
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel({ id: bigId }));
+      mockPrisma.llmModel.update.mockResolvedValue(makePrismaModel({ id: bigId }));
+
+      await service.delete(bigId);
+
+      expect(mockPrisma.llmModel.findFirst).toHaveBeenCalledWith({ where: { id: bigId } });
+      expect(mockPrisma.llmModel.update).toHaveBeenCalledWith({
+        where: { id: bigId },
+        data: { deletedAt: expect.any(Date) },
+      });
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  NotFoundError 继承层次
+  // ──────────────────────────────────────
+
+  describe('NotFoundError 继承层次', () => {
+    it('getById 错误应为 Error 的实例', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(null);
+
+      try {
+        await service.getById(999);
+        fail('应抛出错误');
+      } catch (error) {
+        expect(error).toBeInstanceOf(Error);
+      }
+    });
+
+    it('update 错误应为 Error 的实例', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(null);
+
+      try {
+        await service.update(999, {});
+        fail('应抛出错误');
+      } catch (error) {
+        expect(error).toBeInstanceOf(Error);
+      }
+    });
+
+    it('delete 错误应为 Error 的实例', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(null);
+
+      try {
+        await service.delete(999);
+        fail('应抛出错误');
+      } catch (error) {
+        expect(error).toBeInstanceOf(Error);
+      }
+    });
+
+    it('getById 错误的 message 格式应为 "LLM模型不存在"', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(null);
+
+      try {
+        await service.getById(999);
+        fail('应抛出错误');
+      } catch (error: any) {
+        expect(error.message).toBe('LLM模型不存在');
+      }
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  create 请求字段映射完整性
+  // ──────────────────────────────────────
+
+  describe('create 请求字段映射完整性', () => {
+    it('base_url 应映射为 baseUrl', async () => {
+      mockPrisma.llmModel.create.mockResolvedValue(makePrismaModel());
+
+      await service.create({
+        provider: 'openai',
+        base_url: 'https://api.openai.com',
+        api_key: 'sk-test',
+        model_name: 'gpt-4',
+      });
+
+      const callData = mockPrisma.llmModel.create.mock.calls[0][0].data;
+      expect(callData).toHaveProperty('baseUrl');
+      expect(callData).not.toHaveProperty('base_url');
+    });
+
+    it('api_key 应映射为 apiKey', async () => {
+      mockPrisma.llmModel.create.mockResolvedValue(makePrismaModel());
+
+      await service.create({
+        provider: 'openai',
+        base_url: 'https://api.openai.com',
+        api_key: 'sk-test',
+        model_name: 'gpt-4',
+      });
+
+      const callData = mockPrisma.llmModel.create.mock.calls[0][0].data;
+      expect(callData).toHaveProperty('apiKey');
+      expect(callData).not.toHaveProperty('api_key');
+    });
+
+    it('model_name 应映射为 modelName', async () => {
+      mockPrisma.llmModel.create.mockResolvedValue(makePrismaModel());
+
+      await service.create({
+        provider: 'openai',
+        base_url: 'https://api.openai.com',
+        api_key: 'sk-test',
+        model_name: 'gpt-4',
+      });
+
+      const callData = mockPrisma.llmModel.create.mock.calls[0][0].data;
+      expect(callData).toHaveProperty('modelName');
+      expect(callData).not.toHaveProperty('model_name');
+    });
+
+    it('provider 不需要映射（两者同名）', async () => {
+      mockPrisma.llmModel.create.mockResolvedValue(makePrismaModel());
+
+      await service.create({
+        provider: 'openai',
+        base_url: 'https://api.openai.com',
+        api_key: 'sk-test',
+        model_name: 'gpt-4',
+      });
+
+      const callData = mockPrisma.llmModel.create.mock.calls[0][0].data;
+      expect(callData.provider).toBe('openai');
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  update 字段映射双向验证
+  // ──────────────────────────────────────
+
+  describe('update 字段映射双向验证', () => {
+    it('update data 中不应出现 snake_case 字段名', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockPrisma.llmModel.update.mockResolvedValue(makePrismaModel());
+
+      await service.update(1, {
+        provider: 'test',
+        base_url: 'https://test.com',
+        api_key: 'sk-new',
+        model_name: 'test-model',
+        status: true,
+      });
+
+      const callData = mockPrisma.llmModel.update.mock.calls[0][0].data;
+      const snakeCaseKeys = Object.keys(callData).filter(k => k.includes('_'));
+      expect(snakeCaseKeys).toEqual([]);
+    });
+
+    it('update 返回结果中不应出现 camelCase 字段名', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockPrisma.llmModel.update.mockResolvedValue(makePrismaModel());
+
+      const result = await service.update(1, { provider: 'test' });
+
+      const camelCaseKeys = Object.keys(result).filter(k => /[A-Z]/.test(k));
+      expect(camelCaseKeys).toEqual([]);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  多服务实例独立性
+  // ──────────────────────────────────────
+
+  describe('多服务实例独立性', () => {
+    it('创建多个服务实例应互不干扰', async () => {
+      const service1 = new LlmModelServiceImpl();
+      const service2 = new LlmModelServiceImpl();
+
+      mockPrisma.llmModel.findMany
+        .mockResolvedValueOnce([makePrismaModel({ id: 1 })])
+        .mockResolvedValueOnce([makePrismaModel({ id: 2 })]);
+
+      const r1 = await service1.list();
+      const r2 = await service2.list();
+
+      expect(r1[0].id).toBe(1);
+      expect(r2[0].id).toBe(2);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  delete 返回 void 严格验证
+  // ──────────────────────────────────────
+
+  describe('delete 返回 void 严格验证', () => {
+    it('delete 结果 await 后应为 undefined', async () => {
+      mockPrisma.llmModel.findFirst.mockResolvedValue(makePrismaModel());
+      mockPrisma.llmModel.update.mockResolvedValue(makePrismaModel());
+
+      const result = await service.delete(1);
+
+      expect(result).toBeUndefined();
+      expect(String(result)).toBe('undefined');
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  list 不应过滤 status
+  // ──────────────────────────────────────
+
+  describe('list 不应过滤 status', () => {
+    it('list 的 Prisma 查询不应包含 where 条件', async () => {
+      mockPrisma.llmModel.findMany.mockResolvedValue([]);
+
+      await service.list();
+
+      const callArgs = mockPrisma.llmModel.findMany.mock.calls[0][0] as any;
+      expect(callArgs.where).toBeUndefined();
+    });
+
+    it('listEnabled 的 Prisma 查询应包含 where: { status: true }', async () => {
+      mockPrisma.llmModel.findMany.mockResolvedValue([]);
+
+      await service.listEnabled();
+
+      const callArgs = mockPrisma.llmModel.findMany.mock.calls[0][0] as any;
+      expect(callArgs.where).toEqual({ status: true });
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  getById vs list 返回结构一致性
+  // ──────────────────────────────────────
+
+  describe('getById vs list 返回结构一致性', () => {
+    it('getById 和 list 对同一模型应返回相同结构的字段', async () => {
+      const item = makePrismaModel({ id: 5 });
+      mockPrisma.llmModel.findFirst.mockResolvedValue(item);
+      mockPrisma.llmModel.findMany.mockResolvedValue([item]);
+
+      const byId = await service.getById(5);
+      const byList = (await service.list()).find(m => m.id === 5);
+
+      expect(Object.keys(byId).sort()).toEqual(Object.keys(byList!).sort());
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  create 不设置 status
+  // ──────────────────────────────────────
+
+  describe('create 不设置 status', () => {
+    it('create 的 data 不应包含 status 字段', async () => {
+      mockPrisma.llmModel.create.mockResolvedValue(makePrismaModel());
+
+      await service.create({
+        provider: 'openai',
+        base_url: 'https://api.openai.com',
+        api_key: 'sk-test',
+        model_name: 'gpt-4',
+      });
+
+      const callData = mockPrisma.llmModel.create.mock.calls[0][0].data;
+      expect(callData).not.toHaveProperty('status');
+    });
+
+    it('create 的 data 不应包含 id 字段', async () => {
+      mockPrisma.llmModel.create.mockResolvedValue(makePrismaModel());
+
+      await service.create({
+        provider: 'openai',
+        base_url: 'https://api.openai.com',
+        api_key: 'sk-test',
+        model_name: 'gpt-4',
+      });
+
+      const callData = mockPrisma.llmModel.create.mock.calls[0][0].data;
+      expect(callData).not.toHaveProperty('id');
+    });
+  });
 });
