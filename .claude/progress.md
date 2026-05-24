@@ -383,3 +383,10 @@
 - [x] DESIGN.md 合规性审计：色彩8/10、字体7/10、间距6/10、组件6/10
 - [x] 修复优先级路线图：P0×6、P1×8、P2×7
 - [x] 评审报告 tasks/review/App.tsx.ui.md
+
+## 本次变更（2026-05-24 App.tsx Committer审核）
+- [x] Committer审核专家评审 pages/App.tsx
+- [x] 综合判定：不通过（REJECT）— 存在死路由Bug + 零测试 + 无Error Boundary
+- [x] 发现关键问题：第11行 `path="/"` 的 Navigate 是死路由（被第10行 `path="/*"` 吞没）、无 App.test.tsx 测试文件、无 Error Boundary 包裹
+- [x] 阻塞合并项：修复死路由、添加 ErrorBoundary、创建路由测试
+- [x] 评审报告 tasks/review/App.tsx.committer.md
