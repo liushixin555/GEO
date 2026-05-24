@@ -1955,9 +1955,9 @@ describe('App - Route Mount Points', () => {
 
 // ─── JSON Body Size Boundary ───
 describe('App - JSON Body Size Boundary', () => {
-  it('should accept JSON body at exactly 10mb limit', async () => {
-    // Create a payload close to but under 10mb
-    const largePayload = { data: 'x'.repeat(9 * 1024 * 1024) };
+  it('should accept JSON body under 1mb limit', async () => {
+    // Create a payload close to but under 1mb
+    const largePayload = { data: 'x'.repeat(900 * 1024) };
     const response = await agent
       .post('/api/v1/auth/login')
       .send(largePayload);
@@ -2160,10 +2160,16 @@ describe('App - AppError Handler Branch (isolated)', () => {
     expect(response.body).toEqual({ code: 500, message: '服务器内部错误' });
 
     const logCalls = consoleErrorSpy.mock.calls.filter(
-      (call: string[]) => typeof call[0] === 'string' && call[0] === '[Unhandled Error]',
+      (call: string[]) => {
+        if (typeof call[0] !== 'string') return false;
+        try {
+          const parsed = JSON.parse(call[0]);
+          return parsed.type === 'unhandled_error';
+        } catch { return false; }
+      },
     );
     expect(logCalls.length).toBeGreaterThan(0);
-    const logEntry = JSON.parse(logCalls[0][1] as string);
+    const logEntry = JSON.parse(logCalls[0][0] as string);
     expect(logEntry.userId).toBe(1);
     expect(logEntry.userRole).toBe('sysadmin');
     expect(logEntry.error.message).toBe('unexpected error with auth');
