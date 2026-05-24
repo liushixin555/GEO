@@ -663,3 +663,22 @@ components: {
 
 ### 涉及文件
 - `pages/company/CompanyForm.tsx` — 修正 pageSize 参数
+
+---
+
+## fix023. ProjectForm 创建项目 400 错误（description: null 未通过 schema 验证）
+
+### 问题
+创建项目 `POST /api/v1/projects` 返回 400，错误消息：`参数验证失败: Invalid input: expected string, received null`。请求数据 `description: null` 未通过 Zod schema 验证。
+
+### 原因
+1. 前端 `ProjectForm.tsx:90` 在描述为空时发送 `description: null`
+2. 后端 `project.schema.ts` 的 `description` 字段用 `z.string().optional()`，`optional()` 只接受 `undefined`，不接受 `null`
+
+### 修复
+- 前端：`description: null` → `description: undefined`（从 payload 中省略）
+- 后端：schema 加 `.nullable()` 防御（`z.string()...nullable().optional()`）
+
+### 涉及文件
+- `pages/project/ProjectForm.tsx` — description 空值改为 undefined
+- `apis/schema/project.schema.ts` — description 添加 nullable()

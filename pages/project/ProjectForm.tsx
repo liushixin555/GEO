@@ -87,7 +87,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ item, companies, onClose, onS
       const payload: any = {
         short_name: values.short_name?.trim(),
         full_name: values.full_name?.trim(),
-        description: values.description?.trim() || null,
+        description: values.description?.trim() || undefined,
         company_id: values.company_id,
         operator_ids: values.operator_ids || [],
         viewer_ids: values.viewer_ids || [],
