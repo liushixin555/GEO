@@ -390,3 +390,11 @@
 - [x] 发现关键问题：第11行 `path="/"` 的 Navigate 是死路由（被第10行 `path="/*"` 吞没）、无 App.test.tsx 测试文件、无 Error Boundary 包裹
 - [x] 阻塞合并项：修复死路由、添加 ErrorBoundary、创建路由测试
 - [x] 评审报告 tasks/review/App.tsx.committer.md
+
+## 本次变更（2026-05-24 apis/app.ts 软件质量专家评审）
+- [x] 软件质量专家评审 apis/app.ts（239 行）
+- [x] 综合评分 B（结构基本合理，存在可维护性和扩展性瓶颈）
+- [x] 10 项质量发现：HIGH×3（96条路由平铺、中间件重复90+次、注释与代码不匹配）、MEDIUM×5（无API版本化、无请求验证层、无请求日志、错误不分类、路由分组不一致）、LOW×2（Swagger无条件生成、角色字符串硬编码）
+- [x] 正面评价：安全基础9/10、中间件链顺序正确、配置层设计精良
+- [x] 提出目标架构：路由拆分为 Router 模块，app.ts 缩减至 <60 行
+- [x] 评审报告 tasks/review/app.quality.md
