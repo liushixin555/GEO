@@ -1,8 +1,8 @@
 diff --git a/node_modules/@uiw/react-markdown-preview/esm/Props.d.ts b/node_modules/@uiw/react-markdown-preview/esm/Props.d.ts
-index b550d96..ae07e45 100644
+index b550d96..b9a7c42 100644
 --- a/node_modules/@uiw/react-markdown-preview/esm/Props.d.ts
 +++ b/node_modules/@uiw/react-markdown-preview/esm/Props.d.ts
-@@ -1,27 +1,30 @@
+@@ -1,27 +1,37 @@
 +import type { CSSProperties, HTMLAttributes, RefObject, UIEvent, MouseEvent } from 'react';
  import { type Options } from 'react-markdown';
  import { type RehypeRewriteOptions } from 'rehype-rewrite';
@@ -12,10 +12,12 @@ index b550d96..ae07e45 100644
 +    'data-color-mode'?: ColorMode;
 +};
  export interface MarkdownPreviewProps extends Omit<Options, 'children'> {
++    /** CSS class name prefix for component styling (default: 'wmde-markdown') */
      prefixCls?: string;
      className?: string;
 +    /** Markdown content to render. When undefined, renders empty preview. */
      source?: string;
++    /** Disable the copy button on code blocks */
      disableCopy?: boolean;
 -    style?: React.CSSProperties;
 -    pluginsFilter?: (type: 'rehype' | 'remark', plugin: PluggableList) => PluggableList;
@@ -23,7 +25,9 @@ index b550d96..ae07e45 100644
 -        'data-color-mode'?: 'light' | 'dark';
 -    };
 +    style?: CSSProperties;
++    /** Filter or transform rehype/remark plugins before they are applied */
 +    pluginsFilter?: (phase: 'rehype' | 'remark', plugins: PluggableList) => PluggableList;
++    /** Props applied to the root wrapper div element */
 +    wrapperElement?: WrapperElementProps;
      /**
       * Please use wrapperElement, Will be removed in v5 release.
@@ -35,8 +39,11 @@ index b550d96..ae07e45 100644
 -    onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
 -    onMouseOver?: (e: React.MouseEvent<HTMLDivElement>) => void;
 +    warpperElement?: WrapperElementProps;
++    /** Scroll event handler proxied from the root container div */
 +    onScroll?: (e: UIEvent<HTMLDivElement>) => void;
++    /** MouseOver event handler proxied from the root container div (bubbling) */
 +    onMouseOver?: (e: MouseEvent<HTMLDivElement>) => void;
++    /** Rewrite rehype AST nodes after processing (rehype-rewrite) */
      rehypeRewrite?: RehypeRewriteOptions['rewrite'];
  }
 -export interface MarkdownPreviewRef extends MarkdownPreviewProps {
@@ -46,10 +53,10 @@ index b550d96..ae07e45 100644
 +    mdp: RefObject<HTMLDivElement>;
  }
 diff --git a/node_modules/@uiw/react-markdown-preview/lib/Props.d.ts b/node_modules/@uiw/react-markdown-preview/lib/Props.d.ts
-index b550d96..ae07e45 100644
+index b550d96..b9a7c42 100644
 --- a/node_modules/@uiw/react-markdown-preview/lib/Props.d.ts
 +++ b/node_modules/@uiw/react-markdown-preview/lib/Props.d.ts
-@@ -1,27 +1,30 @@
+@@ -1,27 +1,37 @@
 +import type { CSSProperties, HTMLAttributes, RefObject, UIEvent, MouseEvent } from 'react';
  import { type Options } from 'react-markdown';
  import { type RehypeRewriteOptions } from 'rehype-rewrite';
@@ -59,10 +66,12 @@ index b550d96..ae07e45 100644
 +    'data-color-mode'?: ColorMode;
 +};
  export interface MarkdownPreviewProps extends Omit<Options, 'children'> {
++    /** CSS class name prefix for component styling (default: 'wmde-markdown') */
      prefixCls?: string;
      className?: string;
 +    /** Markdown content to render. When undefined, renders empty preview. */
      source?: string;
++    /** Disable the copy button on code blocks */
      disableCopy?: boolean;
 -    style?: React.CSSProperties;
 -    pluginsFilter?: (type: 'rehype' | 'remark', plugin: PluggableList) => PluggableList;
@@ -70,7 +79,9 @@ index b550d96..ae07e45 100644
 -        'data-color-mode'?: 'light' | 'dark';
 -    };
 +    style?: CSSProperties;
++    /** Filter or transform rehype/remark plugins before they are applied */
 +    pluginsFilter?: (phase: 'rehype' | 'remark', plugins: PluggableList) => PluggableList;
++    /** Props applied to the root wrapper div element */
 +    wrapperElement?: WrapperElementProps;
      /**
       * Please use wrapperElement, Will be removed in v5 release.
@@ -82,8 +93,11 @@ index b550d96..ae07e45 100644
 -    onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
 -    onMouseOver?: (e: React.MouseEvent<HTMLDivElement>) => void;
 +    warpperElement?: WrapperElementProps;
++    /** Scroll event handler proxied from the root container div */
 +    onScroll?: (e: UIEvent<HTMLDivElement>) => void;
++    /** MouseOver event handler proxied from the root container div (bubbling) */
 +    onMouseOver?: (e: MouseEvent<HTMLDivElement>) => void;
++    /** Rewrite rehype AST nodes after processing (rehype-rewrite) */
      rehypeRewrite?: RehypeRewriteOptions['rewrite'];
  }
 -export interface MarkdownPreviewRef extends MarkdownPreviewProps {
@@ -93,10 +107,10 @@ index b550d96..ae07e45 100644
 +    mdp: RefObject<HTMLDivElement>;
  }
 diff --git a/node_modules/@uiw/react-markdown-preview/src/Props.tsx b/node_modules/@uiw/react-markdown-preview/src/Props.tsx
-index ac09f1f..aa7549c 100644
+index ac09f1f..05a25f1 100644
 --- a/node_modules/@uiw/react-markdown-preview/src/Props.tsx
 +++ b/node_modules/@uiw/react-markdown-preview/src/Props.tsx
-@@ -1,29 +1,34 @@
+@@ -1,29 +1,41 @@
 +import type { CSSProperties, HTMLAttributes, RefObject, UIEvent, MouseEvent } from 'react';
  import { type Options } from 'react-markdown';
  import { type RehypeRewriteOptions } from 'rehype-rewrite';
@@ -109,10 +123,12 @@ index ac09f1f..aa7549c 100644
 +};
 +
  export interface MarkdownPreviewProps extends Omit<Options, 'children'> {
++  /** CSS class name prefix for component styling (default: 'wmde-markdown') */
    prefixCls?: string;
    className?: string;
 +  /** Markdown content to render. When undefined, renders empty preview. */
    source?: string;
++  /** Disable the copy button on code blocks */
    disableCopy?: boolean;
 -  style?: React.CSSProperties;
 -  pluginsFilter?: (type: 'rehype' | 'remark', plugin: PluggableList) => PluggableList;
@@ -120,7 +136,9 @@ index ac09f1f..aa7549c 100644
 -    'data-color-mode'?: 'light' | 'dark';
 -  };
 +  style?: CSSProperties;
++  /** Filter or transform rehype/remark plugins before they are applied */
 +  pluginsFilter?: (phase: 'rehype' | 'remark', plugins: PluggableList) => PluggableList;
++  /** Props applied to the root wrapper div element */
 +  wrapperElement?: WrapperElementProps;
    /**
     * Please use wrapperElement, Will be removed in v5 release.
@@ -132,8 +150,11 @@ index ac09f1f..aa7549c 100644
 -  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
 -  onMouseOver?: (e: React.MouseEvent<HTMLDivElement>) => void;
 +  warpperElement?: WrapperElementProps;
++  /** Scroll event handler proxied from the root container div */
 +  onScroll?: (e: UIEvent<HTMLDivElement>) => void;
++  /** MouseOver event handler proxied from the root container div (bubbling) */
 +  onMouseOver?: (e: MouseEvent<HTMLDivElement>) => void;
++  /** Rewrite rehype AST nodes after processing (rehype-rewrite) */
    rehypeRewrite?: RehypeRewriteOptions['rewrite'];
  }
  

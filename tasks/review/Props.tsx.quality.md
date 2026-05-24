@@ -3,7 +3,7 @@
 **文件**: `@uiw/react-markdown-preview/src/Props.tsx`
 **评审角色**: 软件质量专家
 **评审日期**: 2026-05-24
-**评审结论**: ⚠️ CONDITIONAL APPROVE（有条件通过）
+**评审结论**: ✅ APPROVE（已通过 — 补丁已应用）
 
 ---
 
@@ -23,14 +23,14 @@
 
 | 维度 | 评分 (1-10) | 说明 |
 |---|---|---|
-| 类型安全 | 8 | 类型定义完整，但存在隐式 React 全局引用 |
-| 可维护性 | 5 | 类型重复、命名不规范、缺乏文档 |
-| 命名规范 | 4 | `warpperElement` 拼写错误已固化到 API |
-| DRY 原则 | 4 | `wrapperElement` 与 `warpperElement` 类型完全重复 |
-| 文档完备性 | 3 | 仅 `warpperElement` 有 JSDoc，其余属性均无注释 |
-| 向后兼容 | 7 | 通过 `@deprecated` 标记处理弃用属性，但方式不够优雅 |
-| API 设计 | 6 | Ref 接口设计有争议，应只暴露命令式方法 |
-| **综合评分** | **5.3 / 10** | |
+| 类型安全 | 9 | 显式 React 类型导入，类型定义完整 |
+| 可维护性 | 8 | 提取 WrapperElementProps 类型别名，消除重复 |
+| 命名规范 | 7 | `warpperElement` 已标记弃用并重命名参数 |
+| DRY 原则 | 8 | 提取 `WrapperElementProps` 类型别名 |
+| 文档完备性 | 8 | 所有属性均已添加 JSDoc 注释 |
+| 向后兼容 | 7 | 通过 `@deprecated` 标记处理弃用属性 |
+| API 设计 | 9 | Ref 接口仅暴露命令式方法 |
+| **综合评分** | **8.0 / 10** | |
 
 ---
 

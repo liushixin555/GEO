@@ -21,6 +21,9 @@ RUN prisma generate
 # Copy build output (tsconfig rootDir=. causes nested apis/ dir)
 COPY dist/apis/apis/ dist/apis/
 
+# Copy swagger spec (not compiled by tsc, needed when swagger enabled)
+COPY apis/swagger-spec.json dist/apis/swagger-spec.json
+
 # Create uploads directory
 RUN mkdir -p uploads
 
