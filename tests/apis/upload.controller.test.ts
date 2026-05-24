@@ -47,6 +47,30 @@ function viewToken() {
   );
 }
 
+const VALID_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwADBwIAMCbHYQAAAABJRU5ErkJggg==',
+  'base64'
+);
+
+const VALID_JPEG = Buffer.from(
+  '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAFBABAAAAAAAAAAAAAAAAAAAACf/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AKgA/9k=',
+  'base64'
+);
+
+const VALID_GIF = Buffer.from(
+  'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+  'base64'
+);
+
+const VALID_WEBP = Buffer.from(
+  'UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=',
+  'base64'
+);
+
+function cleanup(filePath: string) {
+  try { fs.unlinkSync(filePath); } catch {}
+}
+
 // ==================== Integration Tests ====================
 
 describe('Upload Controller - Integration', () => {
@@ -55,16 +79,11 @@ describe('Upload Controller - Integration', () => {
 
   beforeAll(() => {
     if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-    // Create a minimal valid 1x1 PNG
-    const png = Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwADBwIAMCbHYQAAAABJRU5ErkJggg==',
-      'base64'
-    );
-    fs.writeFileSync(testImagePath, png);
+    fs.writeFileSync(testImagePath, VALID_PNG);
   });
 
   afterAll(() => {
-    try { fs.unlinkSync(testImagePath); } catch {}
+    cleanup(testImagePath);
   });
 
   // ---------- Auth & Permission ----------
@@ -95,8 +114,7 @@ describe('Upload Controller - Integration', () => {
     expect(response.body.data.url).toMatch(/^\/uploads\//);
     expect(response.body.data.url).toMatch(/\.png$/);
 
-    const uploadedFile = path.join(uploadsDir, response.body.data.url.replace('/uploads/', ''));
-    try { fs.unlinkSync(uploadedFile); } catch {}
+    cleanup(path.join(uploadsDir, response.body.data.url.replace('/uploads/', '')));
   });
 
   it('should upload image successfully as admin', async () => {
@@ -108,17 +126,12 @@ describe('Upload Controller - Integration', () => {
     expect(response.status).toBe(200);
     expect(response.body.data.url).toMatch(/^\/uploads\//);
 
-    const uploadedFile = path.join(uploadsDir, response.body.data.url.replace('/uploads/', ''));
-    try { fs.unlinkSync(uploadedFile); } catch {}
+    cleanup(path.join(uploadsDir, response.body.data.url.replace('/uploads/', '')));
   });
 
   it('should upload JPEG image successfully', async () => {
     const jpegPath = path.join(uploadsDir, '_test.jpg');
-    const jpeg = Buffer.from(
-      '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAFBABAAAAAAAAAAAAAAAAAAAACf/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AKgA/9k=',
-      'base64'
-    );
-    fs.writeFileSync(jpegPath, jpeg);
+    fs.writeFileSync(jpegPath, VALID_JPEG);
 
     const response = await agent
       .post('/api/v1/upload')
@@ -128,18 +141,13 @@ describe('Upload Controller - Integration', () => {
     expect(response.status).toBe(200);
     expect(response.body.data.url).toMatch(/\.jpg$/);
 
-    const uploadedFile = path.join(uploadsDir, response.body.data.url.replace('/uploads/', ''));
-    try { fs.unlinkSync(uploadedFile); } catch {}
-    try { fs.unlinkSync(jpegPath); } catch {}
+    cleanup(path.join(uploadsDir, response.body.data.url.replace('/uploads/', '')));
+    cleanup(jpegPath);
   });
 
   it('should upload GIF image successfully', async () => {
     const gifPath = path.join(uploadsDir, '_test.gif');
-    const gif = Buffer.from(
-      'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
-      'base64'
-    );
-    fs.writeFileSync(gifPath, gif);
+    fs.writeFileSync(gifPath, VALID_GIF);
 
     const response = await agent
       .post('/api/v1/upload')
@@ -149,18 +157,13 @@ describe('Upload Controller - Integration', () => {
     expect(response.status).toBe(200);
     expect(response.body.data.url).toMatch(/\.gif$/);
 
-    const uploadedFile = path.join(uploadsDir, response.body.data.url.replace('/uploads/', ''));
-    try { fs.unlinkSync(uploadedFile); } catch {}
-    try { fs.unlinkSync(gifPath); } catch {}
+    cleanup(path.join(uploadsDir, response.body.data.url.replace('/uploads/', '')));
+    cleanup(gifPath);
   });
 
   it('should upload WebP image successfully', async () => {
     const webpPath = path.join(uploadsDir, '_test.webp');
-    const webp = Buffer.from(
-      'UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=',
-      'base64'
-    );
-    fs.writeFileSync(webpPath, webp);
+    fs.writeFileSync(webpPath, VALID_WEBP);
 
     const response = await agent
       .post('/api/v1/upload')
@@ -170,9 +173,8 @@ describe('Upload Controller - Integration', () => {
     expect(response.status).toBe(200);
     expect(response.body.data.url).toMatch(/\.webp$/);
 
-    const uploadedFile = path.join(uploadsDir, response.body.data.url.replace('/uploads/', ''));
-    try { fs.unlinkSync(uploadedFile); } catch {}
-    try { fs.unlinkSync(webpPath); } catch {}
+    cleanup(path.join(uploadsDir, response.body.data.url.replace('/uploads/', '')));
+    cleanup(webpPath);
   });
 
   it('should reject SVG files with 400', async () => {
@@ -188,7 +190,7 @@ describe('Upload Controller - Integration', () => {
     expect(response.status).toBe(400);
     expect(response.body.message).toBe('不支持的图片格式');
 
-    try { fs.unlinkSync(svgPath); } catch {}
+    cleanup(svgPath);
   });
 
   // ---------- Validation errors ----------
@@ -212,11 +214,10 @@ describe('Upload Controller - Integration', () => {
     expect(response.status).toBe(400);
     expect(response.body.message).toBe('不支持的图片格式');
 
-    try { fs.unlinkSync(txtPath); } catch {}
+    cleanup(txtPath);
   });
 
   it('should reject file exceeding 10MB with 413', async () => {
-    // Create a file just over 10MB
     const largePath = path.join(uploadsDir, '_test_large.png');
     const buffer = Buffer.alloc(11 * 1024 * 1024, 'x');
     fs.writeFileSync(largePath, buffer);
@@ -229,7 +230,7 @@ describe('Upload Controller - Integration', () => {
     expect(response.status).toBe(413);
     expect(response.body.message).toBe('文件大小超过 10MB 限制');
 
-    try { fs.unlinkSync(largePath); } catch {}
+    cleanup(largePath);
   }, 30000);
 
   it('should reject unsupported file type (.pdf)', async () => {
@@ -243,7 +244,7 @@ describe('Upload Controller - Integration', () => {
 
     expect(response.status).toBe(400);
 
-    try { fs.unlinkSync(pdfPath); } catch {}
+    cleanup(pdfPath);
   });
 
   it('should reject unsupported file type (.doc)', async () => {
@@ -257,11 +258,10 @@ describe('Upload Controller - Integration', () => {
 
     expect(response.status).toBe(400);
 
-    try { fs.unlinkSync(docPath); } catch {}
+    cleanup(docPath);
   });
 
   it('should reject MIME-forged file (non-image with image Content-Type)', async () => {
-    // Create a text file that is NOT a valid image
     const fakePath = path.join(uploadsDir, '_test_fake.png');
     fs.writeFileSync(fakePath, 'this is not a real PNG image content');
 
@@ -270,11 +270,20 @@ describe('Upload Controller - Integration', () => {
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', fakePath, { contentType: 'image/png' });
 
-    // File passes MIME check but fails Magic Bytes validation
     expect(response.status).toBe(400);
     expect(response.body.message).toBe('文件内容与声明类型不匹配');
 
-    try { fs.unlinkSync(fakePath); } catch {}
+    cleanup(fakePath);
+  });
+
+  it('should return 400 with wrong field name (LIMIT_UNEXPECTED_FILE)', async () => {
+    const response = await agent
+      .post('/api/v1/upload')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('image', testImagePath);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('上传字段名应为 file');
   });
 });
 
@@ -297,11 +306,7 @@ describe('uploadFile - Unit', () => {
 
   it('should return 200 with correct url on success', async () => {
     const tmpPath = path.join(uploadsDir, '_unit_test_success.png');
-    const png = Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwADBwIAMCbHYQAAAABJRU5ErkJggg==',
-      'base64'
-    );
-    fs.writeFileSync(tmpPath, png);
+    fs.writeFileSync(tmpPath, VALID_PNG);
 
     const req = {
       file: { filename: 'abc-123.png', path: tmpPath, mimetype: 'image/png' },
@@ -317,7 +322,7 @@ describe('uploadFile - Unit', () => {
       data: { url: '/uploads/abc-123.png' },
     });
 
-    try { fs.unlinkSync(tmpPath); } catch {}
+    cleanup(tmpPath);
   });
 
   it('should return 500 with generic message when exception occurs', async () => {
@@ -350,11 +355,7 @@ describe('uploadFile - Unit', () => {
 
   it('should handle file with various extensions correctly', async () => {
     const tmpPath = path.join(uploadsDir, '_unit_test_ext.jpg');
-    const jpeg = Buffer.from(
-      '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAFBABAAAAAAAAAAAAAAAAAAAACf/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AKgA/9k=',
-      'base64'
-    );
-    fs.writeFileSync(tmpPath, jpeg);
+    fs.writeFileSync(tmpPath, VALID_JPEG);
 
     const req = {
       file: { filename: 'uuid-value.jpg', path: tmpPath, mimetype: 'image/jpeg' },
@@ -370,7 +371,7 @@ describe('uploadFile - Unit', () => {
       data: { url: '/uploads/uuid-value.jpg' },
     });
 
-    try { fs.unlinkSync(tmpPath); } catch {}
+    cleanup(tmpPath);
   });
 
   it('should reject file when content does not match declared MIME type', async () => {
@@ -388,8 +389,195 @@ describe('uploadFile - Unit', () => {
 
     expect(status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith({ code: 400, message: '文件内容与声明类型不匹配' });
-    // File should be cleaned up
     expect(fs.existsSync(tmpPath)).toBe(false);
+  });
+});
+
+// ==================== verifyFileSignature Unit Tests ====================
+
+describe('verifyFileSignature - Unit', () => {
+  const uploadsDir = path.resolve(process.cwd(), 'uploads');
+
+  it('should return false for unknown mimetype (image/bmp)', async () => {
+    const tmpPath = path.join(uploadsDir, '_test_unknown_mime');
+    fs.writeFileSync(tmpPath, Buffer.from([0xFF, 0xD8, 0xFF]));
+
+    const req = {
+      file: { filename: 'test.bin', path: tmpPath, mimetype: 'image/bmp' },
+    } as unknown as Request;
+    const json = jest.fn();
+    const status = jest.fn().mockReturnValue({ json });
+    const res = { status } as unknown as Response;
+
+    await uploadFile(req, res);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith({ code: 400, message: '文件内容与声明类型不匹配' });
+    expect(fs.existsSync(tmpPath)).toBe(false);
+  });
+
+  it('should verify JPEG signature correctly', async () => {
+    const tmpPath = path.join(uploadsDir, '_test_jpeg_sig.jpg');
+    fs.writeFileSync(tmpPath, VALID_JPEG);
+
+    const req = {
+      file: { filename: 'sig-test.jpg', path: tmpPath, mimetype: 'image/jpeg' },
+    } as unknown as Request;
+    const json = jest.fn();
+    const res = { json } as unknown as Response;
+
+    await uploadFile(req, res);
+
+    expect(json).toHaveBeenCalledWith({
+      code: 0,
+      message: '上传成功',
+      data: { url: '/uploads/sig-test.jpg' },
+    });
+
+    cleanup(tmpPath);
+  });
+
+  it('should verify GIF signature correctly', async () => {
+    const tmpPath = path.join(uploadsDir, '_test_gif_sig.gif');
+    fs.writeFileSync(tmpPath, VALID_GIF);
+
+    const req = {
+      file: { filename: 'sig-test.gif', path: tmpPath, mimetype: 'image/gif' },
+    } as unknown as Request;
+    const json = jest.fn();
+    const res = { json } as unknown as Response;
+
+    await uploadFile(req, res);
+
+    expect(json).toHaveBeenCalledWith({
+      code: 0,
+      message: '上传成功',
+      data: { url: '/uploads/sig-test.gif' },
+    });
+
+    cleanup(tmpPath);
+  });
+
+  it('should verify WebP signature correctly', async () => {
+    const tmpPath = path.join(uploadsDir, '_test_webp_sig.webp');
+    fs.writeFileSync(tmpPath, VALID_WEBP);
+
+    const req = {
+      file: { filename: 'sig-test.webp', path: tmpPath, mimetype: 'image/webp' },
+    } as unknown as Request;
+    const json = jest.fn();
+    const res = { json } as unknown as Response;
+
+    await uploadFile(req, res);
+
+    expect(json).toHaveBeenCalledWith({
+      code: 0,
+      message: '上传成功',
+      data: { url: '/uploads/sig-test.webp' },
+    });
+
+    cleanup(tmpPath);
+  });
+
+  it('should reject JPEG with corrupted signature', async () => {
+    const tmpPath = path.join(uploadsDir, '_test_corrupt_jpg.jpg');
+    fs.writeFileSync(tmpPath, 'this is not a real JPEG');
+
+    const req = {
+      file: { filename: 'corrupt.jpg', path: tmpPath, mimetype: 'image/jpeg' },
+    } as unknown as Request;
+    const json = jest.fn();
+    const status = jest.fn().mockReturnValue({ json });
+    const res = { status } as unknown as Response;
+
+    await uploadFile(req, res);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith({ code: 400, message: '文件内容与声明类型不匹配' });
+    expect(fs.existsSync(tmpPath)).toBe(false);
+  });
+
+  it('should reject GIF with corrupted signature', async () => {
+    const tmpPath = path.join(uploadsDir, '_test_corrupt_gif.gif');
+    fs.writeFileSync(tmpPath, 'not a GIF at all');
+
+    const req = {
+      file: { filename: 'corrupt.gif', path: tmpPath, mimetype: 'image/gif' },
+    } as unknown as Request;
+    const json = jest.fn();
+    const status = jest.fn().mockReturnValue({ json });
+    const res = { status } as unknown as Response;
+
+    await uploadFile(req, res);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith({ code: 400, message: '文件内容与声明类型不匹配' });
+    expect(fs.existsSync(tmpPath)).toBe(false);
+  });
+
+  it('should reject WebP with corrupted signature', async () => {
+    const tmpPath = path.join(uploadsDir, '_test_corrupt_webp.webp');
+    fs.writeFileSync(tmpPath, 'not a WebP file');
+
+    const req = {
+      file: { filename: 'corrupt.webp', path: tmpPath, mimetype: 'image/webp' },
+    } as unknown as Request;
+    const json = jest.fn();
+    const status = jest.fn().mockReturnValue({ json });
+    const res = { status } as unknown as Response;
+
+    await uploadFile(req, res);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith({ code: 400, message: '文件内容与声明类型不匹配' });
+    expect(fs.existsSync(tmpPath)).toBe(false);
+  });
+});
+
+// ==================== uploadFile Error Path Edge Cases ====================
+
+describe('uploadFile - Error Paths', () => {
+  const uploadsDir = path.resolve(process.cwd(), 'uploads');
+
+  it('should handle cleanup failure when verifyFileSignature rejects', async () => {
+    const tmpPath = path.join(uploadsDir, '_test_cleanup_fail.png');
+    fs.writeFileSync(tmpPath, 'fake content');
+
+    const req = {
+      file: { filename: 'cleanup-test.png', path: tmpPath, mimetype: 'image/png' },
+    } as unknown as Request;
+    const json = jest.fn();
+    const status = jest.fn().mockReturnValue({ json });
+    const res = { status } as unknown as Response;
+
+    await uploadFile(req, res);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith({ code: 400, message: '文件内容与声明类型不匹配' });
+    expect(fs.existsSync(tmpPath)).toBe(false);
+  });
+
+  it('should return 500 and attempt cleanup when success path throws', async () => {
+    const tmpPath = path.join(uploadsDir, '_test_error_cleanup.png');
+    fs.writeFileSync(tmpPath, VALID_PNG);
+
+    const req = {
+      file: { filename: 'err-test.png', path: tmpPath, mimetype: 'image/png' },
+    } as unknown as Request;
+
+    let callCount = 0;
+    const json = jest.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) throw new Error('response error');
+    });
+    const status = jest.fn().mockReturnValue({ json });
+    const res = { status, json } as unknown as Response;
+
+    await uploadFile(req, res);
+
+    expect(status).toHaveBeenCalledWith(500);
+
+    cleanup(tmpPath);
   });
 });
 
@@ -400,11 +588,7 @@ describe('Upload Controller - Edge Cases', () => {
 
   it('should handle filename with special characters', async () => {
     const testImagePath = path.join(uploadsDir, '_test_upload.png');
-    const png = Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwADBwIAMCbHYQAAAABJRU5ErkJggg==',
-      'base64'
-    );
-    fs.writeFileSync(testImagePath, png);
+    fs.writeFileSync(testImagePath, VALID_PNG);
 
     const response = await agent
       .post('/api/v1/upload')
@@ -414,8 +598,7 @@ describe('Upload Controller - Edge Cases', () => {
     expect(response.status).toBe(200);
     expect(response.body.data.url).toMatch(/^\/uploads\//);
 
-    const uploadedFile = path.join(uploadsDir, response.body.data.url.replace('/uploads/', ''));
-    try { fs.unlinkSync(uploadedFile); } catch {}
+    cleanup(path.join(uploadsDir, response.body.data.url.replace('/uploads/', '')));
   });
 
   it('should handle file with no extension', async () => {
@@ -427,10 +610,9 @@ describe('Upload Controller - Edge Cases', () => {
       .set('Authorization', `Bearer ${sysadminToken()}`)
       .attach('file', noExtPath);
 
-    // No mimetype match → 400
     expect(response.status).toBe(400);
 
-    try { fs.unlinkSync(noExtPath); } catch {}
+    cleanup(noExtPath);
   });
 
   it('should handle BMP file rejection', async () => {
@@ -447,7 +629,7 @@ describe('Upload Controller - Edge Cases', () => {
     expect(response.status).toBe(400);
     expect(response.body.message).toBe('不支持的图片格式');
 
-    try { fs.unlinkSync(bmpPath); } catch {}
+    cleanup(bmpPath);
   });
 
   it('should handle TIFF file rejection', async () => {
@@ -461,7 +643,7 @@ describe('Upload Controller - Edge Cases', () => {
 
     expect(response.status).toBe(400);
 
-    try { fs.unlinkSync(tiffPath); } catch {}
+    cleanup(tiffPath);
   });
 
   it('should reject .exe file', async () => {
@@ -475,7 +657,7 @@ describe('Upload Controller - Edge Cases', () => {
 
     expect(response.status).toBe(400);
 
-    try { fs.unlinkSync(exePath); } catch {}
+    cleanup(exePath);
   });
 
   it('should reject .zip file', async () => {
@@ -489,7 +671,7 @@ describe('Upload Controller - Edge Cases', () => {
 
     expect(response.status).toBe(400);
 
-    try { fs.unlinkSync(zipPath); } catch {}
+    cleanup(zipPath);
   });
 
   it('should reject .html file (XSS prevention)', async () => {
@@ -503,7 +685,7 @@ describe('Upload Controller - Edge Cases', () => {
 
     expect(response.status).toBe(400);
 
-    try { fs.unlinkSync(htmlPath); } catch {}
+    cleanup(htmlPath);
   });
 
   it('should reject expired token', async () => {
@@ -513,41 +695,20 @@ describe('Upload Controller - Edge Cases', () => {
       { expiresIn: '0s' }
     );
 
-    // Small delay to ensure token is expired
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    const testImagePath = path.join(uploadsDir, '_test_upload.png');
-    const png = Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwADBwIAMCbHYQAAAABJRU5ErkJggg==',
-      'base64'
-    );
-    fs.writeFileSync(testImagePath, png);
+    await new Promise(resolve => setTimeout(resolve, 200));
 
     const response = await agent
       .post('/api/v1/upload')
-      .set('Authorization', `Bearer ${expiredToken}`)
-      .attach('file', testImagePath);
+      .set('Authorization', `Bearer ${expiredToken}`);
 
     expect(response.status).toBe(401);
-
-    try { fs.unlinkSync(testImagePath); } catch {}
   });
 
   it('should reject invalid token', async () => {
-    const testImagePath = path.join(uploadsDir, '_test_upload.png');
-    const png = Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwADBwIAMCbHYQAAAABJRU5ErkJggg==',
-      'base64'
-    );
-    fs.writeFileSync(testImagePath, png);
-
     const response = await agent
       .post('/api/v1/upload')
-      .set('Authorization', 'Bearer invalid-token-string')
-      .attach('file', testImagePath);
+      .set('Authorization', 'Bearer invalid-token-string');
 
     expect(response.status).toBe(401);
-
-    try { fs.unlinkSync(testImagePath); } catch {}
   });
 });
