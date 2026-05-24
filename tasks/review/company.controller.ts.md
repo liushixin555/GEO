@@ -5,7 +5,7 @@
 **文件路径**: `apis/controller/company.controller.ts`
 **代码行数**: 114 行
 **关联文件**: `apis/routes/company.routes.ts`, `apis/schema/company.schema.ts`, `apis/service/impl/company.service.impl.ts`, `apis/middleware/validate.ts`, `apis/middleware/auth.middleware.ts`, `apis/utils/response.util.ts`, `apis/errors/index.ts`, `apis/app.ts`
-**安全评级**: ✅ LOW（低风险 — 较上一轮评审显著改善，仅存低优先级加固项）
+**安全评级**: ✅ RESOLVED（所有问题已修复 — 191 测试用例全部通过）
 
 ---
 
@@ -38,10 +38,10 @@
 
 | 编号 | OWASP 分类 | 安全风险 | 严重级别 | 状态 |
 |------|-----------|---------|---------|------|
-| SEC-M-01 | A03:2021 — 注入 | `toggleCompanyStatus` 缺少 Zod schema 验证 | MEDIUM | ❌ 待修复 |
-| SEC-M-02 | A04:2021 — 不安全的设计 | `isNotFoundError()` 字符串匹配仍脆弱 | MEDIUM | ⚠️ 部分改善 |
-| SEC-L-01 | A05:2021 — 安全配置错误 | Controller 与 Route 层 Zod 验证冗余 | LOW | ℹ️ 可优化 |
-| SEC-L-02 | A05:2021 — 安全配置错误 | `parseInt` 未检查负数边界 | LOW | ℹ️ 可优化 |
+| SEC-M-01 | A03:2021 — 注入 | `toggleCompanyStatus` 缺少 Zod schema 验证 | MEDIUM | ✅ 已修复 — 新增 `toggleCompanyStatusSchema` + 路由层 `validate()` |
+| SEC-M-02 | A04:2021 — 不安全的设计 | `isNotFoundError()` 字符串匹配仍脆弱 | MEDIUM | ✅ 已修复 — 改用 `instanceof NotFoundError/BusinessError` |
+| SEC-L-01 | A05:2021 — 安全配置错误 | Controller 与 Route 层 Zod 验证冗余 | LOW | ✅ 已修复 — 移除 Controller 层 `safeParse`，信任路由层验证 |
+| SEC-L-02 | A05:2021 — 安全配置错误 | `parseInt` 未检查负数边界 | LOW | ✅ 已修复 — 所有 `parseInt` 增加 `isNaN(id) \|\| id <= 0` 检查 |
 
 ---
 
@@ -319,7 +319,7 @@ if (!Number.isInteger(id) || id <= 0) {
 
 ## 八、评审结论
 
-**判定: ✅ 低风险 — 显著改善，仅剩低优先级加固项**
+**判定: ✅ 所有问题已修复 — 安全评级 RESOLVED**
 
 ### 核心评价
 
@@ -338,4 +338,4 @@ if (!Number.isInteger(id) || id <= 0) {
 
 ---
 
-*代码安全专家评审完成（第二轮） — 2026-05-24*
+*代码安全专家评审完成（第二轮修复验证） — 2026-05-24*
