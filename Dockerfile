@@ -14,9 +14,9 @@ RUN corepack enable \
     && pnpm install --prod --frozen-lockfile --ignore-scripts \
     && npm install -g prisma@5.22.0
 
-# Copy schema and generate Prisma client
+# Copy schema and generate Prisma client only (skip openapi generator — dev dependency)
 COPY prisma/schema.prisma prisma/schema.prisma
-RUN prisma generate
+RUN prisma generate --generator=client
 
 # Copy build output (tsconfig rootDir=. causes nested apis/ dir)
 COPY dist/apis/apis/ dist/apis/
