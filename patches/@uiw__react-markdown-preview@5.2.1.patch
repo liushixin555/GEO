@@ -1,3 +1,86 @@
+diff --git a/esm/common.js b/esm/common.js
+index 3201d502895df2997b9227a3d94cd4e48e747018..61838a61841682a96d16f86d05d7110747a53776 100644
+--- a/esm/common.js
++++ b/esm/common.js
+@@ -1,5 +1,5 @@
+ import _extends from "@babel/runtime/helpers/extends";
+-import React from 'react';
++import React, { useMemo as _useMemo } from 'react';
+ import rehypePrism from 'rehype-prism-plus/common';
+ import rehypeRewrite from 'rehype-rewrite';
+ import rehypeAttrs from 'rehype-attr';
+@@ -10,15 +10,25 @@ import { retrieveMeta } from "./plugins/retrieveMeta.js";
+ import { rehypeRewriteHandle, defaultRehypePlugins } from "./rehypePlugins.js";
+ import { jsx as _jsx } from "react/jsx-runtime";
+ export * from "./Props.js";
++// Q-01/Q-05 性能修复：useMemo 稳定插件数组 + rehypeRewriteHandle 闭包
+ export default /*#__PURE__*/React.forwardRef((props, ref) => {
+   var _props$disableCopy;
+-  var rehypePlugins = [reservedMeta, rehypeRaw, retrieveMeta, ...defaultRehypePlugins, [rehypeRewrite, {
+-    rewrite: rehypeRewriteHandle((_props$disableCopy = props.disableCopy) != null ? _props$disableCopy : false, props.rehypeRewrite)
+-  }], [rehypeAttrs, {
+-    properties: 'attr'
+-  }], ...(props.rehypePlugins || []), [rehypePrism, {
+-    ignoreMissing: true
+-  }]];
++  // Q-05: 稳定 rewrite 闭包
++  var rewriteFn = _useMemo(function () {
++    return rehypeRewriteHandle((_props$disableCopy = props.disableCopy) != null ? _props$disableCopy : false, props.rehypeRewrite);
++  }, [props.disableCopy, props.rehypeRewrite]);
++  // Q-01: 稳定插件数组
++  // 顺序：reservedMeta → raw → retrieveMeta → defaults → rewrite → attrs → user → prism
++  // 注意(Q-04)：preview.tsx 在 skipHtml=false 时也会 push raw，可能导致双重 rehype-raw
++  var rehypePlugins = _useMemo(function () {
++    return [reservedMeta, rehypeRaw, retrieveMeta, ...defaultRehypePlugins, [rehypeRewrite, {
++      rewrite: rewriteFn
++    }], [rehypeAttrs, {
++      properties: 'attr'
++    }], ...(props.rehypePlugins || []), [rehypePrism, {
++      ignoreMissing: true
++    }]];
++  }, [rewriteFn, props.rehypePlugins]);
+   return /*#__PURE__*/_jsx(MarkdownPreview, _extends({}, props, {
+     rehypePlugins: rehypePlugins,
+     ref: ref
+diff --git a/esm/nohighlight.js b/esm/nohighlight.js
+index 5399bb6cf2400875b0ed371665314d702152d46f..b5910380d74bc90f8cffd295be9d92404a23d132 100644
+--- a/esm/nohighlight.js
++++ b/esm/nohighlight.js
+@@ -1,5 +1,5 @@
+ import _extends from "@babel/runtime/helpers/extends";
+-import React from 'react';
++import React, { useMemo as _useMemo } from 'react';
+ import MarkdownPreview from "./preview.js";
+ import rehypeRewrite from 'rehype-rewrite';
+ import rehypeAttrs from 'rehype-attr';
+@@ -8,13 +8,22 @@ import { retrieveMeta } from "./plugins/retrieveMeta.js";
+ import { rehypeRewriteHandle, defaultRehypePlugins } from "./rehypePlugins.js";
+ import { jsx as _jsx } from "react/jsx-runtime";
+ export * from "./Props.js";
++// Q-01/Q-05 性能修复：useMemo 稳定插件数组 + rehypeRewriteHandle 闭包
+ export default /*#__PURE__*/React.forwardRef((props, ref) => {
+   var _props$disableCopy;
+-  var rehypePlugins = [reservedMeta, retrieveMeta, ...defaultRehypePlugins, [rehypeRewrite, {
+-    rewrite: rehypeRewriteHandle((_props$disableCopy = props.disableCopy) != null ? _props$disableCopy : false, props.rehypeRewrite)
+-  }], [rehypeAttrs, {
+-    properties: 'attr'
+-  }], ...(props.rehypePlugins || [])];
++  // Q-05: 稳定 rewrite 闭包
++  var rewriteFn = _useMemo(function () {
++    return rehypeRewriteHandle((_props$disableCopy = props.disableCopy) != null ? _props$disableCopy : false, props.rehypeRewrite);
++  }, [props.disableCopy, props.rehypeRewrite]);
++  // Q-01: 稳定插件数组
++  // 顺序：reservedMeta → retrieveMeta → defaults → rewrite → attrs → user
++  var rehypePlugins = _useMemo(function () {
++    return [reservedMeta, retrieveMeta, ...defaultRehypePlugins, [rehypeRewrite, {
++      rewrite: rewriteFn
++    }], [rehypeAttrs, {
++      properties: 'attr'
++    }], ...(props.rehypePlugins || [])];
++  }, [rewriteFn, props.rehypePlugins]);
+   return /*#__PURE__*/_jsx(MarkdownPreview, _extends({}, props, {
+     rehypePlugins: rehypePlugins,
+     ref: ref
 diff --git a/esm/rehypePlugins.js b/esm/rehypePlugins.js
 index 2796334dfb1c5fe796d15170c1067a411b3e8a71..bc3dea021709b7059d13af683f7c59a33f8f88b9 100644
 --- a/esm/rehypePlugins.js
@@ -52,6 +135,72 @@ index 2796334dfb1c5fe796d15170c1067a411b3e8a71..bc3dea021709b7059d13af683f7c59a3
  };
  export var defaultRehypePlugins = [slug, headings, rehypeIgnore];
 \ No newline at end of file
+diff --git a/lib/common.js b/lib/common.js
+index b91190866e253f1de99867574b6751bb133ca22c..868e7ecf14739bed4db66618b81ecc776b59e330 100644
+--- a/lib/common.js
++++ b/lib/common.js
+@@ -30,15 +30,23 @@ Object.keys(_Props).forEach(function (key) {
+     }
+   });
+ });
++// Q-01/Q-05 性能修复：useMemo 稳定插件数组 + rehypeRewriteHandle 闭包
+ var _default = exports["default"] = /*#__PURE__*/_react["default"].forwardRef(function (props, ref) {
+   var _props$disableCopy;
+-  var rehypePlugins = [_reservedMeta.reservedMeta, _rehypeRaw["default"], _retrieveMeta.retrieveMeta].concat((0, _toConsumableArray2["default"])(_rehypePlugins.defaultRehypePlugins), [[_rehypeRewrite["default"], {
+-    rewrite: (0, _rehypePlugins.rehypeRewriteHandle)((_props$disableCopy = props.disableCopy) !== null && _props$disableCopy !== void 0 ? _props$disableCopy : false, props.rehypeRewrite)
+-  }], [_rehypeAttr["default"], {
+-    properties: 'attr'
+-  }]], (0, _toConsumableArray2["default"])(props.rehypePlugins || []), [[_common["default"], {
+-    ignoreMissing: true
+-  }]]);
++  // Q-05: 稳定 rewrite 闭包
++  var rewriteFn = _react["default"].useMemo(function () {
++    return (0, _rehypePlugins.rehypeRewriteHandle)((_props$disableCopy = props.disableCopy) !== null && _props$disableCopy !== void 0 ? _props$disableCopy : false, props.rehypeRewrite);
++  }, [props.disableCopy, props.rehypeRewrite]);
++  // Q-01: 稳定插件数组
++  var rehypePlugins = _react["default"].useMemo(function () {
++    return [_reservedMeta.reservedMeta, _rehypeRaw["default"], _retrieveMeta.retrieveMeta].concat((0, _toConsumableArray2["default"])(_rehypePlugins.defaultRehypePlugins), [[_rehypeRewrite["default"], {
++      rewrite: rewriteFn
++    }], [_rehypeAttr["default"], {
++      properties: 'attr'
++    }]], (0, _toConsumableArray2["default"])(props.rehypePlugins || []), [[_common["default"], {
++      ignoreMissing: true
++    }]]);
++  }, [rewriteFn, props.rehypePlugins]);
+   return /*#__PURE__*/(0, _jsxRuntime.jsx)(_preview["default"], (0, _objectSpread2["default"])((0, _objectSpread2["default"])({}, props), {}, {
+     rehypePlugins: rehypePlugins,
+     ref: ref
+diff --git a/lib/nohighlight.js b/lib/nohighlight.js
+index 2900c920802ded27cee370e75522673cbcbaa4dc..d83550948c856c4810f483fce23eb22a807743fc 100644
+--- a/lib/nohighlight.js
++++ b/lib/nohighlight.js
+@@ -28,13 +28,21 @@ Object.keys(_Props).forEach(function (key) {
+     }
+   });
+ });
++// Q-01/Q-05 性能修复：useMemo 稳定插件数组 + rehypeRewriteHandle 闭包
+ var _default = exports["default"] = /*#__PURE__*/_react["default"].forwardRef(function (props, ref) {
+   var _props$disableCopy;
+-  var rehypePlugins = [_reservedMeta.reservedMeta, _retrieveMeta.retrieveMeta].concat((0, _toConsumableArray2["default"])(_rehypePlugins.defaultRehypePlugins), [[_rehypeRewrite["default"], {
+-    rewrite: (0, _rehypePlugins.rehypeRewriteHandle)((_props$disableCopy = props.disableCopy) !== null && _props$disableCopy !== void 0 ? _props$disableCopy : false, props.rehypeRewrite)
+-  }], [_rehypeAttr["default"], {
+-    properties: 'attr'
+-  }]], (0, _toConsumableArray2["default"])(props.rehypePlugins || []));
++  // Q-05: 稳定 rewrite 闭包
++  var rewriteFn = _react["default"].useMemo(function () {
++    return (0, _rehypePlugins.rehypeRewriteHandle)((_props$disableCopy = props.disableCopy) !== null && _props$disableCopy !== void 0 ? _props$disableCopy : false, props.rehypeRewrite);
++  }, [props.disableCopy, props.rehypeRewrite]);
++  // Q-01: 稳定插件数组
++  var rehypePlugins = _react["default"].useMemo(function () {
++    return [_reservedMeta.reservedMeta, _retrieveMeta.retrieveMeta].concat((0, _toConsumableArray2["default"])(_rehypePlugins.defaultRehypePlugins), [[_rehypeRewrite["default"], {
++      rewrite: rewriteFn
++    }], [_rehypeAttr["default"], {
++      properties: 'attr'
++    }]], (0, _toConsumableArray2["default"])(props.rehypePlugins || []));
++  }, [rewriteFn, props.rehypePlugins]);
+   return /*#__PURE__*/(0, _jsxRuntime.jsx)(_preview["default"], (0, _objectSpread2["default"])((0, _objectSpread2["default"])({}, props), {}, {
+     rehypePlugins: rehypePlugins,
+     ref: ref
 diff --git a/lib/rehypePlugins.js b/lib/rehypePlugins.js
 index e853c646805ac8647734f818366e1e7e64db3257..a8367fdb8fbae655bbde0dcd9a32b0e882c147bf 100644
 --- a/lib/rehypePlugins.js
@@ -108,6 +257,86 @@ index e853c646805ac8647734f818366e1e7e64db3257..a8367fdb8fbae655bbde0dcd9a32b0e8
  };
  var defaultRehypePlugins = exports.defaultRehypePlugins = [_rehypeSlug["default"], _rehypeAutolinkHeadings["default"], _rehypeIgnore["default"]];
 \ No newline at end of file
+diff --git a/src/common.tsx b/src/common.tsx
+index ae82392eaecd9a3d2130a7ba9648eeab82c74d39..4f69b321e0b5b25c30a92cce9dbe617a64cb7e3c 100644
+--- a/src/common.tsx
++++ b/src/common.tsx
+@@ -1,4 +1,4 @@
+-import React from 'react';
++import React, { useMemo } from 'react';
+ import rehypePrism from 'rehype-prism-plus/common';
+ import type { PluggableList } from 'unified';
+ import rehypeRewrite from 'rehype-rewrite';
+@@ -12,16 +12,28 @@ import type { MarkdownPreviewProps, MarkdownPreviewRef } from './Props';
+ 
+ export * from './Props';
+ 
++// Q-01/Q-05 性能修复：useMemo 稳定插件数组 + rehypeRewriteHandle 闭包
+ export default React.forwardRef<MarkdownPreviewRef, MarkdownPreviewProps>((props, ref) => {
+-  const rehypePlugins: PluggableList = [
++  // Q-05: 稳定 rewrite 闭包，仅在 disableCopy/rehypeRewrite 变化时重建
++  const rewriteFn = useMemo(
++    () => rehypeRewriteHandle(props.disableCopy ?? false, props.rehypeRewrite),
++    [props.disableCopy, props.rehypeRewrite],
++  );
++
++  // Q-01: 稳定插件数组，仅在依赖变化时重建
++  // 插件顺序（严格，不可随意调整）：
++  //   reservedMeta → raw(HTML解析) → retrieveMeta → defaults(slug/headings/ignore) → rewrite → attrs → user → prism(代码高亮)
++  // 注意：preview.tsx 在 skipHtml=false 时也会 push raw，可能导致双重 rehype-raw 执行（Q-04）
++  const rehypePlugins: PluggableList = useMemo(() => [
+     reservedMeta,
+     rehypeRaw,
+     retrieveMeta,
+     ...defaultRehypePlugins,
+-    [rehypeRewrite, { rewrite: rehypeRewriteHandle(props.disableCopy ?? false, props.rehypeRewrite) }],
++    [rehypeRewrite, { rewrite: rewriteFn }],
+     [rehypeAttrs, { properties: 'attr' }],
+     ...(props.rehypePlugins || []),
+     [rehypePrism, { ignoreMissing: true }],
+-  ];
++  ], [rewriteFn, props.rehypePlugins]);
++
+   return <MarkdownPreview {...props} rehypePlugins={rehypePlugins} ref={ref} />;
+ });
+diff --git a/src/nohighlight.tsx b/src/nohighlight.tsx
+index d3f895c767d4c04442a953e60afa3fc371a1aaca..abe9e6c5431685d2dd2966ebb4f2b00cec03f9aa 100644
+--- a/src/nohighlight.tsx
++++ b/src/nohighlight.tsx
+@@ -1,4 +1,4 @@
+-import React from 'react';
++import React, { useMemo } from 'react';
+ import MarkdownPreview from './preview';
+ import { type PluggableList } from 'unified';
+ import rehypeRewrite from 'rehype-rewrite';
+@@ -10,14 +10,24 @@ import type { MarkdownPreviewProps, MarkdownPreviewRef } from './Props';
+ 
+ export * from './Props';
+ 
++// Q-01/Q-05 性能修复：useMemo 稳定插件数组 + rehypeRewriteHandle 闭包
+ export default React.forwardRef<MarkdownPreviewRef, MarkdownPreviewProps>((props, ref) => {
+-  const rehypePlugins: PluggableList = [
++  // Q-05: 稳定 rewrite 闭包，仅在 disableCopy/rehypeRewrite 变化时重建
++  const rewriteFn = useMemo(
++    () => rehypeRewriteHandle(props.disableCopy ?? false, props.rehypeRewrite),
++    [props.disableCopy, props.rehypeRewrite],
++  );
++
++  // Q-01: 稳定插件数组，仅在依赖变化时重建
++  // 插件顺序（严格）：reservedMeta → retrieveMeta → defaults(slug/headings/ignore) → rewrite → attrs → user
++  const rehypePlugins: PluggableList = useMemo(() => [
+     reservedMeta,
+     retrieveMeta,
+     ...defaultRehypePlugins,
+-    [rehypeRewrite, { rewrite: rehypeRewriteHandle(props.disableCopy ?? false, props.rehypeRewrite) }],
++    [rehypeRewrite, { rewrite: rewriteFn }],
+     [rehypeAttrs, { properties: 'attr' }],
+     ...(props.rehypePlugins || []),
+-  ];
++  ], [rewriteFn, props.rehypePlugins]);
++
+   return <MarkdownPreview {...props} rehypePlugins={rehypePlugins} ref={ref} />;
+ });
 diff --git a/src/rehypePlugins.tsx b/src/rehypePlugins.tsx
 index 680ce6aa2702fee9bcd0ab6b24b62756d4f59f87..fb7cbe2f2d563a365022f214bf14e6e659ee13bb 100644
 --- a/src/rehypePlugins.tsx
