@@ -3,6 +3,7 @@
  */
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
+import { NotFoundError, BusinessError } from '../../apis/errors';
 
 // Set env vars BEFORE imports
 process.env.JWT_SECRET = 'test-secret';
@@ -321,30 +322,22 @@ describe('Company Controller', () => {
       expect(response.body.message).toBe('获取公司详情失败');
     });
 
-    it('should return 404 for negative ID', async () => {
-      mockPrisma({
-        company: { findUnique: jest.fn().mockResolvedValue(null) },
-      });
-
+    it('should return 400 for negative ID', async () => {
       const response = await agent
         .get('/api/v1/companies/-1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(404);
-      expect(response.body.message).toBe('公司不存在');
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的公司ID');
     });
 
     it('should return 400 for ID = 0', async () => {
-      mockPrisma({
-        company: { findUnique: jest.fn().mockResolvedValue(null) },
-      });
-
       const response = await agent
         .get('/api/v1/companies/0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(404);
-      expect(response.body.message).toBe('公司不存在');
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的公司ID');
     });
 
     it('should return CompanyDetail with operators only (no viewers)', async () => {
@@ -1037,7 +1030,7 @@ describe('Company Controller', () => {
 
     it('should return 404 when company not found', async () => {
       mockPrisma({
-        $transaction: jest.fn().mockRejectedValue(new Error('公司不存在')),
+        $transaction: jest.fn().mockRejectedValue(new NotFoundError('公司')),
       });
 
       const response = await agent
@@ -1266,7 +1259,7 @@ describe('Company Controller', () => {
         .send({ status: 'true' });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('status参数无效');
+      expect(response.body.message).toContain('status参数无效');
     });
 
     it('should return 400 when status is missing', async () => {
@@ -1276,7 +1269,7 @@ describe('Company Controller', () => {
         .send({});
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('status参数无效');
+      expect(response.body.message).toContain('status参数无效');
     });
 
     it('should return 400 when status is a number', async () => {
@@ -1286,7 +1279,7 @@ describe('Company Controller', () => {
         .send({ status: 1 });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('status参数无效');
+      expect(response.body.message).toContain('status参数无效');
     });
 
     it('should enable company (status: true) successfully', async () => {
@@ -1391,7 +1384,7 @@ describe('Company Controller', () => {
         .send({ status: null });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('status参数无效');
+      expect(response.body.message).toContain('status参数无效');
     });
 
     it('should return 400 when status is an object', async () => {
@@ -1401,7 +1394,7 @@ describe('Company Controller', () => {
         .send({ status: { value: true } });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('status参数无效');
+      expect(response.body.message).toContain('status参数无效');
     });
 
     it('should return 400 when status is an array', async () => {
@@ -1411,7 +1404,7 @@ describe('Company Controller', () => {
         .send({ status: [true] });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('status参数无效');
+      expect(response.body.message).toContain('status参数无效');
     });
 
     it('should return 403 for view role', async () => {
@@ -1581,11 +1574,21 @@ describe('Company Controller', () => {
       expect(response.body.message).toContain('参数验证失败');
     });
 
-    it('should validate ID before status in toggleCompanyStatus', async () => {
+    it('should validate status via middleware before controller ID check', async () => {
       const response = await agent
         .put('/api/v1/companies/abc/status')
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({}); // missing status
+        .send({}); // missing status — validate middleware rejects first
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('status参数无效');
+    });
+
+    it('should validate ID when status is valid in toggleCompanyStatus', async () => {
+      const response = await agent
+        .put('/api/v1/companies/abc/status')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: true }); // valid status, invalid ID
 
       expect(response.status).toBe(400);
       expect(response.body.message).toBe('无效的公司ID');
@@ -1652,17 +1655,13 @@ describe('Company Controller', () => {
       expect(response.status).toBe(401);
     });
 
-    it('should handle update with negative ID (parsed as negative int)', async () => {
-      mockPrisma({
-        company: { findUnique: jest.fn().mockResolvedValue(null) },
-      });
-
+    it('should return 400 for negative ID (parsed as negative int)', async () => {
       const response = await agent
         .get('/api/v1/companies/-1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(404);
-      expect(response.body.message).toBe('公司不存在');
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的公司ID');
     });
 
     it('should handle toggle status with boolean edge case - false', async () => {
@@ -1729,303 +1728,41 @@ describe('Company Controller', () => {
     });
   });
 
-  // ========== Controller 单元测试（覆盖内部 safeParse 分支）==========
-  describe('Controller Unit Tests (safeParse branches)', () => {
-    let mockRes: Partial<Response>;
-    let jsonMock: jest.Mock;
-    let statusMock: jest.Mock;
-
-    beforeEach(() => {
-      jsonMock = jest.fn().mockReturnThis();
-      statusMock = jest.fn().mockReturnValue({ json: jsonMock });
-      mockRes = {
-        json: jsonMock,
-        status: statusMock,
-      } as unknown as Partial<Response>;
+  // ========== Controller 异常体系测试 ==========
+  describe('Exception Hierarchy Tests', () => {
+    it('should identify NotFoundError via instanceof', () => {
+      const err = new NotFoundError('公司');
+      expect(err instanceof NotFoundError).toBe(true);
+      expect(err.message).toBe('公司不存在');
     });
 
-    describe('createCompany - safeParse validation branch', () => {
-      it('should return 400 when body fails safeParse (missing short_name)', async () => {
-        const req = {
-          body: {
-            full_name: 'FN',
-            contact_person: 'A',
-            contact_phone: '123',
-            operator_ids: [1],
-          },
-        } as unknown as Request;
-
-        const { createCompany } = require('../../apis/controller/company.controller');
-        await createCompany(req, mockRes as unknown as Response);
-
-        expect(statusMock).toHaveBeenCalledWith(400);
-        const callArgs = jsonMock.mock.calls[0][0];
-        expect(callArgs.message).toContain('不能为空');
-      });
-
-      it('should return 400 when all required fields are empty', async () => {
-        const req = { body: {} } as unknown as Request;
-
-        const { createCompany } = require('../../apis/controller/company.controller');
-        await createCompany(req, mockRes as unknown as Response);
-
-        expect(statusMock).toHaveBeenCalledWith(400);
-        const callArgs = jsonMock.mock.calls[0][0];
-        expect(callArgs.message).toContain('不能为空');
-      });
-
-      it('should return 400 when short_name exceeds max length', async () => {
-        const req = {
-          body: {
-            short_name: 'A'.repeat(51),
-            full_name: 'FN',
-            contact_person: 'A',
-            contact_phone: '123',
-            operator_ids: [1],
-          },
-        } as unknown as Request;
-
-        const { createCompany } = require('../../apis/controller/company.controller');
-        await createCompany(req, mockRes as unknown as Response);
-
-        expect(statusMock).toHaveBeenCalledWith(400);
-        const callArgs = jsonMock.mock.calls[0][0];
-        expect(callArgs.message).toContain('50');
-      });
-
-      it('should return 400 when full_name exceeds max length', async () => {
-        const req = {
-          body: {
-            short_name: 'SN',
-            full_name: 'B'.repeat(201),
-            contact_person: 'A',
-            contact_phone: '123',
-            operator_ids: [1],
-          },
-        } as unknown as Request;
-
-        const { createCompany } = require('../../apis/controller/company.controller');
-        await createCompany(req, mockRes as unknown as Response);
-
-        expect(statusMock).toHaveBeenCalledWith(400);
-        const callArgs = jsonMock.mock.calls[0][0];
-        expect(callArgs.message).toContain('200');
-      });
-
-      it('should return 400 when contact_phone has invalid format', async () => {
-        const req = {
-          body: {
-            short_name: 'SN',
-            full_name: 'FN',
-            contact_person: 'A',
-            contact_phone: 'abc!@#',
-            operator_ids: [1],
-          },
-        } as unknown as Request;
-
-        const { createCompany } = require('../../apis/controller/company.controller');
-        await createCompany(req, mockRes as unknown as Response);
-
-        expect(statusMock).toHaveBeenCalledWith(400);
-        const callArgs = jsonMock.mock.calls[0][0];
-        expect(callArgs.message).toContain('电话格式无效');
-      });
-
-      it('should return 400 when operator_ids contains non-integer', async () => {
-        const req = {
-          body: {
-            short_name: 'SN',
-            full_name: 'FN',
-            contact_person: 'A',
-            contact_phone: '123',
-            operator_ids: [1.5],
-          },
-        } as unknown as Request;
-
-        const { createCompany } = require('../../apis/controller/company.controller');
-        await createCompany(req, mockRes as unknown as Response);
-
-        expect(statusMock).toHaveBeenCalledWith(400);
-        const callArgs = jsonMock.mock.calls[0][0];
-        expect(callArgs.message).toContain('整数');
-      });
-
-      it('should return 400 when operator_ids contains negative number', async () => {
-        const req = {
-          body: {
-            short_name: 'SN',
-            full_name: 'FN',
-            contact_person: 'A',
-            contact_phone: '123',
-            operator_ids: [-1],
-          },
-        } as unknown as Request;
-
-        const { createCompany } = require('../../apis/controller/company.controller');
-        await createCompany(req, mockRes as unknown as Response);
-
-        expect(statusMock).toHaveBeenCalledWith(400);
-        const callArgs = jsonMock.mock.calls[0][0];
-        expect(callArgs.message).toContain('正数');
-      });
-
-      it('should return 400 when operator_ids contains zero', async () => {
-        const req = {
-          body: {
-            short_name: 'SN',
-            full_name: 'FN',
-            contact_person: 'A',
-            contact_phone: '123',
-            operator_ids: [0],
-          },
-        } as unknown as Request;
-
-        const { createCompany } = require('../../apis/controller/company.controller');
-        await createCompany(req, mockRes as unknown as Response);
-
-        expect(statusMock).toHaveBeenCalledWith(400);
-        const callArgs = jsonMock.mock.calls[0][0];
-        expect(callArgs.message).toContain('正数');
-      });
-
-      it('should return 400 when contact_person exceeds max length', async () => {
-        const req = {
-          body: {
-            short_name: 'SN',
-            full_name: 'FN',
-            contact_person: 'C'.repeat(101),
-            contact_phone: '123',
-            operator_ids: [1],
-          },
-        } as unknown as Request;
-
-        const { createCompany } = require('../../apis/controller/company.controller');
-        await createCompany(req, mockRes as unknown as Response);
-
-        expect(statusMock).toHaveBeenCalledWith(400);
-        const callArgs = jsonMock.mock.calls[0][0];
-        expect(callArgs.message).toContain('100');
-      });
+    it('should identify BusinessError via instanceof', () => {
+      const err = new BusinessError('用户不存在: 1');
+      expect(err instanceof BusinessError).toBe(true);
+      expect(err.message).toBe('用户不存在: 1');
     });
 
-    describe('updateCompany - safeParse validation branch', () => {
-      it('should return 400 when body fails safeParse (missing all fields)', async () => {
-        const req = {
-          params: { id: '1' },
-          body: {},
-        } as unknown as Request;
-
-        const { updateCompany } = require('../../apis/controller/company.controller');
-        await updateCompany(req, mockRes as unknown as Response);
-
-        expect(statusMock).toHaveBeenCalledWith(400);
-        const callArgs = jsonMock.mock.calls[0][0];
-        expect(callArgs.message).toContain('不能为空');
-      });
-
-      it('should return 400 when short_name exceeds max length', async () => {
-        const req = {
-          params: { id: '1' },
-          body: {
-            short_name: 'X'.repeat(51),
-            full_name: 'FN',
-            contact_person: 'A',
-            contact_phone: '123',
-            operator_ids: [1],
-          },
-        } as unknown as Request;
-
-        const { updateCompany } = require('../../apis/controller/company.controller');
-        await updateCompany(req, mockRes as unknown as Response);
-
-        expect(statusMock).toHaveBeenCalledWith(400);
-        const callArgs = jsonMock.mock.calls[0][0];
-        expect(callArgs.message).toContain('50');
-      });
-
-      it('should return 400 when address exceeds max length', async () => {
-        const req = {
-          params: { id: '1' },
-          body: {
-            short_name: 'SN',
-            full_name: 'FN',
-            address: 'D'.repeat(501),
-            contact_person: 'A',
-            contact_phone: '123',
-            operator_ids: [1],
-          },
-        } as unknown as Request;
-
-        const { updateCompany } = require('../../apis/controller/company.controller');
-        await updateCompany(req, mockRes as unknown as Response);
-
-        expect(statusMock).toHaveBeenCalledWith(400);
-        const callArgs = jsonMock.mock.calls[0][0];
-        expect(callArgs.message).toContain('500');
-      });
-
-      it('should return 400 when viewer_ids exceeds max count', async () => {
-        const req = {
-          params: { id: '1' },
-          body: {
-            short_name: 'SN',
-            full_name: 'FN',
-            contact_person: 'A',
-            contact_phone: '123',
-            operator_ids: [1],
-            viewer_ids: Array.from({ length: 101 }, (_, i) => i + 1),
-          },
-        } as unknown as Request;
-
-        const { updateCompany } = require('../../apis/controller/company.controller');
-        await updateCompany(req, mockRes as unknown as Response);
-
-        expect(statusMock).toHaveBeenCalledWith(400);
-        const callArgs = jsonMock.mock.calls[0][0];
-        expect(callArgs.message).toContain('查看者不能超过100个');
-      });
-
-      it('should return 400 when multiple validation errors exist', async () => {
-        const req = {
-          params: { id: '1' },
-          body: {
-            short_name: '',
-            full_name: '',
-            contact_person: '',
-            contact_phone: '',
-            operator_ids: [],
-          },
-        } as unknown as Request;
-
-        const { updateCompany } = require('../../apis/controller/company.controller');
-        await updateCompany(req, mockRes as unknown as Response);
-
-        expect(statusMock).toHaveBeenCalledWith(400);
-        const callArgs = jsonMock.mock.calls[0][0];
-        expect(callArgs.message).toContain('不能为空');
-      });
+    it('should distinguish NotFoundError from plain Error', () => {
+      const plainErr = new Error('公司不存在');
+      const notFoundErr = new NotFoundError('公司');
+      expect(plainErr instanceof NotFoundError).toBe(false);
+      expect(notFoundErr instanceof NotFoundError).toBe(true);
     });
 
-    describe('isNotFoundError helper', () => {
-      it('should correctly identify not-found error', () => {
-        const err = new Error('公司不存在');
-        expect(err instanceof Error).toBe(true);
-        expect(err.message).toBe('公司不存在');
-      });
+    it('should distinguish BusinessError from plain Error', () => {
+      const plainErr = new Error('业务错误');
+      const bizErr = new BusinessError('业务错误');
+      expect(plainErr instanceof BusinessError).toBe(false);
+      expect(bizErr instanceof BusinessError).toBe(true);
+    });
 
-      it('should not match other error messages', () => {
-        const err = new Error('数据库连接失败');
-        expect(err.message).not.toBe('公司不存在');
-      });
-
-      it('should handle non-Error values', () => {
-        const str: unknown = '公司不存在';
-        const nul: unknown = null;
-        const undef: unknown = undefined;
-        expect(str instanceof Error).toBe(false);
-        expect(nul instanceof Error).toBe(false);
-        expect(undef instanceof Error).toBe(false);
-      });
+    it('should handle non-Error values', () => {
+      const str: unknown = '公司不存在';
+      const nul: unknown = null;
+      const undef: unknown = undefined;
+      expect(str instanceof NotFoundError).toBe(false);
+      expect(nul instanceof BusinessError).toBe(false);
+      expect(undef instanceof NotFoundError).toBe(false);
     });
   });
 

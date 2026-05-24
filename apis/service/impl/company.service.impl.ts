@@ -2,6 +2,7 @@ import { getPrisma } from '../../utils';
 import { Company, CreateCompanyRequest, UpdateCompanyRequest, CompanyDetail } from '../../entity';
 import { mapCompany } from '../../map';
 import { ICompanyService } from '../company.service';
+import { NotFoundError, BusinessError } from '../../errors';
 
 export class CompanyServiceImpl implements ICompanyService {
   async list(): Promise<Company[]> {
@@ -17,7 +18,7 @@ export class CompanyServiceImpl implements ICompanyService {
     const prisma = getPrisma();
     const company = await prisma.company.findUnique({ where: { id } });
     if (!company || company.deletedAt) {
-      throw new Error('公司不存在');
+      throw new NotFoundError('公司');
     }
 
     const users = await prisma.user.findMany({
@@ -76,7 +77,7 @@ export class CompanyServiceImpl implements ICompanyService {
     return prisma.$transaction(async (tx) => {
       const existing = await tx.company.findUnique({ where: { id } });
       if (!existing || existing.deletedAt) {
-        throw new Error('公司不存在');
+        throw new NotFoundError('公司');
       }
 
       const company = await tx.company.update({
@@ -120,7 +121,7 @@ export class CompanyServiceImpl implements ICompanyService {
   async toggleStatus(id: number, status: boolean): Promise<Company> {
     const prisma = getPrisma();
     const existing = await prisma.company.findUnique({ where: { id } });
-    if (!existing || existing.deletedAt) throw new Error('公司不存在');
+    if (!existing || existing.deletedAt) throw new NotFoundError('公司');
 
     const company = await prisma.company.update({
       where: { id },
@@ -149,19 +150,19 @@ export class CompanyServiceImpl implements ICompanyService {
     const foundIds = new Set(users.map(u => u.id));
     const missingIds = targetIds.filter(id => !foundIds.has(id));
     if (missingIds.length > 0) {
-      throw new Error(`用户不存在: ${missingIds.join(', ')}`);
+      throw new BusinessError(`用户不存在: ${missingIds.join(', ')}`);
     }
 
     // 检查无 sysadmin 被关联
     const sysadminIds = users.filter(u => u.role === 'sysadmin').map(u => u.id);
     if (sysadminIds.length > 0) {
-      throw new Error('系统管理员不可被关联到公司');
+      throw new BusinessError('系统管理员不可被关联到公司');
     }
 
     // 检查用户状态
     const inactiveIds = users.filter(u => !u.status).map(u => u.id);
     if (inactiveIds.length > 0) {
-      throw new Error(`用户已禁用: ${inactiveIds.join(', ')}`);
+      throw new BusinessError(`用户已禁用: ${inactiveIds.join(', ')}`);
     }
   }
 }

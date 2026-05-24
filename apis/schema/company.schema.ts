@@ -57,3 +57,7 @@ export const updateCompanySchema = z.object({
   operator_ids: operatorIds,
   viewer_ids: viewerIds,
 });
+
+export const toggleCompanyStatusSchema = z.object({
+  status: z.boolean({ error: 'status参数无效' }),
+});

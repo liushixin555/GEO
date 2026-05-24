@@ -56,6 +56,7 @@
 | 2026-05-24 | `progress_tasks/2026-05-24-llm-model-controller-tdd.md` | llm-model.controller TDD 补全——+33 用例（190 总），覆盖 Stmts 98.44% Branch 95.91% Lines 100% |
 | 2026-05-24 | `tasks/review/preview.tsx.ui.md` | @uiw/react-markdown-preview preview.tsx UI 专家评审——REJECT 2.1分，P0×6（CSS冲突/零antd集成/skipHtml反转/零a11y/拼写错误合并/URL消毒）+ P1×4 |
 | 2026-05-24 | `tasks/review/preview.tsx.committer.md` | @uiw/react-markdown-preview preview.tsx Committer 审核专家评审——有条件通过，DOMPurify 单点防护需加固为纵深防御 |
+| 2026-05-24 | `progress_tasks/2026-05-24-company-controller-review-fix.md` | company.controller.ts 评审修复——异常体系对齐+toggleStatus schema+移除死代码+日志+边界检查 |
 
 ## 已知问题
 - `apis/service/impl/auth.service.impl.ts` Prisma 类型错误（待 schema 同步）
