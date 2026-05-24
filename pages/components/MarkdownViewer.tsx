@@ -217,21 +217,34 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
   );
 
   // P2-a11y + SEC-03: 为复制按钮注入 ARIA 属性 + 超长代码块跳过复制按钮
+  // B-1: 锚点链接 aria-label + 代码块 role="region" aria-label
   const rehypeRewrite = useCallback(
     (node: any, index: number | undefined, parent: any) => {
-      if (node.type === 'element' && node.tagName === 'div') {
-        const props = node.properties;
+      if (node.type !== 'element') return;
+      const props = node.properties;
+
+      // 复制按钮 — 注入 ARIA 属性
+      if (node.tagName === 'div') {
         if (props?.className === 'copied' || (Array.isArray(props?.className) && props.className.includes('copied'))) {
-          // a11y: 注入 ARIA 属性
           props.role = 'button';
           props.tabindex = '0';
           props['aria-label'] = '复制代码';
-          // SEC-03: 超长代码块移除 data-code，防止 DOM 膨胀
           if (typeof props['data-code'] === 'string' && props['data-code'].length > MAX_CODE_BLOCK_LENGTH) {
             delete props['data-code'];
             props['aria-label'] = '代码过长，无法复制';
           }
         }
+      }
+
+      // B-1: 标题锚点链接 — 注入 aria-label
+      if (node.tagName === 'a' && Array.isArray(props?.className) && props.className.includes('anchor')) {
+        props['aria-label'] = '链接到此标题';
+      }
+
+      // B-1: 代码块 — 注入 role="region" + aria-label
+      if (node.tagName === 'pre' && parent?.type === 'element') {
+        if (!props.role) props.role = 'region';
+        if (!props['aria-label']) props['aria-label'] = '代码块';
       }
     },
     [],

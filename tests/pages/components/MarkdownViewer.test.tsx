@@ -585,6 +585,78 @@ describe('MarkdownViewer — rehypeRewrite callback', () => {
     rewrite(node, 0, null);
     expect(node.properties.role).toBeUndefined();
   });
+
+  // B-1: 锚点链接 aria-label
+  it('injects aria-label to anchor links', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+
+    const node = {
+      type: 'element',
+      tagName: 'a',
+      properties: { className: ['anchor'], href: '#heading' } as Record<string, any>,
+    };
+    rewrite(node, 0, null);
+    expect(node.properties['aria-label']).toBe('链接到此标题');
+  });
+
+  it('skips anchor aria-label for non-anchor links', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+
+    const node = {
+      type: 'element',
+      tagName: 'a',
+      properties: { className: ['external'], href: 'https://example.com' } as Record<string, any>,
+    };
+    rewrite(node, 0, null);
+    expect(node.properties['aria-label']).toBeUndefined();
+  });
+
+  // B-1: 代码块 role="region" + aria-label
+  it('injects role=region and aria-label to pre elements', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+
+    const node = {
+      type: 'element',
+      tagName: 'pre',
+      properties: {} as Record<string, any>,
+    };
+    const parent = { type: 'element', tagName: 'div' };
+    rewrite(node, 0, parent);
+    expect(node.properties.role).toBe('region');
+    expect(node.properties['aria-label']).toBe('代码块');
+  });
+
+  it('preserves existing role and aria-label on pre elements', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+
+    const node = {
+      type: 'element',
+      tagName: 'pre',
+      properties: { role: 'presentation', 'aria-label': 'Custom label' } as Record<string, any>,
+    };
+    const parent = { type: 'element', tagName: 'div' };
+    rewrite(node, 0, parent);
+    expect(node.properties.role).toBe('presentation');
+    expect(node.properties['aria-label']).toBe('Custom label');
+  });
+
+  it('skips pre element without element parent', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+
+    const node = {
+      type: 'element',
+      tagName: 'pre',
+      properties: {} as Record<string, any>,
+    };
+    rewrite(node, 0, null);
+    expect(node.properties.role).toBeUndefined();
+    expect(node.properties['aria-label']).toBeUndefined();
+  });
 });
 
 describe('MarkdownViewer — displayName', () => {

@@ -5,6 +5,10 @@
 > **评审日期**: 2026-05-24
 > **评审结论**: ⚠️ **不合规** — 存在 5 项严重问题、3 项中等问题、2 项建议改进
 
+> **修复状态**: ✅ **已修复** — 修复日期 2026-05-24
+> **修复文件**: `pages/styles/markdown-viewer.css`（CSS 覆盖）、`pages/components/MarkdownViewer.tsx`（rehypeRewrite ARIA）
+> **修复详情**: S-1~S-5、M-1~M-3 已在 `markdown-viewer.css` 中预先覆盖；本次新增 M-3 表头 2px ink 边框 + B-1 锚点/代码块 ARIA 属性
+
 ---
 
 ## 一、文件概览
