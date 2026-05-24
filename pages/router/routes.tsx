@@ -61,7 +61,7 @@ const PageRouter: React.FC = () => {
     { path: '/article', roles: ['sysadmin', 'admin'], element: <ArticlePage /> },
     { path: '/article/:id', roles: ['sysadmin', 'admin'], element: <ArticleDetail /> },
     { path: '/publish', roles: ['sysadmin', 'admin', 'view'], element: <PublishingSchedulePage /> },
-    { path: '/tools', roles: ['sysadmin', 'admin'], element: <PlaceholderPage title="常用工具" /> },
+
     { path: '/project', roles: ['sysadmin', 'admin'], element: <ProjectPage /> },
     { path: '/users', roles: ['sysadmin'], element: <UserPage /> },
     { path: '/skills', roles: ['sysadmin', 'admin'], element: <SkillPage /> },
