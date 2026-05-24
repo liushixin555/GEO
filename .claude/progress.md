@@ -102,3 +102,4 @@
 | 2026-05-24 | tasks/tdd/knowledge.entity.test.md | knowledge.entity TDD 补全——248用例全通过（+96新增：JSON序列化/Object.freeze/集合操作/类型收窄/Scope约束/连续更新/高级边界/结构相等/解构/Object迭代） |
 | 2026-05-24 | tasks/review/Editor.common.tsx.ui.md | @uiw/react-md-editor Editor.common.tsx UI 专家评审——⚠️有条件通过 4.9/10（GitHub风格与Carbon全面冲突，封装层覆盖~95%，P1×2无障碍缺失，P2×6工具栏/响应式/focus） |
 | 2026-05-24 | tasks/review/Editor.common.tsx.committer.md | @uiw/react-md-editor Editor.common.tsx Committer 审核专家评审——✅通过 7.7/10（common变体选型正确，上游工厂缺陷封装层隔离，REQ-1 DOM清理+REQ-2服务端sanitize） |
+| 2026-05-24 | progress_tasks/2026-05-24-editor-common-review.md | Editor.common.tsx 评审修复——DOM清理(SEC-MD-04)+help命令移除(SEC-MD-05)+ARIA无障碍(A-01/A-02)+CSS覆盖(CSS-01/02/03/R-01/A-03) |

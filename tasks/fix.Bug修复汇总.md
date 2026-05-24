@@ -578,3 +578,44 @@ components: {
 - `pages/article/components/ArticleImageManager.tsx` — 圆角/颜色/尺寸 + 键盘支持
 - `pages/article/components/PlatformSelectModal.tsx` — autoFocus + 响应式宽度
 - `pages/styles/global.css` — 新增覆盖层 CSS 变量
+
+---
+
+## fix020. MarkdownEditor 封装层评审问题修复
+
+### 问题
+根据 `tasks/review/` 目录下 5 份评审报告（质量评审 7.7/10、安全评审 B-、架构评审 7.7/10、UI 评审 4.9/10、Committer 审核 ✅通过），`@uiw/react-md-editor` 的 `Editor.common.tsx` 为第三方库文件无法直接修改，所有修复在项目封装层 `MarkdownEditor.tsx` + `markdown-editor.css` 中实施。
+
+### 修复
+
+**SEC-MD-04（MEDIUM）事件监听器泄漏**：
+- 添加 `useEffect` cleanup，组件卸载时克隆替换 `.w-md-editor-text` DOM 节点以释放事件监听器
+
+**SEC-MD-05（MEDIUM）help 命令 Tabnabbing**：
+- 通过 `commandsFilter` 移除 `help` 命令，消除 `window.open` 缺少 `noopener` 的风险
+
+**A-01（P1）工具栏无 ARIA 标注**：
+- `useEffect` 在 mount 后为工具栏容器注入 `role="toolbar"` + `aria-label`
+- 为所有工具栏按钮按功能匹配中文 `aria-label`
+
+**A-02（P1）textarea 缺少 label**：
+- 通过 `textareaProps` 注入 `aria-label="Markdown 编辑器"`
+
+**CSS-01（P2）工具栏按钮焦点样式缺失**：
+- 添加 `button:focus-visible` 规则，2px IBM Blue outline（Carbon 签名式焦点处理）
+
+**CSS-02（P3）拖拽条无视觉样式**：
+- 添加 `.w-md-editor-drag` 背景色、边框、hover 高亮、中央拖拽指示条
+
+**CSS-03（P3）全屏模式样式不完整**：
+- 补充全屏模式背景色和工具栏样式覆盖
+
+**R-01（P2）工具栏移动端溢出**：
+- 工具栏添加 `overflow-x: auto` + `-webkit-overflow-scrolling: touch`
+
+**A-03（P2）textarea 焦点样式**：
+- 添加 `.w-md-editor-text-input:focus` 2px IBM Blue outline
+
+### 涉及文件
+- `pages/components/MarkdownEditor.tsx` — DOM 清理 + commandsFilter + ARIA 标注
+- `pages/styles/markdown-editor.css` — focus-visible + 拖拽条 + 全屏 + overflow

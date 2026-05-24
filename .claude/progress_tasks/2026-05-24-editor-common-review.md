@@ -1,18 +1,29 @@
-# 2026-05-24 Editor.common.tsx 软件质量评审
+# 2026-05-24 Editor.common.tsx 评审修复
 
 ## 变更内容
-- 对 `@uiw/react-md-editor@4.1.0` 的 `Editor.common.tsx` 进行软件质量专家评审
-- 评审报告写入 `tasks/review/Editor.common.tsx.md`
+- 根据 `tasks/review/Editor.common.tsx.*` 5份评审报告修复项目封装层
 
-## 评审结果
-- **综合评分：7.7/10**（✅ 通过，附建议）
-- 本文件（7行）质量极高：工厂+依赖注入模式，职责单一，零副作用
-- 上游工厂 `Editor.factory.tsx` 存在隐患：
-  - C-1：事件监听器泄漏（textareaWarp mouseover/mouseleave 未 removeEventListener）
-  - C-2：useMemo 滥用执行副作用（10处），React 18 Strict Mode 下可能双重 dispatch
-  - M-1：废弃属性 `visiableDragbar`（拼写错误）未标记 @deprecated
-  - M-2：useImperativeHandle 暴露完整内部 state + dispatch，违反最小暴露原则
-  - M-3：滚动同步 scale 可为 0/Infinity 导致 NaN
+## 修复清单
 
-## 产出文件
-- `tasks/review/Editor.common.tsx.md`（评审报告）
+### 安全修复
+- **SEC-MD-04 (MEDIUM)**: useEffect cleanup 卸载时克隆替换 .w-md-editor-text DOM 节点释放事件监听器
+- **SEC-MD-05 (MEDIUM)**: commandsFilter 移除 help 命令，消除 window.open Tabnabbing 风险
+
+### 无障碍修复
+- **A-01 (P1)**: 工具栏注入 role="toolbar" + aria-label，按钮匹配中文 aria-label
+- **A-02 (P1)**: textareaProps 注入 aria-label="Markdown 编辑器"
+- **A-03 (P2)**: CSS 添加 focus-visible 焦点样式（Carbon 签名式 2px IBM Blue outline）
+
+### CSS 样式修复
+- **CSS-01 (P2)**: 工具栏按钮 focus-visible
+- **CSS-02 (P3)**: 拖拽条视觉样式 + hover 效果 + 中央指示条
+- **CSS-03 (P3)**: 全屏模式背景色和工具栏样式
+- **R-01 (P2)**: 工具栏 overflow-x: auto 移动端支持
+
+## 涉及文件
+- `pages/components/MarkdownEditor.tsx` — DOM清理 + commandsFilter + ARIA
+- `pages/styles/markdown-editor.css` — focus-visible + 拖拽条 + 全屏 + overflow
+
+## 验证
+- TypeScript 类型检查通过
+- 后端测试 7 套件 424 用例全部通过
