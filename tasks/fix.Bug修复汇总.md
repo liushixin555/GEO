@@ -248,3 +248,22 @@ components: {
 - `pages/App.tsx` — 删除死路由、添加 ErrorBoundary、移除冗余 import
 - `pages/components/ErrorBoundary.tsx`（新建）
 - `tests/pages/App.test.tsx`（新建）
+
+---
+
+## fix012. CORS 拒绝导致登录接口返回500
+
+### 问题
+`/api/auth/login` 从 Docker 部署地址 `http://159.75.55.224:12380` 访问时返回 `{"code":500,"message":"服务器内部错误"}`。
+
+两个问题叠加：
+1. `.env` 未配置 `CORS_ORIGINS`，默认只有 `http://localhost:5173`，Docker 前端域名被拦截
+2. CORS 中间件拒绝时 `callback(new Error('Not allowed by CORS'))` 抛出异常，被 Express 全局错误处理器捕获后返回 500
+
+### 修复
+1. `.env` 新增 `CORS_ORIGINS=http://localhost:5173,http://localhost:12380,http://159.75.55.224:12380`
+2. `apis/app.ts`：CORS origin callback 从 `callback(new Error(...))` 改为 `callback(null, false)`，静默拒绝而非抛异常
+
+### 涉及文件
+- `.env` — 添加 CORS_ORIGINS
+- `apis/app.ts` — CORS 中间件错误处理
