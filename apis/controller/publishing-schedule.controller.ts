@@ -33,8 +33,8 @@ export async function listPublishingSchedule(req: Request, res: Response): Promi
 
     paginate(res, list, total, page, pageSize);
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : '获取发布计划列表失败';
-    fail(res, 500, message || '获取发布计划列表失败');
+    console.error('[PublishingScheduleController] listPublishingSchedule failed:', err);
+    fail(res, 500, '获取发布计划列表失败');
   }
 }
 
@@ -78,9 +78,11 @@ export async function updatePublishingSchedule(req: Request, res: Response): Pro
       } else if (err.message === '无权操作此文章') {
         fail(res, 403, err.message);
       } else {
+        console.error('[PublishingScheduleController] updatePublishingSchedule failed:', err);
         fail(res, 500, '更新发布计划失败');
       }
     } else {
+      console.error('[PublishingScheduleController] updatePublishingSchedule failed:', err);
       fail(res, 500, '更新发布计划失败');
     }
   }

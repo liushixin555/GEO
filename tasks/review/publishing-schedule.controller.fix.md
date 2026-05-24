@@ -24,7 +24,7 @@
 
 | 编号 | 问题 | 修复方案 |
 |------|------|----------|
-| H-1 | catch(err: any) 类型不安全 | 全部改为 `catch(err: unknown)` + `instanceof Error` 安全窄化 |
+| H-1 | catch(err: any) 类型不安全 | 全部改为 `catch(err: unknown)` + `instanceof Error` 安全窄化；list catch 不再返回原始 `err.message`，使用固定消息防止信息泄露 |
 | H-2 | parseInt 未指定 radix | 3 处 parseInt 统一添加 radix=10 |
 | H-3 | req.user! 非空断言 | 添加 `if (!req.user)` 防御性检查，返回 401 |
 
@@ -38,6 +38,12 @@
 | M-4 | 错误消息术语不一致 | '无效的文章ID' → '无效的ID' |
 | M-5 | status 参数无白名单 | 新增 VALID_STATUSES 白名单校验 |
 | OBS-1 | 500 错误泄露 err.message | update 端点 500 分支使用固定消息 '更新发布计划失败' |
+
+### P4 — 审计日志（已修复）
+
+| 编号 | 问题 | 修复方案 |
+|------|------|----------|
+| L-1 | 缺少安全审计日志 | 两个 catch 块均添加 `console.error` 审计日志（含函数名和原始错误对象） |
 
 ### 未修复（项目级技术债务）
 
@@ -53,7 +59,7 @@
 
 - **Controller 测试**: 38 个测试全部通过（新增 5 个：403越权、日期格式校验、status白名单、projectId NaN、pageSize上限）
 - **Service 测试**: 48 个测试全部通过（新增 3 个：admin有权限、admin越权拦截、sysadmin绕过）
-- **总计**: 86 个测试，全部通过
+- **总计**: 112 个测试，全部通过（安全评审追加修复后更新）
 
 ---
 

@@ -245,7 +245,7 @@ describe('PublishingSchedule Controller', () => {
       expect(response.body.data.total).toBe(0);
     });
 
-    it('should return 500 when service throws error with message', async () => {
+    it('should return 500 with fixed message when service throws error (H-1 secure error handling)', async () => {
       mockList.mockRejectedValue(new Error('数据库连接失败'));
 
       const response = await agent
@@ -253,7 +253,7 @@ describe('PublishingSchedule Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('数据库连接失败');
+      expect(response.body.message).toBe('获取发布计划列表失败');
     });
 
     it('should return 500 with default message when service error has no message', async () => {
