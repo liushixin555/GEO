@@ -105,3 +105,4 @@
 | 2026-05-24 | progress_tasks/2026-05-24-editor-common-review.md | Editor.common.tsx 评审修复——DOM清理(SEC-MD-04)+help命令移除(SEC-MD-05)+ARIA无障碍(A-01/A-02)+CSS覆盖(CSS-01/02/03/R-01/A-03) |
 | 2026-05-24 | tasks/review/Editor.factory.tsx.quality.md | @uiw/react-md-editor Editor.factory.tsx 软件质量专家评审——❌需改进 3.3/10（P0×2：10处useMemo副作用+事件监听器泄漏，P1×4：滚动除零/状态不可变性/initScroll锁定/冗余dispatch） |
 | 2026-05-24 | tasks/review/Editor.factory.tsx.md | @uiw/react-md-editor Editor.factory.tsx 架构专家评审——❌CRITICAL 3.1/10（6+职责巨型组件/13字段单一Reducer/派生状态反模式/Context过度暴露/滚动耦合不可复用） |
+| 2026-05-24 | tasks/review/Editor.factory.tsx.security.md | @uiw/react-md-editor Editor.factory.tsx 代码安全专家评审——C+/5.8分（H×3：索引签名原型污染+ref泄露完整状态+useMemo副作用；M×4：突变/泄漏/dispatch暴露/状态泄露；L×3） |
