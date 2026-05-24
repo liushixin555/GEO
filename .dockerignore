@@ -1,6 +1,7 @@
 node_modules
 pages
 apis
+!apis/swagger-spec.json
 tests
 .git
 .claude
