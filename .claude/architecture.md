@@ -29,6 +29,7 @@ tests/apis/  + tests/pages/  测试文件
 - `apis/controller/article.controller.ts` — 文章 CRUD + 审核 + 正文编辑 + 版本历史（sysadmin + admin）
 - `apis/controller/upload.controller.ts` — 图片上传（multer，sysadmin + admin）
 - `apis/controller/knowledge.controller.ts` — 知识库 CRUD（关键词/画像/图片，各5个端点，sysadmin + admin）
+- `apis/controller/llm-model.controller.ts` — LLM 模型 CRUD（仅 sysadmin），使用 `createLlmModelService()` 工厂模式 + `AppError` 统一异常处理 + SSRF 防护
 - `apis/service/impl/` — 业务实现（Prisma）
 - `apis/service/index.ts` — 服务工厂函数（createUserService 等），Controller 通过工厂获取服务实例
 - `apis/middleware/validate.ts` — Zod 参数验证中间件（支持 body/query/params 三种来源）

@@ -117,3 +117,4 @@
 | 2026-05-24 | progress_tasks/2026-05-24-editor-nohighlight-migration.md | Editor.nohighlight.tsx 评审修复——标准版→nohighlight变体迁移（-90KB bundle/消除rehype-raw+Prism.js/零API变更） |
 | 2026-05-24 | tasks/review/Editor.tsx.md | @uiw/react-md-editor Editor.tsx 软件质量专家评审——⚠️CONDITIONAL APPROVE 7.4/10（rehype-raw XSS攻击面+Prism.js 90KB膨胀+与nohighlight同构重复） |
 | 2026-05-24 | tasks/tdd/auth.middleware.test.md | auth.middleware.ts TDD 补全——62用例全通过，100%覆盖率（+25新增：黑名单交互/Bearer前缀边界/Unicode payload/角色矩阵/null user） |
+| 2026-05-24 | tasks/review/llm-model.controller.md | llm-model.controller.ts 架构评审修复——H-3 NotFoundError替代字符串匹配 + C-1 工厂模式createLlmModelService + M-4 Pick类型统一，493测试100%覆盖 |
