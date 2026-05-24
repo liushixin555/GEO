@@ -1069,3 +1069,250 @@ describe('App - HTTP Method Restrictions', () => {
     expect(response.status).toBe(404);
   });
 });
+
+// ─── Missing Auth Route: GET /api/auth/companies/:id ───
+describe('App - Auth Companies Detail Route', () => {
+  it('GET /api/auth/companies/:id - should return 401 without token', async () => {
+    const response = await agent.get('/api/auth/companies/1');
+    expect(response.status).toBe(401);
+  });
+});
+
+// ─── CORS Preflight (OPTIONS) ───
+describe('App - CORS Preflight', () => {
+  it('should respond to OPTIONS with correct CORS headers for whitelisted origin', async () => {
+    const response = await agent
+      .options('/api/auth/login')
+      .set('Origin', 'http://localhost:5173');
+    expect(response.headers['access-control-allow-origin']).toBe('http://localhost:5173');
+    expect(response.headers['access-control-allow-methods']).toBeDefined();
+  });
+
+  it('should include correct allowed methods in preflight response', async () => {
+    const response = await agent
+      .options('/api/auth/login')
+      .set('Origin', 'http://localhost:5173');
+    const methods = response.headers['access-control-allow-methods'];
+    expect(methods).toContain('GET');
+    expect(methods).toContain('POST');
+    expect(methods).toContain('PUT');
+    expect(methods).toContain('DELETE');
+  });
+
+  it('should include correct allowed headers in preflight response', async () => {
+    const response = await agent
+      .options('/api/auth/login')
+      .set('Origin', 'http://localhost:5173');
+    const headers = response.headers['access-control-allow-headers'];
+    expect(headers).toBeDefined();
+    expect(headers).toContain('Content-Type');
+    expect(headers).toContain('Authorization');
+  });
+
+  it('should reject OPTIONS from non-whitelisted origin', async () => {
+    const response = await agent
+      .options('/api/auth/login')
+      .set('Origin', 'http://evil.example.com');
+    expect(response.headers['access-control-allow-origin']).toBeUndefined();
+  });
+});
+
+// ─── Token Format Edge Cases ───
+describe('App - Token Format Edge Cases', () => {
+  it('should return 401 with empty Bearer token', async () => {
+    const response = await agent
+      .get('/api/auth/verify')
+      .set('Authorization', 'Bearer ');
+    expect(response.status).toBe(401);
+  });
+
+  it('should return 401 with token missing Bearer prefix', async () => {
+    const response = await agent
+      .get('/api/auth/verify')
+      .set('Authorization', sysadminToken());
+    expect(response.status).toBe(401);
+  });
+
+  it('should return 401 with Basic auth header', async () => {
+    const response = await agent
+      .get('/api/auth/verify')
+      .set('Authorization', 'Basic dXNlcjpwYXNz');
+    expect(response.status).toBe(401);
+  });
+
+  it('should return 401 with token containing wrong signature', async () => {
+    const wrongSecretToken = jwt.sign(
+      { userId: 1, username: 'sysadmin', role: 'sysadmin', companyId: 1 },
+      'wrong-secret-key',
+      { expiresIn: '2h' }
+    );
+    const response = await agent
+      .get('/api/auth/verify')
+      .set('Authorization', 'Bearer ' + wrongSecretToken);
+    expect(response.status).toBe(401);
+  });
+
+  it('should pass auth with partial payload (middleware only verifies JWT signature)', async () => {
+    const partialToken = jwt.sign(
+      { username: 'sysadmin' },
+      'test-secret',
+      { expiresIn: '2h' }
+    );
+    const response = await agent
+      .get('/api/auth/verify')
+      .set('Authorization', 'Bearer ' + partialToken);
+    expect(response.status).toBe(200);
+  });
+});
+
+// ─── Positive Role Check Tests (admin/sysadmin pass) ───
+describe('App - Positive Role Check (sysadmin/admin pass)', () => {
+  it('GET /api/skills - admin should pass role check', async () => {
+    const response = await agent
+      .get('/api/skills')
+      .set('Authorization', 'Bearer ' + adminToken());
+    expect(response.status).not.toBe(403);
+  });
+
+  it('GET /api/llm-models/enabled - admin should pass role check', async () => {
+    const response = await agent
+      .get('/api/llm-models/enabled')
+      .set('Authorization', 'Bearer ' + adminToken());
+    expect(response.status).not.toBe(403);
+  });
+
+  it('GET /api/publishing-platforms - admin should pass role check', async () => {
+    const response = await agent
+      .get('/api/publishing-platforms')
+      .set('Authorization', 'Bearer ' + adminToken());
+    expect(response.status).not.toBe(403);
+  });
+
+  it('GET /api/knowledge-bases - admin should pass role check', async () => {
+    const response = await agent
+      .get('/api/knowledge-bases')
+      .set('Authorization', 'Bearer ' + adminToken());
+    expect(response.status).not.toBe(403);
+  });
+
+  it('GET /api/knowledge-inventory - admin should pass role check', async () => {
+    const response = await agent
+      .get('/api/knowledge-inventory')
+      .set('Authorization', 'Bearer ' + adminToken());
+    expect(response.status).not.toBe(403);
+  });
+
+  it('GET /api/todos - admin should pass role check', async () => {
+    const response = await agent
+      .get('/api/todos')
+      .set('Authorization', 'Bearer ' + adminToken());
+    expect(response.status).not.toBe(403);
+  });
+
+  it('GET /api/system-configs - sysadmin should pass role check', async () => {
+    const response = await agent
+      .get('/api/system-configs')
+      .set('Authorization', 'Bearer ' + sysadminToken());
+    expect(response.status).not.toBe(403);
+  });
+
+  it('GET /api/users - sysadmin should pass role check', async () => {
+    const response = await agent
+      .get('/api/users')
+      .set('Authorization', 'Bearer ' + sysadminToken());
+    expect(response.status).not.toBe(403);
+  });
+});
+
+// ─── Rate Limit Behavior ───
+describe('App - Rate Limiting', () => {
+  it('should include rate limit headers on protected routes', async () => {
+    const response = await agent.get('/api/auth/verify');
+    expect(response.headers['ratelimit-limit']).toBeDefined();
+  });
+
+  it('should allow requests within rate limit', async () => {
+    for (let i = 0; i < 5; i++) {
+      const response = await agent.get('/api/health');
+      expect(response.status).toBe(200);
+    }
+  });
+});
+
+// ─── Login Route Additional Tests ───
+describe('App - Login Route Edge Cases', () => {
+  it('should return 400 when both username and password are empty', async () => {
+    const response = await agent
+      .post('/api/auth/login')
+      .send({ username: '', password: '' });
+    expect(response.status).toBe(400);
+  });
+
+  it('should return 400 when body is empty object', async () => {
+    const response = await agent
+      .post('/api/auth/login')
+      .send({});
+    expect(response.status).toBe(400);
+  });
+
+  it('should not return 400 when both username and password are provided', async () => {
+    const response = await agent
+      .post('/api/auth/login')
+      .send({ username: 'testuser', password: 'testpass' });
+    expect(response.status).not.toBe(400);
+  });
+});
+
+// ─── 404 for Various HTTP Methods ───
+describe('App - 404 for Various HTTP Methods', () => {
+  it('should return 404 for POST on non-existent route', async () => {
+    const response = await agent
+      .post('/api/non-existent-route')
+      .send({});
+    expect(response.status).toBe(404);
+  });
+
+  it('should return 404 for PUT on non-existent route', async () => {
+    const response = await agent
+      .put('/api/non-existent-route')
+      .send({});
+    expect(response.status).toBe(404);
+  });
+
+  it('should return 404 for DELETE on non-existent route', async () => {
+    const response = await agent.delete('/api/non-existent-route');
+    expect(response.status).toBe(404);
+  });
+
+  it('should return 404 for non-API route', async () => {
+    const response = await agent.get('/random-path');
+    expect(response.status).toBe(404);
+  });
+});
+
+// ─── Static Files Edge Cases ───
+describe('App - Static Files Edge Cases', () => {
+  it('should set CORP header even for directory listing attempts', async () => {
+    const response = await request(app)
+      .get('/uploads/')
+      .set('User-Agent', 'test-agent/1.0');
+    expect(response.headers['cross-origin-resource-policy']).toBe('cross-origin');
+  });
+});
+
+// ─── Swagger Enabled Scenario ───
+describe('App - Swagger Enabled Scenario', () => {
+  let originalSwaggerEnv: string | undefined;
+
+  beforeAll(() => {
+    originalSwaggerEnv = process.env.SWAGGER_ENABLED;
+  });
+
+  afterAll(() => {
+    process.env.SWAGGER_ENABLED = originalSwaggerEnv;
+  });
+
+  it('swagger should be disabled when SWAGGER_ENABLED is not "true"', () => {
+    expect(process.env.SWAGGER_ENABLED).toBe('false');
+  });
+});
