@@ -858,6 +858,52 @@ describe('KnowledgeBase Controller', () => {
       expect(res.body.message).toBe('只能修改自己创建的知识库');
     });
 
+    test('admin 无权关联该公司返回 403', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        createdBy: 2,
+        companyId: 2,
+        projectId: null,
+      });
+      const mockUserFindFirst = jest.fn().mockResolvedValue({ id: 2, companyId: 2 });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: jest.fn() },
+        user: { findFirst: mockUserFindFirst },
+      });
+
+      const res = await agent
+        .put('/api/v1/knowledge-bases/1')
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`)
+        .send({ company_id: 999 });
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toBe('无权关联该公司');
+    });
+
+    test('admin 无权关联该项目返回 403', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        createdBy: 2,
+        companyId: null,
+        projectId: null,
+      });
+      const mockOperatorFindFirst = jest.fn().mockResolvedValue(null);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: jest.fn() },
+        projectOperator: { findFirst: mockOperatorFindFirst },
+      });
+
+      const res = await agent
+        .put('/api/v1/knowledge-bases/1')
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`)
+        .send({ project_id: 999 });
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toBe('无权关联该项目');
+    });
+
     test('更新时数据库异常返回 500', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockRejectedValue(new Error('DB Error'));
@@ -1176,6 +1222,21 @@ describe('KnowledgeBase Controller', () => {
       expect(res.status).toBe(200);
       // controller truncates search to 100 chars, service builds where clause from it
       expect(mockFindMany).toHaveBeenCalled();
+    });
+
+    test('list: service 抛出 validateInteger 错误返回 400', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockRejectedValue(new Error('company_id 必须为正整数'));
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: jest.fn() },
+      });
+
+      const res = await agent
+        .get('/api/v1/knowledge-bases')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('company_id 必须为正整数');
     });
 
     test('list: service 抛出 "知识库不存在" 返回 500（已移除不合理 404 分支）', async () => {
@@ -1938,6 +1999,47 @@ describe('KnowledgeBase Controller', () => {
       expect(res.status).toHaveBeenCalledWith(201);
       const createData = mockCreate.mock.calls[0][0].data;
       expect(createData.description).toBeNull();
+    });
+
+    // --- 无权关联分支（覆盖 line 96: create, line 149: update）---
+    test('createKnowledgeBase: admin 无权关联该公司返回 403（绕过 Zod）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockUserFindFirst = jest.fn().mockResolvedValue({ id: 2, companyId: 2 });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: jest.fn() },
+        user: { findFirst: mockUserFindFirst },
+      });
+
+      const req = {
+        body: { name: '公司知识库', scope: 'company', company_id: 999 },
+        user: { userId: 2, username: 'admin', role: 'admin' },
+      } as any;
+      const res = mockRes();
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '无权关联该公司' })
+      );
+    });
+
+    test('createKnowledgeBase: admin 无权关联该项目返回 403（绕过 Zod）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockOperatorFindFirst = jest.fn().mockResolvedValue(null);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: jest.fn() },
+        projectOperator: { findFirst: mockOperatorFindFirst },
+      });
+
+      const req = {
+        body: { name: '项目知识库', scope: 'project', project_id: 999 },
+        user: { userId: 2, username: 'admin', role: 'admin' },
+      } as any;
+      const res = mockRes();
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '无权关联该项目' })
+      );
     });
   });
 });
