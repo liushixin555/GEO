@@ -121,3 +121,4 @@
 | 2026-05-24 | tasks/review/Editor.tsx.security.md | @uiw/react-md-editor Editor.tsx 代码安全专家评审——⚠️APPROVE WITH CONCERNS 5.5/10（入口层安全，工厂层传播H×3+M×5+L×2，nohighlight变体隔离XSS） |
 | 2026-05-24 | tasks/tdd/middleware.index.test.md | middleware/index.ts TDD 补全——63用例100%覆盖率（barrel重导出+validate全量+articleActionLimiter+修复anti-crawl flaky+rate-limit同步） |
 | 2026-05-24 | tasks/review/Editor.tsx.ui.md | @uiw/react-md-editor Editor.tsx UI 专家评审——⚠️APPROVE WITH CONCERNS 6.5/10（原生UI与Carbon系统性偏差，项目封装层高质量适配，遗留移动端触控+!important+交互反馈） |
+| 2026-05-24 | tasks/tdd/rate-limit.middleware.test.md | rate-limit.middleware.ts TDD 补全——61用例100%覆盖率（+26新增：skip回调7种method+path+articleActionLimiter全量+NODE_ENV分支+双限流器独立性） |
