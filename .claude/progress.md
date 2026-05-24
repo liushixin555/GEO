@@ -108,3 +108,4 @@
 | 2026-05-24 | tasks/review/Editor.factory.tsx.security.md | @uiw/react-md-editor Editor.factory.tsx 代码安全专家评审——C+/5.8分（H×3：索引签名原型污染+ref泄露完整状态+useMemo副作用；M×4：突变/泄漏/dispatch暴露/状态泄露；L×3） |
 | 2026-05-24 | tasks/review/Editor.factory.tsx.ui.md | @uiw/react-md-editor Editor.factory.tsx UI 专家评审——REJECT 2.4/10（C×6 useMemo副作用/零ARIA/事件泄漏/巨型组件/ref泄露/滚动同步缺陷；H×5 正则渲染/弹窗粗暴/初始化性能/闭包重建/onHeightChange循环；M×4） |
 | 2026-05-24 | tasks/review/Editor.factory.tsx.committer.md | @uiw/react-md-editor Editor.factory.tsx Committer 审核专家评审——⚠️有条件通过 3.8/10（REQ-1~6强制要求：ref安全隔离/DOM清理/服务端sanitize/ErrorBoundary/CSS覆盖验证/ARIA补充） |
+| 2026-05-24 | tasks/review/Editor.nohighlight.tsx.quality.md | @uiw/react-md-editor Editor.nohighlight.tsx 软件质量专家评审——✅通过 8.5/10（工厂+DI优秀组装模块，传导发现useMemo副作用/事件泄漏/滚动除零） |
