@@ -7,7 +7,7 @@
     "dev:api": "ts-node --project tsconfig.api.json apis/server.ts",
     "dev:page": "vite --config vite.config.ts",
     "dev": "concurrently \"npm run dev:api\" \"npm run dev:page\"",
-    "build:api": "tsc -p tsconfig.api.json",
+    "build:api": "npm run swagger:gen && tsc -p tsconfig.api.json",
     "build:page": "vite build --config vite.config.ts",
     "build": "npm run build:api && npm run build:page",
     "test": "jest --config jest.config.ts",
