@@ -100,7 +100,7 @@ describe('Auth Controller', () => {
         .post(LOGIN)
         .send({ password: 'pass123' });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('用户名不能为空');
+      expect(response.body.message).toBe('参数验证失败: 用户名不能为空');
     });
 
     it('should return 400 when password is missing', async () => {
@@ -108,7 +108,7 @@ describe('Auth Controller', () => {
         .post(LOGIN)
         .send({ username: 'admin' });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('密码不能为空');
+      expect(response.body.message).toBe('参数验证失败: 密码不能为空');
     });
 
     it('should return 400 when both are missing', async () => {
@@ -116,7 +116,7 @@ describe('Auth Controller', () => {
         .post(LOGIN)
         .send({});
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('用户名不能为空');
+      expect(response.body.message).toBe('参数验证失败: 用户名不能为空; 密码不能为空');
     });
 
     it('should return 400 when username is empty string', async () => {
@@ -143,7 +143,7 @@ describe('Auth Controller', () => {
         .post(LOGIN)
         .send({ username: 123, password: 'pass123' });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('用户名不能为空');
+      expect(response.body.message).toBe('参数验证失败: 用户名不能为空');
     });
 
     it('should return 400 when password is not a string', async () => {
@@ -151,7 +151,7 @@ describe('Auth Controller', () => {
         .post(LOGIN)
         .send({ username: 'admin', password: 123 });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('密码不能为空');
+      expect(response.body.message).toBe('参数验证失败: 密码不能为空');
     });
 
     it('should return 400 when username is an array', async () => {
@@ -159,7 +159,7 @@ describe('Auth Controller', () => {
         .post(LOGIN)
         .send({ username: ['admin'], password: 'pass123' });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('用户名不能为空');
+      expect(response.body.message).toBe('参数验证失败: 用户名不能为空');
     });
 
     it('should return 400 when username exceeds max length', async () => {
@@ -167,7 +167,7 @@ describe('Auth Controller', () => {
         .post(LOGIN)
         .send({ username: 'a'.repeat(101), password: 'pass123' });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('用户名不能超过100个字符');
+      expect(response.body.message).toBe('参数验证失败: 用户名不能超过100个字符');
     });
 
     it('should return 400 when password exceeds max length', async () => {
@@ -175,7 +175,7 @@ describe('Auth Controller', () => {
         .post(LOGIN)
         .send({ username: 'admin', password: 'p'.repeat(201) });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('密码不能超过200个字符');
+      expect(response.body.message).toBe('参数验证失败: 密码不能超过200个字符');
     });
 
     it('should return 401 when user not found', async () => {
@@ -561,7 +561,7 @@ describe('Auth Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ project_id: 1 });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('公司ID不能为空');
+      expect(response.body.message).toBe('参数验证失败: company_id 必须为正整数');
     });
 
     it('should return 400 when body is empty', async () => {
@@ -570,7 +570,7 @@ describe('Auth Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({});
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('公司ID不能为空');
+      expect(response.body.message).toBe('参数验证失败: company_id 必须为正整数');
     });
 
     it('should return 400 when company_id is negative', async () => {
@@ -579,7 +579,7 @@ describe('Auth Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ company_id: -1 });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('公司ID必须为正整数');
+      expect(response.body.message).toBe('参数验证失败: company_id 必须为正数');
     });
 
     it('should return 400 when company_id is zero', async () => {
@@ -588,7 +588,7 @@ describe('Auth Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ company_id: 0 });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('公司ID必须为正整数');
+      expect(response.body.message).toBe('参数验证失败: company_id 必须为正数');
     });
 
     it('should return 400 when project_id is negative', async () => {
@@ -597,7 +597,7 @@ describe('Auth Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ company_id: 1, project_id: -5 });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('project_id 必须为正整数或 null');
+      expect(response.body.message).toBe('参数验证失败: project_id 必须为正数');
     });
 
     it('should return 403 when company_id is not accessible', async () => {
@@ -1148,7 +1148,7 @@ describe('Auth Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ company_id: 1, project_id: 0 });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('project_id 必须为正整数或 null');
+      expect(response.body.message).toBe('参数验证失败: project_id 必须为正数');
     });
 
     it('saveSelection should return 400 when company_id is a non-numeric string', async () => {
@@ -1157,7 +1157,7 @@ describe('Auth Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ company_id: 'abc' });
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('公司ID不能为空');
+      expect(response.body.message).toBe('参数验证失败: company_id 必须为正整数');
     });
 
     it('getContext should return empty projects when company_id is invalid string', async () => {
@@ -1184,6 +1184,208 @@ describe('Auth Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
       // parseInt('1.5') = 1, which is > 0, so it's valid
       expect(response.status).toBe(200);
+    });
+
+    it('login should return 400 when username is whitespace only (trim→empty→controller)', async () => {
+      const response = await agent
+        .post(LOGIN)
+        .send({ username: '   ', password: 'pass123' });
+      expect(response.status).toBe(400);
+      // Zod trim() runs AFTER .min(1), so '   ' passes Zod (length 3),
+      // but controller receives '' after trim → !username triggers
+      expect(response.body.message).toBe('用户名和密码不能为空');
+    });
+
+    it('login should handle non-Error thrown from service', async () => {
+      const prisma = mockPrisma();
+      prisma.user.findUnique.mockRejectedValue('unexpected string error');
+
+      const response = await agent
+        .post(LOGIN)
+        .send({ username: 'admin', password: 'pass123' });
+      expect(response.status).toBe(401);
+      expect(response.body.message).toBe('登录失败');
+    });
+
+    it('saveSelection should accept project_id as explicit null', async () => {
+      const prisma = mockPrisma();
+      prisma.company.findMany.mockResolvedValue([{ id: 1, shortName: 'Company A' }]);
+
+      const response = await agent
+        .put(SELECTION)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ company_id: 1, project_id: null });
+      expect(response.status).toBe(200);
+      expect(response.body.code).toBe(0);
+      expect(response.body.message).toBe('保存成功');
+    });
+
+    it('saveSelection should return 500 when service throws non-Error', async () => {
+      const prisma = mockPrisma();
+      prisma.company.findMany.mockResolvedValue([{ id: 1, shortName: 'Company A' }]);
+      prisma.user.update.mockRejectedValue('string error');
+
+      const response = await agent
+        .put(SELECTION)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ company_id: 1 });
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('保存失败，请稍后重试');
+    });
+
+    it('getAccessibleProjects should return 400 when company_id is zero', async () => {
+      const response = await agent
+        .get(PROJECTS)
+        .query({ company_id: '0' })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('company_id 必须为正整数');
+    });
+
+    it('getContext should return companies without projects when company_id is zero', async () => {
+      const prisma = mockPrisma();
+      prisma.company.findMany.mockResolvedValue([
+        { id: 1, shortName: 'Company A' },
+      ]);
+
+      const response = await agent
+        .get(CONTEXT)
+        .query({ company_id: '0' })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(200);
+      // Number('0') = 0, which is falsy, so projects = []
+      expect(response.body.data.projects).toHaveLength(0);
+    });
+
+    it('getCompanyDetail should return 403 when view role queries different company', async () => {
+      const response = await agent
+        .get(`${COMPANIES}/999`)
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('无权查看其他公司的用户');
+    });
+
+    it('getCompanyDetail should return 500 when service throws non-Error', async () => {
+      const prisma = mockPrisma();
+      prisma.user.findMany.mockRejectedValue('string error');
+
+      const response = await agent
+        .get(`${COMPANIES}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取公司用户失败，请稍后重试');
+    });
+
+    it('getAccessibleCompanies should return 500 when service throws non-Error', async () => {
+      const prisma = mockPrisma();
+      prisma.company.findMany.mockRejectedValue('string error');
+
+      const response = await agent
+        .get(COMPANIES)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取公司列表失败，请稍后重试');
+    });
+
+    it('getAccessibleProjects should return 500 when service throws non-Error', async () => {
+      const prisma = mockPrisma();
+      prisma.project.findMany.mockRejectedValue('string error');
+
+      const response = await agent
+        .get(PROJECTS)
+        .query({ company_id: '1' })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取项目列表失败，请稍后重试');
+    });
+
+    it('getContext should return 500 when service throws non-Error', async () => {
+      const prisma = mockPrisma();
+      prisma.company.findMany.mockRejectedValue('string error');
+
+      const response = await agent
+        .get(CONTEXT)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取上下文失败，请稍后重试');
+    });
+
+    it('getCompanyDetail should return users with only operators and viewers', async () => {
+      const prisma = mockPrisma();
+      prisma.user.findMany.mockResolvedValue([
+        { id: 2, role: 'admin', cnName: '管理员A', username: 'admin_a' },
+        { id: 3, role: 'admin', cnName: '管理员B', username: 'admin_b' },
+        { id: 4, role: 'view', cnName: '查看者A', username: 'viewer_a' },
+      ]);
+
+      const response = await agent
+        .get(`${COMPANIES}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(200);
+      expect(response.body.data.operators).toHaveLength(2);
+      expect(response.body.data.viewers).toHaveLength(1);
+    });
+  });
+
+  // ============================================================
+  // Direct unit tests for !user defensive branches
+  // These branches are unreachable via HTTP (authMiddleware guarantees req.user)
+  // so we test by calling controller functions directly
+  // ============================================================
+  describe('Defensive !user checks (direct unit tests)', () => {
+    function mockRes() {
+      const res: any = {
+        statusCode: 200,
+        body: {},
+        status(code: number) { res.statusCode = code; return res; },
+        json(data: any) { res.body = data; return res; },
+      };
+      return res;
+    }
+
+    it('saveSelection should return 401 when req.user is undefined', async () => {
+      const { saveSelection } = require('../../apis/controller/auth.controller');
+      const req = { body: { company_id: 1 }, user: undefined as any };
+      const res = mockRes();
+      await saveSelection(req, res);
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe('未登录');
+    });
+
+    it('getAccessibleCompanies should return 401 when req.user is undefined', async () => {
+      const { getAccessibleCompanies } = require('../../apis/controller/auth.controller');
+      const req = { user: undefined as any };
+      const res = mockRes();
+      await getAccessibleCompanies(req, res);
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe('未登录');
+    });
+
+    it('getAccessibleProjects should return 401 when req.user is undefined', async () => {
+      const { getAccessibleProjects } = require('../../apis/controller/auth.controller');
+      const req = { query: { company_id: '1' }, user: undefined as any };
+      const res = mockRes();
+      await getAccessibleProjects(req, res);
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe('未登录');
+    });
+
+    it('getContext should return 401 when req.user is undefined', async () => {
+      const { getContext } = require('../../apis/controller/auth.controller');
+      const req = { query: {}, user: undefined as any };
+      const res = mockRes();
+      await getContext(req, res);
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe('未登录');
+    });
+
+    it('getCompanyDetail should return 401 when req.user is undefined', async () => {
+      const { getCompanyDetail } = require('../../apis/controller/auth.controller');
+      const req = { params: { id: '1' }, user: undefined as any };
+      const res = mockRes();
+      await getCompanyDetail(req, res);
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe('未登录');
     });
   });
 });
