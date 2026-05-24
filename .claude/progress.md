@@ -672,6 +672,15 @@
   - 提供本项目调用安全检查清单（8项）和上游调用防护建议
   - 评审报告 tasks/review/Props.tsx.security.md
 
+## 本次变更（2026-05-24 @uiw/react-markdown-preview Props.tsx 软件UI专家评审）
+- [x] **软件UI专家评审 @uiw/react-markdown-preview/src/Props.tsx（30 行）**
+  - 综合评分 4.1/10（组件API基本可用，设计系统对齐/可访问性/开发者体验存在多项缺陷）
+  - 12 项 UI 发现：P1×3（data-color-mode 缺失 auto 模式、无可访问性 a11y Props、warpperElement 拼写错误弃用属性仍在 API）、P2×4（wrapperElement 类型过于复杂、disableCopy 否定式命名、source 属性语义模糊、缺少加载/错误/空状态 Props）、P3×4（pluginsFilter 缺少功能级开关、缺少子区域样式控制、Ref 暴露全部 Props、事件处理不完整）
+  - DESIGN.md 合规性映射分析：需 50+ 条 CSS 覆盖规则才能对齐 Carbon Design System
+  - antd 集成兼容性分析：ConfigProvider 主题/Design Token/i18n/Form 集成均不兼容
+  - 提供本项目的集成建议（封装组件 + CSS 覆盖清单）
+  - 评审报告 tasks/review/Props.tsx.ui.md
+
 ## 本次变更（2026-05-24 apis/app.ts 软件架构专家重构后复审）
 - [x] **软件架构专家评审 apis/app.ts（148 行，路由模块化后复审）**
   - 综合评级 B+（从第一轮 B- 提升，核心架构瓶颈已消除）
