@@ -735,3 +735,14 @@
   - 补充安装缺失依赖 `@uiw/react-markdown-preview`（构建失败根因）
   - Vite 构建通过、App 测试 7/7 通过
   - 恢复 `.gitignore` 中 `.env` 忽略规则（被意外删除）
+
+## 本次变更（2026-05-24 @uiw/react-markdown-preview common.tsx 软件架构专家评审）
+- [x] **软件架构专家评审 @uiw/react-markdown-preview/src/common.tsx（27 行）**
+  - 综合评分 5.4/10（管线编排架构清晰，但与 preview.tsx 存在职责重叠和耦合缺陷）
+  - P1×3：每次渲染重建管线数组（无 useMemo）、与 preview.tsx 双封装职责重叠（安全策略分散）、插件管线违反 OCP（用户插件位置固定不可定制）
+  - P2×3：rehypeRewriteHandle 混合稳定和不稳定依赖、`export *` 隐式导出不可控、forwardRef 匿名函数 DevTools 不可见
+  - P3×2：管线顺序依赖数组索引无声明式约束、防御式编程不一致（|| vs ??）
+  - SOLID 评估：SRP⚠️、OCP❌、LSP✅、ISP✅、DIP⚠️
+  - 完整管线数据流分析（10 个插件顺序依赖关系）
+  - 本项目影响：安全🔴高（rehypeRaw 无条件执行）、性能🟡中、可维护🟢低、升级风险🟡中
+  - 评审报告 tasks/review/common.tsx.architecture.md
