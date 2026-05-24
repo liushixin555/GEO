@@ -116,3 +116,4 @@
 | 2026-05-24 | tasks/review/Editor.nohighlight.tsx.committer.md | @uiw/react-md-editor Editor.nohighlight.tsx Committer 审核专家评审——✅通过（APPROVE），nohighlight变体三变体最优，建议从标准版迁移 |
 | 2026-05-24 | progress_tasks/2026-05-24-editor-nohighlight-migration.md | Editor.nohighlight.tsx 评审修复——标准版→nohighlight变体迁移（-90KB bundle/消除rehype-raw+Prism.js/零API变更） |
 | 2026-05-24 | tasks/review/Editor.tsx.md | @uiw/react-md-editor Editor.tsx 软件质量专家评审——⚠️CONDITIONAL APPROVE 7.4/10（rehype-raw XSS攻击面+Prism.js 90KB膨胀+与nohighlight同构重复） |
+| 2026-05-24 | tasks/tdd/auth.middleware.test.md | auth.middleware.ts TDD 补全——62用例全通过，100%覆盖率（+25新增：黑名单交互/Bearer前缀边界/Unicode payload/角色矩阵/null user） |
