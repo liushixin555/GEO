@@ -184,6 +184,13 @@ tests/apis/  + tests/pages/  测试文件
   - `pages/article/components/ArticleReviewActions.tsx` — 审核操作栏
 - **架构评审**: D+ → 重构后架构符合 SOLID 原则，每个文件 < 200 行，职责单一，可独立测试
 
+## controller/index.ts barrel file 评审记录
+- **Committer 评审**: REJECT 2.0/10（2026-05-24）— 65% 函数遗漏（65/100）、53% 模块完全遗漏（8/15）、运行时零引用（死代码）
+- **质量评审**: REJECT 3.2/10（controller-index.md）
+- **安全评审**: REJECT 3.5/10（index.ts.security.md）
+- **推荐方案**: 删除 barrel file（方案 B），项目路由已建立直接导入约定（15 个 routes 文件均 `import * as ctrl from '../controller/xxx.controller'`）
+- **详见**: `tasks/review/controller-index.committer.md`
+
 ## 第三方库补丁管理
 - **patch-package**: 持久化 node_modules 中的第三方库类型修复
 - **@uiw/react-markdown-preview@5.2.1 补丁**: 修复 Props.tsx 架构缺陷（Ref 接口 ISP 违反、类型重复、隐式 React 依赖等 6 项）
@@ -200,3 +207,7 @@ tests/apis/  + tests/pages/  测试文件
   - 核心问题：rehypeRaw 无条件开启 HTML 注入攻击面、每次渲染重建 rehype 插件数组（无 useMemo）
   - 本项目通过 MarkdownViewer 封装组件 + DOMPurify 消毒 + React.memo + 1MB 长度限制缓解风险
   - 详见 `tasks/review/common.tsx.quality.md`
+- **@uiw/react-markdown-preview（rehypePlugins.tsx）** — UI 专家评审 2.5/10（2026-05-24）
+  - 核心UI缺陷：GitHub Octicon 图标与 Carbon Design System 冲突、复制按钮为 div 非 antd Button、零可访问性支持（无 role/tabindex/aria-label）、触控目标 16x16 远低于 48px 标准
+  - 本项目通过 MarkdownViewer 封装层 + markdown-viewer.css 50+ 行 !important 覆盖缓解，但仍未覆盖：可访问性、图标替换、键盘支持
+  - 详见 `tasks/review/rehypePlugins.tsx.ui.md`
