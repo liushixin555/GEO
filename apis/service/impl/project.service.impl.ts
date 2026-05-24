@@ -2,6 +2,7 @@ import { getPrisma } from '../../utils';
 import { Project, CreateProjectRequest, UpdateProjectRequest } from '../../entity';
 import { mapProject } from '../../map';
 import { IProjectService } from '../project.service';
+import { NotFoundError, BusinessError, ForbiddenError } from '../../errors';
 
 const OPERATOR_INCLUDE = {
   company: true,
@@ -49,31 +50,40 @@ export class ProjectServiceImpl implements IProjectService {
       where: { id, deletedAt: null },
       include: OPERATOR_INCLUDE,
     });
-    if (!item) throw new Error('项目不存在');
-    // Company-level check is done in the controller using req.user.companyId
+    if (!item) throw new NotFoundError('项目');
+
+    // Admin can only access projects where they are an operator
+    if (role === 'admin' && userId) {
+      const isOperator = item.operators.some(op => op.userId === userId);
+      if (!isOperator) throw new ForbiddenError('无权操作该项目');
+    }
+
     return mapProject(item);
   }
 
-  async create(request: CreateProjectRequest): Promise<Project> {
+  async create(request: CreateProjectRequest, role?: string, companyId?: number): Promise<Project> {
     const prisma = getPrisma();
 
-    // Validate operators belong to the specified company
+    // Admin: override company_id with their own company (business rule C-2)
+    const effectiveCompanyId = role === 'admin' ? companyId! : request.company_id;
+
+    // Validate operators belong to the effective company
     if (request.operator_ids?.length) {
       const operators = await prisma.user.findMany({
-        where: { id: { in: request.operator_ids }, companyId: request.company_id, role: 'admin', deletedAt: null },
+        where: { id: { in: request.operator_ids }, companyId: effectiveCompanyId, role: 'admin', deletedAt: null },
       });
       if (operators.length !== request.operator_ids.length) {
-        throw new Error('运营者不属于指定公司');
+        throw new BusinessError('运营者不属于指定公司');
       }
     }
 
-    // Validate viewers belong to the specified company
+    // Validate viewers belong to the effective company
     if (request.viewer_ids?.length) {
       const viewers = await prisma.user.findMany({
-        where: { id: { in: request.viewer_ids }, companyId: request.company_id, role: 'view', deletedAt: null },
+        where: { id: { in: request.viewer_ids }, companyId: effectiveCompanyId, role: 'view', deletedAt: null },
       });
       if (viewers.length !== request.viewer_ids.length) {
-        throw new Error('查看者不属于指定公司');
+        throw new BusinessError('查看者不属于指定公司');
       }
     }
 
@@ -82,7 +92,7 @@ export class ProjectServiceImpl implements IProjectService {
         shortName: request.short_name,
         fullName: request.full_name,
         description: request.description || null,
-        companyId: request.company_id,
+        companyId: effectiveCompanyId,
         operators: {
           create: (request.operator_ids || []).map((userId: number) => ({ userId })),
         },
@@ -98,10 +108,22 @@ export class ProjectServiceImpl implements IProjectService {
   async update(id: number, request: UpdateProjectRequest, userId?: number, role?: string): Promise<Project> {
     const prisma = getPrisma();
 
-    const existing = await prisma.project.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('项目不存在');
+    const existing = await prisma.project.findFirst({
+      where: { id, deletedAt: null },
+      include: OPERATOR_INCLUDE,
+    });
+    if (!existing) throw new NotFoundError('项目');
 
-    // Company-level check is done in the controller
+    // Admin can only update projects where they are an operator (auth check C-1)
+    if (role === 'admin' && userId) {
+      const isOperator = existing.operators.some(op => op.userId === userId);
+      if (!isOperator) throw new ForbiddenError('无权操作该项目');
+    }
+
+    // company_id cannot be changed (business rule C-2)
+    if (request.company_id !== undefined && request.company_id !== existing.companyId) {
+      throw new BusinessError('项目所属公司不可更改');
+    }
 
     const data: any = {};
     if (request.short_name !== undefined) data.shortName = request.short_name;
@@ -109,7 +131,7 @@ export class ProjectServiceImpl implements IProjectService {
     if (request.description !== undefined) data.description = request.description;
     if (request.status !== undefined) data.status = request.status;
 
-    // company_id changes are blocked by controller, always use existing company
+    // Always use existing company (company_id is immutable)
     const targetCompanyId = existing.companyId;
 
     // Handle operators
@@ -119,7 +141,7 @@ export class ProjectServiceImpl implements IProjectService {
           where: { id: { in: request.operator_ids }, companyId: targetCompanyId, role: 'admin' },
         });
         if (operators.length !== request.operator_ids.length) {
-          throw new Error('运营者不属于指定公司');
+          throw new BusinessError('运营者不属于指定公司');
         }
       }
       await prisma.projectOperator.updateMany({ where: { projectId: id, deletedAt: null }, data: { deletedAt: new Date() } });
@@ -135,7 +157,7 @@ export class ProjectServiceImpl implements IProjectService {
           where: { id: { in: request.viewer_ids }, companyId: targetCompanyId, role: 'view' },
         });
         if (viewers.length !== request.viewer_ids.length) {
-          throw new Error('查看者不属于指定公司');
+          throw new BusinessError('查看者不属于指定公司');
         }
       }
       await prisma.projectViewer.updateMany({ where: { projectId: id, deletedAt: null }, data: { deletedAt: new Date() } });
@@ -155,10 +177,17 @@ export class ProjectServiceImpl implements IProjectService {
   async delete(id: number, userId?: number, role?: string): Promise<void> {
     const prisma = getPrisma();
 
-    const existing = await prisma.project.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('项目不存在');
+    const existing = await prisma.project.findFirst({
+      where: { id, deletedAt: null },
+      include: OPERATOR_INCLUDE,
+    });
+    if (!existing) throw new NotFoundError('项目');
 
-    // Company-level check is done in the controller
+    // Admin can only delete projects where they are an operator (auth check C-1)
+    if (role === 'admin' && userId) {
+      const isOperator = existing.operators.some(op => op.userId === userId);
+      if (!isOperator) throw new ForbiddenError('无权操作该项目');
+    }
 
     await prisma.project.update({ where: { id }, data: { deletedAt: new Date() } });
   }

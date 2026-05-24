@@ -290,11 +290,41 @@ describe('ProjectServiceImpl', () => {
 
       await service.getById(1, 2, 'admin');
 
-      // userId and role are not used in getById query itself
       expect(mockFindFirst).toHaveBeenCalledWith({
         where: { id: 1, deletedAt: null },
         include: OPERATOR_INCLUDE,
       });
+    });
+
+    it('should throw ForbiddenError when admin is not operator', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(makePrismaProject({
+        operators: [{ userId: 5, user: { id: 5, cnName: '王五' } }],
+      }));
+      mockedGetPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } } as any);
+
+      const { ForbiddenError } = require('../../apis/errors');
+      await expect(service.getById(1, 2, 'admin')).rejects.toThrow('无权操作该项目');
+      await expect(service.getById(1, 2, 'admin')).rejects.toBeInstanceOf(ForbiddenError);
+    });
+
+    it('should allow admin who is operator to get project', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(makePrismaProject({
+        operators: [{ userId: 2, user: { id: 2, cnName: '张三' } }],
+      }));
+      mockedGetPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } } as any);
+
+      const result = await service.getById(1, 2, 'admin');
+      expect(result.id).toBe(1);
+    });
+
+    it('should allow sysadmin without operator check', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(makePrismaProject({
+        operators: [{ userId: 5, user: { id: 5, cnName: '王五' } }],
+      }));
+      mockedGetPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } } as any);
+
+      const result = await service.getById(1, 1, 'sysadmin');
+      expect(result.id).toBe(1);
     });
   });
 
@@ -464,6 +494,58 @@ describe('ProjectServiceImpl', () => {
 
       expect(result.operator_ids).toEqual([2]);
       expect(result.viewer_ids).toEqual([3]);
+    });
+
+    it('should override company_id for admin role', async () => {
+      const mockCreate = jest.fn().mockResolvedValue(makePrismaProject({
+        companyId: 2,
+        operators: [{ userId: 2, user: { id: 2, cnName: '张三' } }],
+      }));
+      const mockUserFindMany = jest.fn().mockResolvedValue([makePrismaUser(2, 2, 'admin', '张三')]);
+      mockedGetPrisma.mockReturnValue({
+        project: { create: mockCreate },
+        user: { findMany: mockUserFindMany },
+      } as any);
+
+      await service.create({
+        short_name: 'P1',
+        full_name: 'Project One',
+        company_id: 999,
+        operator_ids: [2],
+      }, 'admin', 2);
+
+      // Service should use companyId=2 from auth, not 999 from request
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: 2 }),
+        }),
+      );
+      // User validation should use effectiveCompanyId=2, not 999
+      expect(mockUserFindMany).toHaveBeenCalledWith({
+        where: { id: { in: [2] }, companyId: 2, role: 'admin', deletedAt: null },
+      });
+    });
+
+    it('should use request company_id for sysadmin role', async () => {
+      const mockCreate = jest.fn().mockResolvedValue(makePrismaProject());
+      mockedGetPrisma.mockReturnValue({
+        project: { create: mockCreate },
+        user: { findMany: jest.fn().mockResolvedValue([]) },
+      } as any);
+
+      await service.create({
+        short_name: 'P1',
+        full_name: 'Project One',
+        company_id: 5,
+        operator_ids: [],
+        viewer_ids: [],
+      }, 'sysadmin', 1);
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: 5 }),
+        }),
+      );
     });
   });
 
@@ -729,6 +811,66 @@ describe('ProjectServiceImpl', () => {
       expect(data).not.toHaveProperty('status');
       expect(data).not.toHaveProperty('operators');
       expect(data).not.toHaveProperty('viewers');
+    });
+
+    it('should throw BusinessError when company_id is changed', async () => {
+      const existing = makePrismaProject({ companyId: 1 });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: jest.fn() },
+      } as any);
+
+      const { BusinessError } = require('../../apis/errors');
+      await expect(
+        service.update(1, { company_id: 2 }),
+      ).rejects.toThrow('项目所属公司不可更改');
+      await expect(
+        service.update(1, { company_id: 2 }),
+      ).rejects.toBeInstanceOf(BusinessError);
+    });
+
+    it('should allow same company_id in update', async () => {
+      const existing = makePrismaProject({ companyId: 1 });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, shortName: 'NewShort' });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.update(1, { company_id: 1, short_name: 'NewShort' });
+      expect(result).toBeDefined();
+    });
+
+    it('should throw ForbiddenError when admin updates project they are not operator of', async () => {
+      const existing = makePrismaProject({
+        operators: [{ userId: 5, user: { id: 5, cnName: '王五' } }],
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: jest.fn() },
+      } as any);
+
+      const { ForbiddenError } = require('../../apis/errors');
+      await expect(
+        service.update(1, { short_name: 'New' }, 2, 'admin'),
+      ).rejects.toThrow('无权操作该项目');
+      await expect(
+        service.update(1, { short_name: 'New' }, 2, 'admin'),
+      ).rejects.toBeInstanceOf(ForbiddenError);
+    });
+
+    it('should allow admin who is operator to update', async () => {
+      const existing = makePrismaProject({
+        operators: [{ userId: 2, user: { id: 2, cnName: '张三' } }],
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, shortName: 'NewShort' });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.update(1, { short_name: 'NewShort' }, 2, 'admin');
+      expect(result.short_name).toBe('NewShort');
     });
 
     it('should update multiple fields at once', async () => {
@@ -1132,7 +1274,7 @@ describe('ProjectServiceImpl', () => {
       expect(findWhere).toEqual(countWhere);
     });
 
-    it('delete: should use findFirst with deletedAt: null filter', async () => {
+    it('delete: should use findFirst with deletedAt: null filter and include operators', async () => {
       const existing = makePrismaProject();
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
@@ -1142,9 +1284,48 @@ describe('ProjectServiceImpl', () => {
 
       await service.delete(1);
 
-      expect(mockFindFirst).toHaveBeenCalledWith({
-        where: { id: 1, deletedAt: null },
+      expect(mockFindFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 1, deletedAt: null },
+        }),
+      );
+    });
+
+    it('delete: should throw ForbiddenError when admin is not operator', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(makePrismaProject({
+        operators: [{ userId: 5, user: { id: 5, cnName: '王五' } }],
+      }));
+      mockedGetPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } } as any);
+
+      const { ForbiddenError } = require('../../apis/errors');
+      await expect(service.delete(1, 2, 'admin')).rejects.toThrow('无权操作该项目');
+      await expect(service.delete(1, 2, 'admin')).rejects.toBeInstanceOf(ForbiddenError);
+    });
+
+    it('delete: should allow admin who is operator to delete', async () => {
+      const existing = makePrismaProject({ operators: [{ userId: 2, user: { id: 2, cnName: '张三' } }] });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.delete(1, 2, 'admin');
+      expect(mockUpdate).toHaveBeenCalled();
+    });
+
+    it('delete: should allow sysadmin without operator check', async () => {
+      const existing = makePrismaProject({
+        operators: [{ userId: 5, user: { id: 5, cnName: '王五' } }],
       });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.delete(1, 1, 'sysadmin');
+      expect(mockUpdate).toHaveBeenCalled();
     });
 
     it('create: with long operator and viewer lists', async () => {

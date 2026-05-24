@@ -2,11 +2,21 @@ import { Request, Response } from 'express';
 import { IProjectService } from '../service/project.service';
 import { ProjectServiceImpl } from '../service/impl/project.service.impl';
 import { success, fail, paginate, created } from '../utils';
+import { AppError } from '../errors';
 
 const projectService: IProjectService = new ProjectServiceImpl();
 
 function getErrorMessage(err: unknown, defaultMessage: string): string {
   return err instanceof Error ? (err.message || defaultMessage) : defaultMessage;
+}
+
+/** Unified service error handler — maps typed exceptions to HTTP responses */
+function handleServiceError(res: Response, err: unknown, defaultMessage: string): void {
+  if (err instanceof AppError) {
+    fail(res, err.statusCode, err.message);
+  } else {
+    fail(res, 500, getErrorMessage(err, defaultMessage));
+  }
 }
 
 export async function listProjects(req: Request, res: Response): Promise<void> {
@@ -50,7 +60,6 @@ export async function getProject(req: Request, res: Response): Promise<void> {
     if (isNaN(id)) { fail(res, 400, '无效的项目ID'); return; }
 
     const { userId, role } = req.user;
-    const item = await projectService.getById(id, userId, role);
 
     // view role has no permission to view projects (iron rule)
     if (role === 'view') {
@@ -58,20 +67,11 @@ export async function getProject(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // Admin can only access projects where they are an operator
-    if (role === 'admin' && !item.operator_ids.includes(userId)) {
-      fail(res, 403, '无权操作该项目');
-      return;
-    }
-
+    // Admin operator check is now in service layer (C-1)
+    const item = await projectService.getById(id, userId, role);
     success(res, item);
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : '';
-    if (message === '项目不存在') {
-      fail(res, 404, message);
-    } else {
-      fail(res, 500, message || '获取项目详情失败');
-    }
+    handleServiceError(res, err, '获取项目详情失败');
   }
 }
 
@@ -80,12 +80,10 @@ export async function createProject(req: Request, res: Response): Promise<void> 
     if (!req.user) { fail(res, 401, '未登录'); return; }
     const { short_name, full_name } = req.body;
 
-    // Admin users don't need to provide company_id; it's set automatically
-    const effectiveCompanyId = req.user.role === 'admin'
-      ? req.user.companyId
-      : req.body.company_id;
+    // Admin's company_id comes from auth; sysadmin must provide it
+    const hasCompanyId = req.user.role === 'admin' ? !!req.user.companyId : !!req.body.company_id;
 
-    if (!short_name || !full_name || !effectiveCompanyId) {
+    if (!short_name || !full_name || !hasCompanyId) {
       fail(res, 400, '项目短名、项目全名、所属公司不能为空');
       return;
     }
@@ -105,25 +103,20 @@ export async function createProject(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Construct a clean data object instead of mutating req.body
+    // Construct clean data object — service handles company_id override for admin (C-2)
     const data = {
       short_name,
       full_name,
       description,
-      company_id: effectiveCompanyId,
+      company_id: req.body.company_id,
       operator_ids: req.body.operator_ids,
       viewer_ids: req.body.viewer_ids,
     };
 
-    const item = await projectService.create(data);
+    const item = await projectService.create(data, req.user.role, req.user.companyId ?? undefined);
     created(res, item, '创建项目成功');
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : '';
-    if (message === '运营者不属于指定公司' || message === '查看者不属于指定公司') {
-      fail(res, 400, message);
-    } else {
-      fail(res, 500, message || '创建项目失败');
-    }
+    handleServiceError(res, err, '创建项目失败');
   }
 }
 
@@ -141,34 +134,22 @@ export async function updateProject(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const existing = await projectService.getById(id, userId, role);
+    // Whitelist: only extract known fields (M-2)
+    const updateData = {
+      short_name: req.body.short_name,
+      full_name: req.body.full_name,
+      description: req.body.description,
+      company_id: req.body.company_id,
+      operator_ids: req.body.operator_ids,
+      viewer_ids: req.body.viewer_ids,
+      status: req.body.status,
+    };
 
-    // Universal: company_id cannot be changed
-    if (req.body.company_id !== undefined && req.body.company_id !== existing.company_id) {
-      fail(res, 400, '项目所属公司不可更改');
-      return;
-    }
-
-    // Admin can only update projects where they are an operator
-    if (role === 'admin' && !existing.operator_ids.includes(userId)) {
-      fail(res, 403, '无权操作该项目');
-      return;
-    }
-
-    // Strip company_id to prevent service from processing it
-    const { company_id: _, ...updateData } = req.body;
-
+    // Service handles company_id immutability (C-2) and admin operator check (C-1)
     const item = await projectService.update(id, updateData, userId, role);
     success(res, item, '更新项目成功');
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : '';
-    if (message === '项目不存在') {
-      fail(res, 404, message);
-    } else if (message === '运营者不属于指定公司' || message === '查看者不属于指定公司') {
-      fail(res, 400, message);
-    } else {
-      fail(res, 500, message || '更新项目失败');
-    }
+    handleServiceError(res, err, '更新项目失败');
   }
 }
 
@@ -180,26 +161,16 @@ export async function deleteProject(req: Request, res: Response): Promise<void> 
 
     const { userId, role } = req.user;
 
-    // Admin can only delete projects where they are an operator
-    if (role === 'admin') {
-      const existing = await projectService.getById(id, userId, role);
-      if (!existing.operator_ids.includes(userId)) {
-        fail(res, 403, '无权操作该项目');
-        return;
-      }
-    } else if (role !== 'sysadmin') {
+    // Only sysadmin and admin can delete
+    if (role !== 'sysadmin' && role !== 'admin') {
       fail(res, 403, '无权删除项目');
       return;
     }
 
+    // Service handles admin operator check (C-1)
     await projectService.delete(id, userId, role);
     success(res, null, '删除项目成功');
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : '';
-    if (message === '项目不存在') {
-      fail(res, 404, message);
-    } else {
-      fail(res, 500, message || '删除项目失败');
-    }
+    handleServiceError(res, err, '删除项目失败');
   }
 }

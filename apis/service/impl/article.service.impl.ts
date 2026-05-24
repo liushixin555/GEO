@@ -162,7 +162,8 @@ export class ArticleServiceImpl implements IArticleService {
       const existing = await tx.article.findFirst({ where: { id, deletedAt: null } });
       if (!existing) throw new NotFoundError('文章');
 
-      if (existing.status !== 'pending_review') {
+      const allowedRegenerateStatuses = ['generate_failed', 'pending_review'];
+      if (!allowedRegenerateStatuses.includes(existing.status)) {
         throw new BusinessError('文章当前状态不支持重新生成');
       }
 

@@ -734,25 +734,32 @@ const { list, total } = await articleService.list(...);   // 查询2: 获取文�
 
 ### 7.4 最终裁决
 
-**结论: ⚠️ 有条件通过 — 阻断项必须在下次迭代前修复**
+**结论: ✅ 全部修复完成 — 2026-05-24**
 
-#### 阻断项（必须修复后才能合并到 main）
+#### 阻断项（已修复）
 
-1. **CRITICAL-2（状态机绕过）**: 这是最严重的问题。攻击者可通过 PUT 请求直接将 draft 文章状态设为 `published`，完全绕过审核流程。**必须引入状态转换白名单**，不接受任何理由的延期。
+1. **CRITICAL-2（状态机绕过）**: ✅ 已引入 `STATUS_TRANSITIONS` 白名单 + `isValidStatusTransition()` 校验
+2. **HIGH-3（错误信息泄露）**: ✅ 已引入 `handleServerError()` + AppError 类型化异常，500 不返回 err.message
 
-2. **HIGH-3（错误信息泄露）**: 全局性 `err.message` 泄露问题，影响所有端点。修复方案简单且风险低，**应在本次一并修复**。
+#### 强烈建议修复（已修复）
 
-#### 强烈建议修复（下一个 sprint）
+3. **HIGH-2（审核职责分离）**: ✅ 已添加创建者/审核者分离检查（line 322-326）
+4. **HIGH-4（Content 大小限制）**: ✅ Zod schema `z.string().min(1).max(500_000)` 限制
+5. **CRITICAL-1 / HIGH-1 的 Zod schema 验证**: ✅ 已创建 `article.schema.ts` 完整 Zod schema
 
-3. **HIGH-2（审核职责分离）**: 需产品确认业务需求后决定。如果确认需要 SoD，修复成本极低（一行检查）。
-4. **HIGH-4（Content 大小限制）**: 添加 MAX_CONTENT_LENGTH 常量，一行代码。
-5. **CRITICAL-1 / HIGH-1 的 Zod schema 验证**: 一次性解决输入验证问题，建议作为独立 PR。
+#### 其他已修复项
 
-#### 可延期处理
-
-6. MEDIUM 级别问题（分页上限、权限检查一致性、req.user! 防御性检查等）
-7. LOW 级别问题（魔法字符串、parseInt 基数等）
-8. 补充发现的非阻断项（版本记录污染、DI 改造、查询效率）
+6. **MEDIUM-1**（删除审计日志）: ✅ 已添加 `logger.info('article_deleted', ...)`
+7. **MEDIUM-2**（分页上限）: ✅ Zod schema `z.coerce.number().int().min(1).max(100)`
+8. **MEDIUM-3**（权限一致性）: ✅ regenerateArticle 添加创建者检查
+9. **MEDIUM-4**（req.user! 防御性检查）: ✅ `getAuthUser()` 替代 `req.user!`
+10. **MEDIUM-5**（权限异常吞没）: ✅ 使用 `ForbiddenError` 类型化异常
+11. **LOW-1**（搜索参数清理）: ✅ Zod schema `z.string().trim().max(200)`
+12. **LOW-3**（魔法字符串）: ✅ 使用 `ROLES` 常量替代硬编码字符串
+13. **LOW-4**（parseInt 基数）: ✅ `parseId()` 统一 `parseInt(value, 10)`
+14. **补充-1**（generating 分支排除 content）: ✅ 已修复
+15. **Service regenerate 状态不一致**: ✅ service 层接受 `generate_failed` + `pending_review`
+16. **handleServerError 500 日志记录**: ✅ 添加 `logger.error('unhandled_error', ...)`
 
 #### 工程质量评价
 

@@ -1,7 +1,7 @@
-diff --git a/node_modules/@uiw/react-markdown-preview/esm/rehypePlugins.js b/node_modules/@uiw/react-markdown-preview/esm/rehypePlugins.js
-index 2796334..fa00ac7 100644
---- a/node_modules/@uiw/react-markdown-preview/esm/rehypePlugins.js
-+++ b/node_modules/@uiw/react-markdown-preview/esm/rehypePlugins.js
+diff --git a/esm/rehypePlugins.js b/esm/rehypePlugins.js
+index 2796334dfb1c5fe796d15170c1067a411b3e8a71..fa00ac79e6bb23431ff8f7e810f894e2631d7341 100644
+--- a/esm/rehypePlugins.js
++++ b/esm/rehypePlugins.js
 @@ -5,10 +5,14 @@ import rehypeIgnore from 'rehype-ignore';
  import { getCodeString } from 'rehype-rewrite';
  import { octiconLink } from "./nodes/octiconLink.js";
@@ -38,10 +38,10 @@ index 2796334..fa00ac7 100644
 -  rewrite && rewrite(node, index === null ? undefined : index, parent === null ? undefined : parent);
  };
  export var defaultRehypePlugins = [slug, headings, rehypeIgnore];
-diff --git a/node_modules/@uiw/react-markdown-preview/lib/rehypePlugins.js b/node_modules/@uiw/react-markdown-preview/lib/rehypePlugins.js
-index e853c64..cd9f961 100644
---- a/node_modules/@uiw/react-markdown-preview/lib/rehypePlugins.js
-+++ b/node_modules/@uiw/react-markdown-preview/lib/rehypePlugins.js
+diff --git a/lib/rehypePlugins.js b/lib/rehypePlugins.js
+index e853c646805ac8647734f818366e1e7e64db3257..cd9f9611018258a26b1ecd58109d6ba9f72880c0 100644
+--- a/lib/rehypePlugins.js
++++ b/lib/rehypePlugins.js
 @@ -12,11 +12,15 @@ var _rehypeIgnore = _interopRequireDefault(require("rehype-ignore"));
  var _rehypeRewrite = require("rehype-rewrite");
  var _octiconLink = require("./nodes/octiconLink");
@@ -80,10 +80,10 @@ index e853c64..cd9f961 100644
    };
  };
  var defaultRehypePlugins = exports.defaultRehypePlugins = [_rehypeSlug["default"], _rehypeAutolinkHeadings["default"], _rehypeIgnore["default"]];
-diff --git a/node_modules/@uiw/react-markdown-preview/src/rehypePlugins.tsx b/node_modules/@uiw/react-markdown-preview/src/rehypePlugins.tsx
-index 680ce6a..89672fd 100644
---- a/node_modules/@uiw/react-markdown-preview/src/rehypePlugins.tsx
-+++ b/node_modules/@uiw/react-markdown-preview/src/rehypePlugins.tsx
+diff --git a/src/rehypePlugins.tsx b/src/rehypePlugins.tsx
+index 680ce6aa2702fee9bcd0ab6b24b62756d4f59f87..89672fd1af8e11bbfd0acb8438a02cd9545629f3 100644
+--- a/src/rehypePlugins.tsx
++++ b/src/rehypePlugins.tsx
 @@ -7,21 +7,35 @@ import type { Root, Element, RootContent } from 'hast';
  import { octiconLink } from './nodes/octiconLink';
  import { copyElement } from './nodes/copy';

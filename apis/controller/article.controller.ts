@@ -4,6 +4,8 @@ import { ProjectServiceImpl } from '../service/impl/project.service.impl';
 import { success, fail, paginate, created } from '../utils';
 
 import { NotFoundError, BusinessError, ForbiddenError } from '../errors';
+import { logger } from '../utils/logger.util';
+import { ROLES } from '../constants/roles';
 
 const articleService = new ArticleServiceImpl();
 const projectService = new ProjectServiceImpl();
@@ -46,7 +48,7 @@ function pickAllowedFields(body: Record<string, unknown>, allowed: string[]): Re
 }
 
 async function checkProjectOperator(projectId: number, userId: number, role: string): Promise<void> {
-  if (role === 'sysadmin') return;
+  if (role === ROLES.SYSADMIN) return;
   const project = await projectService.getById(projectId, userId, role);
   if (!project.operator_ids.includes(userId)) {
     throw new ForbiddenError('无权操作该项目');
@@ -62,6 +64,7 @@ function handleServerError(res: Response, err: unknown, contextMsg: string): voi
   } else if (err instanceof BusinessError) {
     fail(res, 400, err.message);
   } else {
+    logger.error('unhandled_error', { error: err instanceof Error ? err.message : String(err), context: contextMsg });
     fail(res, 500, contextMsg);
   }
 }
@@ -91,7 +94,7 @@ export async function listArticles(req: Request, res: Response): Promise<void> {
     if (!user) { fail(res, 401, '未认证'); return; }
     const { userId, role } = user;
 
-    if (role === 'admin') {
+    if (role === ROLES.ADMIN) {
       await checkProjectOperator(projectId, userId, role);
     }
 
@@ -119,7 +122,7 @@ export async function getArticle(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    if (role === 'admin') {
+    if (role === ROLES.ADMIN) {
       await checkProjectOperator(projectId, userId, role);
     }
 
@@ -141,7 +144,7 @@ export async function createArticle(req: Request, res: Response): Promise<void> 
     if (!user) { fail(res, 401, '未认证'); return; }
     const { userId, role } = user;
 
-    if (role === 'admin') {
+    if (role === ROLES.ADMIN) {
       await checkProjectOperator(projectId, userId, role);
     }
 
@@ -169,12 +172,12 @@ export async function updateArticle(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    if (role === 'admin') {
+    if (role === ROLES.ADMIN) {
       await checkProjectOperator(projectId, userId, role);
     }
 
     // Only creator or sysadmin can edit
-    if (role !== 'sysadmin' && existing.created_by !== userId) {
+    if (role !== ROLES.SYSADMIN && existing.created_by !== userId) {
       fail(res, 403, '只能修改自己创建的文章');
       return;
     }
@@ -232,12 +235,12 @@ export async function updateArticleContent(req: Request, res: Response): Promise
       return;
     }
 
-    if (role === 'admin') {
+    if (role === ROLES.ADMIN) {
       await checkProjectOperator(projectId, userId, role);
     }
 
     // Only creator or sysadmin can edit content
-    if (role !== 'sysadmin' && existing.created_by !== userId) {
+    if (role !== ROLES.SYSADMIN && existing.created_by !== userId) {
       fail(res, 403, '只能修改自己创建的文章');
       return;
     }
@@ -272,12 +275,12 @@ export async function deleteArticle(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    if (role === 'admin') {
+    if (role === ROLES.ADMIN) {
       await checkProjectOperator(projectId, userId, role);
     }
 
     // Only creator or sysadmin can delete
-    if (role !== 'sysadmin' && existing.created_by !== userId) {
+    if (role !== ROLES.SYSADMIN && existing.created_by !== userId) {
       fail(res, 403, '只能删除自己创建的文章');
       return;
     }
@@ -289,6 +292,7 @@ export async function deleteArticle(req: Request, res: Response): Promise<void> 
     }
 
     await articleService.delete(id, userId, role);
+    logger.info('article_deleted', { articleId: id, projectId, operatorId: userId, role });
     success(res, null, '删除文章成功');
   } catch (err: unknown) {
     handleServerError(res, err, '删除文章失败');
@@ -315,12 +319,12 @@ export async function reviewArticle(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    if (role === 'admin') {
+    if (role === ROLES.ADMIN) {
       await checkProjectOperator(projectId, userId, role);
     }
 
     // HIGH-2 fix: 创建者不能审核自己的文章
-    if (role !== 'sysadmin' && existing.created_by === userId) {
+    if (role !== ROLES.SYSADMIN && existing.created_by === userId) {
       fail(res, 403, '不能审核自己创建的文章');
       return;
     }
@@ -349,12 +353,12 @@ export async function regenerateArticle(req: Request, res: Response): Promise<vo
       return;
     }
 
-    if (role === 'admin') {
+    if (role === ROLES.ADMIN) {
       await checkProjectOperator(projectId, userId, role);
     }
 
     // MEDIUM-3 fix: 只有创建者或 sysadmin 可以重新生成
-    if (role !== 'sysadmin' && existing.created_by !== userId) {
+    if (role !== ROLES.SYSADMIN && existing.created_by !== userId) {
       fail(res, 403, '只能重新生成自己创建的文章');
       return;
     }
@@ -390,11 +394,11 @@ export async function submitForReview(req: Request, res: Response): Promise<void
       return;
     }
 
-    if (role === 'admin') {
+    if (role === ROLES.ADMIN) {
       await checkProjectOperator(projectId, userId, role);
     }
 
-    if (role !== 'sysadmin' && existing.created_by !== userId) {
+    if (role !== ROLES.SYSADMIN && existing.created_by !== userId) {
       fail(res, 403, '只能操作自己创建的文章');
       return;
     }
@@ -440,7 +444,7 @@ export async function listArticleVersions(req: Request, res: Response): Promise<
       return;
     }
 
-    if (role === 'admin') {
+    if (role === ROLES.ADMIN) {
       await checkProjectOperator(projectId, userId, role);
     }
 
