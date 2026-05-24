@@ -152,3 +152,4 @@
 | 2026-05-25 | tasks/tdd/knowledge-base.service.test.md | knowledge-base.service TDD 第2轮补全——84用例100%覆盖率（+16新增：create/update admin所有权校验SEC-M-01全覆盖） |
 
 | 2026-05-25 | progress_tasks/2026-05-25-props-ui-review-verify.md | Props.tsx UI评审验证——所有P1/P2项已在MarkdownViewer+CSS中实现确认，79测试全通过，build/lint通过 |
+| 2026-05-25 | tasks/review/group.tsx.committer.md | group.tsx Committer审核专家评审——5.5/10 CONDITIONAL APPROVE（as any类型绕过C-01+循环引用C-02+冗余展开C-03+options覆盖歧义C-04，需封装层P1 ARIA注入+P2图标替换） |
