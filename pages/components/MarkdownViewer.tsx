@@ -16,6 +16,17 @@ const EVENT_ATTRS = [
   'onwheel', 'onpointerdown', 'onpointerup', 'onpointermove', 'oninput',
 ];
 
+const DANGEROUS_ELEMENTS = [
+  'script', 'iframe', 'object', 'embed', 'form', 'input',
+  'textarea', 'select', 'button', 'applet', 'base', 'basefont',
+  'link', 'meta', 'style', 'noscript', 'template', 'svg', 'math',
+];
+
+const DANGEROUS_ATTRS = [
+  ...EVENT_ATTRS,
+  'formaction', 'xlink:href', 'srcdoc', 'action',
+];
+
 export const safeUrlTransform: (url: string) => string = (url) => {
   const lower = url.toLowerCase().trim();
   if (ALLOWED_URL_PROTOCOLS.some((p) => lower.startsWith(p))) return url;
@@ -93,8 +104,9 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = React.memo(({
       ? content.slice(0, MAX_SOURCE_LENGTH)
       : content;
     return DOMPurify.sanitize(truncated, {
-      FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'textarea', 'select', 'button'],
-      FORBID_ATTR: EVENT_ATTRS,
+      FORBID_TAGS: DANGEROUS_ELEMENTS,
+      FORBID_ATTR: DANGEROUS_ATTRS,
+      ALLOW_DATA_ATTR: false,
       ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|telnet):|[^a-z]|[a+][a-z+.]+(?:\.|%20|\/))+$/i,
     });
   }, [content]);
@@ -131,6 +143,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = React.memo(({
           source={safeSource}
           wrapperElement={{ 'data-color-mode': colorMode }}
           urlTransform={safeUrlTransform}
+          disallowedElements={DANGEROUS_ELEMENTS}
         />
       </div>
     </MarkdownErrorBoundary>

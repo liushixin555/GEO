@@ -153,6 +153,66 @@ describe('MarkdownViewer', () => {
     expect(preview.textContent).toContain('Hello');
   });
 
+  it('strips iframe tags via DOMPurify', () => {
+    const xssContent = '<iframe src="https://evil.com"></iframe>Content';
+    render(<MarkdownViewer content={xssContent} />);
+    const preview = screen.getByTestId('markdown-preview');
+    expect(preview.textContent).not.toContain('<iframe');
+    expect(preview.textContent).toContain('Content');
+  });
+
+  it('strips svg with event handlers via DOMPurify', () => {
+    const xssContent = '<svg onload="alert(1)"></svg>Content';
+    render(<MarkdownViewer content={xssContent} />);
+    const preview = screen.getByTestId('markdown-preview');
+    expect(preview.textContent).not.toContain('onload');
+  });
+
+  it('strips base tag via DOMPurify', () => {
+    const xssContent = '<base href="https://evil.com/">Content';
+    render(<MarkdownViewer content={xssContent} />);
+    const preview = screen.getByTestId('markdown-preview');
+    expect(preview.textContent).not.toContain('<base');
+  });
+
+  it('strips meta tag via DOMPurify', () => {
+    const xssContent = '<meta http-equiv="refresh" content="0;url=evil">Content';
+    render(<MarkdownViewer content={xssContent} />);
+    const preview = screen.getByTestId('markdown-preview');
+    expect(preview.textContent).not.toContain('<meta');
+  });
+
+  it('strips formaction attribute via DOMPurify', () => {
+    const xssContent = '<button formaction="https://evil.com">Click</button>';
+    render(<MarkdownViewer content={xssContent} />);
+    const preview = screen.getByTestId('markdown-preview');
+    expect(preview.textContent).not.toContain('formaction');
+  });
+
+  it('strips data-* attributes via DOMPurify', () => {
+    const xssContent = '<div data-custom="evil">Content</div>';
+    render(<MarkdownViewer content={xssContent} />);
+    const preview = screen.getByTestId('markdown-preview');
+    expect(preview.textContent).not.toContain('data-custom');
+    expect(preview.textContent).toContain('Content');
+  });
+
+  it('passes disallowedElements to MarkdownPreview', () => {
+    render(<MarkdownViewer content="test" />);
+    const disallowed = mockProps.disallowedElements as string[];
+    expect(Array.isArray(disallowed)).toBe(true);
+    expect(disallowed).toContain('script');
+    expect(disallowed).toContain('iframe');
+    expect(disallowed).toContain('object');
+    expect(disallowed).toContain('form');
+    expect(disallowed).toContain('svg');
+    expect(disallowed).toContain('math');
+    expect(disallowed).toContain('base');
+    expect(disallowed).toContain('meta');
+    expect(disallowed).toContain('style');
+    expect(disallowed).toContain('template');
+  });
+
   it('passes urlTransform prop to MarkdownPreview', () => {
     render(<MarkdownViewer content="test" />);
     expect(mockProps.urlTransform).toBe(safeUrlTransform);

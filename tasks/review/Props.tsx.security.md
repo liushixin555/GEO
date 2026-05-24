@@ -374,14 +374,14 @@ onMouseOver?: (e: React.MouseEvent<HTMLDivElement>) => void;
 
 对于本项目中使用 `@uiw/react-markdown-preview` 的代码，需逐一确认：
 
-- [ ] `source` 是否来自用户输入？若是，是否经过消毒？
-- [ ] `source` 长度是否有上限？
-- [ ] 是否传入了 `rehypeRewrite`？若传入，是否在安全上下文中使用？
-- [ ] 是否传入了 `pluginsFilter`？是否可能移除 `rehype-sanitize`？
-- [ ] 是否传入了 `rehypePlugins` 或 `remarkPlugins`？是否包含安全插件？
-- [ ] 是否使用了 `allowElement` 或 `allowedElements` 来控制渲染白名单？
-- [ ] `wrapperElement` 是否传入了 `dangerouslySetInnerHTML`？
-- [ ] `ref` 的使用是否仅限于安全的只读操作？
+- [x] `source` 是否来自用户输入？若是，是否经过消毒？→ DOMPurify 预消毒 ✅
+- [x] `source` 长度是否有上限？→ 1MB (MAX_SOURCE_LENGTH) ✅
+- [x] 是否传入了 `rehypeRewrite`？若传入，是否在安全上下文中使用？→ 未传入 ✅
+- [x] 是否传入了 `pluginsFilter`？是否可能移除 `rehype-sanitize`？→ 未传入 ✅
+- [x] 是否传入了 `rehypePlugins` 或 `remarkPlugins`？是否包含安全插件？→ 未传入 ✅
+- [x] 是否使用了 `allowElement` 或 `allowedElements` 来控制渲染白名单？→ 已添加 disallowedElements（19个危险元素）✅
+- [x] `wrapperElement` 是否传入了 `dangerouslySetInnerHTML`？→ 仅传 data-color-mode ✅
+- [x] `ref` 的使用是否仅限于安全的只读操作？→ 未使用 ref ✅
 
 ---
 
