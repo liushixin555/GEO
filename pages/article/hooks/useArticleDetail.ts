@@ -66,7 +66,7 @@ export function useArticleDetail(
     setSaving(true);
     setError('');
     try {
-      const payload: Record<string, any> = {
+      const payload: Partial<ArticleData> & { status?: string; content?: string } = {
         title: values.title?.trim() || undefined,
         article_type: values.article_type || undefined,
         write_mode: values.write_mode || undefined,
@@ -127,7 +127,7 @@ export function useArticleDetail(
       if (isNew) {
         const formValues = form.getFieldsValue();
         if (!formValues.keywords || !formValues.llm_model_id || !formValues.platforms?.length) return;
-        const payload: Record<string, any> = {
+        const payload: Partial<ArticleData> & { content: string } = {
           article_type: formValues.article_type || undefined,
           write_mode: formValues.write_mode || undefined,
           keywords: formValues.keywords,
@@ -145,8 +145,8 @@ export function useArticleDetail(
         await apiClient.put(`/projects/${projectId}/articles/${id}/content`, { content: currentContent });
         message.success('正文已自动保存');
       }
-    } catch {
-      // Silent fail for auto-save
+    } catch (err) {
+      console.warn('[useArticleDetail] 自动保存失败:', err);
     } finally {
       savingRef.current = false;
     }

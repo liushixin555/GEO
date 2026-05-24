@@ -102,6 +102,12 @@ const ArticleDetail: React.FC = () => {
     if (ok) navigate('/article');
   };
 
+  const submitForm = (onValid: (values: ArticleFormValues) => void) => {
+    form.validateFields()
+      .then(onValid)
+      .catch((info) => { if (info.errorFields?.length) message.error(info.errorFields[0].errors[0]); });
+  };
+
   if (detail.loading) {
     return <div className="page-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}><Spin size="large" tip="正在加载文章..." /></div>;
   }
@@ -179,19 +185,13 @@ const ArticleDetail: React.FC = () => {
             </Popconfirm>
           )}
           {(isNew || detail.article?.status === 'draft') && (
-          <Button loading={detail.saving} onClick={() => {
-            form.validateFields().then((values) => handleSave(values)).catch((info) => { if (info.errorFields?.length) message.error(info.errorFields[0].errors[0]); });
-          }}>存草稿</Button>
+          <Button loading={detail.saving} onClick={() => submitForm(handleSave)}>存草稿</Button>
           )}
           {(isNew || detail.article?.status === 'draft') && writeMode !== 'manual' && (
-            <Button type="primary" loading={detail.saving} onClick={() => {
-              form.validateFields().then((values) => handleSave(values)).catch((info) => { if (info.errorFields?.length) message.error(info.errorFields[0].errors[0]); });
-            }}>提交给AI</Button>
+            <Button type="primary" loading={detail.saving} onClick={() => submitForm(handleSave)}>提交给AI</Button>
           )}
           {(isNew || detail.article?.status === 'draft') && writeMode === 'manual' && (
-            <Button type="primary" loading={detail.saving} onClick={() => {
-              form.validateFields().then((values) => handleSave(values)).catch((info) => { if (info.errorFields?.length) message.error(info.errorFields[0].errors[0]); });
-            }}>提交</Button>
+            <Button type="primary" loading={detail.saving} onClick={() => submitForm(handleSave)}>提交</Button>
           )}
         </div>
       )}

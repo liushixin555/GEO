@@ -123,11 +123,11 @@ const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
         </Form.Item>
         </>)}
         <Form.Item name="platforms" label="发布平台" rules={[{ required: true, message: '发布平台不能为空' }]}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, minHeight: 32, padding: '4px 11px', border: '1px solid var(--border-subtle)', borderRadius: 2, cursor: editable ? 'pointer' : 'default' }} onClick={() => { if (editable) platformSelector.openModal(); }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, minHeight: 32, padding: '4px 11px', border: '1px solid var(--color-hairline)', borderRadius: 2, cursor: editable ? 'pointer' : 'default' }} onClick={() => { if (editable) platformSelector.openModal(); }}>
             {(() => {
               const platforms: string[] = form.getFieldValue('platforms') || [];
               if (platforms.length === 0) {
-                return <span style={{ color: 'var(--text-secondary)' }}>点击选择发布平台</span>;
+                return <span style={{ color: 'var(--color-ink-subtle)' }}>点击选择发布平台</span>;
               }
               return platforms.map((name) => (
                 <Tag key={name} closable={editable} onClose={(e) => {

@@ -43,7 +43,8 @@ export function usePlatformSelector(form: FormInstance) {
       } else if (Array.isArray(data)) {
         setState((s) => ({ ...s, platformList: data, platformTotal: data.length, platformPage: page, platformLoading: false }));
       }
-    } catch {
+    } catch (err) {
+      console.warn('[usePlatformSelector] 加载平台列表失败:', err);
       setState((s) => ({ ...s, platformList: [], platformTotal: 0, platformLoading: false }));
     }
   }, []);

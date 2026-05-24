@@ -28,7 +28,7 @@ const ArticleContentEditor: React.FC<ArticleContentEditorProps> = ({
   <div id="article-content-section" data-color-mode="light">
     {article && (
       <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ color: 'var(--color-ink-muted)', fontSize: 12 }}>版本 {article.version ?? 1}</span>
+        <span style={{ color: 'var(--color-ink-subtle)', fontSize: 12 }}>版本 {article.version ?? 1}</span>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {isContentEditable && (
             <Segmented

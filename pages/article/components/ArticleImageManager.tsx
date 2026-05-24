@@ -65,7 +65,7 @@ const ArticleImageManager: React.FC<ArticleImageManagerProps> = ({
 
   if (!editable) {
     return imageList.length === 0 ? (
-      <span style={{ color: 'var(--text-secondary)' }}>暂无插图</span>
+      <span style={{ color: 'var(--color-ink-subtle)' }}>暂无插图</span>
     ) : (
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {imageList.map((url, idx) => (
@@ -91,7 +91,7 @@ const ArticleImageManager: React.FC<ArticleImageManagerProps> = ({
         <div style={{ marginTop: 8 }}>
           {kbImages.length === 0 ? (
             <Spin spinning={kbLoading}>
-              <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--color-ink-subtle)' }}>
                 {kbLoading ? '加载中...' : '知识库暂无图片，请先在知识库中添加'}
               </div>
             </Spin>
@@ -110,7 +110,7 @@ const ArticleImageManager: React.FC<ArticleImageManagerProps> = ({
                     }}
                     style={{
                       position: 'relative', width: 80, height: 80,
-                      border: `2px solid ${selected ? 'var(--interactive)' : 'var(--border-subtle)'}`,
+                      border: `2px solid ${selected ? 'var(--color-primary)' : 'var(--color-hairline)'}`,
                       borderRadius: 2, overflow: 'hidden', cursor: 'pointer',
                     }}
                     title={img.title}
@@ -136,7 +136,7 @@ const ArticleImageManager: React.FC<ArticleImageManagerProps> = ({
       {imageMode === 'upload' && (
         <div style={{ display: 'block', width: '100%' }}>
           <Upload accept="image/*" showUploadList={false} beforeUpload={(file) => { handleUpload(file); return false; }} disabled={uploading}>
-            <div style={{ border: '1px dashed var(--border-subtle)', borderRadius: 2, padding: '16px 0', textAlign: 'center', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ border: '1px dashed var(--color-hairline)', borderRadius: 2, padding: '16px 0', textAlign: 'center', cursor: 'pointer', color: 'var(--color-ink-subtle)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <InboxOutlined style={{ fontSize: 24 }} />
               <span style={{ marginTop: 8 }}>{uploading ? '上传中...' : '点击上传图片'}</span>
             </div>
@@ -149,7 +149,7 @@ const ArticleImageManager: React.FC<ArticleImageManagerProps> = ({
       {imageList.length > 0 && (
         <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {imageList.map((url, idx) => (
-            <div key={idx} style={{ position: 'relative', width: 80, height: 80, borderRadius: 2, overflow: 'hidden', border: '2px solid var(--interactive)' }}>
+            <div key={idx} style={{ position: 'relative', width: 80, height: 80, borderRadius: 2, overflow: 'hidden', border: '2px solid var(--color-primary)' }}>
               <Image src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview />
               <div
                 onClick={() => imageListChange(imageList.filter((_, i) => i !== idx))}

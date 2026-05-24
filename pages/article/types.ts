@@ -105,3 +105,29 @@ export const ARTICLE_TYPE_OPTIONS: { label: string; value: ArticleType }[] = [
   { label: 'FAQ问答', value: 'FAQ问答' },
   { label: '实操指南', value: '实操指南' },
 ];
+
+export interface SkillApiItem {
+  id: number;
+  name: string;
+}
+
+export interface LlmModelApiItem {
+  id: number;
+  provider: string;
+  model_name: string;
+}
+
+export interface KbKeywordApiItem {
+  keyword: string;
+}
+
+export interface KbPortraitApiItem {
+  title: string;
+  content?: string;
+}
+
+export interface KbImageApiItem {
+  id: number;
+  title: string;
+  image_url: string;
+}

@@ -78,7 +78,7 @@ const PlatformSelectModal: React.FC<PlatformSelectModalProps> = ({
       size="small"
       scroll={{ y: 400 }}
     />
-    <div style={{ marginTop: 8, color: 'var(--text-secondary)' }}>
+    <div style={{ marginTop: 8, color: 'var(--color-ink-subtle)' }}>
       已选择 {selectedPlatformKeys.length} 个平台
     </div>
   </Modal>

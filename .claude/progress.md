@@ -25,6 +25,14 @@
 - 前端遵循 IBM Carbon Design System + Ant Design
 - Docker 部署（Nginx + Node.js）
 
+## 2026-05-24: ArticleDetail 软件质量评审修复
+- Q-09: 提取 submitForm 公共函数消除重复代码
+- Q-11: 修复 CSS 变量引用（--text-secondary → --color-ink-subtle, --border-subtle → --color-hairline, --interactive → --color-primary）
+- Q-10: 消除 any 类型，新增 SkillApiItem/LlmModelApiItem/KbKeywordApiItem/KbPortraitApiItem/KbImageApiItem 接口
+- Q-08: 统一错误处理策略（console.warn 替代静默 catch）
+- Q-06: 知识库 API 模块级缓存（kbCache + optionsCache），避免重复请求
+- 新增 useKnowledgeBase.test.ts（6 个测试用例）
+
 ## 已知问题
 - `apis/service/impl/auth.service.impl.ts` Prisma 类型错误（待 schema 同步）
 - `apis/service/impl/todo.service.impl.ts` 编译错误（待修复）
