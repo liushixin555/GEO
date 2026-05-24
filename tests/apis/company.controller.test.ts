@@ -1983,6 +1983,187 @@ describe('Company Controller', () => {
     });
   });
 
+  // ========== createCompany BusinessError 分支覆盖 ==========
+  describe('CreateCompany BusinessError', () => {
+    it('should return 400 when service throws BusinessError (user not found)', async () => {
+      mockPrisma({
+        $transaction: jest.fn().mockRejectedValue(new BusinessError('用户不存在: 999')),
+      });
+
+      const response = await agent
+        .post('/api/v1/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'SN',
+          full_name: 'FN',
+          contact_person: 'A',
+          contact_phone: '123',
+          operator_ids: [999],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('用户不存在: 999');
+    });
+
+    it('should return 400 when service throws BusinessError (sysadmin cannot be linked)', async () => {
+      mockPrisma({
+        $transaction: jest.fn().mockRejectedValue(new BusinessError('系统管理员不可被关联到公司')),
+      });
+
+      const response = await agent
+        .post('/api/v1/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'SN',
+          full_name: 'FN',
+          contact_person: 'A',
+          contact_phone: '123',
+          operator_ids: [1],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('系统管理员不可被关联到公司');
+    });
+
+    it('should return 400 when service throws BusinessError (user disabled)', async () => {
+      mockPrisma({
+        $transaction: jest.fn().mockRejectedValue(new BusinessError('用户已禁用: 5')),
+      });
+
+      const response = await agent
+        .post('/api/v1/companies')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'SN',
+          full_name: 'FN',
+          contact_person: 'A',
+          contact_phone: '123',
+          operator_ids: [5],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('用户已禁用: 5');
+    });
+  });
+
+  // ========== updateCompany BusinessError 分支覆盖 ==========
+  describe('UpdateCompany BusinessError', () => {
+    it('should return 400 when service throws BusinessError (user not found)', async () => {
+      mockPrisma({
+        $transaction: jest.fn().mockRejectedValue(new BusinessError('用户不存在: 888')),
+      });
+
+      const response = await agent
+        .put('/api/v1/companies/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'SN',
+          full_name: 'FN',
+          contact_person: 'A',
+          contact_phone: '123',
+          operator_ids: [888],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('用户不存在: 888');
+    });
+
+    it('should return 400 when service throws BusinessError (sysadmin cannot be linked)', async () => {
+      mockPrisma({
+        $transaction: jest.fn().mockRejectedValue(new BusinessError('系统管理员不可被关联到公司')),
+      });
+
+      const response = await agent
+        .put('/api/v1/companies/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'SN',
+          full_name: 'FN',
+          contact_person: 'A',
+          contact_phone: '123',
+          operator_ids: [1],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('系统管理员不可被关联到公司');
+    });
+
+    it('should return 400 when service throws BusinessError (user disabled)', async () => {
+      mockPrisma({
+        $transaction: jest.fn().mockRejectedValue(new BusinessError('用户已禁用: 3')),
+      });
+
+      const response = await agent
+        .put('/api/v1/companies/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'SN',
+          full_name: 'FN',
+          contact_person: 'A',
+          contact_phone: '123',
+          operator_ids: [3],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('用户已禁用: 3');
+    });
+
+    it('should return 400 for negative ID in updateCompany', async () => {
+      const response = await agent
+        .put('/api/v1/companies/-5')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'SN',
+          full_name: 'FN',
+          contact_person: 'A',
+          contact_phone: '123',
+          operator_ids: [1],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的公司ID');
+    });
+
+    it('should return 400 for ID = 0 in updateCompany', async () => {
+      const response = await agent
+        .put('/api/v1/companies/0')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({
+          short_name: 'SN',
+          full_name: 'FN',
+          contact_person: 'A',
+          contact_phone: '123',
+          operator_ids: [1],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的公司ID');
+    });
+  });
+
+  // ========== toggleCompanyStatus 深度补充 ==========
+  describe('ToggleCompanyStatus Deep Tests Extended', () => {
+    it('should return 400 for negative ID in toggleCompanyStatus', async () => {
+      const response = await agent
+        .put('/api/v1/companies/-3/status')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: true });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的公司ID');
+    });
+
+    it('should return 400 for ID = 0 in toggleCompanyStatus', async () => {
+      const response = await agent
+        .put('/api/v1/companies/0/status')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: true });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的公司ID');
+    });
+  });
+
   // ========== getCompany 深度测试 ==========
   describe('GetCompany Deep Tests', () => {
     it('should return 404 for soft-deleted company in detail', async () => {

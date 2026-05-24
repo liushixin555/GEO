@@ -5,8 +5,15 @@
 
 ## 测试结果
 - 测试套件：1 passed
-- 测试用例：124 passed, 0 failed
+- 测试用例：123 passed, 0 failed
 - 覆盖率：Stmts 100%, Branch 100%, Funcs 100%, Lines 100%
+
+## 变更记录
+
+### 2026-05-24 补全测试（113 → 123 用例）
+- 新增 10 个测试用例，覆盖 createCompany/updateCompany 的 BusinessError 分支（行56、行79）
+- 新增 updateCompany/toggleCompanyStatus 的负数 ID 和零 ID 边界测试
+- 覆盖率从 97.05% Stmts / 90.47% Branch 提升至 100% / 100%
 
 ## 修复的Bug
 无（本次全部通过）
@@ -86,3 +93,15 @@
 - updateCompany: 多个验证错误同时存在
 - isNotFoundError helper: 正确识别/排除错误消息
 - isNotFoundError helper: 处理 non-Error 值
+
+### BusinessError 分支覆盖（2026-05-24 新增）
+- createCompany: service 抛出 BusinessError（用户不存在）返回 400
+- createCompany: service 抛出 BusinessError（系统管理员不可被关联）返回 400
+- createCompany: service 抛出 BusinessError（用户已禁用）返回 400
+- updateCompany: service 抛出 BusinessError（用户不存在）返回 400
+- updateCompany: service 抛出 BusinessError（系统管理员不可被关联）返回 400
+- updateCompany: service 抛出 BusinessError（用户已禁用）返回 400
+- updateCompany: 负数 ID 返回 400（"无效的公司ID"）
+- updateCompany: ID = 0 返回 400（"无效的公司ID"）
+- toggleCompanyStatus: 负数 ID 返回 400（"无效的公司ID"）
+- toggleCompanyStatus: ID = 0 返回 400（"无效的公司ID"）
