@@ -1002,3 +1002,22 @@
   - 提出三阶段改进路线图：Phase 1 消除冗余(1-2天) → Phase 2 提取公共模式(2-3天) → Phase 3 状态机重构(3-5天)
   - 正面评价：纵深防御体系优秀（Zod+白名单+状态机+类型化异常四重防护），项目中安全标杆
   - 评审报告 tasks/review/article.controller.ts.md（覆盖原软件质量专家评审）
+
+## 本次变更（2026-05-24 ArticleDetail.tsx Committer评审修复）
+- [x] **fix018: ArticleDetail.tsx Committer评审 Blocker 修复** — 基于 tasks/review/ArticleDetail.tsx.committer.md
+  - 代码已在之前架构重构（fix017）中修复了大部分 Blocker：
+    - BLK-02（删除功能）: ✅ handleDelete + Popconfirm 删除按钮
+    - BLK-03（pending_review 正文编辑）: ✅ EDITABLE_STATUSES 包含 pending_review
+    - BLK-04（handleRegenerate 死代码）: ✅ ArticleContentEditor 中使用 regenerate 按钮
+    - BLK-05（Alert title→message）: ✅ ArticleSettingsForm + ArticleReviewActions 均使用 message prop
+    - HIG-01（JSON.parse 无防护）: ✅ useArticlePermissions 中 try-catch
+    - HIG-02（XSS 无消毒）: ✅ MarkdownViewer 使用 DOMPurify
+    - HIG-03（自动保存竞态）: ✅ 使用 ref 追踪实时值
+    - HIG-04（重复 localStorage）: ✅ apiClient 拦截器统一处理
+  - 新增 56 个测试用例覆盖文章核心场景（BLK-01 零测试覆盖）：
+    - useArticlePermissions: 28 个（权限矩阵 + 边界情况）
+    - useArticleActions: 8 个（审核/重新生成/提交审核 API 调用）
+    - useDocumentImport: 5 个（md/docx 导入 + 格式校验 + 大小限制）
+    - useArticleDetail: 6 个（新建 AI/手动模式 + 保存 + 删除 + autoSave）
+    - ArticleDetail 组件: 9 个（渲染/加载/标题/删除按钮/按钮条件/不存在提示）
+  - 前端构建通过，56 个测试全部通过
