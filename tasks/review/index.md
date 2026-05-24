@@ -467,3 +467,32 @@ const pageSize = parseInt(req.query.pageSize as string) || 10;
 - 同步更新了 6 个测试文件以适配安全修复
 
 *安全修复完成 — 2026-05-24*
+
+---
+
+## fullscreen.tsx — Committer 审核专家评审
+
+**评审日期**: 2026-05-25
+**评审角色**: Committer 审核专家（代码合并准入 · 依赖可接受性 · 项目集成风险 · 规范兼容性 · 生产就绪度）
+**文件路径**: `@uiw/react-md-editor@4.1.0/src/commands/fullscreen.tsx`
+**代码行数**: 31 行（1 个导出 `ICommand` 对象）
+**前序评审**: 安全评审 8.5/10 APPROVE、UI 评审 3.4/10 CONDITIONAL APPROVE
+**评审结论**: ⚠️ CONDITIONAL APPROVE — execute 函数按钮点击不触发全屏（CRITICAL），需封装层自定义命令覆盖
+**综合评分**: 5.5 / 10
+
+### 发现汇总
+
+| 级别 | 数量 | 关键发现 |
+|------|------|---------|
+| CRITICAL | 1 | execute 函数 `shortcuts` 条件守卫导致按钮点击不触发全屏切换（U1） |
+| HIGH | 3 | 缺少 `aria-pressed` 无障碍状态（U2）/ 快捷键 `ctrlcmd+0` 与浏览器冲突（U3）/ 图标 12×12 不符合 Carbon 规范（U4） |
+| MEDIUM | 3 | ARIA 标注英文+空格不一致（U5）/ 全屏状态图标无变化（U6）/ `focus()` 无条件执行位置不当（U7） |
+| LOW | 2 | dispatch 可能覆盖 ContextStore（U8）/ SVG path 过度复杂（U9） |
+
+### Committer 裁决条件
+
+1. **必须（P0）**: 封装层自定义 fullscreen 命令覆盖 execute，移除 `shortcuts` 条件守卫
+2. **必须（P1）**: 重新绑定快捷键为 `ctrlcmd+shift+f`
+3. **建议（P2）**: 中文 ARIA 标注 + antd 图标替换
+
+*Committer 审核完成 — 2026-05-25*
