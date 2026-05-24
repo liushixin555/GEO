@@ -1,7 +1,7 @@
 # knowledge.controller.ts — 安全修复报告
 
-**修复日期**: 2026-05-24
-**基于评审**: 架构评审、安全评审、Committer 评审
+**修复日期**: 2026-05-24（第2轮追加修复：2026-05-25）
+**基于评审**: 架构评审、安全评审、Committer 评审、质量评审
 **修复人**: 软件开发专家
 
 ---
@@ -85,3 +85,24 @@ async function checkBaseAccess(baseId: number, userId: number, role: string): Pr
 | AC-3 | listInventory 全量加载 | 需要数据库层分页改造 |
 | SEC-H-03 | 输入验证不足 | 需要引入 Zod schema |
 | SEC-H-04 | Prompt Injection | 需要 LLM 输入净化 |
+
+---
+
+## 第2轮追加修复（2026-05-25）
+
+**基于**: `knowledge.controller.ts.md` 质量评审报告（C-1/H-5/H-7/M-2/M-5/M-6）
+
+| 编号 | 问题 | 修复内容 | 状态 |
+|------|------|----------|------|
+| C-1 | expandKeywords 缺少 checkBaseAccess（越权漏洞） | 添加 `const { userId, role } = req.user!` + `await checkBaseAccess(baseId, userId, role)` + 错误处理改进 | ✅ 已修复 |
+| H-5 | batchCreateKeywords 无数组长度上限 | 添加 `keywords.length > 500` 上限检查 | ✅ 已修复 |
+| H-7 | createDocument file_size 无类型校验 | 添加 `typeof file_size !== 'number'` + 正数 + 有限数检查 | ✅ 已修复 |
+| M-2 | pageSize 可能为负数或零 | 全部 9 处 `Math.min(...)` 改为 `Math.max(1, Math.min(...))` | ✅ 已修复 |
+| M-5 | toggleMinedKeywordsBatch selected 无类型校验 | 添加 `typeof selected !== 'boolean'` 检查 | ✅ 已修复 |
+| M-6 | mineKeywords source_type 无白名单 | 添加 `VALID_SOURCE_TYPES = ['all','document','portrait','image']` 白名单校验 | ✅ 已修复 |
+
+### 测试验证
+
+- 测试套件: 7 个测试文件，975 个测试用例全部通过
+- 构建: `pnpm build:api` 成功
+- Lint: `pnpm lint` 通过

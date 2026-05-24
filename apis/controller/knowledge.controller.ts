@@ -57,7 +57,7 @@ export async function listKeywords(req: Request, res: Response): Promise<void> {
     if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = Math.min(parseInt(req.query.pageSize as string) || 10, 100);
+    const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
     const search = req.query.search as string | undefined;
 
     const { userId, role } = req.user!;
@@ -173,6 +173,10 @@ export async function batchCreateKeywords(req: Request, res: Response): Promise<
       fail(res, 400, '关键词列表不能为空');
       return;
     }
+    if (keywords.length > 500) {
+      fail(res, 400, '单次批量创建不能超过500个');
+      return;
+    }
 
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
@@ -192,10 +196,13 @@ export async function expandKeywords(req: Request, res: Response): Promise<void>
     const { keyword } = req.body;
     if (!keyword) { fail(res, 400, '关键词不能为空'); return; }
 
+    const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
+
     const keywords = await llmService.expandKeywords(keyword);
     success(res, keywords);
   } catch (err: unknown) {
-    fail(res, 500, '智能扩词失败');
+    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '智能扩词失败'); }
   }
 }
 
@@ -207,7 +214,7 @@ export async function listPortraits(req: Request, res: Response): Promise<void> 
     if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = Math.min(parseInt(req.query.pageSize as string) || 10, 100);
+    const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
     const search = req.query.search as string | undefined;
 
     const { userId, role } = req.user!;
@@ -315,7 +322,7 @@ export async function listImages(req: Request, res: Response): Promise<void> {
     if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = Math.min(parseInt(req.query.pageSize as string) || 10, 100);
+    const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
     const search = req.query.search as string | undefined;
 
     const { userId, role } = req.user!;
@@ -439,7 +446,7 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
     if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = Math.min(parseInt(req.query.pageSize as string) || 10, 100);
+    const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
     const search = req.query.search as string | undefined;
 
     const { userId, role } = req.user!;
@@ -483,6 +490,7 @@ export async function createDocument(req: Request, res: Response): Promise<void>
     if (!file_name) { fail(res, 400, '文件名不能为空'); return; }
     if (!file_type) { fail(res, 400, '文件类型不能为空'); return; }
     if (!file_size) { fail(res, 400, '文件大小不能为空'); return; }
+    if (typeof file_size !== 'number' || file_size <= 0 || !Number.isFinite(file_size)) { fail(res, 400, '文件大小必须为正整数'); return; }
 
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
@@ -566,7 +574,7 @@ export async function listProjectKeywords(req: Request, res: Response): Promise<
     if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = Math.min(parseInt(req.query.pageSize as string) || 10, 100);
+    const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
     const search = req.query.search as string | undefined;
 
     const { userId, role } = req.user!;
@@ -585,7 +593,7 @@ export async function listProjectPortraits(req: Request, res: Response): Promise
     if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = Math.min(parseInt(req.query.pageSize as string) || 10, 100);
+    const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
     const search = req.query.search as string | undefined;
 
     const { userId, role } = req.user!;
@@ -604,7 +612,7 @@ export async function listProjectImages(req: Request, res: Response): Promise<vo
     if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = Math.min(parseInt(req.query.pageSize as string) || 10, 100);
+    const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
     const search = req.query.search as string | undefined;
 
     const { userId, role } = req.user!;
@@ -623,7 +631,7 @@ export async function listProjectDocuments(req: Request, res: Response): Promise
     if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = Math.min(parseInt(req.query.pageSize as string) || 10, 100);
+    const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
     const search = req.query.search as string | undefined;
 
     const { userId, role } = req.user!;
@@ -641,7 +649,7 @@ export async function listProjectDocuments(req: Request, res: Response): Promise
 export async function listInventory(req: Request, res: Response): Promise<void> {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = Math.min(parseInt(req.query.pageSize as string) || 10, 100);
+    const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
     const category = req.query.category as string | undefined;
     const search = req.query.search as string | undefined;
 
@@ -854,7 +862,12 @@ export async function mineKeywords(req: Request, res: Response): Promise<void> {
     if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
-    const sourceType = req.body.source_type || 'all';
+    const VALID_SOURCE_TYPES = ['all', 'document', 'portrait', 'image'] as const;
+    const sourceType: string = req.body.source_type || 'all';
+    if (!VALID_SOURCE_TYPES.includes(sourceType as any)) {
+      fail(res, 400, '无效的资源类型');
+      return;
+    }
 
     const prisma = getPrisma();
     const contentParts: string[] = [];
@@ -917,6 +930,7 @@ export async function toggleMinedKeywordsBatch(req: Request, res: Response): Pro
     await checkBaseAccess(baseId, userId, role);
     const { ids, selected } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) { fail(res, 400, '请选择关键词'); return; }
+    if (typeof selected !== 'boolean') { fail(res, 400, 'selected必须为布尔值'); return; }
     await minedKeywordService.toggleSelectBatch(baseId, ids, selected);
     const items = await minedKeywordService.listByBase(baseId);
     success(res, items);
