@@ -1369,4 +1369,591 @@ describe('ProjectServiceImpl', () => {
     });
 
   });
+
+  // ══════════════════════════════════════════
+  //  第2轮 TDD 补充：错误类型验证 / 边界值 / 安全性
+  // ══════════════════════════════════════════
+  describe('第2轮: 错误类型验证', () => {
+    it('getById: NotFoundError 应为 AppError 子类且 statusCode=404', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      mockedGetPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } } as any);
+
+      const { AppError, NotFoundError } = require('../../apis/errors');
+      try {
+        await service.getById(999);
+        fail('should have thrown');
+      } catch (err: any) {
+        expect(err).toBeInstanceOf(NotFoundError);
+        expect(err).toBeInstanceOf(AppError);
+        expect(err.statusCode).toBe(404);
+        expect(err.message).toBe('项目不存在');
+      }
+    });
+
+    it('update: NotFoundError 应为 AppError 子类且 statusCode=404', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      mockedGetPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } } as any);
+
+      const { NotFoundError } = require('../../apis/errors');
+      try {
+        await service.update(999, { short_name: 'X' });
+        fail('should have thrown');
+      } catch (err: any) {
+        expect(err).toBeInstanceOf(NotFoundError);
+        expect(err.statusCode).toBe(404);
+        expect(err.message).toBe('项目不存在');
+      }
+    });
+
+    it('delete: NotFoundError 应为 AppError 子类且 statusCode=404', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      mockedGetPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } } as any);
+
+      const { NotFoundError } = require('../../apis/errors');
+      try {
+        await service.delete(999);
+        fail('should have thrown');
+      } catch (err: any) {
+        expect(err).toBeInstanceOf(NotFoundError);
+        expect(err.statusCode).toBe(404);
+        expect(err.message).toBe('项目不存在');
+      }
+    });
+
+    it('create: BusinessError(运营者不属于指定公司) 应有 statusCode=400', async () => {
+      const mockUserFindMany = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({
+        project: { create: jest.fn() },
+        user: { findMany: mockUserFindMany },
+      } as any);
+
+      const { BusinessError } = require('../../apis/errors');
+      try {
+        await service.create({
+          short_name: 'P1',
+          full_name: 'Project One',
+          company_id: 1,
+          operator_ids: [99],
+        });
+        fail('should have thrown');
+      } catch (err: any) {
+        expect(err).toBeInstanceOf(BusinessError);
+        expect(err.statusCode).toBe(400);
+        expect(err.message).toBe('运营者不属于指定公司');
+      }
+    });
+
+    it('create: BusinessError(查看者不属于指定公司) 应有 statusCode=400', async () => {
+      const mockUserFindMany = jest.fn()
+        .mockResolvedValueOnce([makePrismaUser(2, 1, 'admin', '张三')])
+        .mockResolvedValueOnce([]);
+      mockedGetPrisma.mockReturnValue({
+        project: { create: jest.fn() },
+        user: { findMany: mockUserFindMany },
+      } as any);
+
+      const { BusinessError } = require('../../apis/errors');
+      try {
+        await service.create({
+          short_name: 'P1',
+          full_name: 'Project One',
+          company_id: 1,
+          operator_ids: [2],
+          viewer_ids: [99],
+        });
+        fail('should have thrown');
+      } catch (err: any) {
+        expect(err).toBeInstanceOf(BusinessError);
+        expect(err.statusCode).toBe(400);
+        expect(err.message).toBe('查看者不属于指定公司');
+      }
+    });
+
+    it('update: BusinessError(项目所属公司不可更改) 应有 statusCode=400', async () => {
+      const existing = makePrismaProject({ companyId: 1 });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: jest.fn() },
+      } as any);
+
+      const { BusinessError } = require('../../apis/errors');
+      try {
+        await service.update(1, { company_id: 999 });
+        fail('should have thrown');
+      } catch (err: any) {
+        expect(err).toBeInstanceOf(BusinessError);
+        expect(err.statusCode).toBe(400);
+        expect(err.message).toBe('项目所属公司不可更改');
+      }
+    });
+
+    it('update: BusinessError(运营者不属于指定公司) 应有 statusCode=400', async () => {
+      const existing = makePrismaProject();
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUserFindMany = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: jest.fn() },
+        user: { findMany: mockUserFindMany },
+      } as any);
+
+      const { BusinessError } = require('../../apis/errors');
+      try {
+        await service.update(1, { operator_ids: [99] });
+        fail('should have thrown');
+      } catch (err: any) {
+        expect(err).toBeInstanceOf(BusinessError);
+        expect(err.statusCode).toBe(400);
+        expect(err.message).toBe('运营者不属于指定公司');
+      }
+    });
+
+    it('update: BusinessError(查看者不属于指定公司) 应有 statusCode=400', async () => {
+      const existing = makePrismaProject();
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUserFindMany = jest.fn()
+        .mockResolvedValueOnce([makePrismaUser(2, 1, 'admin', '张三')])
+        .mockResolvedValueOnce([]);
+      const mockOperatorUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: jest.fn() },
+        user: { findMany: mockUserFindMany },
+        projectOperator: { updateMany: mockOperatorUpdateMany },
+      } as any);
+
+      const { BusinessError } = require('../../apis/errors');
+      try {
+        await service.update(1, { operator_ids: [2], viewer_ids: [99] });
+        fail('should have thrown');
+      } catch (err: any) {
+        expect(err).toBeInstanceOf(BusinessError);
+        expect(err.statusCode).toBe(400);
+        expect(err.message).toBe('查看者不属于指定公司');
+      }
+    });
+
+    it('getById: ForbiddenError(无权操作该项目) 应有 statusCode=403', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(makePrismaProject({
+        operators: [{ userId: 5, user: { id: 5, cnName: '王五' } }],
+      }));
+      mockedGetPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } } as any);
+
+      const { ForbiddenError } = require('../../apis/errors');
+      try {
+        await service.getById(1, 2, 'admin');
+        fail('should have thrown');
+      } catch (err: any) {
+        expect(err).toBeInstanceOf(ForbiddenError);
+        expect(err.statusCode).toBe(403);
+        expect(err.message).toBe('无权操作该项目');
+      }
+    });
+
+    it('update: ForbiddenError(无权操作该项目) 应有 statusCode=403', async () => {
+      const existing = makePrismaProject({
+        operators: [{ userId: 5, user: { id: 5, cnName: '王五' } }],
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: jest.fn() },
+      } as any);
+
+      const { ForbiddenError } = require('../../apis/errors');
+      try {
+        await service.update(1, { short_name: 'X' }, 2, 'admin');
+        fail('should have thrown');
+      } catch (err: any) {
+        expect(err).toBeInstanceOf(ForbiddenError);
+        expect(err.statusCode).toBe(403);
+        expect(err.message).toBe('无权操作该项目');
+      }
+    });
+
+    it('delete: ForbiddenError(无权操作该项目) 应有 statusCode=403', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(makePrismaProject({
+        operators: [{ userId: 5, user: { id: 5, cnName: '王五' } }],
+      }));
+      mockedGetPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } } as any);
+
+      const { ForbiddenError } = require('../../apis/errors');
+      try {
+        await service.delete(1, 2, 'admin');
+        fail('should have thrown');
+      } catch (err: any) {
+        expect(err).toBeInstanceOf(ForbiddenError);
+        expect(err.statusCode).toBe(403);
+        expect(err.message).toBe('无权操作该项目');
+      }
+    });
+  });
+
+  describe('第2轮: Admin 边界值', () => {
+    it('getById: admin with userId=0 应跳过权限检查（falsy userId）', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(makePrismaProject({
+        operators: [{ userId: 5, user: { id: 5, cnName: '王五' } }],
+      }));
+      mockedGetPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } } as any);
+
+      // userId=0 is falsy, so role==='admin' && userId evaluates to false
+      const result = await service.getById(1, 0, 'admin');
+      expect(result.id).toBe(1);
+    });
+
+    it('update: admin with userId=0 应跳过权限检查（falsy userId）', async () => {
+      const existing = makePrismaProject({
+        operators: [{ userId: 5, user: { id: 5, cnName: '王五' } }],
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, shortName: 'New' });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      const result = await service.update(1, { short_name: 'New' }, 0, 'admin');
+      expect(result.short_name).toBe('New');
+    });
+
+    it('delete: admin with userId=0 应跳过权限检查（falsy userId）', async () => {
+      const existing = makePrismaProject({
+        operators: [{ userId: 5, user: { id: 5, cnName: '王五' } }],
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.delete(1, 0, 'admin');
+      expect(mockUpdate).toHaveBeenCalled();
+    });
+
+    it('create: admin with undefined companyId 应使用 undefined 作为 effectiveCompanyId', async () => {
+      const mockCreate = jest.fn().mockResolvedValue(makePrismaProject({
+        operators: [],
+        viewers: [],
+      }));
+      mockedGetPrisma.mockReturnValue({ project: { create: mockCreate } } as any);
+
+      // When role='admin' and companyId=undefined, effectiveCompanyId = undefined!
+      await service.create({
+        short_name: 'P1',
+        full_name: 'Project One',
+        company_id: 1,
+      }, 'admin', undefined);
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: undefined }),
+        }),
+      );
+    });
+
+    it('update: admin with undefined userId 应跳过权限检查', async () => {
+      const existing = makePrismaProject({
+        operators: [{ userId: 5, user: { id: 5, cnName: '王五' } }],
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, shortName: 'New' });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      // role='admin' but userId=undefined → skip operator check
+      const result = await service.update(1, { short_name: 'New' }, undefined, 'admin');
+      expect(result.short_name).toBe('New');
+    });
+
+    it('delete: admin with undefined userId 应跳过权限检查', async () => {
+      const existing = makePrismaProject({
+        operators: [{ userId: 5, user: { id: 5, cnName: '王五' } }],
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      // role='admin' but userId=undefined → skip operator check
+      await service.delete(1, undefined, 'admin');
+      expect(mockUpdate).toHaveBeenCalled();
+    });
+
+    it('getById: 非 admin/view/sysadmin 角色应跳过权限检查', async () => {
+      const mockFindFirst = jest.fn().mockResolvedValue(makePrismaProject({
+        operators: [{ userId: 5, user: { id: 5, cnName: '王五' } }],
+      }));
+      mockedGetPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } } as any);
+
+      // Some other role → no operator check
+      const result = await service.getById(1, 2, 'guest');
+      expect(result.id).toBe(1);
+    });
+  });
+
+  describe('第2轮: 安全性与数据完整性', () => {
+    it('update: viewer validation 应使用 existing.companyId 而非 request.company_id', async () => {
+      const existing = makePrismaProject({ companyId: 10 });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUserFindMany = jest.fn().mockResolvedValue([makePrismaUser(6, 10, 'view', '孙七')]);
+      const mockViewerUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...existing,
+        viewers: [{ userId: 6, user: { id: 6, cnName: '孙七' } }],
+      });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+        user: { findMany: mockUserFindMany },
+        projectViewer: { updateMany: mockViewerUpdateMany },
+      } as any);
+
+      await service.update(1, { viewer_ids: [6] });
+
+      // Viewer validation should use existing companyId=10
+      expect(mockUserFindMany).toHaveBeenCalledWith({
+        where: { id: { in: [6] }, companyId: 10, role: 'view' },
+      });
+    });
+
+    it('update: company_id 在 request 中为 undefined 时不应抛错', async () => {
+      const existing = makePrismaProject({ companyId: 1 });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, shortName: 'New' });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      // company_id is undefined in request → should not trigger the immutability check
+      const result = await service.update(1, { short_name: 'New' });
+      expect(result).toBeDefined();
+    });
+
+    it('update: operator 软删除后再创建新的（替换语义验证）', async () => {
+      const existing = makePrismaProject({
+        operators: [
+          { userId: 2, user: { id: 2, cnName: '张三' } },
+          { userId: 3, user: { id: 3, cnName: '李四' } },
+        ],
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUserFindMany = jest.fn().mockResolvedValue([makePrismaUser(5, 1, 'admin', '赵六')]);
+      const mockOperatorUpdateMany = jest.fn().mockResolvedValue({ count: 2 });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...existing,
+        operators: [{ userId: 5, user: { id: 5, cnName: '赵六' } }],
+      });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+        user: { findMany: mockUserFindMany },
+        projectOperator: { updateMany: mockOperatorUpdateMany },
+      } as any);
+
+      const result = await service.update(1, { operator_ids: [5] });
+
+      // First soft-deletes ALL existing operators
+      expect(mockOperatorUpdateMany).toHaveBeenCalledWith({
+        where: { projectId: 1, deletedAt: null },
+        data: { deletedAt: expect.any(Date) },
+      });
+      // Then creates new ones
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            operators: { create: [{ userId: 5 }] },
+          }),
+        }),
+      );
+      expect(result.operator_ids).toEqual([5]);
+    });
+
+    it('update: viewer 软删除后再创建新的（替换语义验证）', async () => {
+      const existing = makePrismaProject({
+        viewers: [
+          { userId: 3, user: { id: 3, cnName: '李四' } },
+          { userId: 4, user: { id: 4, cnName: '王五' } },
+        ],
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUserFindMany = jest.fn().mockResolvedValue([makePrismaUser(6, 1, 'view', '孙七')]);
+      const mockViewerUpdateMany = jest.fn().mockResolvedValue({ count: 2 });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...existing,
+        viewers: [{ userId: 6, user: { id: 6, cnName: '孙七' } }],
+      });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+        user: { findMany: mockUserFindMany },
+        projectViewer: { updateMany: mockViewerUpdateMany },
+      } as any);
+
+      const result = await service.update(1, { viewer_ids: [6] });
+
+      expect(mockViewerUpdateMany).toHaveBeenCalledWith({
+        where: { projectId: 1, deletedAt: null },
+        data: { deletedAt: expect.any(Date) },
+      });
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            viewers: { create: [{ userId: 6 }] },
+          }),
+        }),
+      );
+      expect(result.viewer_ids).toEqual([6]);
+    });
+
+    it('create: viewer with no user object should use userId as fallback via mapProject', async () => {
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...makePrismaProject(),
+        operators: [],
+        viewers: [{ userId: 8, user: null }],
+      });
+      mockedGetPrisma.mockReturnValue({ project: { create: mockCreate } } as any);
+
+      const result = await service.create({
+        short_name: 'P1',
+        full_name: 'Project One',
+        company_id: 1,
+      });
+
+      expect(result.viewer_ids).toEqual([8]);
+      expect(result.viewer_names).toEqual(['']);
+    });
+
+    it('list: Promise.all 并发执行 findMany 和 count', async () => {
+      const rows = [makePrismaProject()];
+      const mockFindMany = jest.fn().mockResolvedValue(rows);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      mockedGetPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } } as any);
+
+      const result = await service.list(1, 10);
+
+      // Both should be called exactly once
+      expect(mockFindMany).toHaveBeenCalledTimes(1);
+      expect(mockCount).toHaveBeenCalledTimes(1);
+      expect(result.list).toHaveLength(1);
+      expect(result.total).toBe(1);
+    });
+
+    it('update: update 方法的 include 应包含 OPERATOR_INCLUDE', async () => {
+      const existing = makePrismaProject();
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, shortName: 'New' });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.update(1, { short_name: 'New' });
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ include: OPERATOR_INCLUDE }),
+      );
+    });
+
+    it('create: create 方法的 include 应包含 OPERATOR_INCLUDE', async () => {
+      const mockCreate = jest.fn().mockResolvedValue(makePrismaProject({
+        operators: [],
+        viewers: [],
+      }));
+      mockedGetPrisma.mockReturnValue({ project: { create: mockCreate } } as any);
+
+      await service.create({
+        short_name: 'P1',
+        full_name: 'Project One',
+        company_id: 1,
+      });
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ include: OPERATOR_INCLUDE }),
+      );
+    });
+
+    it('delete: delete 应使用 findFirst + include OPERATOR_INCLUDE（用于权限检查）', async () => {
+      const existing = makePrismaProject({
+        operators: [{ userId: 2, user: { id: 2, cnName: '张三' } }],
+      });
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
+      mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      } as any);
+
+      await service.delete(1);
+
+      expect(mockFindFirst).toHaveBeenCalledWith({
+        where: { id: 1, deletedAt: null },
+        include: OPERATOR_INCLUDE,
+      });
+    });
+  });
+
+  describe('第2轮: mapProject 边界值', () => {
+    it('list: 多个 operator 和 viewer 的映射', async () => {
+      const rows = [makePrismaProject({
+        operators: [
+          { userId: 2, user: { id: 2, cnName: '张三' } },
+          { userId: 4, user: { id: 4, cnName: '王五' } },
+          { userId: 5, user: { id: 5, cnName: '赵六' } },
+        ],
+        viewers: [
+          { userId: 3, user: { id: 3, cnName: '李四' } },
+          { userId: 6, user: { id: 6, cnName: '孙七' } },
+        ],
+      })];
+      const mockFindMany = jest.fn().mockResolvedValue(rows);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      mockedGetPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } } as any);
+
+      const result = await service.list(1, 10);
+
+      expect(result.list[0].operator_ids).toEqual([2, 4, 5]);
+      expect(result.list[0].operator_names).toEqual(['张三', '王五', '赵六']);
+      expect(result.list[0].viewer_ids).toEqual([3, 6]);
+      expect(result.list[0].viewer_names).toEqual(['李四', '孙七']);
+    });
+
+    it('list: operator/user cnName 为空字符串时应正确映射', async () => {
+      const rows = [makePrismaProject({
+        operators: [{ userId: 2, user: { id: 2, cnName: '' } }],
+        viewers: [],
+      })];
+      const mockFindMany = jest.fn().mockResolvedValue(rows);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      mockedGetPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } } as any);
+
+      const result = await service.list(1, 10);
+
+      expect(result.list[0].operator_names).toEqual(['']);
+    });
+
+    it('list: viewer/user 对象存在但 id 字段不存在时应使用 userId 回退', async () => {
+      const rows = [makePrismaProject({
+        operators: [],
+        viewers: [{ userId: 9, user: { cnName: '测试用户' } }],
+      })];
+      const mockFindMany = jest.fn().mockResolvedValue(rows);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      mockedGetPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } } as any);
+
+      const result = await service.list(1, 10);
+
+      // user.id is undefined, fallback to userId
+      expect(result.list[0].viewer_ids).toEqual([9]);
+      expect(result.list[0].viewer_names).toEqual(['测试用户']);
+    });
+
+    it('list: 多条记录映射应保持顺序', async () => {
+      const rows = [
+        makePrismaProject({ id: 1, shortName: 'Alpha' }),
+        makePrismaProject({ id: 2, shortName: 'Beta' }),
+        makePrismaProject({ id: 3, shortName: 'Gamma' }),
+      ];
+      const mockFindMany = jest.fn().mockResolvedValue(rows);
+      const mockCount = jest.fn().mockResolvedValue(3);
+      mockedGetPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } } as any);
+
+      const result = await service.list(1, 10);
+
+      expect(result.list.map(p => p.short_name)).toEqual(['Alpha', 'Beta', 'Gamma']);
+      expect(result.total).toBe(3);
+    });
+  });
 });

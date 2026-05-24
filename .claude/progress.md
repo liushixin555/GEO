@@ -157,3 +157,4 @@
 | 2026-05-25 | tasks/review/help.tsx.architecture.md | help.tsx 软件架构专家评审——5.5/10 CONDITIONAL APPROVE（H×2 window.open全局耦合+零可配置性，M×3 单例无隔离+execute语义缺失+导入耦合） |
 | 2026-05-25 | tasks/tdd/llm.service.test.md | llm.service.impl TDD 第2轮——97用例100%覆盖率（+37新增：prompt内容验证/编号前缀边界值/错误链路全分支/response undefined/不同模型配置/图片description边界值） |
 | 2026-05-25 | tasks/review/help.tsx.security.md | help.tsx 代码安全专家评审——5.5/10 CONDITIONAL APPROVE（H×2 window.open缺noopener+noreferrer无效+M×1 URL硬编码+M×2 弹窗拦截无反馈） |
+| 2026-05-25 | tasks/tdd/project.service.test.md | project.service.impl TDD 第2轮——103用例100%覆盖率（+31新增：错误类型验证statusCode/ Admin边界值userId=0/安全性数据完整性/mapProject边界值） |
