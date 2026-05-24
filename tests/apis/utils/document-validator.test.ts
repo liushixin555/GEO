@@ -799,4 +799,334 @@ describe('apis/utils/document-validator.ts', () => {
       });
     });
   });
+
+  // ========== Round 2: Additional branch & edge-case coverage ==========
+  describe('Round 2 — branch & edge-case coverage', () => {
+    // --- ZIP entry with empty content (header.size = 0) ---
+    describe('ZIP entry size branches (line 122)', () => {
+      it('should handle ZIP with empty file entry (header.size falsy path)', async () => {
+        // Create a DOCX with an empty file entry to exercise e.header?.size || 0 falsy path
+        const zip = new AdmZip();
+        zip.addFile('word/document.xml', Buffer.from('<w:document/>'));
+        zip.addFile('word/empty.xml', Buffer.alloc(0)); // 0-byte entry → header.size = 0
+        const buf = zip.toBuffer();
+        const result = await DocumentValidator.validateContent(buf, 'docx');
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('docx');
+      });
+
+      it('should handle ZIP with multiple empty file entries', async () => {
+        const zip = new AdmZip();
+        zip.addFile('xl/workbook.xml', Buffer.from('<wb/>'));
+        zip.addFile('xl/empty1', Buffer.alloc(0));
+        zip.addFile('xl/empty2', Buffer.alloc(0));
+        const buf = zip.toBuffer();
+        const result = await DocumentValidator.validateContent(buf, 'xlsx');
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('xlsx');
+      });
+    });
+
+    // --- OLE2 edge cases ---
+    describe('OLE2 edge cases', () => {
+      it('should reject OLE2 buffer with pdf extension', async () => {
+        const result = await DocumentValidator.validateContent(makeOle2Buffer(), 'pdf');
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('OLE2');
+      });
+
+      it('should reject OLE2 buffer with json extension', async () => {
+        const result = await DocumentValidator.validateContent(makeOle2Buffer(), 'json');
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('OLE2');
+      });
+
+      it('should reject OLE2 buffer with docx extension', async () => {
+        const result = await DocumentValidator.validateContent(makeOle2Buffer(), 'docx');
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('OLE2');
+      });
+    });
+
+    // --- ZIP-based mismatch paths ---
+    describe('ZIP format mismatch', () => {
+      it('should reject XLSX content declared as docx', async () => {
+        const result = await DocumentValidator.validateContent(makeXlsxBuffer(), 'docx');
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('不匹配');
+      });
+
+      it('should reject PPTX content declared as xlsx', async () => {
+        const result = await DocumentValidator.validateContent(makePptxBuffer(), 'xlsx');
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('不匹配');
+      });
+
+      it('should reject DOCX content declared as pdf', async () => {
+        const result = await DocumentValidator.validateContent(makeDocxBuffer(), 'pdf');
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('不匹配');
+      });
+
+      it('should reject generic ZIP with various extensions', async () => {
+        for (const ext of ['pdf', 'doc', 'json', 'xml']) {
+          const result = await DocumentValidator.validateContent(makeGenericZipBuffer(), ext);
+          expect(result.valid).toBe(false);
+        }
+      });
+    });
+
+    // --- detectType boundary: buffer exactly 4 bytes ---
+    describe('detectType buffer boundaries', () => {
+      it('should handle buffer exactly 4 bytes (ZIP magic only)', async () => {
+        const zipMagic = Buffer.from([0x50, 0x4B, 0x03, 0x04]);
+        const result = await DocumentValidator.validateContent(zipMagic, 'pdf');
+        // detectType tries AdmZip which might fail or return 'zip'
+        expect(result).toBeDefined();
+        expect(result.valid).toBe(false);
+      });
+
+      it('should handle buffer exactly 5 bytes with PDF magic', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('%PDF-'), 'pdf'
+        );
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('pdf');
+      });
+
+      it('should handle buffer exactly 8 bytes with OLE2 magic', async () => {
+        const magic = Buffer.from([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]);
+        const result = await DocumentValidator.validateContent(magic, 'doc');
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('doc');
+      });
+
+      it('should handle buffer exactly 3 bytes for pdf extension', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from([0x01, 0x02, 0x03]), 'pdf'
+        );
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('无法识别');
+      });
+    });
+
+    // --- validateContent case sensitivity ---
+    describe('validateContent case sensitivity', () => {
+      it('should handle uppercase DOCX extension', async () => {
+        const result = await DocumentValidator.validateContent(makeDocxBuffer(), 'DOCX');
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('docx');
+      });
+
+      it('should handle uppercase XLSX extension', async () => {
+        const result = await DocumentValidator.validateContent(makeXlsxBuffer(), 'XLSX');
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('xlsx');
+      });
+
+      it('should handle uppercase YAML extension', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('key: value'), 'YAML'
+        );
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('yaml');
+      });
+
+      it('should handle mixed case Xml extension', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('<?xml version="1.0"?><root/>'), 'Xml'
+        );
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('xml');
+      });
+    });
+
+    // --- validateTextContent with non-UTF8 buffer ---
+    describe('non-UTF8 buffer handling', () => {
+      it('should handle binary-looking buffer for JSON', async () => {
+        // Binary buffer that might cause UTF-8 decode issues
+        const binaryBuf = Buffer.from([0x80, 0x81, 0x82, 0x83]);
+        const result = await DocumentValidator.validateContent(binaryBuf, 'json');
+        // toString('utf-8') won't throw for this, but JSON.parse will fail
+        expect(result.valid).toBe(false);
+      });
+
+      it('should handle binary buffer for XML', async () => {
+        const binaryBuf = Buffer.from([0x80, 0x81, 0x82, 0x83]);
+        const result = await DocumentValidator.validateContent(binaryBuf, 'xml');
+        expect(result).toBeDefined();
+      });
+    });
+
+    // --- Markdown pattern variations ---
+    describe('Markdown pattern variations', () => {
+      it('should validate markdown with h3 heading', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('### Section Title\nSome text'), 'md'
+        );
+        expect(result.valid).toBe(true);
+      });
+
+      it('should validate markdown with h6 heading', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('###### Smallest heading'), 'md'
+        );
+        expect(result.valid).toBe(true);
+      });
+
+      it('should validate markdown with unordered list using asterisk', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('* item1\n* item2'), 'md'
+        );
+        expect(result.valid).toBe(true);
+      });
+
+      it('should validate markdown with unordered list using plus', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('+ item1\n+ item2'), 'md'
+        );
+        expect(result.valid).toBe(true);
+      });
+    });
+
+    // --- YAML edge cases ---
+    describe('YAML edge cases', () => {
+      it('should validate YAML with nested structure', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('parent:\n  child: value\n  another: 123'), 'yaml'
+        );
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('yaml');
+      });
+
+      it('should validate YAML array', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('- item1\n- item2\n- item3'), 'yaml'
+        );
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('yaml');
+      });
+
+      it('should validate YML extension with array content', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('- a\n- b'), 'yml'
+        );
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('yaml');
+      });
+    });
+
+    // --- CSV edge cases ---
+    describe('CSV edge cases', () => {
+      it('should validate single-line CSV with comma', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('a,b,c'), 'csv'
+        );
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('csv');
+      });
+
+      it('should validate multi-row CSV', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('h1,h2,h3\nv1,v2,v3\nv4,v5,v6'), 'csv'
+        );
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('csv');
+      });
+
+      it('should reject whitespace-only CSV with newlines', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('\n\n\n'), 'csv'
+        );
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('空');
+      });
+    });
+
+    // --- XML edge cases ---
+    describe('XML edge cases', () => {
+      it('should validate XML with attributes', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('<?xml version="1.0"?><root attr="value"><child/></root>'), 'xml'
+        );
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('xml');
+      });
+
+      it('should validate XML with nested elements', async () => {
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('<a><b><c>text</c></b></a>'), 'xml'
+        );
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('xml');
+      });
+
+      it('should reject content that XMLParser returns null for', async () => {
+        const spy = jest.spyOn(XMLParser.prototype, 'parse').mockReturnValue(null);
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('<root/>'), 'xml'
+        );
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('XML 格式无效');
+        spy.mockRestore();
+      });
+    });
+
+    // --- getCanonicalType paths ---
+    describe('canonical type equivalence', () => {
+      it('should accept YAML content with YML extension via canonical type', async () => {
+        // detectType returns null for text, validateTextContent returns yaml
+        // getCanonicalType('yml') → 'yaml' matches detectedType 'yaml'
+        const result = await DocumentValidator.validateContent(
+          Buffer.from('foo: bar'), 'yml'
+        );
+        expect(result.valid).toBe(true);
+        expect(result.detectedType).toBe('yaml');
+      });
+
+      it('should report mismatch when PDF content declared as YAML', async () => {
+        const result = await DocumentValidator.validateContent(makePdfBuffer(), 'yaml');
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('不匹配');
+      });
+    });
+
+    // --- validateFileSize boundary ---
+    describe('validateFileSize boundaries', () => {
+      it('should accept size of exactly 1 byte', () => {
+        expect(DocumentValidator.validateFileSize(1)).toBe(true);
+      });
+
+      it('should accept size of exactly MAX_FILE_SIZE', () => {
+        expect(DocumentValidator.validateFileSize(DocumentValidator.MAX_FILE_SIZE)).toBe(true);
+      });
+
+      it('should reject size of MAX_FILE_SIZE + 1', () => {
+        expect(DocumentValidator.validateFileSize(DocumentValidator.MAX_FILE_SIZE + 1)).toBe(false);
+      });
+
+      it('should reject very large numbers', () => {
+        expect(DocumentValidator.validateFileSize(Number.MAX_SAFE_INTEGER)).toBe(false);
+      });
+    });
+
+    // --- getExtension edge cases ---
+    describe('getExtension additional edge cases', () => {
+      it('should handle filename with spaces', () => {
+        expect(DocumentValidator.getExtension('my file.json')).toBe('json');
+      });
+
+      it('should handle filename with unicode characters', () => {
+        expect(DocumentValidator.getExtension('中文文件.pdf')).toBe('pdf');
+      });
+
+      it('should handle hidden file with extension', () => {
+        expect(DocumentValidator.getExtension('.gitignore')).toBe('gitignore');
+      });
+
+      it('should handle filename starting with dot and having extension', () => {
+        expect(DocumentValidator.getExtension('.env.local')).toBe('local');
+      });
+    });
+  });
 });
