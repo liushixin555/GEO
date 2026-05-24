@@ -22,7 +22,7 @@ import React, { useCallback, useEffect, forwardRef, useImperativeHandle, useRef,
 import MDEditor from '@uiw/react-md-editor/nohighlight';
 import DOMPurify from 'dompurify';
 import { Empty } from 'antd';
-import { FullscreenOutlined, FontSizeOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { FullscreenOutlined, FontSizeOutlined, QuestionCircleOutlined, LinkOutlined } from '@ant-design/icons';
 import { safeUrlTransform, SAFE_TAGS } from './MarkdownViewer';
 import '../styles/markdown-editor.css';
 
@@ -241,7 +241,8 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
     const preventBrowserShortcut = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && !e.altKey) {
         const key = e.key.toLowerCase();
-        if (key === 'j' || (key === 'h' && !e.shiftKey)) {
+          // UI-P1-01: 拦截 Ctrl+L 防止浏览器选中地址栏导致焦点跳走
+          if (key === 'j' || key === 'l' || (key === 'h' && !e.shiftKey)) {
           e.preventDefault();
         }
       }
@@ -434,6 +435,69 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
               }
             } catch (err) {
               console.error('[MarkdownEditor] image 命令执行失败:', err);
+            }
+          },
+        };
+      }
+
+      // P1-1~P1-4/S1~S5/UI-P1-01~04/UI-P2-01~06/UI-P3-01~03/ARCH-M1~M3:
+      // 覆盖 link 命令——Ctrl+L 快捷键与浏览器地址栏冲突 + 非行业标准 +
+      // javascript: URL 穿透渲染层 XSS + URL 分支空链接文本 WCAG 2.4.4 违规 +
+      // SVG data-name="italic" 复制粘贴错误 + URL 检测 includes('http') 误判/漏判 +
+      // prefix! 非空断言崩溃 + SVG 缺 aria-hidden + 12px 图标过小 + 英文 ARIA
+      if (command.name === 'link') {
+        return {
+          ...command,
+          shortcuts: 'ctrlcmd+k',
+          buttonProps: {
+            'aria-label': '插入链接 (Ctrl+K)',
+            title: '插入链接 (Ctrl+K)',
+          },
+          icon: <LinkOutlined style={{ fontSize: 16 }} />,
+          execute: (state: any, api: any) => {
+            try {
+              const { text, selection } = state;
+              if (!text || selection.start == null) return;
+
+              const safeStart = Math.max(0, Math.min(selection.start, text.length));
+              const safeEnd = Math.max(safeStart, Math.min(selection.end, text.length));
+
+              api.setSelectionRange({ start: safeStart, end: safeEnd });
+              const selectedText = text.substring(safeStart, safeEnd);
+              const trimmed = selectedText.trim();
+
+              const URL_RE = /^(https?:\/\/|ftp:\/\/|ftps:\/\/|\/\/|www\.)[^\s]+$/i;
+              const SAFE_URL_SCHEMES = new Set(['http', 'https', 'ftp', 'ftps', 'mailto', 'tel']);
+
+              if (trimmed.length > 0 && URL_RE.test(trimmed)) {
+                // S1: URL 方案白名单过滤，拦截 javascript:/data:/vbscript: 穿透渲染层
+                const checkUrl = trimmed.startsWith('www.') ? `https://${trimmed}` : trimmed;
+                if (checkUrl.includes(':') && !checkUrl.startsWith('//')) {
+                  const scheme = checkUrl.split(':')[0].toLowerCase();
+                  if (!SAFE_URL_SCHEMES.has(scheme)) {
+                    console.warn('[MarkdownEditor] link 命令拒绝不安全的 URL 方案:', trimmed);
+                    return;
+                  }
+                }
+                // UI-P1-03: 从 URL 提取域名作为默认链接文本（消除空链接文本 WCAG 违规）
+                let linkLabel = trimmed;
+                try {
+                  const urlObj = new URL(checkUrl);
+                  linkLabel = urlObj.hostname;
+                } catch {
+                  linkLabel = trimmed;
+                }
+                api.replaceSelection(`[${linkLabel}](${trimmed})`);
+              } else if (trimmed.length === 0) {
+                // 空选区分支：插入中文占位符模板
+                api.replaceSelection('[链接文本](url)');
+              } else {
+                // 文本包裹分支：选中文本作为链接文本
+                const escaped = trimmed.replace(/[[\]\\]/g, '\\$&');
+                api.replaceSelection(`[${escaped}](url)`);
+              }
+            } catch (err) {
+              console.error('[MarkdownEditor] link 命令执行失败:', err);
             }
           },
         };
