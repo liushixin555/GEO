@@ -194,3 +194,4 @@
 | 2026-05-25 | tasks/review/table.tsx.security.md | @uiw/react-md-editor table.tsx 代码安全专家评审——✅APPROVE 8.0/10（H×0 MEDIUM×1 非空断言CWE-476 + LOW×4 selectWord语义错位/选区边界/DoS/SVG无障碍，XSS/注入/信息泄露面为零） |
 | 2026-05-25 | tasks/tdd/publishing-schedule.controller.test.round2.md | publishing-schedule.controller TDD 第二轮验证——86用例全通过，Stmts/Branch/Funcs/Lines 100%（四维全覆盖确认无回归） |
 | 2026-05-25 | tasks/review/table.tsx.ui.md | @uiw/react-md-editor table.tsx UI专家评审——⚠️有条件通过 3.0/10（P1×1 无表格尺寸选择器，P2×2 无快捷键+toggle缺陷，P3×3 SVG尺寸+无障碍+i18n，封装层需antd Button/Tooltip/Popover包装） |
+| 2026-05-25 | tasks/review/table.tsx.committer.md | @uiw/react-md-editor table.tsx Committer审核专家评审——✅通过 7.4/10（插入功能正确可用+安全8.0+零集成阻塞，toggle移除准死代码不阻塞但需文档说明，4项封装层待办P1中文ARIA+文档提示） |
