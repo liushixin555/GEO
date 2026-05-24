@@ -361,3 +361,10 @@
 - [x] 发现 HIGH×1（缺少 Error Boundary）、MEDIUM×5（根路径重定向逻辑、认证守卫耦合、路由常量管理、Layout 过度膨胀、无单元测试）、LOW×3
 - [x] Committer 审核通过，建议 P0 项在当前迭代修复
 - [x] 评审报告 tasks/review/App.tsx.md
+
+## 本次变更（2026-05-24 App.tsx 架构评审）
+- [x] 软件架构专家评审 pages/App.tsx
+- [x] 综合评分 6.0/10（及格，架构分层不清晰）
+- [x] 10 项架构发现：HIGH×3（认证耦合、Error Boundary、角色守卫）、MEDIUM×4（AppContext 位置、路由集中化、代码分割、竞态条件）、LOW×3
+- [x] 提出目标架构蓝图：AuthProvider → AuthGuard → LayoutShell 三层分层
+- [x] 评审报告 tasks/review/App.tsx.md（覆盖原质量评审）
