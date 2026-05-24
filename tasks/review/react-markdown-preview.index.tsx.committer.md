@@ -389,7 +389,9 @@ import MarkdownPreview from '@uiw/react-markdown-preview/common';
 
 | 评审问题编号 | 优先级 | 修复措施 | 状态 |
 |-------------|--------|---------|------|
-| C-01 / A-09 / UI-P1-01 | P0 | MarkdownViewer 导入路径从 `@uiw/react-markdown-preview` 切换为 `@uiw/react-markdown-preview/common` | ❌ 待实施 |
+| C-01 / A-09 / UI-P1-01 | P0 | MarkdownViewer 导入路径从 `@uiw/react-markdown-preview` 切换为 `@uiw/react-markdown-preview/common` | ✅ 已修复 |
+| SEC-1 (#1 HIGH) | P0 | 添加 `safeUrlTransform` 过滤 javascript:/data:/vbscript: URL 协议 | ✅ 已修复 |
+| SEC-2 (#2 HIGH) | P0 | DOMPurify 添加 `ALLOWED_URI_REGEXP` URI 协议白名单 | ✅ 已修复 |
 | SEC-1 / C-02 | P0 | MarkdownViewer 添加 DOMPurify 消毒，FORBID_TAGS + FORBID_ATTR | ✅ 已修复（commit d511ad5） |
 | PERF-1 / C-03 | P1 | MarkdownViewer 包裹 React.memo + useMemo 缓存 safeSource | ✅ 已修复 |
 | CSS 覆盖 / C-09 | P1 | markdown-viewer.css 全面覆盖 Carbon Design System | ✅ 已修复 |

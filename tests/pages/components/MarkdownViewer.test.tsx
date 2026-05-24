@@ -3,12 +3,15 @@
  */
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import MarkdownViewer from '../../../pages/components/MarkdownViewer';
+import MarkdownViewer, { safeUrlTransform } from '../../../pages/components/MarkdownViewer';
 
-// Mock @uiw/react-markdown-preview
-jest.mock('@uiw/react-markdown-preview', () => {
-  return function MockMarkdownPreview(props: { source?: string }) {
-    return <div data-testid="markdown-preview">{props.source || ''}</div>;
+let mockProps: Record<string, unknown> = {};
+
+// Mock @uiw/react-markdown-preview/common
+jest.mock('@uiw/react-markdown-preview/common', () => {
+  return function MockMarkdownPreview(props: Record<string, unknown>) {
+    mockProps = props;
+    return <div data-testid="markdown-preview">{String(props.source || '')}</div>;
   };
 });
 
@@ -31,6 +34,7 @@ jest.mock('../../../pages/styles/markdown-viewer.css', () => ({}));
 describe('MarkdownViewer', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockProps = {};
   });
 
   it('renders markdown content correctly', () => {
@@ -127,5 +131,65 @@ describe('MarkdownViewer', () => {
 
     expect(screen.getByText('error')).toBeInTheDocument();
     expect(screen.queryByTestId('markdown-preview')).not.toBeInTheDocument();
+  });
+
+  it('strips dangerous event handler attributes via DOMPurify', () => {
+    const xssContent = '<img src="x" onerror="alert(1)" />';
+    render(<MarkdownViewer content={xssContent} />);
+    const preview = screen.getByTestId('markdown-preview');
+    expect(preview.textContent).not.toContain('onerror');
+  });
+
+  it('strips script tags from content via DOMPurify', () => {
+    const xssContent = '<script>alert("xss")</script>Hello';
+    render(<MarkdownViewer content={xssContent} />);
+    const preview = screen.getByTestId('markdown-preview');
+    expect(preview.textContent).not.toContain('<script>');
+    expect(preview.textContent).toContain('Hello');
+  });
+
+  it('passes urlTransform prop to MarkdownPreview', () => {
+    render(<MarkdownViewer content="test" />);
+    expect(mockProps.urlTransform).toBe(safeUrlTransform);
+  });
+});
+
+describe('safeUrlTransform', () => {
+  it('blocks javascript: protocol', () => {
+    expect(safeUrlTransform('javascript:alert(1)')).toBe('');
+  });
+
+  it('blocks javascript: with mixed case', () => {
+    expect(safeUrlTransform('JaVaScRiPt:alert(1)')).toBe('');
+  });
+
+  it('blocks data: protocol', () => {
+    expect(safeUrlTransform('data:text/html,<script>alert(1)</script>')).toBe('');
+  });
+
+  it('blocks vbscript: protocol', () => {
+    expect(safeUrlTransform('vbscript:msgbox(1)')).toBe('');
+  });
+
+  it('allows https: URLs', () => {
+    expect(safeUrlTransform('https://example.com/docs')).toBe('https://example.com/docs');
+  });
+
+  it('allows http: URLs', () => {
+    expect(safeUrlTransform('http://example.com')).toBe('http://example.com');
+  });
+
+  it('allows mailto: URLs', () => {
+    expect(safeUrlTransform('mailto:user@example.com')).toBe('mailto:user@example.com');
+  });
+
+  it('allows relative paths', () => {
+    expect(safeUrlTransform('/api/docs')).toBe('/api/docs');
+    expect(safeUrlTransform('./page')).toBe('./page');
+    expect(safeUrlTransform('../parent')).toBe('../parent');
+  });
+
+  it('allows anchor links', () => {
+    expect(safeUrlTransform('#section-1')).toBe('#section-1');
   });
 });

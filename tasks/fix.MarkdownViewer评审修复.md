@@ -67,3 +67,43 @@
 - [x] 编写单元测试（13 个场景全部通过）
 - [x] ArticleDetail.tsx 已替换使用 MarkdownViewer
 - [x] 前端构建通过
+
+---
+
+## 第二轮评审修复（index.tsx 评审，2026-05-24）
+
+基于 5 份专家评审报告（质量 7.5/10、架构 5.4/10、安全 B-/7.8、UI 2.9/10、Committer 4.5/10），对 `@uiw/react-markdown-preview/src/index.tsx` 进行综合评审。结论同第一轮：第三方库不可直接修改，通过封装层隔离。
+
+### 新增修复项
+
+| 评审问题编号 | 优先级 | 修复措施 | 状态 |
+|-------------|--------|---------|------|
+| C-01 / A-09 / DIFF-01 | P0 | 导入路径从 `@uiw/react-markdown-preview` 切换为 `@uiw/react-markdown-preview/common`，减少 ~150KB gzip bundle | ✅ |
+| SEC-1 (#1 HIGH) | P0 | 添加 `safeUrlTransform` 函数，过滤 `javascript:`、`data:`、`vbscript:` 等危险 URL 协议 | ✅ |
+| SEC-2 (#2 HIGH) | P0 | DOMPurify 添加 `ALLOWED_URI_REGEXP` 限制允许的 URI 协议（深度防御） | ✅ |
+| C-03 / PERF-1 | P1 | React.memo 包裹（第一轮已实施） | ✅ |
+| CSS 覆盖 / C-09 | P1 | markdown-viewer.css Carbon DS 覆盖（第一轮已实施） | ✅ |
+
+### 安全防护层级
+
+| 层级 | 机制 | 防护目标 |
+|------|------|---------|
+| L1 | `safeUrlTransform` | 过滤 Markdown 链接中的 `javascript:`、`data:` 等 URL |
+| L2 | DOMPurify `FORBID_TAGS` | 移除 script/iframe/form 等危险 HTML 标签 |
+| L3 | DOMPurify `FORBID_ATTR` | 移除 onerror/onload/onclick 等事件属性 |
+| L4 | DOMPurify `ALLOWED_URI_REGEXP` | HTML 层面限制 URI 协议白名单 |
+| L5 | 内容长度截断 1MB | 防止超长字符串 DoS |
+
+### 涉及文件
+
+- `pages/components/MarkdownViewer.tsx` — 导入路径切换 + safeUrlTransform + ALLOWED_URI_REGEXP
+- `tests/pages/components/MarkdownViewer.test.tsx` — 新增 9 个安全测试用例（25 个全部通过）
+
+### 验收标准（第二轮）
+
+- [x] 导入路径切换为 `@uiw/react-markdown-preview/common`
+- [x] safeUrlTransform 过滤危险 URL 协议
+- [x] DOMPurify ALLOWED_URI_REGEXP 深度防御
+- [x] 新增 safeUrlTransform 单元测试（9 个场景）
+- [x] 新增 urlTransform prop 传递验证测试
+- [x] 前端构建通过

@@ -1,11 +1,19 @@
 import React, { useMemo } from 'react';
-import MarkdownPreview from '@uiw/react-markdown-preview';
+import MarkdownPreview from '@uiw/react-markdown-preview/common';
 import { Spin, Typography } from 'antd';
 import DOMPurify from 'dompurify';
 import type { CSSProperties } from 'react';
 import '../styles/markdown-viewer.css';
 
 const MAX_SOURCE_LENGTH = 1048576; // 1MB 安全长上限
+
+const ALLOWED_URL_PROTOCOLS = ['http://', 'https://', 'mailto:', 'tel:', '/', '#', './', '../'];
+
+export const safeUrlTransform: (url: string) => string = (url) => {
+  const lower = url.toLowerCase().trim();
+  if (ALLOWED_URL_PROTOCOLS.some((p) => lower.startsWith(p))) return url;
+  return '';
+};
 
 interface MarkdownViewerProps {
   /** Markdown 内容（应经过服务端消毒） */
@@ -38,6 +46,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = React.memo(({
     return DOMPurify.sanitize(truncated, {
       FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'textarea', 'select', 'button'],
       FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
+      ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|telnet):|[^a-z]|[a+][a-z+.]+(?:\.|%20|\/))+$/i,
     });
   }, [content]);
 
@@ -71,6 +80,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = React.memo(({
       <MarkdownPreview
         source={safeSource}
         wrapperElement={{ 'data-color-mode': 'light' }}
+        urlTransform={safeUrlTransform}
       />
     </div>
   );

@@ -273,7 +273,7 @@ describe('System Config Controller', () => {
         .send({ configs: [{ config_value: 'test' }] });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toContain('config_key');
+      expect(response.body.message).toContain('不允许修改');
     });
 
     it('应返回400当config_key不在白名单中时', async () => {
@@ -308,7 +308,7 @@ describe('System Config Controller', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toContain('config_key');
+      expect(response.body.message).toContain('不允许修改');
     });
 
     it('应返回400当多条配置中第二条缺少config_value时', async () => {
@@ -382,10 +382,7 @@ describe('System Config Controller', () => {
       expect(response.body.data[0].config_value).toBe('');
     });
 
-    it('应允许config_value为null', async () => {
-      const result = { id: 1, configKey: 'yishangshu_username', configValue: null, createdAt: new Date(), updatedAt: new Date() };
-      mockPrismaForUpdate([result]);
-
+    it('应拒绝config_value为null(非字符串)', async () => {
       const response = await agent
         .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
@@ -395,13 +392,11 @@ describe('System Config Controller', () => {
           ],
         });
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('config_value');
     });
 
-    it('应允许config_value为0', async () => {
-      const result = { id: 1, configKey: 'yishangshu_username', configValue: 0, createdAt: new Date(), updatedAt: new Date() };
-      mockPrismaForUpdate([result]);
-
+    it('应拒绝config_value为0(非字符串)', async () => {
       const response = await agent
         .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
@@ -411,14 +406,11 @@ describe('System Config Controller', () => {
           ],
         });
 
-      expect(response.status).toBe(200);
-      expect(response.body.data[0].config_value).toBe(0);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('config_value');
     });
 
-    it('应允许config_value为false', async () => {
-      const result = { id: 1, configKey: 'yishangshu_username', configValue: false, createdAt: new Date(), updatedAt: new Date() };
-      mockPrismaForUpdate([result]);
-
+    it('应拒绝config_value为false(非字符串)', async () => {
       const response = await agent
         .put('/api/v1/system-configs')
         .set('Authorization', `Bearer ${sysadminToken()}`)
@@ -428,7 +420,8 @@ describe('System Config Controller', () => {
           ],
         });
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('config_value');
     });
 
     it('应返回更新后配置的完整字段格式', async () => {
