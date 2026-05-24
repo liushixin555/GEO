@@ -63,6 +63,7 @@
 | 2026-05-24 | `tasks/tdd/video-presentation-useStepper.test.md` | useStepper hook TDD——68 项用例、98.91% Stmts/97.05% Branch/100% Lines + 修复空 chapters 崩溃 |
 | 2026-05-24 | `progress_tasks/2026-05-24-project-controller-tdd.md` | project.controller.ts TDD 补全——修复 schema+9个失败测试+1个新增用例，65用例 Stmts/Branch/Lines 100% |
 | 2026-05-24 | `tasks/review/rehypePlugins.tsx.md` | @uiw/react-markdown-preview rehypePlugins.tsx 质量评审——CONDITIONAL ACCEPT 5.8分，P0×3（正则误判/类型断言不安全/XSS攻击面）+ P1×3 |
+| 2026-05-24 | `tasks/review/rehypePlugins.tsx.architecture.md` | @uiw/react-markdown-preview rehypePlugins.tsx 架构评审——CONDITIONAL APPROVE 5.0分，P1×3（隐式契约耦合/SRP三重职责/OCP缺失）+ P2×3 |
 | 2026-05-24 | `tasks/tdd/publishing-platform.controller.test.md` | publishing-platform.controller TDD 补全——+12 用例（52 总），Stmts/Branch/Funcs/Lines 100% |
 
 ## 已知问题
