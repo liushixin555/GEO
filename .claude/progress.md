@@ -109,3 +109,4 @@
 | 2026-05-24 | tasks/review/Editor.factory.tsx.ui.md | @uiw/react-md-editor Editor.factory.tsx UI 专家评审——REJECT 2.4/10（C×6 useMemo副作用/零ARIA/事件泄漏/巨型组件/ref泄露/滚动同步缺陷；H×5 正则渲染/弹窗粗暴/初始化性能/闭包重建/onHeightChange循环；M×4） |
 | 2026-05-24 | tasks/review/Editor.factory.tsx.committer.md | @uiw/react-md-editor Editor.factory.tsx Committer 审核专家评审——⚠️有条件通过 3.8/10（REQ-1~6强制要求：ref安全隔离/DOM清理/服务端sanitize/ErrorBoundary/CSS覆盖验证/ARIA补充） |
 | 2026-05-24 | tasks/review/Editor.nohighlight.tsx.quality.md | @uiw/react-md-editor Editor.nohighlight.tsx 软件质量专家评审——✅通过 8.5/10（工厂+DI优秀组装模块，传导发现useMemo副作用/事件泄漏/滚动除零） |
+| 2026-05-24 | tasks/tdd/todo.entity.test.md | todo.entity TDD 补全——150用例全通过（+124新增：JSON序列化/Object.freeze/结构相等/深拷贝/解构/集合操作/连续更新/日期操作/Set-Map/属性描述符/函数参数） |
