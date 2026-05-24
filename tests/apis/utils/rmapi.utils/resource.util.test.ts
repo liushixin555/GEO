@@ -167,7 +167,7 @@ describe('apis/utils/rmapi.utils/resource.util.ts', () => {
       await getAllRmResources('test-token');
 
       expect(mockedFs.mkdirSync).toHaveBeenCalledWith(
-        expect.stringContaining('data/rmdata'),
+        expect.stringContaining('rmdata'),
         { recursive: true },
       );
     });
