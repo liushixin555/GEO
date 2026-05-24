@@ -1,9 +1,10 @@
 import { Request, Response } from 'express';
 import { AuthServiceImpl } from '../service/impl/auth.service.impl';
-import { LoginSelectionError } from '../entity';
+import { IAuthService } from '../service/auth.service';
+import { LoginSelectionError, PermissionDeniedError } from '../entity';
 import { success, fail } from '../utils';
 
-const authService = new AuthServiceImpl();
+const authService: IAuthService = new AuthServiceImpl();
 
 export async function login(req: Request, res: Response): Promise<void> {
   try {
@@ -27,8 +28,7 @@ export async function login(req: Request, res: Response): Promise<void> {
       fail(res, 403, err.message);
       return;
     }
-    const message = err instanceof Error ? err.message : '';
-    fail(res, 401, message || '登录失败');
+    fail(res, 401, '用户名或密码错误');
   }
 }
 
@@ -36,18 +36,18 @@ export async function logout(_req: Request, res: Response): Promise<void> {
   success(res, null, '登出成功');
 }
 
-export async function verify(_req: Request, res: Response): Promise<void> {
-  const token = _req.headers.authorization?.substring(7);
-  if (!token) {
-    fail(res, 401, '未登录');
-    return;
-  }
-  const result = await authService.verifyToken(token);
-  if (!result.valid) {
+export async function verify(req: Request, res: Response): Promise<void> {
+  try {
+    const user = req.user;
+    if (!user) {
+      fail(res, 401, '未登录');
+      return;
+    }
+    const freshUser = await authService.getLatestUserState(user.userId);
+    success(res, { valid: true, user: freshUser }, 'token有效');
+  } catch (err: unknown) {
     fail(res, 401, '登录已过期');
-    return;
   }
-  success(res, { valid: true, user: result.user }, 'token有效');
 }
 
 export async function saveSelection(req: Request, res: Response): Promise<void> {
@@ -73,7 +73,7 @@ export async function saveSelection(req: Request, res: Response): Promise<void> 
     await authService.saveSelection(user.userId, user.role, user.companyId, { company_id: companyId, project_id: projectId });
     success(res, null, '保存成功');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message.includes('无权')) {
+    if (err instanceof PermissionDeniedError) {
       fail(res, 403, err.message);
       return;
     }
@@ -121,7 +121,14 @@ export async function getContext(req: Request, res: Response): Promise<void> {
       fail(res, 401, '未登录');
       return;
     }
-    const targetCompanyId = req.query.company_id ? Number(req.query.company_id) : undefined;
+    let targetCompanyId: number | undefined;
+    if (req.query.company_id) {
+      targetCompanyId = parseInt(req.query.company_id as string, 10);
+      if (isNaN(targetCompanyId) || targetCompanyId <= 0) {
+        fail(res, 400, 'company_id 必须为正整数');
+        return;
+      }
+    }
     const companies = await authService.getAccessibleCompanies(user.userId, user.role, user.companyId);
     const projects = targetCompanyId
       ? await authService.getAccessibleProjects(user.userId, user.role, targetCompanyId)
@@ -142,7 +149,10 @@ export async function getCompanyDetail(req: Request, res: Response): Promise<voi
       fail(res, 401, '未登录');
       return;
     }
-    // admin/view can only query their own company
+    if (user.role === 'view') {
+      fail(res, 403, '当前角色无权查看公司用户');
+      return;
+    }
     if (user.role !== 'sysadmin' && user.companyId !== id) {
       fail(res, 403, '无权查看其他公司的用户');
       return;

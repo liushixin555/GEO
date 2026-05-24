@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import config from '../../config';
 import { getPrisma } from '../../utils';
-import { LoginRequest, LoginResponse, LoginSelectionError, SaveSelectionRequest } from '../../entity';
+import { LoginRequest, LoginResponse, LoginSelectionError, PermissionDeniedError, SaveSelectionRequest } from '../../entity';
 import { IAuthService } from '../auth.service';
 
 type SelectionItem = { id: number; short_name: string };
@@ -121,15 +121,38 @@ export class AuthServiceImpl implements IAuthService {
     }
   }
 
+  async getLatestUserState(userId: number): Promise<import('../auth.service').VerifyUserData> {
+    const prisma = getPrisma();
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        selectedCompany: { select: { id: true, shortName: true } },
+        selectedProject: { select: { id: true, shortName: true } },
+      },
+    });
+    if (!user) {
+      throw new Error('用户不存在');
+    }
+    return {
+      id: user.id,
+      username: user.username,
+      cn_name: user.cnName,
+      role: user.role as any,
+      company_id: user.companyId,
+      selected_company: user.selectedCompany ? { id: user.selectedCompany.id, short_name: user.selectedCompany.shortName } : null,
+      selected_project: user.selectedProject ? { id: user.selectedProject.id, short_name: user.selectedProject.shortName } : null,
+    };
+  }
+
   async saveSelection(userId: number, role: string, userCompanyId: number | null | undefined, request: SaveSelectionRequest): Promise<void> {
     const accessibleCompanies = await this.getAccessibleCompanies(userId, role, userCompanyId);
     if (!accessibleCompanies.some(c => c.id === request.company_id)) {
-      throw new Error('无权选择该公司');
+      throw new PermissionDeniedError('无权选择该公司');
     }
     if (request.project_id) {
       const accessibleProjects = await this.getAccessibleProjects(userId, role, request.company_id);
       if (!accessibleProjects.some(p => p.id === request.project_id)) {
-        throw new Error('无权选择该项目');
+        throw new PermissionDeniedError('无权选择该项目');
       }
     }
     const prisma = getPrisma();

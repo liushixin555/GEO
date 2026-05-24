@@ -401,7 +401,7 @@ describe('Auth Controller', () => {
         .post(LOGIN)
         .send({ username: 'admin', password: 'pass123' });
       expect(response.status).toBe(401);
-      expect(response.body.message).toBe('DB connection failed');
+      expect(response.body.message).toBe('用户名或密码错误');
     });
 
     it('should handle login error without message', async () => {
@@ -412,7 +412,7 @@ describe('Auth Controller', () => {
         .post(LOGIN)
         .send({ username: 'admin', password: 'pass123' });
       expect(response.status).toBe(401);
-      expect(response.body.message).toBe('登录失败');
+      expect(response.body.message).toBe('用户名或密码错误');
     });
 
     it('should not require auth middleware for login (public route)', async () => {
@@ -1105,6 +1105,7 @@ describe('Auth Controller', () => {
 
       const response = await agent
         .get(url(2))
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`)
         .set('Authorization', `Bearer ${adminToken()}`);
       expect(response.status).toBe(200);
       expect(response.body.data.operators).toHaveLength(1);
@@ -1116,7 +1117,8 @@ describe('Auth Controller', () => {
 
       const response = await agent
         .get(url(2))
-        .set('Authorization', `Bearer ${viewToken()}`);
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
       expect(response.status).toBe(200);
       expect(response.body.data.operators).toHaveLength(0);
       expect(response.body.data.viewers).toHaveLength(0);
@@ -1130,12 +1132,12 @@ describe('Auth Controller', () => {
       expect(response.body.message).toBe('无权查看其他公司的用户');
     });
 
-    it('should return 403 when view role queries different company', async () => {
+    it('should return 403 when view role queries any company', async () => {
       const response = await agent
-        .get(url(999))
+        .get(url(2))
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(response.status).toBe(403);
-      expect(response.body.message).toBe('无权查看其他公司的用户');
+      expect(response.body.message).toBe('当前角色无权查看公司用户');
     });
 
     it('should allow sysadmin to query any company', async () => {
@@ -1193,19 +1195,13 @@ describe('Auth Controller', () => {
       expect(response.body.message).toBe('参数验证失败: company_id 必须为正整数');
     });
 
-    it('getContext should return empty projects when company_id is invalid string', async () => {
-      const prisma = mockPrisma();
-      prisma.company.findMany.mockResolvedValue([
-        { id: 1, shortName: 'Company A' },
-      ]);
-
+    it('getContext should return 400 when company_id is invalid string', async () => {
       const response = await agent
         .get(CONTEXT)
         .query({ company_id: 'abc' })
         .set('Authorization', `Bearer ${sysadminToken()}`);
-      expect(response.status).toBe(200);
-      // Number('abc') = NaN, which is falsy, so projects = []
-      expect(response.body.data.projects).toHaveLength(0);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('company_id 必须为正整数');
     });
 
     it('getCompanyDetail should accept float id (parseInt truncates to valid int)', async () => {
@@ -1237,7 +1233,7 @@ describe('Auth Controller', () => {
         .post(LOGIN)
         .send({ username: 'admin', password: 'pass123' });
       expect(response.status).toBe(401);
-      expect(response.body.message).toBe('登录失败');
+      expect(response.body.message).toBe('用户名或密码错误');
     });
 
     it('saveSelection should accept project_id as explicit null', async () => {
@@ -1275,27 +1271,21 @@ describe('Auth Controller', () => {
       expect(response.body.message).toBe('company_id 必须为正整数');
     });
 
-    it('getContext should return companies without projects when company_id is zero', async () => {
-      const prisma = mockPrisma();
-      prisma.company.findMany.mockResolvedValue([
-        { id: 1, shortName: 'Company A' },
-      ]);
-
+    it('getContext should return 400 when company_id is zero', async () => {
       const response = await agent
         .get(CONTEXT)
         .query({ company_id: '0' })
         .set('Authorization', `Bearer ${sysadminToken()}`);
-      expect(response.status).toBe(200);
-      // Number('0') = 0, which is falsy, so projects = []
-      expect(response.body.data.projects).toHaveLength(0);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('company_id 必须为正整数');
     });
 
-    it('getCompanyDetail should return 403 when view role queries different company', async () => {
+    it('getCompanyDetail should return 403 when view role queries any company', async () => {
       const response = await agent
-        .get(`${COMPANIES}/999`)
+        .get(`${COMPANIES}/2`)
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(response.status).toBe(403);
-      expect(response.body.message).toBe('无权查看其他公司的用户');
+      expect(response.body.message).toBe('当前角色无权查看公司用户');
     });
 
     it('getCompanyDetail should return 500 when service throws non-Error', async () => {

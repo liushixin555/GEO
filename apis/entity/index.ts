@@ -1,4 +1,4 @@
-export { User, UserRole, LoginRequest, LoginResponse, SaveSelectionRequest, LoginSelectionError, UserListItem, CreateUserRequest, UpdateUserRequest } from './user.entity';
+export { User, UserRole, LoginRequest, LoginResponse, SaveSelectionRequest, LoginSelectionError, PermissionDeniedError, UserListItem, CreateUserRequest, UpdateUserRequest } from './user.entity';
 export { Company, CreateCompanyRequest, UpdateCompanyRequest, CompanyDetail } from './company.entity';
 export { Skills, CreateSkillsRequest, UpdateSkillsRequest } from './skills.entity';
 export { LlmModel, CreateLlmModelRequest, UpdateLlmModelRequest } from './llm-model.entity';

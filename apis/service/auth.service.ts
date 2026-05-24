@@ -13,6 +13,7 @@ export interface VerifyUserData {
 export interface IAuthService {
   login(request: LoginRequest): Promise<LoginResponse>;
   verifyToken(token: string): Promise<{ valid: boolean; user?: VerifyUserData }>;
+  getLatestUserState(userId: number): Promise<VerifyUserData>;
   saveSelection(userId: number, role: string, userCompanyId: number | null | undefined, request: SaveSelectionRequest): Promise<void>;
   getAccessibleCompanies(userId: number, role: string, companyId?: number | null): Promise<{ id: number; short_name: string }[]>;
   getAccessibleProjects(userId: number, role: string, companyId?: number | null): Promise<{ id: number; short_name: string }[]>;

@@ -42,6 +42,13 @@ export class LoginSelectionError extends Error {
   }
 }
 
+export class PermissionDeniedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PermissionDeniedError';
+  }
+}
+
 export interface UserListItem {
   id: number;
   username: string;
