@@ -16,14 +16,15 @@ import publishingPlatformRoutes from './routes/publishing-platform.routes';
 import projectRoutes from './routes/project.routes';
 import articleRoutes from './routes/article.routes';
 import knowledgeRoutes from './routes/knowledge.routes';
+import projectKnowledgeRoutes from './routes/project-knowledge.routes';
 import uploadRoutes from './routes/upload.routes';
 import publishingScheduleRoutes from './routes/publishing-schedule.routes';
 import todoRoutes from './routes/todo.routes';
 
 const app: Express = express();
 
-// Trust first proxy (Nginx etc.) — required for correct req.ip behind reverse proxy
-app.set('trust proxy', 1);
+// Trust proxy — configurable via TRUST_PROXY env var (default: 1)
+app.set('trust proxy', config.server.trustProxy);
 
 // Health check — before security middleware to avoid rate-limit interference
 app.get('/api/health', (_req, res) => {
@@ -55,8 +56,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// Request body parsing with explicit size limit
-app.use(express.json({ limit: '10mb' }));
+// Request body parsing — size limit configurable via BODY_LIMIT_MB env var (default: 10mb)
+app.use(express.json({ limit: `${config.bodyLimitMb}mb` }));
 
 // Static files — allow cross-origin image loading with security headers
 app.use('/uploads', (_req, res, next) => {
@@ -110,10 +111,11 @@ app.use('/api/v1/llm-models', llmModelRoutes);
 app.use('/api/v1/system-configs', systemConfigRoutes);
 app.use('/api/v1/publishing-platforms', publishingPlatformRoutes);
 app.use('/api/v1/projects', projectRoutes);
-app.use('/api/v1', articleRoutes);
+app.use('/api/v1/projects', articleRoutes);
+app.use('/api/v1/projects', projectKnowledgeRoutes);
+app.use('/api/v1/knowledge-bases', knowledgeRoutes);
 app.use('/api/v1/upload', uploadRoutes);
 app.use('/api/v1/publishing-schedule', publishingScheduleRoutes);
-app.use('/api/v1', knowledgeRoutes);
 app.use('/api/v1/todos', todoRoutes);
 
 // 404 fallback — must be after all routes

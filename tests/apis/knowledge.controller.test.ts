@@ -74,7 +74,7 @@ describe('Knowledge Controller - Auth & Role Guards', () => {
   });
 
   test('view角色访问知识清单返回403', async () => {
-    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth(viewToken));
+    const res = await agent.get('/api/v1/knowledge-bases/inventory').set('Authorization', auth(viewToken));
     expect(res.status).toBe(403);
   });
 
@@ -1369,7 +1369,7 @@ describe('Knowledge Inventory - listInventory', () => {
         count: jest.fn().mockResolvedValue(0),
       },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.stats.total).toBe(0);
     expect(res.body.data.list).toHaveLength(0);
@@ -1402,7 +1402,7 @@ describe('Knowledge Inventory - listInventory', () => {
         findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]),
       },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.stats.keyword).toBe(5);
     expect(res.body.data.stats.portrait).toBe(3);
@@ -1427,7 +1427,7 @@ describe('Knowledge Inventory - listInventory', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory?category=keyword').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory?category=keyword').set('Authorization', auth());
     expect(res.status).toBe(200);
   });
 
@@ -1439,7 +1439,7 @@ describe('Knowledge Inventory - listInventory', () => {
         count: jest.fn().mockRejectedValue(new Error('DB error')),
       },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory').set('Authorization', auth());
     expect(res.status).toBe(500);
   });
 });
@@ -1915,7 +1915,7 @@ describe('Knowledge Inventory - comprehensive', () => {
         findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }, { id: 2, cnName: '用户2' }]),
       },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.stats.image).toBe(2);
     expect(res.body.data.stats.document).toBe(1);
@@ -1942,7 +1942,7 @@ describe('Knowledge Inventory - comprehensive', () => {
         findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]),
       },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory?category=document&search=report').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory?category=document&search=report').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
   });
@@ -1964,7 +1964,7 @@ describe('Knowledge Inventory - comprehensive', () => {
       knowledgeImage: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
     expect(res.body.data.list[0].creatorName).toBe('-');
@@ -2172,7 +2172,7 @@ describe('Knowledge Inventory - mixed creators', () => {
         findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]),
       },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(2);
     const withCreator = res.body.data.list.find((i: any) => i.name === '有创建者');
@@ -2710,7 +2710,7 @@ describe('Knowledge Inventory - search keyword', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory?category=keyword&search=SEO').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory?category=keyword&search=SEO').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
   });
@@ -2735,7 +2735,7 @@ describe('Knowledge Inventory - search portrait', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory?category=portrait&search=目标').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory?category=portrait&search=目标').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
   });
@@ -2760,7 +2760,7 @@ describe('Knowledge Inventory - search image', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory?category=image&search=目标').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory?category=image&search=目标').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
   });
@@ -2787,7 +2787,7 @@ describe('Knowledge Inventory - project scope base', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list[0].scope).toBe('project');
   });
@@ -2811,7 +2811,7 @@ describe('Knowledge Inventory - company scope base', () => {
       knowledgeImage: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list[0].scope).toBe('company');
   });
@@ -3077,7 +3077,7 @@ describe('Knowledge Inventory - pagination', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory?page=2&pageSize=2').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory?page=2&pageSize=2').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.total).toBe(5);
     expect(res.body.data.list).toHaveLength(2);
@@ -3104,7 +3104,7 @@ describe('Knowledge Inventory - no creator IDs to batch lookup', () => {
       knowledgeImage: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list[0].creatorName).toBe('-');
   });
@@ -3137,7 +3137,7 @@ describe('Knowledge Inventory - multiple bases', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(2);
     const names = res.body.data.list.map((i: any) => i.baseName);
@@ -3351,7 +3351,7 @@ describe('Knowledge Inventory - category=portrait with creator', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory?category=portrait').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory?category=portrait').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
     expect(res.body.data.list[0].creatorName).toBe('管理员');
@@ -3379,7 +3379,7 @@ describe('Knowledge Inventory - category=image with creator', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory?category=image').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory?category=image').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
     expect(res.body.data.list[0].creatorName).toBe('管理员');
@@ -3407,7 +3407,7 @@ describe('Knowledge Inventory - category=document with creator', () => {
       },
       user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory?category=document').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory?category=document').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
     expect(res.body.data.list[0].creatorName).toBe('管理员');
@@ -3435,7 +3435,7 @@ describe('Knowledge Inventory - search document with OR condition', () => {
       },
       user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: '管理员' }]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory?category=document&search=报告').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory?category=document&search=报告').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list).toHaveLength(1);
     expect(res.body.data.list[0].name).toBe('报告');
@@ -3554,7 +3554,7 @@ describe('Knowledge Inventory - creator not in user table', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list[0].creatorName).toBe('-');
   });
@@ -3719,7 +3719,7 @@ describe('Knowledge Inventory - baseId not in baseMap fallbacks', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list[0].baseName).toBe('-');
     expect(res.body.data.list[0].projectName).toBe('-');
@@ -3741,7 +3741,7 @@ describe('Knowledge Inventory - baseId not in baseMap fallbacks', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list[0].baseName).toBe('-');
     expect(res.body.data.list[0].projectName).toBe('-');
@@ -3763,7 +3763,7 @@ describe('Knowledge Inventory - baseId not in baseMap fallbacks', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list[0].baseName).toBe('-');
     expect(res.body.data.list[0].projectName).toBe('-');
@@ -3785,7 +3785,7 @@ describe('Knowledge Inventory - baseId not in baseMap fallbacks', () => {
       },
       user: { findMany: jest.fn().mockResolvedValue([]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list[0].baseName).toBe('-');
     expect(res.body.data.list[0].projectName).toBe('-');
@@ -3812,7 +3812,7 @@ describe('Knowledge Inventory - platform scope fallback', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list[0].projectName).toBe('平台');
   });
@@ -3838,7 +3838,7 @@ describe('Knowledge Inventory - creator null cnName', () => {
       knowledgeDocument: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn().mockResolvedValue([{ id: 1, cnName: null }]) },
     });
-    const res = await agent.get('/api/v1/knowledge-inventory').set('Authorization', auth());
+    const res = await agent.get('/api/v1/knowledge-bases/inventory').set('Authorization', auth());
     expect(res.status).toBe(200);
     expect(res.body.data.list[0].creatorName).toBe('-');
   });

@@ -118,7 +118,7 @@ export const routes: RouteDescriptor[] = [
   { method: 'delete', path: '/api/v1/knowledge-bases/{id}', summary: '删除知识库', tags: ['知识库'], params: [INT_ID], response: voidR },
 
   // 知识库清单
-  { method: 'get', path: '/api/v1/knowledge-inventory', summary: '知识库清单', tags: ['知识库'], response: { type: 'item', schema: { type: 'object', properties: { stats: { type: 'object', properties: { keyword: { type: 'integer' }, portrait: { type: 'integer' }, image: { type: 'integer' }, document: { type: 'integer' }, total: { type: 'integer' } } }, list: { type: 'array', items: { $ref: '#/components/schemas/KnowledgeBase' } }, total: { type: 'integer' } } } } },
+  { method: 'get', path: '/api/v1/knowledge-bases/inventory', summary: '知识库清单', tags: ['知识库'], response: { type: 'item', schema: { type: 'object', properties: { stats: { type: 'object', properties: { keyword: { type: 'integer' }, portrait: { type: 'integer' }, image: { type: 'integer' }, document: { type: 'integer' }, total: { type: 'integer' } } }, list: { type: 'array', items: { $ref: '#/components/schemas/KnowledgeBase' } }, total: { type: 'integer' } } } } },
 
   // 关键词
   { method: 'get',    path: '/api/v1/knowledge-bases/{baseId}/keywords', summary: '关键词列表', tags: ['知识库'], params: [INT_BASE_ID], response: list('KnowledgeKeyword') },

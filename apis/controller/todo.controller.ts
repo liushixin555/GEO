@@ -33,13 +33,10 @@ function handleError(res: Response, err: unknown, defaultMsg: string): void {
   }
 }
 
-// 项目访问权限校验
+// 项目访问权限校验 — projectService.getById 内部已做 operator 检查
 async function ensureProjectAccess(projectId: number, user: NonNullable<Request['user']>): Promise<void> {
   if (user.role === 'sysadmin') return;
-  const project = await projectService.getById(projectId, user.userId, user.role);
-  if (!project.operator_ids.includes(user.userId)) {
-    throw new ForbiddenError('无权访问该项目');
-  }
+  await projectService.getById(projectId, user.userId, user.role);
 }
 
 export async function listTodos(req: Request, res: Response): Promise<void> {

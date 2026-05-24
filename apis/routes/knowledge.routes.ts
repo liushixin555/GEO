@@ -8,52 +8,44 @@ import * as knowledgeBaseController from '../controller/knowledge-base.controlle
 
 const router: Router = Router();
 
-// Project Knowledge aggregation routes (sysadmin + admin)
-router.use('/projects/:projectId/knowledge', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN));
-router.get('/projects/:projectId/knowledge/keywords', knowledgeController.listProjectKeywords);
-router.get('/projects/:projectId/knowledge/portraits', knowledgeController.listProjectPortraits);
-router.get('/projects/:projectId/knowledge/images', knowledgeController.listProjectImages);
-router.get('/projects/:projectId/knowledge/documents', knowledgeController.listProjectDocuments);
-
 // Knowledge Base routes (sysadmin + admin)
-router.use('/knowledge-bases', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN));
-router.get('/knowledge-bases', knowledgeBaseController.listKnowledgeBases);
-router.get('/knowledge-bases/:id', knowledgeBaseController.getKnowledgeBase);
-router.post('/knowledge-bases', validate(createKnowledgeBaseSchema), knowledgeBaseController.createKnowledgeBase);
-router.put('/knowledge-bases/:id', validate(updateKnowledgeBaseSchema), knowledgeBaseController.updateKnowledgeBase);
-router.delete('/knowledge-bases/:id', knowledgeBaseController.deleteKnowledgeBase);
+router.use(authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN));
 
-// Knowledge Inventory
-router.get('/knowledge-inventory', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN), knowledgeController.listInventory);
+// Knowledge Base CRUD
+router.get('/', knowledgeBaseController.listKnowledgeBases);
+router.get('/inventory', knowledgeController.listInventory);
+router.get('/:id', knowledgeBaseController.getKnowledgeBase);
+router.post('/', validate(createKnowledgeBaseSchema), knowledgeBaseController.createKnowledgeBase);
+router.put('/:id', validate(updateKnowledgeBaseSchema), knowledgeBaseController.updateKnowledgeBase);
+router.delete('/:id', knowledgeBaseController.deleteKnowledgeBase);
 
-// Knowledge Items scoped to knowledge base (sysadmin + admin)
-router.use('/knowledge-bases/:baseId', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN));
-router.get('/knowledge-bases/:baseId/keywords', knowledgeController.listKeywords);
-router.get('/knowledge-bases/:baseId/keywords/:id', knowledgeController.getKeyword);
-router.post('/knowledge-bases/:baseId/keywords', knowledgeController.createKeyword);
-router.post('/knowledge-bases/:baseId/keywords/batch', knowledgeController.batchCreateKeywords);
-router.post('/knowledge-bases/:baseId/keywords/expand', knowledgeController.expandKeywords);
-router.put('/knowledge-bases/:baseId/keywords/:id', knowledgeController.updateKeyword);
-router.delete('/knowledge-bases/:baseId/keywords/:id', knowledgeController.deleteKeyword);
-router.get('/knowledge-bases/:baseId/mined-keywords', knowledgeController.listMinedKeywords);
-router.post('/knowledge-bases/:baseId/keywords/mine', knowledgeController.mineKeywords);
-router.post('/knowledge-bases/:baseId/mined-keywords/save', knowledgeController.saveMinedKeywords);
-router.put('/knowledge-bases/:baseId/mined-keywords/batch-toggle', knowledgeController.toggleMinedKeywordsBatch);
-router.delete('/knowledge-bases/:baseId/mined-keywords', knowledgeController.deleteMinedKeywords);
-router.get('/knowledge-bases/:baseId/portraits', knowledgeController.listPortraits);
-router.get('/knowledge-bases/:baseId/portraits/:id', knowledgeController.getPortrait);
-router.post('/knowledge-bases/:baseId/portraits', knowledgeController.createPortrait);
-router.put('/knowledge-bases/:baseId/portraits/:id', knowledgeController.updatePortrait);
-router.delete('/knowledge-bases/:baseId/portraits/:id', knowledgeController.deletePortrait);
-router.get('/knowledge-bases/:baseId/images', knowledgeController.listImages);
-router.get('/knowledge-bases/:baseId/images/:id', knowledgeController.getImage);
-router.post('/knowledge-bases/:baseId/images', knowledgeController.createImage);
-router.put('/knowledge-bases/:baseId/images/:id', knowledgeController.updateImage);
-router.delete('/knowledge-bases/:baseId/images/:id', knowledgeController.deleteImage);
-router.get('/knowledge-bases/:baseId/documents', knowledgeController.listDocuments);
-router.get('/knowledge-bases/:baseId/documents/:id', knowledgeController.getDocument);
-router.post('/knowledge-bases/:baseId/documents', knowledgeController.createDocument);
-router.put('/knowledge-bases/:baseId/documents/:id', knowledgeController.updateDocument);
-router.delete('/knowledge-bases/:baseId/documents/:id', knowledgeController.deleteDocument);
+// Knowledge Items scoped to knowledge base
+router.get('/:baseId/keywords', knowledgeController.listKeywords);
+router.get('/:baseId/keywords/:id', knowledgeController.getKeyword);
+router.post('/:baseId/keywords', knowledgeController.createKeyword);
+router.post('/:baseId/keywords/batch', knowledgeController.batchCreateKeywords);
+router.post('/:baseId/keywords/expand', knowledgeController.expandKeywords);
+router.put('/:baseId/keywords/:id', knowledgeController.updateKeyword);
+router.delete('/:baseId/keywords/:id', knowledgeController.deleteKeyword);
+router.get('/:baseId/mined-keywords', knowledgeController.listMinedKeywords);
+router.post('/:baseId/keywords/mine', knowledgeController.mineKeywords);
+router.post('/:baseId/mined-keywords/save', knowledgeController.saveMinedKeywords);
+router.put('/:baseId/mined-keywords/batch-toggle', knowledgeController.toggleMinedKeywordsBatch);
+router.delete('/:baseId/mined-keywords', knowledgeController.deleteMinedKeywords);
+router.get('/:baseId/portraits', knowledgeController.listPortraits);
+router.get('/:baseId/portraits/:id', knowledgeController.getPortrait);
+router.post('/:baseId/portraits', knowledgeController.createPortrait);
+router.put('/:baseId/portraits/:id', knowledgeController.updatePortrait);
+router.delete('/:baseId/portraits/:id', knowledgeController.deletePortrait);
+router.get('/:baseId/images', knowledgeController.listImages);
+router.get('/:baseId/images/:id', knowledgeController.getImage);
+router.post('/:baseId/images', knowledgeController.createImage);
+router.put('/:baseId/images/:id', knowledgeController.updateImage);
+router.delete('/:baseId/images/:id', knowledgeController.deleteImage);
+router.get('/:baseId/documents', knowledgeController.listDocuments);
+router.get('/:baseId/documents/:id', knowledgeController.getDocument);
+router.post('/:baseId/documents', knowledgeController.createDocument);
+router.put('/:baseId/documents/:id', knowledgeController.updateDocument);
+router.delete('/:baseId/documents/:id', knowledgeController.deleteDocument);
 
 export default router;

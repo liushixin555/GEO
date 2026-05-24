@@ -1731,7 +1731,7 @@ describe('Todo Controller', () => {
         .set('Authorization', `Bearer ${adminToken(5, 2)}`);
 
       expect(response.status).toBe(403);
-      expect(response.body.message).toBe('无权访问该项目');
+      expect(response.body.message).toBe('无权操作该项目');
     });
 
     it('should return 403 when admin is not a project operator for assignee-candidates', async () => {
@@ -1751,7 +1751,7 @@ describe('Todo Controller', () => {
         .set('Authorization', `Bearer ${adminToken(5, 2)}`);
 
       expect(response.status).toBe(403);
-      expect(response.body.message).toBe('无权访问该项目');
+      expect(response.body.message).toBe('无权操作该项目');
     });
 
     it('should allow admin who is a project operator for object-options', async () => {

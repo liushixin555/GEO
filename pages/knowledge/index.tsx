@@ -130,7 +130,7 @@ const KnowledgePage: React.FC = () => {
       if (invCategory) params.category = invCategory;
       if (invSearch) params.search = invSearch;
 
-      const res = await apiClient.get('/knowledge-inventory', { params });
+      const res = await apiClient.get('/knowledge-bases/inventory', { params });
       setInvData(res.data.data.list);
       setInvTotal(res.data.data.total);
       setInvStats(res.data.data.stats);

@@ -8,18 +8,18 @@ import * as ctrl from '../controller/article.controller';
 const router: Router = Router();
 
 // Auth middleware scoped to article paths only
-router.use('/projects/:projectId/articles', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN));
+router.use('/:projectId/articles', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN));
 
 // Article routes — full paths to avoid nested mount conflicts
-router.get('/projects/:projectId/articles', validate(listArticlesSchema, 'query'), ctrl.listArticles);
-router.get('/projects/:projectId/articles/:id', ctrl.getArticle);
-router.post('/projects/:projectId/articles', validate(createArticleSchema), ctrl.createArticle);
-router.put('/projects/:projectId/articles/:id', validate(updateArticleSchema), ctrl.updateArticle);
-router.delete('/projects/:projectId/articles/:id', articleActionLimiter, ctrl.deleteArticle);
-router.put('/projects/:projectId/articles/:id/review', articleActionLimiter, validate(reviewArticleSchema), ctrl.reviewArticle);
-router.put('/projects/:projectId/articles/:id/regenerate', articleActionLimiter, ctrl.regenerateArticle);
-router.put('/projects/:projectId/articles/:id/content', validate(updateContentSchema), ctrl.updateArticleContent);
-router.put('/projects/:projectId/articles/:id/submit-review', ctrl.submitForReview);
-router.get('/projects/:projectId/articles/:id/versions', ctrl.listArticleVersions);
+router.get('/:projectId/articles', validate(listArticlesSchema, 'query'), ctrl.listArticles);
+router.get('/:projectId/articles/:id', ctrl.getArticle);
+router.post('/:projectId/articles', validate(createArticleSchema), ctrl.createArticle);
+router.put('/:projectId/articles/:id', validate(updateArticleSchema), ctrl.updateArticle);
+router.delete('/:projectId/articles/:id', articleActionLimiter, ctrl.deleteArticle);
+router.put('/:projectId/articles/:id/review', articleActionLimiter, validate(reviewArticleSchema), ctrl.reviewArticle);
+router.put('/:projectId/articles/:id/regenerate', articleActionLimiter, ctrl.regenerateArticle);
+router.put('/:projectId/articles/:id/content', validate(updateContentSchema), ctrl.updateArticleContent);
+router.put('/:projectId/articles/:id/submit-review', ctrl.submitForReview);
+router.get('/:projectId/articles/:id/versions', ctrl.listArticleVersions);
 
 export default router;

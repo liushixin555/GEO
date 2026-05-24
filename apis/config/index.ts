@@ -20,6 +20,7 @@ const DEFAULTS = {
   CORS_ORIGIN: 'http://localhost:5173',
   UPLOAD_IMAGE_MAX_SIZE: 10,
   UPLOAD_DOCUMENT_MAX_SIZE: 30,
+  BODY_LIMIT_MB: 10,
 } as const;
 
 export interface DatabaseConfig {
@@ -61,6 +62,7 @@ export interface AppConfig {
   readonly corsOrigins: readonly string[];
   readonly uploadDir: string;
   readonly upload: UploadConfig;
+  readonly bodyLimitMb: number;
 }
 
 function safeParseInt(
@@ -234,6 +236,7 @@ const config: Readonly<AppConfig> = deepFreeze({
     imageMaxSize: safeParseInt(process.env.UPLOAD_IMAGE_MAX_SIZE, DEFAULTS.UPLOAD_IMAGE_MAX_SIZE, 'UPLOAD_IMAGE_MAX_SIZE', { min: 1, max: 100 }) * 1024 * 1024,
     documentMaxSize: safeParseInt(process.env.UPLOAD_DOCUMENT_MAX_SIZE, DEFAULTS.UPLOAD_DOCUMENT_MAX_SIZE, 'UPLOAD_DOCUMENT_MAX_SIZE', { min: 1, max: 100 }) * 1024 * 1024,
   },
+  bodyLimitMb: safeParseInt(process.env.BODY_LIMIT_MB, DEFAULTS.BODY_LIMIT_MB, 'BODY_LIMIT_MB', { min: 1, max: 100 }),
 });
 
 export default config;

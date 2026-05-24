@@ -574,9 +574,9 @@ describe('App - Knowledge Item Routes (sysadmin + admin)', () => {
 });
 
 describe('App - Knowledge Inventory Route', () => {
-  it('GET /api/knowledge-inventory - should deny view role', async () => {
+  it('GET /api/knowledge-bases/inventory - should deny view role', async () => {
     const response = await agent
-      .get('/api/v1/knowledge-inventory')
+      .get('/api/v1/knowledge-bases/inventory')
       .set('Authorization', `Bearer ${viewToken()}`);
     expect(response.status).toBe(403);
   });
@@ -1197,9 +1197,9 @@ describe('App - Positive Role Check (sysadmin/admin pass)', () => {
     expect(response.status).not.toBe(403);
   });
 
-  it('GET /api/knowledge-inventory - admin should pass role check', async () => {
+  it('GET /api/knowledge-bases/inventory - admin should pass role check', async () => {
     const response = await agent
-      .get('/api/v1/knowledge-inventory')
+      .get('/api/v1/knowledge-bases/inventory')
       .set('Authorization', 'Bearer ' + adminToken());
     expect(response.status).not.toBe(403);
   });

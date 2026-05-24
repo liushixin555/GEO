@@ -7368,7 +7368,7 @@
         }
       }
     },
-    "/api/v1/knowledge-inventory": {
+    "/api/v1/knowledge-bases/inventory": {
       "get": {
         "summary": "知识库清单",
         "tags": [
