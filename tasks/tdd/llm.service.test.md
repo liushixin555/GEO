@@ -7,12 +7,12 @@
 `tests/apis/llm.service.test.ts`
 
 ## 测试时间
-2026-05-24（更新）
+2026-05-25（更新）
 
 ## 测试结果
 - **测试套件**: 1 passed
-- **测试用例**: 60 passed, 0 failed
-- **总耗时**: ~5.1s
+- **测试用例**: 97 passed, 0 failed
+- **总耗时**: ~5.6s
 
 ## 覆盖率
 
@@ -25,7 +25,7 @@
 
 ## 测试用例清单
 
-### expandKeywords() — 21 个测试
+### expandKeywords() — 34 个测试
 1. 应正确扩展关键词并返回解析后的关键词数组
 2. 应去除编号前缀（数字+点/顿号/括号等）
 3. 应过滤掉空行和超长行（>=100字符）
@@ -47,8 +47,22 @@
 19. 应处理两位数编号前缀
 20. 应保留不以数字开头的行（如带破折号的列表项）
 21. 应处理恰好99个字符的关键词（刚好在限制内）
+22. prompt应包含原始关键词和扩展要求（第2轮新增）
+23. 应处理编号后跟tab分隔符的情况（第2轮新增）
+24. 编号后跟冒号不应被去除（冒号不在正则中）（第2轮新增）
+25. 应处理三位数编号前缀（第2轮新增）
+26. 应处理axios错误中data为字符串的情况（回退到err.message）（第2轮新增）
+27. 应处理axios错误中data.error为字符串的情况（回退到err.message）（第2轮新增）
+28. 应处理axios错误中data.error.message为空字符串（回退到err.message）（第2轮新增）
+29. 应处理response.data为undefined的情况（第2轮新增）
+30. 应处理LLM返回choices为undefined的情况（第2轮新增）
+31. 应处理LLM返回message为undefined的情况（第2轮新增）
+32. 应处理空关键词输入（第2轮新增）
+33. 应处理恰好100个字符的关键词（应被过滤）（第2轮新增）
+34. 应使用不同的模型配置进行调用（第2轮新增）
+35. 应处理仅包含编号和分隔符的行（去除后为空）（第2轮新增）
 
-### mineKeywordsFromContent() — 18 个测试
+### mineKeywordsFromContent() — 29 个测试
 1. 应正确从内容中提取关键词
 2. 应去除编号前缀
 3. 应过滤掉长度<=1和>=100的行
@@ -67,8 +81,19 @@
 16. 应明确过滤长度为1的关键词（与expandKeywords不同）
 17. 应处理两位数编号前缀
 18. 应正确处理超长内容输入
+19. prompt应包含内容提取要求（第2轮新增）
+20. 应处理编号后跟tab分隔符的情况（第2轮新增）
+21. 应处理axios错误中data为字符串的情况（回退到err.message）（第2轮新增）
+22. 应处理axios错误中data.error为字符串的情况（回退到err.message）（第2轮新增）
+23. 应处理axios错误中data.error.message为空字符串（回退到err.message）（第2轮新增）
+24. 应处理response.data为undefined的情况（第2轮新增）
+25. 应处理LLM返回choices为undefined的情况（第2轮新增）
+26. 应过滤恰好100个字符的关键词（第2轮新增）
+27. 应保留恰好99个字符的关键词（第2轮新增）
+28. 应处理空内容输入（第2轮新增）
+29. 应使用不同的模型配置进行调用（第2轮新增）
 
-### generateArticle() — 21 个测试
+### generateArticle() — 34 个测试
 1. 应成功生成文章并返回内容
 2. 应使用system和user双消息调用LLM API
 3. 应使用temperature 0.7调用
@@ -90,19 +115,31 @@
 19. 应正确在prompt中包含标题和目标受众
 20. 应正确格式化多张图片信息到prompt中
 21. system prompt应包含GEO和Markdown相关指导
+22. 图片description为null时应显示"无描述"（第2轮新增）
+23. 图片description为undefined时应显示"无描述"（第2轮新增）
+24. skills为undefined时应显示"无特殊要求"（第2轮新增）
+25. 图片编号应从1开始递增（第2轮新增）
+26. 应使用不同的模型配置进行调用（第2轮新增）
+27. 应处理axios错误中data为字符串的情况（回退到err.message）（第2轮新增）
+28. 应处理axios错误中data.error为字符串的情况（回退到err.message）（第2轮新增）
+29. 应处理axios错误中data.error.message为空字符串（回退到err.message）（第2轮新增）
+30. 应处理response.data为undefined时返回空内容错误（第2轮新增）
+31. system prompt应包含图片使用和字数要求（第2轮新增）
+32. 应验证完整user prompt结构（标题+关键词+受众+图片+技能）（第2轮新增）
+33. 应处理baseUrl末尾有多个斜杠的情况（第2轮新增）
 
 ## Mock 策略
 - `getPrisma` — mock 返回包含 `llmModel.findFirst` 的 prisma 对象
 - `axios` — mock `axios.post` 模拟 LLM API 调用
 - 每个测试用例在 `beforeEach` 中重新创建 mock，`afterEach` 中清理
 
-## 新增测试用例说明（本次新增 16 个）
+## 第2轮新增测试用例说明（+37 个）
 
-| 方法 | 新增数量 | 新增内容 |
-|------|---------|---------|
-| expandKeywords | +6 | Windows换行符、混合换行符、编号前缀去空、两位数编号、破折号列表项、99字符边界值 |
-| mineKeywordsFromContent | +4 | Windows换行符、长度1过滤确认、两位数编号、超长内容输入 |
-| generateArticle | +6 | null/undefined/空choices错误、标题受众验证、多图片格式化、system prompt验证 |
+| 方法 | 原有 | 新增 | 覆盖场景 |
+|------|------|------|---------|
+| expandKeywords | 21 | +14 | prompt内容验证、tab分隔符、冒号不分隔、三位数编号、错误链路全分支（data为字符串/error为字符串/空message）、response.data undefined、choices undefined、message undefined、空输入、100字符边界值、不同模型配置、纯编号行 |
+| mineKeywordsFromContent | 18 | +11 | prompt内容验证、tab分隔符、错误链路全分支、response.data undefined、choices undefined、100/99字符边界值、空内容输入、不同模型配置 |
+| generateArticle | 21 | +13 | description null/undefined、skills undefined、图片编号递增、不同模型配置、错误链路全分支、response.data undefined、system prompt详细验证、user prompt完整结构、多斜杠baseUrl |
 
 ## 关键设计发现
 
@@ -120,3 +157,17 @@
 - temperature 为 **0.7**（创造性），其余方法为 0（确定性）
 - 空内容时**抛出错误**，而非返回空（因为文章必须有内容）
 - 空图片时显示"无可用图片"，空描述显示"无描述"，空技能显示"无特殊要求"
+- 图片 description 为 null/undefined/空字符串均显示"无描述"（`||` 运算符的 falsy 行为）
+
+### 错误处理链路优先级
+
+`err.response?.data?.error?.message` > `err.response?.data?.message` > `err.message`
+
+- `data` 为字符串时：`data.error` = undefined → `data.message` = undefined → 回退到 `err.message`
+- `data.error` 为字符串时：`data.error.message` = undefined → 检查 `data.message` → 回退到 `err.message`
+- `data.error.message` 为空字符串 `""` 时：falsy → 回退到 `data.message` → 若也为空则回退到 `err.message`
+
+### 编号前缀正则 `^[\d]+[.、)\s]+`
+
+- 匹配：`1.` `2、` `3)` `4 ` `5\t` `10.` `100.`
+- 不匹配：`1:`（冒号不在字符类中）、`1-`（破折号不在字符类中）
