@@ -812,3 +812,35 @@ Company, User, Skills, LlmModel, PublishingPlatform, SystemConfig, Project, Proj
 
 ### 迁移
 通过 `npx prisma db push` 执行。
+
+---
+
+## db020. Article 新增 schedule_type 字段
+
+### 变更原因
+发布计划支持三种类型：尽快执行、指定时间执行、指定时间之后执行。
+
+### Schema 变更
+```prisma
+model Article {
+  // ... existing fields
+  scheduleType String? @map("schedule_type") @db.VarChar(20)
+}
+```
+
+### 说明
+- `scheduleType`：可选字段，取值为 `'asap'`（尽快执行）、`'scheduled'`（指定时间执行）、`'after'`（指定时间之后执行）
+- 与 `scheduledPublishAt` 配合使用：`asap` 时无需时间，`scheduled`/`after` 时需要时间
+
+### 影响范围
+- `prisma/schema.prisma` — 新增字段
+- `apis/entity/article.entity.ts` — 新增 ScheduleType 类型和接口字段
+- `apis/schema/article.schema.ts` — updateArticleSchema 新增 schedule_type 验证
+- `apis/map/index.ts` — mapArticle 增加 schedule_type 映射
+- `apis/service/publishing-schedule.service.ts` — updateSchedule 签名新增 scheduleType
+- `apis/service/impl/publishing-schedule.service.impl.ts` — 实现 scheduleType 写入
+- `apis/controller/publishing-schedule.controller.ts` — controller 接收和验证 schedule_type
+- `pages/publish/index.tsx` — 前端编辑 Modal 支持三种计划类型
+
+### 迁移
+通过 `npx prisma db push` 执行。

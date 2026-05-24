@@ -1,10 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Row, Col, Input, Select, Tag, Typography, Spin, Pagination, Button, Modal, DatePicker, Breadcrumb, App, Card, Descriptions } from 'antd';
+import { Row, Col, Input, Select, Tag, Typography, Spin, Pagination, Button, Modal, DatePicker, Breadcrumb, App, Card, Descriptions, Radio } from 'antd';
 import dayjs from 'dayjs';
 import axios from 'axios';
 import { formatDateTime } from '../utils/date';
 
 const { Title } = Typography;
+
+type ScheduleType = 'asap' | 'scheduled' | 'after';
+
+const SCHEDULE_TYPE_CONFIG: Record<string, string> = {
+  asap: '尽快执行',
+  scheduled: '指定时间执行',
+  after: '指定时间之后执行',
+};
 
 interface ScheduleItem {
   id: number;
@@ -14,6 +22,7 @@ interface ScheduleItem {
   platforms: string[] | null;
   status: string;
   scheduled_publish_at: string | null;
+  schedule_type: ScheduleType | null;
   project_name: string;
   company_name: string;
   created_by: number | null;
@@ -28,13 +37,23 @@ const PUBLISH_STATUS_CONFIG: Record<string, { label: string; color: string }> = 
 function getDerivedStatus(item: ScheduleItem): { label: string; color: string } {
   if (item.status === 'published') return PUBLISH_STATUS_CONFIG.published;
   if (item.status === 'publish_failed') return PUBLISH_STATUS_CONFIG.publish_failed;
-  // publishing status: derive from scheduled_publish_at
   if (item.status === 'publishing') {
-    return item.scheduled_publish_at
-      ? { label: '待定时发布', color: 'blue' }
-      : { label: '待计划', color: 'orange' };
+    if (!item.schedule_type) return { label: '待计划', color: 'orange' };
+    if (item.schedule_type === 'asap') return { label: '尽快执行', color: 'blue' };
+    if (item.schedule_type === 'scheduled') return { label: '定时发布', color: 'blue' };
+    if (item.schedule_type === 'after') return { label: '延时发布', color: 'blue' };
   }
   return { label: item.status, color: 'default' };
+}
+
+function getScheduleLabel(item: ScheduleItem): string {
+  if (!item.schedule_type) return '-';
+  const typeLabel = SCHEDULE_TYPE_CONFIG[item.schedule_type] || '-';
+  if (item.schedule_type === 'asap') return typeLabel;
+  const timeStr = formatDateTime(item.scheduled_publish_at);
+  return item.schedule_type === 'scheduled'
+    ? `${typeLabel}：${timeStr}`
+    : `${typeLabel}：${timeStr}`;
 }
 
 const PublishingSchedulePage: React.FC = () => {
@@ -52,6 +71,7 @@ const PublishingSchedulePage: React.FC = () => {
   // Edit modal state
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<ScheduleItem | null>(null);
+  const [editScheduleType, setEditScheduleType] = useState<ScheduleType | null>(null);
   const [editDate, setEditDate] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
 
@@ -113,26 +133,38 @@ const PublishingSchedulePage: React.FC = () => {
 
   const handleEditClick = (item: ScheduleItem) => {
     setEditItem(item);
+    setEditScheduleType(item.schedule_type);
     setEditDate(item.scheduled_publish_at);
     setEditModalOpen(true);
   };
 
   const handleSaveSchedule = async () => {
     if (!editItem) return;
+    if (!editScheduleType) {
+      message.warning('请选择发布计划类型');
+      return;
+    }
+    if ((editScheduleType === 'scheduled' || editScheduleType === 'after') && !editDate) {
+      message.warning('请选择时间');
+      return;
+    }
     setEditSaving(true);
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`/api/publishing-schedule/${editItem.id}`, {
-        scheduled_publish_at: editDate,
-      }, {
+      const body: Record<string, string | null> = {
+        schedule_type: editScheduleType,
+        scheduled_publish_at: editScheduleType === 'asap' ? null : editDate,
+      };
+      await axios.put(`/api/publishing-schedule/${editItem.id}`, body, {
         headers: { Authorization: `Bearer ${token}` },
       });
       message.success('发布计划已更新');
       setEditModalOpen(false);
       fetchData();
       fetchPendingCount();
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '更新失败');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '更新失败';
+      message.error(msg);
     } finally {
       setEditSaving(false);
     }
@@ -196,7 +228,7 @@ const PublishingSchedulePage: React.FC = () => {
                   <Descriptions.Item label="发布平台">{item.platforms?.join(', ') || '-'}</Descriptions.Item>
                   <Descriptions.Item label="内容类型">{item.article_type || '-'}</Descriptions.Item>
                   <Descriptions.Item label="作者">{item.created_by_name || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="计划发布时间">{formatDateTime(item.scheduled_publish_at)}</Descriptions.Item>
+                  <Descriptions.Item label="发布计划">{getScheduleLabel(item)}</Descriptions.Item>
                 </Descriptions>
                 {item.status === 'publishing' && (
                   <div className="publishing-card-footer">
@@ -226,7 +258,7 @@ const PublishingSchedulePage: React.FC = () => {
                 <th className="col-platforms">发布平台</th>
                 <th className="col-type">内容类型</th>
                 <th className="col-author">作者</th>
-                <th className="col-schedule">计划发布时间</th>
+                <th className="col-schedule">发布计划</th>
                 <th className="col-status">发布状态</th>
                 <th className="col-action">操作</th>
               </tr>
@@ -248,7 +280,7 @@ const PublishingSchedulePage: React.FC = () => {
                     <td className="col-platforms">{item.platforms?.join(', ') || '-'}</td>
                     <td className="col-type">{item.article_type || '-'}</td>
                     <td className="col-author">{item.created_by_name || '-'}</td>
-                    <td className="col-schedule">{formatDateTime(item.scheduled_publish_at)}</td>
+                    <td className="col-schedule">{getScheduleLabel(item)}</td>
                     <td className="col-status"><Tag color={statusCfg.color}>{statusCfg.label}</Tag></td>
                     <td className="col-action">
                       {item.status === 'publishing' && (
@@ -292,18 +324,35 @@ const PublishingSchedulePage: React.FC = () => {
         cancelText="取消"
       >
         <div style={{ marginBottom: 16 }}>
-          <div style={{ marginBottom: 8, fontWeight: 500 }}>计划发布时间</div>
-          <DatePicker
-            showTime
-            style={{ width: '100%' }}
-            value={editDate ? dayjs(editDate) : null}
-            onChange={(_date: any, dateString: string | null) => {
-              setEditDate(dateString || null);
-            }}
-            format="YYYY-MM-DD HH:mm"
-            placeholder="选择计划发布时间"
-          />
+          <div style={{ marginBottom: 8, fontWeight: 500 }}>发布计划类型</div>
+          <Radio.Group
+            value={editScheduleType}
+            onChange={(e) => setEditScheduleType(e.target.value)}
+            optionType="button"
+            buttonStyle="solid"
+          >
+            <Radio.Button value="asap">尽快执行</Radio.Button>
+            <Radio.Button value="scheduled">指定时间执行</Radio.Button>
+            <Radio.Button value="after">指定时间之后执行</Radio.Button>
+          </Radio.Group>
         </div>
+        {(editScheduleType === 'scheduled' || editScheduleType === 'after') && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 8, fontWeight: 500 }}>
+              {editScheduleType === 'scheduled' ? '指定发布时间' : '在此时间之后执行'}
+            </div>
+            <DatePicker
+              showTime
+              style={{ width: '100%' }}
+              value={editDate ? dayjs(editDate) : null}
+              onChange={(_date: unknown, dateString: string | null) => {
+                setEditDate(dateString || null);
+              }}
+              format="YYYY-MM-DD HH:mm"
+              placeholder="选择时间"
+            />
+          </div>
+        )}
       </Modal>
     </div>
   );

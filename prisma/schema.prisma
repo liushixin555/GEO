@@ -236,6 +236,7 @@ model Article {
   version     Float         @default(1.0)
   status              ArticleStatus @default(draft)
   scheduledPublishAt  DateTime?     @map("scheduled_publish_at") @db.Timestamptz()
+  scheduleType        String?       @map("schedule_type") @db.VarChar(20)
   createdBy           Int?          @map("created_by")
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()

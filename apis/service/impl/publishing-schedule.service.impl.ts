@@ -76,6 +76,7 @@ export class PublishingScheduleServiceImpl implements IPublishingScheduleService
       platforms: item.platforms,
       status: item.status,
       scheduled_publish_at: item.scheduledPublishAt ?? null,
+      schedule_type: item.scheduleType ?? null,
       project_id: item.projectId,
       project_name: item.project?.shortName || '',
       company_name: item.project?.company?.shortName || '',
@@ -88,7 +89,7 @@ export class PublishingScheduleServiceImpl implements IPublishingScheduleService
     return { list, total };
   }
 
-  async updateSchedule(id: number, scheduledPublishAt: string | null, userId?: number, role?: string): Promise<any> {
+  async updateSchedule(id: number, scheduledPublishAt: string | null, scheduleType: string | null, userId?: number, role?: string): Promise<any> {
     const prisma = getPrisma();
 
     const existing = await prisma.article.findFirst({
@@ -116,6 +117,7 @@ export class PublishingScheduleServiceImpl implements IPublishingScheduleService
 
     const data: any = {
       scheduledPublishAt: scheduledPublishAt ? new Date(scheduledPublishAt) : null,
+      scheduleType: scheduleType ?? null,
     };
 
     const updated = await prisma.article.update({

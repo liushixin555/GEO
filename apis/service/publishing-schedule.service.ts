@@ -9,5 +9,11 @@ export interface IPublishingScheduleService {
     role?: string;
   }): Promise<{ list: any[]; total: number }>;
 
-  updateSchedule(id: number, scheduledPublishAt: string | null, userId?: number, role?: string): Promise<any>;
+  updateSchedule(
+    id: number,
+    scheduledPublishAt: string | null,
+    scheduleType: string | null,
+    userId?: number,
+    role?: string,
+  ): Promise<any>;
 }

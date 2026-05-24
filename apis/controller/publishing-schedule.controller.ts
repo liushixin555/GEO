@@ -46,7 +46,16 @@ export async function updatePublishingSchedule(req: Request, res: Response): Pro
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { fail(res, 400, '无效的ID'); return; }
 
-    const { scheduled_publish_at } = req.body;
+    const { scheduled_publish_at, schedule_type } = req.body;
+
+    // Validate schedule_type
+    const validScheduleTypes = ['asap', 'scheduled', 'after'];
+    if (schedule_type !== undefined && schedule_type !== null && !validScheduleTypes.includes(schedule_type)) {
+      fail(res, 400, 'schedule_type参数无效');
+      return;
+    }
+
+    // Validate scheduled_publish_at
     if (scheduled_publish_at !== undefined && scheduled_publish_at !== null) {
       if (typeof scheduled_publish_at !== 'string') {
         fail(res, 400, 'scheduled_publish_at参数无效');
@@ -58,7 +67,7 @@ export async function updatePublishingSchedule(req: Request, res: Response): Pro
       }
     }
 
-    const item = await publishingScheduleService.updateSchedule(id, scheduled_publish_at, userId, role);
+    const item = await publishingScheduleService.updateSchedule(id, scheduled_publish_at, schedule_type ?? null, userId, role);
     success(res, item, '更新发布计划成功');
   } catch (err: unknown) {
     if (err instanceof Error) {

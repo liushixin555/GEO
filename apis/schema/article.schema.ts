@@ -39,6 +39,7 @@ export const updateArticleSchema = z.object({
   content: z.string().max(500_000).optional(),
   status: articleStatusSchema.optional(),
   scheduled_publish_at: z.string().datetime({ offset: true }).nullable().optional(),
+  schedule_type: z.enum(['asap', 'scheduled', 'after']).nullable().optional(),
 }).strict();
 
 export const reviewArticleSchema = z.object({

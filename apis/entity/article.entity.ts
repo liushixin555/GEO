@@ -9,6 +9,9 @@ export type ArticleStatus =
   | 'publish_failed'
   | 'published';
 
+/** 发布计划类型：尽快执行 / 指定时间执行 / 指定时间之后执行 */
+export type ScheduleType = 'asap' | 'scheduled' | 'after';
+
 export interface Article {
   id: number;
   project_id: number;
@@ -28,6 +31,7 @@ export interface Article {
   version: number;
   status: ArticleStatus;
   scheduled_publish_at: Date | null;
+  schedule_type: ScheduleType | null;
   created_by: number | null;
   created_at: Date;
   updated_at: Date;
@@ -69,6 +73,7 @@ export interface UpdateArticleRequest {
   content?: string;
   status?: ArticleStatus;
   scheduled_publish_at?: string | null;
+  schedule_type?: ScheduleType | null;
 }
 
 export interface ReviewArticleRequest {
