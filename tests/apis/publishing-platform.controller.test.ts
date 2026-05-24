@@ -530,5 +530,143 @@ describe('PublishingPlatform Controller', () => {
       expect(response.status).toBe(200);
       expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, undefined, undefined);
     });
+
+    it('should handle negative pageSize by defaulting to 10', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=-5')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, undefined, undefined);
+    });
+
+    it('should handle page=0 by defaulting to 1', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=0&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, undefined, undefined);
+    });
+
+    it('should handle decimal page by truncating via parseInt', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=2.7&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(2, 10, undefined, undefined, undefined, undefined);
+    });
+
+    it('should handle decimal pageSize by truncating via parseInt', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=5.9')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 5, undefined, undefined, undefined, undefined);
+    });
+
+    it('should accept pageSize at max boundary 100', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=100')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 100, undefined, undefined, undefined, undefined);
+    });
+
+    it('should accept pageSize=1 as minimum valid value', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 1, undefined, undefined, undefined, undefined);
+    });
+
+    it('should allow empty string search without triggering validation error', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&search=')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, '', undefined, undefined, undefined);
+    });
+
+    it('should return 500 when non-Error is thrown from paginated list', async () => {
+      mockList.mockRejectedValue('unexpected string');
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取发布平台失败');
+    });
+
+    it('should return multiple items in paginated result', async () => {
+      const secondPlatform = {
+        ...mappedPlatform,
+        id: 2,
+        name: '网易',
+        rm_resource_id: 101,
+      };
+      mockList.mockResolvedValue({ list: [mappedPlatform, secondPlatform], total: 2 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.list).toHaveLength(2);
+      expect(response.body.data.total).toBe(2);
+      expect(response.body.data.list[0].name).toBe('新浪');
+      expect(response.body.data.list[1].name).toBe('网易');
+    });
+
+    it('should handle search + taxonomy together without page/pageSize defaults', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?search=新浪&taxonomy=门户网站')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, '新浪', '门户网站', undefined, undefined);
+      expect(mockListAll).not.toHaveBeenCalled();
+    });
+
+    it('should return 400 when sortBy is provided without pagination params but with search', async () => {
+      const response = await agent
+        .get('/api/v1/publishing-platforms?search=test&sortBy=invalid')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的排序字段');
+    });
+
+    it('should return 400 when sortOrder is provided without pagination params but with taxonomy', async () => {
+      const response = await agent
+        .get('/api/v1/publishing-platforms?taxonomy=门户&sortOrder=invalid')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的排序方向');
+    });
   });
 });
