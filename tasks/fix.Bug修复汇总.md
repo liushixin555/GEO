@@ -682,3 +682,23 @@ components: {
 ### 涉及文件
 - `pages/project/ProjectForm.tsx` — description 空值改为 undefined
 - `apis/schema/project.schema.ts` — description 添加 nullable()
+
+---
+
+## fix024. Docker 构建失败——prisma generate 找不到 prisma-openapi 模块
+
+### 问题
+`docker build` 在 `RUN prisma generate` 步骤失败：`Cannot find module '/app/node_modules/prisma-openapi/dist/index.js'`。
+
+### 原因
+1. `prisma/schema.prisma` 定义了两个 generator：`client`（prisma-client-js）和 `openapi`（prisma-openapi）
+2. `prisma-openapi` 在 `devDependencies` 中
+3. Dockerfile 使用 `pnpm install --prod --frozen-lockfile`，不安装 devDependencies
+4. `prisma generate` 默认运行所有 generator，openapi generator 找不到模块
+
+### 修复
+`prisma generate` → `prisma generate --generator=client`，只生成 Prisma Client，跳过 openapi generator。
+生产环境不需要重新生成 OpenAPI spec（已通过 `COPY apis/swagger-spec.json` 拷贝到镜像）。
+
+### 涉及文件
+- `Dockerfile` — prisma generate 添加 --generator=client 参数

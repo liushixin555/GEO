@@ -128,3 +128,4 @@
 | 2026-05-24 | progress_tasks/2026-05-24-upload-controller-architecture-fix.md | upload.controller.ts 架构评审修复——H-1 DRY共享工厂+H-2 Config-driven+H-3 延迟初始化+M-2 安全头，75测试全通过 |
 | 2026-05-24 | progress_tasks/2026-05-24-articledetail-committer-test-fix.md | ArticleDetail.tsx Committer 评审测试修复——antd mock 稳定单例+14组件测试(66/67通过)+无限重渲染/ESM/路径修复 |
 | 2026-05-24 | tasks/tdd/article.schema.test.md | article.schema.ts TDD——157用例100%覆盖率（6个Zod schema全量验证：枚举/边界值/strict/refine/coerce/类型安全） |
+| 2026-05-24 | progress_tasks/2026-05-24-docker-prisma-generate-fix.md | Docker构建修复——prisma generate --generator=client 跳过 openapi devDependency |
