@@ -327,28 +327,24 @@ describe('rateLimitMiddleware', () => {
       }).toThrow('RATE_LIMIT_MAX must be >= 1');
     });
 
-    test('RATE_LIMIT_WINDOW_MS 为浮点数字符串时应取整', () => {
+    test('RATE_LIMIT_WINDOW_MS 为浮点数字符串时应抛出错误', () => {
       process.env.RATE_LIMIT_WINDOW_MS = '90.9';
       jest.resetModules();
       jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
 
-      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
-      require('../../../apis/middleware/rate-limit.middleware');
-
-      const callArgs = mockedRateLimit.mock.calls[0][0];
-      expect(callArgs.windowMs).toBe(90);
+      expect(() => {
+        require('../../../apis/middleware/rate-limit.middleware');
+      }).toThrow('RATE_LIMIT_WINDOW_MS must be a valid integer');
     });
 
-    test('RATE_LIMIT_MAX 为浮点数字符串时应取整', () => {
+    test('RATE_LIMIT_MAX 为浮点数字符串时应抛出错误', () => {
       process.env.RATE_LIMIT_MAX = '50.7';
       jest.resetModules();
       jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
 
-      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
-      require('../../../apis/middleware/rate-limit.middleware');
-
-      const callArgs = mockedRateLimit.mock.calls[0][0];
-      expect(callArgs.max).toBe(50);
+      expect(() => {
+        require('../../../apis/middleware/rate-limit.middleware');
+      }).toThrow('RATE_LIMIT_MAX must be a valid integer');
     });
 
     test('极大的 windowMs 值应正确传递', () => {
@@ -384,7 +380,7 @@ describe('rateLimitMiddleware', () => {
       require('../../../apis/middleware/rate-limit.middleware');
 
       const callArgs = mockedRateLimit.mock.calls[0][0];
-      expect(callArgs.max).toBe(100);
+      expect(callArgs.max).toBe(500);
     });
   });
 
@@ -454,7 +450,7 @@ describe('rateLimitMiddleware', () => {
 
       const callArgs = mockedRateLimit.mock.calls[0][0];
       expect(Object.keys(callArgs).sort()).toEqual(
-        ['legacyHeaders', 'max', 'message', 'standardHeaders', 'windowMs'].sort()
+        ['legacyHeaders', 'max', 'message', 'skip', 'standardHeaders', 'windowMs'].sort()
       );
     });
 

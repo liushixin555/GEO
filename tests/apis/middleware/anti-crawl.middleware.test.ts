@@ -942,16 +942,19 @@ describe('antiCrawlMiddleware', () => {
   // 19. 窗口边界 now - lastReset === WINDOW_MS
   // =========================================================
   describe('窗口边界精确验证', () => {
-    it('now - lastReset === WINDOW_MS 时窗口应重置', () => {
-      // 发送 150 次请求
+    it('now - lastReset === WINDOW_MS 时窗口不应重置', () => {
+      // 固定基准时间，确保 lastReset 精确已知
+      const baseTime = 1_000_000;
+      jest.spyOn(Date, 'now').mockImplementation(() => baseTime);
+
+      // 发送 150 次请求（lastReset = baseTime）
       for (let i = 0; i < 150; i++) {
         antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
       }
 
-      const currentTime = Date.now();
       // now - lastReset = WINDOW_MS（恰好 60000ms），条件 now - lastReset > WINDOW_MS 为 false
       // 所以窗口不会重置，计数继续
-      jest.spyOn(Date, 'now').mockImplementation(() => currentTime + 60_000);
+      (Date.now as jest.Mock).mockImplementation(() => baseTime + 60_000);
 
       statusFn.mockClear();
       (mockNext as jest.Mock).mockClear();
@@ -972,14 +975,17 @@ describe('antiCrawlMiddleware', () => {
     });
 
     it('now - lastReset === WINDOW_MS + 1 时窗口应重置', () => {
+      // 固定基准时间
+      const baseTime = 2_000_000;
+      jest.spyOn(Date, 'now').mockImplementation(() => baseTime);
+
       // 发送 150 次请求
       for (let i = 0; i < 150; i++) {
         antiCrawlMiddleware(mockReq as Request, mockRes as Response, mockNext);
       }
 
-      const currentTime = Date.now();
       // now - lastReset > WINDOW_MS，窗口重置，计数从 1 开始
-      jest.spyOn(Date, 'now').mockImplementation(() => currentTime + 60_001);
+      (Date.now as jest.Mock).mockImplementation(() => baseTime + 60_001);
 
       statusFn.mockClear();
       (mockNext as jest.Mock).mockClear();
