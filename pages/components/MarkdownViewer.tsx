@@ -195,6 +195,7 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
   colorMode: colorModeProp,
 }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const prevContentRef = useRef<string | undefined>(content);
   const { token } = theme.useToken();
   const systemMode = useSystemColorMode();
 
@@ -313,6 +314,14 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
     },
   }));
 
+  // A-02: 内容切换时焦点管理 — 键盘用户无需从页顶重新 Tab
+  useEffect(() => {
+    if (content && prevContentRef.current !== content) {
+      prevContentRef.current = content;
+      containerRef.current?.focus({ preventScroll: true });
+    }
+  }, [content]);
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 48 }}>
@@ -335,6 +344,7 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
         ref={containerRef}
         role={roleProp}
         aria-label={ariaLabel}
+        aria-live="polite"
         tabIndex={0}
         className={`markdown-viewer${className ? ` ${className}` : ''}`}
         style={style}

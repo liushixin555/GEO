@@ -427,17 +427,17 @@ antd v6 使用 Design Token 系统。`common.tsx` 输出的 Markdown 内容完�
 
 | 编号 | 级别 | 类别 | 描述 | 影响 | 建议 |
 |---|---|---|---|---|---|
-| U-01 | P2 | 交互 | 移动端 copy 按钮不可见（hover 触发） | 移动端用户无法复制代码 | 在 MarkdownViewer 中自定义 copy UI |
-| U-02 | P2 | 无障碍 | 标题锚点不可键盘聚焦 | 违反 WCAG 2.1.1 | 可接受（第三方库限制） |
-| A-01 | P1 | 无障碍 | Copy 按钮缺少 `aria-label` | 屏幕阅读器无法识别 | 在 MarkdownViewer 中自定义 copy UI |
-| A-02 | P2 | 无障碍 | 动态内容更新无焦点管理 | 键盘用户体验差 | 内容切换后 focus 到容器 |
-| A-03 | P2 | 视觉 | 行内代码使用语义红色 | 误导用户 | 改用 `--color-blue-80` |
-| API-01 | P3 | DX | `skipHtml` 与 `rehypeRaw` 矛盾 | 消费者误判安全性 | 文档说明 |
-| API-02 | P3 | DX | 缺少 `theme` prop | 不符合 antd 习惯 | 封装层提供 `theme` prop |
-| CSS-01 | P2 | 维护 | 两套重复 Markdown 覆盖样式 | 维护成本高 | 统一为 `markdown-viewer.css` |
-| CSS-02 | P1 | 视觉 | 行内代码颜色语义误用 | 误导 + 无障碍 | 改用非语义色 |
-| R-01 | P3 | 响应式 | 代码块无滚动提示 | 移动端体验差 | 添加渐变遮罩 |
-| R-02 | P2 | 响应式 | 表格无响应式容器 | 移动端溢出 | 添加 `overflow-x: auto` 容器 |
+| U-01 | P2 | 交互 | 移动端 copy 按钮不可见（hover 触发） | 移动端用户无法复制代码 | 在 MarkdownViewer 中自定义 copy UI | 已改善（ARIA 注入） |
+| U-02 | P2 | 无障碍 | 标题锚点不可键盘聚焦 | 违反 WCAG 2.1.1 | 可接受（第三方库限制） | 第三方限制 |
+| A-01 | P1 | 无障碍 | Copy 按钮缺少 `aria-label` | 屏幕阅读器无法识别 | 在 MarkdownViewer 中自定义 copy UI | ✅ 已修复 |
+| A-02 | P2 | 无障碍 | 动态内容更新无焦点管理 | 键盘用户体验差 | 内容切换后 focus 到容器 | ✅ 已修复 |
+| A-03 | P2 | 视觉 | 行内代码使用语义红色 | 误导用户 | 改用 `--color-blue-80` | ✅ 已修复 |
+| API-01 | P3 | DX | `skipHtml` 与 `rehypeRaw` 矛盾 | 消费者误判安全性 | 文档说明 | 文档记录 |
+| API-02 | P3 | DX | 缺少 `theme` prop | 不符合 antd 习惯 | 封装层提供 `theme` prop | 已通过 colorMode prop 解决 |
+| CSS-01 | P2 | 维护 | 两套重复 Markdown 覆盖样式 | 维护成本高 | 统一为 `markdown-viewer.css` | ✅ 已修复 |
+| CSS-02 | P1 | 视觉 | 行内代码颜色语义误用 | 误导 + 无障碍 | 改用非语义色 | ✅ 已修复 |
+| R-01 | P3 | 响应式 | 代码块无滚动提示 | 移动端体验差 | 添加渐变遮罩 | ✅ 已修复 |
+| R-02 | P2 | 响应式 | 表格无响应式容器 | 移动端溢出 | 添加 `overflow-x: auto` 容器 | ✅ 已修复 |
 
 ---
 
@@ -445,20 +445,20 @@ antd v6 使用 Design Token 系统。`common.tsx` 输出的 Markdown 内容完�
 
 ### 优先级 P1（建议立即处理）
 
-1. **修复行内代码颜色**：将 `color: var(--color-error)` 改为 `color: var(--color-blue-80)` 或 `color: #525252`（ink-muted），消除语义误导
-2. **合并重复 CSS**：将 `global.css` 中 `.article-content-preview .wmde-markdown` 规则迁移到 `markdown-viewer.css`，统一维护
+1. **修复行内代码颜色**：将 `color: var(--color-error)` 改为 `color: var(--color-blue-80)` 或 `color: #525252`（ink-muted），消除语义误导 ✅ 已修复
+2. **合并重复 CSS**：将 `global.css` 中 `.article-content-preview .wmde-markdown` 规则迁移到 `markdown-viewer.css`，统一维护 ✅ 已修复
 
 ### 优先级 P2（建议下个迭代处理）
 
-3. **表格响应式**：为 `.wmde-markdown table` 添加外层 `overflow-x: auto` 容器
-4. **MarkdownViewer 性能隔离**：添加 `React.memo` 防止不必要的重渲染
-5. **自定义 Copy UI**：考虑禁用原生 copy（`disableCopy`），使用 antd `Button` + `Typography.Text` 实现更符合 Carbon 设计的复制交互
+3. **表格响应式**：为 `.wmde-markdown table` 添加外层 `overflow-x: auto` 容器 ✅ 已修复
+4. **MarkdownViewer 性能隔离**：添加 `React.memo` 防止不必要的重渲染 ✅ 已修复
+5. **自定义 Copy UI**：考虑禁用原生 copy（`disableCopy`），使用 antd `Button` + `Typography.Text` 实现更符合 Carbon 设计的复制交互（已通过 rehypeRewrite 注入 ARIA 属性改善无障碍）
 
 ### 优先级 P3（可纳入技术债）
 
-6. **letter-spacing 补全**：为 `.wmde-markdown` 添加 `letter-spacing: 0.16px`
-7. **添加 `aria-live="polite"`**：在 MarkdownViewer 内容区域添加 aria-live，支持动态内容更新通知
-8. **代码块语言标签**：通过自定义 `rehypeRewrite` 在代码块顶部显示语言标识
+6. **letter-spacing 补全**：为 `.wmde-markdown` 添加 `letter-spacing: 0.16px` ✅ 已修复
+7. **添加 `aria-live="polite"`**：在 MarkdownViewer 内容区域添加 aria-live，支持动态内容更新通知 ✅ 已修复
+8. **代码块语言标签**：通过自定义 `rehypeRewrite` 在代码块顶部显示语言标识（保留为技术债）
 
 ---
 

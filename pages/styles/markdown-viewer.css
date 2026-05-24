@@ -517,10 +517,14 @@
     padding: 6px 10px !important;
   }
 
+  /* R-01: 移动端代码块滚动渐变遮罩提示 */
   .markdown-viewer .wmde-markdown pre,
   .article-content-preview .wmde-markdown pre {
     padding: 8px !important;
     font-size: 12px !important;
+    position: relative !important;
+    background-image: linear-gradient(to right, transparent 85%, var(--color-inverse-canvas, #161616)) !important;
+    background-clip: padding-box !important;
   }
 
   .markdown-viewer .wmde-markdown table th,

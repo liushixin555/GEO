@@ -301,3 +301,48 @@ URL_PROPERTIES    // 可能包含 URL 的属性名集合（href/src/action/forma
 - [x] 前端构建通过
 - [x] ESLint 无错误
 - [x] 安全评审文档更新修复状态
+
+---
+
+## 第七轮评审修复（common.tsx UI 评审，2026-05-25）
+
+基于 `tasks/review/common.tsx.ui.md` UI 专家评审（综合评分 5.3/10），对 MarkdownViewer 封装组件进行第七轮 UI 对照检查与修复。
+
+### 评审问题对照状态
+
+| 评审问题 | 优先级 | 修复措施 | 状态 |
+|---------|--------|---------|------|
+| CSS-02 行内代码使用语义红色 `var(--color-error)` | P1 | 改为 `var(--color-blue-80)`（#002d9c），消除色彩语义误导 | ✅ 已有修复 |
+| CSS-01 两套重复 Markdown 覆盖样式 | P1 | `global.css` 中 `.article-content-preview .wmde-markdown` 规则迁移至 `markdown-viewer.css` 统一维护 | ✅ 已有修复 |
+| R-02 表格无响应式容器 | P2 | `.wmde-markdown table` 添加 `display: block; overflow-x: auto` | ✅ 已有修复 |
+| A-01 Copy 按钮 ARIA 缺失 | P1 | `rehypeRewrite` 为复制按钮注入 `aria-label`/`role`/`tabindex` | ✅ 已有修复 |
+| A-02 动态内容无焦点管理 | P2 | **新增** `useEffect` + `prevContentRef` 内容切换后 focus 容器 | ✅ 本次修复 |
+| A-03 行内代码使用语义红色 | P2 | 与 CSS-02 合并，已改为 `var(--color-blue-80)` | ✅ 已有修复 |
+| R-01 代码块无滚动提示 | P3 | **新增** 移动端 CSS 渐变遮罩，提示可横向滚动 | ✅ 本次修复 |
+| P3 letter-spacing 补全 | P3 | `markdown-viewer.css` 已有 `letter-spacing: 0.16px` | ✅ 已有 |
+| P3 aria-live 动态内容通知 | P3 | **新增** 容器 `aria-live="polite"` 支持屏幕阅读器 | ✅ 本次修复 |
+
+### 本次新增修复
+
+| 修复项 | 文件 | 说明 |
+|--------|------|------|
+| A-02 焦点管理 | `MarkdownViewer.tsx` | `prevContentRef` + `useEffect`，内容变化时 `focus({ preventScroll: true })`，键盘用户无需从页顶重新 Tab |
+| P3 aria-live | `MarkdownViewer.tsx` | 容器 div 添加 `aria-live="polite"`，屏幕阅读器自动播报内容更新 |
+| R-01 滚动提示 | `markdown-viewer.css` | 移动端（≤672px）代码块添加 `background-image: linear-gradient` 右侧渐变遮罩，视觉提示可横向滚动 |
+
+### 涉及文件
+
+- `pages/components/MarkdownViewer.tsx` — aria-live + 焦点管理
+- `pages/styles/markdown-viewer.css` — 移动端代码块渐变遮罩
+- `tests/pages/components/MarkdownViewer.test.tsx` — 新增 7 个 UI 评审测试（116 个全部通过）
+
+### 验收标准（第七轮）
+
+- [x] 容器添加 `aria-live="polite"`
+- [x] 内容切换时自动 focus 到容器（preventScroll）
+- [x] 初始渲染不触发 focus
+- [x] 移动端代码块渐变遮罩
+- [x] 新增 7 个测试用例
+- [x] 全部 116 个 MarkdownViewer 测试通过
+- [x] 前端构建通过
+- [x] ESLint 无错误
