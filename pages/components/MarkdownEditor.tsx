@@ -22,7 +22,7 @@ import React, { useCallback, useEffect, forwardRef, useImperativeHandle, useRef,
 import MDEditor from '@uiw/react-md-editor/nohighlight';
 import DOMPurify from 'dompurify';
 import { Empty } from 'antd';
-import { FullscreenOutlined, FontSizeOutlined, QuestionCircleOutlined, LinkOutlined } from '@ant-design/icons';
+import { FullscreenOutlined, FontSizeOutlined, QuestionCircleOutlined, LinkOutlined, EditOutlined, SplitCellsOutlined, EyeOutlined } from '@ant-design/icons';
 import { safeUrlTransform, SAFE_TAGS } from './MarkdownViewer';
 import '../styles/markdown-editor.css';
 
@@ -593,6 +593,39 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
         }
 
         return wrapped;
+      }
+
+      // P1-01/P1-02/A-02/S-01/UI-P1-01/UI-P1-02/UI-P2-02/UI-P3-02:
+      // 覆盖 preview/edit/live 模式切换命令——
+      // 1. 替换辨识度极低的方括号 SVG 为 antd 语义图标（EditOutlined/SplitCellsOutlined/EyeOutlined）
+      // 2. 修复 execute 双路径死代码——移除 shortcuts 条件 guard，统一按钮点击和快捷键路径
+      // 3. api.textArea 添加可选链空值防护
+      // 4. 中文 buttonProps 覆盖英文硬编码
+      if (command.keyCommand === 'preview' && (command.name === 'edit' || command.name === 'live' || command.name === 'preview')) {
+        const modeMap: Record<string, { icon: React.ReactElement; label: string }> = {
+          edit: { icon: <EditOutlined style={{ fontSize: 16 }} />, label: '编辑模式' },
+          live: { icon: <SplitCellsOutlined style={{ fontSize: 16 }} />, label: '实时预览' },
+          preview: { icon: <EyeOutlined style={{ fontSize: 16 }} />, label: '预览模式' },
+        };
+        const mode = command.name;
+        const config = modeMap[mode];
+        if (!config) return command;
+
+        const shortcutKey = command.shortcuts?.replace('ctrlcmd+', 'Ctrl+') ?? '';
+        return {
+          ...command,
+          buttonProps: {
+            'aria-label': `${config.label}${shortcutKey ? ` (${shortcutKey})` : ''}`,
+            title: `${config.label}${shortcutKey ? ` (${shortcutKey})` : ''}`,
+          },
+          icon: config.icon,
+          execute: (_state: any, api: any, dispatch?: any) => {
+            api.textArea?.focus();
+            if (dispatch) {
+              dispatch({ preview: mode });
+            }
+          },
+        };
       }
 
       return command;

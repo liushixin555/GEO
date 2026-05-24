@@ -66,6 +66,18 @@ jest.mock('@ant-design/icons', () => ({
   QuestionCircleOutlined: ({ style }: { style?: React.CSSProperties }) => (
     <svg data-testid="antd-question-icon" style={style} />
   ),
+  EditOutlined: ({ style }: { style?: React.CSSProperties }) => (
+    <svg data-testid="antd-edit-icon" style={style} />
+  ),
+  SplitCellsOutlined: ({ style }: { style?: React.CSSProperties }) => (
+    <svg data-testid="antd-splitcells-icon" style={style} />
+  ),
+  EyeOutlined: ({ style }: { style?: React.CSSProperties }) => (
+    <svg data-testid="antd-eye-icon" style={style} />
+  ),
+  LinkOutlined: ({ style }: { style?: React.CSSProperties }) => (
+    <svg data-testid="antd-link-icon" style={style} />
+  ),
 }));
 
 // Mock CSS import
@@ -1139,6 +1151,132 @@ describe('MarkdownEditor', () => {
         expect.any(Error),
       );
       consoleSpy.mockRestore();
+    });
+  });
+
+  describe('commandsFilter — preview/edit/live mode command override', () => {
+    const createPreviewCommand = (name: string, shortcut: string) => ({
+      name,
+      keyCommand: 'preview',
+      value: name,
+      shortcuts: shortcut,
+      buttonProps: { 'aria-label': `${name} code`, title: `${name} code` },
+      execute: jest.fn(),
+    });
+
+    it.each([
+      { name: 'edit', shortcut: 'ctrlcmd+7', expectedLabel: '编辑模式 (Ctrl+7)' },
+      { name: 'live', shortcut: 'ctrlcmd+8', expectedLabel: '实时预览 (Ctrl+8)' },
+      { name: 'preview', shortcut: 'ctrlcmd+9', expectedLabel: '预览模式 (Ctrl+9)' },
+    ])('should override $name command with Chinese buttonProps', ({ name, shortcut, expectedLabel }) => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createPreviewCommand(name, shortcut), false);
+      expect(result.buttonProps['aria-label']).toBe(expectedLabel);
+      expect(result.buttonProps.title).toBe(expectedLabel);
+    });
+
+    it.each([
+      { name: 'edit' },
+      { name: 'live' },
+      { name: 'preview' },
+    ])('should replace $name SVG with antd icon', ({ name }) => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createPreviewCommand(name, 'ctrlcmd+9'), false);
+      expect(result.icon).toBeTruthy();
+      expect(React.isValidElement(result.icon)).toBe(true);
+      // Verify icon has fontSize: 16 (Carbon standard)
+      expect(result.icon.props.style?.fontSize).toBe(16);
+    });
+
+    it.each([
+      { name: 'edit', shortcut: 'ctrlcmd+7' },
+      { name: 'live', shortcut: 'ctrlcmd+8' },
+      { name: 'preview', shortcut: 'ctrlcmd+9' },
+    ])('should fix execute: dispatch called on button click (no shortcuts) for $name', ({ name }) => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createPreviewCommand(name, 'ctrlcmd+9'), false);
+
+      const mockDispatch = jest.fn();
+      const mockFocus = jest.fn();
+      const mockApi = { textArea: { focus: mockFocus } };
+
+      // Simulate button click — shortcuts parameter is undefined
+      result.execute({}, mockApi, mockDispatch, undefined, undefined);
+
+      // A-02 fix: dispatch should be called even without shortcuts
+      expect(mockDispatch).toHaveBeenCalledWith({ preview: name });
+      expect(mockFocus).toHaveBeenCalled();
+    });
+
+    it.each([
+      { name: 'edit' },
+      { name: 'live' },
+      { name: 'preview' },
+    ])('should fix execute: dispatch called with keyboard shortcuts for $name', ({ name }) => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createPreviewCommand(name, 'ctrlcmd+9'), false);
+
+      const mockDispatch = jest.fn();
+      const mockFocus = jest.fn();
+      const mockApi = { textArea: { focus: mockFocus } };
+
+      // Simulate keyboard shortcut
+      result.execute({}, mockApi, mockDispatch, undefined, ['ctrlcmd+9']);
+
+      expect(mockDispatch).toHaveBeenCalledWith({ preview: name });
+      expect(mockFocus).toHaveBeenCalled();
+    });
+
+    it.each([
+      { name: 'edit' },
+      { name: 'live' },
+      { name: 'preview' },
+    ])('should not dispatch when dispatch is undefined for $name', ({ name }) => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createPreviewCommand(name, 'ctrlcmd+9'), false);
+
+      const mockFocus = jest.fn();
+      const mockApi = { textArea: { focus: mockFocus } };
+
+      result.execute({}, mockApi, undefined, undefined, undefined);
+
+      // S-01/A-07 fix: focus always called with optional chaining, but dispatch skipped
+      expect(mockFocus).toHaveBeenCalled();
+    });
+
+    it('should handle null api.textArea gracefully (S-01)', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createPreviewCommand('edit', 'ctrlcmd+7'), false);
+
+      const mockDispatch = jest.fn();
+      const mockApi = { textArea: null };
+
+      // S-01 fix: optional chaining prevents TypeError
+      expect(() => {
+        result.execute({}, mockApi, mockDispatch, undefined, undefined);
+      }).not.toThrow();
+      expect(mockDispatch).toHaveBeenCalledWith({ preview: 'edit' });
+    });
+
+    it('should not affect commands with different keyCommand', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = { name: 'edit', keyCommand: 'otherCommand', shortcuts: 'ctrlcmd+7' };
+      const result = commandsFilterFn!(cmd, false);
+      expect(result).toBe(cmd);
+    });
+
+    it('should pass through unknown mode name in preview keyCommand', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = { name: 'unknownMode', keyCommand: 'preview', shortcuts: 'ctrlcmd+5' };
+      const result = commandsFilterFn!(cmd, false);
+      // Should return original command since mode is not in modeMap
+      expect(result).toBe(cmd);
+    });
+
+    it('should set icon fontSize to 16px (Carbon standard)', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createPreviewCommand('edit', 'ctrlcmd+7'), false);
+      expect(result.icon.props.style.fontSize).toBe(16);
     });
   });
 });

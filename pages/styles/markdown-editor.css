@@ -58,6 +58,14 @@
   height: 16px !important;
 }
 
+/* UI-P3-02: 模式切换按钮选中态 — Carbon product-tab 视觉规范 */
+/* 当前活跃模式按钮高亮，通过 data-active 或 active 类名区分 */
+.markdown-editor-wrapper .w-md-editor-toolbar button[data-mode-active="true"] {
+  background-color: var(--color-surface-2) !important;
+  color: var(--color-primary) !important;
+  box-shadow: inset 0 -2px 0 var(--color-primary) !important;
+}
+
 /* 工具栏分隔线 */
 .markdown-editor-wrapper .w-md-editor-toolbar .w-md-editor-toolbar-divider {
   background-color: var(--color-hairline) !important;
