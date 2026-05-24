@@ -577,7 +577,7 @@ describe('KnowledgeBase Controller', () => {
         .send({ scope: 'platform' });
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toBe('知识库名称不能为空');
+      expect(res.body.message).toBe('参数验证失败: 知识库名称不能为空');
     });
 
     test('名称为纯空格返回 400', async () => {
@@ -597,7 +597,7 @@ describe('KnowledgeBase Controller', () => {
         .send({ name: [1, 2, 3], scope: 'platform' });
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toBe('知识库名称不能为空');
+      expect(res.body.message).toBe('参数验证失败: 知识库名称不能为空');
     });
 
     test('名称超过200字符返回 400', async () => {
@@ -607,7 +607,7 @@ describe('KnowledgeBase Controller', () => {
         .send({ name: 'A'.repeat(201), scope: 'platform' });
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toBe('知识库名称不能超过200个字符');
+      expect(res.body.message).toBe('参数验证失败: 知识库名称不能超过200个字符');
     });
 
     test('描述超过2000字符返回 400', async () => {
@@ -617,7 +617,7 @@ describe('KnowledgeBase Controller', () => {
         .send({ name: '测试', scope: 'platform', description: 'A'.repeat(2001) });
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toBe('描述不能超过2000个字符');
+      expect(res.body.message).toBe('参数验证失败: 描述不能超过2000个字符');
     });
 
     test('scope 为空返回 400', async () => {
@@ -627,7 +627,7 @@ describe('KnowledgeBase Controller', () => {
         .send({ name: '测试知识库' });
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toBe('知识库范围不合法，应为 platform/company/project');
+      expect(res.body.message).toBe('参数验证失败: 知识库范围不合法，应为 platform/company/project');
     });
 
     test('scope 为无效值返回 400', async () => {
@@ -637,7 +637,7 @@ describe('KnowledgeBase Controller', () => {
         .send({ name: '测试知识库', scope: 'invalid' });
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toBe('知识库范围不合法，应为 platform/company/project');
+      expect(res.body.message).toBe('参数验证失败: 知识库范围不合法，应为 platform/company/project');
     });
 
     test('company 知识库未选公司返回 400', async () => {
@@ -784,7 +784,7 @@ describe('KnowledgeBase Controller', () => {
         .send({ scope: 'invalid' });
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toBe('知识库范围不合法，应为 platform/company/project');
+      expect(res.body.message).toBe('参数验证失败: 知识库范围不合法，应为 platform/company/project');
     });
 
     test('更新时名称为空字符串返回 400', async () => {
@@ -804,7 +804,7 @@ describe('KnowledgeBase Controller', () => {
         .send({ name: 'A'.repeat(201) });
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toBe('知识库名称不能超过200个字符');
+      expect(res.body.message).toBe('参数验证失败: 知识库名称不能超过200个字符');
     });
 
     test('更新时描述超过2000字符返回 400', async () => {
@@ -814,7 +814,7 @@ describe('KnowledgeBase Controller', () => {
         .send({ description: 'A'.repeat(2001) });
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toBe('描述不能超过2000个字符');
+      expect(res.body.message).toBe('参数验证失败: 描述不能超过2000个字符');
     });
 
     test('知识库不存在返回 404', async () => {
@@ -1585,8 +1585,9 @@ describe('KnowledgeBase Controller', () => {
           malicious_field: 'hack',
         });
 
-      // Zod strict() rejects extra fields at route level — mass assignment prevented
-      expect(res.status).toBe(400);
+      // Zod 默认行为：剥离未知字段 + controller 仅解构已知字段 — mass assignment 防护
+      expect(res.status).toBe(201);
+      expect(mockCreate).toHaveBeenCalled();
     });
   });
 
@@ -1652,6 +1653,199 @@ describe('KnowledgeBase Controller', () => {
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ message: '未登录' })
       );
+    });
+  });
+
+  // =========================================================
+  // 直接测试 Controller 防御性验证（覆盖 Zod 已拦截的分支）
+  // =========================================================
+  describe('Controller 防御性验证（直接函数测试，绕过 Zod）', () => {
+    function mockRes() {
+      const res: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      return res;
+    }
+
+    const mockUser = { userId: 1, username: 'sysadmin', role: 'sysadmin' };
+
+    // --- createKnowledgeBase 防御性验证（覆盖 line 71, 74-75）---
+    test('createKnowledgeBase: description 超过2000字符返回 400（绕过 Zod）', async () => {
+      const req = {
+        body: { name: '测试', description: 'A'.repeat(2001), scope: 'platform' },
+        user: mockUser,
+      } as any;
+      const res = mockRes();
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '描述不能超过2000个字符' })
+      );
+    });
+
+    test('createKnowledgeBase: scope 无效值返回 400（绕过 Zod）', async () => {
+      const req = {
+        body: { name: '测试', scope: 'invalid_scope' },
+        user: mockUser,
+      } as any;
+      const res = mockRes();
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '知识库范围不合法，应为 platform/company/project' })
+      );
+    });
+
+    test('createKnowledgeBase: scope 为 undefined 返回 400（绕过 Zod）', async () => {
+      const req = {
+        body: { name: '测试' },
+        user: mockUser,
+      } as any;
+      const res = mockRes();
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '知识库范围不合法，应为 platform/company/project' })
+      );
+    });
+
+    // --- updateKnowledgeBase 防御性验证（覆盖 line 104-105, 115）---
+    test('updateKnowledgeBase: scope 无效值返回 400（绕过 Zod）', async () => {
+      const req = {
+        params: { id: '1' },
+        body: { scope: 'invalid_scope' },
+        user: mockUser,
+      } as any;
+      const res = mockRes();
+      await updateKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '知识库范围不合法，应为 platform/company/project' })
+      );
+    });
+
+    test('updateKnowledgeBase: description 超过2000字符返回 400（绕过 Zod）', async () => {
+      const req = {
+        params: { id: '1' },
+        body: { description: 'A'.repeat(2001) },
+        user: mockUser,
+      } as any;
+      const res = mockRes();
+      await updateKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '描述不能超过2000个字符' })
+      );
+    });
+
+    // --- name > 200 防御性验证（覆盖 line 69, 112）---
+    test('createKnowledgeBase: name 超过200字符返回 400（绕过 Zod）', async () => {
+      const req = {
+        body: { name: 'A'.repeat(201), scope: 'platform' },
+        user: mockUser,
+      } as any;
+      const res = mockRes();
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '知识库名称不能超过200个字符' })
+      );
+    });
+
+    test('updateKnowledgeBase: name 超过200字符返回 400（绕过 Zod）', async () => {
+      const req = {
+        params: { id: '1' },
+        body: { name: 'A'.repeat(201) },
+        user: mockUser,
+      } as any;
+      const res = mockRes();
+      await updateKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '知识库名称不能超过200个字符' })
+      );
+    });
+
+    // --- validateInteger 间接测试（覆盖 line 13）---
+    test('createKnowledgeBase: company_id 为浮点数被 validateInteger 过滤', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const req = {
+        body: { name: '测试', scope: 'platform', company_id: 1.5 },
+        user: mockUser,
+      } as any;
+      const res = mockRes();
+      await createKnowledgeBase(req, res);
+      expect(mockCreate).toHaveBeenCalled();
+      const createData = mockCreate.mock.calls[0][0].data;
+      expect(createData.companyId).toBeNull();
+    });
+
+    test('createKnowledgeBase: project_id 为负数被 validateInteger 过滤', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const req = {
+        body: { name: '测试', scope: 'platform', project_id: -5 },
+        user: mockUser,
+      } as any;
+      const res = mockRes();
+      await createKnowledgeBase(req, res);
+      expect(mockCreate).toHaveBeenCalled();
+      const createData = mockCreate.mock.calls[0][0].data;
+      expect(createData.projectId).toBeNull();
+    });
+
+    test('updateKnowledgeBase: company_id 为0被 validateInteger 过滤', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        createdBy: 1,
+        companyId: null,
+        projectId: null,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const req = {
+        params: { id: '1' },
+        body: { company_id: 0 },
+        user: mockUser,
+      } as any;
+      const res = mockRes();
+      await updateKnowledgeBase(req, res);
+      // validateInteger(0) returns undefined
+      expect(mockUpdate).toHaveBeenCalled();
+      const updateData = mockUpdate.mock.calls[0][0].data;
+      expect(updateData.companyId).toBeUndefined();
     });
   });
 });

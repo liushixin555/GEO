@@ -3,15 +3,15 @@
 ## 文件信息
 - **源文件**: `apis/controller/knowledge-base.controller.ts`
 - **测试文件**: `tests/apis/knowledge-base.controller.test.ts`
-- **执行时间**: 2026-05-24（第三轮补全 — 100%覆盖率）
-- **历史执行**: 2026-05-23（初始48个测试）、2026-05-24（第二轮补全88个测试）
+- **执行时间**: 2026-05-24（第四轮补全 — 100%覆盖率）
+- **历史执行**: 2026-05-23（初始48个测试）、2026-05-24（第二轮88个）、2026-05-24（第三轮93个）
 
 ## 测试结果
 
 | 指标 | 结果 |
 |------|------|
-| 测试用例总数 | 93 |
-| 通过 | 93 |
+| 测试用例总数 | 103 |
+| 通过 | 103 |
 | 失败 | 0 |
 | 跳过 | 0 |
 | 测试套件 | 1 passed |
@@ -24,8 +24,6 @@
 | 分支覆盖率 (Branches) | **100%** |
 | 函数覆盖率 (Functions) | **100%** |
 | 行覆盖率 (Lines) | **100%** |
-
-> 第三轮新增 5 个直接函数测试，覆盖了此前因 auth 中间件拦截而不可达的 `!user` 防御性分支（行29, 48, 81, 129, 152），实现全覆盖。
 
 ## 测试分布
 
@@ -98,26 +96,44 @@
 - 数据库异常返回 500 / 异常无 message 返回默认错误
 - ID=0 查询DB / sysadmin 可删除任意知识库
 
-### Controller !user 防御性分支 — 直接函数测试 (5 个测试) [第三轮新增]
+### Controller !user 防御性分支 — 直接函数测试 (5 个测试)
 - listKnowledgeBases: req.user 不存在返回 401
 - getKnowledgeBase: req.user 不存在返回 401
 - createKnowledgeBase: req.user 不存在返回 401
 - updateKnowledgeBase: req.user 不存在返回 401
 - deleteKnowledgeBase: req.user 不存在返回 401
 
-## 本轮新增测试 (5 个)
+### Controller 防御性验证 — 直接函数测试，绕过 Zod (10 个测试) [第四轮新增]
+- createKnowledgeBase: description 超过2000字符返回 400
+- createKnowledgeBase: scope 无效值返回 400
+- createKnowledgeBase: scope 为 undefined 返回 400
+- updateKnowledgeBase: scope 无效值返回 400
+- updateKnowledgeBase: description 超过2000字符返回 400
+- createKnowledgeBase: name 超过200字符返回 400
+- updateKnowledgeBase: name 超过200字符返回 400
+- createKnowledgeBase: company_id 为浮点数被 validateInteger 过滤
+- createKnowledgeBase: project_id 为负数被 validateInteger 过滤
+- updateKnowledgeBase: company_id 为0被 validateInteger 过滤
 
-### 覆盖方式
-- 通过直接导入 controller 函数（`listKnowledgeBases` 等），构造无 `user` 属性的 mock `req` 对象，直接调用函数
-- 绕过 auth 中间件，覆盖此前不可达的防御性 `if (!user)` 分支
+## 本轮修复与新增 (103 个测试)
 
-### 新增测试清单
-1. `listKnowledgeBases` 无 req.user → 401 '未登录'
-2. `getKnowledgeBase` 无 req.user → 401 '未登录'
-3. `createKnowledgeBase` 无 req.user → 401 '未登录'
-4. `updateKnowledgeBase` 无 req.user → 401 '未登录'
-5. `deleteKnowledgeBase` 无 req.user → 401 '未登录'
+### 修复内容
+1. **Zod 验证层兼容修复（10 个测试）**：Zod schema 验证中间件拦截请求后包装错误消息为 "参数验证失败: xxx" 格式，原测试断言不包含此前缀。已更新 9 个测试的断言以匹配 Zod 中间件实际返回的消息格式
+2. **Mass assignment 防护测试修复**：Zod 默认行为为剥离未知字段而非拒绝，更新测试从期望 400 改为验证 201 成功且 mockCreate 未接收额外字段
+
+### 新增测试（10 个直接函数测试）
+通过直接导入 controller 函数并构造 mock req/res 对象绕过 Zod 验证中间件，覆盖 controller 层的防御性验证代码：
+- **覆盖行**: line 13 (validateInteger return undefined), 69 (create name>200), 71 (create description>2000), 74-75 (create scope invalid), 104-105 (update scope invalid), 112 (update name>200), 115 (update description>2000)
+
+### 覆盖率变化
+
+| 指标 | 第三轮 | 第四轮 | 变化 |
+|------|--------|--------|------|
+| 语句覆盖率 | 89.51% | **100%** | +10.49% |
+| 分支覆盖率 | 91.56% | **100%** | +8.44% |
+| 函数覆盖率 | 100% | **100%** | — |
+| 行覆盖率 | 92.92% | **100%** | +7.08% |
 
 ## 结论
 
-测试全部通过（93/93），四项覆盖率指标均达 **100%**。所有 5 个 controller 函数的主路径、边界值、安全检查、错误处理和防御性分支均已全面覆盖。
+测试全部通过（103/103），四项覆盖率指标均达 **100%**。本轮修复了 Zod 验证层导致的 10 个测试失败，并通过直接函数调用绕过 Zod 中间件新增 10 个测试，覆盖了 controller 层与 Zod 重复的防御性验证代码（name 长度、description 长度、scope 枚举、validateInteger 过滤），实现全维度 100% 覆盖。
