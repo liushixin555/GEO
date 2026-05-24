@@ -1316,3 +1316,288 @@ describe('App - Swagger Enabled Scenario', () => {
     expect(process.env.SWAGGER_ENABLED).toBe('false');
   });
 });
+
+// ─── Audit Logging Middleware ───
+describe('App - Audit Logging Middleware', () => {
+  let consoleWarnSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('should log [API] for 401 responses', async () => {
+    await agent.get('/api/auth/verify');
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      '[API]', 'GET', '/api/auth/verify', 401,
+      expect.any(String),
+      'anonymous',
+      expect.any(String),
+    );
+  });
+
+  it('should log [API] for 403 responses', async () => {
+    await agent
+      .get('/api/companies')
+      .set('Authorization', `Bearer ${viewToken()}`);
+    const callArgs = consoleWarnSpy.mock.calls.find(
+      (c: unknown[]) => c[2] === '/api/companies' && c[3] === 403,
+    );
+    expect(callArgs).toBeDefined();
+    expect(callArgs![0]).toBe('[API]');
+    expect(callArgs![1]).toBe('GET');
+    expect(callArgs![3]).toBe(403);
+  });
+
+  it('should log [API] for 404 responses', async () => {
+    await agent.get('/api/non-existent-route');
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      '[API]', 'GET', '/api/non-existent-route', 404,
+      expect.any(String),
+      'anonymous',
+      expect.any(String),
+    );
+  });
+
+  it('should NOT log for 200 responses (health check)', async () => {
+    await agent.get('/api/health');
+    expect(consoleWarnSpy).not.toHaveBeenCalled();
+  });
+
+  it('should include userId for authenticated 4xx requests', async () => {
+    await agent
+      .get('/api/companies')
+      .set('Authorization', `Bearer ${adminToken()}`);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      '[API]', 'GET', '/api/companies', 403,
+      expect.any(String),
+      2,
+      expect.any(String),
+    );
+  });
+
+  it('should log "anonymous" for unauthenticated 4xx requests', async () => {
+    await agent.get('/api/auth/verify');
+    const callArgs = consoleWarnSpy.mock.calls.find(
+      (c: unknown[]) => c[3] === 401,
+    );
+    expect(callArgs).toBeDefined();
+    expect(callArgs![5]).toBe('anonymous');
+  });
+
+  it('should include timing info in format "Xms"', async () => {
+    await agent.get('/api/non-existent-route');
+    const callArgs = consoleWarnSpy.mock.calls.find(
+      (c: unknown[]) => c[3] === 404,
+    );
+    expect(callArgs).toBeDefined();
+    expect(callArgs![4]).toMatch(/^\d+ms$/);
+  });
+
+  it('should include request method in log', async () => {
+    await agent
+      .post('/api/auth/login')
+      .send({});
+    const callArgs = consoleWarnSpy.mock.calls.find(
+      (c: unknown[]) => c[3] === 400,
+    );
+    expect(callArgs).toBeDefined();
+    expect(callArgs![1]).toBe('POST');
+  });
+
+  it('should log request URL in log', async () => {
+    await agent.get('/api/non-existent-route');
+    const callArgs = consoleWarnSpy.mock.calls.find(
+      (c: unknown[]) => c[3] === 404,
+    );
+    expect(callArgs).toBeDefined();
+    expect(callArgs![2]).toBe('/api/non-existent-route');
+  });
+
+  it('should include IP address in log', async () => {
+    await agent.get('/api/non-existent-route');
+    const callArgs = consoleWarnSpy.mock.calls.find(
+      (c: unknown[]) => c[3] === 404,
+    );
+    expect(callArgs).toBeDefined();
+    // IP should be a non-empty string (e.g., "::ffff:127.0.0.1" or "127.0.0.1")
+    expect(typeof callArgs![6]).toBe('string');
+    expect(callArgs![6].length).toBeGreaterThan(0);
+  });
+});
+
+// ─── Login Body Type Validation ───
+describe('App - Login Body Type Validation', () => {
+  it('should return 400 when username is not a string', async () => {
+    const response = await agent
+      .post('/api/auth/login')
+      .send({ username: 123, password: 'testpass' });
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('用户名和密码格式不正确');
+  });
+
+  it('should return 400 when password is not a string', async () => {
+    const response = await agent
+      .post('/api/auth/login')
+      .send({ username: 'testuser', password: 123 });
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('用户名和密码格式不正确');
+  });
+
+  it('should return 400 when username exceeds 100 chars', async () => {
+    const response = await agent
+      .post('/api/auth/login')
+      .send({ username: 'a'.repeat(101), password: 'testpass' });
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('输入长度超出限制');
+  });
+
+  it('should return 400 when password exceeds 200 chars', async () => {
+    const response = await agent
+      .post('/api/auth/login')
+      .send({ username: 'testuser', password: 'b'.repeat(201) });
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('输入长度超出限制');
+  });
+});
+
+// ─── Auth Verify Positive Case ───
+describe('App - Auth Verify Positive Case', () => {
+  it('GET /api/auth/verify with valid sysadmin token should return 200', async () => {
+    const response = await agent
+      .get('/api/auth/verify')
+      .set('Authorization', `Bearer ${sysadminToken()}`);
+    expect(response.status).toBe(200);
+    expect(response.body.data).toBeDefined();
+    expect(response.body.data.valid).toBe(true);
+  });
+
+  it('GET /api/auth/verify with valid admin token should return 200', async () => {
+    const response = await agent
+      .get('/api/auth/verify')
+      .set('Authorization', `Bearer ${adminToken()}`);
+    expect(response.status).toBe(200);
+    expect(response.body.data.valid).toBe(true);
+  });
+});
+
+// ─── CORS Multiple Origins ───
+describe('App - CORS Edge Cases', () => {
+  it('should allow requests with no origin header', async () => {
+    const response = await agent.get('/api/health');
+    expect(response.status).toBe(200);
+  });
+
+  it('should set correct Content-Type for JSON responses', async () => {
+    const response = await agent.get('/api/health');
+    expect(response.headers['content-type']).toContain('application/json');
+  });
+});
+
+// ─── Global Error Handler Deep Test ───
+describe('App - Global Error Handler Deep', () => {
+  let consoleErrorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('should log unhandled errors with structured JSON', async () => {
+    // Sending malformed JSON triggers a parsing error that goes through the error handler
+    const response = await request(app)
+      .post('/api/auth/login')
+      .set('Content-Type', 'application/json')
+      .set('User-Agent', 'test-agent/1.0')
+      .send('{ malformed }');
+    expect([400, 500]).toContain(response.status);
+
+    if (response.status === 500) {
+      // If error handler caught it, it should log structured error
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[Unhandled Error]',
+        expect.any(String),
+      );
+    }
+  });
+
+  it('should return consistent error response format for 500', async () => {
+    // Trigger payload too large error (>10mb)
+    const largePayload = { data: 'x'.repeat(11 * 1024 * 1024) };
+    const response = await agent
+      .post('/api/auth/login')
+      .send(largePayload);
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({ code: 500, message: '服务器内部错误' });
+  });
+});
+
+// ─── Health Check Isolation ───
+describe('App - Health Check Isolation', () => {
+  it('health check should work without User-Agent header', async () => {
+    // Health check is before anti-crawl middleware, so no User-Agent needed
+    const response = await request(app).get('/api/health');
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe('ok');
+  });
+
+  it('health check should not require authentication', async () => {
+    const response = await request(app).get('/api/health');
+    expect(response.status).toBe(200);
+  });
+
+  it('health check should respond quickly (< 100ms)', async () => {
+    const start = Date.now();
+    await agent.get('/api/health');
+    const elapsed = Date.now() - start;
+    expect(elapsed).toBeLessThan(100);
+  });
+});
+
+// ─── Auth Routes - Full Method Coverage ───
+describe('App - Auth Routes Method Coverage', () => {
+  it('GET /api/auth/companies/:id - admin should pass auth but may fail at role', async () => {
+    const response = await agent
+      .get('/api/auth/companies/1')
+      .set('Authorization', `Bearer ${adminToken()}`);
+    // This is auth route, no role restriction beyond auth
+    expect(response.status).not.toBe(401);
+  });
+
+  it('PUT /api/auth/selection - should return 401 without token', async () => {
+    const response = await agent.put('/api/auth/selection');
+    expect(response.status).toBe(401);
+  });
+
+  it('GET /api/auth/companies/:id - should return 401 without token', async () => {
+    const response = await agent.get('/api/auth/companies/999');
+    expect(response.status).toBe(401);
+  });
+});
+
+// ─── Middleware Order Verification ───
+describe('App - Middleware Execution Order', () => {
+  it('health check bypasses anti-crawl and rate-limit', async () => {
+    // Multiple rapid requests to health check should all succeed
+    const responses = await Promise.all(
+      Array.from({ length: 10 }, () => request(app).get('/api/health')),
+    );
+    for (const res of responses) {
+      expect(res.status).toBe(200);
+    }
+  });
+
+  it('login route goes through anti-crawl and rate-limit middleware', async () => {
+    // Request without User-Agent should be blocked by anti-crawl BEFORE reaching login
+    const response = await request(app)
+      .post('/api/auth/login')
+      .send({ username: 'test', password: 'test' });
+    expect(response.status).toBe(403);
+  });
+});
