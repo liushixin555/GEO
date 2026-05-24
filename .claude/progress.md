@@ -633,6 +633,15 @@
   - 正面评价：类型继承正确（Omit<Options, 'children'>）、事件类型携带泛型参数、弃用标记完备
   - 评审报告 tasks/review/Props.tsx.quality.md
 
+## 本次变更（2026-05-24 @uiw/react-markdown-preview Props.tsx 软件架构专家评审）
+- [x] **软件架构专家评审 @uiw/react-markdown-preview/src/Props.tsx（30 行）**
+  - 综合评分 5.0/10（核心类型设计合理，Ref 接口架构和依赖耦合存在明显缺陷）
+  - P1×3：Ref 接口继承全部 Props 违反 ISP/OCP 原则、WrapperElement 类型泄漏 React 实现细节（DetailedHTMLProps）、类型重复 20% DRY 违反率
+  - P2×4：隐式 React 全局依赖违反 DIP、source 属性命名与 react-markdown 语义断裂、pluginsFilter 扩展点粒度不足、Props 与 Ref 混合在同一文件职责边界不清
+  - P3×3：warpperElement 弃用策略缺乏运行时过渡架构、data-color-mode 缺少 auto 模式、disableCopy 否定式命名
+  - SOLID 评估：SRP⚠️、OCP❌、LSP✅、ISP❌、DIP⚠️
+  - 评审报告 tasks/review/Props.tsx.architecture.md
+
 ## 本次变更（2026-05-24 apis/app.ts 软件质量专家第三轮复审）
 - [x] **软件质量专家评审 apis/app.ts（259 行，修复后复审）**
   - 综合评级 B+（从 B 提升，修复质量扎实，可维护性瓶颈依旧）
