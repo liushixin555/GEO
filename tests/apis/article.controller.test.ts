@@ -4306,9 +4306,365 @@ describe('Article Controller', () => {
   });
 });
 
-// ============= 直接调用控制器函数的单元测试（覆盖路由中间件拦截的 Zod 验证分支） =============
+  // ============= 第六轮补全：覆盖行54 checkProjectOperator ForbiddenError + 边界条件 =============
 
-// NOTE: Zod validation tests removed — validation is now handled by route middleware (validate()),
-// not by the controller. Route-level validation is tested by the integration tests above.
-// H-3 fix: simplified from triple validation (route + controller safeParse + pickAllowedFields)
-// to two layers (route middleware validate() + pickAllowedFields as defense-in-depth).
+  describe('checkProjectOperator - operator mapping divergence', () => {
+    // operator.user.id ≠ operator.userId 时，mapProject 映射的 operator_ids 使用 user.id，
+    // 而 projectService.getById 用 op.userId 校验。如果两者不一致，service 校验通过但 controller 的
+    // checkProjectOperator 会抛 ForbiddenError（覆盖行54）。
+    const divergedProject = {
+      id: 1, shortName: 'P1', fullName: 'Project 1', companyId: 2, status: true,
+      createdAt: new Date(), updatedAt: new Date(),
+      company: { shortName: 'Company A' },
+      operators: [{ userId: 2, user: { id: 999, cnName: '映射不一致' } }],
+      viewers: [],
+    };
+
+    it('should return 403 on listArticles when operator mapping diverges', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        article: { findMany: mockFindMany, count: mockCount },
+        project: { findFirst: jest.fn().mockResolvedValue(divergedProject) },
+      });
+
+      const response = await agent
+        .get(BASE)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 on getArticle when operator mapping diverges', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'draft', createdBy: 2,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+        project: { findFirst: jest.fn().mockResolvedValue(divergedProject) },
+      });
+
+      const response = await agent
+        .get(`${BASE}/1`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 on createArticle when operator mapping diverges', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {},
+        project: { findFirst: jest.fn().mockResolvedValue(divergedProject) },
+      });
+
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`)
+        .send({ title: 'Test' });
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 on updateArticle when operator mapping diverges', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'draft', createdBy: 2,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+        project: { findFirst: jest.fn().mockResolvedValue(divergedProject) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`)
+        .send({ title: 'Updated' });
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 on updateArticleContent when operator mapping diverges', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'draft', createdBy: 2, content: 'old', version: 1,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+        project: { findFirst: jest.fn().mockResolvedValue(divergedProject) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`)
+        .send({ content: 'new' });
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 on deleteArticle when operator mapping diverges', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'draft', createdBy: 2,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+        project: { findFirst: jest.fn().mockResolvedValue(divergedProject) },
+      });
+
+      const response = await agent
+        .delete(`${BASE}/1`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 on reviewArticle when operator mapping diverges', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'pending_review', createdBy: 99,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+        project: { findFirst: jest.fn().mockResolvedValue(divergedProject) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/review`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`)
+        .send({ approved: true });
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 on regenerateArticle when operator mapping diverges', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'generate_failed', createdBy: 2,
+          content: 'c', version: 1,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+        project: { findFirst: jest.fn().mockResolvedValue(divergedProject) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/regenerate`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 on submitForReview when operator mapping diverges', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'manual_writing', createdBy: 2,
+          content: 'c', version: 1,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+        project: { findFirst: jest.fn().mockResolvedValue(divergedProject) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 on listArticleVersions when operator mapping diverges', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'draft', createdBy: 2,
+          content: 'c', version: 1,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+        project: { findFirst: jest.fn().mockResolvedValue(divergedProject) },
+      });
+
+      const response = await agent
+        .get(`${BASE}/1/versions`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(403);
+    });
+  });
+
+  // ============= 第六轮补全：parseId 边界条件 =============
+
+  describe('parseId - zero and negative id boundary', () => {
+    it('should return 400 when article id is zero', async () => {
+      const response = await agent
+        .get(`${BASE}/0`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的文章ID');
+    });
+
+    it('should return 400 when article id is negative', async () => {
+      const response = await agent
+        .get(`${BASE}/-1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的文章ID');
+    });
+
+    it('should return 400 when project id is zero', async () => {
+      const response = await agent
+        .get('/api/v1/projects/0/articles')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的项目ID');
+    });
+
+    it('should treat decimal article id as truncated integer (parseInt behavior)', async () => {
+      // parseInt('1.5', 10) → 1, which is valid — Express route params are strings
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({ article: { findFirst: jest.fn().mockResolvedValue(null) } });
+
+      const response = await agent
+        .get(`${BASE}/1.5`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      // 1.5 → parseInt → 1 → valid id, service returns null → 404
+      expect([200, 404]).toContain(response.status);
+    });
+  });
+
+  // ============= 第六轮补全：ForbiddenError 从 handleServerError 映射 =============
+
+  describe('handleServerError - ForbiddenError from article service', () => {
+    it('should return 403 when article service throws ForbiddenError on getById', async () => {
+      const { ForbiddenError } = require('../../apis/errors');
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockRejectedValue(new ForbiddenError('无权访问该文章')) },
+      });
+
+      const response = await agent
+        .get(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 when article service throws ForbiddenError on list', async () => {
+      const { ForbiddenError } = require('../../apis/errors');
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findMany: jest.fn().mockRejectedValue(new ForbiddenError('无权列出文章')),
+          count: jest.fn().mockRejectedValue(new ForbiddenError('无权列出文章')),
+        },
+      });
+
+      const response = await agent
+        .get(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(403);
+    });
+  });
+
+  // ============= 第六轮补全：updateArticle generating with content only (no metadata) =============
+
+  describe('PUT /api/projects/:projectId/articles/:id - generating transition with only status', () => {
+    it('should transition to generating with no extra fields', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = {
+        id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+        images: null, platforms: null, status: 'draft', createdBy: 1,
+        content: 'old', version: 1,
+        createdAt: new Date(), updatedAt: new Date(),
+      };
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, status: 'generating' });
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue(existing),
+          update: mockUpdate,
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: 'generating' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.message).toBe('已提交AI生成');
+      const updateData = mockUpdate.mock.calls[0][0].data;
+      expect(updateData.status).toBe('generating');
+      expect(updateData.content).toBeUndefined();
+    });
+  });
+
+  // ============= 第六轮补全：submitForReview 的状态校验完整覆盖 =============
+
+  describe('PUT /api/projects/:projectId/articles/:id/submit-review - all non-manual_writing statuses', () => {
+    const nonManualStatuses = ['draft', 'generating', 'generate_failed', 'pending_review', 'publishing', 'publish_failed', 'published'];
+
+    it.each(nonManualStatuses.filter(s => s !== 'manual_writing'))('should return 400 when status is %s', async (status) => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status, createdBy: 1,
+          content: 'c', version: 1,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('只有手工编写中的文章可以提交审核');
+    });
+  });
+
+  // ============= 第六轮补全：regenerateArticle 状态覆盖 =============
+
+  describe('PUT /api/projects/:projectId/articles/:id/regenerate - unsupported status coverage', () => {
+    it('should return 400 when status is draft', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'draft', createdBy: 1,
+          content: 'c', version: 1,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/regenerate`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('当前文章状态不支持重新生成');
+    });
+
+    it('should regenerate generate_failed article as sysadmin', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+            images: null, platforms: null, status: 'generate_failed', createdBy: 1,
+            content: 'c', version: 1,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+          update: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'A', status: 'generating', createdBy: 1,
+            content: 'c', version: 1,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/regenerate`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(200);
+      expect(response.body.message).toBe('已重新提交AI生成');
+    });
+  });
+});
