@@ -28,6 +28,7 @@ export const updateKnowledgeBaseSchema = z.object({
   name: name.optional(),
   description,
   scope: scope.optional(),
+  status: z.boolean().optional(),
   company_id: positiveInt.optional(),
   project_id: positiveInt.optional(),
 });

@@ -534,8 +534,10 @@ describe('KnowledgeBase Controller', () => {
         creator: { cnName: '管理员' },
         _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
       });
+      const mockUserFindFirst = jest.fn().mockResolvedValue({ id: 2, companyId: 2 });
       getPrisma.mockReturnValue({
         knowledgeBase: { create: mockCreate },
+        user: { findFirst: mockUserFindFirst },
       });
 
       const res = await agent
@@ -558,8 +560,10 @@ describe('KnowledgeBase Controller', () => {
         creator: { cnName: '管理员' },
         _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
       });
+      const mockOperatorFindFirst = jest.fn().mockResolvedValue({ userId: 2, projectId: 1 });
       getPrisma.mockReturnValue({
         knowledgeBase: { create: mockCreate },
+        projectOperator: { findFirst: mockOperatorFindFirst },
       });
 
       const res = await agent
@@ -1174,7 +1178,7 @@ describe('KnowledgeBase Controller', () => {
       expect(mockFindMany).toHaveBeenCalled();
     });
 
-    test('list: service 抛出 "知识库不存在" 返回 404', async () => {
+    test('list: service 抛出 "知识库不存在" 返回 500（已移除不合理 404 分支）', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindMany = jest.fn().mockRejectedValue(new Error('知识库不存在'));
       getPrisma.mockReturnValue({
@@ -1185,8 +1189,42 @@ describe('KnowledgeBase Controller', () => {
         .get('/api/v1/knowledge-bases')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(res.status).toBe(404);
-      expect(res.body.message).toBe('知识库不存在');
+      expect(res.status).toBe(500);
+      expect(res.body.message).toBe('获取知识库列表失败');
+    });
+
+    test('list: 无效 scope 参数被忽略（SEC-L-02）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const res = await agent
+        .get('/api/v1/knowledge-bases?scope=invalid')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(res.status).toBe(200);
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where.scope).toBeUndefined();
+    });
+
+    test('list: 有效 scope 参数正确传递', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const res = await agent
+        .get('/api/v1/knowledge-bases?scope=company')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(res.status).toBe(200);
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where.scope).toBe('company');
     });
 
     // --- Get 边界 ---
@@ -1767,56 +1805,83 @@ describe('KnowledgeBase Controller', () => {
       );
     });
 
-    // --- validateInteger 间接测试（覆盖 line 13）---
-    test('createKnowledgeBase: company_id 为浮点数被 validateInteger 过滤', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockCreate = jest.fn().mockResolvedValue({
-        ...mockKB,
-        company: null,
-        project: null,
-        creator: { cnName: '管理员' },
-        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
-      });
-      getPrisma.mockReturnValue({
-        knowledgeBase: { create: mockCreate },
-      });
-
+    // --- validateInteger 间接测试（覆盖 line 13 — 现在抛出错误而非静默吞没）---
+    test('createKnowledgeBase: company_id 为浮点数被 validateInteger 拒绝返回 400', async () => {
       const req = {
         body: { name: '测试', scope: 'platform', company_id: 1.5 },
         user: mockUser,
       } as any;
       const res = mockRes();
       await createKnowledgeBase(req, res);
-      expect(mockCreate).toHaveBeenCalled();
-      const createData = mockCreate.mock.calls[0][0].data;
-      expect(createData.companyId).toBeNull();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'company_id 必须为正整数' })
+      );
     });
 
-    test('createKnowledgeBase: project_id 为负数被 validateInteger 过滤', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockCreate = jest.fn().mockResolvedValue({
-        ...mockKB,
-        company: null,
-        project: null,
-        creator: { cnName: '管理员' },
-        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
-      });
-      getPrisma.mockReturnValue({
-        knowledgeBase: { create: mockCreate },
-      });
-
+    test('createKnowledgeBase: project_id 为负数被 validateInteger 拒绝返回 400', async () => {
       const req = {
         body: { name: '测试', scope: 'platform', project_id: -5 },
         user: mockUser,
       } as any;
       const res = mockRes();
       await createKnowledgeBase(req, res);
-      expect(mockCreate).toHaveBeenCalled();
-      const createData = mockCreate.mock.calls[0][0].data;
-      expect(createData.projectId).toBeNull();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'project_id 必须为正整数' })
+      );
     });
 
-    test('updateKnowledgeBase: company_id 为0被 validateInteger 过滤', async () => {
+    test('updateKnowledgeBase: company_id 为0被 validateInteger 拒绝返回 400', async () => {
+      const req = {
+        params: { id: '1' },
+        body: { company_id: 0 },
+        user: mockUser,
+      } as any;
+      const res = mockRes();
+      await updateKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'company_id 必须为正整数' })
+      );
+    });
+
+    // --- status 类型验证测试（H-3）---
+    test('updateKnowledgeBase: status 为 boolean false 正确传递（绕过 Zod）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        createdBy: 1,
+        companyId: null,
+        projectId: null,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        status: false,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const req = {
+        params: { id: '1' },
+        body: { status: false },
+        user: mockUser,
+      } as any;
+      const res = mockRes();
+      await updateKnowledgeBase(req, res);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 0 })
+      );
+      const updateData = mockUpdate.mock.calls[0][0].data;
+      expect(updateData.status).toBe(false);
+    });
+
+    test('updateKnowledgeBase: status 为非 boolean（字符串）被忽略（绕过 Zod）', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockResolvedValue({
         ...mockKB,
@@ -1837,15 +1902,42 @@ describe('KnowledgeBase Controller', () => {
 
       const req = {
         params: { id: '1' },
-        body: { company_id: 0 },
+        body: { status: 'true' },
         user: mockUser,
       } as any;
       const res = mockRes();
       await updateKnowledgeBase(req, res);
-      // validateInteger(0) returns undefined
-      expect(mockUpdate).toHaveBeenCalled();
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 0 })
+      );
       const updateData = mockUpdate.mock.calls[0][0].data;
-      expect(updateData.companyId).toBeUndefined();
+      expect(updateData.status).toBeUndefined();
+    });
+
+    // --- description 类型验证测试（M-1）---
+    test('createKnowledgeBase: description 为数组被转为 undefined（绕过 Zod）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        description: null,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const req = {
+        body: { name: '测试', description: [1, 2, 3], scope: 'platform' },
+        user: mockUser,
+      } as any;
+      const res = mockRes();
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(201);
+      const createData = mockCreate.mock.calls[0][0].data;
+      expect(createData.description).toBeNull();
     });
   });
 });

@@ -76,6 +76,7 @@
 | 2026-05-24 | `tasks/tdd/skills.controller.test.md` | skills.controller.ts TDD 补全——+22 用例（96 总），Stmts 94.5% Branch 86.11% Funcs 100% Lines 96.34% |
 | 2026-05-24 | `progress_tasks/2026-05-24-rehypePlugins-review-fix.md` | rehypePlugins.tsx 评审修复——patch-package补丁(正则Set+类型守卫+XSS编码+try-catch) + MarkdownViewer React.memo/a11y/代码块长度限制 |
 | 2026-05-24 | `tasks/review/knowledge-base.controller.ts.committer.md` | knowledge-base.controller.ts Committer 审核专家评审——APPROVE 批准合并（三层纵深防御+103测试通过+旧版P1全修复+Zod schema遗漏status建议补全） |
+| 2026-05-24 | `tasks/review/Context.tsx.quality.md` | @uiw/react-md-editor Context.tsx 软件质量专家评审——CONDITIONAL APPROVE 3.6/10（P0索引签名any+P1 dispatch混入state+DOM引用存Context+Reducer无Action区分） |
 
 ## 已知问题
 - `apis/service/impl/auth.service.impl.ts` Prisma 类型错误（待 schema 同步）
@@ -84,3 +85,4 @@
 
 | 2026-05-24 | progress_tasks/2026-05-24-index-tsx-ui-review-fix.md | index.tsx UI评审修复——CSS border/font-family/token颜色 + 测试 + jest-dom类型 |
 | 2026-05-24 | progress_tasks/2026-05-24-app-committer-review-fix.md | App.tsx Committer评审修复——重写测试覆盖认证/未认证/认证失败/ErrorBoundary，11用例全通过 |
+| 2026-05-24 | `progress_tasks/2026-05-24-kb-controller-review-fix.md` | knowledge-base.controller.ts 评审修复——validateInteger抛错+status类型验证+description简化+scope校验+Zod status补全+归属校验，250测试全通过 |

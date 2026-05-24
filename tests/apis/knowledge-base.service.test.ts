@@ -940,7 +940,7 @@ describe('KnowledgeBaseServiceImpl', () => {
         knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await service.update(1, { scope: 'company', company_id: 20 }, 1, 'admin');
+      await service.update(1, { scope: 'company', company_id: 20 }, 1, 'sysadmin');
 
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -990,7 +990,7 @@ describe('KnowledgeBaseServiceImpl', () => {
         knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await service.update(1, { scope: 'project', project_id: 30, company_id: 10 }, 1, 'admin');
+      await service.update(1, { scope: 'project', project_id: 30, company_id: 10 }, 1, 'sysadmin');
 
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -1010,7 +1010,7 @@ describe('KnowledgeBaseServiceImpl', () => {
         knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await service.update(1, { scope: 'project' }, 1, 'admin');
+      await service.update(1, { scope: 'project' }, 1, 'sysadmin');
 
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -1028,7 +1028,7 @@ describe('KnowledgeBaseServiceImpl', () => {
         knowledgeBase: { findFirst: mockFindFirst },
       } as any);
 
-      await expect(service.update(1, { scope: 'project' }, 1, 'admin')).rejects.toThrow('项目私有知识库必须选择项目');
+      await expect(service.update(1, { scope: 'project' }, 1, 'sysadmin')).rejects.toThrow('项目私有知识库必须选择项目');
     });
 
     // ── No scope change, update company_id / project_id ──
@@ -1041,7 +1041,7 @@ describe('KnowledgeBaseServiceImpl', () => {
         knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await service.update(1, { company_id: 20 }, 1, 'admin');
+      await service.update(1, { company_id: 20 }, 1, 'sysadmin');
 
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -1059,7 +1059,7 @@ describe('KnowledgeBaseServiceImpl', () => {
         knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await service.update(1, { project_id: 20 }, 1, 'admin');
+      await service.update(1, { project_id: 20 }, 1, 'sysadmin');
 
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 1 },

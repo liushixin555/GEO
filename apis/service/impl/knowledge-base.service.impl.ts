@@ -134,7 +134,7 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
     return mapKnowledgeBase(item);
   }
 
-  async create(request: CreateKnowledgeBaseRequest, userId: number): Promise<KnowledgeBase> {
+  async create(request: CreateKnowledgeBaseRequest, userId: number, role?: string): Promise<KnowledgeBase> {
     const prisma = getPrisma();
 
     // Validate scope-specific fields
@@ -143,6 +143,24 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
     }
     if (request.scope === 'project' && !request.project_id) {
       throw new Error('项目私有知识库必须选择项目');
+    }
+
+    // Ownership validation (SEC-M-01): only admin needs validation
+    if (role === 'admin') {
+      if (request.scope === 'company' && request.company_id) {
+        const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
+        if (!user || user.companyId !== request.company_id) {
+          throw new Error('无权关联该公司');
+        }
+      }
+      if (request.scope === 'project' && request.project_id) {
+        const operator = await prisma.projectOperator.findFirst({
+          where: { userId, projectId: request.project_id, deletedAt: null },
+        });
+        if (!operator) {
+          throw new Error('无权关联该项目');
+        }
+      }
     }
 
     // For platform scope, clear company_id and project_id
@@ -172,6 +190,24 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
     // Non-sysadmin can only update their own
     if (role !== 'sysadmin' && existing.createdBy !== userId) {
       throw new Error('只能修改自己创建的知识库');
+    }
+
+    // Ownership validation (SEC-M-01): only admin needs validation
+    if (role === 'admin') {
+      if (request.company_id !== undefined) {
+        const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
+        if (!user || user.companyId !== request.company_id) {
+          throw new Error('无权关联该公司');
+        }
+      }
+      if (request.project_id !== undefined) {
+        const operator = await prisma.projectOperator.findFirst({
+          where: { userId, projectId: request.project_id, deletedAt: null },
+        });
+        if (!operator) {
+          throw new Error('无权关联该项目');
+        }
+      }
     }
 
     const data: any = {};
