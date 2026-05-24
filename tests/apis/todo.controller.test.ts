@@ -8,7 +8,7 @@ process.env.JWT_SECRET = 'test-secret';
 process.env.JWT_EXPIRES_IN = '2h';
 process.env.SWAGGER_ENABLED = 'false';
 process.env.RATE_LIMIT_WINDOW_MS = '60000';
-process.env.RATE_LIMIT_MAX = '100';
+process.env.RATE_LIMIT_MAX = '1000';
 
 jest.mock('../../apis/utils/db.util', () => ({
   getPrisma: jest.fn(),
@@ -1402,6 +1402,546 @@ describe('Todo Controller', () => {
 
       expect(response.status).toBe(500);
       expect(response.body.message).toBe('获取责任人候选失败');
+    });
+
+    it('should deny view role access to assignee-candidates', async () => {
+      const response = await agent
+        .get('/api/v1/todos/assignee-candidates?projectId=1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+  });
+
+  // ============================================================
+  // ID boundary tests — id=0 and negative id
+  // ============================================================
+  describe('ID boundary validation', () => {
+    it('should return 400 for id=0 on getTodo', async () => {
+      const response = await agent
+        .get('/api/v1/todos/0')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的待办ID');
+    });
+
+    it('should return 400 for negative id on getTodo', async () => {
+      const response = await agent
+        .get('/api/v1/todos/-1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的待办ID');
+    });
+
+    it('should return 400 for id=0 on updateTodo', async () => {
+      const response = await agent
+        .put('/api/v1/todos/0')
+        .send({ title: 'x' })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的待办ID');
+    });
+
+    it('should return 400 for negative id on updateTodo', async () => {
+      const response = await agent
+        .put('/api/v1/todos/-5')
+        .send({ title: 'x' })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的待办ID');
+    });
+
+    it('should return 400 for id=0 on closeTodo', async () => {
+      const response = await agent
+        .post('/api/v1/todos/0/close')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的待办ID');
+    });
+
+    it('should return 400 for negative id on closeTodo', async () => {
+      const response = await agent
+        .post('/api/v1/todos/-3/close')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的待办ID');
+    });
+
+    it('should return 400 for id=0 on reopenTodo', async () => {
+      const response = await agent
+        .post('/api/v1/todos/0/reopen')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的待办ID');
+    });
+
+    it('should return 400 for negative id on reopenTodo', async () => {
+      const response = await agent
+        .post('/api/v1/todos/-2/reopen')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的待办ID');
+    });
+
+    it('should return 400 for id=0 on transferTodo', async () => {
+      const response = await agent
+        .post('/api/v1/todos/0/transfer')
+        .send({ assignee_id: 2 })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的待办ID');
+    });
+
+    it('should return 400 for negative id on transferTodo', async () => {
+      const response = await agent
+        .post('/api/v1/todos/-1/transfer')
+        .send({ assignee_id: 2 })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的待办ID');
+    });
+
+    it('should return 400 for id=0 on rejectTodo', async () => {
+      const response = await agent
+        .post('/api/v1/todos/0/reject')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的待办ID');
+    });
+
+    it('should return 400 for negative id on rejectTodo', async () => {
+      const response = await agent
+        .post('/api/v1/todos/-1/reject')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的待办ID');
+    });
+
+    it('should return 400 for id=0 on getTodoLogs', async () => {
+      const response = await agent
+        .get('/api/v1/todos/0/logs')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的待办ID');
+    });
+
+    it('should return 400 for negative id on getTodoLogs', async () => {
+      const response = await agent
+        .get('/api/v1/todos/-1/logs')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的待办ID');
+    });
+  });
+
+  // ============================================================
+  // Zod validation — missing required fields on create
+  // ============================================================
+  describe('POST /api/todos — Zod validation', () => {
+    it('should return 400 when title is missing', async () => {
+      const response = await agent
+        .post('/api/v1/todos')
+        .send({ company_id: 1, object_type: '文章', action: '审核', assignee_id: 2 })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when title is empty string', async () => {
+      const response = await agent
+        .post('/api/v1/todos')
+        .send({ title: '', company_id: 1, object_type: '文章', action: '审核', assignee_id: 2 })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when title exceeds 200 chars', async () => {
+      const response = await agent
+        .post('/api/v1/todos')
+        .send({ title: 'A'.repeat(201), company_id: 1, object_type: '文章', action: '审核', assignee_id: 2 })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when company_id is missing', async () => {
+      const response = await agent
+        .post('/api/v1/todos')
+        .send({ title: 'test', object_type: '文章', action: '审核', assignee_id: 2 })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when object_type is missing', async () => {
+      const response = await agent
+        .post('/api/v1/todos')
+        .send({ title: 'test', company_id: 1, action: '审核', assignee_id: 2 })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when action is missing', async () => {
+      const response = await agent
+        .post('/api/v1/todos')
+        .send({ title: 'test', company_id: 1, object_type: '文章', assignee_id: 2 })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when assignee_id is missing', async () => {
+      const response = await agent
+        .post('/api/v1/todos')
+        .send({ title: 'test', company_id: 1, object_type: '文章', action: '审核' })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+    });
+  });
+
+  // ============================================================
+  // ForbiddenError paths — cross-company access
+  // ============================================================
+  describe('ForbiddenError paths', () => {
+    it('should return 403 when admin accesses todo from different company', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const otherCompanyTodo = { ...mockTodoFull, companyId: 999 };
+      getPrisma.mockReturnValue({
+        todo: { findFirst: jest.fn().mockResolvedValue(otherCompanyTodo) },
+      });
+
+      // admin with companyId=2 accessing todo from companyId=999
+      const response = await agent
+        .get('/api/v1/todos/1')
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 when admin accesses logs of todo from different company', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const otherCompanyTodo = { ...mockTodoFull, companyId: 999 };
+      getPrisma.mockReturnValue({
+        todo: { findFirst: jest.fn().mockResolvedValue(otherCompanyTodo) },
+      });
+
+      const response = await agent
+        .get('/api/v1/todos/1/logs')
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should allow sysadmin to access todo from any company', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const otherCompanyTodo = { ...mockTodoFull, companyId: 999 };
+      getPrisma.mockReturnValue({
+        todo: { findFirst: jest.fn().mockResolvedValue(otherCompanyTodo) },
+      });
+
+      const response = await agent
+        .get('/api/v1/todos/1')
+        .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should deny view role access to getTodo', async () => {
+      const response = await agent
+        .get('/api/v1/todos/1')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should deny view role access to createTodo', async () => {
+      const response = await agent
+        .post('/api/v1/todos')
+        .send({ title: 't', company_id: 1, object_type: 'x', action: 'a', assignee_id: 1 })
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should deny view role access to updateTodo', async () => {
+      const response = await agent
+        .put('/api/v1/todos/1')
+        .send({ title: 't' })
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should deny view role access to closeTodo', async () => {
+      const response = await agent
+        .post('/api/v1/todos/1/close')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should deny view role access to reopenTodo', async () => {
+      const response = await agent
+        .post('/api/v1/todos/1/reopen')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should deny view role access to transferTodo', async () => {
+      const response = await agent
+        .post('/api/v1/todos/1/transfer')
+        .send({ assignee_id: 2 })
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should deny view role access to rejectTodo', async () => {
+      const response = await agent
+        .post('/api/v1/todos/1/reject')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should deny view role access to getTodoLogs', async () => {
+      const response = await agent
+        .get('/api/v1/todos/1/logs')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+
+    it('should deny view role access to objectOptions', async () => {
+      const response = await agent
+        .get('/api/v1/todos/object-options?projectId=1&objectType=article')
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+    });
+  });
+
+  // ============================================================
+  // ensureProjectAccess — admin without project operator access
+  // ============================================================
+  describe('ensureProjectAccess', () => {
+    it('should return 403 when admin is not a project operator for object-options', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      // projectService.getById calls prisma.project.findFirst
+      // Return project where admin userId=5 is NOT in operators
+      const mockProject = {
+        id: 1,
+        deletedAt: null,
+        operators: [{ userId: 10, user: { id: 10, cnName: '运营A' } }],
+        company: { shortName: '公司A' },
+      };
+      getPrisma.mockReturnValue({
+        project: { findFirst: jest.fn().mockResolvedValue(mockProject) },
+      });
+
+      const response = await agent
+        .get('/api/v1/todos/object-options?projectId=1&objectType=article')
+        .set('Authorization', `Bearer ${adminToken(5, 2)}`);
+
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('无权访问该项目');
+    });
+
+    it('should return 403 when admin is not a project operator for assignee-candidates', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockProject = {
+        id: 1,
+        deletedAt: null,
+        operators: [{ userId: 10, user: { id: 10, cnName: '运营A' } }],
+        company: { shortName: '公司A' },
+      };
+      getPrisma.mockReturnValue({
+        project: { findFirst: jest.fn().mockResolvedValue(mockProject) },
+      });
+
+      const response = await agent
+        .get('/api/v1/todos/assignee-candidates?projectId=1')
+        .set('Authorization', `Bearer ${adminToken(5, 2)}`);
+
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('无权访问该项目');
+    });
+
+    it('should allow admin who is a project operator for object-options', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      // admin userId=5 IS in operators
+      const mockProject = {
+        id: 1,
+        deletedAt: null,
+        operators: [{ userId: 5, user: { id: 5, cnName: '运营A' } }],
+        company: { shortName: '公司A' },
+      };
+      const mockArticleFindMany = jest.fn().mockResolvedValue([{ id: 1, title: '文章A' }]);
+      getPrisma.mockReturnValue({
+        project: { findFirst: jest.fn().mockResolvedValue(mockProject) },
+        article: { findMany: mockArticleFindMany },
+      });
+
+      const response = await agent
+        .get('/api/v1/todos/object-options?projectId=1&objectType=article')
+        .set('Authorization', `Bearer ${adminToken(5, 2)}`);
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should allow sysadmin bypass for project access check', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockArticleFindMany = jest.fn().mockResolvedValue([]);
+      getPrisma.mockReturnValue({
+        article: { findMany: mockArticleFindMany },
+      });
+
+      const response = await agent
+        .get('/api/v1/todos/object-options?projectId=1&objectType=article')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+    });
+  });
+
+  // ============================================================
+  // Additional error handling — 500 errors for missing endpoints
+  // ============================================================
+  describe('Additional error handling', () => {
+    it('should return 500 on database error for updateTodo', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        todo: { findFirst: jest.fn().mockRejectedValue(new Error('DB Error')) },
+      });
+
+      const response = await agent
+        .put('/api/v1/todos/1')
+        .send({ title: 'updated' })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('更新待办失败');
+    });
+
+    it('should return 500 on database error for closeTodo', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        todo: { findFirst: jest.fn().mockRejectedValue(new Error('DB Error')) },
+      });
+
+      const response = await agent
+        .post('/api/v1/todos/1/close')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('关闭待办失败');
+    });
+
+    it('should return 500 on database error for reopenTodo', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        todo: { findFirst: jest.fn().mockRejectedValue(new Error('DB Error')) },
+      });
+
+      const response = await agent
+        .post('/api/v1/todos/1/reopen')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('重新打开待办失败');
+    });
+
+    it('should return 500 on database error for transferTodo', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        todo: { findFirst: jest.fn().mockRejectedValue(new Error('DB Error')) },
+      });
+
+      const response = await agent
+        .post('/api/v1/todos/1/transfer')
+        .send({ assignee_id: 2 })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('转交待办失败');
+    });
+
+    it('should return 500 on database error for rejectTodo', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        todo: { findFirst: jest.fn().mockRejectedValue(new Error('DB Error')) },
+      });
+
+      const response = await agent
+        .post('/api/v1/todos/1/reject')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('驳回待办失败');
+    });
+  });
+
+  // ============================================================
+  // Reopen by non-owner non-sysadmin
+  // ============================================================
+  describe('POST /api/todos/:id/reopen — non-owner check', () => {
+    it('should reject reopen by non-owner non-sysadmin', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const closedTodo = { ...mockTodoFull, status: 'closed' };
+      getPrisma.mockReturnValue({
+        todo: { findFirst: jest.fn().mockResolvedValue(closedTodo) },
+      });
+
+      const response = await agent
+        .post('/api/v1/todos/1/reopen')
+        .set('Authorization', `Bearer ${adminToken(99, 2)}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('只能重新打开自己负责的待办');
+    });
+  });
+
+  // ============================================================
+  // Transfer with remark
+  // ============================================================
+  describe('POST /api/todos/:id/transfer — with remark', () => {
+    it('should transfer todo with remark successfully', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockUpdate = jest.fn().mockResolvedValue({ ...mockTodoFull, assigneeId: 3 });
+      const mockLogCreate = jest.fn().mockResolvedValue({});
+      const targetUser = { id: 3, cnName: '用户C' };
+      getPrisma.mockReturnValue({
+        todo: {
+          findFirst: jest.fn().mockResolvedValue(mockTodoFull),
+          update: mockUpdate,
+        },
+        user: { findFirst: jest.fn().mockResolvedValue(targetUser) },
+        todoLog: { create: mockLogCreate },
+      });
+
+      const response = await agent
+        .post('/api/v1/todos/1/transfer')
+        .send({ assignee_id: 3, remark: '客户要求换人处理' })
+        .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.message).toBe('转交待办成功');
+    });
+
+    it('should return 400 when assignee_id is missing in transfer', async () => {
+      const response = await agent
+        .post('/api/v1/todos/1/transfer')
+        .send({ remark: 'no assignee' })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+    });
+  });
+
+  // ============================================================
+  // Zod validation — updateTodo empty title
+  // ============================================================
+  describe('PUT /api/todos/:id — Zod validation', () => {
+    it('should return 400 when title is empty string on update', async () => {
+      const response = await agent
+        .put('/api/v1/todos/1')
+        .send({ title: '' })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when title exceeds 200 chars on update', async () => {
+      const response = await agent
+        .put('/api/v1/todos/1')
+        .send({ title: 'B'.repeat(201) })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
     });
   });
 });

@@ -10,7 +10,7 @@ const VALID_SCOPES = ['platform', 'company', 'project'] as const;
 function validateInteger(value: unknown, fieldName: string): number | undefined {
   if (value === undefined || value === null) return undefined;
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
-    return undefined;
+    throw new Error(`${fieldName} 必须为正整数`);
   }
   return value;
 }
@@ -22,7 +22,8 @@ export async function listKnowledgeBases(req: Request, res: Response): Promise<v
     const pageSize = Math.min(100, Math.max(1, rawPageSize));
     const rawSearch = req.query.search as string | undefined;
     const search = rawSearch ? rawSearch.slice(0, 100) : undefined;
-    const scope = req.query.scope as string | undefined;
+    const rawScope = req.query.scope as string | undefined;
+    const scope = rawScope && VALID_SCOPES.includes(rawScope as any) ? rawScope : undefined;
     const status = req.query.status === undefined ? undefined : req.query.status === 'true';
 
     const user = req.user;
@@ -31,8 +32,8 @@ export async function listKnowledgeBases(req: Request, res: Response): Promise<v
     const { list, total } = await knowledgeBaseService.list(page, pageSize, search, scope, status, userId, role);
     paginate(res, list, total, page, pageSize);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '知识库不存在') {
-      fail(res, 404, err.message);
+    if (err instanceof Error && err.message.endsWith('必须为正整数')) {
+      fail(res, 400, err.message);
     } else {
       fail(res, 500, '获取知识库列表失败');
     }
@@ -67,7 +68,8 @@ export async function createKnowledgeBase(req: Request, res: Response): Promise<
       fail(res, 400, '知识库名称不能为空'); return;
     }
     if (name.length > 200) { fail(res, 400, '知识库名称不能超过200个字符'); return; }
-    if (description !== undefined && description !== null && typeof description === 'string' && description.length > 2000) {
+    const validDescription = typeof description === 'string' ? description : undefined as string | undefined;
+    if (validDescription !== undefined && validDescription.length > 2000) {
       fail(res, 400, '描述不能超过2000个字符'); return;
     }
     if (!scope || !VALID_SCOPES.includes(scope)) {
@@ -79,15 +81,20 @@ export async function createKnowledgeBase(req: Request, res: Response): Promise<
 
     const user = req.user;
     if (!user) { fail(res, 401, '未登录'); return; }
-    const { userId } = user;
+    const { userId, role } = user;
     const item = await knowledgeBaseService.create(
-      { name: name.trim(), description, scope, company_id: validCompanyId, project_id: validProjectId },
-      userId
+      { name: name.trim(), description: validDescription, scope, company_id: validCompanyId, project_id: validProjectId },
+      userId,
+      role
     );
     created(res, item, '创建知识库成功');
   } catch (err: unknown) {
-    if (err instanceof Error && (err.message === '公司公共知识库必须选择公司' || err.message === '项目私有知识库必须选择项目')) {
+    if (err instanceof Error && err.message.endsWith('必须为正整数')) {
       fail(res, 400, err.message);
+    } else if (err instanceof Error && (err.message === '公司公共知识库必须选择公司' || err.message === '项目私有知识库必须选择项目')) {
+      fail(res, 400, err.message);
+    } else if (err instanceof Error && (err.message === '无权关联该公司' || err.message === '无权关联该项目')) {
+      fail(res, 403, err.message);
     } else {
       fail(res, 500, '创建知识库失败');
     }
@@ -111,7 +118,7 @@ export async function updateKnowledgeBase(req: Request, res: Response): Promise<
       }
       if (req.body.name.length > 200) { fail(res, 400, '知识库名称不能超过200个字符'); return; }
     }
-    if (req.body.description !== undefined && req.body.description !== null && typeof req.body.description === 'string' && req.body.description.length > 2000) {
+    if (req.body.description !== undefined && typeof req.body.description === 'string' && req.body.description.length > 2000) {
       fail(res, 400, '描述不能超过2000个字符'); return;
     }
 
@@ -120,7 +127,7 @@ export async function updateKnowledgeBase(req: Request, res: Response): Promise<
       name: req.body.name,
       description: req.body.description,
       scope: req.body.scope,
-      status: req.body.status,
+      status: typeof req.body.status === 'boolean' ? req.body.status : undefined,
       company_id: validateInteger(req.body.company_id, 'company_id'),
       project_id: validateInteger(req.body.project_id, 'project_id'),
     };
@@ -131,12 +138,16 @@ export async function updateKnowledgeBase(req: Request, res: Response): Promise<
     const item = await knowledgeBaseService.update(id, updateRequest, userId, role);
     success(res, item, '更新知识库成功');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '知识库不存在') {
+    if (err instanceof Error && err.message.endsWith('必须为正整数')) {
+      fail(res, 400, err.message);
+    } else if (err instanceof Error && err.message === '知识库不存在') {
       fail(res, 404, err.message);
     } else if (err instanceof Error && err.message === '只能修改自己创建的知识库') {
       fail(res, 403, err.message);
     } else if (err instanceof Error && (err.message === '公司公共知识库必须选择公司' || err.message === '项目私有知识库必须选择项目')) {
       fail(res, 400, err.message);
+    } else if (err instanceof Error && (err.message === '无权关联该公司' || err.message === '无权关联该项目')) {
+      fail(res, 403, err.message);
     } else {
       fail(res, 500, '更新知识库失败');
     }
