@@ -25,11 +25,12 @@ tests/apis/  + tests/pages/  测试文件
 - `apis/controller/company.controller.ts` — 公司 CRUD（仅 sysadmin，仅公司管理页面使用）
 - `apis/controller/project.controller.ts` — 项目 CRUD（sysadmin + admin，admin 按运营者身份鉴权）
 - `apis/controller/skills.controller.ts` — 技能 CRUD（sysadmin + admin，admin 只能改删自己创建的）
-- `apis/controller/user.controller.ts` — 用户 CRUD（仅 sysadmin）
+- `apis/controller/user.controller.ts` — 用户 CRUD（仅 sysadmin），使用 `createUserService()` 工厂模式 + Options 模式（UserListOptions）
 - `apis/controller/article.controller.ts` — 文章 CRUD + 审核 + 正文编辑 + 版本历史（sysadmin + admin）
 - `apis/controller/upload.controller.ts` — 图片上传（multer，sysadmin + admin）
 - `apis/controller/knowledge.controller.ts` — 知识库 CRUD（关键词/画像/图片，各5个端点，sysadmin + admin）
 - `apis/service/impl/` — 业务实现（Prisma）
+- `apis/service/index.ts` — 服务工厂函数（createUserService 等），Controller 通过工厂获取服务实例
 - `apis/middleware/validate.ts` — Zod 参数验证中间件（支持 body/query/params 三种来源）
 - `apis/schema/auth.schema.ts` — 认证相关 Zod 验证 schema（loginSchema、saveSelectionSchema）
 - `pages/App.tsx` — React 路由定义（ErrorBoundary + AuthProvider + Routes）
