@@ -14,7 +14,7 @@
  *   4. source 长度截断 — 防止超长内容导致 DoS
  *   5. MarkdownErrorBoundary — 防止渲染异常导致页面白屏
  */
-import React, { useMemo, Component, forwardRef, useRef, useImperativeHandle, useState, useEffect } from 'react';
+import React, { useMemo, useCallback, useState, useEffect, Component, forwardRef, useRef, useImperativeHandle, memo } from 'react';
 import MarkdownPreview from '@uiw/react-markdown-preview/nohighlight';
 import { Spin, Typography, Empty, theme } from 'antd';
 import DOMPurify from 'dompurify';
@@ -22,6 +22,7 @@ import type { CSSProperties, ReactNode, UIEvent, MouseEvent, KeyboardEvent } fro
 import '../styles/markdown-viewer.css';
 
 const MAX_SOURCE_LENGTH = 1048576; // 1MB 安全长上限
+const MAX_CODE_BLOCK_LENGTH = 100_000; // 单个代码块复制按钮上限（100KB）
 
 function useSystemColorMode(): 'light' | 'dark' {
   const [mode, setMode] = useState<'light' | 'dark'>(() => {
@@ -141,7 +142,7 @@ export interface MarkdownViewerRef {
   scrollToAnchor(anchor: string): void;
 }
 
-const MarkdownViewer = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
+const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
   content,
   loading,
   error,
@@ -188,6 +189,27 @@ const MarkdownViewer = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
     });
   }, [content]);
 
+  // P2-a11y + SEC-03: 为复制按钮注入 ARIA 属性 + 超长代码块跳过复制按钮
+  const rehypeRewrite = useCallback(
+    (node: any, index: number | undefined, parent: any) => {
+      if (node.type === 'element' && node.tagName === 'div') {
+        const props = node.properties;
+        if (props?.className === 'copied' || (Array.isArray(props?.className) && props.className.includes('copied'))) {
+          // a11y: 注入 ARIA 属性
+          props.role = 'button';
+          props.tabindex = '0';
+          props['aria-label'] = '复制代码';
+          // SEC-03: 超长代码块移除 data-code，防止 DOM 膨胀
+          if (typeof props['data-code'] === 'string' && props['data-code'].length > MAX_CODE_BLOCK_LENGTH) {
+            delete props['data-code'];
+            props['aria-label'] = '代码过长，无法复制';
+          }
+        }
+      }
+    },
+    [],
+  );
+
   useImperativeHandle(ref, () => ({
     scrollToTop() {
       containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -232,6 +254,7 @@ const MarkdownViewer = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
           source={safeSource}
           wrapperElement={{ 'data-color-mode': resolvedColorMode }}
           urlTransform={safeUrlTransform}
+          rehypeRewrite={rehypeRewrite}
           allowElement={(element) => SAFE_TAGS.has(element.tagName.toLowerCase())}
         />
       </div>
@@ -239,6 +262,9 @@ const MarkdownViewer = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
   );
 });
 
+MarkdownViewerBase.displayName = 'MarkdownViewer';
+
+const MarkdownViewer = memo(MarkdownViewerBase);
 MarkdownViewer.displayName = 'MarkdownViewer';
 
 export default MarkdownViewer;

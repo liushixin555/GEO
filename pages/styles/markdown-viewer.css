@@ -275,3 +275,32 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* 复制按钮键盘可访问性 — Carbon 2px primary 色聚焦环 */
+.markdown-viewer .wmde-markdown .copied:focus-visible,
+.article-content-preview .wmde-markdown .copied:focus-visible {
+  outline: 2px solid var(--color-primary) !important;
+  outline-offset: 2px !important;
+}
+
+/* 标题锚点 hover 时显示 — Carbon 设计规范 */
+.markdown-viewer .wmde-markdown .anchor,
+.article-content-preview .wmde-markdown .anchor {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.markdown-viewer .wmde-markdown h1:hover .anchor,
+.markdown-viewer .wmde-markdown h2:hover .anchor,
+.markdown-viewer .wmde-markdown h3:hover .anchor,
+.markdown-viewer .wmde-markdown h4:hover .anchor,
+.markdown-viewer .wmde-markdown h5:hover .anchor,
+.markdown-viewer .wmde-markdown h6:hover .anchor,
+.article-content-preview .wmde-markdown h1:hover .anchor,
+.article-content-preview .wmde-markdown h2:hover .anchor,
+.article-content-preview .wmde-markdown h3:hover .anchor,
+.article-content-preview .wmde-markdown h4:hover .anchor,
+.article-content-preview .wmde-markdown h5:hover .anchor,
+.article-content-preview .wmde-markdown h6:hover .anchor {
+  opacity: 1;
+}

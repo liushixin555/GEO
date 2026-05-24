@@ -1,166 +1,127 @@
-diff --git a/node_modules/@uiw/react-markdown-preview/esm/Props.d.ts b/node_modules/@uiw/react-markdown-preview/esm/Props.d.ts
-index b550d96..b9a7c42 100644
---- a/node_modules/@uiw/react-markdown-preview/esm/Props.d.ts
-+++ b/node_modules/@uiw/react-markdown-preview/esm/Props.d.ts
-@@ -1,27 +1,37 @@
-+import type { CSSProperties, HTMLAttributes, RefObject, UIEvent, MouseEvent } from 'react';
- import { type Options } from 'react-markdown';
- import { type RehypeRewriteOptions } from 'rehype-rewrite';
- import { type PluggableList } from 'unified';
-+type ColorMode = 'light' | 'dark' | 'auto';
-+type WrapperElementProps = HTMLAttributes<HTMLDivElement> & {
-+    'data-color-mode'?: ColorMode;
-+};
- export interface MarkdownPreviewProps extends Omit<Options, 'children'> {
-+    /** CSS class name prefix for component styling (default: 'wmde-markdown') */
-     prefixCls?: string;
-     className?: string;
-+    /** Markdown content to render. When undefined, renders empty preview. */
-     source?: string;
-+    /** Disable the copy button on code blocks */
-     disableCopy?: boolean;
--    style?: React.CSSProperties;
--    pluginsFilter?: (type: 'rehype' | 'remark', plugin: PluggableList) => PluggableList;
--    wrapperElement?: React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement> & {
--        'data-color-mode'?: 'light' | 'dark';
--    };
-+    style?: CSSProperties;
-+    /** Filter or transform rehype/remark plugins before they are applied */
-+    pluginsFilter?: (phase: 'rehype' | 'remark', plugins: PluggableList) => PluggableList;
-+    /** Props applied to the root wrapper div element */
-+    wrapperElement?: WrapperElementProps;
-     /**
-      * Please use wrapperElement, Will be removed in v5 release.
-      * @deprecated
-      */
--    warpperElement?: React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement> & {
--        'data-color-mode'?: 'light' | 'dark';
--    };
--    onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
--    onMouseOver?: (e: React.MouseEvent<HTMLDivElement>) => void;
-+    warpperElement?: WrapperElementProps;
-+    /** Scroll event handler proxied from the root container div */
-+    onScroll?: (e: UIEvent<HTMLDivElement>) => void;
-+    /** MouseOver event handler proxied from the root container div (bubbling) */
-+    onMouseOver?: (e: MouseEvent<HTMLDivElement>) => void;
-+    /** Rewrite rehype AST nodes after processing (rehype-rewrite) */
-     rehypeRewrite?: RehypeRewriteOptions['rewrite'];
- }
--export interface MarkdownPreviewRef extends MarkdownPreviewProps {
--    mdp: React.RefObject<HTMLDivElement>;
-+export interface MarkdownPreviewRef {
-+    /** 获取根 DOM 节点 */
-+    mdp: RefObject<HTMLDivElement>;
- }
-diff --git a/node_modules/@uiw/react-markdown-preview/lib/Props.d.ts b/node_modules/@uiw/react-markdown-preview/lib/Props.d.ts
-index b550d96..b9a7c42 100644
---- a/node_modules/@uiw/react-markdown-preview/lib/Props.d.ts
-+++ b/node_modules/@uiw/react-markdown-preview/lib/Props.d.ts
-@@ -1,27 +1,37 @@
-+import type { CSSProperties, HTMLAttributes, RefObject, UIEvent, MouseEvent } from 'react';
- import { type Options } from 'react-markdown';
- import { type RehypeRewriteOptions } from 'rehype-rewrite';
- import { type PluggableList } from 'unified';
-+type ColorMode = 'light' | 'dark' | 'auto';
-+type WrapperElementProps = HTMLAttributes<HTMLDivElement> & {
-+    'data-color-mode'?: ColorMode;
-+};
- export interface MarkdownPreviewProps extends Omit<Options, 'children'> {
-+    /** CSS class name prefix for component styling (default: 'wmde-markdown') */
-     prefixCls?: string;
-     className?: string;
-+    /** Markdown content to render. When undefined, renders empty preview. */
-     source?: string;
-+    /** Disable the copy button on code blocks */
-     disableCopy?: boolean;
--    style?: React.CSSProperties;
--    pluginsFilter?: (type: 'rehype' | 'remark', plugin: PluggableList) => PluggableList;
--    wrapperElement?: React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement> & {
--        'data-color-mode'?: 'light' | 'dark';
--    };
-+    style?: CSSProperties;
-+    /** Filter or transform rehype/remark plugins before they are applied */
-+    pluginsFilter?: (phase: 'rehype' | 'remark', plugins: PluggableList) => PluggableList;
-+    /** Props applied to the root wrapper div element */
-+    wrapperElement?: WrapperElementProps;
-     /**
-      * Please use wrapperElement, Will be removed in v5 release.
-      * @deprecated
-      */
--    warpperElement?: React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement> & {
--        'data-color-mode'?: 'light' | 'dark';
--    };
--    onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
--    onMouseOver?: (e: React.MouseEvent<HTMLDivElement>) => void;
-+    warpperElement?: WrapperElementProps;
-+    /** Scroll event handler proxied from the root container div */
-+    onScroll?: (e: UIEvent<HTMLDivElement>) => void;
-+    /** MouseOver event handler proxied from the root container div (bubbling) */
-+    onMouseOver?: (e: MouseEvent<HTMLDivElement>) => void;
-+    /** Rewrite rehype AST nodes after processing (rehype-rewrite) */
-     rehypeRewrite?: RehypeRewriteOptions['rewrite'];
- }
--export interface MarkdownPreviewRef extends MarkdownPreviewProps {
--    mdp: React.RefObject<HTMLDivElement>;
-+export interface MarkdownPreviewRef {
-+    /** 获取根 DOM 节点 */
-+    mdp: RefObject<HTMLDivElement>;
- }
-diff --git a/node_modules/@uiw/react-markdown-preview/src/Props.tsx b/node_modules/@uiw/react-markdown-preview/src/Props.tsx
-index ac09f1f..05a25f1 100644
---- a/node_modules/@uiw/react-markdown-preview/src/Props.tsx
-+++ b/node_modules/@uiw/react-markdown-preview/src/Props.tsx
-@@ -1,29 +1,41 @@
-+import type { CSSProperties, HTMLAttributes, RefObject, UIEvent, MouseEvent } from 'react';
- import { type Options } from 'react-markdown';
- import { type RehypeRewriteOptions } from 'rehype-rewrite';
- import { type PluggableList } from 'unified';
+diff --git a/node_modules/@uiw/react-markdown-preview/esm/rehypePlugins.js b/node_modules/@uiw/react-markdown-preview/esm/rehypePlugins.js
+index 2796334..fa00ac7 100644
+--- a/node_modules/@uiw/react-markdown-preview/esm/rehypePlugins.js
++++ b/node_modules/@uiw/react-markdown-preview/esm/rehypePlugins.js
+@@ -5,10 +5,14 @@ import rehypeIgnore from 'rehype-ignore';
+ import { getCodeString } from 'rehype-rewrite';
+ import { octiconLink } from "./nodes/octiconLink.js";
+ import { copyElement } from "./nodes/copy.js";
++var HEADING_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
++function escapeHtmlAttr(str) {
++  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
++}
+ export var rehypeRewriteHandle = (disableCopy, rewrite) => (node, index, parent) => {
+-  if (node.type === 'element' && parent && parent.type === 'root' && /h(1|2|3|4|5|6)/.test(node.tagName)) {
++  if (node.type === 'element' && parent && parent.type === 'root' && HEADING_TAGS.has(node.tagName)) {
+     var child = node.children && node.children[0];
+-    if (child && child.properties && child.properties.ariaHidden === 'true') {
++    if (child && child.type === 'element' && child.properties && child.properties.ariaHidden === 'true') {
+       child.properties = _extends({
+         class: 'anchor'
+       }, child.properties);
+@@ -17,8 +21,16 @@ export var rehypeRewriteHandle = (disableCopy, rewrite) => (node, index, parent)
+   }
+   if (node.type === 'element' && node.tagName === 'pre' && !disableCopy) {
+     var code = getCodeString(node.children);
+-    node.children.push(copyElement(code));
++    node.children.push(copyElement(escapeHtmlAttr(code)));
++  }
++  if (rewrite) {
++    try {
++      rewrite(node, index === null ? undefined : index, parent === null ? undefined : parent);
++    } catch (err) {
++      if (typeof console !== 'undefined') {
++        console.warn('[rehypeRewriteHandle] User rewrite callback error:', err);
++      }
++    }
+   }
+-  rewrite && rewrite(node, index === null ? undefined : index, parent === null ? undefined : parent);
+ };
+ export var defaultRehypePlugins = [slug, headings, rehypeIgnore];
+diff --git a/node_modules/@uiw/react-markdown-preview/lib/rehypePlugins.js b/node_modules/@uiw/react-markdown-preview/lib/rehypePlugins.js
+index e853c64..cd9f961 100644
+--- a/node_modules/@uiw/react-markdown-preview/lib/rehypePlugins.js
++++ b/node_modules/@uiw/react-markdown-preview/lib/rehypePlugins.js
+@@ -12,11 +12,15 @@ var _rehypeIgnore = _interopRequireDefault(require("rehype-ignore"));
+ var _rehypeRewrite = require("rehype-rewrite");
+ var _octiconLink = require("./nodes/octiconLink");
+ var _copy = require("./nodes/copy");
++var HEADING_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
++function escapeHtmlAttr(str) {
++  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
++}
+ var rehypeRewriteHandle = exports.rehypeRewriteHandle = function rehypeRewriteHandle(disableCopy, rewrite) {
+   return function (node, index, parent) {
+-    if (node.type === 'element' && parent && parent.type === 'root' && /h(1|2|3|4|5|6)/.test(node.tagName)) {
++    if (node.type === 'element' && parent && parent.type === 'root' && HEADING_TAGS.has(node.tagName)) {
+       var child = node.children && node.children[0];
+-      if (child && child.properties && child.properties.ariaHidden === 'true') {
++      if (child && child.type === 'element' && child.properties && child.properties.ariaHidden === 'true') {
+         child.properties = (0, _objectSpread2["default"])({
+           "class": 'anchor'
+         }, child.properties);
+@@ -25,9 +29,17 @@ var rehypeRewriteHandle = exports.rehypeRewriteHandle = function rehypeRewriteHa
+     }
+     if (node.type === 'element' && node.tagName === 'pre' && !disableCopy) {
+       var code = (0, _rehypeRewrite.getCodeString)(node.children);
+-      node.children.push((0, _copy.copyElement)(code));
++      node.children.push((0, _copy.copyElement)(escapeHtmlAttr(code)));
++    }
++    if (rewrite) {
++      try {
++        rewrite(node, index === null ? undefined : index, parent === null ? undefined : parent);
++      } catch (err) {
++        if (typeof console !== 'undefined') {
++          console.warn('[rehypeRewriteHandle] User rewrite callback error:', err);
++        }
++      }
+     }
+-    rewrite && rewrite(node, index === null ? undefined : index, parent === null ? undefined : parent);
+   };
+ };
+ var defaultRehypePlugins = exports.defaultRehypePlugins = [_rehypeSlug["default"], _rehypeAutolinkHeadings["default"], _rehypeIgnore["default"]];
+diff --git a/node_modules/@uiw/react-markdown-preview/src/rehypePlugins.tsx b/node_modules/@uiw/react-markdown-preview/src/rehypePlugins.tsx
+index 680ce6a..89672fd 100644
+--- a/node_modules/@uiw/react-markdown-preview/src/rehypePlugins.tsx
++++ b/node_modules/@uiw/react-markdown-preview/src/rehypePlugins.tsx
+@@ -7,21 +7,35 @@ import type { Root, Element, RootContent } from 'hast';
+ import { octiconLink } from './nodes/octiconLink';
+ import { copyElement } from './nodes/copy';
  
-+type ColorMode = 'light' | 'dark' | 'auto';
++const HEADING_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
 +
-+type WrapperElementProps = HTMLAttributes<HTMLDivElement> & {
-+  'data-color-mode'?: ColorMode;
-+};
++function escapeHtmlAttr(str: string): string {
++  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
++}
 +
- export interface MarkdownPreviewProps extends Omit<Options, 'children'> {
-+  /** CSS class name prefix for component styling (default: 'wmde-markdown') */
-   prefixCls?: string;
-   className?: string;
-+  /** Markdown content to render. When undefined, renders empty preview. */
-   source?: string;
-+  /** Disable the copy button on code blocks */
-   disableCopy?: boolean;
--  style?: React.CSSProperties;
--  pluginsFilter?: (type: 'rehype' | 'remark', plugin: PluggableList) => PluggableList;
--  wrapperElement?: React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement> & {
--    'data-color-mode'?: 'light' | 'dark';
--  };
-+  style?: CSSProperties;
-+  /** Filter or transform rehype/remark plugins before they are applied */
-+  pluginsFilter?: (phase: 'rehype' | 'remark', plugins: PluggableList) => PluggableList;
-+  /** Props applied to the root wrapper div element */
-+  wrapperElement?: WrapperElementProps;
-   /**
-    * Please use wrapperElement, Will be removed in v5 release.
-    * @deprecated
-    */
--  warpperElement?: React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement> & {
--    'data-color-mode'?: 'light' | 'dark';
--  };
--  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
--  onMouseOver?: (e: React.MouseEvent<HTMLDivElement>) => void;
-+  warpperElement?: WrapperElementProps;
-+  /** Scroll event handler proxied from the root container div */
-+  onScroll?: (e: UIEvent<HTMLDivElement>) => void;
-+  /** MouseOver event handler proxied from the root container div (bubbling) */
-+  onMouseOver?: (e: MouseEvent<HTMLDivElement>) => void;
-+  /** Rewrite rehype AST nodes after processing (rehype-rewrite) */
-   rehypeRewrite?: RehypeRewriteOptions['rewrite'];
- }
+ export const rehypeRewriteHandle =
+   (disableCopy: boolean, rewrite?: RehypeRewriteOptions['rewrite']) =>
+   (node: Root | RootContent, index: number | null, parent: Root | Element | null) => {
+-    if (node.type === 'element' && parent && parent.type === 'root' && /h(1|2|3|4|5|6)/.test(node.tagName)) {
+-      const child = node.children && (node.children[0] as Element);
+-      if (child && child.properties && child.properties.ariaHidden === 'true') {
++    if (node.type === 'element' && parent?.type === 'root' && HEADING_TAGS.has(node.tagName)) {
++      const child = node.children?.[0];
++      if (child?.type === 'element' && child.properties?.ariaHidden === 'true') {
+         child.properties = { class: 'anchor', ...child.properties };
+         child.children = [octiconLink];
+       }
+     }
+     if (node.type === 'element' && node.tagName === 'pre' && !disableCopy) {
+       const code = getCodeString(node.children);
+-      node.children.push(copyElement(code));
++      node.children.push(copyElement(escapeHtmlAttr(code)));
++    }
++    if (rewrite) {
++      try {
++        rewrite(node, index ?? undefined, parent ?? undefined);
++      } catch (err) {
++        if (typeof console !== 'undefined') {
++          console.warn('[rehypeRewriteHandle] User rewrite callback error:', err);
++        }
++      }
+     }
+-    rewrite && rewrite(node, index === null ? undefined : index, parent === null ? undefined : parent);
+   };
  
--export interface MarkdownPreviewRef extends MarkdownPreviewProps {
--  mdp: React.RefObject<HTMLDivElement>;
-+export interface MarkdownPreviewRef {
-+  /** 获取根 DOM 节点 */
-+  mdp: RefObject<HTMLDivElement>;
- }
+ export const defaultRehypePlugins: PluggableList = [slug, headings, rehypeIgnore];
