@@ -37,8 +37,7 @@
 - **禁止使用 antd Table 组件**，数据列表统一使用 Row + Col + Card 网格布局（见 `.claude/feedback_no-tables.md`）
 - **禁止使用 antd 静态方法**（`message.success()`、`notification.open()` 等），必须通过 `App.useApp()` hook 获取实例：`const { message } = App.useApp()`
   - `main.tsx` 已用 antd `<App>` 组件（别名 `<AntApp>`）包裹在 `<ConfigProvider>` 内、`<BrowserRouter>` 外
-- antd Space 组件用 `orientation` 替代已废弃的 `direction`
-  - ⚠️ UI评审(App.tsx.ui.md UI-10)指出：antd Space 的标准 prop 是 `direction`，不是 `orientation`，当前侧边栏底部布局可能不正确
+- antd Space 组件使用 `direction`（非 `orientation`），已修复 UI-10 评审问题
 - antd Modal 组件用 `destroyOnHidden` 替代已废弃的 `destroyOnClose`
 - 字体：IBM Plex Sans，通过 `@fontsource/ibm-plex-sans` 本地打包，不使用 Google Fonts CDN
 - 单一 CSS 文件：`pages/styles/global.css`，通过 CSS 变量 + antd 覆盖实现 DESIGN.md 规范

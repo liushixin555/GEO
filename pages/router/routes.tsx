@@ -1,6 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Spin, Breadcrumb } from 'antd';
+import { Spin, Result, Typography } from 'antd';
 import { useAuth } from '../context/AuthContext';
 
 const SystemAdminPage = lazy(() => import('../sysadmin'));
@@ -30,10 +30,12 @@ interface RouteDef {
 
 const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
   <div className="page-container">
-    <div className="page-breadcrumb">
-      <Breadcrumb items={[{ title }]} />
-    </div>
-    <p className="page-subtitle">页面开发中...</p>
+    <Typography.Title level={4} style={{ fontWeight: 400, marginBottom: 24 }}>{title}</Typography.Title>
+    <Result
+      status="info"
+      title="功能建设中"
+      subTitle="该功能正在开发中，敬请期待"
+    />
   </div>
 );
 

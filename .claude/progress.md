@@ -880,3 +880,19 @@
   - 对本项目影响：安全风险已被 MarkdownViewer.tsx 的 DOMPurify 消毒缓解（commit d511ad5），性能风险建议在 MarkdownViewer 外层添加 React.memo
   - 评分明细：功能正确性17/20、性能8/15、安全性9/15、类型安全8/10、可读性13/15、可维护性11/15、最佳实践7/10
   - 评审报告 tasks/review/react-markdown-preview.index.tsx.md
+
+## 本次变更（2026-05-24 App.tsx UI 评审问题修复）
+- [x] **fix016: App.tsx UI 评审问题修复（12 项）** — 基于 tasks/review/App.tsx.ui.md（5.5/10）
+  - UI-09（P0 BUG）：Alert `title` → `message`，修复错误信息不显示
+  - UI-10（P0 BUG）：Space `orientation` → `direction`，修复侧边栏底部布局
+  - UI-08（P0）：Breadcrumb 误用 → Typography.Title（登录页 + PlaceholderPage）
+  - UI-05（P0）：移动端展开按钮 24px → 48px 触摸目标
+  - UI-03：sidebar-brand 字重 600 → 400
+  - UI-11：登录页 div → antd Card 组件
+  - UI-14：表单添加 label prop
+  - UI-02：品牌标题使用 300 weight（IBM Carbon 品牌签名）
+  - UI-12：添加 skip-to-content（WCAG 2.4.1）
+  - UI-13：交互元素添加 ARIA 标签
+  - UI-20：加载页添加品牌信息
+  - UI-21：PlaceholderPage 用 Result 组件
+  - 涉及文件：login/index.tsx, Layout.tsx, Sidebar.tsx, AuthGuard.tsx, routes.tsx, global.css

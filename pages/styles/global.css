@@ -140,6 +140,29 @@ a:hover {
   background-color: var(--color-surface-1);
 }
 
+.loading-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.skip-to-content {
+  position: absolute;
+  left: -9999px;
+  color: var(--color-on-primary);
+}
+
+.skip-to-content:focus {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  padding: 8px 16px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  text-decoration: none;
+}
+
 .main-content {
   background-color: var(--color-surface-1);
   display: flex;
@@ -217,7 +240,7 @@ a:hover {
 
 .sidebar-brand {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: 0.16px;
   white-space: nowrap;
   overflow: hidden;
@@ -285,9 +308,9 @@ a:hover {
   top: 8px;
   left: 8px;
   z-index: 101;
-  width: 24px;
-  height: 24px;
-  font-size: 14px;
+  width: 48px;
+  height: 48px;
+  font-size: 18px;
   display: flex;
   align-items: center;
   justify-content: center;

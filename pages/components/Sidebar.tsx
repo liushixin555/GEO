@@ -92,6 +92,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
           onClick={() => onCollapse(!collapsed)}
           className="sidebar-toggle-btn"
+          aria-label={collapsed ? '展开侧边栏' : '折叠侧边栏'}
         />
       </div>
 
@@ -106,14 +107,14 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {showFull ? (
         <div className="sidebar-footer">
-          <Space orientation="vertical" size={4} className="sidebar-footer-full-width">
+          <Space direction="vertical" size={4} className="sidebar-footer-full-width">
             <div className="sidebar-footer-row">
               <Typography.Text className="sidebar-footer-name">
                 <UserOutlined className="sidebar-icon-margin" />
                 {cnName}
               </Typography.Text>
               <Tooltip title="登出">
-                <Button type="text" size="small" icon={<LogoutOutlined />} onClick={logout} />
+                <Button type="text" size="small" icon={<LogoutOutlined />} onClick={logout} aria-label="登出" />
               </Tooltip>
             </div>
             <CompanyProjectSwitcher />
@@ -121,8 +122,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       ) : (
         <div className="sidebar-footer-collapsed">
-          <Tooltip title="登出">
-            <Button type="text" size="small" icon={<LogoutOutlined />} onClick={logout} />
+          <Tooltip title={`登出（${cnName}）`}>
+            <Button type="text" size="small" icon={<LogoutOutlined />} onClick={logout} aria-label={`登出（${cnName}）`} />
           </Tooltip>
         </div>
       )}

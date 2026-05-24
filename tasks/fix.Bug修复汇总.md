@@ -377,3 +377,61 @@ components: {
 - `pages/login/index.tsx` — 重定向路径校验
 - `pages/index.html` — CSP meta 标签
 - `tests/apis/auth.service.test.ts` — 更新 verifyToken 测试断言
+
+---
+
+## fix016. App.tsx UI 评审问题修复
+
+### 问题
+根据 `tasks/review/App.tsx.ui.md` UI 评审报告（5.5/10），前端渲染链路存在多项 antd 组件误用、可访问性缺失、设计系统不合规问题。
+
+### 修复
+
+**UI-09（P0 BUG）Alert title → message**：
+- `login/index.tsx`：Alert 组件 `title={error}` 改为 `message={error}`，修复错误信息不显示的 bug
+
+**UI-10（P0 BUG）Space orientation → direction**：
+- `Sidebar.tsx`：Space 组件 `orientation="vertical"` 改为 `direction="vertical"`，修复布局不生效
+
+**UI-08（P0）Breadcrumb 语义误用**：
+- `login/index.tsx`：单条 Breadcrumb 替换为 `Typography.Title level={3} fontWeight:300`
+- `routes.tsx`：PlaceholderPage 中 Breadcrumb 替换为 `Typography.Title level={4}`
+
+**UI-05（P0）移动端触摸目标不足**：
+- `global.css`：`.sidebar-mobile-unfold` 尺寸从 24px × 24px 改为 48px × 48px，符合 Carbon 48px 触摸目标规范
+
+**UI-03 sidebar-brand 字重**：
+- `global.css`：`.sidebar-brand` font-weight 从 600 改为 400，符合 Carbon 低调品牌处理
+
+**UI-11 登录页用 antd Card**：
+- `login/index.tsx`：`div.login-card` 替换为 `Card` 组件，遵守项目铁律
+
+**UI-14 表单 label**：
+- `login/index.tsx`：Form.Item 添加 `label` prop（"用户名"、"密码"），符合 WCAG 1.3.1
+
+**UI-02 使用 300 weight display 标题**：
+- `login/index.tsx`：品牌标题使用 `fontWeight: 300`，激活 IBM Carbon 品牌签名
+
+**UI-12 skip-to-content**：
+- `Layout.tsx`：主内容区添加 skip-to-content 链接，符合 WCAG 2.4.1
+- `global.css`：新增 `.skip-to-content` 样式
+
+**UI-13 ARIA 标签**：
+- `Layout.tsx`：移动端展开按钮添加 `aria-label="展开侧边栏"`
+- `Layout.tsx`：移动端遮罩添加 `role="presentation"` + `aria-hidden="true"`
+- `Sidebar.tsx`：折叠/展开按钮添加 `aria-label`
+- `Sidebar.tsx`：登出按钮添加 `aria-label`，折叠态显示用户名
+
+**UI-20 加载页品牌信息**：
+- `AuthGuard.tsx`：全屏加载状态添加品牌标题和"正在验证身份..."提示
+
+**UI-21 PlaceholderPage 用 Result 组件**：
+- `routes.tsx`：PlaceholderPage 使用 antd Result 组件替代简陋文字
+
+### 涉及文件
+- `pages/login/index.tsx` — Alert prop 修复 + Card + Typography.Title + form label
+- `pages/components/Sidebar.tsx` — Space direction + ARIA labels
+- `pages/components/Layout.tsx` — skip-to-content + ARIA labels
+- `pages/components/AuthGuard.tsx` — 加载页品牌信息
+- `pages/router/routes.tsx` — PlaceholderPage Result 组件 + Typography.Title
+- `pages/styles/global.css` — 移动端按钮尺寸 + sidebar-brand 字重 + skip-to-content 样式

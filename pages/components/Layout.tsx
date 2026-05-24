@@ -39,6 +39,7 @@ const Layout: React.FC = () => {
             icon={<MenuUnfoldOutlined />}
             onClick={() => setCollapsed(false)}
             className="sidebar-mobile-unfold"
+            aria-label="展开侧边栏"
           />
         )}
         <Sider
@@ -62,11 +63,14 @@ const Layout: React.FC = () => {
         </Sider>
 
         {isMobile && !collapsed && (
-          <div className="mobile-overlay" onClick={() => setCollapsed(true)} />
+          <div className="mobile-overlay" onClick={() => setCollapsed(true)} role="presentation" aria-hidden="true" />
         )}
 
         <Content className="main-content">
-          <PageRouter />
+          <a href="#main-content" className="skip-to-content">跳到主要内容</a>
+          <div id="main-content">
+            <PageRouter />
+          </div>
         </Content>
       </AntLayout>
     </AppContextProvider>
