@@ -29,6 +29,12 @@ jest.mock('../../apis/service/impl/system-config.service.impl', () => ({
   SystemConfigServiceImpl: jest.fn().mockImplementation(() => ({})),
 }));
 
+const mockLoggerInfo = jest.fn();
+const mockLoggerError = jest.fn();
+jest.mock('../../apis/utils/logger.util', () => ({
+  logger: { info: mockLoggerInfo, warn: jest.fn(), error: mockLoggerError, debug: jest.fn() },
+}));
+
 jest.mock('../../apis/utils/db.util', () => ({
   getPrisma: jest.fn(),
   closePrisma: jest.fn(),
@@ -79,6 +85,8 @@ describe('PublishingPlatform Controller', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
+
+  // ========== 审计日志测试（CP-M3） ==========
 
   // ========== POST /api/publishing-platforms/sync (syncPublishingPlatforms) ==========
   describe('POST /api/publishing-platforms/sync', () => {
@@ -171,6 +179,41 @@ describe('PublishingPlatform Controller', () => {
       expect(response.body.data.count).toBe(0);
       expect(response.body.message).toContain('同步成功');
       expect(response.body.message).toContain('0');
+    });
+
+    // ========== 审计日志测试（CP-M3） ==========
+
+    it('should log sync start and success on successful sync', async () => {
+      mockSyncFromSystemConfig.mockResolvedValue(15);
+
+      await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      // start log
+      expect(mockLoggerInfo).toHaveBeenCalledWith('publishing-platform.sync.start', expect.objectContaining({ username: 'sysadmin' }));
+      // success log
+      expect(mockLoggerInfo).toHaveBeenCalledWith('publishing-platform.sync.success', expect.objectContaining({ count: 15, username: 'sysadmin' }));
+    });
+
+    it('should log sync failed on error', async () => {
+      mockSyncFromSystemConfig.mockRejectedValue(new Error('网络超时'));
+
+      await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(mockLoggerError).toHaveBeenCalledWith('publishing-platform.sync.failed', expect.objectContaining({ err: '网络超时', username: 'sysadmin' }));
+    });
+
+    it('should log sync failed on config error', async () => {
+      mockSyncFromSystemConfig.mockRejectedValue(new Error('请先配置软盟账号和密码'));
+
+      await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(mockLoggerError).toHaveBeenCalledWith('publishing-platform.sync.failed', expect.objectContaining({ err: '请先配置软盟账号和密码' }));
     });
   });
 

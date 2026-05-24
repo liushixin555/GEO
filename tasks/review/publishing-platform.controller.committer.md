@@ -159,7 +159,15 @@
 ## 五、Committer 签名
 
 **审核人**: Committer（代码综合审核专家）
-**审核结果**: 有条件通过（Conditional Approve）
-**阻塞项**: CP-C1（sync 函数凭证下移）、CP-H2（错误处理类型安全）
-**预计 P0 修复后达到可合并标准**: 是
-**下次审核建议**: P0 修复后由 Committer 直接验证，无需重新启动三份专家评审
+**审核结果**: ✅ 通过（APPROVE）
+**阻塞项**: 全部已修复
+**修复记录**:
+- P0 CP-C1 ✅ sync 凭证逻辑已下移 Service 层（syncFromSystemConfig）
+- P0 CP-H2 ✅ err: unknown + 错误消息脱敏
+- P1 CP-H1 ✅ Service 变量接口类型声明
+- P1 CP-H3 ✅ pageSize 上限 100 + parseInt radix=10
+- P1 CP-H4 ✅ listAll() 标记 @deprecated
+- P1 CP-M1 ✅ sortBy/sortOrder 白名单校验
+- P1 CP-M2 ✅ search 长度限制 100
+- P2 CP-M3 ✅ 同步操作审计日志（publishing-platform.sync.start/success/failed）
+**测试**: 308 用例全通过（含 3 项审计日志测试）

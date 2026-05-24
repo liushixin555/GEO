@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import type { IPublishingPlatformService } from '../service/publishing-platform.service';
 import { PublishingPlatformServiceImpl } from '../service/impl/publishing-platform.service.impl';
 import { success, fail, paginate } from '../utils';
+import { logger } from '../utils/logger.util';
 
 const publishingPlatformService: IPublishingPlatformService = new PublishingPlatformServiceImpl();
 
@@ -11,13 +12,17 @@ const MAX_PAGE_SIZE = 100;
 const MAX_SEARCH_LENGTH = 100;
 
 export async function syncPublishingPlatforms(req: Request, res: Response): Promise<void> {
+  const operator = { userId: (req as any).user?.userId, username: (req as any).user?.username, ip: req.ip };
+  logger.info('publishing-platform.sync.start', operator);
   try {
     const count = await publishingPlatformService.syncFromSystemConfig();
+    logger.info('publishing-platform.sync.success', { ...operator, count });
     success(res, { count }, `同步成功，共 ${count} 个发布平台`);
   } catch (err: unknown) {
     const message = err instanceof Error && err.message.includes('请先配置')
       ? err.message
       : '同步发布平台失败';
+    logger.error('publishing-platform.sync.failed', { ...operator, err: err instanceof Error ? err.message : String(err) });
     fail(res, message.includes('请先配置') ? 400 : 500, message);
   }
 }
