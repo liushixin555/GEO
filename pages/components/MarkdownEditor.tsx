@@ -232,14 +232,18 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
     return () => observer.disconnect();
   }, []);
 
-  // C-02 fallback: 拦截 Ctrl+J/Ctrl+Shift+J，防止浏览器导航到下载页/开发者工具
+  // C-02 fallback: 拦截 Ctrl+J/Ctrl+Shift+J（浏览器下载页/开发者工具）
+  // UX-01/P1-1: 拦截 Ctrl+H（浏览器历史记录），防止编辑内容丢失
   useEffect(() => {
     const container = editorRef.current;
     if (!container) return;
 
     const preventBrowserShortcut = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'j') {
-        e.preventDefault();
+      if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+        const key = e.key.toLowerCase();
+        if (key === 'j' || (key === 'h' && !e.shiftKey)) {
+          e.preventDefault();
+        }
       }
     };
 
@@ -330,6 +334,52 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
             if (dispatch && executeCommandState) {
               dispatch({ fullscreen: !executeCommandState.fullscreen });
               api.textArea.focus();
+            }
+          },
+        };
+      }
+
+      // P1-1/P1-2/V-01/V-02/C-01/C-02/S1/S2/S3/S5/S8:
+      // 修复 hr 命令——快捷键冲突 + SVG 图标语义错位 + selectWord 不适用行级块元素 +
+      // 非空断言防护 + 用户选区保护 + 错误边界
+      if (command.name === 'hr') {
+        const hrPrefix = command.prefix ?? '\n\n---\n';
+        const hrSuffix = command.suffix ?? '';
+        return {
+          ...command,
+          shortcuts: 'ctrlcmd+shift+h',
+          buttonProps: {
+            'aria-label': '插入水平分割线 (Ctrl+Shift+H)',
+            title: '插入水平分割线 (Ctrl+Shift+H)',
+          },
+          icon: (
+            <svg role="img" aria-hidden="true" width="12" height="12" viewBox="0 0 12 12">
+              <path fill="currentColor" d="M1,5 L11,5 L11,7 L1,7 Z" />
+            </svg>
+          ),
+          execute: (state: any, api: any) => {
+            try {
+              const { text, selection } = state;
+              if (!text || selection.start == null) return;
+
+              const lineStart = text.lastIndexOf('\n', selection.start - 1) + 1;
+              const lineEnd = text.indexOf('\n', selection.start);
+              const end = lineEnd === -1 ? text.length : lineEnd;
+              const currentLine = text.slice(lineStart, end).trim();
+
+              if (currentLine === '---' || currentLine === '***' || currentLine === '___') {
+                // 移除：选中整行后用 replaceSelection 删除
+                api.setSelectionRange({ start: lineStart, end });
+                api.replaceSelection('');
+              } else {
+                // 添加：在光标位置插入水平分割线（使用 replaceSelection 触发 React 状态更新）
+                api.setSelectionRange({ start: selection.start, end: selection.end });
+                const needsLeadingNewline = selection.start > 0 && text[selection.start - 1] !== '\n';
+                const insertText = (needsLeadingNewline ? '\n' : '') + '\n---\n';
+                api.replaceSelection(insertText);
+              }
+            } catch (err) {
+              console.error('[MarkdownEditor] hr 命令执行失败:', err);
             }
           },
         };

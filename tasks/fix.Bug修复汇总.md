@@ -871,3 +871,36 @@ components: {
 ### 涉及文件
 - `pages/components/MarkdownEditor.tsx` — commandsFilter 将 help 从过滤改为安全覆盖
 - `tests/pages/components/MarkdownEditor.test.tsx` — 6 个新增 help 测试
+
+---
+
+## fix011. hr 命令评审修复——快捷键冲突 + SVG 图标语义错位 + selectWord 不适用行级块元素
+
+### 问题
+`@uiw/react-md-editor` 的 `hr` 命令（水平分割线）存在多项严重缺陷：
+1. **P1-快捷键冲突**：`Ctrl+H` 与浏览器历史记录冲突，用户按快捷键后页面跳转，编辑内容丢失
+2. **P1-SVG 图标语义错位**：图标渲染字母 "HR"（175×175 viewBox 缩放到 12×12），用户无法直觉识别为水平分割线
+3. **P1-selectWord 不适用**：行级块元素 `---` 被套入行内标记的 `selectWord` toggle 模式，导致 toggle 功能失效
+4. **P1-选区丢弃**：用户选中文本后点击 HR，选区被静默折叠丢弃
+5. **P2-非空断言**：`prefix!` 4 次绕过类型检查
+6. **P2-无错误边界**：execute 函数无 try-catch
+7. **P2-英文硬编码**：aria-label/title 使用英文 "Insert HR"
+
+### 修复
+在 `MarkdownEditor.tsx` 的 `commandsFilter` 中覆盖 `hr` 命令：
+
+**快捷键**：`ctrlcmd+h` → `ctrlcmd+shift+h`（避开浏览器保留快捷键）
+**SVG 图标**：替换为简洁水平线（`viewBox="0 0 12 12"`，单 path `M1,5 L11,5 L11,7 L1,7 Z`），添加 `role="img"` + `aria-hidden="true"`
+**ARIA 标注**：中文 "插入水平分割线 (Ctrl+Shift+H)"
+**execute 逻辑**：重写为行级检测——通过 `lastIndexOf('\n')` / `indexOf('\n')` 定位当前行，检测 `---`/`***`/`___` 实现 toggle，使用 `api.replaceSelection()` 替代直接操作 `textarea.value` 确保 React 状态同步
+**错误边界**：外层 try-catch 防止编辑器崩溃
+**运行时守卫**：`if (!text || selection.start == null) return;` 防御空状态
+**Ctrl+H 拦截**：扩展 `preventBrowserShortcut` 监听器，拦截 Ctrl+H 防止浏览器跳转
+
+### 测试
+- 新增 11 个 hr 命令测试用例（快捷键覆盖、中文 ARIA、SVG 图标验证、插入/移除/变体行、错误边界、运行时守卫）
+- 全部 33 个 MarkdownEditor 测试通过
+
+### 涉及文件
+- `pages/components/MarkdownEditor.tsx` — commandsFilter 覆盖 hr + Ctrl+H 拦截
+- `tests/pages/components/MarkdownEditor.test.tsx` — 11 个新增 hr 测试

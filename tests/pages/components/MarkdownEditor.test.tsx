@@ -301,6 +301,237 @@ describe('MarkdownEditor', () => {
     });
   });
 
+  describe('commandsFilter — hr command override', () => {
+    it('should override hr shortcut from ctrlcmd+h to ctrlcmd+shift+h', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(
+        { name: 'hr', shortcuts: 'ctrlcmd+h', prefix: '\n\n---\n', suffix: '' },
+        false,
+      );
+      expect(result.shortcuts).toBe('ctrlcmd+shift+h');
+    });
+
+    it('should use Chinese ARIA labels', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(
+        { name: 'hr', shortcuts: 'ctrlcmd+h', prefix: '\n\n---\n', suffix: '' },
+        false,
+      );
+      expect(result.buttonProps['aria-label']).toBe('插入水平分割线 (Ctrl+Shift+H)');
+      expect(result.buttonProps.title).toBe('插入水平分割线 (Ctrl+Shift+H)');
+    });
+
+    it('should replace SVG icon with horizontal line', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(
+        { name: 'hr', shortcuts: 'ctrlcmd+h', prefix: '\n\n---\n', suffix: '' },
+        false,
+      );
+      expect(result.icon).toBeTruthy();
+      expect(React.isValidElement(result.icon)).toBe(true);
+      // SVG should have role="img" and aria-hidden="true"
+      const svg = result.icon;
+      expect(svg.props.role).toBe('img');
+      expect(svg.props['aria-hidden']).toBe('true');
+      expect(svg.props.viewBox).toBe('0 0 12 12');
+    });
+
+    it('should insert HR at cursor when no existing HR', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(
+        { name: 'hr', shortcuts: 'ctrlcmd+h', prefix: '\n\n---\n', suffix: '' },
+        false,
+      );
+
+      const mockReplaceSelection = jest.fn();
+      const mockSetSelectionRange = jest.fn();
+      const mockApi = {
+        replaceSelection: mockReplaceSelection,
+        setSelectionRange: mockSetSelectionRange,
+      };
+
+      // Cursor at start of "World" line (position 6, right after \n)
+      const state = {
+        text: 'Hello\nWorld',
+        selection: { start: 6, end: 6 },
+        command: { prefix: '\n\n---\n', suffix: '' },
+      };
+
+      result.execute(state, mockApi);
+
+      expect(mockSetSelectionRange).toHaveBeenCalledWith({ start: 6, end: 6 });
+      // No extra leading newline needed since previous char is \n
+      expect(mockReplaceSelection).toHaveBeenCalledWith('\n---\n');
+    });
+
+    it('should insert HR with leading newline when cursor is mid-line', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(
+        { name: 'hr', shortcuts: 'ctrlcmd+h', prefix: '\n\n---\n', suffix: '' },
+        false,
+      );
+
+      const mockReplaceSelection = jest.fn();
+      const mockSetSelectionRange = jest.fn();
+      const mockApi = {
+        replaceSelection: mockReplaceSelection,
+        setSelectionRange: mockSetSelectionRange,
+      };
+
+      // Cursor at position 3 within "Hello" (not at line start)
+      const state = {
+        text: 'Hello\nWorld',
+        selection: { start: 3, end: 3 },
+        command: { prefix: '\n\n---\n', suffix: '' },
+      };
+
+      result.execute(state, mockApi);
+
+      // Should add leading newline since previous char is not \n
+      expect(mockReplaceSelection).toHaveBeenCalledWith('\n\n---\n');
+    });
+
+    it('should remove existing --- line', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(
+        { name: 'hr', shortcuts: 'ctrlcmd+h', prefix: '\n\n---\n', suffix: '' },
+        false,
+      );
+
+      const mockReplaceSelection = jest.fn();
+      const mockSetSelectionRange = jest.fn();
+      const mockApi = {
+        replaceSelection: mockReplaceSelection,
+        setSelectionRange: mockSetSelectionRange,
+      };
+
+      // Cursor on the --- line
+      const state = {
+        text: 'Hello\n---\nWorld',
+        selection: { start: 7, end: 7 },
+        command: { prefix: '\n\n---\n', suffix: '' },
+      };
+
+      result.execute(state, mockApi);
+
+      // Should select the --- line (from position 6 to 9)
+      expect(mockSetSelectionRange).toHaveBeenCalledWith({ start: 6, end: 9 });
+      // Should delete with replaceSelection('')
+      expect(mockReplaceSelection).toHaveBeenCalledWith('');
+    });
+
+    it('should remove existing *** line', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(
+        { name: 'hr', shortcuts: 'ctrlcmd+h', prefix: '\n\n---\n', suffix: '' },
+        false,
+      );
+
+      const mockReplaceSelection = jest.fn();
+      const mockSetSelectionRange = jest.fn();
+      const mockApi = {
+        replaceSelection: mockReplaceSelection,
+        setSelectionRange: mockSetSelectionRange,
+      };
+
+      const state = {
+        text: 'Hello\n***\nWorld',
+        selection: { start: 7, end: 7 },
+        command: { prefix: '\n\n---\n', suffix: '' },
+      };
+
+      result.execute(state, mockApi);
+      expect(mockReplaceSelection).toHaveBeenCalledWith('');
+    });
+
+    it('should remove existing ___ line', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(
+        { name: 'hr', shortcuts: 'ctrlcmd+h', prefix: '\n\n---\n', suffix: '' },
+        false,
+      );
+
+      const mockReplaceSelection = jest.fn();
+      const mockSetSelectionRange = jest.fn();
+      const mockApi = {
+        replaceSelection: mockReplaceSelection,
+        setSelectionRange: mockSetSelectionRange,
+      };
+
+      const state = {
+        text: 'Hello\n___\nWorld',
+        selection: { start: 7, end: 7 },
+        command: { prefix: '\n\n---\n', suffix: '' },
+      };
+
+      result.execute(state, mockApi);
+      expect(mockReplaceSelection).toHaveBeenCalledWith('');
+    });
+
+    it('should handle error gracefully without crashing', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(
+        { name: 'hr', shortcuts: 'ctrlcmd+h', prefix: '\n\n---\n', suffix: '' },
+        false,
+      );
+
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const mockApi = {
+        replaceSelection: jest.fn(() => { throw new Error('test error'); }),
+        setSelectionRange: jest.fn(),
+      };
+
+      // Should not throw
+      expect(() => {
+        result.execute(
+          { text: 'Hello', selection: { start: 0, end: 0 }, command: {} },
+          mockApi,
+        );
+      }).not.toThrow();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[MarkdownEditor] hr 命令执行失败:',
+        expect.any(Error),
+      );
+      consoleSpy.mockRestore();
+    });
+
+    it('should return early when text is empty', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(
+        { name: 'hr', shortcuts: 'ctrlcmd+h', prefix: '\n\n---\n', suffix: '' },
+        false,
+      );
+
+      const mockApi = {
+        replaceSelection: jest.fn(),
+        setSelectionRange: jest.fn(),
+      };
+
+      result.execute({ text: '', selection: { start: 0, end: 0 } }, mockApi);
+
+      expect(mockApi.replaceSelection).not.toHaveBeenCalled();
+      expect(mockApi.setSelectionRange).not.toHaveBeenCalled();
+    });
+
+    it('should return early when selection.start is null', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(
+        { name: 'hr', shortcuts: 'ctrlcmd+h', prefix: '\n\n---\n', suffix: '' },
+        false,
+      );
+
+      const mockApi = {
+        replaceSelection: jest.fn(),
+        setSelectionRange: jest.fn(),
+      };
+
+      result.execute({ text: 'Hello', selection: { start: null as any, end: 0 } }, mockApi);
+
+      expect(mockApi.replaceSelection).not.toHaveBeenCalled();
+    });
+  });
+
   describe('commandsFilter — group command override', () => {
     it('should detect group command by keyCommand', () => {
       render(<MarkdownEditor value="" />);
