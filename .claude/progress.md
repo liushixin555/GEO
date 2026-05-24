@@ -174,3 +174,4 @@
 | 2026-05-25 | tasks/review/issue.tsx.committer.md | issue.tsx Committer审核专家评审——无条件通过（命令未注册到默认工具栏，零实际影响，不建议注册使用因#语义碰撞不可根治） |
 | 2026-05-25 | progress_tasks/2026-05-25-publishing-schedule-controller-fix-verify.md | publishing-schedule.controller.ts 评审修复验证——12项修复全部确认已应用，213测试全通过 |
 | 2026-05-25 | progress_tasks/2026-05-25-skills-controller-security-fix.md | skills.controller.ts 安全评审修复——C-4 parseSkillMd ReDoS修复（js-yaml替代正则），其余13项已修复，419测试全通过 |
+| 2026-05-25 | progress_tasks/2026-05-25-italic-tsx-review-fix.md | italic.tsx 评审封装层修复——SEC-M1 prefix!非空断言+SEC-M2输入边界+QUAL-L2错误处理，覆盖italic/bold/strikethrough三命令，+22测试（81总） |

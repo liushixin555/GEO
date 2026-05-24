@@ -483,8 +483,175 @@ describe('MarkdownEditor', () => {
   describe('commandsFilter — other commands pass through', () => {
     it('should pass through unknown commands unchanged', () => {
       render(<MarkdownEditor value="" />);
-      const cmd = { name: 'bold', shortcuts: 'ctrlcmd+b' };
+      const cmd = { name: 'unknownCommand', shortcuts: 'ctrlcmd+z' };
       const result = commandsFilterFn!(cmd, false);
+      expect(result).toBe(cmd);
+    });
+  });
+
+  describe('commandsFilter — italic/bold/strikethrough defensive override', () => {
+    const createFormattingCommand = (name: string, prefix: string) => ({
+      name,
+      keyCommand: name,
+      shortcuts: `ctrlcmd+${name[0]}`,
+      prefix,
+      buttonProps: { 'aria-label': `Add ${name} text`, title: `Add ${name} text` },
+      execute: jest.fn(),
+    });
+
+    const createMockApi = () => ({
+      setSelectionRange: jest.fn((range: { start: number; end: number }) => ({
+        selectedText: 'test',
+      })),
+      replaceSelection: jest.fn(),
+    });
+
+    it.each([
+      { name: 'italic', prefix: '*' },
+      { name: 'bold', prefix: '**' },
+      { name: 'strikethrough', prefix: '~~' },
+    ])('should wrap $name command execute with defensive guard', ({ name, prefix }) => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createFormattingCommand(name, prefix);
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+      const state = {
+        text: 'Hello world',
+        selection: { start: 0, end: 5 },
+        command: { prefix },
+      };
+
+      result.execute(state, api);
+      expect(cmd.execute).toHaveBeenCalledWith(state, api);
+    });
+
+    it.each([
+      { name: 'italic', prefix: '*' },
+      { name: 'bold', prefix: '**' },
+      { name: 'strikethrough', prefix: '~~' },
+    ])('should skip $name execution when prefix is missing (SEC-M1)', ({ name }) => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createFormattingCommand(name, '*');
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: 'Hello', selection: { start: 0, end: 5 }, command: { prefix: undefined } },
+        api,
+      );
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { name: 'italic', prefix: '*' },
+      { name: 'bold', prefix: '**' },
+      { name: 'strikethrough', prefix: '~~' },
+    ])('should skip $name execution when text is not a string (SEC-M2)', ({ name, prefix }) => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createFormattingCommand(name, prefix);
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: undefined as any, selection: { start: 0, end: 0 }, command: { prefix } },
+        api,
+      );
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { name: 'italic', prefix: '*' },
+      { name: 'bold', prefix: '**' },
+      { name: 'strikethrough', prefix: '~~' },
+    ])('should skip $name execution when selection is out of bounds (SEC-M2)', ({ name, prefix }) => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createFormattingCommand(name, prefix);
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      // end > text.length
+      result.execute(
+        { text: 'Hi', selection: { start: 0, end: 100 }, command: { prefix } },
+        api,
+      );
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { name: 'italic', prefix: '*' },
+      { name: 'bold', prefix: '**' },
+      { name: 'strikethrough', prefix: '~~' },
+    ])('should skip $name execution when start < 0 (SEC-M2)', ({ name, prefix }) => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createFormattingCommand(name, prefix);
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: 'Hello', selection: { start: -1, end: 3 }, command: { prefix } },
+        api,
+      );
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { name: 'italic', prefix: '*' },
+      { name: 'bold', prefix: '**' },
+      { name: 'strikethrough', prefix: '~~' },
+    ])('should handle $name execution error gracefully (QUAL-L2)', ({ name, prefix }) => {
+      render(<MarkdownEditor value="" />);
+      const cmd = {
+        ...createFormattingCommand(name, prefix),
+        execute: jest.fn(() => { throw new Error('selectWord crash'); }),
+      };
+      const result = commandsFilterFn!(cmd, false);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const api = createMockApi();
+
+      expect(() => {
+        result.execute(
+          { text: 'Hello', selection: { start: 0, end: 5 }, command: { prefix } },
+          api,
+        );
+      }).not.toThrow();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        `[MarkdownEditor] 命令 "${name}" 执行失败:`,
+        expect.any(Error),
+      );
+      consoleSpy.mockRestore();
+    });
+
+    it.each([
+      { name: 'italic', prefix: '*' },
+      { name: 'bold', prefix: '**' },
+      { name: 'strikethrough', prefix: '~~' },
+    ])('should not crash when $name state.selection is null', ({ name, prefix }) => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createFormattingCommand(name, prefix);
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      expect(() => {
+        result.execute(
+          { text: 'Hello', selection: null as any, command: { prefix } },
+          api,
+        );
+      }).not.toThrow();
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it('should not wrap commands without execute', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = {
+        name: 'italic',
+        keyCommand: 'italic',
+        shortcuts: 'ctrlcmd+i',
+        prefix: '*',
+        execute: undefined,
+      };
+      const result = commandsFilterFn!(cmd, false);
+      // Should return the original command unchanged (no execute to wrap)
       expect(result).toBe(cmd);
     });
   });

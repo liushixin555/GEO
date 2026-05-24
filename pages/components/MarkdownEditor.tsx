@@ -475,6 +475,28 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
         };
       }
 
+      // SEC-M1/SEC-M2/QUAL-M1/QUAL-M2/QUAL-L2:
+      // 修复 italic/bold/strikethrough 命令——prefix! 非空断言崩溃 + 输入边界校验 + 错误处理
+      if (command.name === 'italic' || command.name === 'bold' || command.name === 'strikethrough') {
+        const originalExecute = command.execute;
+        if (originalExecute) {
+          return {
+            ...command,
+            execute: (state: any, api: any) => {
+              try {
+                if (!state.command?.prefix) return;
+                if (!state.text || typeof state.text !== 'string') return;
+                const { start, end } = state.selection ?? {};
+                if (start == null || end == null || start < 0 || end < start || end > state.text.length) return;
+                originalExecute(state, api);
+              } catch (err) {
+                console.error(`[MarkdownEditor] 命令 "${command.name}" 执行失败:`, err);
+              }
+            },
+          };
+        }
+      }
+
       if (command.name === 'code' || command.name === 'codeBlock') {
         const wrapped = { ...command };
         if (command.name === 'code') {
