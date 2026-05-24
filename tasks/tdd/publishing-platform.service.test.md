@@ -192,3 +192,100 @@ publishing-platform.service.impl.ts  |   100%  |   100%   |  100%   |  100%
 - `getRmToken` — mock RM API 认证
 - `getAllRmResources` — mock RM API 资源获取
 - `SystemConfigServiceImpl` — mock 构造函数，通过 `__mockGetAll` 暴露 getAll mock
+
+---
+
+## 第3轮——接口契约合规性验证（48个新增用例）
+
+### 测试概览
+
+| 方法 | 第1轮 | 第2轮 | 第3轮 | 状态 |
+|------|--------|--------|--------|------|
+| `constructor` | 2 | 0 | 0 | ✅ 全部通过 |
+| `syncFromRm` | 13 | 23 | 0 | ✅ 全部通过 |
+| `syncFromSystemConfig` | 11 | 7 | 0 | ✅ 全部通过 |
+| `listAll` | 4 | 4 | 0 | ✅ 全部通过 |
+| `list` | 25 | 16 | 0 | ✅ 全部通过 |
+| **接口契约** | — | — | **10** | ✅ 全部通过 |
+| **Prisma异常传播** | — | — | **6** | ✅ 全部通过 |
+| **数据完整性边界** | — | — | **9** | ✅ 全部通过 |
+| **错误继承层次** | — | — | **8** | ✅ 全部通过 |
+| **返回值结构一致性** | — | — | **5** | ✅ 全部通过 |
+| **实例独立性** | — | — | **3** | ✅ 全部通过 |
+| **Upsert字段映射** | — | — | **3** | ✅ 全部通过 |
+| **排序字段映射** | — | — | **4** | ✅ 全部通过 |
+| **合计** | **55** | **+47** | **+48** | **✅ 150全部通过** |
+
+### 覆盖率
+
+```
+File                                 | % Stmts | % Branch | % Funcs | % Lines
+-------------------------------------|---------|----------|---------|--------
+publishing-platform.service.impl.ts  |   100%  |   100%   |  100%   |  100%
+```
+
+### 第3轮新增测试详情
+
+#### 接口方法签名验证（10个）
+1. syncFromSystemConfig 异步函数返回 Promise<number>
+2. syncFromRm 接受 (string, string) 返回 Promise<number>，参数个数=2
+3. listAll 无参异步函数返回 Promise<PublishingPlatform[]>
+4. list 接受 6 个参数返回 Promise<{list, total}>
+5. 实现 IPublishingPlatformService 全部4个方法
+6. syncFromRm 成功返回整数
+7. listAll 返回 PublishingPlatform 实体结构（10字段）
+8. list 返回正确的 {list, total} 结构
+9. syncFromSystemConfig 成功返回整数
+10. 不暴露任何非接口公开方法
+
+#### Prisma异常传播完整性（6个）
+1. P2024 超时错误从 syncFromRm findMany 传播
+2. P2002 唯一约束错误从 syncFromRm upsert 传播
+3. P Initialization 错误从 listAll 传播
+4. P RustPanic 错误从 list findMany 传播
+5. P 连接池耗尽错误从 list count 传播
+6. P Initialization 错误从 syncFromSystemConfig 经 syncFromRm 传播
+
+#### 数据完整性边界（9个）
+1. Number.MAX_SAFE_INTEGER price
+2. 浮点 price（123.45）
+3. 超长 name（500字符）
+4. 超长 taxonomy（200中文字符）
+5. Unicode emoji name/taxonomy
+6. 极端 include_rate=999.99, publish_rate=-50
+7. 全零数值字段边界
+8. null remark 保持映射
+9. 非 null remark 保持映射
+
+#### 错误继承层次（8个）
+1. syncFromSystemConfig 缺失配置抛 Error 实例
+2. 缺失 username 抛 Error 实例
+3. 缺失 password 抛 Error 实例
+4. syncFromRm 传播 getRmToken 原始 Error 引用
+5. syncFromRm 传播 getAllRmResources TypeError 引用
+6. syncFromRm 传播非 Error 值（字符串）
+7. syncFromSystemConfig 传播 getAll 原始 Error 引用
+8. syncFromRm 传播 $transaction RangeError 引用
+
+#### 返回值结构一致性（5个）
+1. listAll 项恰好 10 个字段
+2. list 项结构与 listAll 一致
+3. list 始终返回 {list, total} 结构
+4. syncFromRm 始终返回整数
+5. syncFromSystemConfig 与 syncFromRm 返回类型一致
+
+#### 实例独立性（3个）
+1. 两个实例并行操作互不干扰
+2. 两个实例不共享可变状态
+3. 同一实例错误后可恢复
+
+#### Upsert字段映射完整性（3个）
+1. create 子句包含全部 7 个字段
+2. update 子句包含 6 个字段（排除 rmResourceId）
+3. where 子句仅包含 rmResourceId
+
+#### 排序字段映射完整性（4个）
+1. 全部 5 个有效排序字段逐一验证
+2. 无效字段回退默认排序
+3. sortOrder 大小写敏感性（仅小写 desc 生效）
+4. undefined sortOrder 默认 asc

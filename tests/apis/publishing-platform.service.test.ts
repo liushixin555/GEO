@@ -1492,6 +1492,746 @@ describe('PublishingPlatformServiceImpl', () => {
     });
   });
 
+  // ══════════════════════════════════════════
+  //  TDD 第3轮——接口契约合规性验证
+  // ══════════════════════════════════════════
+
+  // ──────────────────────────────────────
+  //  接口方法签名验证
+  // ──────────────────────────────────────
+  describe('Interface contract – method signatures', () => {
+    it('should expose syncFromSystemConfig as async function returning Promise<number>', async () => {
+      const svc = new PublishingPlatformServiceImpl();
+      expect(typeof svc.syncFromSystemConfig).toBe('function');
+      __mockGetAll.mockRejectedValue(new Error('config error'));
+      const result = svc.syncFromSystemConfig();
+      expect(result).toBeInstanceOf(Promise);
+      await expect(result).rejects.toThrow('config error');
+    });
+
+    it('should expose syncFromRm as async function accepting (string, string) returning Promise<number>', async () => {
+      const svc = new PublishingPlatformServiceImpl();
+      expect(typeof svc.syncFromRm).toBe('function');
+      expect(svc.syncFromRm.length).toBe(2);
+      mockedGetRmToken.mockRejectedValue(new Error('auth fail'));
+      const result = svc.syncFromRm('u', 'p');
+      expect(result).toBeInstanceOf(Promise);
+      await expect(result).rejects.toThrow('auth fail');
+    });
+
+    it('should expose listAll as async function returning Promise<PublishingPlatform[]>', async () => {
+      const svc = new PublishingPlatformServiceImpl();
+      expect(typeof svc.listAll).toBe('function');
+      expect(svc.listAll.length).toBe(0);
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany },
+      } as any);
+      const result = svc.listAll();
+      expect(result).toBeInstanceOf(Promise);
+      const resolved = await result;
+      expect(Array.isArray(resolved)).toBe(true);
+    });
+
+    it('should expose list as async function accepting (number, number, string?, string?, string?, string?) returning Promise<{list, total}>', async () => {
+      const svc = new PublishingPlatformServiceImpl();
+      expect(typeof svc.list).toBe('function');
+      expect(svc.list.length).toBe(6);
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany, count: mockCount },
+      } as any);
+      const result = svc.list(1, 10);
+      expect(result).toBeInstanceOf(Promise);
+      const resolved = await result;
+      expect(resolved).toHaveProperty('list');
+      expect(resolved).toHaveProperty('total');
+      expect(Array.isArray(resolved.list)).toBe(true);
+      expect(typeof resolved.total).toBe('number');
+    });
+
+    it('should implement all IPublishingPlatformService interface methods', () => {
+      const svc = new PublishingPlatformServiceImpl();
+      const requiredMethods = ['syncFromSystemConfig', 'syncFromRm', 'listAll', 'list'];
+      requiredMethods.forEach((method) => {
+        expect(typeof (svc as any)[method]).toBe('function');
+      });
+    });
+
+    it('should return number from syncFromRm when successful', async () => {
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockResolvedValue([makeRmResource({ id: 1 }), makeRmResource({ id: 2 })]);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: {
+          findMany: jest.fn().mockResolvedValue([]),
+          deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+          upsert: jest.fn().mockResolvedValue(makePrismaPlatform()),
+        },
+        $transaction: jest.fn().mockResolvedValue([]),
+      } as any);
+
+      const result = await service.syncFromRm('u', 'p');
+      expect(typeof result).toBe('number');
+      expect(Number.isInteger(result)).toBe(true);
+      expect(result).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should return PublishingPlatform entity shape from listAll', async () => {
+      const row = makePrismaPlatform({ id: 1, rmResourceId: 100, name: '测试', taxonomy: '综合', price: 500, remark: null, includeRate: 0.9, publishRate: 0.8, createdAt: new Date('2025-01-01'), updatedAt: new Date('2025-06-01') });
+      const mockFindMany = jest.fn().mockResolvedValue([row]);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany },
+      } as any);
+
+      const [item] = await service.listAll();
+      expect(item).toEqual({
+        id: expect.any(Number),
+        rm_resource_id: expect.any(Number),
+        name: expect.any(String),
+        taxonomy: expect.any(String),
+        price: expect.any(Number),
+        remark: null,
+        include_rate: expect.any(Number),
+        publish_rate: expect.any(Number),
+        created_at: expect.any(Date),
+        updated_at: expect.any(Date),
+      });
+    });
+
+    it('should return correct structure from list with total', async () => {
+      const rows = [makePrismaPlatform()];
+      const mockFindMany = jest.fn().mockResolvedValue(rows);
+      const mockCount = jest.fn().mockResolvedValue(42);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const result = await service.list(1, 10);
+      expect(result).toHaveProperty('list');
+      expect(result).toHaveProperty('total');
+      expect(result.total).toBe(42);
+      expect(Array.isArray(result.list)).toBe(true);
+    });
+
+    it('should return number from syncFromSystemConfig when successful', async () => {
+      __mockGetAll.mockResolvedValue([
+        { config_key: 'ruanmeng_username', config_value: 'u' },
+        { config_key: 'ruanmeng_password', config_value: 'p' },
+      ]);
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockResolvedValue([makeRmResource()]);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: {
+          findMany: jest.fn().mockResolvedValue([]),
+          deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+          upsert: jest.fn().mockResolvedValue(makePrismaPlatform()),
+        },
+        $transaction: jest.fn().mockResolvedValue([makePrismaPlatform()]),
+      } as any);
+
+      const result = await service.syncFromSystemConfig();
+      expect(typeof result).toBe('number');
+      expect(Number.isInteger(result)).toBe(true);
+    });
+
+    it('should not expose any non-interface public methods', () => {
+      const svc = new PublishingPlatformServiceImpl();
+      const interfaceMethods = new Set(['syncFromSystemConfig', 'syncFromRm', 'listAll', 'list']);
+      const ownMethods = Object.getOwnPropertyNames(Object.getPrototypeOf(svc)).filter(
+        (name) => name !== 'constructor' && typeof (svc as any)[name] === 'function',
+      );
+      ownMethods.forEach((method) => {
+        expect(interfaceMethods.has(method)).toBe(true);
+      });
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  Prisma异常传播完整性
+  // ──────────────────────────────────────
+  describe('Prisma exception propagation', () => {
+    it('should propagate Prisma P2024 timeout error from syncFromRm findMany', async () => {
+      const prismaError = new Error('Operations timed out');
+      prismaError.name = 'PrismaClientKnownRequestError';
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockResolvedValue([makeRmResource()]);
+      const mockFindMany = jest.fn().mockRejectedValue(prismaError);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany, deleteMany: jest.fn(), upsert: jest.fn() },
+        $transaction: jest.fn(),
+      } as any);
+
+      try { await service.syncFromRm('u', 'p'); fail('should have thrown'); } catch (e: any) {
+        expect(e).toBe(prismaError);
+        expect(e.name).toBe('PrismaClientKnownRequestError');
+      }
+    });
+
+    it('should propagate Prisma P2002 unique constraint error from syncFromRm upsert', async () => {
+      const prismaError = new Error('Unique constraint failed');
+      prismaError.name = 'PrismaClientKnownRequestError';
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockResolvedValue([makeRmResource()]);
+      const mockTransaction = jest.fn().mockRejectedValue(prismaError);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: jest.fn().mockResolvedValue([]), deleteMany: jest.fn().mockResolvedValue({ count: 0 }), upsert: jest.fn() },
+        $transaction: mockTransaction,
+      } as any);
+
+      try { await service.syncFromRm('u', 'p'); fail('should have thrown'); } catch (e: any) {
+        expect(e).toBe(prismaError);
+        expect(e.name).toBe('PrismaClientKnownRequestError');
+      }
+    });
+
+    it('should propagate Prisma connection error from listAll', async () => {
+      const prismaError = new Error('Can\'t reach database server');
+      prismaError.name = 'PrismaClientInitializationError';
+      const mockFindMany = jest.fn().mockRejectedValue(prismaError);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany },
+      } as any);
+
+      try { await service.listAll(); fail('should have thrown'); } catch (e: any) {
+        expect(e).toBe(prismaError);
+        expect(e.name).toBe('PrismaClientInitializationError');
+      }
+    });
+
+    it('should propagate Prisma error from list findMany', async () => {
+      const prismaError = new Error('Query engine error');
+      prismaError.name = 'PrismaClientRustPanicError';
+      const mockFindMany = jest.fn().mockRejectedValue(prismaError);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      try { await service.list(1, 10); fail('should have thrown'); } catch (e: any) {
+        expect(e).toBe(prismaError);
+        expect(e.name).toBe('PrismaClientRustPanicError');
+      }
+    });
+
+    it('should propagate Prisma error from list count', async () => {
+      const prismaError = new Error('Connection pool exhausted');
+      prismaError.name = 'PrismaClientKnownRequestError';
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockRejectedValue(prismaError);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      try { await service.list(1, 10); fail('should have thrown'); } catch (e: any) {
+        expect(e).toBe(prismaError);
+      }
+    });
+
+    it('should propagate Prisma error from syncFromSystemConfig through syncFromRm', async () => {
+      __mockGetAll.mockResolvedValue([
+        { config_key: 'ruanmeng_username', config_value: 'u' },
+        { config_key: 'ruanmeng_password', config_value: 'p' },
+      ]);
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockResolvedValue([makeRmResource()]);
+      const prismaError = new Error('Schema migration needed');
+      prismaError.name = 'PrismaClientInitializationError';
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: jest.fn().mockRejectedValue(prismaError), deleteMany: jest.fn(), upsert: jest.fn() },
+        $transaction: jest.fn(),
+      } as any);
+
+      try { await service.syncFromSystemConfig(); fail('should have thrown'); } catch (e: any) {
+        expect(e).toBe(prismaError);
+        expect(e.name).toBe('PrismaClientInitializationError');
+      }
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  数据完整性边界
+  // ──────────────────────────────────────
+  describe('Data integrity boundaries', () => {
+    it('should handle resource with Number.MAX_SAFE_INTEGER price', async () => {
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockResolvedValue([makeRmResource({ id: 1, price: Number.MAX_SAFE_INTEGER })]);
+      const mockUpsert = jest.fn().mockResolvedValue(makePrismaPlatform());
+      const mockTransaction = jest.fn().mockImplementation((ops: any[]) => Promise.resolve(ops));
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: jest.fn().mockResolvedValue([]), deleteMany: jest.fn().mockResolvedValue({ count: 0 }), upsert: mockUpsert },
+        $transaction: mockTransaction,
+      } as any);
+
+      await service.syncFromRm('u', 'p');
+      const call = mockUpsert.mock.calls[0][0];
+      expect(call.create.price).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('should handle resource with float price', async () => {
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockResolvedValue([makeRmResource({ id: 1, price: 123.45 })]);
+      const mockUpsert = jest.fn().mockResolvedValue(makePrismaPlatform());
+      const mockTransaction = jest.fn().mockImplementation((ops: any[]) => Promise.resolve(ops));
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: jest.fn().mockResolvedValue([]), deleteMany: jest.fn().mockResolvedValue({ count: 0 }), upsert: mockUpsert },
+        $transaction: mockTransaction,
+      } as any);
+
+      await service.syncFromRm('u', 'p');
+      const call = mockUpsert.mock.calls[0][0];
+      expect(call.create.price).toBe(123.45);
+    });
+
+    it('should handle resource with very long name', async () => {
+      const longName = 'A'.repeat(500);
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockResolvedValue([makeRmResource({ id: 1, name: longName })]);
+      const mockUpsert = jest.fn().mockResolvedValue(makePrismaPlatform());
+      const mockTransaction = jest.fn().mockImplementation((ops: any[]) => Promise.resolve(ops));
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: jest.fn().mockResolvedValue([]), deleteMany: jest.fn().mockResolvedValue({ count: 0 }), upsert: mockUpsert },
+        $transaction: mockTransaction,
+      } as any);
+
+      await service.syncFromRm('u', 'p');
+      const call = mockUpsert.mock.calls[0][0];
+      expect(call.create.name).toBe(longName);
+      expect(call.create.name).toHaveLength(500);
+    });
+
+    it('should handle resource with very long taxonomy', async () => {
+      const longTaxonomy = '分'.repeat(200);
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockResolvedValue([makeRmResource({ id: 1, taxonomy: longTaxonomy })]);
+      const mockUpsert = jest.fn().mockResolvedValue(makePrismaPlatform());
+      const mockTransaction = jest.fn().mockImplementation((ops: any[]) => Promise.resolve(ops));
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: jest.fn().mockResolvedValue([]), deleteMany: jest.fn().mockResolvedValue({ count: 0 }), upsert: mockUpsert },
+        $transaction: mockTransaction,
+      } as any);
+
+      await service.syncFromRm('u', 'p');
+      const call = mockUpsert.mock.calls[0][0];
+      expect(call.create.taxonomy).toBe(longTaxonomy);
+    });
+
+    it('should handle resource with Unicode emoji in name', async () => {
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockResolvedValue([makeRmResource({ id: 1, name: '🚀平台🚀', taxonomy: '📰新闻' })]);
+      const mockUpsert = jest.fn().mockResolvedValue(makePrismaPlatform());
+      const mockTransaction = jest.fn().mockImplementation((ops: any[]) => Promise.resolve(ops));
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: jest.fn().mockResolvedValue([]), deleteMany: jest.fn().mockResolvedValue({ count: 0 }), upsert: mockUpsert },
+        $transaction: mockTransaction,
+      } as any);
+
+      await service.syncFromRm('u', 'p');
+      const call = mockUpsert.mock.calls[0][0];
+      expect(call.create.name).toBe('🚀平台🚀');
+      expect(call.create.taxonomy).toBe('📰新闻');
+    });
+
+    it('should handle resource with extremely high include_rate and publish_rate', async () => {
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockResolvedValue([makeRmResource({ id: 1, include_rate: 999.99, publish_rate: -50 })]);
+      const mockUpsert = jest.fn().mockResolvedValue(makePrismaPlatform());
+      const mockTransaction = jest.fn().mockImplementation((ops: any[]) => Promise.resolve(ops));
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: jest.fn().mockResolvedValue([]), deleteMany: jest.fn().mockResolvedValue({ count: 0 }), upsert: mockUpsert },
+        $transaction: mockTransaction,
+      } as any);
+
+      await service.syncFromRm('u', 'p');
+      const call = mockUpsert.mock.calls[0][0];
+      expect(call.create.includeRate).toBe(999.99);
+      expect(call.create.publishRate).toBe(-50);
+    });
+
+    it('should handle listAll returning rows with all numeric fields at boundary values', async () => {
+      const rows = [makePrismaPlatform({ price: 0, includeRate: 0, publishRate: 0, remark: null })];
+      const mockFindMany = jest.fn().mockResolvedValue(rows);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany },
+      } as any);
+
+      const result = await service.listAll();
+      expect(result[0].price).toBe(0);
+      expect(result[0].include_rate).toBe(0);
+      expect(result[0].publish_rate).toBe(0);
+      expect(result[0].remark).toBeNull();
+    });
+
+    it('should preserve null remark through list mapping', async () => {
+      const rows = [makePrismaPlatform({ remark: null })];
+      const mockFindMany = jest.fn().mockResolvedValue(rows);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany },
+      } as any);
+
+      const [item] = await service.listAll();
+      expect(item.remark).toBeNull();
+    });
+
+    it('should preserve non-null remark through list mapping', async () => {
+      const rows = [makePrismaPlatform({ remark: '测试备注内容' })];
+      const mockFindMany = jest.fn().mockResolvedValue(rows);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany },
+      } as any);
+
+      const [item] = await service.listAll();
+      expect(item.remark).toBe('测试备注内容');
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  错误继承层次
+  // ──────────────────────────────────────
+  describe('Error inheritance hierarchy', () => {
+    it('syncFromSystemConfig should throw Error instance for missing config', async () => {
+      __mockGetAll.mockResolvedValue([]);
+      try { await service.syncFromSystemConfig(); fail('should throw'); } catch (e) {
+        expect(e).toBeInstanceOf(Error);
+        expect((e as Error).message).toBe('请先配置软盟账号和密码');
+      }
+    });
+
+    it('syncFromSystemConfig should throw Error for missing username', async () => {
+      __mockGetAll.mockResolvedValue([{ config_key: 'ruanmeng_password', config_value: 'p' }]);
+      try { await service.syncFromSystemConfig(); fail('should throw'); } catch (e) {
+        expect(e).toBeInstanceOf(Error);
+      }
+    });
+
+    it('syncFromSystemConfig should throw Error for missing password', async () => {
+      __mockGetAll.mockResolvedValue([{ config_key: 'ruanmeng_username', config_value: 'u' }]);
+      try { await service.syncFromSystemConfig(); fail('should throw'); } catch (e) {
+        expect(e).toBeInstanceOf(Error);
+      }
+    });
+
+    it('syncFromRm should propagate exact Error instance from getRmToken', async () => {
+      const originalError = new Error('认证失败');
+      mockedGetRmToken.mockRejectedValue(originalError);
+      try { await service.syncFromRm('u', 'p'); fail('should throw'); } catch (e) {
+        expect(e).toBe(originalError);
+      }
+    });
+
+    it('syncFromRm should propagate exact Error instance from getAllRmResources', async () => {
+      const originalError = new TypeError('Invalid response');
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockRejectedValue(originalError);
+      try { await service.syncFromRm('u', 'p'); fail('should throw'); } catch (e) {
+        expect(e).toBe(originalError);
+        expect(e).toBeInstanceOf(TypeError);
+      }
+    });
+
+    it('syncFromRm should propagate non-Error thrown values', async () => {
+      mockedGetRmToken.mockRejectedValue('string error');
+      try { await service.syncFromRm('u', 'p'); fail('should throw'); } catch (e) {
+        expect(e).toBe('string error');
+      }
+    });
+
+    it('syncFromSystemConfig should propagate exact Error from systemConfigService.getAll', async () => {
+      const dbError = new Error('DB连接失败');
+      __mockGetAll.mockRejectedValue(dbError);
+      try { await service.syncFromSystemConfig(); fail('should throw'); } catch (e) {
+        expect(e).toBe(dbError);
+      }
+    });
+
+    it('syncFromRm should propagate exact Error from $transaction', async () => {
+      const txError = new RangeError('Transaction too large');
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockResolvedValue([makeRmResource()]);
+      const mockTransaction = jest.fn().mockRejectedValue(txError);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: jest.fn().mockResolvedValue([]), deleteMany: jest.fn().mockResolvedValue({ count: 0 }), upsert: jest.fn() },
+        $transaction: mockTransaction,
+      } as any);
+      try { await service.syncFromRm('u', 'p'); fail('should throw'); } catch (e) {
+        expect(e).toBe(txError);
+        expect(e).toBeInstanceOf(RangeError);
+      }
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  返回值结构一致性
+  // ──────────────────────────────────────
+  describe('Return value structure consistency', () => {
+    it('listAll items should have exactly 10 fields matching PublishingPlatform interface', async () => {
+      const row = makePrismaPlatform();
+      const mockFindMany = jest.fn().mockResolvedValue([row]);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany },
+      } as any);
+
+      const [item] = await service.listAll();
+      const keys = Object.keys(item);
+      expect(keys).toHaveLength(10);
+      expect(keys.sort()).toEqual([
+        'created_at', 'id', 'include_rate', 'name', 'price',
+        'publish_rate', 'remark', 'rm_resource_id', 'taxonomy', 'updated_at',
+      ].sort());
+    });
+
+    it('list items should have same structure as listAll items', async () => {
+      const row = makePrismaPlatform({ id: 1, rmResourceId: 100, name: '测试', taxonomy: '综合', price: 500, remark: '备注', includeRate: 0.9, publishRate: 0.8 });
+      const mockFindMany = jest.fn().mockResolvedValue([row]);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const listResult = await service.list(1, 10);
+      const mockFindMany2 = jest.fn().mockResolvedValue([row]);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany2 },
+      } as any);
+      const listAllResult = await service.listAll();
+
+      expect(Object.keys(listResult.list[0]).sort()).toEqual(Object.keys(listAllResult[0]).sort());
+    });
+
+    it('list should always return object with list (array) and total (number)', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany, count: mockCount },
+      } as any);
+
+      const result = await service.list(1, 10, '搜索', '门户', 'name', 'desc');
+      expect(Object.keys(result).sort()).toEqual(['list', 'total']);
+    });
+
+    it('syncFromRm should always return integer count', async () => {
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: jest.fn().mockResolvedValue([]), deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      } as any);
+
+      const result = await service.syncFromRm('u', 'p');
+      expect(Number.isInteger(result)).toBe(true);
+      expect(result).toBe(0);
+    });
+
+    it('syncFromSystemConfig should return same type as syncFromRm', async () => {
+      __mockGetAll.mockResolvedValue([
+        { config_key: 'ruanmeng_username', config_value: 'u' },
+        { config_key: 'ruanmeng_password', config_value: 'p' },
+      ]);
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockResolvedValue([makeRmResource(), makeRmResource({ id: 2 })]);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: {
+          findMany: jest.fn().mockResolvedValue([]),
+          deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+          upsert: jest.fn().mockResolvedValue(makePrismaPlatform()),
+        },
+        $transaction: jest.fn().mockResolvedValue([]),
+      } as any);
+
+      const result = await service.syncFromSystemConfig();
+      expect(typeof result).toBe('number');
+      expect(Number.isInteger(result)).toBe(true);
+      expect(result).toBe(2);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  实例独立性
+  // ──────────────────────────────────────
+  describe('Instance independence', () => {
+    it('two service instances should operate independently', async () => {
+      const svc1 = new PublishingPlatformServiceImpl();
+      const svc2 = new PublishingPlatformServiceImpl();
+
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany },
+      } as any);
+
+      const r1 = svc1.listAll();
+      const r2 = svc2.listAll();
+      const [result1, result2] = await Promise.all([r1, r2]);
+      expect(result1).toEqual([]);
+      expect(result2).toEqual([]);
+    });
+
+    it('two service instances should not share mutable state', async () => {
+      const svc1 = new PublishingPlatformServiceImpl();
+      const svc2 = new PublishingPlatformServiceImpl();
+
+      // svc1 does a sync operation
+      __mockGetAll.mockResolvedValue([
+        { config_key: 'ruanmeng_username', config_value: 'u1' },
+        { config_key: 'ruanmeng_password', config_value: 'p1' },
+      ]);
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockResolvedValue([makeRmResource()]);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: {
+          findMany: jest.fn().mockResolvedValue([]),
+          deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+          upsert: jest.fn().mockResolvedValue(makePrismaPlatform()),
+        },
+        $transaction: jest.fn().mockResolvedValue([]),
+      } as any);
+
+      await svc1.syncFromSystemConfig();
+
+      // svc2 should still work independently
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany },
+      } as any);
+      const result2 = await svc2.listAll();
+      expect(result2).toEqual([]);
+    });
+
+    it('should work correctly after error on same instance', async () => {
+      __mockGetAll.mockResolvedValue([]);
+      await expect(service.syncFromSystemConfig()).rejects.toThrow('请先配置软盟账号和密码');
+
+      __mockGetAll.mockResolvedValue([
+        { config_key: 'ruanmeng_username', config_value: 'u' },
+        { config_key: 'ruanmeng_password', config_value: 'p' },
+      ]);
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockResolvedValue([makeRmResource()]);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: {
+          findMany: jest.fn().mockResolvedValue([]),
+          deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+          upsert: jest.fn().mockResolvedValue(makePrismaPlatform()),
+        },
+        $transaction: jest.fn().mockResolvedValue([makePrismaPlatform()]),
+      } as any);
+
+      const result = await service.syncFromSystemConfig();
+      expect(result).toBe(1);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  upsert 字段映射完整性
+  // ──────────────────────────────────────
+  describe('Upsert field mapping completeness', () => {
+    it('should map all 7 fields in create clause', async () => {
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockResolvedValue([makeRmResource({ id: 1 })]);
+      const mockUpsert = jest.fn().mockResolvedValue(makePrismaPlatform());
+      const mockTransaction = jest.fn().mockImplementation((ops: any[]) => Promise.resolve(ops));
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: jest.fn().mockResolvedValue([]), deleteMany: jest.fn().mockResolvedValue({ count: 0 }), upsert: mockUpsert },
+        $transaction: mockTransaction,
+      } as any);
+
+      await service.syncFromRm('u', 'p');
+      const create = mockUpsert.mock.calls[0][0].create;
+      expect(Object.keys(create).sort()).toEqual([
+        'includeRate', 'name', 'price', 'publishRate', 'remark', 'rmResourceId', 'taxonomy',
+      ].sort());
+    });
+
+    it('should map all 6 fields in update clause (excluding rmResourceId)', async () => {
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockResolvedValue([makeRmResource({ id: 1 })]);
+      const mockUpsert = jest.fn().mockResolvedValue(makePrismaPlatform());
+      const mockTransaction = jest.fn().mockImplementation((ops: any[]) => Promise.resolve(ops));
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: jest.fn().mockResolvedValue([]), deleteMany: jest.fn().mockResolvedValue({ count: 0 }), upsert: mockUpsert },
+        $transaction: mockTransaction,
+      } as any);
+
+      await service.syncFromRm('u', 'p');
+      const update = mockUpsert.mock.calls[0][0].update;
+      expect(Object.keys(update).sort()).toEqual([
+        'includeRate', 'name', 'price', 'publishRate', 'remark', 'taxonomy',
+      ].sort());
+      expect(update).not.toHaveProperty('rmResourceId');
+    });
+
+    it('should map where clause with rmResourceId only', async () => {
+      mockedGetRmToken.mockResolvedValue('token');
+      mockedGetAllRmResources.mockResolvedValue([makeRmResource({ id: 42 })]);
+      const mockUpsert = jest.fn().mockResolvedValue(makePrismaPlatform());
+      const mockTransaction = jest.fn().mockImplementation((ops: any[]) => Promise.resolve(ops));
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: jest.fn().mockResolvedValue([]), deleteMany: jest.fn().mockResolvedValue({ count: 0 }), upsert: mockUpsert },
+        $transaction: mockTransaction,
+      } as any);
+
+      await service.syncFromRm('u', 'p');
+      const where = mockUpsert.mock.calls[0][0].where;
+      expect(Object.keys(where)).toEqual(['rmResourceId']);
+      expect(where.rmResourceId).toBe(42);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  排序字段映射完整性
+  // ──────────────────────────────────────
+  describe('Sort field mapping completeness', () => {
+    function setupList() {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      mockedGetPrisma.mockReturnValue({
+        publishingPlatform: { findMany: mockFindMany, count: mockCount },
+      } as any);
+      return mockFindMany;
+    }
+
+    it('should map all 5 valid sort fields correctly', async () => {
+      const fieldMappings: Record<string, string> = {
+        name: 'name',
+        taxonomy: 'taxonomy',
+        price: 'price',
+        include_rate: 'includeRate',
+        publish_rate: 'publishRate',
+      };
+
+      for (const [frontend, prisma] of Object.entries(fieldMappings)) {
+        jest.clearAllMocks();
+        const mockFindMany = setupList();
+        await service.list(1, 10, undefined, undefined, frontend, 'asc');
+        expect(mockFindMany).toHaveBeenCalledWith(
+          expect.objectContaining({ orderBy: [{ [prisma]: 'asc' }] }),
+        );
+      }
+    });
+
+    it('should reject invalid sort field and fall back to default', async () => {
+      const mockFindMany = setupList();
+      await service.list(1, 10, undefined, undefined, 'invalid_field', 'desc');
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: [{ taxonomy: 'asc' }, { name: 'asc' }] }),
+      );
+    });
+
+    it('should handle sortOrder case-sensitivity (only desc is special)', async () => {
+      const mockFindMany = setupList();
+      await service.list(1, 10, undefined, undefined, 'name', 'DESC');
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: [{ name: 'asc' }] }),
+      );
+    });
+
+    it('should handle undefined sortOrder as asc', async () => {
+      const mockFindMany = setupList();
+      await service.list(1, 10, undefined, undefined, 'name', undefined);
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: [{ name: 'asc' }] }),
+      );
+    });
+  });
+
   // ──────────────────────────────────────
   //  list() 第2轮
   // ──────────────────────────────────────
