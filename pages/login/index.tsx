@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Alert, Card, Typography } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
 const LoginPage: React.FC = () => {
+  const { user: authUser, login } = useAuth();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -15,33 +17,28 @@ const LoginPage: React.FC = () => {
     return '/publish';
   };
 
+  // If already authenticated (AuthProvider verified token), redirect away
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      // Verify token validity before redirecting to avoid /login → /publish → /login flash
-      axios
-        .get('/api/v1/auth/verify', {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        .then(() => navigate('/publish', { replace: true }))
-        .catch(() => {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-        });
+    if (authUser) {
+      const redirectTo = !authUser.selected_project
+        ? '/project'
+        : validateRedirect(localStorage.getItem('redirect_after_login'));
+      localStorage.removeItem('redirect_after_login');
+      navigate(redirectTo, { replace: true });
     }
-  }, [navigate]);
+  }, [authUser, navigate]);
 
   const handleSubmit = async (values: { username: string; password: string }) => {
     setError('');
     setLoading(true);
     try {
       const response = await axios.post('/api/v1/auth/login', values);
-      const { token, user } = response.data.data;
+      const { token, user: userData } = response.data.data;
 
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
+      // Update AuthContext state (not just localStorage) so AuthGuard sees the user
+      login(token, userData);
 
-      const redirectTo = !user.selected_project
+      const redirectTo = !userData.selected_project
         ? '/project'
         : validateRedirect(localStorage.getItem('redirect_after_login'));
       localStorage.removeItem('redirect_after_login');
