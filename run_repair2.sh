@@ -7,10 +7,10 @@ if [ "$1" != "--inner" ]; then
   exit 0
 fi
 for ((i=0; i<100; i++)); do
-mapfile -t tasks < <(find ./tasks/review -type f -name "*.md" | sort)
+mapfile -t tasks < <(find ./tasks/review -type f -name "*.md" | shuf)
 for f in "${tasks[@]}"; do
   echo "===== 处理: $f =====" 
-  claude -p "@$f 根据此文件修复代码。每次开始前都执行git pull.注意铁律每次任务前后必须遵守"
+  claude -p "@$f 根据此文件修复相关代码文件。每次开始前都执行git pull.注意铁律每次任务前后必须遵守"
   echo "休眠 10秒..."
   sleep 10
 done
