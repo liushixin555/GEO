@@ -702,3 +702,12 @@
   - 文件从 239 行减至 148 行（-38%），Controller 导入从 16 个降为 0 个
   - SOLID 评估改善：SRP ❌→✅、OCP ❌→⚠️、ISP ⚠️→✅
   - 评审报告 tasks/review/app.ts.architecture.md
+
+## 本次变更（2026-05-24 apis/app.ts 代码安全专家重构后复审）
+- [x] **代码安全专家评审 apis/app.ts（148 行，路由模块化后安全复审）**
+  - 综合安全评级 A-（从原始 C 级提升，历史 6 项 CRITICAL/HIGH/MEDIUM 漏洞全部修复）
+  - 验证历史漏洞修复：SEC-01 CORS 开放✅、SEC-02 JWT 硬编码✅、SEC-03 缺安全头✅、SEC-04 无错误处理✅、SEC-05 无请求体限制✅、SEC-06 Swagger 暴露✅
+  - 新发现 8 项安全事项：MEDIUM×3（CORS !origin 允许无 Origin 请求、Health Check 绕过安全中间件、静态文件路径依赖 process.cwd()）、LOW×5（JSON 10MB 偏高、trust proxy 固定值、缺 CSP、无请求超时、日志格式不一致）
+  - 防御层完整性评估：CSRF/XSS/SQL注入/暴力破解/DDoS/CORS滥用/信息泄露/请求体DoS/路径遍历/JWT伪造 全部有对应防御
+  - 安全改进路线图：P0×2（静态文件路径+请求超时）、P1×4（JSON body 限制+Health 限流+trust proxy 配置化+日志格式统一）、P2×1（Swagger CSP）
+  - 评审报告 tasks/review/app.ts.security.md
