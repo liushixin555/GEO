@@ -2,7 +2,7 @@
 
 **测试文件**: `tests/apis/app.test.ts`
 **目标文件**: `apis/app.ts`
-**执行日期**: 2026-05-24（更新）
+**执行日期**: 2026-05-24（第二次更新）
 
 ---
 
@@ -11,7 +11,7 @@
 | 指标 | 值 |
 |------|------|
 | 测试套件 | 1 passed |
-| 测试用例 | 127 passed |
+| 测试用例 | 156 passed |
 | 失败 | 0 |
 | 执行时间 | ~10s |
 
@@ -195,7 +195,63 @@
 
 验证 404 返回 JSON `{ code: 404, message: '接口不存在' }`。
 
-## 本次新增测试统计
+### 33. Auth Companies Detail 路由 (1 case) ✨ 第二次新增
+
+验证 `GET /api/auth/companies/:id` 在无 token 时返回 401。
+
+### 34. CORS Preflight 预检测试 (4 cases) ✨ 第二次新增
+
+| 测试 | 说明 |
+|------|------|
+| OPTIONS whitelisted origin | 预检请求返回 CORS 头 |
+| allowed methods | 验证 GET/POST/PUT/DELETE |
+| allowed headers | 验证 Content-Type/Authorization |
+| OPTIONS non-whitelisted origin | 非 whitelist 来源被拒绝 |
+
+### 35. Token 格式边界测试 (5 cases) ✨ 第二次新增
+
+| 测试 | 说明 |
+|------|------|
+| empty Bearer token | 空 token 返回 401 |
+| missing Bearer prefix | 无 Bearer 前缀返回 401 |
+| Basic auth header | Basic 认证头返回 401 |
+| wrong signature | 错误密钥签名返回 401 |
+| partial payload | 部分 payload 通过验证（中间件仅验证签名） |
+
+### 36. 正向角色检查测试 (8 cases) ✨ 第二次新增
+
+验证 admin/sysadmin 角色通过对应路由的角色检查（不返回 403）。
+
+### 37. 速率限制测试 (2 cases) ✨ 第二次新增
+
+| 测试 | 说明 |
+|------|------|
+| rate limit headers | 受保护路由包含 RateLimit 头 |
+| within limit | 多次请求不超限 |
+
+### 38. Login 路由边界测试 (3 cases) ✨ 第二次新增
+
+| 测试 | 说明 |
+|------|------|
+| empty username/password | 返回 400 |
+| empty body | 返回 400 |
+| valid credentials | 不返回 400 |
+
+### 39. 404 HTTP 方法测试 (4 cases) ✨ 第二次新增
+
+验证 POST/PUT/DELETE/GET 在不存在路由均返回 404。
+
+### 40. 静态文件边界测试 (1 case) ✨ 第二次新增
+
+验证 `/uploads/` 目录路径也设置 CORP 头。
+
+### 41. Swagger 启用场景 (1 case) ✨ 第二次新增
+
+验证测试环境 SWAGGER_ENABLED=false。
+
+## 测试统计
+
+### 第一次新增统计
 
 | 类别 | 新增数量 |
 |------|---------|
@@ -217,13 +273,28 @@
 | 未知路由增强 | 1 |
 | **合计新增** | **60** |
 
+### 第二次新增统计
+
+| 类别 | 新增数量 |
+|------|---------|
+| Auth Companies Detail 路由 | 1 |
+| CORS Preflight 预检 | 4 |
+| Token 格式边界 | 5 |
+| 正向角色检查 (admin/sysadmin) | 8 |
+| 速率限制 | 2 |
+| Login 路由边界 | 3 |
+| 404 HTTP 方法 | 4 |
+| 静态文件边界 | 1 |
+| Swagger 启用场景 | 1 |
+| **第二次合计新增** | **29** |
+
 ## 总结
 
-- 从 67 个测试增加到 127 个测试，新增 60 个测试用例
-- 语句覆盖率从 96.09% 提升到 98%
-- 行覆盖率从 96.85% 提升到 98.65%
-- 分支覆盖率从 0% 提升到 71.42%（实际测量了条件分支）
-- 函数覆盖率从 33.33% 提升到 83.33%
+- 从 67 → 127 → 156 个测试，两次共新增 89 个测试用例
+- 第二次新增 29 个测试：CORS preflight、Token 格式边界、正向角色检查、速率限制、Login 边界、404 多方法
+- 语句覆盖率 98%、行覆盖率 98.65%（保持）
+- 分支覆盖率 71.42%（Swagger 条件分支未覆盖）
+- 函数覆盖率 83.33%（Swagger 条件内回调未覆盖）
 - 新增了 CORS、Helmet 安全头、JSON 解析、静态文件、错误处理等中间件层测试
 - 补全了所有路由的权限测试覆盖，包括完全缺失的 Todo 路由
 - 未覆盖的仅是 Swagger 条件分支（测试环境禁用）
