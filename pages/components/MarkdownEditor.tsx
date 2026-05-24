@@ -1,5 +1,8 @@
 /**
- * MarkdownEditor — @uiw/react-md-editor 安全封装层
+ * MarkdownEditor — @uiw/react-md-editor/nohighlight 安全封装层
+ *
+ * ⚠️ 禁止改为标准入口（@uiw/react-md-editor）——标准版包含 rehype-raw XSS 风险
+ *    始终使用 @uiw/react-md-editor/nohighlight 变体（ESLint 规则强制）
  *
  * 隔离 Context.tsx 已知缺陷：
  *   - [key: string]: any 索引签名（类型安全瓦解）
@@ -182,6 +185,13 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
         dragBar.setAttribute('aria-orientation', 'horizontal');
         dragBar.setAttribute('aria-label', '调整编辑器高度');
         (dragBar as HTMLElement).tabIndex = 0;
+      }
+
+      // A-04: 预览区添加 aria-live，屏幕阅读器可获知预览更新
+      const preview = container.querySelector('.w-md-editor-preview');
+      if (preview && !preview.getAttribute('aria-live')) {
+        preview.setAttribute('aria-live', 'polite');
+        preview.setAttribute('aria-label', 'Markdown 预览区');
       }
     };
 

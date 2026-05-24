@@ -130,3 +130,4 @@
 | 2026-05-24 | tasks/tdd/article.schema.test.md | article.schema.ts TDD——157用例100%覆盖率（6个Zod schema全量验证：枚举/边界值/strict/refine/coerce/类型安全） |
 | 2026-05-24 | progress_tasks/2026-05-24-docker-prisma-generate-fix.md | Docker构建修复——prisma generate --generator=client 跳过 openapi devDependency |
 | 2026-05-24 | tasks/tdd/company.schema.test.md | company.schema.ts TDD——118用例100%覆盖率（3个Zod schema全量验证：字符串min/max/trim/regex电话/数组ID/布尔status/类型安全） |
+| 2026-05-24 | progress_tasks/2026-05-24-editor-tsx-review-fix.md | Editor.tsx 评审修复——ESLint no-restricted-imports 防误用 + 禁止标准入口注释 + CSS-02拖拽条/CSS-03按钮pressed/CSS-05 Firefox滚动条/UX-02过渡动画/R-01移动端响应式/A-04 aria-live |

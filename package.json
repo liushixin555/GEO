@@ -14,7 +14,7 @@
     "test:watch": "jest --config jest.config.ts --watch",
     "test:api": "jest --config jest.config.ts --testPathPattern=tests/apis",
     "test:page": "jest --config jest.config.ts --testPathPattern=tests/pages",
-    "lint": "eslint apis/ pages/ --ext .ts,.tsx",
+    "lint": "eslint apis/ pages/",
     "db:migrate": "npx prisma migrate dev",
     "db:migrate:deploy": "npx prisma migrate deploy",
     "db:migrate:create": "npx prisma migrate dev --create-only",
