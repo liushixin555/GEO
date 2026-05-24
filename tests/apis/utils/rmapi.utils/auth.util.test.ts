@@ -12,6 +12,20 @@ jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('apis/utils/rmapi.utils/auth.util.ts', () => {
+  const originalApiKey = process.env.RM_API_KEY;
+
+  beforeAll(() => {
+    process.env.RM_API_KEY = '3b98c40be00c15f9ec69131076646eb7';
+  });
+
+  afterAll(() => {
+    if (originalApiKey !== undefined) {
+      process.env.RM_API_KEY = originalApiKey;
+    } else {
+      delete process.env.RM_API_KEY;
+    }
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -231,6 +245,17 @@ describe('apis/utils/rmapi.utils/auth.util.ts', () => {
           'api_key',
         ]),
       );
+    });
+
+    describe('RM_API_KEY missing', () => {
+      it('should throw error when RM_API_KEY env var is not set', async () => {
+        const saved = process.env.RM_API_KEY;
+        delete process.env.RM_API_KEY;
+        await expect(
+          getRmToken({ mobile: '13800138000', password: 'pass' }),
+        ).rejects.toThrow('RM_API_KEY 环境变量未配置');
+        process.env.RM_API_KEY = saved;
+      });
     });
   });
 });

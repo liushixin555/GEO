@@ -20,13 +20,17 @@ export interface RmAuthResponse {
  * 获取 rmapi token（全局有效，仅在 401 时需要重新获取）
  */
 export async function getRmToken(params: RmAuthParams): Promise<string> {
+  const apiKey = process.env.RM_API_KEY || '';
+  if (!apiKey) {
+    throw new Error('RM_API_KEY 环境变量未配置');
+  }
   const res = await axios.post<RmAuthResponse>(`${RMAPI_BASE}/api/auth/authenticate`, {
     mobile: params.mobile,
     password: params.password,
     identity: 'advertiser',
     captcha_token: 'advertiser',
     captcha: 'advertiser',
-    api_key: '3b98c40be00c15f9ec69131076646eb7',
+    api_key: apiKey,
   });
 
   if (!res.data.success) {

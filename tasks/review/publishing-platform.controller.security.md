@@ -27,6 +27,8 @@
 
 **问题统计**: CRITICAL × 2 / HIGH × 3 / MEDIUM × 3 / LOW × 2
 
+> **修复状态**: C-1 ✅已修复(凭证获取封装至service层) / C-2 ✅已修复(api_key移至RM_API_KEY环境变量) / H-1 ✅已修复(错误消息区分内部/外部) / H-2 ✅已修复(pageSize≤100) / H-3 ✅已修复(标记@deprecated) / M-1 ✅已修复(白名单校验) / M-2 ✅已修复(长度≤100) / M-3 ✅已修复(logger审计日志) / L-1 ✅已修复(radix=10) / L-2 ✅已修复(data/rmdata/加入.gitignore)
+
 **OWASP Top 10 映射**:
 - A02:2021 — Cryptographic Failures（凭证明文存储与传输）
 - A03:2021 — Injection（sortOrder 参数未校验）
