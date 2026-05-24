@@ -770,3 +770,15 @@
   - 完整管线数据流分析（10 个插件顺序依赖关系）
   - 本项目影响：安全🔴高（rehypeRaw 无条件执行）、性能🟡中、可维护🟢低、升级风险🟡中
   - 评审报告 tasks/review/common.tsx.architecture.md
+
+## 本次变更（2026-05-24 @uiw/react-markdown-preview common.tsx 软件UI专家评审）
+- [x] **软件UI专家评审 @uiw/react-markdown-preview/src/common.tsx（27 行）**
+  - 综合评分 5.3/10（组件 API 对消费者友好，但原生 GitHub 视觉风格与 Carbon Design System 存在根本性冲突）
+  - DESIGN.md 合规性分析：颜色体系冲突（GitHub Blue vs IBM Blue）、排版体系冲突（系统字体栈 vs IBM Plex Sans）、圆角体系冲突（6px vs 0px）、间距体系不一致
+  - 交互体验评价：copy 功能移动端不可用（hover 触发）、标题锚点不可键盘聚焦、代码高亮色彩非 Carbon 色板
+  - 无障碍评审：copy 按钮缺少 aria-label、焦点管理缺失、行内代码使用语义红色违反色彩语义原则
+  - CSS 层面问题：30+ 条 !important 覆盖策略、两套重复 Markdown 覆盖样式（markdown-viewer.css + global.css）、行内代码颜色语义误用
+  - 响应式问题：代码块无滚动提示、表格无响应式容器、触摸目标不满足 48px 要求
+  - antd 集成兼容性：第三方库 DOM 不受控（铁律豁免）、antd Token 无法自动同步到 Markdown 区域
+  - 11 项问题清单：P1×2（行内代码语义红色、重复CSS）、P2×5（移动端copy、焦点管理、表格响应式、性能隔离、重复CSS合并）、P3×4
+  - 评审报告 tasks/review/common.tsx.ui.md
