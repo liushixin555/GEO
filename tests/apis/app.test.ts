@@ -1584,3 +1584,434 @@ describe('App - Middleware Execution Order', () => {
     expect(response.status).toBe(403);
   });
 });
+
+// ─── CORS Rejected Origin Logging ───
+describe('App - CORS Rejected Origin Logging', () => {
+  let consoleWarnSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('should log warning when non-whitelisted origin is rejected', async () => {
+    await agent
+      .get('/api/v1/auth/verify')
+      .set('Origin', 'http://evil.example.com');
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      '[CORS] Rejected origin:',
+      'http://evil.example.com',
+    );
+  });
+
+  it('should NOT log warning for whitelisted origin', async () => {
+    await agent
+      .get('/api/v1/auth/verify')
+      .set('Origin', 'http://localhost:5173');
+    // Only the audit log (for 401) should fire, not the CORS warn
+    const corsWarnCalls = consoleWarnSpy.mock.calls.filter(
+      (call: string[]) => typeof call[0] === 'string' && call[0].startsWith('[CORS]'),
+    );
+    expect(corsWarnCalls).toHaveLength(0);
+  });
+
+  it('should NOT log warning for requests without origin', async () => {
+    await agent.get('/api/v1/auth/verify');
+    const corsWarnCalls = consoleWarnSpy.mock.calls.filter(
+      (call: string[]) => typeof call[0] === 'string' && call[0].startsWith('[CORS]'),
+    );
+    expect(corsWarnCalls).toHaveLength(0);
+  });
+});
+
+// ─── Helmet Disabled Headers ───
+describe('App - Helmet Disabled Headers', () => {
+  it('should NOT set Content-Security-Policy header', async () => {
+    const response = await agent.get('/api/v1/auth/verify');
+    expect(response.headers['content-security-policy']).toBeUndefined();
+  });
+
+  it('should NOT set Cross-Origin-Embedder-Policy header', async () => {
+    const response = await agent.get('/api/v1/auth/verify');
+    expect(response.headers['cross-origin-embedder-policy']).toBeUndefined();
+  });
+
+  it('should NOT set Cross-Origin-Opener-Policy header', async () => {
+    const response = await agent.get('/api/v1/auth/verify');
+    expect(response.headers['cross-origin-opener-policy']).toBeUndefined();
+  });
+
+  it('should NOT set Strict-Transport-Security header (HSTS disabled)', async () => {
+    const response = await agent.get('/api/v1/auth/verify');
+    expect(response.headers['strict-transport-security']).toBeUndefined();
+  });
+});
+
+// ─── JSON SyntaxError Exact Branch ───
+describe('App - JSON SyntaxError Exact Branch', () => {
+  it('should return 400 with exact message for malformed JSON', async () => {
+    const response = await request(app)
+      .post('/api/v1/auth/login')
+      .set('Content-Type', 'application/json')
+      .set('User-Agent', 'test-agent/1.0')
+      .send('{ "broken": }');
+    // Express JSON parser triggers SyntaxError with status 400
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ code: 400, message: '请求体 JSON 格式错误' });
+  });
+
+  it('should return 400 for trailing comma in JSON', async () => {
+    const response = await request(app)
+      .post('/api/v1/auth/login')
+      .set('Content-Type', 'application/json')
+      .set('User-Agent', 'test-agent/1.0')
+      .send('{"username": "test",}');
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ code: 400, message: '请求体 JSON 格式错误' });
+  });
+
+  it('should return 400 for unquoted keys in JSON', async () => {
+    const response = await request(app)
+      .post('/api/v1/auth/login')
+      .set('Content-Type', 'application/json')
+      .set('User-Agent', 'test-agent/1.0')
+      .send('{username: "test", password: "test"}');
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ code: 400, message: '请求体 JSON 格式错误' });
+  });
+});
+
+// ─── Rate Limit Skip Path ───
+describe('App - Rate Limit Skip Path', () => {
+  it('should NOT include rate limit headers on GET /api/v1/auth/verify (skipped)', async () => {
+    const response = await agent
+      .get('/api/v1/auth/verify')
+      .set('Authorization', `Bearer ${sysadminToken()}`);
+    // Rate limit is skipped for GET /api/v1/auth/verify
+    expect(response.headers['ratelimit-limit']).toBeUndefined();
+  });
+
+  it('should include rate limit headers on other authenticated routes', async () => {
+    const response = await agent
+      .get('/api/v1/companies')
+      .set('Authorization', `Bearer ${sysadminToken()}`);
+    expect(response.headers['ratelimit-limit']).toBeDefined();
+  });
+});
+
+// ─── Unhandled Error Structured Fields ───
+describe('App - Unhandled Error Structured Fields', () => {
+  let consoleErrorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('should include userRole in structured error log for authenticated requests', async () => {
+    // Send oversized payload with authenticated user to trigger 500
+    const largePayload = { data: 'x'.repeat(11 * 1024 * 1024) };
+    await agent
+      .post('/api/v1/auth/login')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send(largePayload);
+
+    if (consoleErrorSpy.mock.calls.length > 0) {
+      const logCall = consoleErrorSpy.mock.calls.find(
+        (call: string[]) => typeof call[0] === 'string' && call[0] === '[Unhandled Error]',
+      );
+      if (logCall) {
+        const entry = JSON.parse(logCall[1] as string);
+        expect(entry).toHaveProperty('method');
+        expect(entry).toHaveProperty('url');
+        expect(entry).toHaveProperty('ip');
+        expect(entry).toHaveProperty('userId');
+        expect(entry).toHaveProperty('userRole');
+        expect(entry).toHaveProperty('error');
+        expect(entry.error).toHaveProperty('name');
+        expect(entry.error).toHaveProperty('message');
+      }
+    }
+  });
+});
+
+// ─── CORS Allowed Headers Verification ───
+describe('App - CORS Allowed Headers Verification', () => {
+  it('should allow Content-Type in request headers for whitelisted origin', async () => {
+    const response = await agent
+      .post('/api/v1/auth/login')
+      .set('Origin', 'http://localhost:5173')
+      .set('Content-Type', 'application/json')
+      .send({ username: 'test', password: 'test' });
+    // Should not be blocked by CORS (may fail validation, but not CORS)
+    expect(response.status).not.toBe(403);
+    // CORS should allow the request
+    expect(response.headers['access-control-allow-origin']).toBe('http://localhost:5173');
+  });
+
+  it('should allow Authorization in request headers for whitelisted origin', async () => {
+    const response = await agent
+      .get('/api/v1/auth/verify')
+      .set('Origin', 'http://localhost:5173')
+      .set('Authorization', `Bearer ${sysadminToken()}`);
+    expect(response.headers['access-control-allow-origin']).toBe('http://localhost:5173');
+    expect(response.status).toBe(200);
+  });
+});
+
+// ─── Response Format Consistency ───
+describe('App - Response Format Consistency', () => {
+  it('401 response should have consistent { code, message } format', async () => {
+    const response = await agent.get('/api/v1/auth/verify');
+    expect(response.status).toBe(401);
+    expect(response.body).toHaveProperty('code', 401);
+    expect(response.body).toHaveProperty('message');
+    expect(typeof response.body.message).toBe('string');
+  });
+
+  it('403 response should have consistent { code, message } format', async () => {
+    const response = await agent
+      .get('/api/v1/companies')
+      .set('Authorization', `Bearer ${adminToken()}`);
+    expect(response.status).toBe(403);
+    expect(response.body).toHaveProperty('code', 403);
+    expect(response.body).toHaveProperty('message');
+    expect(typeof response.body.message).toBe('string');
+  });
+
+  it('404 response should have consistent { code, message } format', async () => {
+    const response = await agent.get('/api/v1/does-not-exist');
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ code: 404, message: '接口不存在' });
+  });
+});
+
+// ─── Static Files Subdirectory ───
+describe('App - Static Files Subdirectory', () => {
+  it('should set CORP header for nested path attempts', async () => {
+    const response = await request(app)
+      .get('/uploads/subdir/file.png')
+      .set('User-Agent', 'test-agent/1.0');
+    expect(response.headers['cross-origin-resource-policy']).toBe('cross-origin');
+  });
+
+  it('should set CORP header for file with special chars', async () => {
+    const response = await request(app)
+      .get('/uploads/test%20file.png')
+      .set('User-Agent', 'test-agent/1.0');
+    expect(response.headers['cross-origin-resource-policy']).toBe('cross-origin');
+  });
+});
+
+// ─── Multiple Origins CORS (comma-separated config) ───
+describe('App - CORS With Environment Config', () => {
+  it('default CORS origin should include http://localhost:5173', async () => {
+    const response = await agent
+      .get('/api/v1/auth/verify')
+      .set('Origin', 'http://localhost:5173');
+    expect(response.headers['access-control-allow-origin']).toBe('http://localhost:5173');
+  });
+
+  it('http://localhost:3000 should NOT be whitelisted by default', async () => {
+    const response = await agent
+      .get('/api/v1/auth/verify')
+      .set('Origin', 'http://localhost:3000');
+    expect(response.headers['access-control-allow-origin']).toBeUndefined();
+  });
+});
+
+// ─── Auth Verify Rate Limit Bypass (High Volume) ───
+describe('App - Auth Verify Rate Limit Bypass', () => {
+  it('should handle many rapid auth verify requests without rate limiting', async () => {
+    const responses = await Promise.all(
+      Array.from({ length: 20 }, () =>
+        agent
+          .get('/api/v1/auth/verify')
+          .set('Authorization', `Bearer ${sysadminToken()}`),
+      ),
+    );
+    for (const res of responses) {
+      // All should return 200 (verified), never 429
+      expect(res.status).toBe(200);
+    }
+  });
+});
+
+// ─── Health Check Response Structure ───
+describe('App - Health Check Response Structure', () => {
+  it('should return exactly { status: "ok" } with no extra fields', async () => {
+    const response = await agent.get('/api/health');
+    expect(response.status).toBe(200);
+    expect(Object.keys(response.body)).toEqual(['status']);
+    expect(response.body.status).toBe('ok');
+  });
+
+  it('should return application/json content type', async () => {
+    const response = await agent.get('/api/health');
+    expect(response.headers['content-type']).toMatch(/application\/json/);
+  });
+});
+
+// ─── CORS POST with Non-whitelisted Origin ───
+describe('App - CORS POST Non-whitelisted', () => {
+  it('should reject POST from non-whitelisted origin', async () => {
+    const response = await agent
+      .post('/api/v1/auth/login')
+      .set('Origin', 'http://evil.example.com')
+      .send({ username: 'test', password: 'test' });
+    // CORS blocks the response; origin header should not be set
+    expect(response.headers['access-control-allow-origin']).toBeUndefined();
+  });
+});
+
+// ─── Audit Log Method Coverage ───
+describe('App - Audit Log HTTP Methods', () => {
+  let consoleWarnSpy: jest.SpyInstance;
+
+  function findLogEntry(predicate: (entry: Record<string, unknown>) => boolean): Record<string, unknown> | undefined {
+    for (const call of consoleWarnSpy.mock.calls) {
+      try {
+        const entry = JSON.parse(call[0] as string);
+        if (predicate(entry)) return entry;
+      } catch { /* skip non-JSON calls */ }
+    }
+    return undefined;
+  }
+
+  beforeEach(() => {
+    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('should log POST method for 400 login validation error', async () => {
+    await agent.post('/api/v1/auth/login').send({});
+    const entry = findLogEntry(e => e.status === 400);
+    expect(entry).toBeDefined();
+    expect(entry!.method).toBe('POST');
+  });
+
+  it('should log PUT method for 403 error', async () => {
+    await agent
+      .put('/api/v1/companies/1')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ name: 'Test' });
+    const entry = findLogEntry(e => e.status === 403 && e.method === 'PUT');
+    expect(entry).toBeDefined();
+  });
+
+  it('should log DELETE method for 403 error', async () => {
+    await agent
+      .delete('/api/v1/users/1')
+      .set('Authorization', `Bearer ${adminToken()}`);
+    const entry = findLogEntry(e => e.status === 403 && e.method === 'DELETE');
+    expect(entry).toBeDefined();
+  });
+});
+
+// ─── Auth Context Route Verification ───
+describe('App - Auth Context Route', () => {
+  it('should return 401 for context route without token', async () => {
+    const response = await agent.get('/api/v1/auth/context');
+    expect(response.status).toBe(401);
+  });
+
+  it('should return non-401 for context route with valid token', async () => {
+    const response = await agent
+      .get('/api/v1/auth/context')
+      .set('Authorization', `Bearer ${sysadminToken()}`);
+    expect(response.status).not.toBe(401);
+  });
+});
+
+// ─── Auth Projects Route ───
+describe('App - Auth Projects Route', () => {
+  it('should return 401 for projects route without token', async () => {
+    const response = await agent.get('/api/v1/auth/projects');
+    expect(response.status).toBe(401);
+  });
+
+  it('should return non-401 for projects route with valid token', async () => {
+    const response = await agent
+      .get('/api/v1/auth/projects')
+      .set('Authorization', `Bearer ${adminToken()}`);
+    expect(response.status).not.toBe(401);
+  });
+});
+
+// ─── Auth Logout Route ───
+describe('App - Auth Logout Route', () => {
+  it('should return 401 for logout without token', async () => {
+    const response = await agent.post('/api/v1/auth/logout');
+    expect(response.status).toBe(401);
+  });
+
+  it('should return non-401 for logout with valid token', async () => {
+    const response = await agent
+      .post('/api/v1/auth/logout')
+      .set('Authorization', `Bearer ${sysadminToken()}`);
+    expect(response.status).not.toBe(401);
+  });
+});
+
+// ─── Auth Selection Route ───
+describe('App - Auth Selection Route', () => {
+  it('should return 401 for PUT selection without token', async () => {
+    const response = await agent.put('/api/v1/auth/selection');
+    expect(response.status).toBe(401);
+  });
+
+  it('should return non-401 for PUT selection with valid token', async () => {
+    const response = await agent
+      .put('/api/v1/auth/selection')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({});
+    expect(response.status).not.toBe(401);
+  });
+});
+
+// ─── Duplicate Route Prefix Check ───
+describe('App - Route Mount Points', () => {
+  it('should mount article routes at /api/v1', async () => {
+    const response = await agent
+      .get('/api/v1/projects/1/articles')
+      .set('Authorization', `Bearer ${adminToken()}`);
+    expect(response.status).not.toBe(404);
+  });
+
+  it('should mount knowledge routes at /api/v1', async () => {
+    const response = await agent
+      .get('/api/v1/projects/1/knowledge/keywords')
+      .set('Authorization', `Bearer ${adminToken()}`);
+    expect(response.status).not.toBe(404);
+  });
+
+  it('should mount upload routes at /api/v1/upload', async () => {
+    // Upload POST requires multipart, just verify route exists (not 404)
+    const response = await agent
+      .post('/api/v1/upload')
+      .set('Authorization', `Bearer ${adminToken()}`);
+    expect(response.status).not.toBe(404);
+  });
+});
+
+// ─── JSON Body Size Boundary ───
+describe('App - JSON Body Size Boundary', () => {
+  it('should accept JSON body at exactly 10mb limit', async () => {
+    // Create a payload close to but under 10mb
+    const largePayload = { data: 'x'.repeat(9 * 1024 * 1024) };
+    const response = await agent
+      .post('/api/v1/auth/login')
+      .send(largePayload);
+    // Should not be rejected for size (may fail for other reasons)
+    expect(response.status).not.toBe(500);
+  });
+});

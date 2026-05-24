@@ -1,10 +1,20 @@
-import React, { useEffect } from 'react';
-import { Typography, Button, Card, Space, Breadcrumb } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Typography, Button, Card, Space, Breadcrumb, Alert, Spin } from 'antd';
 import { LinkOutlined, ApiOutlined } from '@ant-design/icons';
 
 const ApiDocsPage: React.FC = () => {
+  const [swaggerAvailable, setSwaggerAvailable] = useState<boolean | null>(null);
+
   useEffect(() => {
     document.title = 'API 文档 - 薄云商机倍增服务';
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch('/api-docs/', { method: 'HEAD', signal: controller.signal })
+      .then(res => setSwaggerAvailable(res.ok))
+      .catch(() => setSwaggerAvailable(false));
+    return () => controller.abort();
   }, []);
 
   return (
@@ -22,16 +32,27 @@ const ApiDocsPage: React.FC = () => {
             通过 Swagger UI 查看、测试和管理所有 API 接口。
             支持在线调试、参数说明和响应示例查看。
           </Typography.Text>
-          <Button
-            type="primary"
-            icon={<LinkOutlined />}
-            href="/api-docs/"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="在新窗口打开 Swagger API 文档"
-          >
-            打开 Swagger 文档
-          </Button>
+          {swaggerAvailable === null && <Spin size="small" />}
+          {swaggerAvailable === true && (
+            <Button
+              type="primary"
+              icon={<LinkOutlined />}
+              href="/api-docs/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="在新窗口打开 Swagger API 文档"
+            >
+              打开 Swagger 文档
+            </Button>
+          )}
+          {swaggerAvailable === false && (
+            <Alert
+              type="info"
+              message="API 文档服务当前不可用"
+              description="Swagger 文档服务未启用，请联系系统管理员或在开发环境中访问。"
+              showIcon
+            />
+          )}
         </Space>
       </Card>
     </div>
