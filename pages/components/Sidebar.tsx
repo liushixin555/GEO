@@ -107,7 +107,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {showFull ? (
         <div className="sidebar-footer">
-          <Space direction="vertical" size={4} className="sidebar-footer-full-width">
+          <Space orientation="vertical" size={4} className="sidebar-footer-full-width">
             <div className="sidebar-footer-row">
               <Typography.Text className="sidebar-footer-name">
                 <UserOutlined className="sidebar-icon-margin" />
