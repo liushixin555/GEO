@@ -1,9 +1,17 @@
 import { Request, Response } from 'express';
-import { ILlmModelService } from '../service/llm-model.service';
-import { LlmModelServiceImpl } from '../service/impl/llm-model.service.impl';
+import { createLlmModelService } from '../service';
+import { AppError } from '../errors';
 import { success, fail, created } from '../utils';
 
-const llmModelService: ILlmModelService = new LlmModelServiceImpl();
+const llmModelService = createLlmModelService();
+
+function handleError(res: Response, err: unknown, defaultMsg: string): void {
+  if (err instanceof AppError) {
+    fail(res, err.statusCode, err.message);
+  } else {
+    fail(res, 500, defaultMsg);
+  }
+}
 
 // === 工具函数 ===
 
@@ -67,8 +75,8 @@ export async function listLlmModels(_req: Request, res: Response): Promise<void>
   try {
     const items = await llmModelService.list();
     success(res, items);
-  } catch (_err: unknown) {
-    fail(res, 500, '获取LLM模型列表失败');
+  } catch (err: unknown) {
+    handleError(res, err, '获取LLM模型列表失败');
   }
 }
 
@@ -76,8 +84,8 @@ export async function listEnabledLlmModels(_req: Request, res: Response): Promis
   try {
     const items = await llmModelService.listEnabled();
     success(res, items);
-  } catch (_err: unknown) {
-    fail(res, 500, '获取启用的LLM模型列表失败');
+  } catch (err: unknown) {
+    handleError(res, err, '获取启用的LLM模型列表失败');
   }
 }
 
@@ -89,11 +97,7 @@ export async function getLlmModel(req: Request, res: Response): Promise<void> {
     const item = await llmModelService.getById(id);
     success(res, item);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === 'LLM模型不存在') {
-      fail(res, 404, err.message);
-    } else {
-      fail(res, 500, '获取LLM模型详情失败');
-    }
+    handleError(res, err, '获取LLM模型详情失败');
   }
 }
 
@@ -115,8 +119,8 @@ export async function createLlmModel(req: Request, res: Response): Promise<void>
 
     const item = await llmModelService.create({ provider, base_url, api_key, model_name });
     created(res, item, '创建LLM模型成功');
-  } catch (_err: unknown) {
-    fail(res, 500, '创建LLM模型失败');
+  } catch (err: unknown) {
+    handleError(res, err, '创建LLM模型失败');
   }
 }
 
@@ -156,11 +160,7 @@ export async function updateLlmModel(req: Request, res: Response): Promise<void>
     const item = await llmModelService.update(id, { provider, base_url, api_key, model_name, status });
     success(res, item, '更新LLM模型成功');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === 'LLM模型不存在') {
-      fail(res, 404, err.message);
-    } else {
-      fail(res, 500, '更新LLM模型失败');
-    }
+    handleError(res, err, '更新LLM模型失败');
   }
 }
 
@@ -172,10 +172,6 @@ export async function deleteLlmModel(req: Request, res: Response): Promise<void>
     await llmModelService.delete(id);
     success(res, null, '删除LLM模型成功');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === 'LLM模型不存在') {
-      fail(res, 404, err.message);
-    } else {
-      fail(res, 500, '删除LLM模型失败');
-    }
+    handleError(res, err, '删除LLM模型失败');
   }
 }

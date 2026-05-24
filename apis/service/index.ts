@@ -15,6 +15,13 @@ export function createUserService(): IUserService {
 }
 export { ILlmModelService } from './llm-model.service';
 export { LlmModelServiceImpl } from './impl/llm-model.service.impl';
+
+import { ILlmModelService } from './llm-model.service';
+import { LlmModelServiceImpl } from './impl/llm-model.service.impl';
+
+export function createLlmModelService(): ILlmModelService {
+  return new LlmModelServiceImpl();
+}
 export { ISystemConfigService } from './system-config.service';
 export { SystemConfigServiceImpl } from './impl/system-config.service.impl';
 export { IPublishingPlatformService } from './publishing-platform.service';

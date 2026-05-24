@@ -11,7 +11,7 @@ export class LlmModelServiceImpl implements ILlmModelService {
     return items.map(mapLlmModel);
   }
 
-  async listEnabled(): Promise<{ id: number; provider: string; model_name: string }[]> {
+  async listEnabled(): Promise<Pick<LlmModel, 'id' | 'provider' | 'model_name'>[]> {
     const prisma = getPrisma();
     const items = await prisma.llmModel.findMany({
       where: { status: true },
@@ -44,7 +44,7 @@ export class LlmModelServiceImpl implements ILlmModelService {
   async update(id: number, request: UpdateLlmModelRequest): Promise<LlmModel> {
     const prisma = getPrisma();
     const existing = await prisma.llmModel.findFirst({ where: { id } });
-    if (!existing) throw new Error('LLM模型不存在');
+    if (!existing) throw new NotFoundError('LLM模型');
 
     const data: any = {};
     if (request.provider !== undefined) data.provider = request.provider;
@@ -60,7 +60,7 @@ export class LlmModelServiceImpl implements ILlmModelService {
   async delete(id: number): Promise<void> {
     const prisma = getPrisma();
     const existing = await prisma.llmModel.findFirst({ where: { id } });
-    if (!existing) throw new Error('LLM模型不存在');
+    if (!existing) throw new NotFoundError('LLM模型');
     await prisma.llmModel.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 }
