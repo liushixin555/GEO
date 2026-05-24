@@ -2,8 +2,9 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import MarkdownViewer, { safeUrlTransform } from '../../../pages/components/MarkdownViewer';
+import type { MarkdownViewerRef } from '../../../pages/components/MarkdownViewer';
 
 let mockProps: Record<string, unknown> = {};
 
@@ -274,5 +275,100 @@ describe('safeUrlTransform', () => {
 
   it('allows anchor links', () => {
     expect(safeUrlTransform('#section-1')).toBe('#section-1');
+  });
+});
+
+describe('MarkdownViewer — UI review fixes', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockProps = {};
+  });
+
+  it('uses antd Empty component for empty state', () => {
+    render(<MarkdownViewer content="" emptyText="暂无内容" />);
+    expect(screen.getByTestId('antd-empty')).toBeInTheDocument();
+    expect(screen.getByTestId('antd-empty').textContent).toBe('暂无内容');
+  });
+
+  it('uses antd Empty component when content is undefined', () => {
+    render(<MarkdownViewer />);
+    expect(screen.getByTestId('antd-empty')).toBeInTheDocument();
+  });
+
+  it('accepts custom ariaLabel prop', () => {
+    render(<MarkdownViewer content="test" ariaLabel="自定义预览区域" />);
+    const region = screen.getByRole('region');
+    expect(region).toHaveAttribute('aria-label', '自定义预览区域');
+  });
+
+  it('defaults ariaLabel to "Markdown 内容预览"', () => {
+    render(<MarkdownViewer content="test" />);
+    const region = screen.getByRole('region');
+    expect(region).toHaveAttribute('aria-label', 'Markdown 内容预览');
+  });
+
+  it('accepts custom role prop', () => {
+    render(<MarkdownViewer content="test" role="article" />);
+    expect(screen.getByRole('article')).toBeInTheDocument();
+  });
+
+  it('defaults role to "region"', () => {
+    render(<MarkdownViewer content="test" />);
+    expect(screen.getByRole('region')).toBeInTheDocument();
+  });
+
+  it('exposes scrollToTop via ref', () => {
+    const ref = React.createRef<MarkdownViewerRef>();
+    const { container } = render(<MarkdownViewer ref={ref} content="test" />);
+    const viewerDiv = container.querySelector('.markdown-viewer') as HTMLElement;
+    viewerDiv.scrollTo = jest.fn();
+    ref.current?.scrollToTop();
+    expect(viewerDiv.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+  });
+
+  it('exposes scrollToAnchor via ref', () => {
+    const ref = React.createRef<MarkdownViewerRef>();
+    render(<MarkdownViewer ref={ref} content="test" />);
+    expect(typeof ref.current?.scrollToAnchor).toBe('function');
+  });
+
+  it('calls onScroll when scrolling', () => {
+    const onScroll = jest.fn();
+    const { container } = render(<MarkdownViewer content="test" onScroll={onScroll} />);
+    const viewerDiv = container.querySelector('.markdown-viewer') as HTMLElement;
+    fireEvent.scroll(viewerDiv);
+    expect(onScroll).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onClick when clicking', () => {
+    const onClick = jest.fn();
+    const { container } = render(<MarkdownViewer content="test" onClick={onClick} />);
+    const viewerDiv = container.querySelector('.markdown-viewer') as HTMLElement;
+    fireEvent.click(viewerDiv);
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onKeyDown when key is pressed', () => {
+    const onKeyDown = jest.fn();
+    const { container } = render(<MarkdownViewer content="test" onKeyDown={onKeyDown} />);
+    const viewerDiv = container.querySelector('.markdown-viewer') as HTMLElement;
+    fireEvent.keyDown(viewerDiv, { key: 'Enter' });
+    expect(onKeyDown).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onMouseEnter when mouse enters', () => {
+    const onMouseEnter = jest.fn();
+    const { container } = render(<MarkdownViewer content="test" onMouseEnter={onMouseEnter} />);
+    const viewerDiv = container.querySelector('.markdown-viewer') as HTMLElement;
+    fireEvent.mouseEnter(viewerDiv);
+    expect(onMouseEnter).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onMouseLeave when mouse leaves', () => {
+    const onMouseLeave = jest.fn();
+    const { container } = render(<MarkdownViewer content="test" onMouseLeave={onMouseLeave} />);
+    const viewerDiv = container.querySelector('.markdown-viewer') as HTMLElement;
+    fireEvent.mouseLeave(viewerDiv);
+    expect(onMouseLeave).toHaveBeenCalledTimes(1);
   });
 });

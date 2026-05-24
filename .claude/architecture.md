@@ -44,6 +44,7 @@ tests/apis/  + tests/pages/  测试文件
 - `pages/theme/carbon.ts` — IBM Carbon Design System antd 主题配置
 - `pages/login/index.tsx` — 登录页
 - `pages/styles/global.css` — 全局样式（CSS 变量来自 DESIGN.md）
+- `.agents/skills/web-video-presentation/templates/src/hooks/useAudioPlayer.ts` — 音频播放 hook（useAudioPlayer + estimateMs，PlaybackMode 类型导出）
 
 ## 认证流程
 1. `POST /api/auth/login` → JWT 令牌 + 用户信息 → 存 localStorage

@@ -1,8 +1,8 @@
-import React, { useMemo, Component } from 'react';
+import React, { useMemo, Component, forwardRef, useRef, useImperativeHandle } from 'react';
 import MarkdownPreview from '@uiw/react-markdown-preview/nohighlight';
-import { Spin, Typography, theme } from 'antd';
+import { Spin, Typography, Empty, theme } from 'antd';
 import DOMPurify from 'dompurify';
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties, ReactNode, UIEvent, MouseEvent, KeyboardEvent } from 'react';
 import '../styles/markdown-viewer.css';
 
 const MAX_SOURCE_LENGTH = 1048576; // 1MB 安全长上限
@@ -76,16 +76,45 @@ interface MarkdownViewerProps {
   style?: CSSProperties;
   /** 自定义类名 */
   className?: string;
+  /** 容器的 ARIA 标签，默认 "Markdown 内容预览" */
+  ariaLabel?: string;
+  /** 容器的 ARIA 角色，默认 "region" */
+  role?: 'region' | 'document' | 'article';
+  /** 滚动事件 */
+  onScroll?: (e: UIEvent<HTMLDivElement>) => void;
+  /** 点击事件 */
+  onClick?: (e: MouseEvent<HTMLDivElement>) => void;
+  /** 键盘事件 */
+  onKeyDown?: (e: KeyboardEvent<HTMLDivElement>) => void;
+  /** 鼠标进入事件（不冒泡） */
+  onMouseEnter?: (e: MouseEvent<HTMLDivElement>) => void;
+  /** 鼠标离开事件（不冒泡） */
+  onMouseLeave?: (e: MouseEvent<HTMLDivElement>) => void;
 }
 
-const MarkdownViewer: React.FC<MarkdownViewerProps> = React.memo(({
+export interface MarkdownViewerRef {
+  /** 滚动到顶部 */
+  scrollToTop(): void;
+  /** 滚动到指定锚点 */
+  scrollToAnchor(anchor: string): void;
+}
+
+const MarkdownViewer = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
   content,
   loading,
   error,
   emptyText = '暂无内容',
   style,
   className,
-}) => {
+  ariaLabel = 'Markdown 内容预览',
+  role: roleProp = 'region',
+  onScroll,
+  onClick,
+  onKeyDown,
+  onMouseEnter,
+  onMouseLeave,
+}, ref) => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const { token } = theme.useToken();
   const colorMode = useMemo(() => {
     const bg = token.colorBgBase;
@@ -111,6 +140,15 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = React.memo(({
     });
   }, [content]);
 
+  useImperativeHandle(ref, () => ({
+    scrollToTop() {
+      containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    scrollToAnchor(anchor: string) {
+      containerRef.current?.querySelector(`#${CSS.escape(anchor)}`)?.scrollIntoView({ behavior: 'smooth' });
+    },
+  }));
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 48 }}>
@@ -124,20 +162,22 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = React.memo(({
   }
 
   if (!content) {
-    return (
-      <div style={{ padding: 48, textAlign: 'center', color: 'var(--color-ink-subtle)' }}>
-        {emptyText}
-      </div>
-    );
+    return <Empty description={emptyText} />;
   }
 
   return (
     <MarkdownErrorBoundary>
       <div
-        role="region"
-        aria-label="Markdown 内容预览"
+        ref={containerRef}
+        role={roleProp}
+        aria-label={ariaLabel}
         className={`markdown-viewer${className ? ` ${className}` : ''}`}
         style={style}
+        onScroll={onScroll}
+        onClick={onClick}
+        onKeyDown={onKeyDown}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
       >
         <MarkdownPreview
           source={safeSource}
