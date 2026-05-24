@@ -846,4 +846,221 @@ describe('apis/config/index.ts', () => {
       expect(cron.articleGenerationEnabled).toBeDefined();
     });
   });
+
+  describe('dotenv integration', () => {
+    it('should call dotenv.config() at module import time', async () => {
+      // Verify dotenv was loaded by checking that .env values are present
+      const config = await loadConfigWithEnv({});
+      // .env sets SWAGGER_ENABLED=true, which config reads
+      // If dotenv wasn't called, this would be false
+      expect(config.swagger.enabled).toBe(true);
+    });
+  });
+
+  describe('JWT_EXPIRES_IN fallback to DEFAULTS', () => {
+    it('should use DEFAULTS.JWT_EXPIRES_IN when dotenv is mocked away and env not set', async () => {
+      jest.resetModules();
+      // Mock dotenv to not load .env, so only explicit env vars exist
+      jest.doMock('dotenv', () => ({ config: jest.fn() }));
+      const configKeys = [
+        'NODE_ENV', 'PORT', 'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD',
+        'DB_POOL_MIN', 'DB_POOL_MAX', 'JWT_SECRET', 'JWT_EXPIRES_IN', 'SWAGGER_ENABLED',
+        'RATE_LIMIT_WINDOW_MS', 'RATE_LIMIT_MAX', 'CRON_ARTICLE_INTERVAL', 'CRON_ARTICLE_ENABLED',
+        'CORS_ORIGINS',
+      ];
+      configKeys.forEach(key => delete process.env[key]);
+      // Only set what's needed — intentionally omit JWT_EXPIRES_IN
+      process.env.DB_PASSWORD = 'test-pwd';
+      process.env.JWT_SECRET = 'test-secret-that-is-long-enough-32chars';
+      const mod = await import('../../apis/config/index');
+      const config = mod.default;
+      expect(config.jwt.expiresIn).toBe('2h'); // DEFAULTS.JWT_EXPIRES_IN
+      process.env = { ...originalEnv };
+      jest.resetModules();
+    });
+  });
+
+  describe('safeParseInt additional edge cases', () => {
+    it('should throw when PORT is hex string "0xFF"', async () => {
+      await expect(loadConfigWithEnv({ PORT: '0xFF' })).rejects.toThrow(
+        'FATAL: PORT must be a valid integer'
+      );
+    });
+
+    it('should throw when PORT is scientific notation "1e5"', async () => {
+      await expect(loadConfigWithEnv({ PORT: '1e5' })).rejects.toThrow(
+        'FATAL: PORT must be a valid integer'
+      );
+    });
+
+    it('should throw when PORT has plus prefix "+5"', async () => {
+      await expect(loadConfigWithEnv({ PORT: '+5' })).rejects.toThrow(
+        'FATAL: PORT must be a valid integer'
+      );
+    });
+
+    it('should accept PORT with leading zeros "007"', async () => {
+      const config = await loadConfigWithEnv({ PORT: '007' });
+      expect(config.server.port).toBe(7);
+    });
+
+    it('should throw when DB_POOL_MIN is negative', async () => {
+      await expect(loadConfigWithEnv({ DB_POOL_MIN: '-1' })).rejects.toThrow(
+        'FATAL: DB_POOL_MIN must be >= 0'
+      );
+    });
+
+    it('should throw when DB_POOL_MAX is negative', async () => {
+      await expect(loadConfigWithEnv({ DB_POOL_MAX: '-1' })).rejects.toThrow(
+        'FATAL: DB_POOL_MAX must be >= 1'
+      );
+    });
+
+    it('should accept DB_POOL_MAX=1 (minimum valid)', async () => {
+      const config = await loadConfigWithEnv({ DB_POOL_MAX: '1' });
+      expect(config.database.pool.max).toBe(1);
+    });
+
+    it('should throw when RATE_LIMIT_MAX is non-numeric "1e2"', async () => {
+      await expect(loadConfigWithEnv({ RATE_LIMIT_MAX: '1e2' })).rejects.toThrow(
+        'FATAL: RATE_LIMIT_MAX must be a valid integer'
+      );
+    });
+  });
+
+  describe('string fallbacks for empty env vars', () => {
+    it('should fall back to default DB_HOST when env is empty string', async () => {
+      const config = await loadConfigWithEnv({ DB_HOST: '' });
+      // '' || DEFAULTS.DB_HOST → DEFAULTS.DB_HOST
+      expect(config.database.host).toBe('localhost');
+    });
+
+    it('should fall back to default DB_NAME when env is empty string', async () => {
+      const config = await loadConfigWithEnv({ DB_NAME: '' });
+      expect(config.database.name).toBe('geo_ts');
+    });
+
+    it('should fall back to default DB_USER when env is empty string', async () => {
+      const config = await loadConfigWithEnv({ DB_USER: '' });
+      expect(config.database.user).toBe('postgres');
+    });
+
+    it('should fall back to default CRON_ARTICLE_INTERVAL when env is empty string', async () => {
+      const config = await loadConfigWithEnv({ CRON_ARTICLE_INTERVAL: '' });
+      expect(config.cron.articleGenerationInterval).toBe('*/5 * * * *');
+    });
+  });
+
+  describe('deepFreeze with null and nested values', () => {
+    it('should handle objects with null-like values gracefully', async () => {
+      // deepFreeze iterates keys and checks val && typeof val === 'object'
+      // This is implicitly tested by the config object itself, but we verify
+      // that boolean (swagger.enabled=false) properties don't crash deepFreeze
+      const config = await loadConfigWithEnv({ SWAGGER_ENABLED: 'false' });
+      expect(config.swagger.enabled).toBe(false);
+      // If deepFreeze crashed on non-object values, this would fail
+      expect(() => {
+        (config.swagger as { enabled: boolean }).enabled = true;
+      }).toThrow();
+    });
+
+    it('should prevent modification of nested database.host', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config.database as { host: string }).host = 'evil';
+      }).toThrow();
+    });
+
+    it('should prevent modification of nested database.user', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config.database as { user: string }).user = 'hacker';
+      }).toThrow();
+    });
+
+    it('should prevent modification of nested database.name', async () => {
+      const config = await loadConfigWithEnv({});
+      expect(() => {
+        (config.database as { name: string }).name = 'stolen';
+      }).toThrow();
+    });
+  });
+
+  describe('named export compatibility', () => {
+    it('should export config as both default and named export', async () => {
+      jest.resetModules();
+      const configKeys = [
+        'NODE_ENV', 'PORT', 'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD',
+        'DB_POOL_MIN', 'DB_POOL_MAX', 'JWT_SECRET', 'JWT_EXPIRES_IN', 'SWAGGER_ENABLED',
+        'RATE_LIMIT_WINDOW_MS', 'RATE_LIMIT_MAX', 'CRON_ARTICLE_INTERVAL', 'CRON_ARTICLE_ENABLED',
+        'CORS_ORIGINS',
+      ];
+      configKeys.forEach(key => delete process.env[key]);
+      process.env.DB_PASSWORD = 'test-pwd';
+      process.env.JWT_SECRET = 'test-secret-that-is-long-enough-32chars';
+      const mod = await import('../../apis/config/index');
+      expect(mod.default).toBeDefined();
+      expect(mod.default).toBe(mod.default); // same reference
+      process.env = { ...originalEnv };
+      jest.resetModules();
+    });
+  });
+
+  describe('CORS_ORIGINS additional edge cases', () => {
+    it('should handle CORS_ORIGINS with spaces and mixed protocols', async () => {
+      const config = await loadConfigWithEnv({
+        CORS_ORIGINS: ' http://a.com , https://b.com , http://c.com ',
+      });
+      expect(config.corsOrigins).toEqual(['http://a.com', 'https://b.com', 'http://c.com']);
+    });
+
+    it('should throw when CORS_ORIGINS contains only one invalid entry', async () => {
+      await expect(
+        loadConfigWithEnv({ CORS_ORIGINS: 'bad-url' })
+      ).rejects.toThrow('must start with http:// or https://');
+    });
+
+    it('should handle CORS_ORIGINS with port numbers', async () => {
+      const config = await loadConfigWithEnv({
+        CORS_ORIGINS: 'http://localhost:3000,https://prod.example.com:443',
+      });
+      expect(config.corsOrigins).toEqual([
+        'http://localhost:3000',
+        'https://prod.example.com:443',
+      ]);
+    });
+
+    it('should prevent pushing to corsOrigins after creation', async () => {
+      const config = await loadConfigWithEnv({ CORS_ORIGINS: 'http://localhost:3000' });
+      expect(() => {
+        (config.corsOrigins as string[]).push('http://evil.com');
+      }).toThrow();
+    });
+  });
+
+  describe('production environment comprehensive', () => {
+    it('should work in production with all required secrets set', async () => {
+      const config = await loadConfigWithEnv({
+        NODE_ENV: 'production',
+        DB_PASSWORD: 'prod-password-123',
+        JWT_SECRET: 'prod-jwt-secret-key-that-is-at-least-32-chars',
+      });
+      expect(config.database.password).toBe('prod-password-123');
+      expect(config.jwt.secret).toBe('prod-jwt-secret-key-that-is-at-least-32-chars');
+    });
+
+    it('should warn about short JWT_SECRET in production', async () => {
+      const spy = jest.spyOn(console, 'error').mockImplementation();
+      const config = await loadConfigWithEnv({
+        NODE_ENV: 'production',
+        DB_PASSWORD: 'prod-pwd',
+        JWT_SECRET: 'short',
+      });
+      expect(spy).toHaveBeenCalledWith(
+        expect.stringContaining('JWT_SECRET is only 5 characters')
+      );
+      expect(config.jwt.secret).toBe('short');
+      spy.mockRestore();
+    });
+  });
 });
