@@ -203,3 +203,44 @@ onMouseLeave?: (e: MouseEvent<HTMLDivElement>) => void;
 - [x] 全部 67 个 MarkdownViewer 测试通过
 - [x] 前端构建通过
 - [x] TypeScript 类型检查通过
+
+---
+
+## 第五轮评审修复（react-markdown-preview index.tsx 架构评审，2026-05-24）
+
+基于 `tasks/review/react-markdown-preview.index.tsx.architecture.md` 架构专家评审（综合评分 5.4/10），对照检查 MarkdownViewer 封装组件的架构合规性。
+
+### 架构评审问题对照
+
+| 评审问题 | 优先级 | 修复措施 | 状态 |
+|---------|--------|---------|------|
+| A-01 每次渲染重建管线 | P1 🔴 | React.memo 包裹 + useCallback/useMemo 稳定引用 | ✅ |
+| A-02 安全策略分裂 | P1 🔴 | DOMPurify + SAFE_TAGS + safeUrlTransform + FORBID_ATTR 纵深防御 | ✅ 已有 |
+| A-03 OCP 管线不可定制 | P1 🔴 | 使用 nohighlight 入口，无硬编码插件管线 | ✅ 已有 |
+| A-04 代码克隆 DRY 违反 | P1 🔴 | 使用 nohighlight 入口，规避 index.tsx/common.tsx 双入口问题 | ✅ 已有 |
+| A-05 rehypeRewriteHandle 混合依赖 | P2 🟡 | 自定义 rehypeRewrite useCallback，与上游解耦 | ✅ 已有 |
+| A-07 forwardRef 匿名函数 | P2 🟡 | MarkdownViewerBase.displayName + MarkdownViewer.displayName | ✅ 已有 |
+| A-09 全量 prism bundle | P3 🟢 | 使用 nohighlight 入口，零语法高亮 bundle 开销 | ✅ 已有 |
+| A-10 防御式编程不一致 | P3 🟢 | MarkdownViewer 统一使用 `??` nullish 合并 | ✅ 已有 |
+
+### 本次新增修复
+
+| 评审问题 | 修复内容 | 说明 |
+|---------|---------|------|
+| A-01 深层优化 | `allowElement` 提取为 `useCallback([], [])` | 内联箭头函数每次渲染创建新引用，即使逻辑完全稳定。稳定引用防止 MarkdownPreview 下游管线不必要重建 |
+| A-01 深层优化 | `wrapperElement` 提取为 `useMemo([resolvedColorMode])` | 内联对象字面量每次渲染创建新引用。仅在 resolvedColorMode 变化时创建新对象 |
+
+### 涉及文件
+
+- `pages/components/MarkdownViewer.tsx` — allowElement useCallback + wrapperElement useMemo
+- `tests/pages/components/MarkdownViewer.test.tsx` — 新增 7 个架构修复测试（74 个全部通过）
+
+### 验收标准（第五轮）
+
+- [x] allowElement 提取为 useCallback，引用稳定（跨渲染不变）
+- [x] wrapperElement 提取为 useMemo，仅在 colorMode 变化时重建
+- [x] allowElement 功能回归测试通过（标签白名单 + input checkbox 过滤）
+- [x] wrapperElement 引用稳定性测试通过
+- [x] rehypeRewrite/safeUrlTransform 引用稳定性测试通过
+- [x] 全部 74 个 MarkdownViewer 测试通过
+- [x] 前端构建通过

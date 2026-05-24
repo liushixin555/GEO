@@ -202,6 +202,20 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
     });
   }, [content]);
 
+  // A-01 架构修复：useCallback 稳定引用，防止 MarkdownPreview 不必要管线重建
+  const allowElement = useCallback(
+    (element: { tagName: string; properties?: Record<string, unknown> }) => {
+      const tag = element.tagName.toLowerCase();
+      if (!SAFE_TAGS.has(tag)) return false;
+      if (tag === 'input') {
+        const type = element.properties?.type;
+        return typeof type === 'string' && SAFE_INPUT_TYPES.has(type);
+      }
+      return true;
+    },
+    [],
+  );
+
   // P2-a11y + SEC-03: 为复制按钮注入 ARIA 属性 + 超长代码块跳过复制按钮
   const rehypeRewrite = useCallback(
     (node: any, index: number | undefined, parent: any) => {
@@ -221,6 +235,12 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
       }
     },
     [],
+  );
+
+  // A-01 架构修复：useMemo 稳定引用，仅在 resolvedColorMode 变化时创建新对象
+  const wrapperElement = useMemo(
+    () => ({ 'data-color-mode': resolvedColorMode }),
+    [resolvedColorMode],
   );
 
   useImperativeHandle(ref, () => ({
@@ -265,19 +285,10 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
       >
         <MarkdownPreview
           source={safeSource}
-          wrapperElement={{ 'data-color-mode': resolvedColorMode }}
+          wrapperElement={wrapperElement}
           urlTransform={safeUrlTransform}
           rehypeRewrite={rehypeRewrite}
-          allowElement={(element) => {
-            const tag = element.tagName.toLowerCase();
-            if (!SAFE_TAGS.has(tag)) return false;
-            // input 仅允许 checkbox 类型（S3 加固）
-            if (tag === 'input') {
-              const type = (element.properties as Record<string, unknown>)?.type;
-              return typeof type === 'string' && SAFE_INPUT_TYPES.has(type);
-            }
-            return true;
-          }}
+          allowElement={allowElement}
         />
       </div>
     </MarkdownErrorBoundary>

@@ -593,3 +593,93 @@ describe('MarkdownViewer — displayName', () => {
     expect(MarkdownViewer.displayName).toBe('MarkdownViewer');
   });
 });
+
+describe('MarkdownViewer — A-01 architecture fix: stable callback/memo references', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockProps = {};
+    mockMatchMediaResult = { matches: false, addEventListener: jest.fn(), removeEventListener: jest.fn() };
+    (window.matchMedia as jest.Mock).mockReturnValue(mockMatchMediaResult);
+    mockToken = { colorBgBase: '#ffffff' };
+  });
+
+  it('allowElement has a stable reference via useCallback', () => {
+    const { rerender } = render(<MarkdownViewer content="test" />);
+    const firstAllowElement = mockProps.allowElement;
+    expect(typeof firstAllowElement).toBe('function');
+
+    // 用相同 props 重渲染
+    rerender(<MarkdownViewer content="test" />);
+    expect(mockProps.allowElement).toBe(firstAllowElement);
+  });
+
+  it('allowElement remains stable when content changes', () => {
+    // allowElement 不依赖 content，即使 content 变化引用也应保持稳定
+    const { rerender } = render(<MarkdownViewer content="first" />);
+    const firstAllowElement = mockProps.allowElement;
+
+    rerender(<MarkdownViewer content="second" />);
+    // useCallback([]) 保证引用稳定，不随任何 prop 变化
+    expect(mockProps.allowElement).toBe(firstAllowElement);
+  });
+
+  it('allowElement correctly filters safe and unsafe tags', () => {
+    render(<MarkdownViewer content="test" />);
+    const allowElement = mockProps.allowElement as (element: { tagName: string; properties?: Record<string, unknown> }) => boolean;
+
+    // 安全标签
+    expect(allowElement({ tagName: 'p' })).toBe(true);
+    expect(allowElement({ tagName: 'code' })).toBe(true);
+    expect(allowElement({ tagName: 'a' })).toBe(true);
+
+    // 危险标签
+    expect(allowElement({ tagName: 'script' })).toBe(false);
+    expect(allowElement({ tagName: 'iframe' })).toBe(false);
+    expect(allowElement({ tagName: 'object' })).toBe(false);
+    expect(allowElement({ tagName: 'svg' })).toBe(false);
+
+    // input 只有 checkbox 允许
+    expect(allowElement({ tagName: 'input', properties: { type: 'checkbox' } })).toBe(true);
+    expect(allowElement({ tagName: 'input', properties: { type: 'text' } })).toBe(false);
+    expect(allowElement({ tagName: 'input' })).toBe(false);
+  });
+
+  it('wrapperElement has a stable reference when colorMode is unchanged', () => {
+    const { rerender } = render(<MarkdownViewer content="test" />);
+    const firstWrapper = mockProps.wrapperElement;
+
+    rerender(<MarkdownViewer content="test" />);
+    // useMemo 仅在 resolvedColorMode 变化时创建新对象
+    expect(mockProps.wrapperElement).toBe(firstWrapper);
+  });
+
+  it('wrapperElement creates new object when colorMode changes', () => {
+    mockToken = { colorBgBase: '#ffffff' };
+    const { rerender } = render(<MarkdownViewer content="test" />);
+    const lightWrapper = mockProps.wrapperElement;
+    expect(lightWrapper).toEqual({ 'data-color-mode': 'light' });
+
+    // 切换到暗色主题 — 同时改变 content 强制触发重渲染（模拟 antd token 变更）
+    mockToken = { colorBgBase: '#141414' };
+    rerender(<MarkdownViewer content="test-updated" />);
+    expect(mockProps.wrapperElement).toEqual({ 'data-color-mode': 'dark' });
+    // resolvedColorMode 变化 → useMemo 返回新对象
+    expect(mockProps.wrapperElement).not.toBe(lightWrapper);
+  });
+
+  it('rehypeRewrite has a stable reference via useCallback', () => {
+    const { rerender } = render(<MarkdownViewer content="test" />);
+    const firstRewrite = mockProps.rehypeRewrite;
+
+    rerender(<MarkdownViewer content="test" />);
+    expect(mockProps.rehypeRewrite).toBe(firstRewrite);
+  });
+
+  it('safeUrlTransform is a stable module-level function', () => {
+    const { rerender } = render(<MarkdownViewer content="test" />);
+    expect(mockProps.urlTransform).toBe(safeUrlTransform);
+
+    rerender(<MarkdownViewer content="different" />);
+    expect(mockProps.urlTransform).toBe(safeUrlTransform);
+  });
+});
