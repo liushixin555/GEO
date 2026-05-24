@@ -135,13 +135,21 @@ tests/apis/  + tests/pages/  测试文件
   - API 请求体：`{ keyword: string, expanded_words?: [{word, selected}] }`
   - API 响应体：`{ ...主键词字段, expanded_words: [{id, keyword_id, word, selected}] }`
 
-## 配置项（均可通过 .env 或 config/ 配置）
-- 服务端口
-- 数据库连接信息
-- JWT 密钥和过期时间
-- Swagger 在线文档开关（开发环境允许、生产环境不允许）
-- 限流熔断策略参数
-- 文章生成 cron 表达式（`CRON_ARTICLE_INTERVAL`，默认 `*/5 * * * *`）和开关（`CRON_ARTICLE_ENABLED`，默认 `true`）
+## 配置架构（apis/config/index.ts）
+- **综合评级**: B+（架构评审 8.2/10）— 零业务耦合 + Fail-Fast 启动校验 + 双重不可变保护
+- **消费拓扑**: 13 个模块直接依赖（app.ts、server.ts、auth.middleware.ts、rate-limit.middleware.ts 等）
+- **设计模式**: Singleton（require 缓存）+ Value Object（deepFreeze）+ Factory Method + Strategy（NODE_ENV）
+- **已知架构问题**: 数据库配置双轨（config.database 定义了 6 个字段但 Prisma 使用 DATABASE_URL 独立连接）、模块级副作用不可延迟（import 即执行）
+- 配置项（均可通过 .env 或 config/ 配置）：
+  - 服务端口
+  - 数据库连接信息（注意：Prisma 实际使用 DATABASE_URL，config.database 仅用于诊断日志）
+  - JWT 密钥（生产环境强制设置，开发环境 crypto.randomBytes 自动生成）和过期时间
+  - Swagger 在线文档开关（开发环境允许、生产环境不允许）
+  - 限流熔断策略参数
+  - 文章生成 cron 表达式（`CRON_ARTICLE_INTERVAL`，默认 `*/5 * * * *`）和开关（`CRON_ARTICLE_ENABLED`，默认 `true`）
+  - 连接池参数（`DB_POOL_MIN`/`DB_POOL_MAX`，默认 2/10）
+  - 上传目录（`UPLOAD_DIR`）
+- **评审报告**: tasks/review/config-index.md（安全）、config-index.quality.md（质量 A-）、config-index.architecture.md（架构 B+）、config-index.committer.md（Committer APPROVE）
 
 ## 文章生成调度器（2026-05-18）
 - **模块**: `apis/scheduler/article-generation.scheduler.ts`
