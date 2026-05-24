@@ -69,6 +69,7 @@ echo "正在启动应用容器..."
 sudo docker run -d --name by -p 12380:80 \
   --env-file "$DOCKER_ENV" \
   -v ~/docker_data/by/app/public:/app/public \
+  -v ~/docker_data/by/app/skills:/app/skills \
   -v ~/docker_data/by/app/uploads:/app/uploads by:latest
 
 rm -f "$DOCKER_ENV"
