@@ -1211,4 +1211,575 @@ describe('CompanyServiceImpl', () => {
       expect(mockedGetPrisma).toHaveBeenCalledTimes(1);
     });
   });
+
+  // ──────────────────────────────────────
+  //  validateUserIds (via create / update)
+  // ──────────────────────────────────────
+  describe('validateUserIds — 用户不存在', () => {
+    it('create: should throw BusinessError when operator ID does not exist', async () => {
+      const request = {
+        short_name: 'X',
+        full_name: 'X Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [999],
+      };
+      const mockTx = {
+        company: { create: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await expect(service.create(request)).rejects.toThrow('用户不存在: 999');
+    });
+
+    it('create: should throw BusinessError when viewer ID does not exist', async () => {
+      const request = {
+        short_name: 'X',
+        full_name: 'X Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [1],
+        viewer_ids: [888],
+      };
+      const mockTx = {
+        company: { create: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([{ id: 1, role: 'admin', status: true }]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await expect(service.create(request)).rejects.toThrow('用户不存在: 888');
+    });
+
+    it('create: should throw BusinessError listing all missing IDs', async () => {
+      const request = {
+        short_name: 'X',
+        full_name: 'X Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [100, 101],
+        viewer_ids: [200],
+      };
+      const mockTx = {
+        company: { create: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await expect(service.create(request)).rejects.toThrow('用户不存在: 100, 101, 200');
+    });
+
+    it('update: should throw BusinessError when operator ID does not exist', async () => {
+      const request = {
+        short_name: 'X',
+        full_name: 'X Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [777],
+      };
+      const mockTx = {
+        company: {
+          findUnique: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+          update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+        },
+        user: {
+          findMany: jest.fn().mockResolvedValue([]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await expect(service.update(1, request)).rejects.toThrow('用户不存在: 777');
+    });
+  });
+
+  describe('validateUserIds — sysadmin 防关联', () => {
+    it('create: should throw BusinessError when operator is sysadmin', async () => {
+      const request = {
+        short_name: 'X',
+        full_name: 'X Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [1],
+      };
+      const mockTx = {
+        company: { create: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([{ id: 1, role: 'sysadmin', status: true }]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await expect(service.create(request)).rejects.toThrow('系统管理员不可被关联到公司');
+    });
+
+    it('create: should throw BusinessError when viewer is sysadmin', async () => {
+      const request = {
+        short_name: 'X',
+        full_name: 'X Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [2],
+        viewer_ids: [1],
+      };
+      const mockTx = {
+        company: { create: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 2, role: 'admin', status: true },
+            { id: 1, role: 'sysadmin', status: true },
+          ]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await expect(service.create(request)).rejects.toThrow('系统管理员不可被关联到公司');
+    });
+
+    it('update: should throw BusinessError when sysadmin is in operator_ids', async () => {
+      const request = {
+        short_name: 'X',
+        full_name: 'X Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [1],
+      };
+      const mockTx = {
+        company: {
+          findUnique: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+          update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+        },
+        user: {
+          findMany: jest.fn().mockResolvedValue([{ id: 1, role: 'sysadmin', status: true }]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await expect(service.update(1, request)).rejects.toThrow('系统管理员不可被关联到公司');
+    });
+  });
+
+  describe('validateUserIds — 用户已禁用', () => {
+    it('create: should throw BusinessError when operator is disabled', async () => {
+      const request = {
+        short_name: 'X',
+        full_name: 'X Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [5],
+      };
+      const mockTx = {
+        company: { create: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([{ id: 5, role: 'admin', status: false }]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await expect(service.create(request)).rejects.toThrow('用户已禁用: 5');
+    });
+
+    it('create: should throw BusinessError when viewer is disabled', async () => {
+      const request = {
+        short_name: 'X',
+        full_name: 'X Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [1],
+        viewer_ids: [6],
+      };
+      const mockTx = {
+        company: { create: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 1, role: 'admin', status: true },
+            { id: 6, role: 'view', status: false },
+          ]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await expect(service.create(request)).rejects.toThrow('用户已禁用: 6');
+    });
+
+    it('update: should throw BusinessError when user is disabled', async () => {
+      const request = {
+        short_name: 'X',
+        full_name: 'X Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [3],
+      };
+      const mockTx = {
+        company: {
+          findUnique: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+          update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+        },
+        user: {
+          findMany: jest.fn().mockResolvedValue([{ id: 3, role: 'admin', status: false }]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await expect(service.update(1, request)).rejects.toThrow('用户已禁用: 3');
+    });
+
+    it('create: should list all disabled user IDs in error message', async () => {
+      const request = {
+        short_name: 'X',
+        full_name: 'X Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [10, 11],
+      };
+      const mockTx = {
+        company: { create: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 10, role: 'admin', status: false },
+            { id: 11, role: 'admin', status: false },
+          ]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await expect(service.create(request)).rejects.toThrow('用户已禁用: 10, 11');
+    });
+  });
+
+  describe('validateUserIds — 空数组快速返回', () => {
+    it('create: should skip findMany when both operator_ids and viewer_ids are empty', async () => {
+      const request = {
+        short_name: 'X',
+        full_name: 'X Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [],
+        viewer_ids: [],
+      };
+      const mockTx = {
+        company: { create: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await service.create(request);
+
+      // targetIds.length === 0, so validateUserIds returns early without calling findMany
+      expect(mockTx.user.findMany).not.toHaveBeenCalled();
+    });
+
+    it('update: should skip findMany when both operator_ids and viewer_ids are empty', async () => {
+      const request = {
+        short_name: 'X',
+        full_name: 'X Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [],
+        viewer_ids: [],
+      };
+      const mockTx = {
+        company: {
+          findUnique: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+          update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+        },
+        user: {
+          findMany: jest.fn().mockResolvedValue([]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await service.update(1, request);
+
+      expect(mockTx.user.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  软删除公司（deletedAt != null）
+  // ──────────────────────────────────────
+  describe('软删除公司', () => {
+    it('getById: should throw NotFoundError when company is soft-deleted', async () => {
+      const mockFindUnique = jest.fn().mockResolvedValue(
+        makePrismaCompany({ id: 1, deletedAt: new Date('2025-06-01') }),
+      );
+      mockedGetPrisma.mockReturnValue({ company: { findUnique: mockFindUnique } } as any);
+
+      await expect(service.getById(1)).rejects.toThrow('公司不存在');
+    });
+
+    it('update: should throw NotFoundError when company is soft-deleted', async () => {
+      const request = {
+        short_name: 'X',
+        full_name: 'X Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [1],
+      };
+      const mockTx = {
+        company: {
+          findUnique: jest.fn().mockResolvedValue(
+            makePrismaCompany({ id: 1, deletedAt: new Date('2025-06-01') }),
+          ),
+          update: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })),
+        },
+        user: {
+          findMany: jest.fn().mockResolvedValue([]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      await expect(service.update(1, request)).rejects.toThrow('公司不存在');
+      // Should not call update on a deleted company
+      expect(mockTx.company.update).not.toHaveBeenCalled();
+    });
+
+    it('toggleStatus: should throw NotFoundError when company is soft-deleted', async () => {
+      const mockFindUnique = jest.fn().mockResolvedValue(
+        makePrismaCompany({ id: 1, deletedAt: new Date('2025-06-01') }),
+      );
+      const mockUpdate = jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 }));
+      mockedGetPrisma.mockReturnValue({
+        company: { findUnique: mockFindUnique, update: mockUpdate },
+      } as any);
+
+      await expect(service.toggleStatus(1, false)).rejects.toThrow('公司不存在');
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  ICompanyService 接口合规性
+  // ──────────────────────────────────────
+  describe('ICompanyService 接口合规性', () => {
+    it('should implement all 5 ICompanyService methods', () => {
+      expect(typeof service.list).toBe('function');
+      expect(typeof service.getById).toBe('function');
+      expect(typeof service.create).toBe('function');
+      expect(typeof service.update).toBe('function');
+      expect(typeof service.toggleStatus).toBe('function');
+    });
+
+    it('should have correct method signatures (param count)', () => {
+      expect(service.list.length).toBe(0);
+      expect(service.getById.length).toBe(1);
+      expect(service.create.length).toBe(1);
+      expect(service.update.length).toBe(2);
+      expect(service.toggleStatus.length).toBe(2);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  validateUserIds 校验优先级（sysadmin 优先于禁用检查）
+  // ──────────────────────────────────────
+  describe('validateUserIds — 校验优先级', () => {
+    it('should check missing IDs before sysadmin check', async () => {
+      const request = {
+        short_name: 'X',
+        full_name: 'X Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [1, 999],
+      };
+      const mockTx = {
+        company: { create: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 1, role: 'sysadmin', status: true },
+          ]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      // Missing ID check runs first
+      await expect(service.create(request)).rejects.toThrow('用户不存在: 999');
+    });
+
+    it('should check sysadmin before disabled check', async () => {
+      const request = {
+        short_name: 'X',
+        full_name: 'X Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [1],
+      };
+      const mockTx = {
+        company: { create: jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 })) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 1, role: 'sysadmin', status: false },
+          ]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      // Sysadmin check runs before disabled check
+      await expect(service.create(request)).rejects.toThrow('系统管理员不可被关联到公司');
+    });
+
+    it('should pass validation for valid admin and view users', async () => {
+      const request = {
+        short_name: 'X',
+        full_name: 'X Co',
+        contact_person: 'A',
+        contact_phone: '111',
+        operator_ids: [10],
+        viewer_ids: [20],
+      };
+      const mockCompany = makePrismaCompany({ id: 5 });
+      const mockTx = {
+        company: { create: jest.fn().mockResolvedValue(mockCompany) },
+        user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 10, role: 'admin', status: true },
+            { id: 20, role: 'view', status: true },
+          ]),
+          updateMany: jest.fn().mockResolvedValue({}),
+        },
+      };
+      const mockPrisma = {
+        $transaction: jest.fn().mockImplementation(async (cb: any) => cb(mockTx)),
+      };
+      mockedGetPrisma.mockReturnValue(mockPrisma as any);
+
+      const result = await service.create(request);
+      expect(result.id).toBe(5);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  getById: sysadmin 用户不出现
+  // ──────────────────────────────────────
+  describe('getById — 角色过滤', () => {
+    it('should exclude sysadmin users from operators and viewers', async () => {
+      const mockFindUnique = jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 }));
+      // findMany only queries admin + view, so sysadmin won't appear
+      const mockFindMany = jest.fn().mockResolvedValue([
+        makePrismaUser(10, 'admin', '管理员', 'admin1'),
+        makePrismaUser(20, 'view', '查看者', 'viewer1'),
+      ]);
+      mockedGetPrisma.mockReturnValue({
+        company: { findUnique: mockFindUnique },
+        user: { findMany: mockFindMany },
+      } as any);
+
+      const result = await service.getById(1);
+
+      // Verify the query filters out sysadmin role
+      expect(mockFindMany).toHaveBeenCalledWith({
+        where: { companyId: 1, status: true, role: { in: ['admin', 'view'] } },
+        select: { id: true, role: true, cnName: true, username: true },
+      });
+      expect(result.operators).toHaveLength(1);
+      expect(result.viewers).toHaveLength(1);
+    });
+
+    it('should exclude disabled users from operators and viewers', async () => {
+      const mockFindUnique = jest.fn().mockResolvedValue(makePrismaCompany({ id: 1 }));
+      // findMany only queries status: true, so disabled users won't appear
+      const mockFindMany = jest.fn().mockResolvedValue([
+        makePrismaUser(10, 'admin', '管理员', 'admin1'),
+      ]);
+      mockedGetPrisma.mockReturnValue({
+        company: { findUnique: mockFindUnique },
+        user: { findMany: mockFindMany },
+      } as any);
+
+      const result = await service.getById(1);
+
+      expect(mockFindMany).toHaveBeenCalledWith({
+        where: { companyId: 1, status: true, role: { in: ['admin', 'view'] } },
+        select: { id: true, role: true, cnName: true, username: true },
+      });
+      expect(result.operators).toHaveLength(1);
+      expect(result.viewers).toHaveLength(0);
+    });
+  });
+
+  // ──────────────────────────────────────
+  //  list: 确认过滤软删除
+  // ──────────────────────────────────────
+  describe('list — 软删除过滤', () => {
+    it('should query with deletedAt: null filter', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({ company: { findMany: mockFindMany } } as any);
+
+      await service.list();
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { deletedAt: null } }),
+      );
+    });
+  });
 });

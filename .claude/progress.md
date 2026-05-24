@@ -143,3 +143,4 @@
 | 2026-05-24 | tasks/review/code.tsx.ui.md | code.tsx UI 专家评审——⚠️有条件通过 4.1/10（P2×5 图标13px不合规/风格不统一/Ctrl+J浏览器冲突/英文硬编码/非平台感知 + P3×4 无操作反馈/无ARIA/触摸不足/无语言选择） |
 | 2026-05-24 | tasks/tdd/auth.service.test.round2.md | auth.service TDD 第2轮补全——68用例100%覆盖率（+12新增：getLatestUserState全量/verifyToken用户删除/login companyId undefined/null/falsy companyId/接口合规性） |
 | 2026-05-24 | tasks/review/code.tsx.committer.md | code.tsx Committer 审核专家评审——⚠️有条件通过 7.2/10（Ctrl+J浏览器冲突需封装层缓解+L58过期状态+图标不一致+英文硬编码） |
+| 2026-05-24 | tasks/tdd/company.service.test.round2.md | company.service TDD 第2轮补全——68用例100%覆盖率（+25新增：validateUserIds全量/软删除路径/接口合规性/校验优先级/角色过滤） |
