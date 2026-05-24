@@ -183,6 +183,12 @@ tests/apis/  + tests/pages/  测试文件
   - `pages/article/components/ArticleReviewActions.tsx` — 审核操作栏
 - **架构评审**: D+ → 重构后架构符合 SOLID 原则，每个文件 < 200 行，职责单一，可独立测试
 
+## 第三方库补丁管理
+- **patch-package**: 持久化 node_modules 中的第三方库类型修复
+- **@uiw/react-markdown-preview@5.2.1 补丁**: 修复 Props.tsx 架构缺陷（Ref 接口 ISP 违反、类型重复、隐式 React 依赖等 6 项）
+  - 补丁文件: `patches/@uiw+react-markdown-preview+5.2.1.patch`
+  - postinstall 自动应用: `patch-package && npx prisma generate`
+
 ## 第三方库评审记录
 - **@uiw/react-markdown-preview（index.tsx）** — 架构评审 5.4/10（2026-05-24）
   - 核心架构缺陷：每次渲染重建 10 插件管线（无 useMemo）、与 preview.tsx 安全策略分裂、OCP 违反（用户插件位置固定）、与 common.tsx 代码克隆

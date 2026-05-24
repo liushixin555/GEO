@@ -1,6 +1,6 @@
 import React, { useMemo, Component } from 'react';
 import MarkdownPreview from '@uiw/react-markdown-preview/nohighlight';
-import { Spin, Typography } from 'antd';
+import { Spin, Typography, theme } from 'antd';
 import DOMPurify from 'dompurify';
 import type { CSSProperties, ReactNode } from 'react';
 import '../styles/markdown-viewer.css';
@@ -75,6 +75,18 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = React.memo(({
   style,
   className,
 }) => {
+  const { token } = theme.useToken();
+  const colorMode = useMemo(() => {
+    const bg = token.colorBgBase;
+    if (!bg || typeof bg !== 'string') return 'light';
+    const hex = bg.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance < 0.5 ? 'dark' : 'light';
+  }, [token.colorBgBase]);
+
   const safeSource = useMemo(() => {
     if (!content) return '';
     const truncated = content.length > MAX_SOURCE_LENGTH
@@ -117,7 +129,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = React.memo(({
       >
         <MarkdownPreview
           source={safeSource}
-          wrapperElement={{ 'data-color-mode': 'light' }}
+          wrapperElement={{ 'data-color-mode': colorMode }}
           urlTransform={safeUrlTransform}
         />
       </div>

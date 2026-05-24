@@ -7,8 +7,8 @@ import MarkdownViewer, { safeUrlTransform } from '../../../pages/components/Mark
 
 let mockProps: Record<string, unknown> = {};
 
-// Mock @uiw/react-markdown-preview/common
-jest.mock('@uiw/react-markdown-preview/common', () => {
+// Mock @uiw/react-markdown-preview/nohighlight（匹配组件实际导入路径）
+jest.mock('@uiw/react-markdown-preview/nohighlight', () => {
   return function MockMarkdownPreview(props: Record<string, unknown>) {
     mockProps = props;
     return <div data-testid="markdown-preview">{String(props.source || '')}</div>;
@@ -16,6 +16,8 @@ jest.mock('@uiw/react-markdown-preview/common', () => {
 });
 
 // Mock antd components
+let mockToken: Record<string, unknown> = { colorBgBase: '#ffffff' };
+
 jest.mock('antd', () => ({
   Empty: ({ description }: { description: string }) => (
     <div data-testid="antd-empty">{description}</div>
@@ -25,6 +27,9 @@ jest.mock('antd', () => ({
     Text: ({ children, type }: { children: React.ReactNode; type?: string }) => (
       <div data-testid="antd-typography-text" data-type={type}>{children}</div>
     ),
+  },
+  theme: {
+    useToken: () => ({ token: mockToken }),
   },
 }));
 
@@ -151,6 +156,24 @@ describe('MarkdownViewer', () => {
   it('passes urlTransform prop to MarkdownPreview', () => {
     render(<MarkdownViewer content="test" />);
     expect(mockProps.urlTransform).toBe(safeUrlTransform);
+  });
+
+  it('detects light theme from antd token', () => {
+    mockToken = { colorBgBase: '#ffffff' };
+    render(<MarkdownViewer content="test" />);
+    expect(mockProps.wrapperElement).toEqual({ 'data-color-mode': 'light' });
+  });
+
+  it('detects dark theme from antd token', () => {
+    mockToken = { colorBgBase: '#141414' };
+    render(<MarkdownViewer content="test" />);
+    expect(mockProps.wrapperElement).toEqual({ 'data-color-mode': 'dark' });
+  });
+
+  it('defaults to light theme when colorBgBase is missing', () => {
+    mockToken = {};
+    render(<MarkdownViewer content="test" />);
+    expect(mockProps.wrapperElement).toEqual({ 'data-color-mode': 'light' });
   });
 });
 
