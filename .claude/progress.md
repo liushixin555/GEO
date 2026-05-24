@@ -354,3 +354,10 @@
 - [x] 软件质量专家评审 upload.controller.ts
 - [x] 发现 HIGH×3（SVG XSS、MIME 伪造、错误泄露）、MEDIUM×4、LOW×3
 - [x] 评审报告 tasks/review/upload.controller.md
+
+## 本次变更（2026-05-24 App.tsx 评审）
+- [x] 软件质量专家评审 pages/App.tsx
+- [x] 综合评分 6.5/10（及格，存在架构设计缺陷）
+- [x] 发现 HIGH×1（缺少 Error Boundary）、MEDIUM×5（根路径重定向逻辑、认证守卫耦合、路由常量管理、Layout 过度膨胀、无单元测试）、LOW×3
+- [x] Committer 审核通过，建议 P0 项在当前迭代修复
+- [x] 评审报告 tasks/review/App.tsx.md
