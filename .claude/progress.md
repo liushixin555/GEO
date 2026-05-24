@@ -124,3 +124,4 @@
 | 2026-05-24 | tasks/tdd/rate-limit.middleware.test.md | rate-limit.middleware.ts TDD 补全——61用例100%覆盖率（+26新增：skip回调7种method+path+articleActionLimiter全量+NODE_ENV分支+双限流器独立性） |
 | 2026-05-24 | tasks/review/Editor.tsx.committer.md | @uiw/react-md-editor Editor.tsx Committer 审核专家评审——✅通过（APPROVE），标准版入口本项目未使用，nohighlight变体选择正确 |
 | 2026-05-24 | tasks/tdd/system-config.controller.test.md | system-config.controller.ts TDD——37用例全通过，Stmts/Branch/Funcs/Lines 100%（含防御性分支直接调用覆盖） |
+| 2026-05-24 | tasks/tdd/article-generation.scheduler.test.md | article-generation.scheduler.ts TDD 补全——62用例100%覆盖率（+23新增：skills边界/keywords默认值/标题提取/版本号/事务完整性/错误路径/并发防护/多项目） |

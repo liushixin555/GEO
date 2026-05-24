@@ -753,4 +753,493 @@ describe('article-generation.scheduler', () => {
       );
     });
   });
+
+  // =========================================================
+  // 11. Skills 字段额外边界情况
+  // =========================================================
+  describe('Skills 字段额外边界情况', () => {
+    beforeEach(() => {
+      mockKnowledgeBaseFindMany.mockResolvedValue([]);
+      mockKnowledgeImageFindMany.mockResolvedValue([]);
+      mockGenerateArticle.mockResolvedValue('内容');
+      mockArticleVersionCreate.mockResolvedValue({});
+      mockArticleUpdate.mockResolvedValue({});
+      mockTransaction.mockImplementation((ops: any[]) => Promise.all(ops));
+    });
+
+    test('应处理 skills 为字符串数字的情况', async () => {
+      const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: '7', projectId: 1, version: 0 };
+      mockArticleFindMany.mockResolvedValue([article]);
+      mockSkillsFindFirst.mockResolvedValue({ id: 7, name: '内容策略' });
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      // skills is string "7", typeof !== 'object', so skillsId = "7"
+      expect(mockSkillsFindFirst).toHaveBeenCalledWith({ where: { id: 7 } });
+      expect(mockGenerateArticle).toHaveBeenCalledWith(
+        expect.objectContaining({ skills: '内容策略' }),
+      );
+    });
+
+    test('应处理 skills 为空对象的情况', async () => {
+      const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: {}, projectId: 1, version: 0 };
+      mockArticleFindMany.mockResolvedValue([article]);
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      // skills is {}, typeof === 'object', .id is undefined → if(skillsId) is false
+      expect(mockSkillsFindFirst).not.toHaveBeenCalled();
+      expect(mockGenerateArticle).toHaveBeenCalledWith(
+        expect.objectContaining({ skills: '' }),
+      );
+    });
+
+    test('应处理 skills id 为 0（falsy）的情况', async () => {
+      const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: { id: 0 }, projectId: 1, version: 0 };
+      mockArticleFindMany.mockResolvedValue([article]);
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      // skillsId = 0 → if(skillsId) is false
+      expect(mockSkillsFindFirst).not.toHaveBeenCalled();
+      expect(mockGenerateArticle).toHaveBeenCalledWith(
+        expect.objectContaining({ skills: '' }),
+      );
+    });
+  });
+
+  // =========================================================
+  // 12. Keywords 默认值处理
+  // =========================================================
+  describe('Keywords 默认值处理', () => {
+    beforeEach(() => {
+      mockKnowledgeBaseFindMany.mockResolvedValue([]);
+      mockKnowledgeImageFindMany.mockResolvedValue([]);
+      mockSkillsFindFirst.mockResolvedValue(null);
+      mockGenerateArticle.mockResolvedValue('内容');
+      mockArticleVersionCreate.mockResolvedValue({});
+      mockArticleUpdate.mockResolvedValue({});
+      mockTransaction.mockImplementation((ops: any[]) => Promise.all(ops));
+    });
+
+    test('应在 keywords 为 null 时使用空字符串', async () => {
+      const article = { id: 1, title: 'T', keywords: null, portrait: '读者', skills: null, projectId: 1, version: 0 };
+      mockArticleFindMany.mockResolvedValue([article]);
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      expect(mockGenerateArticle).toHaveBeenCalledWith(
+        expect.objectContaining({ keywords: '' }),
+      );
+    });
+
+    test('应在 keywords 为 undefined 时使用空字符串', async () => {
+      const article = { id: 1, title: 'T', keywords: undefined, portrait: '读者', skills: null, projectId: 1, version: 0 };
+      mockArticleFindMany.mockResolvedValue([article]);
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      expect(mockGenerateArticle).toHaveBeenCalledWith(
+        expect.objectContaining({ keywords: '' }),
+      );
+    });
+  });
+
+  // =========================================================
+  // 13. 标题提取额外边界情况
+  // =========================================================
+  describe('标题提取额外边界情况', () => {
+    beforeEach(() => {
+      mockKnowledgeBaseFindMany.mockResolvedValue([]);
+      mockKnowledgeImageFindMany.mockResolvedValue([]);
+      mockSkillsFindFirst.mockResolvedValue(null);
+      mockArticleVersionCreate.mockResolvedValue({});
+      mockArticleUpdate.mockResolvedValue({});
+      mockTransaction.mockImplementation((ops: any[]) => Promise.all(ops));
+    });
+
+    test('应在内容以 ### 三级标题开头时正确提取标题', async () => {
+      const article = { id: 1, title: '', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
+      mockArticleFindMany.mockResolvedValue([article]);
+      mockGenerateArticle.mockResolvedValue('### 三级标题\n\n正文内容');
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      expect(mockArticleUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: expect.objectContaining({ title: '三级标题' }),
+      });
+    });
+
+    test('应在内容首行无 # 前缀时直接使用首行文本', async () => {
+      const article = { id: 1, title: '', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
+      mockArticleFindMany.mockResolvedValue([article]);
+      mockGenerateArticle.mockResolvedValue('普通标题文本\n\n正文内容');
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      expect(mockArticleUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: expect.objectContaining({ title: '普通标题文本' }),
+      });
+    });
+
+    test('应在标题行有额外空格时正确去除', async () => {
+      const article = { id: 1, title: '', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
+      mockArticleFindMany.mockResolvedValue([article]);
+      mockGenerateArticle.mockResolvedValue('#   带空格的标题  \n\n正文');
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      expect(mockArticleUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: expect.objectContaining({ title: '带空格的标题' }),
+      });
+    });
+
+    test('应在内容首行为空行、第二行有文本时提取第二行', async () => {
+      const article = { id: 1, title: '', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
+      mockArticleFindMany.mockResolvedValue([article]);
+      mockGenerateArticle.mockResolvedValue('\n# 第二行标题\n\n正文');
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      expect(mockArticleUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: expect.objectContaining({ title: '第二行标题' }),
+      });
+    });
+  });
+
+  // =========================================================
+  // 14. 版本号额外边界情况
+  // =========================================================
+  describe('版本号额外边界情况', () => {
+    beforeEach(() => {
+      mockKnowledgeBaseFindMany.mockResolvedValue([]);
+      mockKnowledgeImageFindMany.mockResolvedValue([]);
+      mockSkillsFindFirst.mockResolvedValue(null);
+      mockGenerateArticle.mockResolvedValue('内容');
+      mockArticleVersionCreate.mockResolvedValue({});
+      mockArticleUpdate.mockResolvedValue({});
+      mockTransaction.mockImplementation((ops: any[]) => Promise.all(ops));
+    });
+
+    test('应正确处理版本号为小数的文章（Math.floor 取整）', async () => {
+      const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: null, projectId: 1, version: 2.7 };
+      mockArticleFindMany.mockResolvedValue([article]);
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      // Math.floor(2.7) + 1 = 3
+      expect(mockArticleVersionCreate).toHaveBeenCalledWith({
+        data: expect.objectContaining({ version: 3 }),
+      });
+    });
+
+    test('应正确处理版本号为负数的文章', async () => {
+      const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: null, projectId: 1, version: -1 };
+      mockArticleFindMany.mockResolvedValue([article]);
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      // Math.floor(-1) + 1 = 0
+      expect(mockArticleVersionCreate).toHaveBeenCalledWith({
+        data: expect.objectContaining({ version: 0 }),
+      });
+    });
+  });
+
+  // =========================================================
+  // 15. 事务数据完整性验证
+  // =========================================================
+  describe('事务数据完整性验证', () => {
+    const generatedContent = '# 完整标题\n\n完整内容段落。';
+
+    beforeEach(() => {
+      mockKnowledgeBaseFindMany.mockResolvedValue([{ id: 20 }]);
+      mockKnowledgeImageFindMany.mockResolvedValue([
+        { title: '图片A', description: '图片描述A', imageUrl: 'http://a.png' },
+        { title: '图片B', description: '图片描述B', imageUrl: 'http://b.png' },
+      ]);
+      mockSkillsFindFirst.mockResolvedValue(null);
+      mockGenerateArticle.mockResolvedValue(generatedContent);
+      mockArticleVersionCreate.mockResolvedValue({});
+      mockArticleUpdate.mockResolvedValue({});
+      mockTransaction.mockImplementation((ops: any[]) => Promise.all(ops));
+    });
+
+    test('应通过事务同时创建版本记录和更新文章状态', async () => {
+      const article = { id: 42, title: '完整测试', keywords: 'k1,k2', portrait: '技术读者', skills: null, projectId: 5, version: 3 };
+      mockArticleFindMany.mockResolvedValue([article]);
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      // Verify articleVersion.create was called within transaction context
+      expect(mockArticleVersionCreate).toHaveBeenCalledWith({
+        data: {
+          articleId: 42,
+          version: 4,
+          content: generatedContent,
+          createdBy: null,
+        },
+      });
+
+      // Verify article.update was called with correct data
+      expect(mockArticleUpdate).toHaveBeenCalledWith({
+        where: { id: 42 },
+        data: {
+          title: '完整测试',
+          content: generatedContent,
+          version: 4,
+          status: 'pending_review',
+        },
+      });
+    });
+
+    test('应在事务中正确传递多张图片资源', async () => {
+      const article = { id: 10, title: '图片测试', keywords: '', portrait: '', skills: null, projectId: 5, version: 0 };
+      mockArticleFindMany.mockResolvedValue([article]);
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      expect(mockGenerateArticle).toHaveBeenCalledWith({
+        title: '图片测试',
+        keywords: '',
+        portrait: '通用读者',
+        images: [
+          { title: '图片A', description: '图片描述A', imageUrl: 'http://a.png' },
+          { title: '图片B', description: '图片描述B', imageUrl: 'http://b.png' },
+        ],
+        skills: '',
+      });
+    });
+
+    test('应在图片描述为 undefined 时使用空字符串', async () => {
+      const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
+      mockArticleFindMany.mockResolvedValue([article]);
+      mockKnowledgeImageFindMany.mockResolvedValue([
+        { title: '图1', description: undefined, imageUrl: 'http://img.png' },
+      ]);
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      expect(mockGenerateArticle).toHaveBeenCalledWith(
+        expect.objectContaining({
+          images: [{ title: '图1', description: '', imageUrl: 'http://img.png' }],
+        }),
+      );
+    });
+  });
+
+  // =========================================================
+  // 16. processSingleArticle 内部错误路径
+  // =========================================================
+  describe('processSingleArticle 内部错误路径', () => {
+    test('应在知识库查询失败时标记文章为 generate_failed', async () => {
+      const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
+      mockArticleFindMany.mockResolvedValue([article]);
+      mockKnowledgeBaseFindMany.mockRejectedValue(new Error('知识库查询失败'));
+      mockArticleUpdate.mockResolvedValue({});
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      expect(mockArticleUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: 'generate_failed' },
+      });
+    });
+
+    test('应在图片查询失败时标记文章为 generate_failed', async () => {
+      const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
+      mockArticleFindMany.mockResolvedValue([article]);
+      mockKnowledgeBaseFindMany.mockResolvedValue([{ id: 1 }]);
+      mockKnowledgeImageFindMany.mockRejectedValue(new Error('图片查询失败'));
+      mockArticleUpdate.mockResolvedValue({});
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      expect(mockArticleUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: 'generate_failed' },
+      });
+    });
+
+    test('应在技能查询失败时标记文章为 generate_failed', async () => {
+      const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: { id: 5 }, projectId: 1, version: 0 };
+      mockArticleFindMany.mockResolvedValue([article]);
+      mockKnowledgeBaseFindMany.mockResolvedValue([]);
+      mockKnowledgeImageFindMany.mockResolvedValue([]);
+      mockSkillsFindFirst.mockRejectedValue(new Error('技能查询失败'));
+      mockArticleUpdate.mockResolvedValue({});
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      expect(mockArticleUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: 'generate_failed' },
+      });
+    });
+
+    test('应在事务执行失败时标记文章为 generate_failed', async () => {
+      const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
+      mockArticleFindMany.mockResolvedValue([article]);
+      mockKnowledgeBaseFindMany.mockResolvedValue([]);
+      mockKnowledgeImageFindMany.mockResolvedValue([]);
+      mockGenerateArticle.mockResolvedValue('内容');
+      mockTransaction.mockRejectedValue(new Error('事务执行失败'));
+      mockArticleUpdate.mockResolvedValue({});
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      expect(mockArticleUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: 'generate_failed' },
+      });
+    });
+  });
+
+  // =========================================================
+  // 17. 定时任务生命周期
+  // =========================================================
+  describe('定时任务生命周期', () => {
+    test('应支持多次启动停止循环', () => {
+      const { startArticleGenerationCron, stopArticleGenerationCron } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      startArticleGenerationCron();
+      stopArticleGenerationCron();
+      startArticleGenerationCron();
+      stopArticleGenerationCron();
+      startArticleGenerationCron();
+      stopArticleGenerationCron();
+
+      expect(mockSchedule).toHaveBeenCalledTimes(3);
+      expect(mockStop).toHaveBeenCalledTimes(3);
+    });
+
+    test('应在连续停止两次时不报错', () => {
+      const { startArticleGenerationCron, stopArticleGenerationCron } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      startArticleGenerationCron();
+      stopArticleGenerationCron();
+      stopArticleGenerationCron();
+
+      expect(mockStop).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // =========================================================
+  // 18. 并发调度防护
+  // =========================================================
+  describe('并发调度防护', () => {
+    test('isRunning 标志应在成功完成后重置', async () => {
+      mockArticleFindMany.mockResolvedValue([]);
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+      await processNextGeneratingArticle();
+
+      expect(mockArticleFindMany).toHaveBeenCalledTimes(2);
+    });
+
+    test('isRunning 标志应在部分失败后重置', async () => {
+      const articles = [
+        { id: 1, title: 'T1', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 },
+        { id: 2, title: 'T2', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 },
+      ];
+      mockArticleFindMany.mockResolvedValue(articles);
+      mockKnowledgeBaseFindMany.mockResolvedValue([]);
+      mockKnowledgeImageFindMany.mockResolvedValue([]);
+      mockGenerateArticle
+        .mockRejectedValueOnce(new Error('第一篇失败'))
+        .mockResolvedValueOnce('第二篇内容');
+      mockArticleUpdate.mockResolvedValue({});
+      mockArticleVersionCreate.mockResolvedValue({});
+      mockTransaction.mockImplementation((ops: any[]) => Promise.all(ops));
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      // Should be able to call again
+      mockArticleFindMany.mockResolvedValue([]);
+      await expect(processNextGeneratingArticle()).resolves.toBeUndefined();
+      expect(mockArticleFindMany).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // =========================================================
+  // 19. 多项目文章处理
+  // =========================================================
+  describe('多项目文章处理', () => {
+    test('应为不同项目的文章查询对应的知识库', async () => {
+      const articles = [
+        { id: 1, title: '项目A文章', keywords: '', portrait: '', skills: null, projectId: 100, version: 0 },
+        { id: 2, title: '项目B文章', keywords: '', portrait: '', skills: null, projectId: 200, version: 0 },
+      ];
+      mockArticleFindMany.mockResolvedValue(articles);
+      mockKnowledgeBaseFindMany
+        .mockResolvedValueOnce([{ id: 10 }])
+        .mockResolvedValueOnce([{ id: 20 }, { id: 21 }]);
+      mockKnowledgeImageFindMany
+        .mockResolvedValueOnce([{ title: '图A', description: '', imageUrl: 'http://a.png' }])
+        .mockResolvedValueOnce([{ title: '图B', description: '', imageUrl: 'http://b.png' }]);
+      mockSkillsFindFirst.mockResolvedValue(null);
+      mockGenerateArticle.mockResolvedValue('内容');
+      mockArticleVersionCreate.mockResolvedValue({});
+      mockArticleUpdate.mockResolvedValue({});
+      mockTransaction.mockImplementation((ops: any[]) => Promise.all(ops));
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      expect(mockKnowledgeBaseFindMany).toHaveBeenCalledTimes(2);
+      expect(mockKnowledgeBaseFindMany).toHaveBeenNthCalledWith(1, {
+        where: { projectId: 100, status: true },
+        select: { id: true },
+      });
+      expect(mockKnowledgeBaseFindMany).toHaveBeenNthCalledWith(2, {
+        where: { projectId: 200, status: true },
+        select: { id: true },
+      });
+    });
+  });
 });
