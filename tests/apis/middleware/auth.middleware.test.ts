@@ -616,4 +616,403 @@ describe('roleMiddleware', () => {
       expect(jsonFn).toHaveBeenCalledWith({ code: 401, message: '未登录，请先登录' });
     });
   });
+
+  // =========================================================
+  // 12. authMiddleware — 黑名单交互深入测试
+  // =========================================================
+  describe('authMiddleware 黑名单交互', () => {
+    let authFn: (req: Request, res: Response, next: NextFunction) => void;
+
+    beforeEach(() => {
+      const { clearBlacklist } = require('../../../apis/utils/token-blacklist.util');
+      clearBlacklist();
+      authFn = require('../../../apis/middleware/auth.middleware').authMiddleware;
+    });
+
+    it('应该拒绝多个已被撤销的不同 token', () => {
+      const jwt = require('jsonwebtoken');
+      const { revokeToken } = require('../../../apis/utils/token-blacklist.util');
+
+      const token1 = jwt.sign({ userId: 1, username: 'user1', role: 'admin' }, process.env.JWT_SECRET!, { expiresIn: '2h' });
+      const token2 = jwt.sign({ userId: 2, username: 'user2', role: 'view' }, process.env.JWT_SECRET!, { expiresIn: '2h' });
+
+      revokeToken(token1, 7_200_000);
+      revokeToken(token2, 7_200_000);
+
+      // token1 被拒绝
+      mockReq = createMockReq({ authorization: `Bearer ${token1}` });
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(mockNext).not.toHaveBeenCalled();
+
+      statusFn.mockClear();
+      jsonFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+
+      // token2 也被拒绝
+      mockReq = createMockReq({ authorization: `Bearer ${token2}` });
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('应该允许未撤销的 token 同时拒绝已撤销的 token', () => {
+      const jwt = require('jsonwebtoken');
+      const { revokeToken } = require('../../../apis/utils/token-blacklist.util');
+
+      const revokedToken = jwt.sign({ userId: 1, username: 'revoked', role: 'admin' }, process.env.JWT_SECRET!, { expiresIn: '2h' });
+      const validToken = jwt.sign({ userId: 2, username: 'valid', role: 'admin' }, process.env.JWT_SECRET!, { expiresIn: '2h' });
+
+      revokeToken(revokedToken, 7_200_000);
+
+      // 撤销的 token 被拒绝
+      mockReq = createMockReq({ authorization: `Bearer ${revokedToken}` });
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+      expect(statusFn).toHaveBeenCalledWith(401);
+
+      statusFn.mockClear();
+      jsonFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+
+      // 未撤销的 token 通过
+      mockReq = createMockReq({ authorization: `Bearer ${validToken}` });
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+      expect(mockNext).toHaveBeenCalled();
+      expect(statusFn).not.toHaveBeenCalled();
+    });
+
+    it('同一个 token 多次请求应保持被撤销状态', () => {
+      const jwt = require('jsonwebtoken');
+      const { revokeToken } = require('../../../apis/utils/token-blacklist.util');
+
+      const token = jwt.sign({ userId: 1, username: 'user', role: 'admin' }, process.env.JWT_SECRET!, { expiresIn: '2h' });
+      revokeToken(token, 7_200_000);
+
+      // 第一次请求被拒绝
+      mockReq = createMockReq({ authorization: `Bearer ${token}` });
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+      expect(statusFn).toHaveBeenCalledWith(401);
+
+      statusFn.mockClear();
+      jsonFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+
+      // 第二次请求仍然被拒绝
+      mockReq = createMockReq({ authorization: `Bearer ${token}` });
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================
+  // 13. authMiddleware — Bearer 前缀精确边界测试
+  // =========================================================
+  describe('authMiddleware Bearer 前缀精确边界', () => {
+    let authFn: (req: Request, res: Response, next: NextFunction) => void;
+
+    beforeEach(() => {
+      authFn = require('../../../apis/middleware/auth.middleware').authMiddleware;
+    });
+
+    it('应该拒绝 "BearerX token"（Bearer 后紧跟非空格字符）', () => {
+      const jwt = require('jsonwebtoken');
+      const token = jwt.sign({ userId: 1, username: 'test', role: 'admin' }, process.env.JWT_SECRET!, { expiresIn: '2h' });
+
+      mockReq = createMockReq({ authorization: `BearerX ${token}` });
+
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(jsonFn).toHaveBeenCalledWith({ code: 401, message: '未登录，请先登录' });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('应该拒绝 "Bearer\t"（tab 而非空格）开头的 header', () => {
+      const jwt = require('jsonwebtoken');
+      const token = jwt.sign({ userId: 1, username: 'test', role: 'admin' }, process.env.JWT_SECRET!, { expiresIn: '2h' });
+
+      mockReq = createMockReq({ authorization: `Bearer\t${token}` });
+
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('应该拒绝 " Bearer token"（前导空格）的 header', () => {
+      const jwt = require('jsonwebtoken');
+      const token = jwt.sign({ userId: 1, username: 'test', role: 'admin' }, process.env.JWT_SECRET!, { expiresIn: '2h' });
+
+      mockReq = createMockReq({ authorization: ` Bearer ${token}` });
+
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('应该接受 "Bearer " 后跟正常 token', () => {
+      const jwt = require('jsonwebtoken');
+      const token = jwt.sign({ userId: 1, username: 'test', role: 'admin' }, process.env.JWT_SECRET!, { expiresIn: '2h' });
+
+      mockReq = createMockReq({ authorization: `Bearer ${token}` });
+
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(statusFn).not.toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================
+  // 14. authMiddleware — Unicode / 特殊 payload 测试
+  // =========================================================
+  describe('authMiddleware 特殊 payload', () => {
+    let authFn: (req: Request, res: Response, next: NextFunction) => void;
+
+    beforeEach(() => {
+      authFn = require('../../../apis/middleware/auth.middleware').authMiddleware;
+    });
+
+    it('应该正确解析包含中文字符的 username', () => {
+      const jwt = require('jsonwebtoken');
+      const payload = { userId: 1, username: '测试用户', role: 'admin' };
+      const token = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '2h' });
+
+      mockReq = createMockReq({ authorization: `Bearer ${token}` });
+
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(mockReq.user.username).toBe('测试用户');
+    });
+
+    it('应该正确解析包含 emoji 的 username', () => {
+      const jwt = require('jsonwebtoken');
+      const payload = { userId: 2, username: 'user🎉test', role: 'view' };
+      const token = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '2h' });
+
+      mockReq = createMockReq({ authorization: `Bearer ${token}` });
+
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(mockReq.user.username).toBe('user🎉test');
+    });
+
+    it('应该正确解析大 userId 值', () => {
+      const jwt = require('jsonwebtoken');
+      const payload = { userId: Number.MAX_SAFE_INTEGER, username: 'bigId', role: 'admin' };
+      const token = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '2h' });
+
+      mockReq = createMockReq({ authorization: `Bearer ${token}` });
+
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(mockReq.user.userId).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('应该正确解析包含负数 companyId 的 payload', () => {
+      const jwt = require('jsonwebtoken');
+      const payload = { userId: 3, username: 'neg', role: 'admin', companyId: -1 };
+      const token = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '2h' });
+
+      mockReq = createMockReq({ authorization: `Bearer ${token}` });
+
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(mockReq.user.companyId).toBe(-1);
+    });
+  });
+
+  // =========================================================
+  // 15. roleMiddleware — 边界值深入测试
+  // =========================================================
+  describe('roleMiddleware 边界值', () => {
+    it('应该返回 401 当 req.user 显式设为 null', () => {
+      mockReq = { headers: {}, user: null } as any;
+      const middleware = roleMiddleware('admin');
+
+      middleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(jsonFn).toHaveBeenCalledWith({ code: 401, message: '未登录，请先登录' });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('应该返回 403 当用户 role 为空字符串', () => {
+      mockReq = createMockReq({ user: { userId: 1, username: 'empty', role: '' } });
+      const middleware = roleMiddleware('admin');
+
+      middleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(403);
+      expect(jsonFn).toHaveBeenCalledWith({ code: 403, message: '无权限访问' });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('应该正确匹配包含重复角色的 allowedRoles', () => {
+      mockReq = createMockReq({ user: { userId: 1, username: 'admin', role: 'admin' } });
+      const middleware = roleMiddleware('admin', 'admin', 'admin');
+
+      middleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(statusFn).not.toHaveBeenCalled();
+    });
+
+    it('应该返回 403 当 allowedRoles 包含其他角色但不含用户角色', () => {
+      mockReq = createMockReq({ user: { userId: 1, username: 'viewer', role: 'view' } });
+      const middleware = roleMiddleware('admin', 'sysadmin');
+
+      middleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(403);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('应该正确处理包含所有三种角色的 allowedRoles（sysadmin 通过）', () => {
+      mockReq = createMockReq({ user: { userId: 1, username: 'sysadmin', role: 'sysadmin' } });
+      const middleware = roleMiddleware('admin', 'sysadmin', 'view');
+
+      middleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(statusFn).not.toHaveBeenCalled();
+    });
+
+    it('应该正确处理包含所有三种角色的 allowedRoles（view 通过）', () => {
+      mockReq = createMockReq({ user: { userId: 1, username: 'viewer', role: 'view' } });
+      const middleware = roleMiddleware('admin', 'sysadmin', 'view');
+
+      middleware(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(statusFn).not.toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================
+  // 16. authMiddleware — 错误响应格式一致性验证
+  // =========================================================
+  describe('authMiddleware 错误响应格式一致性', () => {
+    let authFn: (req: Request, res: Response, next: NextFunction) => void;
+
+    beforeEach(() => {
+      authFn = require('../../../apis/middleware/auth.middleware').authMiddleware;
+    });
+
+    it('所有 401 响应应该包含 code 和 message 字段', () => {
+      const scenarios = [
+        { authorization: undefined as any },
+        { authorization: '' },
+        { authorization: 'Basic abc' },
+        { authorization: 'Bearer invalid.token' },
+      ];
+
+      for (const scenario of scenarios) {
+        statusFn.mockClear();
+        jsonFn.mockClear();
+        (mockNext as jest.Mock).mockClear();
+
+        mockReq = createMockReq(scenario);
+        authFn(mockReq as Request, mockRes as Response, mockNext);
+
+        expect(statusFn).toHaveBeenCalledWith(401);
+        const callArgs = jsonFn.mock.calls[0][0];
+        expect(callArgs).toHaveProperty('code');
+        expect(callArgs).toHaveProperty('message');
+        expect(typeof callArgs.code).toBe('number');
+        expect(typeof callArgs.message).toBe('string');
+      }
+    });
+
+    it('未登录消息（无 Bearer）和过期消息（有 Bearer 但无效）应该不同', () => {
+      const jwt = require('jsonwebtoken');
+      const { revokeToken, clearBlacklist } = require('../../../apis/utils/token-blacklist.util');
+      clearBlacklist();
+
+      // 无 Bearer → '未登录，请先登录'
+      mockReq = createMockReq({ authorization: '' });
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+      const noBearerMsg = jsonFn.mock.calls[0][0].message;
+
+      statusFn.mockClear();
+      jsonFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+
+      // 无效 token → '登录已过期，请重新登录'
+      mockReq = createMockReq({ authorization: 'Bearer invalid.token' });
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+      const invalidTokenMsg = jsonFn.mock.calls[0][0].message;
+
+      statusFn.mockClear();
+      jsonFn.mockClear();
+      (mockNext as jest.Mock).mockClear();
+
+      // 被撤销 token → '登录已过期，请重新登录'
+      const token = jwt.sign({ userId: 1, username: 'test', role: 'admin' }, process.env.JWT_SECRET!, { expiresIn: '2h' });
+      revokeToken(token, 7_200_000);
+      mockReq = createMockReq({ authorization: `Bearer ${token}` });
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+      const revokedTokenMsg = jsonFn.mock.calls[0][0].message;
+
+      expect(noBearerMsg).toBe('未登录，请先登录');
+      expect(invalidTokenMsg).toBe('登录已过期，请重新登录');
+      expect(revokedTokenMsg).toBe('登录已过期，请重新登录');
+      expect(noBearerMsg).not.toBe(invalidTokenMsg);
+    });
+  });
+
+  // =========================================================
+  // 17. authMiddleware + roleMiddleware — 完整角色组合矩阵
+  // =========================================================
+  describe('完整角色组合矩阵', () => {
+    const roles: Array<{ role: string; username: string }> = [
+      { role: 'sysadmin', username: 'sysadmin' },
+      { role: 'admin', username: 'admin' },
+      { role: 'view', username: 'viewer' },
+    ];
+
+    it.each([
+      { allowedRoles: ['sysadmin'], expectedPass: ['sysadmin'], expectedFail: ['admin', 'view'] },
+      { allowedRoles: ['admin'], expectedPass: ['admin'], expectedFail: ['sysadmin', 'view'] },
+      { allowedRoles: ['view'], expectedPass: ['view'], expectedFail: ['sysadmin', 'admin'] },
+      { allowedRoles: ['sysadmin', 'admin'], expectedPass: ['sysadmin', 'admin'], expectedFail: ['view'] },
+      { allowedRoles: ['admin', 'view'], expectedPass: ['admin', 'view'], expectedFail: ['sysadmin'] },
+      { allowedRoles: ['sysadmin', 'admin', 'view'], expectedPass: ['sysadmin', 'admin', 'view'], expectedFail: [] },
+    ])(`allowedRoles=$allowedRoles → pass=$expectedPass fail=$expectedFail`, ({ allowedRoles, expectedPass, expectedFail }) => {
+      const { roleMiddleware: roleFn } = require('../../../apis/middleware/auth.middleware');
+      const middleware = roleFn(...allowedRoles);
+
+      for (const role of expectedPass) {
+        const user = roles.find(r => r.role === role)!;
+        statusFn.mockClear();
+        jsonFn.mockClear();
+        (mockNext as jest.Mock).mockClear();
+
+        mockReq = createMockReq({ user: { userId: 1, username: user.username, role: user.role } });
+        middleware(mockReq as Request, mockRes as Response, mockNext);
+
+        expect(mockNext).toHaveBeenCalledWith();
+        expect(statusFn).not.toHaveBeenCalled();
+      }
+
+      for (const role of expectedFail) {
+        const user = roles.find(r => r.role === role)!;
+        statusFn.mockClear();
+        jsonFn.mockClear();
+        (mockNext as jest.Mock).mockClear();
+
+        mockReq = createMockReq({ user: { userId: 1, username: user.username, role: user.role } });
+        middleware(mockReq as Request, mockRes as Response, mockNext);
+
+        expect(statusFn).toHaveBeenCalledWith(403);
+        expect(mockNext).not.toHaveBeenCalled();
+      }
+    });
+  });
 });
