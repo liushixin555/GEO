@@ -38,6 +38,7 @@
 | 2026-05-24 | `tasks/review/article.controller.ts.committer.md` | article.controller.ts 安全/质量/架构/Committer 多轮评审修复 |
 | 2026-05-24 | `progress_tasks/2026-05-24-controller-tdd.md` | Controller TDD 测试修复——7套件650用例全通过，修复SSRF IPv6+Zod双重解析 |
 | 2026-05-24 | `progress_tasks/2026-05-24-tdd-hook-chapter.md` | hook-chapter 组件 TDD 测试——42 项用例、100% 覆盖率 |
+| 2026-05-24 | `tasks/review/knowledge.controller.ts.committer.md` | knowledge.controller.ts Committer 评审——4项阻塞（越权+OOM+非事务+批量无上限），REQUEST CHANGES |
 | 2026-05-24 | `tasks/review/ArticleDetail.tsx.ui.md` | ArticleDetail UI 评审修复——圆角/颜色/键盘/ARIA/响应式/保存状态 12 项 |
 | 2026-05-24 | `tasks/review/auth.controller.ts.architecture.md` | auth.controller.ts 架构评审——✅通过，已修复5项旧问题，剩余3项HIGH建议修复 |
 | 2026-05-24 | `tasks/review/auth.controller.ts.security.md` | auth.controller.ts 安全评审——B级，H×3（暴力破解/Token吊销/验证冗余）M×4 L×3 |
@@ -86,3 +87,5 @@
 | 2026-05-24 | progress_tasks/2026-05-24-index-tsx-ui-review-fix.md | index.tsx UI评审修复——CSS border/font-family/token颜色 + 测试 + jest-dom类型 |
 | 2026-05-24 | progress_tasks/2026-05-24-app-committer-review-fix.md | App.tsx Committer评审修复——重写测试覆盖认证/未认证/认证失败/ErrorBoundary，11用例全通过 |
 | 2026-05-24 | progress_tasks/2026-05-24-project-controller-review-fix.md | project.controller.ts 评审修复——C-1/C-2 view拦截 + M-1 err:unknown + M-5 search限制 + L-3 长度验证，76测试全通过 |
+| 2026-05-24 | tasks/tdd/upload.controller.test.md | upload.controller.ts TDD 补全——+10 用例（39总），Stmts 96.55% Branch 84.21% Funcs 100% Lines 96.42% |
+| 2026-05-24 | tasks/review/Context.tsx.architecture.md | @uiw/react-md-editor Context.tsx 架构专家评审——3.0/10（P0×3：索引签名any/Reducer无Action/DOM混入Context + P1×2 + P2×2） |
