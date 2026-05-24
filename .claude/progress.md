@@ -58,6 +58,7 @@
 | 2026-05-24 | `tasks/review/preview.tsx.committer.md` | @uiw/react-markdown-preview preview.tsx Committer 审核专家评审——有条件通过，DOMPurify 单点防护需加固为纵深防御 |
 | 2026-05-24 | `progress_tasks/2026-05-24-company-controller-review-fix.md` | company.controller.ts 评审修复——异常体系对齐+toggleStatus schema+移除死代码+日志+边界检查 |
 | 2026-05-24 | `tasks/tdd/video-presentation-useAudioPlayer.test.md` | useAudioPlayer hook TDD——63 项用例、100% 全维度覆盖率 |
+| 2026-05-24 | `tasks/review/Props.tsx.ui.md` | Props.tsx UI 评审修复——a11y可配置/Empty组件/forwardRef命令式API/事件处理props，+12测试（48总） |
 
 ## 已知问题
 - `apis/service/impl/auth.service.impl.ts` Prisma 类型错误（待 schema 同步）

@@ -107,3 +107,53 @@
 - [x] 新增 safeUrlTransform 单元测试（9 个场景）
 - [x] 新增 urlTransform prop 传递验证测试
 - [x] 前端构建通过
+
+---
+
+## 第三轮评审修复（Props.tsx UI 评审，2026-05-24）
+
+基于 `tasks/review/Props.tsx.ui.md` UI 专家评审（综合评分 4.1/10），对 MarkdownViewer 封装组件进行第三轮加固修复。
+
+### 新增修复项
+
+| 评审问题编号 | 优先级 | 修复措施 | 状态 |
+|-------------|--------|---------|------|
+| UI-P1-02 | P1 | `ariaLabel` / `role` 可配置化（默认 `"Markdown 内容预览"` / `"region"`） | ✅ |
+| UI-P2-04 | P2 | 空状态使用 antd `Empty` 组件（替代原生 div，符合 CLAUDE.md 铁律） | ✅ |
+| UI-P2-05 | P2 | 添加事件处理 props：`onScroll`、`onClick`、`onKeyDown` | ✅ |
+| UI-P3-03 | P3 | `forwardRef` + `useImperativeHandle` 暴露命令式 API：`scrollToTop()`、`scrollToAnchor()` | ✅ |
+| UI-P3-04 | P3 | 添加 `onMouseEnter` / `onMouseLeave`（不冒泡，替代 `onMouseOver`） | ✅ |
+
+### 导出接口变更
+
+```typescript
+// 新增 MarkdownViewerRef 类型
+export interface MarkdownViewerRef {
+  scrollToTop(): void;
+  scrollToAnchor(anchor: string): void;
+}
+
+// MarkdownViewerProps 新增 props
+ariaLabel?: string;           // 默认 "Markdown 内容预览"
+role?: 'region' | 'document' | 'article';  // 默认 "region"
+onScroll?: (e: UIEvent<HTMLDivElement>) => void;
+onClick?: (e: MouseEvent<HTMLDivElement>) => void;
+onKeyDown?: (e: KeyboardEvent<HTMLDivElement>) => void;
+onMouseEnter?: (e: MouseEvent<HTMLDivElement>) => void;
+onMouseLeave?: (e: MouseEvent<HTMLDivElement>) => void;
+```
+
+### 涉及文件
+
+- `pages/components/MarkdownViewer.tsx` — forwardRef + 新 props + Empty 组件
+- `tests/pages/components/MarkdownViewer.test.tsx` — 新增 12 个 UI 评审修复测试（48 个全部通过）
+
+### 验收标准（第三轮）
+
+- [x] ariaLabel / role 可配置，有合理默认值
+- [x] 空状态使用 antd Empty 组件
+- [x] forwardRef + useImperativeHandle 命令式 API
+- [x] 添加 onScroll / onClick / onKeyDown / onMouseEnter / onMouseLeave 事件
+- [x] 新增 12 个测试用例（TDD 红灯-绿灯通过）
+- [x] 全部 48 个 MarkdownViewer 测试通过
+- [x] 前端构建通过
