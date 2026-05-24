@@ -1750,4 +1750,748 @@ describe('Project Controller', () => {
       expect(response.status).toBe(403);
     });
   });
+
+  // ============================================================
+  // Round 2 — additional tests for 100 % branch coverage
+  // Uncovered branches identified:
+  //   controller line 116: req.user.companyId ?? undefined (nullish branch)
+  //   service    line  97: (request.operator_ids || []) (falsy branch)
+  //   service    line 130: if (request.full_name !== undefined) (true branch)
+  // ============================================================
+
+  // ---------- 2-1  Controller line 116: sysadmin without companyId ----------
+  describe('createProject - sysadmin without companyId (direct controller)', () => {
+    it('should pass undefined companyId when sysadmin has no companyId', async () => {
+      const { createProject } = require('../../apis/controller/project.controller');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const mockCreate = jest.fn().mockResolvedValue(mockProjectRow);
+      getPrisma.mockReturnValue({
+        project: { create: mockCreate },
+        user: { findMany: jest.fn().mockResolvedValue([]) },
+      });
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        body: {
+          short_name: 'P1',
+          full_name: 'Project 1',
+          company_id: 1,
+        },
+        user: { userId: 1, role: 'sysadmin' }, // no companyId at all
+      };
+
+      await createProject(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+    });
+
+    it('should pass undefined when sysadmin companyId is null', async () => {
+      const { createProject } = require('../../apis/controller/project.controller');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const mockCreate = jest.fn().mockResolvedValue(mockProjectRow);
+      getPrisma.mockReturnValue({
+        project: { create: mockCreate },
+        user: { findMany: jest.fn().mockResolvedValue([]) },
+      });
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        body: {
+          short_name: 'P1',
+          full_name: 'Project 1',
+          company_id: 1,
+        },
+        user: { userId: 1, role: 'sysadmin', companyId: null },
+      };
+
+      await createProject(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+    });
+  });
+
+  // ---------- 2-2  Service line 97: operator_ids undefined ----------
+  describe('createProject - operator_ids undefined (direct controller)', () => {
+    it('should handle undefined operator_ids with || fallback to []', async () => {
+      const { createProject } = require('../../apis/controller/project.controller');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        operators: [],
+      });
+      getPrisma.mockReturnValue({
+        project: { create: mockCreate },
+        user: { findMany: jest.fn().mockResolvedValue([]) },
+      });
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        body: {
+          short_name: 'P1',
+          full_name: 'Project 1',
+          company_id: 1,
+          // operator_ids NOT provided → undefined
+        },
+        user: { userId: 1, role: 'sysadmin', companyId: 1 },
+      };
+
+      await createProject(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            operators: { create: [] },
+          }),
+        })
+      );
+    });
+
+    it('should handle undefined viewer_ids with || fallback to []', async () => {
+      const { createProject } = require('../../apis/controller/project.controller');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        viewers: [],
+      });
+      getPrisma.mockReturnValue({
+        project: { create: mockCreate },
+        user: { findMany: jest.fn().mockResolvedValue([]) },
+      });
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        body: {
+          short_name: 'P1',
+          full_name: 'Project 1',
+          company_id: 1,
+          operator_ids: [],
+          // viewer_ids NOT provided → undefined
+        },
+        user: { userId: 1, role: 'sysadmin', companyId: 1 },
+      };
+
+      await createProject(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            viewers: { create: [] },
+          }),
+        })
+      );
+    });
+  });
+
+  // ---------- 2-3  Service line 130: full_name in update ----------
+  describe('PUT /api/projects/:id - update full_name via route', () => {
+    it('should update full_name field', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        fullName: 'New Full Name',
+      });
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const response = await agent
+        .put('/api/v1/projects/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ full_name: 'New Full Name' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.full_name).toBe('New Full Name');
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ fullName: 'New Full Name' }),
+        })
+      );
+    });
+  });
+
+  // ---------- 2-4  Description edge cases ----------
+  describe('createProject - description edge cases (direct controller)', () => {
+    it('should handle empty string description as null', async () => {
+      const { createProject } = require('../../apis/controller/project.controller');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        description: null,
+      });
+      getPrisma.mockReturnValue({
+        project: { create: mockCreate },
+        user: { findMany: jest.fn().mockResolvedValue([]) },
+      });
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        body: {
+          short_name: 'P1',
+          full_name: 'Project 1',
+          company_id: 1,
+          description: '',
+          operator_ids: [],
+        },
+        user: { userId: 1, role: 'sysadmin', companyId: 1 },
+      };
+
+      await createProject(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+      // empty string || null → null
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ description: null }),
+        })
+      );
+    });
+
+    it('should handle undefined description as null', async () => {
+      const { createProject } = require('../../apis/controller/project.controller');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        description: null,
+      });
+      getPrisma.mockReturnValue({
+        project: { create: mockCreate },
+        user: { findMany: jest.fn().mockResolvedValue([]) },
+      });
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        body: {
+          short_name: 'P1',
+          full_name: 'Project 1',
+          company_id: 1,
+          operator_ids: [],
+          // no description → undefined
+        },
+        user: { userId: 1, role: 'sysadmin', companyId: 1 },
+      };
+
+      await createProject(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ description: null }),
+        })
+      );
+    });
+  });
+
+  // ---------- 2-5  Update with empty viewer_ids ----------
+  describe('updateProject - empty viewer_ids replacement (direct controller)', () => {
+    it('should skip findMany when viewer_ids is empty array', async () => {
+      const { updateProject } = require('../../apis/controller/project.controller');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        viewers: [],
+      });
+      const mockUserFindMany = jest.fn().mockResolvedValue([]);
+      const mockOperatorUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
+      const mockViewerUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+        user: { findMany: mockUserFindMany },
+        projectOperator: { updateMany: mockOperatorUpdateMany },
+        projectViewer: { updateMany: mockViewerUpdateMany },
+      });
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        params: { id: '1' },
+        body: { operator_ids: [], viewer_ids: [] },
+        user: { userId: 1, role: 'sysadmin', companyId: 1 },
+      };
+
+      await updateProject(mockReq, mockRes);
+      // success() calls res.json() directly, not res.status()
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 0, message: '更新项目成功' })
+      );
+      // Empty arrays should NOT trigger findMany (length === 0 skips the query)
+      expect(mockUserFindMany).not.toHaveBeenCalled();
+      expect(mockViewerUpdateMany).toHaveBeenCalled();
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            viewers: { create: [] },
+          }),
+        })
+      );
+    });
+  });
+
+  // ---------- 2-6  Update with only full_name (direct controller) ----------
+  describe('updateProject - full_name only (direct controller)', () => {
+    it('should update only full_name field', async () => {
+      const { updateProject } = require('../../apis/controller/project.controller');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        fullName: 'Updated Full Name',
+      });
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        params: { id: '1' },
+        body: { full_name: 'Updated Full Name' },
+        user: { userId: 1, role: 'sysadmin', companyId: 1 },
+      };
+
+      await updateProject(mockReq, mockRes);
+      // success() calls res.json() directly, not res.status()
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 0, message: '更新项目成功' })
+      );
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ fullName: 'Updated Full Name' }),
+        })
+      );
+    });
+  });
+
+  // ---------- 2-7  List with admin + company filter ----------
+  describe('GET /api/projects - admin with company filter combined', () => {
+    it('should combine admin operator filter with explicit company_id', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get('/api/v1/projects?company_id=2')
+        .set('Authorization', `Bearer ${adminToken(2)}`);
+
+      expect(response.status).toBe(200);
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            companyId: 2,
+            operators: { some: { userId: 2 } },
+          }),
+        })
+      );
+    });
+  });
+
+  // ---------- 2-8  Create with admin where body company_id differs ----------
+  describe('createProject - admin ignores body company_id (direct)', () => {
+    it('should always use admin companyId even when body specifies different', async () => {
+      const { createProject } = require('../../apis/controller/project.controller');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const mockCreate = jest.fn().mockResolvedValue({ ...mockProjectRow, companyId: 5 });
+      const mockUserFindMany = jest.fn().mockResolvedValue([{ id: 2, companyId: 5, role: 'admin' }]);
+      getPrisma.mockReturnValue({
+        project: { create: mockCreate },
+        user: { findMany: mockUserFindMany },
+      });
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        body: {
+          short_name: 'P1',
+          full_name: 'Project 1',
+          company_id: 999, // should be ignored
+          operator_ids: [2],
+        },
+        user: { userId: 2, role: 'admin', companyId: 5 },
+      };
+
+      await createProject(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: 5 }),
+        })
+      );
+    });
+  });
+
+  // ---------- 2-9  GET /api/projects/:id - negative id ----------
+  describe('GET /api/projects/:id - negative id', () => {
+    it('should return project for negative id if it exists', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
+      getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .get('/api/v1/projects/-1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      // parseInt('-1') = -1, which is a valid number so it passes isNaN check
+      // service finds the mock data
+      expect(response.status).toBe(200);
+    });
+  });
+
+  // ---------- 2-10  DELETE with zero id ----------
+  describe('DELETE /api/projects/:id - zero id', () => {
+    it('should pass validation for id=0 but get 404', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .delete('/api/v1/projects/0')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      // parseInt('0') = 0, isNaN(0) = false → passes controller
+      // service will look for id=0 which doesn't exist → 404
+      expect(response.status).toBe(404);
+    });
+  });
+
+  // ---------- 2-11  handleServiceError with AppError subclasses ----------
+  describe('handleServiceError - AppError subclass coverage', () => {
+    it('getProject: should map NotFoundError to 404', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .get('/api/v1/projects/999')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(404);
+    });
+
+    it('deleteProject: should map ForbiddenError to 403 for admin', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        operators: [{ userId: 99, user: { cnName: 'Other' } }],
+      });
+      getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .delete('/api/v1/projects/1')
+        .set('Authorization', `Bearer ${adminToken(2)}`);
+
+      expect(response.status).toBe(403);
+    });
+
+    it('updateProject: should map BusinessError to 400 for company_id change', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
+      getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .put('/api/v1/projects/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ company_id: 999 });
+
+      expect(response.status).toBe(400);
+    });
+  });
+
+  // ---------- 2-12  createProject - admin missing company_id but has companyId in token ----------
+  describe('createProject - admin with missing body company_id but token has it', () => {
+    it('should succeed when admin has companyId in token even without body company_id', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({ ...mockProjectRow, companyId: 2 });
+      const mockUserFindMany = jest.fn().mockResolvedValue([{ id: 2, companyId: 2, role: 'admin' }]);
+      getPrisma.mockReturnValue({
+        project: { create: mockCreate },
+        user: { findMany: mockUserFindMany },
+      });
+
+      const response = await agent
+        .post('/api/v1/projects')
+        .set('Authorization', `Bearer ${adminToken(2)}`)
+        .send({ short_name: 'P1', full_name: 'Project 1' });
+
+      expect(response.status).toBe(201);
+    });
+  });
+
+  // ---------- 2-13  Update with same company_id as existing ----------
+  describe('updateProject - same company_id as existing (direct)', () => {
+    it('should allow updating other fields when company_id matches', async () => {
+      const { updateProject } = require('../../apis/controller/project.controller');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        shortName: 'Updated',
+        fullName: 'Updated Full',
+      });
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        params: { id: '1' },
+        body: {
+          company_id: 1, // same as existing
+          short_name: 'Updated',
+          full_name: 'Updated Full',
+        },
+        user: { userId: 1, role: 'sysadmin', companyId: 1 },
+      };
+
+      await updateProject(mockReq, mockRes);
+      // success() calls res.json() directly
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 0, message: '更新项目成功' })
+      );
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            shortName: 'Updated',
+            fullName: 'Updated Full',
+          }),
+        })
+      );
+    });
+  });
+
+  // ---------- 2-14  List pagination boundary ----------
+  describe('GET /api/projects - pagination boundary', () => {
+    it('should handle page=0 as defaulting to 1', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get('/api/v1/projects?page=0&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      // page=0 → parseInt('0')=0, but `|| 1` converts falsy to 1
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 0 })
+      );
+    });
+
+    it('should handle pageSize=0 as defaulting to 10', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get('/api/v1/projects?pageSize=0')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      // pageSize=0 → Math.min(100, 0 || 10) = Math.min(100, 10) = 10
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 10 })
+      );
+    });
+  });
+
+  // ---------- 2-15  getProject - NaN id edge cases ----------
+  describe('GET /api/projects/:id - various invalid id formats', () => {
+    it('should treat decimal id as truncated integer', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
+      getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .get('/api/v1/projects/1.5')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      // parseInt('1.5') = 1, not NaN → passes to service, finds mock data
+      expect(response.status).toBe(200);
+    });
+
+    it('should return 400 for id with special characters', async () => {
+      const response = await agent
+        .get('/api/v1/projects/@#$')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的项目ID');
+    });
+  });
+
+  // ---------- 2-16  updateProject - direct controller: description only ----------
+  describe('updateProject - description only update (direct)', () => {
+    it('should update only description field', async () => {
+      const { updateProject } = require('../../apis/controller/project.controller');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        description: 'New Desc',
+      });
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        params: { id: '1' },
+        body: { description: 'New Desc' },
+        user: { userId: 1, role: 'sysadmin', companyId: 1 },
+      };
+
+      await updateProject(mockReq, mockRes);
+      // success() calls res.json() directly
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 0, message: '更新项目成功' })
+      );
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ description: 'New Desc' }),
+        })
+      );
+    });
+  });
+
+  // ---------- 2-17  createProject - with description provided ----------
+  describe('createProject - with non-empty description (direct)', () => {
+    it('should pass description to service', async () => {
+      const { createProject } = require('../../apis/controller/project.controller');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        description: 'Test desc',
+      });
+      getPrisma.mockReturnValue({
+        project: { create: mockCreate },
+        user: { findMany: jest.fn().mockResolvedValue([]) },
+      });
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        body: {
+          short_name: 'P1',
+          full_name: 'Project 1',
+          company_id: 1,
+          description: 'Test desc',
+          operator_ids: [],
+        },
+        user: { userId: 1, role: 'sysadmin', companyId: 1 },
+      };
+
+      await createProject(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ description: 'Test desc' }),
+        })
+      );
+    });
+  });
+
+  // ---------- 2-18  updateProject - status only with same company_id ----------
+  describe('updateProject - status only with same company_id (direct)', () => {
+    it('should update status and keep same company_id', async () => {
+      const { updateProject } = require('../../apis/controller/project.controller');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        status: false,
+      });
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        params: { id: '1' },
+        body: { status: false },
+        user: { userId: 1, role: 'sysadmin', companyId: 1 },
+      };
+
+      await updateProject(mockReq, mockRes);
+      // success() calls res.json() directly
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 0, message: '更新项目成功' })
+      );
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: false }),
+        })
+      );
+    });
+  });
+
+  // ---------- 2-19  listProjects - admin with status filter ----------
+  describe('GET /api/projects - admin with status and company filter', () => {
+    it('should apply both admin operator filter and status filter', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get('/api/v1/projects?status=true')
+        .set('Authorization', `Bearer ${adminToken(2)}`);
+
+      expect(response.status).toBe(200);
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: true,
+            operators: { some: { userId: 2 } },
+          }),
+        })
+      );
+    });
+  });
 });
