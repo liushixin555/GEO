@@ -944,4 +944,333 @@ describe('PublishingSchedule Controller', () => {
       );
     });
   });
+
+  // ========== 补充边界场景测试 ==========
+  describe('GET /api/publishing-schedule - additional edge cases', () => {
+    it('should pass status=published correctly', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-schedule?status=published')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'published' })
+      );
+    });
+
+    it('should pass status=publish_failed correctly', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-schedule?status=publish_failed')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'publish_failed' })
+      );
+    });
+
+    it('should accept pageSize=100 as exact max boundary', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-schedule?pageSize=100')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(
+        expect.objectContaining({ pageSize: 100 })
+      );
+    });
+
+    it('should accept pageSize=1 as exact min boundary', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-schedule?pageSize=1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(
+        expect.objectContaining({ pageSize: 1 })
+      );
+    });
+
+    it('should use page=1 when page is negative', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-schedule?page=-5&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 1 })
+      );
+    });
+
+    it('should pass search as empty string when search= is provided', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-schedule?search=')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(
+        expect.objectContaining({ search: '' })
+      );
+    });
+
+    it('should handle NaN-like page value like "undefined"', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-schedule?page=undefined')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 1 })
+      );
+    });
+
+    it('should handle NaN-like pageSize value like "null"', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-schedule?pageSize=null')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(
+        expect.objectContaining({ pageSize: 10 })
+      );
+    });
+  });
+
+  describe('PUT /api/publishing-schedule - additional edge cases', () => {
+    it('should return 403 for ForbiddenError via unit test', async () => {
+      mockUpdateSchedule.mockRejectedValue(new ForbiddenError('无权操作此文章'));
+
+      const req = {
+        user: { userId: 2, role: 'admin' },
+        params: { id: '1' },
+        body: { scheduled_publish_at: '2025-06-01T10:00:00.000Z' },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '无权操作此文章' })
+      );
+    });
+
+    it('should return 400 for BusinessError via unit test', async () => {
+      mockUpdateSchedule.mockRejectedValue(new BusinessError('当前文章状态不可编辑发布计划'));
+
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: '1' },
+        body: { scheduled_publish_at: '2025-06-01T10:00:00.000Z' },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '当前文章状态不可编辑发布计划' })
+      );
+    });
+
+    it('should return 404 for NotFoundError via unit test', async () => {
+      mockUpdateSchedule.mockRejectedValue(new NotFoundError('文章'));
+
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: '999' },
+        body: { scheduled_publish_at: '2025-06-01T10:00:00.000Z' },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '文章不存在' })
+      );
+    });
+
+    it('should update with only schedule_type (no scheduled_publish_at) via unit test', async () => {
+      mockUpdateSchedule.mockResolvedValue({ ...mockScheduleItem, schedule_type: 'asap' });
+
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: '1' },
+        body: { schedule_type: 'asap' },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 0 })
+      );
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, undefined, 'asap', 1, 'sysadmin');
+    });
+
+    it('should return 400 when scheduled_publish_at is object via unit test', async () => {
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: '1' },
+        body: { scheduled_publish_at: { year: 2025 } },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'scheduled_publish_at参数无效' })
+      );
+    });
+
+    it('should return 400 when scheduled_publish_at is array via unit test', async () => {
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: '1' },
+        body: { scheduled_publish_at: ['2025-06-01'] },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'scheduled_publish_at参数无效' })
+      );
+    });
+
+    it('should allow valid ISO date-only format via unit test', async () => {
+      mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
+
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: '1' },
+        body: { scheduled_publish_at: '2025-06-01' },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 0 })
+      );
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '2025-06-01', null, 1, 'sysadmin');
+    });
+
+    it('should pass schedule_type correctly for admin user via unit test', async () => {
+      mockUpdateSchedule.mockResolvedValue({ ...mockScheduleItem, schedule_type: 'scheduled' });
+
+      const req = {
+        user: { userId: 2, role: 'admin' },
+        params: { id: '1' },
+        body: { scheduled_publish_at: '2025-06-01T10:00:00.000Z', schedule_type: 'scheduled' },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 0 })
+      );
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '2025-06-01T10:00:00.000Z', 'scheduled', 2, 'admin');
+    });
+
+    it('should handle schedule_type=undefined (not in body) via unit test', async () => {
+      mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
+
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: '1' },
+        body: { scheduled_publish_at: '2025-06-01T10:00:00.000Z' },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      // schedule_type is undefined, so schedule_type ?? null => null
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '2025-06-01T10:00:00.000Z', null, 1, 'sysadmin');
+    });
+
+    it('should reject schedule_type=number via unit test', async () => {
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: '1' },
+        body: { scheduled_publish_at: '2025-06-01T10:00:00.000Z', schedule_type: 123 },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'schedule_type参数无效' })
+      );
+    });
+
+    it('should reject schedule_type=boolean via unit test', async () => {
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: '1' },
+        body: { scheduled_publish_at: '2025-06-01T10:00:00.000Z', schedule_type: true },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'schedule_type参数无效' })
+      );
+    });
+
+    it('should reject schedule_type=object via unit test', async () => {
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: '1' },
+        body: { scheduled_publish_at: '2025-06-01T10:00:00.000Z', schedule_type: { type: 'asap' } },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'schedule_type参数无效' })
+      );
+    });
+
+    it('should reject schedule_type=empty string via unit test', async () => {
+      const req = {
+        user: { userId: 1, role: 'sysadmin' },
+        params: { id: '1' },
+        body: { scheduled_publish_at: '2025-06-01T10:00:00.000Z', schedule_type: '' },
+      } as any;
+      const res = createMockRes();
+
+      await updatePublishingSchedule(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'schedule_type参数无效' })
+      );
+    });
+  });
 });

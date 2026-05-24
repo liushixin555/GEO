@@ -10,8 +10,8 @@
 
 | 指标 | 数值 |
 |------|------|
-| 测试总数 | 65 |
-| 通过 | 65 |
+| 测试总数 | 86 |
+| 通过 | 86 |
 | 失败 | 0 |
 | 语句覆盖率 | 100% |
 | 分支覆盖率 | 100% |
@@ -19,6 +19,26 @@
 | 行覆盖率 | 100% |
 
 ## 变更记录
+
+### 第三轮补全（2026-05-24）
+
+**新增 21 个用例（65→86）：**
+
+GET 边界场景（8 个集成测试）：
+- status=published/publish_failed 两种合法状态值传递
+- pageSize 精确边界（100上限、1下限）
+- 负数 page 回退默认值
+- search 空字符串传递
+- NaN-like 字符串（"undefined"/"null"）page/pageSize 回退默认值
+
+PUT 边界场景（13 个单元测试）：
+- AppError 子类直接调用覆盖（ForbiddenError/403、BusinessError/400、NotFoundError/404）
+- 仅传 schedule_type（无 scheduled_publish_at）路径
+- scheduled_publish_at 为 object/array 时 controller 层拦截
+- ISO date-only 格式（'2025-06-01'）验证
+- admin 用户传递 schedule_type 路径
+- schedule_type=undefined 时 `?? null` 转换
+- schedule_type 为 number/boolean/object/空字符串类型拒绝
 
 ### 第二轮补全（2026-05-24）
 
@@ -118,6 +138,33 @@
 
 64. `should return 500 when non-Error value is thrown` — 非 Error 抛出返回 500
 65. `should return 401 when req.user is missing` — 直接调用验证 401
+
+### GET 补充边界场景 — 8 个集成测试
+
+66. `should pass status=published correctly` — status=published 传递
+67. `should pass status=publish_failed correctly` — status=publish_failed 传递
+68. `should accept pageSize=100 as exact max boundary` — pageSize=100 上限边界
+69. `should accept pageSize=1 as exact min boundary` — pageSize=1 下限边界
+70. `should use page=1 when page is negative` — 负数 page 回退默认值
+71. `should pass search as empty string when search= is provided` — 空字符串搜索
+72. `should handle NaN-like page value like "undefined"` — NaN-like page 回退
+73. `should handle NaN-like pageSize value like "null"` — NaN-like pageSize 回退
+
+### PUT 补充边界场景 — 13 个单元测试
+
+74. `should return 403 for ForbiddenError via unit test` — ForbiddenError 直接调用
+75. `should return 400 for BusinessError via unit test` — BusinessError 直接调用
+76. `should return 404 for NotFoundError via unit test` — NotFoundError 直接调用
+77. `should update with only schedule_type (no scheduled_publish_at) via unit test` — 仅传 schedule_type
+78. `should return 400 when scheduled_publish_at is object via unit test` — object 类型拦截
+79. `should return 400 when scheduled_publish_at is array via unit test` — array 类型拦截
+80. `should allow valid ISO date-only format via unit test` — ISO date-only 格式
+81. `should pass schedule_type correctly for admin user via unit test` — admin 传 schedule_type
+82. `should handle schedule_type=undefined (not in body) via unit test` — schedule_type 缺失时 `?? null`
+83. `should reject schedule_type=number via unit test` — number 类型 schedule_type 拒绝
+84. `should reject schedule_type=boolean via unit test` — boolean 类型 schedule_type 拒绝
+85. `should reject schedule_type=object via unit test` — object 类型 schedule_type 拒绝
+86. `should reject schedule_type=empty string via unit test` — 空字符串 schedule_type 拒绝
 
 ## 覆盖的代码路径
 
