@@ -160,3 +160,4 @@
 | 2026-05-25 | tasks/tdd/project.service.test.md | project.service.impl TDD 第2轮——103用例100%覆盖率（+31新增：错误类型验证statusCode/ Admin边界值userId=0/安全性数据完整性/mapProject边界值） |
 | 2026-05-25 | progress_tasks/2026-05-25-articledetail-security-fix.md | ArticleDetail.tsx 安全评审修复确认（D+→A）+ 全局24页面文件 Token 迁移至 apiClient |
 | 2026-05-25 | progress_tasks/2026-05-25-help-tsx-review-fix.md | help.tsx 评审封装层修复——P0 noopener反向标签劫持+P1弹窗拦截降级+P2中文ARIA+antd图标+P3 F1快捷键，22测试全通过 |
+| 2026-05-25 | tasks/tdd/publishing-schedule.service.test.round2.md | publishing-schedule.service TDD 第2轮——70用例100%覆盖率（+23新增：字段映射null/有值8个+错误类型statusCode消息3个+操作符边界3个+权限边界4个+综合映射5个） |
