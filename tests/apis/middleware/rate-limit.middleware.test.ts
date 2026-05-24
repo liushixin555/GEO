@@ -494,4 +494,316 @@ describe('rateLimitMiddleware', () => {
       expect(index.antiCrawlMiddleware).toBeDefined();
     });
   });
+
+  // =========================================================
+  // 10. skip 回调函数测试
+  // =========================================================
+  describe('skip 回调函数', () => {
+    function loadWithSkipCapture() {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () =>
+        jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next())
+      );
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+      // 第一次调用是 rateLimitMiddleware，其 options 中包含 skip
+      return mockedRateLimit.mock.calls[0][0].skip;
+    }
+
+    test('GET /api/v1/auth/verify 应返回 true（跳过限流）', () => {
+      const skip = loadWithSkipCapture();
+      expect(skip({ method: 'GET', path: '/api/v1/auth/verify' } as any)).toBe(true);
+    });
+
+    test('POST /api/v1/auth/verify 应返回 false（不跳过）', () => {
+      const skip = loadWithSkipCapture();
+      expect(skip({ method: 'POST', path: '/api/v1/auth/verify' } as any)).toBe(false);
+    });
+
+    test('GET /api/v1/other 应返回 false（不跳过）', () => {
+      const skip = loadWithSkipCapture();
+      expect(skip({ method: 'GET', path: '/api/v1/other' } as any)).toBe(false);
+    });
+
+    test('POST /api/v1/articles 应返回 false（不跳过）', () => {
+      const skip = loadWithSkipCapture();
+      expect(skip({ method: 'POST', path: '/api/v1/articles' } as any)).toBe(false);
+    });
+
+    test('DELETE /api/v1/auth/verify 应返回 false（method 不匹配）', () => {
+      const skip = loadWithSkipCapture();
+      expect(skip({ method: 'DELETE', path: '/api/v1/auth/verify' } as any)).toBe(false);
+    });
+
+    test('PUT /api/v1/auth/verify 应返回 false（method 不匹配）', () => {
+      const skip = loadWithSkipCapture();
+      expect(skip({ method: 'PUT', path: '/api/v1/auth/verify' } as any)).toBe(false);
+    });
+
+    test('GET /auth/verify 应返回 false（路径前缀不匹配）', () => {
+      const skip = loadWithSkipCapture();
+      expect(skip({ method: 'GET', path: '/auth/verify' } as any)).toBe(false);
+    });
+  });
+
+  // =========================================================
+  // 11. articleActionLimiter 导入和初始化
+  // =========================================================
+  describe('articleActionLimiter 导入和初始化', () => {
+    test('应成功导入 articleActionLimiter', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const { articleActionLimiter } = require('../../../apis/middleware/rate-limit.middleware');
+      expect(articleActionLimiter).toBeDefined();
+      expect(typeof articleActionLimiter).toBe('function');
+    });
+
+    test('articleActionLimiter 和 rateLimitMiddleware 应为不同实例', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const { rateLimitMiddleware, articleActionLimiter } = require('../../../apis/middleware/rate-limit.middleware');
+      expect(rateLimitMiddleware).not.toBe(articleActionLimiter);
+    });
+  });
+
+  // =========================================================
+  // 12. articleActionLimiter rateLimit 调用参数
+  // =========================================================
+  describe('articleActionLimiter rateLimit 调用参数', () => {
+    test('应使用 windowMs=60000（1分钟）', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+
+      // articleActionLimiter 是第二次调用
+      const callArgs = mockedRateLimit.mock.calls[1][0];
+      expect(callArgs.windowMs).toBe(60 * 1000);
+    });
+
+    test('NODE_ENV=test 时 max 应为 5000', () => {
+      const origNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'test';
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+
+      const callArgs = mockedRateLimit.mock.calls[1][0];
+      expect(callArgs.max).toBe(5000);
+      process.env.NODE_ENV = origNodeEnv;
+    });
+
+    test('NODE_ENV=production 时 max 应为 20', () => {
+      const origNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+
+      const callArgs = mockedRateLimit.mock.calls[1][0];
+      expect(callArgs.max).toBe(20);
+      process.env.NODE_ENV = origNodeEnv;
+    });
+
+    test('应设置正确的错误消息', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+
+      const callArgs = mockedRateLimit.mock.calls[1][0];
+      expect(callArgs.message).toEqual({ code: 429, message: '操作过于频繁，请稍后再试' });
+    });
+
+    test('应启用 standardHeaders', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+
+      const callArgs = mockedRateLimit.mock.calls[1][0];
+      expect(callArgs.standardHeaders).toBe(true);
+    });
+
+    test('应禁用 legacyHeaders', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+
+      const callArgs = mockedRateLimit.mock.calls[1][0];
+      expect(callArgs.legacyHeaders).toBe(false);
+    });
+
+    test('不应包含 skip 选项（所有操作均限流）', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+
+      const callArgs = mockedRateLimit.mock.calls[1][0];
+      expect(callArgs.skip).toBeUndefined();
+    });
+
+    test('所有选项 key 集合完整', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+
+      const callArgs = mockedRateLimit.mock.calls[1][0];
+      expect(Object.keys(callArgs).sort()).toEqual(
+        ['legacyHeaders', 'max', 'message', 'standardHeaders', 'windowMs'].sort()
+      );
+    });
+  });
+
+  // =========================================================
+  // 13. articleActionLimiter 中间件行为
+  // =========================================================
+  describe('articleActionLimiter 中间件行为', () => {
+    test('正常请求应调用 next()', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () =>
+        jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next())
+      );
+
+      const { articleActionLimiter } = require('../../../apis/middleware/rate-limit.middleware');
+      const next = jest.fn();
+      articleActionLimiter(mockReq as Request, mockRes as Response, next);
+      expect(next).toHaveBeenCalled();
+    });
+
+    test('模拟限流时返回 429 状态码', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () =>
+        jest.fn().mockImplementation((options: any) => {
+          if (options.message && options.message.message === '操作过于频繁，请稍后再试') {
+            return (req: any, res: any, next: any) => {
+              res.status(429).json(options.message);
+            };
+          }
+          return (req: any, res: any, next: any) => next();
+        })
+      );
+
+      const { articleActionLimiter } = require('../../../apis/middleware/rate-limit.middleware');
+      articleActionLimiter(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(429);
+      expect(jsonFn).toHaveBeenCalledWith({ code: 429, message: '操作过于频繁，请稍后再试' });
+    });
+
+    test('连续多次正常请求应全部通过', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () =>
+        jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next())
+      );
+
+      const { articleActionLimiter } = require('../../../apis/middleware/rate-limit.middleware');
+
+      for (let i = 0; i < 5; i++) {
+        const next = jest.fn();
+        articleActionLimiter(mockReq as Request, mockRes as Response, next);
+        expect(next).toHaveBeenCalled();
+      }
+    });
+
+    test('中间件可在不同 req 对象上复用', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () =>
+        jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next())
+      );
+
+      const { articleActionLimiter } = require('../../../apis/middleware/rate-limit.middleware');
+
+      const req1 = { method: 'DELETE', path: '/api/v1/articles/1' } as Partial<Request>;
+      const req2 = { method: 'PATCH', path: '/api/v1/articles/2/audit' } as Partial<Request>;
+      const next1 = jest.fn();
+      const next2 = jest.fn();
+
+      articleActionLimiter(req1 as Request, mockRes as Response, next1);
+      articleActionLimiter(req2 as Request, mockRes as Response, next2);
+
+      expect(next1).toHaveBeenCalled();
+      expect(next2).toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================
+  // 14. articleActionLimiter 重导出
+  // =========================================================
+  describe('articleActionLimiter 重导出', () => {
+    test('articleActionLimiter 应通过 middleware/index.ts 正确导出', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const { articleActionLimiter } = require('../../../apis/middleware/index');
+      expect(articleActionLimiter).toBeDefined();
+      expect(typeof articleActionLimiter).toBe('function');
+    });
+
+    test('index.ts 同时导出 rateLimitMiddleware 和 articleActionLimiter', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const index = require('../../../apis/middleware/index');
+      expect(index.rateLimitMiddleware).toBeDefined();
+      expect(index.articleActionLimiter).toBeDefined();
+    });
+  });
+
+  // =========================================================
+  // 15. 两个限流器独立性
+  // =========================================================
+  describe('两个限流器独立性', () => {
+    test('rateLimit() 被调用两次（分别为两个限流器）', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+
+      expect(mockedRateLimit).toHaveBeenCalledTimes(2);
+    });
+
+    test('两个限流器使用不同的 message', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+
+      const msg1 = mockedRateLimit.mock.calls[0][0].message;
+      const msg2 = mockedRateLimit.mock.calls[1][0].message;
+      expect(msg1).toEqual({ code: 429, message: '请求过于频繁，请稍后再试' });
+      expect(msg2).toEqual({ code: 429, message: '操作过于频繁，请稍后再试' });
+      expect(msg1).not.toBe(msg2);
+    });
+
+    test('rateLimitMiddleware 有 skip，articleActionLimiter 没有', () => {
+      jest.resetModules();
+      jest.doMock('express-rate-limit', () => jest.fn().mockImplementation(() => (req: any, res: any, next: any) => next()));
+
+      const mockedRateLimit = require('express-rate-limit') as jest.Mock;
+      require('../../../apis/middleware/rate-limit.middleware');
+
+      const args1 = mockedRateLimit.mock.calls[0][0];
+      const args2 = mockedRateLimit.mock.calls[1][0];
+      expect(typeof args1.skip).toBe('function');
+      expect(args2.skip).toBeUndefined();
+    });
+  });
 });
