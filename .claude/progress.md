@@ -441,6 +441,14 @@
   - 发现：authMiddleware 仅验证 JWT 签名，不校验 payload 字段完整性
   - 发现：health check 路由在 rate limit 中间件之前，不受速率限制
 
+## 本次变更（2026-05-24 pages/api-docs/index.tsx 软件架构专家评审）
+- [x] **软件架构专家评审 pages/api-docs/index.tsx（24 行）**
+  - 综合评分 2.0/10（架构层面不可用，死代码 + 路由冲突 + 前后端架构断裂）
+  - 7 项架构发现：CRITICAL×1（组件游离于路由体系外）、HIGH×2（前后端路径冲突、缺少 Layout 集成）、MEDIUM×2（架构必要性存疑、无环境感知）、LOW×1（代码分割缺失）
+  - 核心问题：组件是 React 组件树中的孤立节点（未被 Layout 导入/注册），`/api-docs` 路径被前后端同时声索形成控制权争夺，开发/生产环境行为不一致
+  - 提出三个替代方案：A. 删除文件 + Sidebar 外链（推荐）/ B. 保留跳板页需完整集成 / C. 升级为 API 文档首页
+  - 评审报告 tasks/review/index.tsx.architecture.md
+
 ## 本次变更（2026-05-24 apis/app.ts Committer审核专家评审）
 - [x] **Committer审核专家评审 apis/app.ts（239 行）**
   - 综合判定：通过（APPROVE）— 安全基础优秀 + 测试覆盖充分 + 功能完整
