@@ -257,3 +257,20 @@
   outline: 2px solid var(--color-primary) !important;
   outline-offset: -2px !important;
 }
+
+/* REQ-6: 容器无障碍 — role="application" 焦点环 */
+.markdown-editor-wrapper[role="application"]:focus-within {
+  outline: 2px solid var(--color-primary) !important;
+  outline-offset: -2px !important;
+}
+
+/* 拖拽条无障碍 — 焦点和触控目标（CSS-02 / A-03） */
+.markdown-editor-wrapper .w-md-editor-drag {
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.markdown-editor-wrapper .w-md-editor-drag:focus-visible {
+  outline: 2px solid var(--color-primary) !important;
+  outline-offset: -2px !important;
+}

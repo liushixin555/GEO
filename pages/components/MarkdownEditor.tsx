@@ -18,6 +18,7 @@
 import React, { useCallback, useEffect, forwardRef, useImperativeHandle, useRef, memo } from 'react';
 import MDEditor from '@uiw/react-md-editor';
 import DOMPurify from 'dompurify';
+import { Empty } from 'antd';
 import { safeUrlTransform, SAFE_TAGS } from './MarkdownViewer';
 import '../styles/markdown-editor.css';
 
@@ -59,6 +60,36 @@ export interface MarkdownEditorRef {
 
 const MAX_CONTENT_LENGTH = 2_097_152; // 2MB 内容上限
 
+// REQ-4: Error Boundary 防止 Markdown 渲染崩溃导致页面白屏
+interface EditorErrorBoundaryState {
+  hasError: boolean;
+}
+
+class MarkdownEditorErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  EditorErrorBoundaryState
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): EditorErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('[MarkdownEditorErrorBoundary]', error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <Empty description="编辑器加载异常，请刷新页面重试" />;
+    }
+    return this.props.children;
+  }
+}
+
 const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
   value = '',
   onChange,
@@ -72,34 +103,32 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
   placeholder,
   autoFocus = false,
 }, ref) => {
-  const editorRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<HTMLDivElement | null>(null);
 
-  // 上游 Editor.factory.tsx:154-163 使用 useMemo 注册 mouseover/mouseleave 事件监听器但无清理函数，
-  // 组件卸载时手动清理 DOM 引用，帮助 GC 回收并缓解事件监听器泄漏（SEC-MD-04）
+  // REQ-2: 组件卸载时清理 DOM 引用和事件监听器
+  // 上游 Editor.factory.tsx:154-163 使用 useMemo 注册 mouseover/mouseleave 但无清理
   useEffect(() => {
     return () => {
       const container = editorRef.current;
-      if (container) {
-        const textareaWarp = container.querySelector('.w-md-editor-text');
-        if (textareaWarp && textareaWarp instanceof HTMLElement) {
-          const clone = textareaWarp.cloneNode(false);
-          textareaWarp.parentNode?.replaceChild(clone, textareaWarp);
-        }
+      if (!container) return;
+
+      // 清理上游泄漏的事件监听器：通过替换 textareaWarp DOM 节点移除所有匿名监听器
+      const textareaWarp = container.querySelector('.w-md-editor-text');
+      if (textareaWarp && textareaWarp instanceof HTMLElement) {
+        const clone = textareaWarp.cloneNode(false);
+        textareaWarp.parentNode?.replaceChild(clone, textareaWarp);
       }
+
+      // 清理容器引用，帮助 GC
+      editorRef.current = null;
     };
   }, []);
 
-  // 上游工具栏按钮缺少 aria-label，屏幕阅读器无法识别（A-01）
-  // 在 mount 后为工具栏容器添加 role="toolbar" + aria-label，为按钮添加 aria-label
+  // 上游工具栏按钮缺少 aria-label（A-01），缺少 role="toolbar"（REQ-6）
+  // 使用 MutationObserver 监听 DOM 变化后注入 ARIA 属性，避免每次渲染执行
   useEffect(() => {
     const container = editorRef.current;
     if (!container) return;
-
-    const toolbar = container.querySelector('.w-md-editor-toolbar');
-    if (toolbar) {
-      toolbar.setAttribute('role', 'toolbar');
-      toolbar.setAttribute('aria-label', 'Markdown 格式化工具栏');
-    }
 
     const TOOLBAR_LABELS: Record<string, string> = {
       'header': '标题',
@@ -122,22 +151,49 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
       'fullscreen': '全屏',
     };
 
-    if (!toolbar) return;
+    const annotateToolbar = () => {
+      const toolbar = container.querySelector('.w-md-editor-toolbar');
+      if (!toolbar) return;
 
-    const buttons = toolbar.querySelectorAll('button[title]');
-    buttons.forEach((btn) => {
-      const title = btn.getAttribute('title') ?? '';
-      for (const [key, label] of Object.entries(TOOLBAR_LABELS)) {
-        if (title.toLowerCase().includes(key.toLowerCase())) {
-          btn.setAttribute('aria-label', label);
-          break;
+      if (!toolbar.getAttribute('role')) {
+        toolbar.setAttribute('role', 'toolbar');
+        toolbar.setAttribute('aria-label', 'Markdown 格式化工具栏');
+      }
+
+      const buttons = toolbar.querySelectorAll('button[title]');
+      buttons.forEach((btn) => {
+        if (btn.getAttribute('aria-label')) return;
+        const title = btn.getAttribute('title') ?? '';
+        for (const [key, label] of Object.entries(TOOLBAR_LABELS)) {
+          if (title.toLowerCase().includes(key.toLowerCase())) {
+            btn.setAttribute('aria-label', label);
+            break;
+          }
         }
+        if (!btn.getAttribute('aria-label')) {
+          btn.setAttribute('aria-label', title);
+        }
+      });
+
+      // REQ-6: 为拖拽条添加无障碍属性
+      const dragBar = container.querySelector('.w-md-editor-drag');
+      if (dragBar && !dragBar.getAttribute('role')) {
+        dragBar.setAttribute('role', 'separator');
+        dragBar.setAttribute('aria-orientation', 'horizontal');
+        dragBar.setAttribute('aria-label', '调整编辑器高度');
+        (dragBar as HTMLElement).tabIndex = 0;
       }
-      if (!btn.getAttribute('aria-label')) {
-        btn.setAttribute('aria-label', title);
-      }
-    });
-  });
+    };
+
+    // 立即执行一次
+    annotateToolbar();
+
+    // 监听子树变化（上游可能在重渲染时替换工具栏 DOM）
+    const observer = new MutationObserver(annotateToolbar);
+    observer.observe(container, { childList: true, subtree: true });
+
+    return () => observer.disconnect();
+  }, []);
 
   const handleChange = useCallback(
     (val: string | undefined) => {
@@ -178,28 +234,43 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
     [],
   );
 
+  // OPT-5: 点击事件隔离，防止编辑器内部点击冒泡到 antd Form 等父组件
+  const handleContainerClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
+
   if (!visible) return null;
 
   const rootClassName = `markdown-editor-wrapper${className ? ` ${className}` : ''}`;
 
   return (
-    <div ref={editorRef} data-color-mode="light" className={rootClassName} style={style}>
-      <MDEditor
-        value={value}
-        onChange={handleChange}
-        height={height}
-        preview={preview}
-        tabSize={tabSize}
-        autoFocus={autoFocus}
-        textareaProps={{ placeholder, readOnly, 'aria-label': 'Markdown 编辑器' }}
-        commandsFilter={commandsFilter}
-        previewOptions={{
-          urlTransform: safeUrlTransform,
-          allowElement: (element: { tagName: string }) =>
-            SAFE_TAGS.has(element.tagName.toLowerCase()),
-        }}
-      />
-    </div>
+    <MarkdownEditorErrorBoundary>
+      <div
+        ref={editorRef}
+        data-color-mode="light"
+        className={rootClassName}
+        style={style}
+        role="application"
+        aria-label="Markdown 编辑器"
+        onClick={handleContainerClick}
+      >
+        <MDEditor
+          value={value}
+          onChange={handleChange}
+          height={height}
+          preview={preview}
+          tabSize={tabSize}
+          autoFocus={autoFocus}
+          textareaProps={{ placeholder, readOnly, 'aria-label': 'Markdown 内容编辑区' }}
+          commandsFilter={commandsFilter}
+          previewOptions={{
+            urlTransform: safeUrlTransform,
+            allowElement: (element: { tagName: string }) =>
+              SAFE_TAGS.has(element.tagName.toLowerCase()),
+          }}
+        />
+      </div>
+    </MarkdownEditorErrorBoundary>
   );
 });
 
