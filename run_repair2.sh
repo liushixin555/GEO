@@ -9,7 +9,7 @@ fi
 for ((i=0; i<100; i++)); do
 mapfile -t tasks < <(find ./tasks/review -type f -name "*.md" | sort)
 for f in "${tasks[@]}"; do
-
+  echo "===== 处理: $f =====" 
   claude -p "@$f 根据此文件修复代码。每次开始前都执行git pull.注意铁律每次任务前后必须遵守"
   echo "休眠 10秒..."
   sleep 10

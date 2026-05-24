@@ -9,7 +9,7 @@ fi
 mapfile -t tasks < <(find . -type f \( -name "*.ts" -o -name "*.tsx" \) | sort)
 for ((i=0; i<100; i++)); do
 for f in "${tasks[@]}"; do
-
+  echo "===== 处理: $f =====" 
   claude -p "@$f 以软件质量专家评审此代码文件，在tasks/review目录建一个与本代码同名的md文件写入评审结果。注意任务结束铁律每次任务结束后必须执行"
   claude -p "@$f 以软件架构专家评审此代码文件，在tasks/review目录建一个与本代码同名的md文件写入评审结果。注意任务结束铁律每次任务结束后必须执行"
   claude -p "@$f 以代码安全专家评审此代码文件，在tasks/review目录建一个与本代码同名的md文件写入评审结果。注意任务结束铁律每次任务结束后必须执行"
