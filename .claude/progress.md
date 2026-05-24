@@ -642,6 +642,19 @@
   - SOLID 评估：SRP⚠️、OCP❌、LSP✅、ISP❌、DIP⚠️
   - 评审报告 tasks/review/Props.tsx.architecture.md
 
+## 本次变更（2026-05-24 apis/app.ts TDD 测试第三次补全）
+- [x] **apis/app.ts 测试用例第三次补全** — 从 156 个增加到 184 个测试用例（+28）
+  - 新增审计日志中间件测试 10 个：console.warn 4xx/5xx 记录、200 不记录、userId/anonymous 区分、timing/method/URL/IP 格式验证
+  - 新增 Login Body 类型验证测试 4 个：非字符串用户名/密码、超长用户名/密码
+  - 新增 Auth Verify 正向测试 2 个：sysadmin/admin token 返回 200 + valid:true
+  - 新增 CORS 边界测试 2 个：无 origin 请求通过、Content-Type 头验证
+  - 新增全局错误处理器深度测试 2 个：结构化日志、统一 500 响应格式
+  - 新增健康检查隔离测试 3 个：无 UA/无认证/响应时间 <100ms
+  - 新增 Auth 路由方法覆盖 3 个：admin pass auth、selection/companies 401
+  - 新增中间件执行顺序测试 2 个：health check 绕过 anti-crawl、login 经 anti-crawl 拦截
+  - 覆盖率：Stmts 88.73%, Branch 61.53%, Funcs 87.5%, Lines 90%
+  - TDD 报告：tasks/tdd/app.test.md（第三次更新）
+
 ## 本次变更（2026-05-24 apis/app.ts 软件质量专家第三轮复审）
 - [x] **软件质量专家评审 apis/app.ts（259 行，修复后复审）**
   - 综合评级 B+（从 B 提升，修复质量扎实，可维护性瓶颈依旧）
@@ -658,3 +671,12 @@
   - 供应链评估：react-markdown < v9 默认允许HTML渲染风险、rehype-rewrite AST重写能力本身是风险
   - 提供本项目调用安全检查清单（8项）和上游调用防护建议
   - 评审报告 tasks/review/Props.tsx.security.md
+
+## 本次变更（2026-05-24 apis/app.ts 软件架构专家重构后复审）
+- [x] **软件架构专家评审 apis/app.ts（148 行，路由模块化后复审）**
+  - 综合评级 B+（从第一轮 B- 提升，核心架构瓶颈已消除）
+  - 验证第一轮 CRITICAL×2 + HIGH×3 修复情况：C-1 路由模块化✅、C-2 中间件重复消除✅、H-1 注释修正✅、M-1 Swagger条件化✅、M-3 错误分类处理✅、SEC-2.05 错误上下文✅、SEC-2.06 审计日志✅
+  - 剩余架构问题 7 项：P2×4（无API版本化、CORS拒绝无日志、静态文件绕过安全中间件、Swagger require类型安全）、P3×4（路由挂载前缀不一致、日志格式不统一、畸形JSON无处理、请求体大小硬编码）
+  - 文件从 239 行减至 148 行（-38%），Controller 导入从 16 个降为 0 个
+  - SOLID 评估改善：SRP ❌→✅、OCP ❌→⚠️、ISP ⚠️→✅
+  - 评审报告 tasks/review/app.ts.architecture.md
