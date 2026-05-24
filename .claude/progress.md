@@ -736,6 +736,15 @@
   - Vite 构建通过、App 测试 7/7 通过
   - 恢复 `.gitignore` 中 `.env` 忽略规则（被意外删除）
 
+## 本次变更（2026-05-24 @uiw/react-markdown-preview common.tsx 代码安全专家评审）
+- [x] **代码安全专家评审 @uiw/react-markdown-preview/src/common.tsx（27 行）**
+  - 综合安全评级 B+（中高风险，库本身无消毒层，使用方需额外防护）
+  - STRIDE 威胁建模：Tampering 高、Spoofing/InfoDisclosure/EoP 中
+  - 6 项安全风险：🔴严重（rehypeRaw XSS 直达 DOM）、🟠高×2（外部插件注入、自定义 rewrite 回调）、🟡中×2（rehypeAttrs 属性解析、无 CSP 集成）、🟡中（插件管线顺序问题）
+  - 本项目实际风险评估：MarkdownViewer.tsx 仅 1MB 长度截断，无客户端消毒，依赖"服务端消毒"单一防线
+  - P0 修复建议：引入 rehype-sanitize 或 DOMPurify 消毒层
+  - 评审报告 tasks/review/common.tsx.security.md
+
 ## 本次变更（2026-05-24 @uiw/react-markdown-preview common.tsx 软件架构专家评审）
 - [x] **软件架构专家评审 @uiw/react-markdown-preview/src/common.tsx（27 行）**
   - 综合评分 5.4/10（管线编排架构清晰，但与 preview.tsx 存在职责重叠和耦合缺陷）
