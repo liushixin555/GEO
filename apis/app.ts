@@ -58,9 +58,10 @@ app.use(cors({
 // Request body parsing with explicit size limit
 app.use(express.json({ limit: '10mb' }));
 
-// Static files — allow cross-origin image loading
+// Static files — allow cross-origin image loading with security headers
 app.use('/uploads', (_req, res, next) => {
   res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.set('X-Content-Type-Options', 'nosniff');
   next();
 }, express.static(config.uploadDir));
 
@@ -94,7 +95,7 @@ if (config.swagger.enabled) {
   const { apiReference } = require('@scalar/express-api-reference');
   const swaggerSpec = require('./swagger-spec.json');
   app.use('/api-docs', swaggerAuthMiddleware, apiReference({
-    spec: { content: () => swaggerSpec },
+    spec: { url: '/api-docs.json' },
     theme: 'default',
   }));
   app.get('/api-docs.json', swaggerAuthMiddleware, (_req: Request, res: Response) => res.json(swaggerSpec));
