@@ -39,6 +39,8 @@
 | 2026-05-24 | `progress_tasks/2026-05-24-controller-tdd.md` | Controller TDD 测试修复——7套件650用例全通过，修复SSRF IPv6+Zod双重解析 |
 | 2026-05-24 | `progress_tasks/2026-05-24-tdd-hook-chapter.md` | hook-chapter 组件 TDD 测试——42 项用例、100% 覆盖率 |
 | 2026-05-24 | `tasks/review/ArticleDetail.tsx.ui.md` | ArticleDetail UI 评审修复——圆角/颜色/键盘/ARIA/响应式/保存状态 12 项 |
+| 2026-05-24 | `tasks/review/auth.controller.ts.architecture.md` | auth.controller.ts 架构评审——✅通过，已修复5项旧问题，剩余3项HIGH建议修复 |
+| 2026-05-24 | `tasks/review/auth.controller.ts.security.md` | auth.controller.ts 安全评审——B级，H×3（暴力破解/Token吊销/验证冗余）M×4 L×3 |
 
 ## 已知问题
 - `apis/service/impl/auth.service.impl.ts` Prisma 类型错误（待 schema 同步）
