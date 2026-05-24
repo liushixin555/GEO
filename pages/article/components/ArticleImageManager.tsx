@@ -70,7 +70,7 @@ const ArticleImageManager: React.FC<ArticleImageManagerProps> = ({
     ) : (
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {imageList.map((url, idx) => (
-          <div key={idx} style={{ width: 80, height: 80, borderRadius: 2, overflow: 'hidden' }}>
+          <div key={idx} style={{ width: 80, height: 80, borderRadius: 0, overflow: 'hidden' }}>
             <Image src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview />
           </div>
         ))}
@@ -102,6 +102,10 @@ const ArticleImageManager: React.FC<ArticleImageManagerProps> = ({
                 const selected = imageList.includes(img.image_url);
                 return (
                   <div key={img.id}
+                    role="checkbox"
+                    aria-checked={selected}
+                    aria-label={`选择图片: ${img.title}`}
+                    tabIndex={0}
                     onClick={() => {
                       if (selected) {
                         imageListChange(imageList.filter((u) => u !== img.image_url));
@@ -109,10 +113,20 @@ const ArticleImageManager: React.FC<ArticleImageManagerProps> = ({
                         imageListChange([...imageList, img.image_url]);
                       }
                     }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (selected) {
+                          imageListChange(imageList.filter((u) => u !== img.image_url));
+                        } else {
+                          imageListChange([...imageList, img.image_url]);
+                        }
+                      }
+                    }}
                     style={{
                       position: 'relative', width: 80, height: 80,
                       border: `2px solid ${selected ? 'var(--color-primary)' : 'var(--color-hairline)'}`,
-                      borderRadius: 2, overflow: 'hidden', cursor: 'pointer',
+                      borderRadius: 0, overflow: 'hidden', cursor: 'pointer',
                     }}
                     title={img.title}
                   >
@@ -120,11 +134,11 @@ const ArticleImageManager: React.FC<ArticleImageManagerProps> = ({
                     {selected && (
                       <div style={{
                         position: 'absolute', inset: 0,
-                        background: 'rgba(0,0,0,0.25)',
+                        background: 'var(--color-overlay-light, rgba(22,22,22,0.25))',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         pointerEvents: 'none',
                       }}>
-                        <CheckOutlined style={{ color: '#fff', fontSize: 22 }} />
+                        <CheckOutlined style={{ color: 'var(--color-on-primary)', fontSize: 20 }} />
                       </div>
                     )}
                   </div>
@@ -150,13 +164,17 @@ const ArticleImageManager: React.FC<ArticleImageManagerProps> = ({
       {imageList.length > 0 && (
         <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {imageList.map((url, idx) => (
-            <div key={idx} style={{ position: 'relative', width: 80, height: 80, borderRadius: 2, overflow: 'hidden', border: '2px solid var(--color-primary)' }}>
+            <div key={idx} style={{ position: 'relative', width: 80, height: 80, borderRadius: 0, overflow: 'hidden', border: '2px solid var(--color-primary)' }}>
               <Image src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview />
               <div
+                role="button"
+                aria-label={`删除图片 ${idx + 1}`}
+                tabIndex={0}
                 onClick={() => imageListChange(imageList.filter((_, i) => i !== idx))}
-                style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, background: 'rgba(0,0,0,0.5)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); imageListChange(imageList.filter((_, i) => i !== idx)); } }}
+                style={{ position: 'absolute', top: 0, right: 0, width: 20, height: 20, background: 'var(--color-overlay-medium, rgba(22,22,22,0.5))', borderRadius: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
               >
-                <DeleteOutlined style={{ color: '#fff', fontSize: 10 }} />
+                <DeleteOutlined style={{ color: 'var(--color-on-primary)', fontSize: 12 }} />
               </div>
             </div>
           ))}

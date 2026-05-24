@@ -26,6 +26,8 @@
   --color-warning: #f1c21b;
   --color-error: #da1e28;
   --color-info: #0f62fe;
+  --color-overlay-light: rgba(22, 22, 22, 0.25);
+  --color-overlay-medium: rgba(22, 22, 22, 0.5);
   --font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
   --spacing-xxs: 4px;
   --spacing-xs: 8px;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Input, Table, Tag } from 'antd';
+import { Modal, Input, Table, Tag, Grid } from 'antd';
 import type { Platform } from '../types';
 
 interface PlatformSelectModalProps {
@@ -26,19 +26,24 @@ const PlatformSelectModal: React.FC<PlatformSelectModalProps> = ({
   platformLoading, selectedPlatformKeys, platformSortBy, platformSortOrder,
   onSearch, onSearchChange, onSelectChange, onSortChange, onFetch,
   onConfirm, onCancel,
-}) => (
+}) => {
+  const screens = Grid.useBreakpoint();
+  const modalWidth = screens.md ? 700 : '95vw';
+
+  return (
   <Modal
     title="选择发布平台"
     open={open}
     onOk={onConfirm}
     onCancel={onCancel}
-    width={700}
+    width={modalWidth}
     okText="确认选择"
     cancelText="取消"
   >
     <div style={{ marginBottom: 12 }}>
       <Input.Search
         placeholder="搜索平台名称或分类"
+        autoFocus
         value={platformSearch}
         onChange={(e) => onSearchChange(e.target.value)}
         onSearch={(val) => onFetch(1, val, platformSortBy, platformSortOrder)}
@@ -82,6 +87,7 @@ const PlatformSelectModal: React.FC<PlatformSelectModalProps> = ({
       已选择 {selectedPlatformKeys.length} 个平台
     </div>
   </Modal>
-);
+  );
+};
 
 export default React.memo(PlatformSelectModal);

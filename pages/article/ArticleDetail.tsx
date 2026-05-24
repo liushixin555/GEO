@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Form, Button, Typography, Spin, Tag, Popconfirm, Collapse, App } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
@@ -36,6 +36,21 @@ const ArticleDetail: React.FC = () => {
   const isSettingsEditable = isNew || permissions.canEditSettings;
   const isContentEditable = isNew || permissions.canEditContent;
   const statusCfg = detail.article ? (STATUS_CONFIG[detail.article.status] || { label: detail.article.status, color: 'default' }) : null;
+  const originalContentRef = useRef('');
+
+  useEffect(() => {
+    if (detail.article?.content) originalContentRef.current = detail.article.content;
+  }, [detail.article?.content]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const contentChanged = detail.content !== (originalContentRef.current || '');
+      const formChanged = form.isFieldsTouched();
+      if (contentChanged || formChanged) e.preventDefault();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [detail.content, form]);
 
   // Auto-save every 5 minutes
   useEffect(() => {
@@ -163,9 +178,9 @@ const ArticleDetail: React.FC = () => {
 
   return (
     <div className="page-container">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
         <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/article')} />
-        <Typography.Title level={2} style={{ margin: 0 }}>
+        <Typography.Title level={4} style={{ margin: 0, flex: 1, minWidth: 0, fontWeight: 400, fontSize: 24, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {isNew ? '新建文章' : detail.article?.title || '文章详情'}
         </Typography.Title>
         {detail.article && statusCfg && (

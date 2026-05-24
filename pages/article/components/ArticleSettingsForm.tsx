@@ -96,15 +96,13 @@ const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
             value={portraitMode}
             onChange={(val) => { setPortraitMode(val as 'input' | 'select'); form.setFieldValue('portrait', undefined); }}
           />
-          {portraitMode === 'select' ? (
-            <Form.Item name="portrait" noStyle>
+          <Form.Item name="portrait" style={{ marginBottom: 0 }}>
+            {portraitMode === 'select' ? (
               <Select allowClear showSearch placeholder="从AI知识库选择画像" options={kbPortraits} disabled={!editable} loading={kbLoading} notFoundContent={kbLoading ? '加载中...' : '知识库暂无画像，请先在知识库中添加'} optionFilterProp="label" />
-            </Form.Item>
-          ) : (
-            <Form.Item name="portrait" noStyle>
+            ) : (
               <Input.TextArea placeholder="输入画像描述" autoSize={{ minRows: 2, maxRows: 6 }} disabled={!editable} />
-            </Form.Item>
-          )}
+            )}
+          </Form.Item>
         </Form.Item>
         <Form.Item label="插图">
           <ArticleImageManager
@@ -123,7 +121,16 @@ const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
         </Form.Item>
         </>)}
         <Form.Item name="platforms" label="发布平台" rules={[{ required: true, message: '发布平台不能为空' }]}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, minHeight: 32, padding: '4px 11px', border: '1px solid var(--color-hairline)', borderRadius: 2, cursor: editable ? 'pointer' : 'default' }} onClick={() => { if (editable) platformSelector.openModal(); }}>
+          <div
+            role="combobox"
+            aria-expanded={platformSelector.modalOpen}
+            aria-haspopup="dialog"
+            aria-label="选择发布平台"
+            tabIndex={editable ? 0 : -1}
+            style={{ display: 'flex', flexWrap: 'wrap', gap: 4, minHeight: 32, padding: '4px 11px', border: '1px solid var(--color-hairline)', borderRadius: 2, cursor: editable ? 'pointer' : 'default' }}
+            onClick={() => { if (editable) platformSelector.openModal(); }}
+            onKeyDown={(e) => { if (editable && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); platformSelector.openModal(); } }}
+          >
             {(() => {
               const platforms: string[] = form.getFieldValue('platforms') || [];
               if (platforms.length === 0) {

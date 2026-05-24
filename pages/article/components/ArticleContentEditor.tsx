@@ -1,6 +1,6 @@
-import React from 'react';
-import { Segmented, Button, Popconfirm } from 'antd';
-import { EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Segmented, Button, Popconfirm, Grid } from 'antd';
+import { EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import MDEditor from '@uiw/react-md-editor';
 import MarkdownViewer from '../../components/MarkdownViewer';
 import type { ArticleData } from '../types';
@@ -24,11 +24,28 @@ const ArticleContentEditor: React.FC<ArticleContentEditorProps> = ({
   article, content, contentMode, contentSaving, isContentEditable,
   onContentChange, onContentModeChange, onSaveContent,
   onReview, onRegenerate, onSubmitForReview,
-}) => (
+}) => {
+  const screens = Grid.useBreakpoint();
+  const editorHeight = screens.md ? 600 : 320;
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
+  useEffect(() => {
+    if (contentSaving) {
+      setSaveStatus('saving');
+    } else if (saveStatus === 'saving') {
+      setSaveStatus('saved');
+      const timer = setTimeout(() => setSaveStatus('idle'), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [contentSaving]);
+
+  return (
   <div id="article-content-section" data-color-mode="light">
     {article && (
       <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ color: 'var(--color-ink-subtle)', fontSize: 12 }}>版本 {article.version ?? 1}</span>
+        {saveStatus === 'saving' && <span style={{ color: 'var(--color-primary)', fontSize: 12, marginLeft: 8 }}><SaveOutlined spin /> 保存中...</span>}
+        {saveStatus === 'saved' && <span style={{ color: 'var(--color-success)', fontSize: 12, marginLeft: 8 }}><CheckCircleOutlined /> 已保存</span>}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {isContentEditable && (
             <Segmented
@@ -74,7 +91,7 @@ const ArticleContentEditor: React.FC<ArticleContentEditorProps> = ({
       <MDEditor
         value={content}
         onChange={(val) => onContentChange(val || '')}
-        height={600}
+        height={editorHeight}
         preview="edit"
       />
     ) : (
@@ -86,6 +103,7 @@ const ArticleContentEditor: React.FC<ArticleContentEditorProps> = ({
       </div>
     )}
   </div>
-);
+  );
+};
 
 export default React.memo(ArticleContentEditor);

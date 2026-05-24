@@ -514,3 +514,67 @@ components: {
 - `tests/apis/auth.controller.test.ts` — verify mock 修复
 - `tests/apis/user.controller.test.ts` — 验证消息前缀修复
 - `tests/apis/system-config.controller.test.ts` — 断言修复
+
+---
+
+## fix019. ArticleDetail.tsx UI 评审问题修复
+
+### 问题
+根据 `tasks/review/ArticleDetail.tsx.ui.md` UI 评审报告（4.2/10），文章详情页存在设计系统合规、antd 组件使用、交互反馈、可访问性、响应式设计等多项问题。
+
+### 修复
+
+**UI-01（P1）图片删除按钮圆角违规**：
+- `ArticleImageManager.tsx`：`borderRadius: '50%'` → `borderRadius: 0`，符合 Carbon 方形规范
+- 图片容器 `borderRadius: 2` → `borderRadius: 0`，统一方形
+
+**UI-03（P1）硬编码颜色替换为 CSS 变量**：
+- `rgba(0,0,0,0.25)` → `var(--color-overlay-light, rgba(22,22,22,0.25))`
+- `rgba(0,0,0,0.5)` → `var(--color-overlay-medium, rgba(22,22,22,0.5))`
+- `#fff` → `var(--color-on-primary)`
+- `global.css` 新增 `--color-overlay-light` 和 `--color-overlay-medium` 变量
+
+**UI-04（P2）图标尺寸调整为 4px 网格**：
+- 选中勾 `fontSize: 22` → `fontSize: 20`（Carbon 标准 20px）
+- 删除按钮 `width/height: 18` → `20×20`，`fontSize: 10` → `fontSize: 12`
+- 偏移 `top: 2, right: 2` → `top: 0, right: 0`
+
+**UI-06（P1）页面标题排版合规**：
+- `Typography.Title level={2}`（30px weight 600）→ `level={4}` + `fontWeight: 400, fontSize: 24`
+- 符合 DESIGN.md `{typography.card-title}` 24px weight 400
+
+**UI-10（P1）Form.Item noStyle 移除**：
+- 画像字段 `noStyle` Form.Item → `style={{ marginBottom: 0 }}`，校验错误可见
+
+**UI-13（P0）beforeunload 未保存提示**：
+- 新增 `beforeunload` 事件监听，检测内容变更和表单脏状态
+- 用户离开页面时弹出浏览器确认提示，防止数据丢失
+
+**UI-14（P1）自动保存状态指示器**：
+- `ArticleContentEditor` 新增保存状态指示：保存中（Spin + 蓝色文字）、已保存（绿色勾 + "已保存"）
+- 3 秒后自动恢复 idle 状态
+
+**UI-18（P0）图片选择键盘支持**：
+- 知识库图片网格：添加 `role="checkbox"`, `aria-checked`, `aria-label`, `tabIndex={0}`, `onKeyDown`
+
+**UI-19（P0）平台选择 ARIA 属性**：
+- 平台选择 div：添加 `role="combobox"`, `aria-expanded`, `aria-haspopup="dialog"`, `aria-label`, `tabIndex`, `onKeyDown`
+
+**UI-20（P1）Modal 搜索框 autoFocus**：
+- `PlatformSelectModal` 搜索框添加 `autoFocus`，Modal 打开后自动聚焦
+
+**UI-21（P0）Modal + MDEditor 响应式**：
+- Modal 宽度：`width={700}` → `screens.md ? 700 : '95vw'`（使用 antd Grid.useBreakpoint）
+- MDEditor 高度：`height={600}` → `screens.md ? 600 : 320`
+
+**UI-22（P1）标题区域响应式**：
+- 标题栏添加 `flexWrap: 'wrap'`
+- 标题添加 `flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'`
+
+### 涉及文件
+- `pages/article/ArticleDetail.tsx` — beforeunload + 标题排版/响应式
+- `pages/article/components/ArticleSettingsForm.tsx` — Form.Item noStyle 移除 + 平台选择 ARIA
+- `pages/article/components/ArticleContentEditor.tsx` — 保存状态指示 + MDEditor 响应式
+- `pages/article/components/ArticleImageManager.tsx` — 圆角/颜色/尺寸 + 键盘支持
+- `pages/article/components/PlatformSelectModal.tsx` — autoFocus + 响应式宽度
+- `pages/styles/global.css` — 新增覆盖层 CSS 变量
