@@ -146,3 +146,4 @@
 | 2026-05-24 | tasks/tdd/company.service.test.round2.md | company.service TDD 第2轮补全——68用例100%覆盖率（+25新增：validateUserIds全量/软删除路径/接口合规性/校验优先级/角色过滤） |
 | 2026-05-24 | progress_tasks/2026-05-24-code-tsx-review-fix.md | code.tsx 评审封装层修复——Ctrl+J→Ctrl+E快捷键重映射+非空断言防护+中文ARIA标注+TOOLBAR_LABELS匹配顺序修复 |
 | 2026-05-25 | tasks/tdd/auth.service.test.round3.md | auth.service TDD 第3轮补全——78用例100%覆盖率（+10新增：selectedProject降级/sysadmin无项目持久化/project_id=0边界/verifyToken全字段/getAccessibleCompanies companyId=0/sysadmin忽略companyId参数） |
+| 2026-05-25 | tasks/review/fullscreen.tsx.md | fullscreen.tsx 软件 UI 专家评审——⚠️CONDITIONAL APPROVE 3.4/10（CRITICAL×1按钮点击不触发+HIGH×3无aria-pressed/快捷键冲突/图标不规范+MEDIUM×3+LOW×2） |
