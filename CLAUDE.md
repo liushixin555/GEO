@@ -76,6 +76,8 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 - **All API routes** (except `POST /api/auth/login`) require JWT auth + anti-crawl + rate-limit headers
 - **Backend tests**: set env vars directly (`process.env.JWT_SECRET='test-secret'`) instead of jest.mock; add `.set('User-Agent', 'test-agent/1.0')` to supertest calls
 - **JWT expires in 2 hours**; token + user stored in localStorage on frontend
+- **Token blacklist**: logout 时 token 加入内存黑名单（`apis/utils/token-blacklist.util.ts`），auth middleware 拦截已撤销 token；单实例部署有效，多实例需改 Redis
+- **Structured logging**: 认证模块使用 `apis/utils/logger.util.ts` 输出 JSON 格式日志（auth.login/logout/verify/selection 事件）
 - **Config-driven**: port, DB URL, JWT secret/expiry, Swagger toggle, rate-limit params all via `.env` or `config/`
 - **Memory**: 每次任务结束后，将价值信息（架构变更、新增功能、技术决策、踩坑经验）持久化保存到本项目 `.claude/` 目录下的对应文件（rules.md / architecture.md / frontend.md），禁止保存到用户目录 `~/.claude/projects/`
 - **progress.md 防膨胀**: 每次变更记录保存到 `.claude/progress_tasks/` 目录下的独立文件（如 `2026-05-24-bugfix-429.md`），`progress.md` 只做索引（模块状态表 + 变更索引表），禁止在 `progress.md` 中直接追加详细变更内容
