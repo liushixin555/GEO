@@ -100,6 +100,15 @@
 - CSS 类名使用语义化命名：`.page-container`, `.page-title`, `.sidebar-header`, `.form-actions` 等
 - CSS 变量定义在 `:root` 中，类名中通过 `var(--color-*)` 引用
 
+## UI评审发现的系统性问题（ArticleDetail.tsx.ui.md）
+- **antd Alert `title` prop 错误**: antd Alert 使用 `message` 而非 `title`（L526, L797），导致错误信息不显示。同样问题存在于 login/index.tsx，是系统性问题
+- **Table `sortOrder: null` 类型错误**: 应为 `undefined`，TypeScript 严格模式下会报错
+- **40+ 处内联样式**: ArticleDetail.tsx 严重违反 CSS 规范，需逐步迁移到 global.css
+- **CSS 变量命名不一致**: `--text-secondary`/`--interactive`/`--border-subtle` 与 DESIGN.md 的 `--color-ink-muted`/`--color-primary`/`--color-hairline` 不一致
+- **缺少 beforeunload 未保存提示**: 内容编辑页面必须添加未保存更改提示
+- **响应式设计为零**: 固定宽高（Modal 700px, MDEditor 600px, 图片 80x80），移动端完全不可用
+- **可访问性缺失**: 图片选择 div 无 role/aria/tabIndex，平台选择 div 无 ARIA 属性
+
 ## 页面标题规范
 - **所有页面标题统一使用 antd `<Breadcrumb>` 组件**，不再使用 `Typography.Title level={1}` 或 `<h1>`
 - Breadcrumb 外层用 `<div className="page-breadcrumb">` 包裹，CSS 实现居中对齐
