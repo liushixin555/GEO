@@ -497,3 +497,13 @@
   - 可访问性：无 h1 标题、无 aria-label、无 document.title、target="_blank" 缺少 rel
   - 提供完整重构方案代码示例
   - 评审报告 tasks/review/api-docs.index.tsx.ui.md
+
+## 本次变更（2026-05-24 pages/api-docs/index.tsx Committer审核专家评审）
+- [x] **Committer审核专家评审 pages/api-docs/index.tsx（24 行）**
+  - 综合判定：❌ 拒绝合并（REJECT）— 死代码 + 路由冲突 + 零测试 + 安全漏洞
+  - 3 项致命问题（Blocker）：BLK-01 死代码（组件未注册路由/菜单/被引用）、BLK-02 路由冲突（前端路径与后端 Swagger 端点重叠）、BLK-03 无测试覆盖
+  - 1 项高危问题（High）：target="_blank" 缺少 rel="noopener noreferrer"（Tabnabbing）
+  - 4 项中等问题：Typography.Paragraph 语义误用、单项 Breadcrumb 无导航价值、缺少可访问性属性、硬编码路径
+  - 3 项低等问题：页面信息密度过低、未使用 React.memo、图标颜色未显式控制
+  - 推荐处理：删除死代码文件（后端已自带 Swagger UI），或在 Sidebar 添加外链菜单项
+  - 评审报告 tasks/review/api-docs.index.tsx.committer.md
