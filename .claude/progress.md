@@ -703,6 +703,15 @@
   - SOLID 评估改善：SRP ❌→✅、OCP ❌→⚠️、ISP ⚠️→✅
   - 评审报告 tasks/review/app.ts.architecture.md
 
+## 本次变更（2026-05-24 @uiw/react-markdown-preview Props.tsx Committer审核专家评审）
+- [x] **Committer审核专家评审 @uiw/react-markdown-preview/src/Props.tsx（30 行）**
+  - 综合判定：⚠️ 有条件通过（CONDITIONAL APPROVE）— 依赖可保留，但必须创建封装组件隔离风险
+  - 四份已有评审综合裁定：架构5.0/10🟡不阻塞、质量5.3/10🟡不阻塞、安全⚠️MEDIUM🔴需调用层防护、UI 4.1/10🟡需封装+CSS覆盖
+  - 6项阻塞项（封装层完成前不可生产使用）：创建MarkdownViewer封装组件、source长度截断≤1MB、禁止暴露rehypeRewrite/pluginsFilter、确认react-markdown≥9.0、CSS覆盖对齐Carbon Design System、a11y属性
+  - 4项建议改进：封装组件加载/错误/空状态、主题自动同步、单元测试、版本锁定
+  - 安全重点：SEC-MD-01 source无约束(HIGH)和SEC-MD-02 rehypeRewrite无约束(HIGH)必须在调用层防护
+  - 评审报告 tasks/review/Props.tsx.committer.md
+
 ## 本次变更（2026-05-24 apis/app.ts 代码安全专家重构后复审）
 - [x] **代码安全专家评审 apis/app.ts（148 行，路由模块化后安全复审）**
   - 综合安全评级 A-（从原始 C 级提升，历史 6 项 CRITICAL/HIGH/MEDIUM 漏洞全部修复）
