@@ -17,6 +17,7 @@ async function loadConfigWithEnv(envVars: Record<string, string | undefined>) {
   const configKeys = [
     'NODE_ENV',
     'PORT', 'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD',
+    'DB_POOL_MIN', 'DB_POOL_MAX',
     'JWT_SECRET', 'JWT_EXPIRES_IN', 'SWAGGER_ENABLED',
     'RATE_LIMIT_WINDOW_MS', 'RATE_LIMIT_MAX',
     'CRON_ARTICLE_INTERVAL', 'CRON_ARTICLE_ENABLED', 'CORS_ORIGINS',
@@ -370,10 +371,31 @@ describe('apis/config/index.ts', () => {
       expect(config.server.port).toBe(8080);
     });
 
-    it('should handle pool values being hardcoded', async () => {
+    it('should use default pool values when env vars not set', async () => {
       const config = await loadConfigWithEnv({});
       expect(config.database.pool.min).toBe(2);
       expect(config.database.pool.max).toBe(10);
+    });
+
+    it('should override DB_POOL_MIN via env var', async () => {
+      const config = await loadConfigWithEnv({ DB_POOL_MIN: '5' });
+      expect(config.database.pool.min).toBe(5);
+    });
+
+    it('should override DB_POOL_MAX via env var', async () => {
+      const config = await loadConfigWithEnv({ DB_POOL_MAX: '20' });
+      expect(config.database.pool.max).toBe(20);
+    });
+
+    it('should throw when DB_POOL_MAX is zero', async () => {
+      await expect(loadConfigWithEnv({ DB_POOL_MAX: '0' })).rejects.toThrow(
+        'FATAL: DB_POOL_MAX must be >= 1'
+      );
+    });
+
+    it('should allow DB_POOL_MIN to be zero', async () => {
+      const config = await loadConfigWithEnv({ DB_POOL_MIN: '0' });
+      expect(config.database.pool.min).toBe(0);
     });
 
     it('should throw when DB_PORT is out of range (0)', async () => {
@@ -569,9 +591,10 @@ describe('apis/config/index.ts', () => {
       expect(config.database.port).toBe(65535);
     });
 
-    it('should truncate float string for PORT (parseInt behavior)', async () => {
-      const config = await loadConfigWithEnv({ PORT: '8080.9' });
-      expect(config.server.port).toBe(8080);
+    it('should throw when PORT is a float string', async () => {
+      await expect(loadConfigWithEnv({ PORT: '8080.9' })).rejects.toThrow(
+        'FATAL: PORT must be a valid integer'
+      );
     });
 
     it('should accept very large RATE_LIMIT_WINDOW_MS (no max constraint)', async () => {
@@ -629,6 +652,24 @@ describe('apis/config/index.ts', () => {
       await loadConfigWithEnv({ JWT_SECRET: 'my-secret' });
       expect(spy).not.toHaveBeenCalledWith(
         expect.stringContaining('JWT_SECRET not set')
+      );
+      spy.mockRestore();
+    });
+
+    it('should warn when JWT_SECRET is set but shorter than 32 characters', async () => {
+      const spy = jest.spyOn(console, 'error').mockImplementation();
+      await loadConfigWithEnv({ JWT_SECRET: 'short-key' });
+      expect(spy).toHaveBeenCalledWith(
+        expect.stringContaining('JWT_SECRET is only 9 characters')
+      );
+      spy.mockRestore();
+    });
+
+    it('should not warn when JWT_SECRET is at least 32 characters', async () => {
+      const spy = jest.spyOn(console, 'error').mockImplementation();
+      await loadConfigWithEnv({ JWT_SECRET: 'a-very-long-secret-key-that-is-more-than-32-chars' });
+      expect(spy).not.toHaveBeenCalledWith(
+        expect.stringContaining('JWT_SECRET is only')
       );
       spy.mockRestore();
     });

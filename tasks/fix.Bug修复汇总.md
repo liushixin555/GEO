@@ -267,3 +267,41 @@ components: {
 ### 涉及文件
 - `.env` — 添加 CORS_ORIGINS
 - `apis/app.ts` — CORS 中间件错误处理
+
+---
+
+## fix013. apis/config/index.ts 评审问题修复
+
+### 问题
+根据 tasks/review/ 目录下 3 份评审报告（安全评审、质量评审 A-、Committer 审核通过），`apis/config/index.ts` 存在以下可改进项。
+
+### 修复
+
+**Q-01（P1）子接口 readonly 对齐**：
+- `DatabaseConfig`、`JwtConfig`、`RateLimitConfig`、`CronConfig` 所有属性添加 `readonly`
+- 类型声明与 `deepFreeze` 运行时行为完全一致
+
+**Q-02（P2）默认值集中管理**：
+- 新增 `DEFAULTS` 常量（13 个默认值），所有配置项引用 `DEFAULTS.xxx`
+- 新增配置项只需改一处
+
+**Q-03（P2）dotenv 简化**：
+- `dotenv.config({ path: path.resolve(process.cwd(), '.env') })` → `dotenv.config()`
+- 移除冗余的 `import path from 'path'`
+
+**Q-05（P2）safeParseInt 拒绝浮点字符串**：
+- 新增 `/^-?\d+$/` 正则校验，`PORT=8080.9` 不再静默截断为 8080，而是抛出 FATAL 错误
+
+**Q-06（P1）JWT Secret 强度校验**：
+- 手动设置的 JWT_SECRET 少于 32 字符时输出 `console.error` 警告
+
+**Q-08（P2）连接池参数环境变量化**：
+- 新增 `DB_POOL_MIN` 和 `DB_POOL_MAX` 环境变量支持
+- 使用 `safeParseInt` 校验，DB_POOL_MIN >= 0，DB_POOL_MAX >= 1
+
+**Q-09（P3）deepFreeze 适用范围注释**：
+- 添加 JSDoc 注释说明适用范围（plain objects/arrays，不支持 Date/Map/Set）
+
+### 涉及文件
+- `apis/config/index.ts` — 7 项修复
+- `tests/apis/config.test.ts` — 新增 8 个测试用例（120 个全部通过）

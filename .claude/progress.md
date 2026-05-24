@@ -548,3 +548,14 @@
   - 正面评价：业务流程完整9/10、权限控制到位、自动保存机制合理、文档导入功能良好
   - 建议拆分方案：主组件+6个子组件+3个自定义hooks
   - 评审报告 tasks/review/ArticleDetail.tsx.md
+
+## 本次变更（2026-05-24 apis/config/index.ts 评审问题修复）
+- [x] **fix013: apis/config/index.ts 评审问题修复** — 7 项质量改进，120 个测试通过
+  - Q-01: 子接口（DatabaseConfig/JwtConfig/RateLimitConfig/CronConfig）所有属性添加 `readonly`
+  - Q-02: 新增 `DEFAULTS` 常量集中管理 13 个默认值
+  - Q-03: `dotenv.config()` 简化，移除冗余 path import
+  - Q-05: `safeParseInt` 新增浮点字符串拒绝（`/^-?\d+$/` 正则校验）
+  - Q-06: JWT Secret 长度 < 32 字符时 console.error 警告
+  - Q-08: 连接池参数新增 `DB_POOL_MIN`/`DB_POOL_MAX` 环境变量
+  - Q-09: deepFreeze 添加适用范围 JSDoc 注释
+  - 测试从 116 个增加到 120 个（+4：JWT强度×2、连接池覆盖×2、浮点拒绝×1、pool.min=0×1，修改浮点截断→拒绝×1）

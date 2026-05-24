@@ -1,31 +1,46 @@
 import dotenv from 'dotenv';
-import path from 'path';
 import crypto from 'crypto';
 
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+dotenv.config();
+
+const DEFAULTS = {
+  PORT: 8080,
+  DB_HOST: 'localhost',
+  DB_PORT: 5432,
+  DB_NAME: 'geo_ts',
+  DB_USER: 'postgres',
+  DB_PASSWORD: 'postgres',
+  DB_POOL_MIN: 2,
+  DB_POOL_MAX: 10,
+  JWT_EXPIRES_IN: '2h',
+  RATE_LIMIT_WINDOW_MS: 60000,
+  RATE_LIMIT_MAX: 100,
+  CRON_ARTICLE_INTERVAL: '*/5 * * * *',
+  CORS_ORIGIN: 'http://localhost:5173',
+} as const;
 
 export interface DatabaseConfig {
-  host: string;
-  port: number;
-  name: string;
-  user: string;
-  password: string;
-  pool: { min: number; max: number };
+  readonly host: string;
+  readonly port: number;
+  readonly name: string;
+  readonly user: string;
+  readonly password: string;
+  readonly pool: { readonly min: number; readonly max: number };
 }
 
 export interface JwtConfig {
-  secret: string;
-  expiresIn: string;
+  readonly secret: string;
+  readonly expiresIn: string;
 }
 
 export interface RateLimitConfig {
-  windowMs: number;
-  max: number;
+  readonly windowMs: number;
+  readonly max: number;
 }
 
 export interface CronConfig {
-  articleGenerationInterval: string;
-  articleGenerationEnabled: boolean;
+  readonly articleGenerationInterval: string;
+  readonly articleGenerationEnabled: boolean;
 }
 
 export interface AppConfig {
@@ -45,10 +60,10 @@ function safeParseInt(
   opts?: { min?: number; max?: number }
 ): number {
   if (!value) return defaultValue;
-  const parsed = parseInt(value, 10);
-  if (isNaN(parsed)) {
+  if (!/^-?\d+$/.test(value)) {
     throw new Error(`FATAL: ${name} must be a valid integer, got: "${value}"`);
   }
+  const parsed = parseInt(value, 10);
   if (opts?.min !== undefined && parsed < opts.min) {
     throw new Error(`FATAL: ${name} must be >= ${opts.min}, got: ${parsed}`);
   }
@@ -58,6 +73,7 @@ function safeParseInt(
   return parsed;
 }
 
+/** Recursively freezes plain objects and arrays. Not designed for Date, Map, Set, etc. */
 function deepFreeze<T extends object>(obj: T): Readonly<T> {
   for (const key of Object.keys(obj)) {
     const val = (obj as Record<string, unknown>)[key];
@@ -67,7 +83,7 @@ function deepFreeze<T extends object>(obj: T): Readonly<T> {
 }
 
 function parseCorsOrigins(raw: string | undefined): string[] {
-  if (!raw) return ['http://localhost:5173'];
+  if (!raw) return [DEFAULTS.CORS_ORIGIN];
   const origins = raw
     .split(',')
     .map(s => s.trim())
@@ -88,13 +104,13 @@ function parseCorsOrigins(raw: string | undefined): string[] {
 
 const config: Readonly<AppConfig> = deepFreeze({
   server: {
-    port: safeParseInt(process.env.PORT, 8080, 'PORT', { min: 1, max: 65535 }),
+    port: safeParseInt(process.env.PORT, DEFAULTS.PORT, 'PORT', { min: 1, max: 65535 }),
   },
   database: {
-    host: process.env.DB_HOST || 'localhost',
-    port: safeParseInt(process.env.DB_PORT, 5432, 'DB_PORT', { min: 1, max: 65535 }),
-    name: process.env.DB_NAME || 'geo_ts',
-    user: process.env.DB_USER || 'postgres',
+    host: process.env.DB_HOST || DEFAULTS.DB_HOST,
+    port: safeParseInt(process.env.DB_PORT, DEFAULTS.DB_PORT, 'DB_PORT', { min: 1, max: 65535 }),
+    name: process.env.DB_NAME || DEFAULTS.DB_NAME,
+    user: process.env.DB_USER || DEFAULTS.DB_USER,
     password: (() => {
       const pwd = process.env.DB_PASSWORD;
       if (!pwd && process.env.NODE_ENV === 'production') {
@@ -105,9 +121,12 @@ const config: Readonly<AppConfig> = deepFreeze({
           'WARNING: Using default DB_PASSWORD. Set DB_PASSWORD explicitly for better security.'
         );
       }
-      return pwd || 'postgres';
+      return pwd || DEFAULTS.DB_PASSWORD;
     })(),
-    pool: { min: 2, max: 10 },
+    pool: {
+      min: safeParseInt(process.env.DB_POOL_MIN, DEFAULTS.DB_POOL_MIN, 'DB_POOL_MIN', { min: 0 }),
+      max: safeParseInt(process.env.DB_POOL_MAX, DEFAULTS.DB_POOL_MAX, 'DB_POOL_MAX', { min: 1 }),
+    },
   },
   jwt: {
     secret: (() => {
@@ -123,21 +142,27 @@ const config: Readonly<AppConfig> = deepFreeze({
         );
         return generated;
       }
+      if (secret.length < 32) {
+        console.error(
+          `WARNING: JWT_SECRET is only ${secret.length} characters. ` +
+            'Recommend at least 32 characters for adequate security.'
+        );
+      }
       return secret;
     })(),
-    expiresIn: process.env.JWT_EXPIRES_IN || '2h',
+    expiresIn: process.env.JWT_EXPIRES_IN || DEFAULTS.JWT_EXPIRES_IN,
   },
   swagger: {
     enabled: process.env.SWAGGER_ENABLED === 'true',
   },
   rateLimit: {
-    windowMs: safeParseInt(process.env.RATE_LIMIT_WINDOW_MS, 60000, 'RATE_LIMIT_WINDOW_MS', {
+    windowMs: safeParseInt(process.env.RATE_LIMIT_WINDOW_MS, DEFAULTS.RATE_LIMIT_WINDOW_MS, 'RATE_LIMIT_WINDOW_MS', {
       min: 1,
     }),
-    max: safeParseInt(process.env.RATE_LIMIT_MAX, 100, 'RATE_LIMIT_MAX', { min: 1 }),
+    max: safeParseInt(process.env.RATE_LIMIT_MAX, DEFAULTS.RATE_LIMIT_MAX, 'RATE_LIMIT_MAX', { min: 1 }),
   },
   cron: {
-    articleGenerationInterval: process.env.CRON_ARTICLE_INTERVAL || '*/5 * * * *',
+    articleGenerationInterval: process.env.CRON_ARTICLE_INTERVAL || DEFAULTS.CRON_ARTICLE_INTERVAL,
     articleGenerationEnabled: process.env.CRON_ARTICLE_ENABLED !== 'false',
   },
   corsOrigins: parseCorsOrigins(process.env.CORS_ORIGINS),
