@@ -375,3 +375,11 @@
 - [x] 12 项安全发现：HIGH×3（路由无RBAC、localStorage存储token、用户数据可篡改）、MEDIUM×4（Error Boundary缺失、JSON.parse无保护、重定向未校验、Verify API过度调用）、LOW×5
 - [x] 修复优先级路线图：P0×3、P1×5、P2×4
 - [x] 评审报告 tasks/review/App.tsx.security.md
+
+## 本次变更（2026-05-24 App.tsx UI专家评审）
+- [x] 软件UI专家评审 pages/App.tsx
+- [x] 综合评分 5.5/10（基本可用，UI/UX 存在系统性缺陷）
+- [x] 27 项 UI 发现：HIGH×4（Breadcrumb语义误用、Alert prop错误、Token过期闪烁、skip-to-content缺失）、MEDIUM×10、LOW×7
+- [x] DESIGN.md 合规性审计：色彩8/10、字体7/10、间距6/10、组件6/10
+- [x] 修复优先级路线图：P0×6、P1×8、P2×7
+- [x] 评审报告 tasks/review/App.tsx.ui.md
