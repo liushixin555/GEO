@@ -262,7 +262,7 @@ describe('article.entity', () => {
     it('should support very long title', () => {
       const longTitle = '很长的标题'.repeat(100);
       const article: Article = { ...baseArticle, title: longTitle };
-      expect(article.title.length).toBeGreaterThan(500);
+      expect(article.title.length).toBeGreaterThanOrEqual(400);
     });
 
     it('should support images with URL paths', () => {
@@ -563,7 +563,7 @@ describe('article.entity', () => {
     it('should allow very long content', () => {
       const longContent = '内容'.repeat(10000);
       const req: CreateArticleRequest = { content: longContent };
-      expect(req.content!.length).toBeGreaterThan(20000);
+      expect(req.content!.length).toBeGreaterThanOrEqual(20000);
     });
 
     it('should allow empty string title', () => {

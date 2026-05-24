@@ -8,6 +8,7 @@ import {
   LoginResponse,
   SaveSelectionRequest,
   LoginSelectionError,
+  PermissionDeniedError,
   UserListItem,
   CreateUserRequest,
   UpdateUserRequest,
@@ -509,6 +510,118 @@ describe('user.entity', () => {
       expect(results[1].status).toBe('rejected');
       if (results[1].status === 'rejected') {
         expect(results[1].reason).toBeInstanceOf(LoginSelectionError);
+      }
+    });
+  });
+
+  // ============================================================
+  // PermissionDeniedError class
+  // ============================================================
+  describe('PermissionDeniedError class', () => {
+    it('should create an error with the correct message', () => {
+      const error = new PermissionDeniedError('权限不足');
+      expect(error.message).toBe('权限不足');
+    });
+
+    it('should have the correct name property', () => {
+      const error = new PermissionDeniedError('test');
+      expect(error.name).toBe('PermissionDeniedError');
+    });
+
+    it('should be an instance of Error', () => {
+      const error = new PermissionDeniedError('test');
+      expect(error).toBeInstanceOf(Error);
+    });
+
+    it('should be an instance of PermissionDeniedError', () => {
+      const error = new PermissionDeniedError('test');
+      expect(error).toBeInstanceOf(PermissionDeniedError);
+    });
+
+    it('should preserve the error stack trace', () => {
+      const error = new PermissionDeniedError('stack test');
+      expect(error.stack).toBeDefined();
+    });
+
+    it('should work with try-catch', () => {
+      const throwError = (): never => {
+        throw new PermissionDeniedError('无权限');
+      };
+      try {
+        throwError();
+        fail('Should have thrown');
+      } catch (e) {
+        expect(e).toBeInstanceOf(PermissionDeniedError);
+        expect((e as PermissionDeniedError).message).toBe('无权限');
+      }
+    });
+
+    it('should handle empty message', () => {
+      const error = new PermissionDeniedError('');
+      expect(error.message).toBe('');
+      expect(error.name).toBe('PermissionDeniedError');
+    });
+
+    it('should be distinguishable from regular Error', () => {
+      const regularError = new Error('regular');
+      const permError = new PermissionDeniedError('denied');
+      expect(regularError).not.toBeInstanceOf(PermissionDeniedError);
+      expect(permError).toBeInstanceOf(PermissionDeniedError);
+    });
+
+    it('should be distinguishable from LoginSelectionError', () => {
+      const loginError = new LoginSelectionError('select');
+      const permError = new PermissionDeniedError('denied');
+      expect(loginError).not.toBeInstanceOf(PermissionDeniedError);
+      expect(permError).not.toBeInstanceOf(LoginSelectionError);
+    });
+
+    it('should support Chinese error messages', () => {
+      const error = new PermissionDeniedError('您没有权限执行此操作');
+      expect(error.message).toBe('您没有权限执行此操作');
+    });
+
+    it('should have proper prototype chain', () => {
+      const error = new PermissionDeniedError('proto');
+      expect(Object.getPrototypeOf(error)).toBe(PermissionDeniedError.prototype);
+    });
+
+    it('should be catchable in async context', async () => {
+      const asyncThrow = async (): Promise<void> => {
+        throw new PermissionDeniedError('异步权限错误');
+      };
+      await expect(asyncThrow()).rejects.toThrow(PermissionDeniedError);
+      await expect(asyncThrow()).rejects.toThrow('异步权限错误');
+    });
+
+    it('should support toString', () => {
+      const error = new PermissionDeniedError('toString测试');
+      const str = error.toString();
+      expect(str).toContain('PermissionDeniedError');
+      expect(str).toContain('toString测试');
+    });
+
+    it('should be usable in error arrays with filtering', () => {
+      const errors = [
+        new PermissionDeniedError('denied1'),
+        new LoginSelectionError('select1'),
+        new PermissionDeniedError('denied2'),
+        new Error('generic'),
+      ];
+      const permErrors = errors.filter(e => e instanceof PermissionDeniedError);
+      expect(permErrors).toHaveLength(2);
+    });
+
+    it('should work with Promise.allSettled', async () => {
+      const promises = [
+        Promise.resolve('ok'),
+        Promise.reject(new PermissionDeniedError('forbidden')),
+      ];
+      const results = await Promise.allSettled(promises);
+      expect(results[0].status).toBe('fulfilled');
+      expect(results[1].status).toBe('rejected');
+      if (results[1].status === 'rejected') {
+        expect(results[1].reason).toBeInstanceOf(PermissionDeniedError);
       }
     });
   });

@@ -11,13 +11,14 @@
 - `LoginResponse` 接口: 登录响应（token + 嵌套 user 对象，含 selected_company/selected_project）
 - `SaveSelectionRequest` 接口: 保存选择请求（company_id, 可选 project_id）
 - `LoginSelectionError` 类: 自定义错误类，继承 Error
+- `PermissionDeniedError` 类: 自定义错误类，继承 Error
 - `UserListItem` 接口: 用户列表项（含可选 company_name）
 - `CreateUserRequest` 接口: 创建用户请求（含可选 company_id）
 - `UpdateUserRequest` 接口: 更新用户请求（全可选字段）
 
 ## 测试用例统计
-- 总测试数: **94 个**
-- 通过: 94
+- 总测试数: **109 个**（+15 PermissionDeniedError 测试）
+- 通过: 109
 - 失败: 0
 - 跳过: 0
 
@@ -55,6 +56,15 @@
 - try-catch 兼容性、async/await 兼容性
 - 中文消息、长消息、空消息
 - 与普通 Error 的区分
+- error 数组过滤、Promise.allSettled 集成
+
+### PermissionDeniedError class（15 个测试）
+- 基本创建、name/message 属性
+- instanceof Error / PermissionDeniedError
+- 原型链验证、toString 支持
+- try-catch 兼容性、async/await 兼容性
+- 中文消息、空消息
+- 与普通 Error 和 LoginSelectionError 的区分
 - error 数组过滤、Promise.allSettled 集成
 
 ### UserListItem interface（9 个测试）
@@ -99,6 +109,6 @@
 ## 测试结果
 ```
 Test Suites: 1 passed, 1 total
-Tests:       94 passed, 94 total
+Tests:       109 passed, 109 total
 Time:        4.953 s
 ```
