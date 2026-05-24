@@ -1621,4 +1621,807 @@ describe('system-config.entity', () => {
       expect(req.configs[0].config_key).toBe('k1');
     });
   });
+
+  // ============================================================
+  // JSON 序列化往返
+  // ============================================================
+  describe('JSON serialization round-trip', () => {
+    it('should survive JSON round-trip with all fields', () => {
+      const original: SystemConfig = {
+        id: 42,
+        config_key: 'site_name',
+        config_value: '薄云商机倍增服务',
+        created_at: new Date('2024-06-15T08:30:00.123Z'),
+        updated_at: new Date('2024-06-20T14:45:00.456Z'),
+      };
+      const json = JSON.stringify(original);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (key === 'created_at' || key === 'updated_at') return new Date(value);
+        return value;
+      });
+      expect(parsed.id).toBe(42);
+      expect(parsed.config_key).toBe('site_name');
+      expect(parsed.config_value).toBe('薄云商机倍增服务');
+      expect(parsed.created_at).toBeInstanceOf(Date);
+      expect(parsed.updated_at).toBeInstanceOf(Date);
+      expect(parsed.created_at.getTime()).toBe(original.created_at.getTime());
+      expect(parsed.updated_at.getTime()).toBe(original.updated_at.getTime());
+    });
+
+    it('should serialize Date fields to ISO strings', () => {
+      const config: SystemConfig = {
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date('2024-06-15T08:30:00.000Z'),
+        updated_at: new Date('2024-06-20T14:45:00.000Z'),
+      };
+      const json = JSON.stringify(config);
+      const parsed = JSON.parse(json);
+      expect(typeof parsed.created_at).toBe('string');
+      expect(typeof parsed.updated_at).toBe('string');
+      expect(parsed.created_at).toContain('2024-06-15');
+      expect(parsed.updated_at).toContain('2024-06-20');
+    });
+
+    it('should preserve number precision through JSON round-trip', () => {
+      const config: SystemConfig = {
+        id: Number.MAX_SAFE_INTEGER,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      const json = JSON.stringify(config);
+      const parsed = JSON.parse(json);
+      expect(parsed.id).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('should preserve Chinese characters through JSON round-trip', () => {
+      const config: SystemConfig = {
+        id: 1,
+        config_key: '站点_名称',
+        config_value: '薄云商机倍增服务——中文测试',
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      const json = JSON.stringify(config);
+      const parsed = JSON.parse(json);
+      expect(parsed.config_key).toBe('站点_名称');
+      expect(parsed.config_value).toBe('薄云商机倍增服务——中文测试');
+    });
+
+    it('should preserve emoji through JSON round-trip', () => {
+      const config: SystemConfig = {
+        id: 1,
+        config_key: '🔑_key',
+        config_value: '🚀🎉 测试',
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      const json = JSON.stringify(config);
+      const parsed = JSON.parse(json);
+      expect(parsed.config_key).toBe('🔑_key');
+      expect(parsed.config_value).toBe('🚀🎉 测试');
+    });
+
+    it('configs array should survive JSON round-trip', () => {
+      const configs: SystemConfig[] = [
+        { id: 1, config_key: 'k1', config_value: 'v1', created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01') },
+        { id: 2, config_key: 'k2', config_value: 'v2', created_at: new Date('2024-02-01'), updated_at: new Date('2024-02-01') },
+      ];
+      const json = JSON.stringify(configs);
+      const parsed = JSON.parse(json);
+      expect(parsed).toHaveLength(2);
+      expect(parsed[0].config_key).toBe('k1');
+      expect(parsed[1].config_value).toBe('v2');
+    });
+
+    it('UpdateSystemConfigsRequest should survive JSON round-trip', () => {
+      const req: UpdateSystemConfigsRequest = {
+        configs: [
+          { config_key: '站点', config_value: '薄云商机倍增服务' },
+          { config_key: 'port', config_value: '8080' },
+        ],
+      };
+      const json = JSON.stringify(req);
+      const parsed: UpdateSystemConfigsRequest = JSON.parse(json);
+      expect(parsed.configs).toHaveLength(2);
+      expect(parsed.configs[0].config_value).toBe('薄云商机倍增服务');
+      expect(parsed.configs[1].config_value).toBe('8080');
+    });
+  });
+
+  // ============================================================
+  // Object.freeze 不可变性
+  // ============================================================
+  describe('Object.freeze immutability', () => {
+    it('frozen config should reject id mutation', () => {
+      const config: SystemConfig = Object.freeze({
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+      expect(() => { (config as any).id = 999; }).toThrow();
+      expect(config.id).toBe(1);
+    });
+
+    it('frozen config should reject config_key mutation', () => {
+      const config: SystemConfig = Object.freeze({
+        id: 1,
+        config_key: 'original',
+        config_value: 'v',
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+      expect(() => { (config as any).config_key = 'hacked'; }).toThrow();
+      expect(config.config_key).toBe('original');
+    });
+
+    it('frozen config should reject config_value mutation', () => {
+      const config: SystemConfig = Object.freeze({
+        id: 1,
+        config_key: 'k',
+        config_value: 'original_value',
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+      expect(() => { (config as any).config_value = 'hacked'; }).toThrow();
+      expect(config.config_value).toBe('original_value');
+    });
+
+    it('frozen config should reject created_at mutation', () => {
+      const config: SystemConfig = Object.freeze({
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date('2024-01-01'),
+        updated_at: new Date(),
+      });
+      expect(() => { (config as any).created_at = new Date('2099-01-01'); }).toThrow();
+      expect(config.created_at.getFullYear()).toBe(2024);
+    });
+
+    it('frozen config should reject updated_at mutation', () => {
+      const config: SystemConfig = Object.freeze({
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date(),
+        updated_at: new Date('2024-06-01'),
+      });
+      expect(() => { (config as any).updated_at = new Date('2099-01-01'); }).toThrow();
+      expect(config.updated_at.getFullYear()).toBe(2024);
+    });
+
+    it('frozen config should reject adding new fields', () => {
+      const config: SystemConfig = Object.freeze({
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+      expect(() => { (config as any).extra = 'field'; }).toThrow();
+      expect((config as any).extra).toBeUndefined();
+    });
+
+    it('frozen config should reject deleting fields', () => {
+      const config: SystemConfig = Object.freeze({
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+      expect(() => { delete (config as any).config_value; }).toThrow();
+      expect(config.config_value).toBe('v');
+    });
+
+    it('frozen config should still be readable via Object.keys', () => {
+      const config: SystemConfig = Object.freeze({
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+      expect(Object.keys(config)).toHaveLength(5);
+      expect(Object.isFrozen(config)).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // 结构相等性
+  // ============================================================
+  describe('structural equality', () => {
+    it('two configs with same values should be structurally equal', () => {
+      const date = new Date('2024-06-01T00:00:00.000Z');
+      const c1: SystemConfig = { id: 1, config_key: 'k', config_value: 'v', created_at: date, updated_at: date };
+      const c2: SystemConfig = { id: 1, config_key: 'k', config_value: 'v', created_at: date, updated_at: date };
+      expect(c1).toEqual(c2);
+      expect(c1).not.toBe(c2);
+    });
+
+    it('configs with different id should not be equal', () => {
+      const date = new Date();
+      const c1: SystemConfig = { id: 1, config_key: 'k', config_value: 'v', created_at: date, updated_at: date };
+      const c2: SystemConfig = { id: 2, config_key: 'k', config_value: 'v', created_at: date, updated_at: date };
+      expect(c1).not.toEqual(c2);
+    });
+
+    it('configs with different config_key should not be equal', () => {
+      const date = new Date();
+      const c1: SystemConfig = { id: 1, config_key: 'a', config_value: 'v', created_at: date, updated_at: date };
+      const c2: SystemConfig = { id: 1, config_key: 'b', config_value: 'v', created_at: date, updated_at: date };
+      expect(c1).not.toEqual(c2);
+    });
+
+    it('configs with different config_value should not be equal', () => {
+      const date = new Date();
+      const c1: SystemConfig = { id: 1, config_key: 'k', config_value: 'v1', created_at: date, updated_at: date };
+      const c2: SystemConfig = { id: 1, config_key: 'k', config_value: 'v2', created_at: date, updated_at: date };
+      expect(c1).not.toEqual(c2);
+    });
+
+    it('configs with different timestamps should not be equal', () => {
+      const c1: SystemConfig = { id: 1, config_key: 'k', config_value: 'v', created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01') };
+      const c2: SystemConfig = { id: 1, config_key: 'k', config_value: 'v', created_at: new Date('2024-06-01'), updated_at: new Date('2024-06-01') };
+      expect(c1).not.toEqual(c2);
+    });
+
+    it('should compare by id for lookup purposes', () => {
+      const configs: SystemConfig[] = [
+        { id: 1, config_key: 'a', config_value: '1', created_at: new Date(), updated_at: new Date() },
+        { id: 2, config_key: 'b', config_value: '2', created_at: new Date(), updated_at: new Date() },
+      ];
+      const target = { id: 2, config_key: 'b', config_value: '2', created_at: configs[1].created_at, updated_at: configs[1].updated_at };
+      const found = configs.find(c => c.id === target.id);
+      expect(found).toBeDefined();
+      expect(found!.config_key).toBe('b');
+    });
+  });
+
+  // ============================================================
+  // 深拷贝
+  // ============================================================
+  describe('deep copy', () => {
+    it('JSON parse/stringify should create deep copy', () => {
+      const original: SystemConfig = {
+        id: 1,
+        config_key: 'site_name',
+        config_value: '薄云商机倍增服务',
+        created_at: new Date('2024-06-01T00:00:00.000Z'),
+        updated_at: new Date('2024-06-02T00:00:00.000Z'),
+      };
+      const json = JSON.stringify(original);
+      const copy: SystemConfig = {
+        ...JSON.parse(json),
+        created_at: new Date(JSON.parse(json).created_at),
+        updated_at: new Date(JSON.parse(json).updated_at),
+      };
+      expect(copy).toEqual(original);
+      copy.config_value = 'modified';
+      expect(original.config_value).toBe('薄云商机倍增服务');
+    });
+
+    it('spread operator creates shallow copy with independent top-level fields', () => {
+      const original: SystemConfig = {
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date('2024-01-01'),
+        updated_at: new Date('2024-01-01'),
+      };
+      const copy = { ...original };
+      copy.config_value = 'new_value';
+      copy.id = 999;
+      expect(original.config_value).toBe('v');
+      expect(original.id).toBe(1);
+    });
+
+    it('Object.assign creates shallow copy', () => {
+      const original: SystemConfig = {
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      const copy = Object.assign({}, original);
+      expect(copy).toEqual(original);
+      copy.config_value = 'changed';
+      expect(original.config_value).toBe('v');
+    });
+
+    it('structuredClone should create deep copy', () => {
+      const original: SystemConfig = {
+        id: 1,
+        config_key: 'site',
+        config_value: 'test',
+        created_at: new Date('2024-06-15T12:00:00.000Z'),
+        updated_at: new Date('2024-06-20T12:00:00.000Z'),
+      };
+      const clone = structuredClone(original);
+      expect(clone.id).toBe(original.id);
+      expect(clone.config_key).toBe(original.config_key);
+      expect(clone.config_value).toBe(original.config_value);
+      expect(clone.created_at).toEqual(original.created_at);
+      expect(clone.created_at).not.toBe(original.created_at);
+      clone.config_value = 'modified';
+      expect(original.config_value).toBe('test');
+    });
+
+    it('deep copy of array should be independent', () => {
+      const configs: SystemConfig[] = [
+        { id: 1, config_key: 'k1', config_value: 'v1', created_at: new Date(), updated_at: new Date() },
+        { id: 2, config_key: 'k2', config_value: 'v2', created_at: new Date(), updated_at: new Date() },
+      ];
+      const copy = configs.map(c => ({ ...c }));
+      copy[0].config_value = 'changed';
+      expect(configs[0].config_value).toBe('v1');
+    });
+  });
+
+  // ============================================================
+  // 解构模式扩展
+  // ============================================================
+  describe('destructuring patterns', () => {
+    it('should support rest pattern after destructuring', () => {
+      const config: SystemConfig = {
+        id: 1,
+        config_key: 'site_name',
+        config_value: 'App',
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      const { id, config_key, ...rest } = config;
+      expect(id).toBe(1);
+      expect(config_key).toBe('site_name');
+      expect(rest.config_value).toBe('App');
+      expect(rest.created_at).toBeInstanceOf(Date);
+      expect(rest.updated_at).toBeInstanceOf(Date);
+    });
+
+    it('should support destructuring with rename', () => {
+      const config: SystemConfig = {
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      const { id: configId, config_key: key, config_value: value } = config;
+      expect(configId).toBe(1);
+      expect(key).toBe('k');
+      expect(value).toBe('v');
+    });
+
+    it('should support destructuring UpdateSystemConfigsRequest configs item', () => {
+      const item = { config_key: 'test_key', config_value: 'test_value' };
+      const { config_key, config_value } = item;
+      expect(config_key).toBe('test_key');
+      expect(config_value).toBe('test_value');
+    });
+
+    it('should support destructuring in array map', () => {
+      const configs: SystemConfig[] = [
+        { id: 1, config_key: 'k1', config_value: 'v1', created_at: new Date(), updated_at: new Date() },
+        { id: 2, config_key: 'k2', config_value: 'v2', created_at: new Date(), updated_at: new Date() },
+      ];
+      const keys = configs.map(({ config_key }) => config_key);
+      expect(keys).toEqual(['k1', 'k2']);
+    });
+  });
+
+  // ============================================================
+  // 集合高级操作（Set/Map 扩展）
+  // ============================================================
+  describe('collection advanced operations', () => {
+    it('should support Map with config_key as key', () => {
+      const configs: SystemConfig[] = [
+        { id: 1, config_key: 'site_name', config_value: 'App', created_at: new Date(), updated_at: new Date() },
+        { id: 2, config_key: 'max_items', config_value: '100', created_at: new Date(), updated_at: new Date() },
+      ];
+      const map = new Map(configs.map(c => [c.config_key, c]));
+      expect(map.get('site_name')?.config_value).toBe('App');
+      expect(map.get('max_items')?.id).toBe(2);
+      expect(map.size).toBe(2);
+    });
+
+    it('should support Map iteration with configs', () => {
+      const map = new Map<string, SystemConfig>();
+      map.set('a', { id: 1, config_key: 'a', config_value: '1', created_at: new Date(), updated_at: new Date() });
+      map.set('b', { id: 2, config_key: 'b', config_value: '2', created_at: new Date(), updated_at: new Date() });
+      const keys = Array.from(map.keys());
+      expect(keys).toEqual(['a', 'b']);
+      const values = Array.from(map.values());
+      expect(values).toHaveLength(2);
+    });
+
+    it('should support Map delete and has operations', () => {
+      const config: SystemConfig = { id: 1, config_key: 'k', config_value: 'v', created_at: new Date(), updated_at: new Date() };
+      const map = new Map<string, SystemConfig>();
+      map.set('k', config);
+      expect(map.has('k')).toBe(true);
+      map.delete('k');
+      expect(map.has('k')).toBe(false);
+      expect(map.size).toBe(0);
+    });
+
+    it('should support Set add, has, delete with configs', () => {
+      const c1: SystemConfig = { id: 1, config_key: 'a', config_value: '1', created_at: new Date(), updated_at: new Date() };
+      const c2: SystemConfig = { id: 2, config_key: 'b', config_value: '2', created_at: new Date(), updated_at: new Date() };
+      const set = new Set<SystemConfig>();
+      set.add(c1).add(c2);
+      expect(set.size).toBe(2);
+      expect(set.has(c1)).toBe(true);
+      set.delete(c1);
+      expect(set.has(c1)).toBe(false);
+      expect(set.size).toBe(1);
+    });
+
+    it('should support converting configs array to Record', () => {
+      const configs: SystemConfig[] = [
+        { id: 1, config_key: 'site_name', config_value: 'App', created_at: new Date(), updated_at: new Date() },
+        { id: 2, config_key: 'max_items', config_value: '100', created_at: new Date(), updated_at: new Date() },
+      ];
+      const record = configs.reduce<Record<string, string>>((acc, c) => {
+        acc[c.config_key] = c.config_value;
+        return acc;
+      }, {});
+      expect(record['site_name']).toBe('App');
+      expect(record['max_items']).toBe('100');
+    });
+
+    it('should support grouping configs by config_key prefix', () => {
+      const configs: SystemConfig[] = [
+        { id: 1, config_key: 'app.name', config_value: 'App', created_at: new Date(), updated_at: new Date() },
+        { id: 2, config_key: 'app.version', config_value: '1.0', created_at: new Date(), updated_at: new Date() },
+        { id: 3, config_key: 'db.host', config_value: 'localhost', created_at: new Date(), updated_at: new Date() },
+      ];
+      const grouped = configs.reduce<Record<string, SystemConfig[]>>((acc, c) => {
+        const prefix = c.config_key.split('.')[0];
+        if (!acc[prefix]) acc[prefix] = [];
+        acc[prefix].push(c);
+        return acc;
+      }, {});
+      expect(grouped['app']).toHaveLength(2);
+      expect(grouped['db']).toHaveLength(1);
+    });
+  });
+
+  // ============================================================
+  // 连续更新链
+  // ============================================================
+  describe('continuous update chain', () => {
+    it('should support sequential updates with immutable pattern', () => {
+      const created = new Date('2024-01-01');
+      let config: SystemConfig = {
+        id: 1,
+        config_key: 'app_version',
+        config_value: '1.0.0',
+        created_at: created,
+        updated_at: created,
+      };
+
+      config = { ...config, config_value: '1.1.0', updated_at: new Date('2024-02-01') };
+      expect(config.config_value).toBe('1.1.0');
+      expect(config.config_key).toBe('app_version');
+
+      config = { ...config, config_value: '2.0.0', updated_at: new Date('2024-06-01') };
+      expect(config.config_value).toBe('2.0.0');
+      expect(config.created_at).toBe(created);
+
+      config = { ...config, config_key: 'version', config_value: '3.0.0', updated_at: new Date('2024-09-01') };
+      expect(config.config_key).toBe('version');
+      expect(config.id).toBe(1);
+      expect(config.config_value).toBe('3.0.0');
+    });
+
+    it('should support batch sequential updates across multiple configs', () => {
+      const now = new Date('2024-01-01');
+      let configs: SystemConfig[] = [
+        { id: 1, config_key: 'a', config_value: '1', created_at: now, updated_at: now },
+        { id: 2, config_key: 'b', config_value: '2', created_at: now, updated_at: now },
+      ];
+
+      const updateDate = new Date('2024-03-01');
+      configs = configs.map(c =>
+        c.config_key === 'a' ? { ...c, config_value: '100', updated_at: updateDate } : c
+      );
+      expect(configs[0].config_value).toBe('100');
+      expect(configs[1].config_value).toBe('2');
+
+      const addDate = new Date('2024-06-01');
+      configs = [...configs, { id: 3, config_key: 'c', config_value: '3', created_at: addDate, updated_at: addDate }];
+      expect(configs).toHaveLength(3);
+
+      configs = configs.filter(c => c.config_key !== 'b');
+      expect(configs).toHaveLength(2);
+      expect(configs.map(c => c.config_key)).toEqual(['a', 'c']);
+    });
+
+    it('should track update history via timestamps', () => {
+      const v1Date = new Date('2024-01-01');
+      const v2Date = new Date('2024-03-01');
+      const v3Date = new Date('2024-06-01');
+
+      const v1: SystemConfig = { id: 1, config_key: 'env', config_value: 'dev', created_at: v1Date, updated_at: v1Date };
+      const v2: SystemConfig = { ...v1, config_value: 'staging', updated_at: v2Date };
+      const v3: SystemConfig = { ...v2, config_value: 'prod', updated_at: v3Date };
+
+      const history = [v1, v2, v3];
+      expect(history).toHaveLength(3);
+      expect(history[0].updated_at.getTime()).toBeLessThan(history[1].updated_at.getTime());
+      expect(history[1].updated_at.getTime()).toBeLessThan(history[2].updated_at.getTime());
+      expect(history.every(v => v.created_at === v1Date)).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // 日期操作扩展
+  // ============================================================
+  describe('date operations', () => {
+    it('should support toISOString for display', () => {
+      const config: SystemConfig = {
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date('2024-06-15T08:30:45.123Z'),
+        updated_at: new Date('2024-06-20T14:45:00.000Z'),
+      };
+      expect(config.created_at.toISOString()).toBe('2024-06-15T08:30:45.123Z');
+      expect(config.updated_at.toISOString()).toBe('2024-06-20T14:45:00.000Z');
+    });
+
+    it('should support getTime for difference calculation', () => {
+      const config: SystemConfig = {
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date('2024-01-01T00:00:00.000Z'),
+        updated_at: new Date('2024-01-02T12:00:00.000Z'),
+      };
+      const diffMs = config.updated_at.getTime() - config.created_at.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+      expect(diffHours).toBe(36);
+    });
+
+    it('should support date arithmetic for age calculation', () => {
+      const config: SystemConfig = {
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date('2024-01-01T00:00:00.000Z'),
+        updated_at: new Date('2024-12-31T23:59:59.999Z'),
+      };
+      const ageDays = Math.floor(
+        (config.updated_at.getTime() - config.created_at.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      expect(ageDays).toBe(365);
+    });
+
+    it('should support extracting date components', () => {
+      const config: SystemConfig = {
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date('2024-06-15T08:30:45.123Z'),
+        updated_at: new Date(),
+      };
+      expect(config.created_at.getUTCFullYear()).toBe(2024);
+      expect(config.created_at.getUTCMonth()).toBe(5); // June
+      expect(config.created_at.getUTCDate()).toBe(15);
+      expect(config.created_at.getUTCHours()).toBe(8);
+      expect(config.created_at.getUTCMinutes()).toBe(30);
+    });
+
+    it('should support Date.now() comparison', () => {
+      const pastConfig: SystemConfig = {
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date('2020-01-01'),
+        updated_at: new Date('2020-01-01'),
+      };
+      expect(pastConfig.created_at.getTime()).toBeLessThan(Date.now());
+    });
+  });
+
+  // ============================================================
+  // Set-Map 操作扩展
+  // ============================================================
+  describe('Set-Map operations', () => {
+    it('should support WeakMap with object keys', () => {
+      const config: SystemConfig = {
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      const weakMap = new WeakMap<SystemConfig, string>();
+      weakMap.set(config, 'metadata');
+      expect(weakMap.get(config)).toBe('metadata');
+    });
+
+    it('should support Set deduplication by reference', () => {
+      const config: SystemConfig = {
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      const set = new Set<SystemConfig>();
+      set.add(config);
+      set.add(config);
+      expect(set.size).toBe(1);
+    });
+
+    it('should support Map forEach iteration', () => {
+      const map = new Map<string, SystemConfig>();
+      map.set('a', { id: 1, config_key: 'a', config_value: '1', created_at: new Date(), updated_at: new Date() });
+      map.set('b', { id: 2, config_key: 'b', config_value: '2', created_at: new Date(), updated_at: new Date() });
+      const collected: string[] = [];
+      map.forEach((value, key) => {
+        collected.push(key + ':' + value.config_value);
+      });
+      expect(collected).toEqual(['a:1', 'b:2']);
+    });
+
+    it('should support Map construction from entries', () => {
+      const configs: SystemConfig[] = [
+        { id: 1, config_key: 'a', config_value: '1', created_at: new Date(), updated_at: new Date() },
+        { id: 2, config_key: 'b', config_value: '2', created_at: new Date(), updated_at: new Date() },
+      ];
+      const map = new Map(configs.map(c => [c.config_key, c.config_value] as [string, string]));
+      expect(map.get('a')).toBe('1');
+      expect(map.get('b')).toBe('2');
+    });
+  });
+
+  // ============================================================
+  // 属性描述符
+  // ============================================================
+  describe('property descriptors', () => {
+    it('should have writable, enumerable, configurable descriptors by default', () => {
+      const config: SystemConfig = {
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      const desc = Object.getOwnPropertyDescriptor(config, 'config_key');
+      expect(desc).toBeDefined();
+      expect(desc!.writable).toBe(true);
+      expect(desc!.enumerable).toBe(true);
+      expect(desc!.configurable).toBe(true);
+    });
+
+    it('should support defining non-enumerable property', () => {
+      const config: SystemConfig = {
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      Object.defineProperty(config, 'config_value', { enumerable: false });
+      expect(Object.keys(config)).toHaveLength(4);
+      expect(config.config_value).toBe('v');
+    });
+
+    it('should support defining read-only property via defineProperty', () => {
+      const config: SystemConfig = {
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      Object.defineProperty(config, 'id', { writable: false });
+      expect(() => { (config as any).id = 999; }).toThrow();
+      expect(config.id).toBe(1);
+    });
+
+    it('should list all property descriptors', () => {
+      const config: SystemConfig = {
+        id: 1,
+        config_key: 'k',
+        config_value: 'v',
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      const descriptors = Object.getOwnPropertyDescriptors(config);
+      expect(Object.keys(descriptors).sort()).toEqual(
+        ['config_key', 'config_value', 'created_at', 'id', 'updated_at'].sort(),
+      );
+    });
+  });
+
+  // ============================================================
+  // 函数参数传递
+  // ============================================================
+  describe('function parameter passing', () => {
+    it('should pass SystemConfig to function and access fields', () => {
+      const processConfig = (config: SystemConfig): string => {
+        return `${config.config_key}=${config.config_value}`;
+      };
+      const config: SystemConfig = {
+        id: 1,
+        config_key: 'site_name',
+        config_value: 'App',
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(processConfig(config)).toBe('site_name=App');
+    });
+
+    it('should pass UpdateSystemConfigsRequest to function', () => {
+      const countConfigs = (req: UpdateSystemConfigsRequest): number => {
+        return req.configs.length;
+      };
+      const req: UpdateSystemConfigsRequest = {
+        configs: [
+          { config_key: 'a', config_value: '1' },
+          { config_key: 'b', config_value: '2' },
+          { config_key: 'c', config_value: '3' },
+        ],
+      };
+      expect(countConfigs(req)).toBe(3);
+    });
+
+    it('should return SystemConfig from function', () => {
+      const createConfig = (key: string, value: string): SystemConfig => ({
+        id: 1,
+        config_key: key,
+        config_value: value,
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+      const config = createConfig('test', 'value');
+      expect(config.config_key).toBe('test');
+      expect(config.config_value).toBe('value');
+    });
+
+    it('should accept Partial<SystemConfig> as function parameter', () => {
+      const mergeDefaults = (partial: Partial<SystemConfig>): SystemConfig => ({
+        id: partial.id ?? 0,
+        config_key: partial.config_key ?? '',
+        config_value: partial.config_value ?? '',
+        created_at: partial.created_at ?? new Date(),
+        updated_at: partial.updated_at ?? new Date(),
+      });
+      const config = mergeDefaults({ config_key: 'k', config_value: 'v' });
+      expect(config.id).toBe(0);
+      expect(config.config_key).toBe('k');
+      expect(config.config_value).toBe('v');
+    });
+
+    it('should handle config transformation pipeline', () => {
+      const configs: SystemConfig[] = [
+        { id: 1, config_key: 'timeout', config_value: '30', created_at: new Date(), updated_at: new Date() },
+        { id: 2, config_key: 'retries', config_value: '3', created_at: new Date(), updated_at: new Date() },
+        { id: 3, config_key: 'enabled', config_value: 'true', created_at: new Date(), updated_at: new Date() },
+      ];
+      const toRecord = (items: SystemConfig[]): Record<string, string> =>
+        items.reduce((acc, c) => { acc[c.config_key] = c.config_value; return acc; }, {} as Record<string, string>);
+      const parseValue = (record: Record<string, string>, key: string): string | number | boolean => {
+        const val = record[key];
+        if (val === 'true' || val === 'false') return val === 'true';
+        if (!isNaN(Number(val))) return Number(val);
+        return val;
+      };
+
+      const record = toRecord(configs);
+      expect(parseValue(record, 'timeout')).toBe(30);
+      expect(parseValue(record, 'retries')).toBe(3);
+      expect(parseValue(record, 'enabled')).toBe(true);
+    });
+  });
 });
