@@ -66,10 +66,12 @@
     - `fullscreen` 命令：修复按钮点击不触发全屏（移除 shortcuts 条件守卫）、重映射快捷键（ctrlcmd+0→ctrlcmd+shift+f）、中文 ARIA 标注、antd FullscreenOutlined 图标（16px）
     - `link` 命令：快捷键Ctrl+L→Ctrl+K（行业标准，消除浏览器地址栏冲突）、URL方案白名单过滤（拦截javascript:/data: XSS穿透）、URL分支提取域名作默认链接文本（消除空链接文本WCAG 2.4.4违规）、URL检测改用正则、antd LinkOutlined图标16px、中文ARIA、try-catch错误边界、选区越界防护
     - `Ctrl+L` 浏览器拦截：`preventBrowserShortcut` 中拦截 Ctrl+L 防止焦点跳走到地址栏
-    - **list.tsx 评审发现**（CONDITIONAL APPROVE 6.5分，安全无风险）：
-      - P1-HIGH: `checkedListCommand` 的 `insertBefore` 回调忽略 `item/index` 参数（始终返回 `- [ ] `），不支持切换/取消已有任务列表标记
-      - P2-MEDIUM: Remove 分支 `state`/`state1` 混用；`prefix` 非空断言无运行时保护；快捷键仅支持 Ctrl 不支持 macOS Cmd；`Array(n+1).join` 晦涩
-      - P3-LOW: SVG 可访问性不一致（unorderedList 缺 role="img"）；不必要的模板字符串
+    - **list.tsx 安全评审**（APPROVE，综合安全评分 7.5/10，攻击面极小）：
+      - MEDIUM-01: `checkedListCommand` 不处理已勾选项 `- [x] `，导致切换时双重前缀叠加（内容完整性缺陷）
+      - MEDIUM-02: `prefix!` 非空断言绕过类型契约，undefined 传播可致 TypeError（DoS 级别）
+      - MEDIUM-03: `insertBeforeEachLine` 函数分支多重求值（每行最多 5 次调用），未复用 `insertionResult` 变量
+      - LOW-03: selection 越界无显式校验；Array(n+1).join 晦涩；SVG 可访问性不一致（unorderedList 缺 role="img"）
+      - 安全优势：全部操作在 textarea.value 纯文本域，天然免疫 XSS/HTML 注入；SVG 硬编码无动态注入点；无网络请求/敏感数据访问
       - 若需自定义列表命令，建议传入字符串前缀而非函数，避免 checkedList 的参数忽略问题
 - antd 主题通过 `main.tsx` 的 `ConfigProvider` 配置，全局覆盖 border-radius: 0 等 Carbon 风格
 - **Switch 组件不参与全局 border-radius: 0 覆盖**，保持 antd 默认椭圆胶囊样式
