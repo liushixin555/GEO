@@ -916,3 +916,11 @@
   - 完整管线数据流分析（10个插件顺序依赖关系+安全风险标注）
   - 本项目影响：安全🔴高（rehypeRaw无条件执行，已通过DOMPurify缓解）、Bundle🟡中（建议改用common入口-150KB）、性能🟡中
   - 评审报告 tasks/review/react-markdown-preview.index.tsx.architecture.md
+
+## 本次变更（2026-05-24 @uiw/react-markdown-preview index.tsx 代码安全专家评审）
+- [x] **代码安全专家评审 @uiw/react-markdown-preview/src/index.tsx（27 行）**
+  - 综合安全评级 B-/7.8（插件管线安全边界不足，依赖调用层防护）
+  - 8 项安全发现：HIGH×2（URL安全过滤被默认禁用preview.tsx:14/57、rehypeRaw无条件启用index.tsx:18）、MEDIUM×3（rehype-attr任意属性注入index.tsx:22、allowElement过滤器过于宽松preview.tsx:39-44、useImperativeHandle泄露全部props preview.tsx:34）、LOW×3（pluginsFilter可移除安全插件、rehypePrism ignoreMissing隐藏错误、useCopied事件处理器闭包未更新）
+  - 本项目缓解措施：MarkdownViewer.tsx 使用 DOMPurify 预消毒（FORBID_TAGS + FORBID_ATTR + 1MB 长度限制），有效缓解 #1 和 #2
+  - 修复优先级：P0×2（URL过滤+rehypeRaw可选化）、P1×2（allowElement强化+rehype-attr属性过滤）、P2×1（useImperativeHandle精简）、P3×3
+  - 评审报告 tasks/review/react-markdown-preview.index.tsx.security.md
