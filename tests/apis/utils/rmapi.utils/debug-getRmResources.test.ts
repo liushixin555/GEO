@@ -120,6 +120,43 @@ describe('debug-getRmResources', () => {
       expect(consoleErrorSpy).toHaveBeenCalled();
       expect(processExitSpy).toHaveBeenCalledWith(1);
     });
+
+    it('should skip flag when it is the last arg with no value', async () => {
+      // --token is the last arg, args[i+1] is undefined → condition fails
+      process.argv = ['node', 'script', '--token'];
+
+      await importAndFlush();
+
+      expect(consoleErrorSpy).toHaveBeenCalled();
+      expect(processExitSpy).toHaveBeenCalledWith(1);
+    });
+
+    it('should ignore single-dash args like -t', async () => {
+      process.argv = ['node', 'script', '-t', 'value', '--token', 'real-token'];
+      mockGetAllRmResources.mockResolvedValueOnce([]);
+
+      await importAndFlush();
+
+      expect(mockGetAllRmResources).toHaveBeenCalledWith('real-token');
+    });
+
+    it('should ignore bare values that do not start with --', async () => {
+      process.argv = ['node', 'script', 'bare-value', '--token', 'my-token'];
+      mockGetAllRmResources.mockResolvedValueOnce([]);
+
+      await importAndFlush();
+
+      expect(mockGetAllRmResources).toHaveBeenCalledWith('my-token');
+    });
+
+    it('should parse unknown flags into result without side effects', async () => {
+      process.argv = ['node', 'script', '--verbose', 'true', '--token', 'tok'];
+      mockGetAllRmResources.mockResolvedValueOnce([]);
+
+      await importAndFlush();
+
+      expect(mockGetAllRmResources).toHaveBeenCalledWith('tok');
+    });
   });
 
   // ─── main - token acquisition ─────────────────────────────────
@@ -206,6 +243,27 @@ describe('debug-getRmResources', () => {
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('--mobile'));
       expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('--token'));
+    });
+
+    it('should display full token when shorter than 20 chars', async () => {
+      process.argv = ['node', 'script', '--mobile', '13800138000', '--password', 'mypass'];
+      mockGetRmToken.mockResolvedValueOnce('short-tok');
+      mockGetAllRmResources.mockResolvedValueOnce([]);
+
+      await importAndFlush();
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('short-tok'));
+    });
+
+    it('should display full token when exactly 20 chars', async () => {
+      const token20 = '12345678901234567890'; // exactly 20 chars
+      process.argv = ['node', 'script', '--mobile', '13800138000', '--password', 'mypass'];
+      mockGetRmToken.mockResolvedValueOnce(token20);
+      mockGetAllRmResources.mockResolvedValueOnce([]);
+
+      await importAndFlush();
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining(token20));
     });
   });
 
@@ -316,6 +374,61 @@ describe('debug-getRmResources', () => {
       expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('name="Alpha"'));
       expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('taxonomy="cat-a"'));
     });
+
+    it('should show preview with exactly 1 item', async () => {
+      const items = [{ id: 1, name: 'Solo', price: 10, taxonomy: 'type' }];
+      process.argv = ['node', 'script', '--token', 'test-token'];
+      mockGetAllRmResources.mockResolvedValueOnce(items);
+
+      await importAndFlush();
+
+      expect(consoleLogSpy).toHaveBeenCalledWith('  总数据条数: 1');
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('前 5 条数据预览'));
+      const moreCalls = consoleLogSpy.mock.calls.filter(
+        (c: string[]) => typeof c[0] === 'string' && c[0].includes('还有')
+      );
+      expect(moreCalls).toHaveLength(0);
+    });
+
+    it('should show "还有 1 条" when exactly 6 items', async () => {
+      const items = Array.from({ length: 6 }, (_, i) => ({
+        id: i + 1,
+        name: `R${i + 1}`,
+        price: 100,
+        taxonomy: 't',
+      }));
+      process.argv = ['node', 'script', '--token', 'test-token'];
+      mockGetAllRmResources.mockResolvedValueOnce(items);
+
+      await importAndFlush();
+
+      expect(consoleLogSpy).toHaveBeenCalledWith('  ... 还有 1 条');
+    });
+
+    it('should handle items with Chinese and special characters', async () => {
+      const items = [
+        { id: 1, name: '测试资源-特殊@#$', price: 0, taxonomy: '中文分类' },
+      ];
+      process.argv = ['node', 'script', '--token', 'test-token'];
+      mockGetAllRmResources.mockResolvedValueOnce(items);
+
+      await importAndFlush();
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('测试资源-特殊@#$'));
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('中文分类'));
+    });
+
+    it('should save JSON file with correct path containing rmResources-all.json', async () => {
+      const items = [{ id: 1, name: 'A', price: 1, taxonomy: 'x' }];
+      process.argv = ['node', 'script', '--token', 'test-token'];
+      mockGetAllRmResources.mockResolvedValueOnce(items);
+
+      await importAndFlush();
+
+      const writeCall = mockWriteFileSync.mock.calls[0];
+      expect(writeCall[0]).toMatch(/rmResources-all\.json$/);
+      expect(writeCall[2]).toBe('utf-8');
+    });
   });
 
   // ─── main - resource fetching error ───────────────────────────
@@ -381,6 +494,54 @@ describe('debug-getRmResources', () => {
         (c: string[]) => typeof c[0] === 'string' && c[0].includes('HTTP status')
       );
       expect(httpCalls).toHaveLength(0);
+    });
+
+    it('should handle error where response.data is a string', async () => {
+      const error: any = new Error('Bad Request');
+      error.response = {
+        status: 400,
+        data: 'plain text error message',
+      };
+      process.argv = ['node', 'script', '--token', 'test-token'];
+      mockGetAllRmResources.mockRejectedValueOnce(error);
+
+      await importAndFlush();
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('  响应数据:', '"plain text error message"');
+    });
+
+    it('should handle error where response exists but data is undefined', async () => {
+      const error: any = new Error('No Data');
+      error.response = {
+        status: 502,
+        data: undefined,
+      };
+      process.argv = ['node', 'script', '--token', 'test-token'];
+      mockGetAllRmResources.mockRejectedValueOnce(error);
+
+      await importAndFlush();
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('  HTTP status:', 502);
+      expect(consoleErrorSpy).toHaveBeenCalledWith('  响应数据:', undefined);
+    });
+
+    it('should handle error with complex response data object', async () => {
+      const error: any = new Error('Validation Error');
+      error.response = {
+        status: 422,
+        data: { errors: [{ field: 'name', message: 'required' }], code: 'VALIDATION_FAILED' },
+      };
+      process.argv = ['node', 'script', '--token', 'test-token'];
+      mockGetAllRmResources.mockRejectedValueOnce(error);
+
+      await importAndFlush();
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('  HTTP status:', 422);
+      const dataCall = consoleErrorSpy.mock.calls.find(
+        (c: string[]) => typeof c[0] === 'string' && c[0] === '  响应数据:'
+      );
+      expect(dataCall).toBeDefined();
+      expect(dataCall![1]).toContain('VALIDATION_FAILED');
     });
   });
 });
