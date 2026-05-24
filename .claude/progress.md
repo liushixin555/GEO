@@ -100,3 +100,4 @@
 | 2026-05-24 | tasks/tdd/knowledge-base.entity.test.md | knowledge-base.entity TDD 补全——137用例全通过（+63新增：JSON序列化/Object操作/集合操作/Scope约束/连续更新/高级边界） |
 | 2026-05-24 | tasks/review/Editor.common.tsx.security.md | @uiw/react-md-editor Editor.common.tsx 代码安全专家评审——🟡 B-（6项隐患：H×3 XSS/类型安全/API暴露 + M×2 事件泄漏/Tabnabbing + L×1，封装层已部分缓解） |
 | 2026-05-24 | tasks/tdd/knowledge.entity.test.md | knowledge.entity TDD 补全——248用例全通过（+96新增：JSON序列化/Object.freeze/集合操作/类型收窄/Scope约束/连续更新/高级边界/结构相等/解构/Object迭代） |
+| 2026-05-24 | tasks/review/Editor.common.tsx.ui.md | @uiw/react-md-editor Editor.common.tsx UI 专家评审——⚠️有条件通过 4.9/10（GitHub风格与Carbon全面冲突，封装层覆盖~95%，P1×2无障碍缺失，P2×6工具栏/响应式/focus） |
