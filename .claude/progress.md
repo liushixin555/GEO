@@ -623,3 +623,12 @@
   - P2-2: handleServerError 改用类型化异常（NotFoundError/BusinessError），service 层同步替换
   - P2-3: scheduled_publish_at 添加未来时间校验（Zod refine）
   - 涉及文件：article.controller.ts、article.schema.ts、article.service.impl.ts、article.controller.test.ts
+
+## 本次变更（2026-05-24 @uiw/react-markdown-preview Props.tsx 软件质量专家评审）
+- [x] **软件质量专家评审 @uiw/react-markdown-preview/src/Props.tsx（30 行）**
+  - 综合评分 5.3/10（类型定义功能正确但工程质量不足）
+  - P1×3：warpperElement 拼写错误永久化到公共 API、MarkdownPreviewRef 暴露全部 Props 违反 React 最佳实践、wrapperElement 类型重复（20% DRY 违反率）
+  - P2×4：文件扩展名 .tsx 无 JSX 内容应改为 .ts、隐式 React 全局命名空间引用、source 属性缺乏语义约束、pluginsFilter 参数名与类型不匹配
+  - P3×3：属性缺乏 JSDoc 文档、data-color-mode 不支持 auto 模式、onMouseOver 冒泡事件选择未说明
+  - 正面评价：类型继承正确（Omit<Options, 'children'>）、事件类型携带泛型参数、弃用标记完备
+  - 评审报告 tasks/review/Props.tsx.quality.md
