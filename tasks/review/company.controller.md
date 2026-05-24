@@ -1,561 +1,397 @@
-# apis/controller/company.controller.ts — 软件质量专家评审报告
+# apis/controller/company.controller.ts — 软件架构专家评审报告
 
 **评审日期**: 2026-05-24
-**评审角色**: 软件质量专家（代码安全 + 架构质量 + 输入验证 + 错误处理 + API 设计）
+**评审角色**: 软件架构专家（分层架构 + 依赖管理 + 职责边界 + 可扩展性 + 一致性）
 **文件路径**: `apis/controller/company.controller.ts`
-**代码行数**: 237 行
-**关联文件**: `apis/service/company.service.ts`, `apis/service/impl/company.service.impl.ts`, `apis/entity/company.entity.ts`, `apis/utils/response.util.ts`, `apis/map/index.ts`, `apis/app.ts`
-**严重级别**: HIGH(5) / MEDIUM(5) / LOW(3)
+**代码行数**: 114 行（已从历史 237 行重构精简）
+**依赖图**:
+
+```
+app.ts (路由注册 + 中间件编排)
+  └─ company.controller.ts (HTTP 请求/响应处理)
+       ├─ CompanyServiceImpl (业务逻辑, 模块级单例)
+       │    └─ Prisma Client (数据访问)
+       ├─ response.util.ts (success / fail / created)
+       ├─ company.schema.ts (Zod 验证 schema)
+       └─ Express Request / Response
+```
+
+**关联实体**: `entity/company.entity.ts` (Company, CreateCompanyRequest, UpdateCompanyRequest, CompanyDetail)
+**关联映射**: `map/index.ts` (mapCompany: Prisma camelCase → API snake_case)
+**严重级别**: ARCH-MAJOR(2) / ARCH-MINOR(3) / OBSERVATION(2)
 
 ---
 
-## 一、质量评价总览
+## 一、架构评价总览
 
-公司管理控制器包含 5 个 HTTP 端点处理函数，覆盖公司 CRUD + 状态切换。路由层已通过 `roleMiddleware('sysadmin')` 限制所有端点仅系统管理员可访问，认证与授权边界在中间件层完成。
+公司管理控制器是项目中结构最简洁的模块之一，采用函数式导出模式，由 `app.ts` 统一编排路由和中间件。该文件仅负责 HTTP 协议适配和请求调度，不含业务逻辑，符合 Controller 层的职责定义。
 
-从软件质量视角审视，该文件存在 **响应格式不一致、输入验证薄弱、错误处理脆弱、Swagger 文档缺失** 四类核心问题。相较于项目内其他 Controller（如 `auth.controller.ts`），本文件质量稍优（无 CRITICAL 级安全漏洞），但仍有显著改进空间。
+相较于历史版本（237 行），当前代码在**输入验证、响应格式一致性、错误消息管理、类型安全**方面已有显著提升：
 
-| 质量维度 | 评分 | 说明 |
+| 改进项 | 历史版本 | 当前版本 | 状态 |
+|--------|---------|---------|------|
+| 输入验证 | truthy + Array.isArray 手动检查 | Zod schema 验证 | 已修复 |
+| 响应格式 | createCompany 手动构造 201 | 统一使用 `created()` | 已修复 |
+| 错误消息 | 魔法字符串分散（10+ 处） | 常量集中定义（7 个常量） | 已修复 |
+| catch 类型 | `err: any` | `err: unknown` | 已修复 |
+| req.body 传递 | 整体传入 Service | Zod 解析后构造类型安全 DTO | 已修复 |
+| 代码行数 | 237 行 | 114 行（减少 52%） | 显著精简 |
+
+从架构视角审视，**已修复的问题不再重复列出**，以下仅评审当前代码中仍存在的架构问题。
+
+| 架构维度 | 评分 | 说明 |
 |----------|------|------|
-| API 设计 | 6/10 | RESTful 路径基本合理，但 createCompany 响应格式与其他端点不一致，toggleCompanyStatus 缺 Swagger 文档 |
-| 输入验证 | 4/10 | 仅做 truthy 检查和 Array.isArray，未验证字符串格式、数组元素类型、手机号格式 |
-| 错误处理 | 5/10 | 通过字符串匹配检测 Service 层异常，err.message 直接暴露给客户端 |
-| 代码一致性 | 5/10 | createCompany 手动构造响应，其余使用 success()；验证逻辑 create/update 重复 |
-| 安全防护 | 7/10 | 路由层 roleMiddleware 限制 sysadmin，Prisma 防注入；但 operator_ids 未校验存在性 |
-| 可维护性 | 6/10 | 文件规模合理，结构清晰；但重复验证逻辑和魔法字符串增加维护负担 |
+| 分层职责 | 9/10 | Controller 仅做 HTTP 适配 + Zod 验证调度，不含业务逻辑 |
+| 依赖管理 | 5/10 | 模块级硬编码单例，依赖具体实现类而非接口 |
+| 关注点分离 | 8/10 | 验证通过 Zod schema 外置，仅 toggleStatus 保留内联验证 |
+| 异常架构 | 6/10 | `isNotFoundError()` 封装了字符串匹配，但本质仍是隐式契约 |
+| 可测试性 | 6/10 | 函数式导出便于集成测试，Zod schema 可独立测试 |
+| 一致性 | 8/10 | 5 个端点中 4 个使用 Zod 验证，1 个内联验证 |
+| 可扩展性 | 8/10 | 新增端点成本低，schema 验证模式可复用 |
 
 ---
 
-## 二、问题清单
+## 二、架构问题清单
 
-### HIGH-1: createCompany 响应格式与项目规范不一致
+### ARCH-MAJOR-1: 模块级硬编码单例 — 依赖反转缺失
 
-**位置**: 第 126 行
+**位置**: 第 2 行、第 7 行
 
 ```typescript
-// createCompany — 手动构造 201 响应
-res.status(201).json({ code: 0, message: '创建公司成功', data: company });
-
-// 其他所有端点 — 使用 success() 工具函数
-success(res, company, '更新公司成功');
+import { CompanyServiceImpl } from '../service/impl/company.service.impl';
+// ...
+const companyService = new CompanyServiceImpl();  // 模块加载时立即实例化
 ```
 
-**问题分析**:
+**架构影响分析**:
 
-`success()` 工具函数固定返回 HTTP 200：
+```
+当前依赖方向:
+  Controller ──(具体类依赖)──> CompanyServiceImpl ──> Prisma Client
 
-```typescript
-export function success<T>(res: Response, data: T, message = '操作成功') {
-  return res.json({ code: 0, message, data });
-}
+期望依赖方向（依赖反转原则 DIP）:
+  Controller ──(接口依赖)──> ICompanyService <──(实现)── CompanyServiceImpl
 ```
 
-RESTful 规范要求资源创建返回 201，`success()` 无法满足此需求。当前代码手动构造 `{ code: 0, message, data }` 结构，存在两个风险：
+虽然项目已定义 `ICompanyService` 接口（`company.service.ts`），Controller 直接导入具体实现类 `CompanyServiceImpl` 并在模块顶层实例化：
 
-1. **结构漂移**: 若未来 `success()` 的响应结构变更（如增加 `timestamp` 字段），此处不会同步更新
-2. **一致性缺失**: 同一 Controller 内两种响应构造方式并存，增加认知负担
+1. **测试困难**: 单元测试无法注入 mock service，必须使用 `jest.mock()` 拦截模块导入
+2. **运行时不可替换**: 无法根据配置切换实现
+3. **启动时副作用**: 模块导入即触发实例化
 
-**修复建议**: 扩展 response 工具函数：
+**项目模式一致性**: 所有 Controller（auth、project、company 等）采用统一模式，属项目级技术债务。
+
+**重构建议**: 引入轻量级工厂：
 
 ```typescript
-// apis/utils/response.util.ts
-export function created<T>(res: Response, data: T, message = '创建成功') {
-  return res.status(201).json({ code: 0, message, data });
+// apis/service/index.ts
+export function getCompanyService(): ICompanyService {
+  return new CompanyServiceImpl();
 }
 
 // company.controller.ts
-import { success, fail, created } from '../utils';
-created(res, company, '创建公司成功');
+import { getCompanyService } from '../service';
+const companyService = getCompanyService();
 ```
+
+**优先级**: P3 — 当前可通过 `jest.mock()` 解决测试需求，属项目级统一重构范畴
 
 ---
 
-### HIGH-2: err.message 直接暴露给客户端 — 可能泄露数据库内部信息
+### ARCH-MAJOR-2: 异常识别仍依赖字符串匹配 — Service 层隐式契约
 
-**位置**: 第 24、59、128、209、234 行（所有 catch 块）
+**位置**: 第 18-20 行（`isNotFoundError`）、第 41、83、108 行（调用处）
 
 ```typescript
-} catch (err: any) {
-  fail(res, 500, err.message || '创建公司失败');  // ❌ Prisma 错误消息可能含表名、字段名
+function isNotFoundError(err: unknown): boolean {
+  return err instanceof Error && err.message === MSG_NOT_FOUND;  // 字符串精确匹配
 }
 ```
 
-**问题分析**:
+**架构影响分析**:
 
-Service 层使用 Prisma ORM，当数据库操作失败时，Prisma 抛出的错误消息可能包含：
+当前代码将字符串匹配封装为 `isNotFoundError()` 函数，比历史版本的分散内联匹配有显著改进。但本质上仍存在：
 
-- 表名：`Table 'public.User' not found`
-- 字段名：`Invalid column name 'shortName'`
-- 约束名：`Foreign key constraint failed on the field: User_companyId_fkey`
-- 连接信息：`Can't reach database server at localhost:5432`
+1. **隐式契约**: Controller 依赖 Service 层 `throw new Error('公司不存在')` 的精确文本
+2. **脆弱性**: Service 层修改错误消息 → Controller 匹配失效 → 业务异常变为 500
+3. **不可扩展**: 新增业务异常类型（如权限不足、重复名称）需同步修改 Controller
 
-这些内部信息暴露给客户端，违反 OWASP A05（安全配置错误）原则。
+**对比**: `auth.controller.ts` 使用 `instanceof LoginSelectionError`，是编译时可检查的类型安全模式。
 
-**影响范围**: 5 个端点全部受影响。
-
-**修复建议**: 对 500 错误统一返回通用消息，将详细错误记录到服务端日志：
-
-```typescript
-} catch (err: unknown) {
-  const message = err instanceof Error ? err.message : 'Unknown error';
-  // TODO: 替换为正式日志系统
-  console.error('[CompanyController] 操作失败:', message);
-  fail(res, 500, '服务器内部错误，请稍后重试');
-}
-```
-
-对已知业务异常（如'公司不存在'），可精确匹配并返回对应状态码，其余一律返回通用 500 消息。
-
----
-
-### HIGH-3: 输入验证薄弱 — 缺少类型、格式和范围校验
-
-**位置**: 第 113-123 行（createCompany）和第 191-200 行（updateCompany）
-
-```typescript
-const { short_name, full_name, contact_person, contact_phone, operator_ids } = req.body;
-
-if (!short_name || !full_name || !contact_person || !contact_phone) {  // ❌ 仅 truthy 检查
-  fail(res, 400, '公司名短名、公司名全名、接口人、接口人电话不能为空');
-  return;
-}
-
-if (!Array.isArray(operator_ids) || operator_ids.length === 0) {  // ❌ 未校验数组元素类型
-  fail(res, 400, '运营者不能为空');
-  return;
-}
-```
-
-**问题清单**:
-
-| 验证缺失 | 字段 | 风险 |
-|----------|------|------|
-| 未检查 `typeof` | short_name, full_name 等 | 传入数组/对象 `[1,2,3]` 会通过 truthy 检查，导致 Prisma 运行时错误 |
-| 未限制长度 | 所有字符串字段 | 超长字符串导致数据库写入失败或存储溢出 |
-| 未校验手机号格式 | contact_phone | `"abc"` 或 `"1"` 均可通过验证 |
-| 未校验数组元素类型 | operator_ids | `[null, undefined, "abc", -1]` 均可通过 `Array.isArray` 检查 |
-| 未校验数值范围 | operator_ids 元素 | 负数、0、浮点数、极大值均可通过 |
-| address 未处理 | address | 未在验证中提及，但允许 undefined（符合 entity 定义） |
-
-**修复建议**: 引入 Zod schema 验证：
-
-```typescript
-import { z } from 'zod';
-
-const companySchema = z.object({
-  short_name: z.string().min(1).max(50),
-  full_name: z.string().min(1).max(200),
-  address: z.string().max(500).optional(),
-  contact_person: z.string().min(1).max(50),
-  contact_phone: z.string().regex(/^1[3-9]\d{9}$/, '手机号格式不正确'),
-  operator_ids: z.array(z.number().int().positive()).min(1, '运营者不能为空'),
-  viewer_ids: z.array(z.number().int().positive()).optional(),
-});
-```
-
----
-
-### HIGH-4: toggleCompanyStatus 缺少 Swagger API 文档
-
-**位置**: 第 214-237 行
-
-```typescript
-export async function toggleCompanyStatus(req: Request, res: Response): Promise<void> {
-  // ❌ 无 @swagger 注释块
-  try {
-```
-
-**问题分析**:
-
-5 个端点中有 4 个具有完整的 Swagger 注释（路径、参数、请求体、响应码），但 `toggleCompanyStatus` 完全缺少 API 文档。这导致：
-
-1. Swagger UI 中该端点不显示，前端开发者无法了解接口定义
-2. 请求体 schema（`status: boolean`）未文档化
-3. 响应格式未文档化
-4. 与其他端点的文档覆盖率不一致
-
-**修复建议**:
-
-```typescript
-/**
- * @swagger
- * /api/companies/{id}/status:
- *   put:
- *     summary: Toggle company status (enable/disable)
- *     tags: [Company]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - status
- *             properties:
- *               status:
- *                 type: boolean
- *     responses:
- *       200:
- *         description: Company status updated
- *       400:
- *         description: Invalid parameters
- *       404:
- *         description: Company not found
- */
-```
-
----
-
-### HIGH-5: Service 层异常通过字符串匹配检测 — 脆弱的错误识别模式
-
-**位置**: 第 58-59 行、第 206-207 行、第 231-232 行
-
-```typescript
-} catch (err: any) {
-  if (err.message === '公司不存在') {  // ❌ 字符串精确匹配
-    fail(res, 404, err.message);
-  } else {
-    fail(res, 500, err.message || '获取公司详情失败');
-  }
-}
-```
-
-**问题分析**:
-
-Controller 通过 `err.message === '公司不存在'` 精确匹配来识别 Service 层抛出的业务异常。这种模式存在：
-
-1. **脆弱性**: 若 Service 层修改错误消息（如改为"该公司不存在"），Controller 的匹配将失效，业务异常被当作 500 返回
-2. **不可扩展**: 新增业务异常需同步修改 Controller 的字符串匹配逻辑
-3. **违反分层隔离**: Controller 依赖 Service 层的具体错误消息文本，形成隐式契约
-
-项目内 `auth.controller.ts` 使用 `instanceof LoginSelectionError` 进行类型匹配，虽然也存在耦合问题，但至少是编译时可检查的。
-
-**修复建议**: 引入统一的业务异常基类：
+**重构建议**: 引入业务异常基类（项目级统一方案）：
 
 ```typescript
 // apis/entity/errors.ts
 export class NotFoundError extends Error {
-  constructor(entity: string) {
-    super(`${entity}不存在`);
-    this.name = 'NotFoundError';
-  }
+  readonly statusCode = 404;
+  constructor(entity: string) { super(`${entity}不存在`); this.name = 'NotFoundError'; }
 }
 
 // Service 层
 throw new NotFoundError('公司');
 
 // Controller 层
-} catch (err: unknown) {
-  if (err instanceof NotFoundError) {
-    fail(res, 404, err.message);
-  } else {
-    fail(res, 500, '操作失败');
-  }
+if (err instanceof NotFoundError) fail(res, 404, err.message);
+```
+
+或更进一步，在 `app.ts` 全局错误处理中间件中统一拦截，Controller 完全不处理异常类型识别。
+
+**优先级**: P2 — 随业务异常类型增加，维护成本持续上升
+
+---
+
+### ARCH-MINOR-1: toggleCompanyStatus 未使用 Zod 验证 — 与其余端点验证模式不一致
+
+**位置**: 第 91-114 行
+
+```typescript
+export async function toggleCompanyStatus(req: Request, res: Response): Promise<void> {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) { ... }
+
+    const { status } = req.body;          // ❌ 无 Zod schema 验证
+    if (typeof status !== 'boolean') {    // ❌ 手动类型检查
+      fail(res, 400, 'status参数无效');
+      return;
+    }
+    // ...
+```
+
+对比 `createCompany`（第 49-63 行）和 `updateCompany`（第 65-89 行）使用的 Zod 模式：
+
+```typescript
+const parsed = createCompanySchema.safeParse(req.body);
+if (!parsed.success) {
+  fail(res, 400, parsed.error.issues.map((e: { message: string }) => e.message).join('; '));
+  return;
 }
+```
+
+**架构影响**:
+
+1. **验证模式不一致**: 同一 Controller 内存在两种验证模式（Zod vs 手动 typeof）
+2. **缺少 Zod schema**: `company.schema.ts` 未定义 `toggleStatusSchema`
+3. **错误格式差异**: Zod 返回结构化错误（多字段联合消息），手动检查返回单一消息
+
+**修复建议**: 在 `company.schema.ts` 添加 toggleStatus schema：
+
+```typescript
+export const toggleStatusSchema = z.object({
+  status: z.boolean({ error: 'status参数无效' }),
+});
 ```
 
 ---
 
-### MEDIUM-1: createCompany 与 updateCompany 验证逻辑完全重复 — 违反 DRY
+### ARCH-MINOR-2: listCompanies 无分页参数 — 接口缺乏演进性
 
-**位置**: 第 113-123 行 vs 第 191-200 行
-
-```typescript
-// createCompany（第 113-123 行）
-if (!short_name || !full_name || !contact_person || !contact_phone) {
-  fail(res, 400, '公司名短名、公司名全名、接口人、接口人电话不能为空');
-  return;
-}
-if (!Array.isArray(operator_ids) || operator_ids.length === 0) {
-  fail(res, 400, '运营者不能为空');
-  return;
-}
-
-// updateCompany（第 191-200 行）— 完全相同的代码
-if (!short_name || !full_name || !contact_person || !contact_phone) {
-  fail(res, 400, '公司名短名、公司名全名、接口人、接口人电话不能为空');
-  return;
-}
-if (!Array.isArray(operator_ids) || operator_ids.length === 0) {
-  fail(res, 400, '运营者不能为空');
-  return;
-}
-```
-
-**问题分析**: 两个函数中的验证逻辑完全相同，且错误消息字符串重复。若需修改验证规则（如添加手机号格式校验），必须同步修改两处。
-
-**修复建议**: 提取为公共验证函数：
-
-```typescript
-function validateCompanyBody(body: Record<string, unknown>): string | null {
-  const { short_name, full_name, contact_person, contact_phone, operator_ids } = body;
-  if (!short_name || !full_name || !contact_person || !contact_phone) {
-    return '公司名短名、公司名全名、接口人、接口人电话不能为空';
-  }
-  if (!Array.isArray(operator_ids) || operator_ids.length === 0) {
-    return '运营者不能为空';
-  }
-  return null;
-}
-```
-
----
-
-### MEDIUM-2: listCompanies 无分页机制 — 数据量增长后性能风险
-
-**位置**: 第 19-26 行
+**位置**: 第 22-29 行
 
 ```typescript
 export async function listCompanies(_req: Request, res: Response): Promise<void> {
-  try {
-    const companies = await companyService.list();  // ❌ 返回全部记录
-    success(res, companies, '获取公司列表成功');
-  } catch (err: any) {
-    fail(res, 500, err.message || '获取公司列表失败');
-  }
+  const companies = await companyService.list();  // 返回全部记录
+  success(res, companies, '获取公司列表成功');
 }
 ```
 
-**问题分析**: `companyService.list()` 调用 `prisma.company.findMany()` 无分页限制。当前作为内部管理系统、公司数量有限时影响可控，但长期存在：
+Service 接口 `list(): Promise<Company[]>` 无分页参数。当前作为内部管理系统、公司数量有限，影响可控。但接口签名不具备演进性，若未来需要分页需修改接口并影响所有调用者。
 
-1. 数据量增长后响应时间增加
-2. 内存占用随记录数线性增长
-3. 前端渲染大量数据的性能问题
-
-**修复建议**: 当前阶段可维持现状（公司数量有限），但应在代码中添加 TODO 注释，待公司数量超过 100 时引入分页。
+**优先级**: P4 — 待公司数量超过 100 时引入分页
 
 ---
 
-### MEDIUM-3: catch 使用 `err: any` 类型 — 不符合 TypeScript 最佳实践
+### ARCH-MINOR-3: CreateCompanyRequest 与 UpdateCompanyRequest 类型完全相同
 
-**位置**: 第 23、57、127、205、230 行（全部 catch 块）
-
-```typescript
-} catch (err: any) {  // ❌ 应使用 unknown
-```
-
-**问题分析**: `any` 类型跳过 TypeScript 的类型安全检查，允许随意访问 `err.message`、`err.stack` 等属性而不做类型窄化。如果传入非 Error 对象（如 Prisma 的原始错误），可能产生意外行为。
-
-**修复建议**:
+**位置**: `entity/company.entity.ts` 第 14-36 行
 
 ```typescript
-} catch (err: unknown) {
-  const message = err instanceof Error ? err.message : '操作失败';
-  // 使用 message
+export interface CreateCompanyRequest {    // 字段完全相同
+  short_name: string;
+  full_name: string;
+  // ...
+}
+
+export interface UpdateCompanyRequest {    // 字段完全相同
+  short_name: string;
+  full_name: string;
+  // ...
 }
 ```
 
----
-
-### MEDIUM-4: operator_ids 未校验用户存在性和角色合规性
-
-**位置**: `company.service.impl.ts` create/update 方法
+两者字段定义 100% 一致。Controller 中第 57 行和第 79 行分别将 Zod 解析结果断言为不同类型：
 
 ```typescript
-// company.controller.ts — 传入任意数字数组
-const company = await companyService.create(req.body);
-
-// company.service.impl.ts — 直接用于数据库更新
-for (const operatorId of request.operator_ids) {
-  await tx.user.update({
-    where: { id: operatorId },  // ❌ 若 operatorId 不存在，Prisma 抛出异常
-    data: { companyId: company.id },
-  });
-}
+const createRequest: CreateCompanyRequest = parsed.data;   // 第 57 行
+const updateRequest: UpdateCompanyRequest = parsed.data;   // 第 79 行
 ```
 
-**问题分析**:
+**架构影响**: 未来若 Create 和 Update 的字段集产生差异（如 Update 允许部分字段可选），需分别修改两处。当前使用 `createCompanySchema` 和 `updateCompanySchema` 两个独立 Zod schema，验证层已预留了差异化能力，但 Entity 类型层未体现。
 
-1. **不存在用户**: 若传入不存在的 `operator_ids`，Prisma 抛出 `RecordNotFound` 异常，通过 HIGH-2 的 err.message 泄露到客户端
-2. **角色不匹配**: 未验证被指定的用户是否具有 admin 角色，理论上可将 view 角色用户指定为运营者
-3. **跨公司冲突**: update 时先解除关联再重新关联，未检查新 operator_ids 是否已属于其他公司
-
-此问题横跨 Controller 和 Service 层，但 Controller 作为入口应首先拦截明显无效的输入。
-
-**修复建议**: Service 层在事务内校验：
+**建议**: 使用类型别名统一，待差异出现时再拆分：
 
 ```typescript
-// 验证 operator_ids 存在且角色正确
-const operators = await tx.user.findMany({
-  where: { id: { in: request.operator_ids }, role: 'admin' },
-});
-if (operators.length !== request.operator_ids.length) {
-  throw new Error('部分运营者不存在或角色不正确');
-}
-```
-
----
-
-### MEDIUM-5: updateCompany 中 req.body 整体传入 Service — 批量赋值风险
-
-**位置**: 第 203 行
-
-```typescript
-const company = await companyService.update(id, req.body);  // ❌ req.body 直接传入
-```
-
-**问题分析**:
-
-虽然 Service 层的 `update` 方法只使用了 `short_name`、`full_name`、`address`、`contact_person`、`contact_phone`、`operator_ids`、`viewer_ids` 字段（通过显式赋值），但将整个 `req.body` 传入 Service 接口是一个不良实践：
-
-1. **隐式依赖**: Controller 不清楚 Service 实际使用了哪些字段
-2. **接口模糊**: Service 接口类型为 `UpdateCompanyRequest`，但传入的是未经构造的 `req.body`
-3. **潜在风险**: 若 Service 层改用 `prisma.company.update({ data: request })` 展开赋值，将导致批量赋值漏洞
-
-对比 `createCompany`（第 125 行）也有相同问题。但 create 的 Service 实现同样通过显式字段赋值避免了实际风险。
-
-**修复建议**: 在 Controller 层显式构造请求对象：
-
-```typescript
-const updateRequest: UpdateCompanyRequest = {
-  short_name,
-  full_name,
-  address: req.body.address,
-  contact_person,
-  contact_phone,
-  operator_ids,
-  viewer_ids: req.body.viewer_ids,
+export type CreateCompanyRequest = {
+  short_name: string;
+  full_name: string;
+  // ...
 };
-const company = await companyService.update(id, updateRequest);
+export type UpdateCompanyRequest = CreateCompanyRequest;
 ```
 
 ---
 
-### LOW-1: 错误消息魔法字符串分散在多处
+### OBS-1: Zod 错误提取的匿名类型注解
 
-**位置**: 第 52、58、59、116、121、128、194、199、209、218、224、234 行
-
-```typescript
-fail(res, 400, '无效的公司ID');          // 出现 2 次
-fail(res, 400, '公司名短名、公司名全名...'); // 出现 2 次
-fail(res, 400, '运营者不能为空');          // 出现 2 次
-```
-
-**建议**: 提取为常量或消息模板：
+**位置**: 第 53 行、第 75 行
 
 ```typescript
-const MSG_INVALID_ID = '无效的公司ID';
-const MSG_REQUIRED_FIELDS = '公司名短名、公司名全名、接口人、接口人电话不能为空';
-const MSG_OPERATOR_REQUIRED = '运营者不能为空';
-const MSG_COMPANY_NOT_FOUND = '公司不存在';
+parsed.error.issues.map((e: { message: string }) => e.message).join('; ')
 ```
+
+`(e: { message: string })` 使用了内联匿名类型而非引用 Zod 的导出类型。功能正确，但若 Zod 升级后 `issues` 结构变更，此处不会得到编译器提示。
+
+**影响**: 无功能影响，属代码风格层面。
 
 ---
 
-### LOW-2: `parseInt(req.params.id as string, 10)` 中 `as string` 冗余
+### OBS-2: `parseInt(req.params.id as string, 10)` 中 `as string` 冗余
 
-**位置**: 第 50、185、216 行
+**位置**: 第 33、67、93 行
 
-```typescript
-const id = parseInt(req.params.id as string, 10);
-```
-
-**问题分析**: `req.params.id` 类型已为 `string`（Express 类型定义），`as string` 断言冗余。若使用严格 TypeScript 配置，可简化为：
-
-```typescript
-const id = parseInt(req.params.id, 10);
-```
+Express `req.params.id` 类型已为 `string`，`as string` 断言冗余。无功能影响。
 
 ---
 
-### LOW-3: toggleCompanyStatus 的 status 参数未校验边界值
+## 三、架构层级分析
 
-**位置**: 第 222-225 行
+### 3.1 分层职责矩阵
 
-```typescript
-const { status } = req.body;
-if (typeof status !== 'boolean') {  // ✓ 类型检查正确
-  fail(res, 400, 'status参数无效');
-  return;
-}
+| 层级 | 期望职责 | 实际职责 | 评价 |
+|------|---------|---------|------|
+| 路由层 (app.ts) | 中间件编排 + 路由注册 | auth + role + antiCrawl + rateLimit + 路由 | 合理 |
+| Controller 层 | HTTP 协议适配 + 请求调度 | 协议适配 + Zod 验证调度 + 请求分发 | 良好 |
+| Schema 层 | 输入验证规则定义 | Zod schema 独立文件 | 良好 |
+| Service 层 (接口) | 业务逻辑抽象 | 纯接口定义 | 合理 |
+| Service 层 (实现) | 业务逻辑 + 数据访问编排 | 业务逻辑 + Prisma 事务 + 用户校验 | 合理 |
+| Map 层 | 数据格式转换 | Prisma camelCase → API snake_case | 合理 |
+| Entity 层 | 类型定义 | 接口/类型定义 | 合理 |
+
+### 3.2 数据流图
+
+```
+┌─────────────┐
+│   HTTP 请求  │
+└──────┬──────┘
+       │
+       ▼
+┌──────────────────────────────────────────┐
+│ app.ts 中间件链                            │
+│ helmet → cors → antiCrawl → rateLimit    │
+│ → authMiddleware → roleMiddleware         │
+└──────┬───────────────────────────────────┘
+       │
+       ▼
+┌──────────────────────────────────────────┐
+│ Controller (company.controller.ts)        │
+│ 1. parseInt(req.params.id) + isNaN 校验   │
+│ 2. Zod safeParse(req.body) 验证           │
+│ 3. 构造类型安全 DTO 传入 Service           │
+│ 4. success/created/fail 构造响应           │
+└──────┬───────────────────────────────────┘
+       │
+       ▼
+┌──────────────────────────────────────────┐
+│ Service (company.service.impl.ts)         │
+│ 1. 业务逻辑编排                            │
+│ 2. Prisma 事务管理                        │
+│ 3. validateUserIds 校验                   │
+│ 4. mapCompany 数据映射                     │
+└──────────────────────────────────────────┘
 ```
 
-**正面评价**: 此处的 `typeof status !== 'boolean'` 检查是本文件中唯一正确的类型守卫实现。建议将此模式推广到其他参数的验证中。
+### 3.3 依赖关系图
+
+```
+company.controller.ts
+  ├── import { CompanyServiceImpl } from '../service/impl/...'  ← 具体实现依赖 ⚠️
+  ├── import { success, fail, created } from '../utils'        ← 工具函数
+  ├── import { CreateCompanyRequest, UpdateCompanyRequest }    ← Entity 类型
+  ├── import { createCompanySchema, updateCompanySchema }      ← Zod Schema
+  └── import { Request, Response } from 'express'              ← 框架类型
+```
+
+**问题**: Controller 依赖箭头指向具体实现类而非接口 `ICompanyService`，违反依赖反转原则。
 
 ---
 
-## 三、正面发现（做得好的方面）
+## 四、正面架构发现
 
-1. **路由层授权完备**: 所有 5 个端点在 `app.ts` 中均配置了 `authMiddleware + roleMiddleware('sysadmin')`，授权在正确的架构层完成
-2. **ID 解析与验证**: `parseInt` + `isNaN` 的模式在每个使用 path param 的端点中一致执行
-3. **toggleCompanyStatus 参数校验**: `typeof status !== 'boolean'` 是正确的类型守卫
-4. **Swagger 文档覆盖率高**: 4/5 端点有完整的 Swagger 注释
-5. **Service 层异常识别**: 通过 `err.message === '公司不存在'` 至少区分了业务异常和系统错误，虽然模式脆弱但意图正确
-6. **Prisma 参数化查询**: Service 层使用 Prisma ORM，天然防止 SQL 注入
-7. **文件规模合理**: 237 行，函数平均 20-30 行，可读性良好
-8. **状态切换设计**: `toggleCompanyStatus` 使用显式 boolean 而非 toggle 模式，避免并发竞态
-
----
-
-## 四、修复优先级路线图
-
-### 第一阶段：立即修复（半天工作量）
-
-| 优先级 | 编号 | 问题 | 修复方案 |
-|--------|------|------|----------|
-| P1 | H-2 | err.message 泄露内部信息 | 500 错误统一返回通用消息 |
-| P1 | H-4 | toggleCompanyStatus 缺 Swagger | 补全 API 文档注释 |
-| P1 | H-1 | createCompany 响应格式不一致 | 添加 `created()` 工具函数 |
-
-### 第二阶段：短期改进（1-2 天）
-
-| 优先级 | 编号 | 问题 | 修复方案 |
-|--------|------|------|----------|
-| P2 | H-3 | 输入验证薄弱 | 引入 Zod schema 验证 |
-| P2 | H-5 | 字符串匹配异常检测 | 引入 NotFoundError 基类 |
-| P2 | M-1 | 验证逻辑重复 | 提取公共验证函数 |
-| P2 | M-3 | catch 使用 `any` | 改为 `unknown` + instanceof |
-
-### 第三阶段：中长期优化
-
-| 优先级 | 编号 | 问题 | 修复方案 |
-|--------|------|------|----------|
-| P3 | M-2 | list 无分页 | 公司数量超过 100 时引入分页 |
-| P3 | M-4 | operator_ids 未校验 | Service 层添加存在性和角色校验 |
-| P3 | M-5 | req.body 整体传入 | Controller 显式构造请求对象 |
-| P3 | L-1 | 魔法字符串 | 提取消息常量 |
+1. **Zod schema 外置**: 验证规则定义在独立 `company.schema.ts` 文件中，Controller 仅调用 `safeParse`，关注点分离良好
+2. **类型安全 DTO 传递**: Zod 解析后的 `parsed.data` 通过显式类型断言构造 DTO，而非直接传递 `req.body`
+3. **`created()` 工具函数**: 资源创建返回 HTTP 201，响应格式通过工具函数统一管理
+4. **错误消息常量化**: 7 个常量集中定义，消除魔法字符串
+5. **`isNotFoundError()` 封装**: 字符串匹配逻辑收敛为单一函数，调用处语义清晰
+6. **`err: unknown` 类型安全**: 所有 catch 块使用 `unknown`，配合 `instanceof Error` 窄化
+7. **函数式导出模式**: 独立 async 函数与 Express 路由注册天然契合
+8. **ID 解析一致**: `parseInt + isNaN` 模式在 3 个端点中统一执行
+9. **toggleCompanyStatus 显式 boolean**: 使用 `status: boolean` 而非 toggle 模式，避免并发竞态
+10. **文件规模优秀**: 114 行，5 个函数平均 15-20 行，职责高度清晰
 
 ---
 
 ## 五、与项目其他 Controller 的对比
 
-| 质量特征 | company.controller | auth.controller | article.controller | 评价 |
-|----------|-------------------|-----------------|-------------------|------|
-| 模块级单例 | `new CompanyServiceImpl()` | `new AuthServiceImpl()` | 同 | 一致 — 项目级模式 |
-| try-catch 模式 | 5/5 端点 | 6/8 端点 | 同 | company 更一致 |
-| 响应工具函数 | 4/5 用 success() | 全用 success() | 同 | company 有1处手动构造 |
-| 错误信息泄露 | err.message 5处 | err.message 6处 | 同 | 一致 — 都是问题 |
-| Swagger 覆盖 | 4/5 (80%) | 8/8 (100%) | 同 | company 缺少1个 |
-| 输入验证 | truthy + isArray | truthy | 同 | company 略好 |
-| 异常检测方式 | 字符串匹配 | instanceof + 字符串 | 同 | auth 略好 |
+| 质量特征 | company.controller (当前) | 项目平均 | 评价 |
+|----------|--------------------------|---------|------|
+| Zod 验证 | 4/5 端点 (80%) | 大部分已迁移 | toggleStatus 待补 |
+| 响应工具函数 | 5/5 统一 (success/created/fail) | 部分统一 | 最佳 |
+| catch 类型 | 5/5 使用 `unknown` | 混用 `any`/`unknown` | 最佳 |
+| 错误消息常量 | 全部常量化 | 大部分常量化 | 最佳 |
+| 代码行数 | 114 行 | 150-250 行 | 最精简 |
 
-**结论**: company.controller.ts 的质量处于项目平均水平，与 auth.controller.ts 有类似问题但整体略优（无 CRITICAL 级安全漏洞，因路由层已做 sysadmin 限制）。
+**结论**: company.controller.ts 是项目内重构最彻底的 Controller 之一，在验证、响应格式、错误处理、类型安全等方面均达到项目最佳水平。
 
 ---
 
-## 六、评审结论
+## 六、重构建议路线图
 
-**判定: ⚠️ 有条件通过 — 无阻塞性安全问题，但应纳入技术债务治理**
+### 第一阶段：短期完善（半天）
 
-核心问题集中在三个方面：
+| 编号 | 问题 | 方案 | 收益 |
+|------|------|------|------|
+| MINOR-1 | toggleStatus 未使用 Zod | 添加 `toggleStatusSchema` | 验证模式统一 |
 
-1. **错误信息泄露（H-2）** — err.message 可能暴露数据库内部信息，虽然路由层限制了 sysadmin 访问降低了风险，但仍是安全最佳实践的违规
-2. **输入验证薄弱（H-3）** — 仅做 truthy 检查，缺少类型、格式、范围校验，依赖 Service 层和 Prisma 的隐式防御
-3. **代码一致性（H-1, M-1）** — createCompany 响应格式不一致，验证逻辑重复
+### 第二阶段：架构改进（1-2 天，项目级）
 
-**建议**:
-- 短期: 修复 H-2（错误消息脱敏）和 H-4（补全 Swagger 文档），成本低且收益明确
-- 中期: 引入 Zod schema 验证 + NotFoundError 异常基类
-- 长期: 作为项目级技术债务，与其他 Controller 统一重构
+| 编号 | 问题 | 方案 | 收益 |
+|------|------|------|------|
+| MAJOR-2 | 字符串匹配异常检测 | 引入 NotFoundError 异常基类 | Controller-Service 解耦 |
+| MINOR-3 | Create/Update 类型重复 | 使用类型别名 | 消除冗余 |
+
+### 第三阶段：中长期（项目级统一重构）
+
+| 编号 | 问题 | 方案 | 收益 |
+|------|------|------|------|
+| MAJOR-1 | 模块级硬编码单例 | 引入工厂模式/DI 容器 | 可测试性 + 可替换性 |
+| MINOR-2 | list 无分页 | 预留分页参数 | 接口演进性 |
 
 ---
 
-*软件质量专家评审完成 — 2026-05-24*
+## 七、评审结论
+
+**判定: 通过 — 架构质量优秀，仅剩项目级结构性债务**
+
+该文件经过重构后质量显著提升，从 237 行精简至 114 行，消除了历史评审中指出的全部 HIGH 级问题（响应格式不一致、输入验证薄弱、err.message 泄露、魔法字符串）。当前仅存的两项 ARCH-MAJOR 问题均为**项目级技术债务**（依赖注入缺失、异常体系缺失），非本模块独有问题。
+
+核心评价：
+
+1. **分层职责清晰** — Controller 仅做 HTTP 适配 + 验证调度 + 请求分发，不含业务逻辑
+2. **Zod schema 外置** — 验证规则独立管理，可复用、可独立测试
+3. **唯一不足**: `toggleCompanyStatus` 未迁移至 Zod 验证模式，是当前唯一需要修复的模块级问题
+
+**建议**: 将 MINOR-1（toggleStatus Zod 迁移）纳入下一个迭代，其余问题作为项目级统一重构计划处理。
+
+---
+
+*软件架构专家评审完成 — 2026-05-24*

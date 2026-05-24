@@ -48,6 +48,7 @@
 | 2026-05-24 | `tasks/review/useCopied.tsx.committer.md` | useCopied.tsx Committer 专家评审——有条件通过，需补充 CSS 样式覆盖和可访问性改进 |
 | 2026-05-24 | `tasks/review/company.controller.ts.quality.md` | company.controller.ts 质量评审——B-级，H×4（死代码/缺schema/脆弱错误/静默吞错）M×3 L×2 |
 | 2026-05-24 | `progress_tasks/2026-05-24-usecopied-review-fix.md` | useCopied.tsx 评审修复——useCallback/closest/success检查/MAX_COPY_LENGTH/CSS Carbon覆盖，27项测试 |
+| 2026-05-24 | `tasks/review/company.controller.md` | company.controller.ts 架构专家评审（第二轮）——通过，114行重构版，已修复全部HIGH级问题，剩余2项MAJOR项目级债务 |
 
 ## 已知问题
 - `apis/service/impl/auth.service.impl.ts` Prisma 类型错误（待 schema 同步）
