@@ -63,6 +63,9 @@ jest.mock('@ant-design/icons', () => ({
   FontSizeOutlined: ({ style }: { style?: React.CSSProperties }) => (
     <svg data-testid="antd-fontsize-icon" style={style} />
   ),
+  QuestionCircleOutlined: ({ style }: { style?: React.CSSProperties }) => (
+    <svg data-testid="antd-question-icon" style={style} />
+  ),
 }));
 
 // Mock CSS import
@@ -209,11 +212,83 @@ describe('MarkdownEditor', () => {
     });
   });
 
-  describe('commandsFilter — help command filtered', () => {
-    it('should filter out help command', () => {
+  describe('commandsFilter — help command safe override', () => {
+    it('should override help command with safe noopener+noreferrer', () => {
       render(<MarkdownEditor value="" />);
       const result = commandsFilterFn!({ name: 'help' }, false);
-      expect(result).toBe(false);
+      expect(result).not.toBe(false);
+      expect(result).toBeTruthy();
+
+      // Verify execute uses noopener+noreferrer
+      const mockOpen = jest.spyOn(window, 'open').mockReturnValue({} as Window);
+      result.execute();
+      expect(mockOpen).toHaveBeenCalledWith(
+        'https://www.markdownguide.org/basic-syntax/',
+        '_blank',
+        'noopener,noreferrer',
+      );
+      mockOpen.mockRestore();
+    });
+
+    it('should fallback to window.location.href when popup is blocked', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!({ name: 'help' }, false);
+
+      // Mock window.open to return null (popup blocked)
+      const mockOpen = jest.spyOn(window, 'open').mockReturnValue(null);
+      // Capture assignment to window.location.href
+      const originalLocation = window.location;
+      const hrefSetter = jest.fn();
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        get: () => ({ ...originalLocation, set href(val: string) { hrefSetter(val); } }),
+      });
+
+      result.execute();
+      expect(hrefSetter).toHaveBeenCalledWith('https://www.markdownguide.org/basic-syntax/');
+
+      mockOpen.mockRestore();
+      Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
+    });
+
+    it('should fallback when window.open returns closed window', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!({ name: 'help' }, false);
+
+      const closedWindow = { closed: true } as unknown as Window;
+      const mockOpen = jest.spyOn(window, 'open').mockReturnValue(closedWindow);
+      const originalLocation = window.location;
+      const hrefSetter = jest.fn();
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        get: () => ({ ...originalLocation, set href(val: string) { hrefSetter(val); } }),
+      });
+
+      result.execute();
+      expect(hrefSetter).toHaveBeenCalledWith('https://www.markdownguide.org/basic-syntax/');
+
+      mockOpen.mockRestore();
+      Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
+    });
+
+    it('should use Chinese ARIA labels for help button', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!({ name: 'help' }, false);
+      expect(result.buttonProps['aria-label']).toBe('打开 Markdown 语法帮助（外部链接）');
+      expect(result.buttonProps.title).toBe('打开 Markdown 语法帮助 (F1)');
+    });
+
+    it('should override help icon with antd QuestionCircleOutlined', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!({ name: 'help' }, false);
+      expect(result.icon).toBeTruthy();
+      expect(React.isValidElement(result.icon)).toBe(true);
+    });
+
+    it('should add F1 keyboard shortcut for help', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!({ name: 'help' }, false);
+      expect(result.shortcuts).toBe('f1');
     });
   });
 

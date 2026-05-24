@@ -22,7 +22,7 @@ import React, { useCallback, useEffect, forwardRef, useImperativeHandle, useRef,
 import MDEditor from '@uiw/react-md-editor/nohighlight';
 import DOMPurify from 'dompurify';
 import { Empty } from 'antd';
-import { FullscreenOutlined, FontSizeOutlined } from '@ant-design/icons';
+import { FullscreenOutlined, FontSizeOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { safeUrlTransform, SAFE_TAGS } from './MarkdownViewer';
 import '../styles/markdown-editor.css';
 
@@ -277,12 +277,30 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
     },
   }), [getSanitizedHTML, value]);
 
-  // 上游 help 命令使用 window.open 缺少 noopener，存在 Tabnabbing 风险（SEC-MD-05）
+  // SEC-MD-05: 上游 help 命令 window.open 缺少 noopener（反向标签劫持风险）
+  //   → 安全覆盖：noopener+noreferrer + 弹窗拦截降级 + 中文 ARIA + antd 图标 + F1 快捷键
   // C-02/UI-P1-03: 重映射 code/codeBlock 快捷键（Ctrl+J→Ctrl+E），避免浏览器冲突
   // S1/S2/C-03: 防御性封装 — 非空断言防护 + try-catch
   const commandsFilter = useCallback(
     (command: any, isExtra: boolean) => {
-      if (command.name === 'help') return false;
+      if (command.name === 'help') {
+        return {
+          ...command,
+          shortcuts: 'f1',
+          buttonProps: {
+            'aria-label': '打开 Markdown 语法帮助（外部链接）',
+            title: '打开 Markdown 语法帮助 (F1)',
+          },
+          icon: <QuestionCircleOutlined style={{ fontSize: 16 }} />,
+          execute: () => {
+            const HELP_URL = 'https://www.markdownguide.org/basic-syntax/';
+            const newWindow = window.open(HELP_URL, '_blank', 'noopener,noreferrer');
+            if (!newWindow || newWindow.closed) {
+              window.location.href = HELP_URL;
+            }
+          },
+        };
+      }
 
       // P1: 修复 group 命令——12px SVG 替换为 antd 16px 图标 + 中文 ARIA + Carbon 合规
       if (command.keyCommand === 'group') {
