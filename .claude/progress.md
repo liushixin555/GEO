@@ -178,3 +178,4 @@
 | 2026-05-25 | progress_tasks/2026-05-25-italic-tsx-review-fix.md | italic.tsx 评审封装层修复——SEC-M1 prefix!非空断言+SEC-M2输入边界+QUAL-L2错误处理，覆盖italic/bold/strikethrough三命令，+22测试（81总） |
 | 2026-05-25 | tasks/review/link.tsx.ui.md | link.tsx UI专家评审——⚠️CONDITIONAL APPROVE 2.5/10（P1×4 Ctrl+L非标准+data-name="italic"复制错误+空链接文本WCAG违规+12px图标；P2×6 URL检测粗放+非空断言+双占位符+aria-hidden缺失+图标不合规+原生title；P3×4 let重赋值+魔法字符串+英文文案+selectWord语义混淆） |
 | 2026-05-25 | tasks/tdd/rmapi-index.tdd.md | rmapi.utils/index.ts barrel文件TDD——25用例100%覆盖率（函数导出验证+re-export同一性+类型导出+无副作用+路径解析+完整性检查），修复resource.util Windows路径分隔符 |
+| 2026-05-25 | tasks/review/commands-preview.tsx.committer.md | @uiw/react-md-editor commands/preview.tsx Committer审核专家评审——CONDITIONAL APPROVE 3.2分（P1×2 零antd集成+图标辨识度低，P2×3 SVG无障碍+标签未国际化+交互双路径，P3×4 图标尺寸非标+无选中态+快捷键冲突+命名语义误导） |
