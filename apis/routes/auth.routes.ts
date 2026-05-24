@@ -4,7 +4,7 @@ import { validate } from '../middleware/validate';
 import { loginSchema, saveSelectionSchema } from '../schema/auth.schema';
 import * as ctrl from '../controller/auth.controller';
 
-const router = Router();
+const router: Router = Router();
 
 // Public route (no auth required)
 router.post('/login', validate(loginSchema), ctrl.login);

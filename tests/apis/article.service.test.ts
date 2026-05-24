@@ -14,19 +14,38 @@ const mockArticleVersionCreate = jest.fn();
 const mockArticleVersionFindMany = jest.fn();
 
 jest.mock('../../apis/utils/db.util', () => ({
-  getPrisma: jest.fn(() => ({
-    article: {
-      findMany: mockArticleFindMany,
-      count: mockArticleCount,
-      findFirst: mockArticleFindFirst,
-      create: mockArticleCreate,
-      update: mockArticleUpdate,
-    },
-    articleVersion: {
-      create: mockArticleVersionCreate,
-      findMany: mockArticleVersionFindMany,
-    },
-  })),
+  getPrisma: jest.fn(() => {
+    const prismaMock = {
+      article: {
+        findMany: mockArticleFindMany,
+        count: mockArticleCount,
+        findFirst: mockArticleFindFirst,
+        create: mockArticleCreate,
+        update: mockArticleUpdate,
+      },
+      articleVersion: {
+        create: mockArticleVersionCreate,
+        findMany: mockArticleVersionFindMany,
+      },
+      $transaction: jest.fn(async (fn: any) => {
+        const txMock = {
+          article: {
+            findMany: mockArticleFindMany,
+            count: mockArticleCount,
+            findFirst: mockArticleFindFirst,
+            create: mockArticleCreate,
+            update: mockArticleUpdate,
+          },
+          articleVersion: {
+            create: mockArticleVersionCreate,
+            findMany: mockArticleVersionFindMany,
+          },
+        };
+        return await fn(txMock);
+      }),
+    };
+    return prismaMock;
+  }),
   closePrisma: jest.fn(),
 }));
 

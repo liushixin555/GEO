@@ -5,7 +5,7 @@ import { ROLES } from '../constants/roles';
 import { createUserSchema, updateUserSchema, listUsersSchema } from '../schema/user.schema';
 import * as ctrl from '../controller/user.controller';
 
-const router = Router();
+const router: Router = Router();
 router.use(authMiddleware, roleMiddleware(ROLES.SYSADMIN));
 
 router.get('/', validate(listUsersSchema, 'query'), ctrl.listUsers);

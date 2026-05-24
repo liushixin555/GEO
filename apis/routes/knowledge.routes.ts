@@ -6,7 +6,7 @@ import { createKnowledgeBaseSchema, updateKnowledgeBaseSchema } from '../schema/
 import * as knowledgeController from '../controller/knowledge.controller';
 import * as knowledgeBaseController from '../controller/knowledge-base.controller';
 
-const router = Router();
+const router: Router = Router();
 
 // Project Knowledge aggregation routes (sysadmin + admin)
 router.use('/projects/:projectId/knowledge', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN));

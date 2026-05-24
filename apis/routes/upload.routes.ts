@@ -4,7 +4,7 @@ import { ROLES } from '../constants/roles';
 import { uploadMiddleware, uploadFile } from '../controller/upload.controller';
 import { uploadDocumentMiddleware, uploadDocumentFile } from '../controller/upload-document.controller';
 
-const router = Router();
+const router: Router = Router();
 router.use(authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN));
 
 router.post('/', uploadMiddleware, uploadFile);

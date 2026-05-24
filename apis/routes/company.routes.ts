@@ -5,7 +5,7 @@ import { ROLES } from '../constants/roles';
 import { createCompanySchema, updateCompanySchema, toggleCompanyStatusSchema } from '../schema/company.schema';
 import * as ctrl from '../controller/company.controller';
 
-const router = Router();
+const router: Router = Router();
 router.use(authMiddleware, roleMiddleware(ROLES.SYSADMIN));
 
 router.get('/', ctrl.listCompanies);

@@ -5,7 +5,7 @@ import { ROLES } from '../constants/roles';
 import { createLlmModelSchema, updateLlmModelSchema } from '../schema/llm-model.schema';
 import * as ctrl from '../controller/llm-model.controller';
 
-const router = Router();
+const router: Router = Router();
 
 // listEnabled 混合角色，放在 router 级中间件之前单独处理
 router.get('/enabled', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN), ctrl.listEnabledLlmModels);

@@ -5,7 +5,7 @@ import { ROLES } from '../constants/roles';
 import { listTodosSchema, createTodoSchema, updateTodoSchema, transferTodoSchema, objectOptionsSchema, assigneeCandidatesSchema } from '../schema/todo.schema';
 import * as ctrl from '../controller/todo.controller';
 
-const router = Router();
+const router: Router = Router();
 router.use(authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN));
 
 router.get('/', validate(listTodosSchema, 'query'), ctrl.listTodos);

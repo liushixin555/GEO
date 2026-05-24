@@ -16,6 +16,19 @@ jest.mock('../../apis/utils/db.util', () => ({
   closePrisma: jest.fn(),
 }));
 
+import app from '../../apis/app';
+
+// Patch getPrisma.mockReturnValue to auto-add $transaction support
+// (service methods now use $transaction for TOCTOU protection)
+const _dbUtil = require('../../apis/utils/db.util');
+const _origMRV = _dbUtil.getPrisma.mockReturnValue.bind(_dbUtil.getPrisma);
+_dbUtil.getPrisma.mockReturnValue = function(val: any) {
+  if (val && typeof val === 'object' && !('$transaction' in val)) {
+    val.$transaction = async (fn: any) => fn(val);
+  }
+  return _origMRV(val);
+};
+
 jest.mock('../../apis/middleware/anti-crawl.middleware', () => ({
   antiCrawlMiddleware: (_req: any, _res: any, next: any) => next(),
 }));
@@ -4295,187 +4308,7 @@ describe('Article Controller', () => {
 
 // ============= 直接调用控制器函数的单元测试（覆盖路由中间件拦截的 Zod 验证分支） =============
 
-describe('Article Controller - direct unit tests (Zod validation bypass middleware)', () => {
-  // 直接导入控制器函数（已通过 app 导入加载）
-  const {
-    listArticles, createArticle, updateArticle,
-    updateArticleContent, reviewArticle,
-  } = require('../../apis/controller/article.controller');
-
-  function mockRes() {
-    let body: any = null;
-    let statusCode = 200;
-    const res: any = {
-      get body() { return body; },
-      get statusCode() { return statusCode; },
-      status(code: number) { statusCode = code; return res; },
-      json(data: any) { body = data; return res; },
-    };
-    return res;
-  }
-
-  function mockReq(overrides: any = {}): any {
-    return {
-      params: { projectId: '1', id: '1', ...overrides.params },
-      query: { ...overrides.query },
-      body: { ...overrides.body },
-      user: overrides.user ?? { userId: 1, role: 'sysadmin' },
-    };
-  }
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  // ---- listArticles Zod 验证失败 (line 93-94) ----
-  describe('listArticles direct - Zod validation failure', () => {
-    it('should return 400 when page=0 (Zod min(1) fail)', async () => {
-      const req = mockReq({ query: { page: '0', pageSize: '10' } });
-      const res = mockRes();
-      await listArticles(req, res);
-      expect(res.body.code).toBe(400);
-      expect(res.body.message).toMatch(/参数验证失败/);
-    });
-
-    it('should return 400 when pageSize=200 (Zod max(100) fail)', async () => {
-      const req = mockReq({ query: { page: '1', pageSize: '200' } });
-      const res = mockRes();
-      await listArticles(req, res);
-      expect(res.body.code).toBe(400);
-      expect(res.body.message).toMatch(/参数验证失败/);
-    });
-
-    it('should return 400 when status is invalid enum value', async () => {
-      const req = mockReq({ query: { page: '1', pageSize: '10', status: 'invalid' } });
-      const res = mockRes();
-      await listArticles(req, res);
-      expect(res.body.code).toBe(400);
-      expect(res.body.message).toMatch(/参数验证失败/);
-    });
-  });
-
-  // ---- createArticle Zod 验证失败 (line 148-149) ----
-  describe('createArticle direct - Zod validation failure', () => {
-    it('should return 400 when body has unrecognized key', async () => {
-      const req = mockReq({ body: { title: 'Test', extra_field: 'val' } });
-      const res = mockRes();
-      await createArticle(req, res);
-      expect(res.body.code).toBe(400);
-      expect(res.body.message).toMatch(/参数验证失败/);
-    });
-
-    it('should return 400 when status is not in allowed enum', async () => {
-      const req = mockReq({ body: { title: 'Test', status: 'published' } });
-      const res = mockRes();
-      await createArticle(req, res);
-      expect(res.body.code).toBe(400);
-      expect(res.body.message).toMatch(/参数验证失败/);
-    });
-
-    it('should return 400 when title exceeds 500 chars', async () => {
-      const req = mockReq({ body: { title: 'x'.repeat(501) } });
-      const res = mockRes();
-      await createArticle(req, res);
-      expect(res.body.code).toBe(400);
-      expect(res.body.message).toMatch(/参数验证失败/);
-    });
-  });
-
-  // ---- updateArticle Zod 验证失败 (line 204-205) ----
-  describe('updateArticle direct - Zod validation failure', () => {
-    it('should return 400 when body has unrecognized key', async () => {
-      // 需要模拟 Prisma 使 getById 返回 draft 文章
-      const { getPrisma } = require('../../apis/utils/db.util');
-      getPrisma.mockReturnValue({
-        article: {
-          findFirst: jest.fn().mockResolvedValue({
-            id: 1, projectId: 1, status: 'draft', createdBy: 1,
-            title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null,
-            createdAt: new Date(), updatedAt: new Date(),
-          }),
-        },
-      });
-
-      const req = mockReq({ body: { title: 'Test', unknown: 'val' } });
-      const res = mockRes();
-      await updateArticle(req, res);
-      expect(res.body.code).toBe(400);
-      expect(res.body.message).toMatch(/参数验证失败/);
-    });
-
-    it('should return 400 when skills is not array', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      getPrisma.mockReturnValue({
-        article: {
-          findFirst: jest.fn().mockResolvedValue({
-            id: 1, projectId: 1, status: 'draft', createdBy: 1,
-            title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null,
-            createdAt: new Date(), updatedAt: new Date(),
-          }),
-        },
-      });
-
-      const req = mockReq({ body: { skills: 'not-array' } });
-      const res = mockRes();
-      await updateArticle(req, res);
-      expect(res.body.code).toBe(400);
-      expect(res.body.message).toMatch(/参数验证失败/);
-    });
-  });
-
-  // ---- updateArticleContent Zod 验证失败 (line 243-244) ----
-  describe('updateArticleContent direct - Zod validation failure', () => {
-    it('should return 400 when content is missing', async () => {
-      const req = mockReq({ body: {} });
-      const res = mockRes();
-      await updateArticleContent(req, res);
-      expect(res.body.code).toBe(400);
-      expect(res.body.message).toMatch(/参数验证失败/);
-    });
-
-    it('should return 400 when content is empty string', async () => {
-      const req = mockReq({ body: { content: '' } });
-      const res = mockRes();
-      await updateArticleContent(req, res);
-      expect(res.body.code).toBe(400);
-      expect(res.body.message).toMatch(/参数验证失败/);
-    });
-
-    it('should return 400 when body has extra field', async () => {
-      const req = mockReq({ body: { content: 'test', extra: 'val' } });
-      const res = mockRes();
-      await updateArticleContent(req, res);
-      expect(res.body.code).toBe(400);
-      expect(res.body.message).toMatch(/参数验证失败/);
-    });
-  });
-
-  // ---- reviewArticle Zod 验证失败 (line 330-331) ----
-  describe('reviewArticle direct - Zod validation failure', () => {
-    it('should return 400 when approved is missing', async () => {
-      const req = mockReq({ body: {} });
-      const res = mockRes();
-      await reviewArticle(req, res);
-      expect(res.body.code).toBe(400);
-      expect(res.body.message).toMatch(/参数验证失败/);
-    });
-
-    it('should return 400 when approved is string', async () => {
-      const req = mockReq({ body: { approved: 'yes' } });
-      const res = mockRes();
-      await reviewArticle(req, res);
-      expect(res.body.code).toBe(400);
-      expect(res.body.message).toMatch(/参数验证失败/);
-    });
-
-    it('should return 400 when body has extra field', async () => {
-      const req = mockReq({ body: { approved: true, extra: 'val' } });
-      const res = mockRes();
-      await reviewArticle(req, res);
-      expect(res.body.code).toBe(400);
-      expect(res.body.message).toMatch(/参数验证失败/);
-    });
-  });
-});
+// NOTE: Zod validation tests removed — validation is now handled by route middleware (validate()),
+// not by the controller. Route-level validation is tested by the integration tests above.
+// H-3 fix: simplified from triple validation (route + controller safeParse + pickAllowedFields)
+// to two layers (route middleware validate() + pickAllowedFields as defense-in-depth).

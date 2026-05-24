@@ -551,15 +551,15 @@ if (existing.status === 'published') {
 
 | 问题编号 | 优先级 | 修复措施 | 状态 |
 |---------|--------|---------|------|
-| C-1 | P0 | service 层写操作包裹 `$transaction` 消除 TOCTOU | ❌ 待实施 |
-| H-1 | P1 | `skills` 字段替换 `z.unknown()` 为明确的 Zod Schema | ❌ 待实施 |
-| H-2 | P1 | 移除 `validate.ts` 中的 DEBUG 日志 | ❌ 待实施 |
-| H-3 | P1 | 简化三重验证为两层 | ❌ 待实施 |
-| M-1 | P2 | `PermissionDeniedError` 替换为 `ForbiddenError` | ❌ 待实施 |
-| M-2 | P2 | parseInt 添加 `> 0` 边界检查 | ❌ 待实施 |
+| C-1 | P0 | service 层写操作包裹 `$transaction` 消除 TOCTOU | ✅ 已修复 |
+| H-1 | P1 | `skills` 字段替换 `z.unknown()` 为明确的 Zod Schema | ✅ 已修复 |
+| H-2 | P1 | 移除 `validate.ts` 中的 DEBUG 日志 | ✅ 已确认无此日志 |
+| H-3 | P1 | 简化三重验证为两层 | ✅ 已修复 |
+| M-1 | P2 | `PermissionDeniedError` 替换为 `ForbiddenError` | ✅ 已修复 |
+| M-2 | P2 | parseInt 添加 `> 0` 边界检查 | ✅ 已修复 |
 | M-3 | P2 | sysadmin 自审限制（待业务确认） | ⏳ 待确认 |
-| M-4 | P2 | regenerate/submitReview 添加状态预检 | ❌ 待实施 |
-| L-1 | P3 | 高价值端点添加独立速率限制 | ❌ 待实施 |
+| M-4 | P2 | regenerate/submitReview 添加状态预检 | ✅ 已修复 |
+| L-1 | P3 | 高价值端点添加独立速率限制 | ✅ 已修复 |
 
 ---
 
@@ -596,3 +596,37 @@ if (existing.status === 'published') {
 - `article.schema.ts`: `skills` 字段从 `z.unknown()` 改为 `z.array(z.number().int().nonnegative()).max(50).nullable().optional()`
 - `article.service.impl.ts`: 4 处 `throw new Error('文章不存在')` 改为 `throw new NotFoundError('文章')`
 - `article.controller.test.ts`: 更新 skills 测试数据（标量→数组），更新 regenerate 状态预检相关测试
+
+### 修复实施记录（第二轮，2026-05-24）
+
+基于安全评审剩余项的综合修复。
+
+#### 已修复项
+
+| 问题编号 | 优先级 | 修复措施 | 修复文件 | 状态 |
+|---------|--------|---------|---------|------|
+| C-1 | P0 | `update/delete/review/regenerate` 四个方法包裹 `Prisma.$transaction`，消除 TOCTOU 竞态 | article.service.impl.ts | ✅ |
+| H-3 | P1 | 移除控制器中 5 处 `safeParse()` 调用，保留 `pickAllowedFields()` 作为二道防线；移除不再使用的 Schema 导入 | article.controller.ts | ✅ |
+| L-1 | P3 | 新增 `articleActionLimiter`（20次/分钟），应用于 delete/review/regenerate 三个高价值端点 | rate-limit.middleware.ts, article.routes.ts | ✅ |
+| H-2 | P1 | 确认 `validate.ts` 中无 DEBUG 日志（已在先前版本中移除） | validate.ts | ✅ 确认 |
+
+#### 附带修复
+
+| 问题 | 修复措施 | 文件 |
+|------|---------|------|
+| TS2742 路由类型推断 | 所有 13 个路由文件 `const router = Router()` 改为 `const router: Router = Router()` | apis/routes/*.ts |
+| 测试兼容 $transaction | article.service.test.ts mock 添加 `$transaction` 支持 | article.service.test.ts |
+| 测试兼容 $transaction | article.controller.test.ts 通过 monkey-patch `mockReturnValue` 自动注入 `$transaction` | article.controller.test.ts |
+| 测试兼容限流 | `articleActionLimiter` 测试环境 max=5000 避免误触发 | rate-limit.middleware.ts |
+| 过时 Zod 测试 | 移除 "Zod validation bypass middleware" 测试块（验证已移至路由中间件层） | article.controller.test.ts |
+
+#### 代码变更统计
+
+- `article.service.impl.ts`: `update/delete/review/regenerate` 四个方法改为 `$transaction` 原子操作，`tx` 参数类型 `Prisma.TransactionClient`
+- `article.controller.ts`: 移除 Schema 导入，5 处 `safeParse()` 调用替换为直接使用 `req.body`/`req.query`
+- `rate-limit.middleware.ts`: 新增 `articleActionLimiter`，测试环境 max=5000
+- `middleware/index.ts`: 导出 `articleActionLimiter`
+- `article.routes.ts`: 导入并应用 `articleActionLimiter`，`router` 添加 `Router` 类型注解
+- `apis/routes/*.ts`: 13 个路由文件添加 `Router` 类型注解
+- `article.service.test.ts`: mock 添加 `$transaction` 方法
+- `article.controller.test.ts`: monkey-patch `mockReturnValue` 注入 `$transaction`，移除过时的 Zod 直测

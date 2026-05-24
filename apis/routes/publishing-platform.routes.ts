@@ -3,7 +3,7 @@ import { authMiddleware, roleMiddleware } from '../middleware';
 import { ROLES } from '../constants/roles';
 import * as ctrl from '../controller/publishing-platform.controller';
 
-const router = Router();
+const router: Router = Router();
 
 // sync 仅 sysadmin
 router.post('/sync', authMiddleware, roleMiddleware(ROLES.SYSADMIN), ctrl.syncPublishingPlatforms);

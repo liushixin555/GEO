@@ -5,7 +5,7 @@ import { ROLES } from '../constants/roles';
 import { createProjectSchema, updateProjectSchema } from '../schema/project.schema';
 import * as ctrl from '../controller/project.controller';
 
-const router = Router();
+const router: Router = Router();
 router.use(authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN));
 
 router.get('/', ctrl.listProjects);

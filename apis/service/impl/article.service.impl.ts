@@ -80,98 +80,98 @@ export class ArticleServiceImpl implements IArticleService {
   }
 
   async update(id: number, request: UpdateArticleRequest, userId?: number, role?: string): Promise<Article> {
-    const prisma = getPrisma();
+    return await getPrisma().$transaction(async (tx: Prisma.TransactionClient) => {
+      const existing = await tx.article.findFirst({ where: { id, deletedAt: null } });
+      if (!existing) throw new NotFoundError('文章');
 
-    const existing = await prisma.article.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new NotFoundError('文章');
-
-    const data: any = {};
-    if (request.title !== undefined) data.title = request.title;
-    if (request.article_type !== undefined) data.articleType = request.article_type || null;
-    if (request.write_mode !== undefined) data.writeMode = request.write_mode || null;
-    if (request.keywords !== undefined) data.keywords = request.keywords || null;
-    if (request.portrait !== undefined) data.portrait = request.portrait || null;
-    if (request.images !== undefined) data.images = request.images || Prisma.JsonNull;
-    if (request.platforms !== undefined) data.platforms = request.platforms || Prisma.JsonNull;
-    if (request.skills !== undefined) data.skills = request.skills || Prisma.JsonNull;
-    if (request.llm_model_id !== undefined) data.llmModelId = request.llm_model_id || null;
-    if (request.status !== undefined) data.status = request.status;
-    if (request.scheduled_publish_at !== undefined) {
-      data.scheduledPublishAt = request.scheduled_publish_at ? new Date(request.scheduled_publish_at) : null;
-    }
-
-    // Content versioning: if content is being updated, bump version and save history
-    if (request.content !== undefined && request.content !== existing.content) {
-      const newVersion = Math.floor(existing.version) + 1.0;
-      data.version = newVersion;
-      data.content = request.content;
-
-      // For AI-generated articles, extract first non-empty line as title
-      if (existing.writeMode !== 'manual' && !existing.title) {
-        const firstLine = request.content.split('\n').map(l => l.replace(/^#+\s*/, '').trim()).find(l => l.length > 0);
-        if (firstLine) data.title = firstLine;
+      const data: any = {};
+      if (request.title !== undefined) data.title = request.title;
+      if (request.article_type !== undefined) data.articleType = request.article_type || null;
+      if (request.write_mode !== undefined) data.writeMode = request.write_mode || null;
+      if (request.keywords !== undefined) data.keywords = request.keywords || null;
+      if (request.portrait !== undefined) data.portrait = request.portrait || null;
+      if (request.images !== undefined) data.images = request.images || Prisma.JsonNull;
+      if (request.platforms !== undefined) data.platforms = request.platforms || Prisma.JsonNull;
+      if (request.skills !== undefined) data.skills = request.skills || Prisma.JsonNull;
+      if (request.llm_model_id !== undefined) data.llmModelId = request.llm_model_id || null;
+      if (request.status !== undefined) data.status = request.status;
+      if (request.scheduled_publish_at !== undefined) {
+        data.scheduledPublishAt = request.scheduled_publish_at ? new Date(request.scheduled_publish_at) : null;
       }
 
-      // Save current content as a version snapshot before updating
-      await prisma.articleVersion.create({
-        data: {
-          articleId: id,
-          version: newVersion,
-          content: request.content,
-          createdBy: userId ?? null,
-        },
-      });
-    }
+      // Content versioning: if content is being updated, bump version and save history
+      if (request.content !== undefined && request.content !== existing.content) {
+        const newVersion = Math.floor(existing.version) + 1.0;
+        data.version = newVersion;
+        data.content = request.content;
 
-    const updated = await prisma.article.update({
-      where: { id },
-      data,
+        // For AI-generated articles, extract first non-empty line as title
+        if (existing.writeMode !== 'manual' && !existing.title) {
+          const firstLine = request.content.split('\n').map(l => l.replace(/^#+\s*/, '').trim()).find(l => l.length > 0);
+          if (firstLine) data.title = firstLine;
+        }
+
+        // Save current content as a version snapshot before updating
+        await tx.articleVersion.create({
+          data: {
+            articleId: id,
+            version: newVersion,
+            content: request.content,
+            createdBy: userId ?? null,
+          },
+        });
+      }
+
+      const updated = await tx.article.update({
+        where: { id },
+        data,
+      });
+      return mapArticle(updated);
     });
-    return mapArticle(updated);
   }
 
   async delete(id: number, userId?: number, role?: string): Promise<void> {
-    const prisma = getPrisma();
+    await getPrisma().$transaction(async (tx) => {
+      const existing = await tx.article.findFirst({ where: { id, deletedAt: null } });
+      if (!existing) throw new NotFoundError('文章');
 
-    const existing = await prisma.article.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new NotFoundError('文章');
-
-    await prisma.article.update({ where: { id }, data: { deletedAt: new Date() } });
+      await tx.article.update({ where: { id }, data: { deletedAt: new Date() } });
+    });
   }
 
   async review(id: number, approved: boolean, userId?: number, role?: string): Promise<Article> {
-    const prisma = getPrisma();
+    return await getPrisma().$transaction(async (tx: Prisma.TransactionClient) => {
+      const existing = await tx.article.findFirst({ where: { id, deletedAt: null } });
+      if (!existing) throw new NotFoundError('文章');
 
-    const existing = await prisma.article.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new NotFoundError('文章');
+      if (existing.status !== 'pending_review') {
+        throw new BusinessError('文章当前状态不支持审核操作');
+      }
 
-    if (existing.status !== 'pending_review') {
-      throw new BusinessError('文章当前状态不支持审核操作');
-    }
-
-    const newStatus = approved ? 'publishing' : (existing.writeMode === 'manual' ? 'manual_writing' : 'draft');
-    const updated = await prisma.article.update({
-      where: { id },
-      data: { status: newStatus },
+      const newStatus = approved ? 'publishing' : (existing.writeMode === 'manual' ? 'manual_writing' : 'draft');
+      const updated = await tx.article.update({
+        where: { id },
+        data: { status: newStatus },
+      });
+      return mapArticle(updated);
     });
-    return mapArticle(updated);
   }
 
   async regenerate(id: number, userId?: number, role?: string): Promise<Article> {
-    const prisma = getPrisma();
+    return await getPrisma().$transaction(async (tx: Prisma.TransactionClient) => {
+      const existing = await tx.article.findFirst({ where: { id, deletedAt: null } });
+      if (!existing) throw new NotFoundError('文章');
 
-    const existing = await prisma.article.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new NotFoundError('文章');
+      if (existing.status !== 'pending_review') {
+        throw new BusinessError('文章当前状态不支持重新生成');
+      }
 
-    if (existing.status !== 'pending_review') {
-      throw new BusinessError('文章当前状态不支持重新生成');
-    }
-
-    const updated = await prisma.article.update({
-      where: { id },
-      data: { status: 'generating' },
+      const updated = await tx.article.update({
+        where: { id },
+        data: { status: 'generating' },
+      });
+      return mapArticle(updated);
     });
-    return mapArticle(updated);
   }
 
   async listVersions(articleId: number): Promise<ArticleVersion[]> {

@@ -14,3 +14,13 @@ export const rateLimitMiddleware = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// L-1 fix: 高价值操作独立限流——删除/审核/重新生成
+const isTest = process.env.NODE_ENV === 'test';
+export const articleActionLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: isTest ? 5000 : 20,
+  message: { code: 429, message: '操作过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

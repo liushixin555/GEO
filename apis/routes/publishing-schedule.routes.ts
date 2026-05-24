@@ -5,7 +5,7 @@ import { ROLES } from '../constants/roles';
 import { updatePublishingScheduleSchema } from '../schema/publishing-schedule.schema';
 import * as ctrl from '../controller/publishing-schedule.controller';
 
-const router = Router();
+const router: Router = Router();
 
 // list 允许 view 角色
 router.get('/', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN, ROLES.VIEW), ctrl.listPublishingSchedule);

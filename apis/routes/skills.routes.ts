@@ -3,7 +3,7 @@ import { authMiddleware, roleMiddleware } from '../middleware';
 import { ROLES } from '../constants/roles';
 import * as ctrl from '../controller/skills.controller';
 
-const router = Router();
+const router: Router = Router();
 router.use(authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN));
 
 router.get('/', ctrl.listSkills);

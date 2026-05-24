@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { ArticleServiceImpl } from '../service/impl/article.service.impl';
 import { ProjectServiceImpl } from '../service/impl/project.service.impl';
 import { success, fail, paginate, created } from '../utils';
-import { createArticleSchema, updateArticleSchema, reviewArticleSchema, listArticlesSchema, updateContentSchema } from '../schema/article.schema';
+
 import { NotFoundError, BusinessError, ForbiddenError } from '../errors';
 
 const articleService = new ArticleServiceImpl();
@@ -84,13 +84,8 @@ export async function listArticles(req: Request, res: Response): Promise<void> {
     const projectId = parseId(req.params.projectId as string, '项目ID', res);
     if (projectId === null) return;
 
-    // Zod Schema 验证查询参数
-    const parsed = listArticlesSchema.safeParse(req.query);
-    if (!parsed.success) {
-      fail(res, 400, `参数验证失败: ${parsed.error.issues.map(i => i.message).join('; ')}`);
-      return;
-    }
-    const { page, pageSize, search, status } = parsed.data;
+    // 路由中间件已完成 Zod 验证，直接使用验证后的数据
+    const { page, pageSize, search, status } = req.query as any;
 
     const user = getAuthUser(req);
     if (!user) { fail(res, 401, '未认证'); return; }
@@ -139,13 +134,8 @@ export async function createArticle(req: Request, res: Response): Promise<void> 
     const projectId = parseId(req.params.projectId as string, '项目ID', res);
     if (projectId === null) return;
 
-    // HIGH-1 / CRITICAL-1 fix: Zod Schema 验证 + 字段白名单过滤
-    const parsed = createArticleSchema.safeParse(req.body);
-    if (!parsed.success) {
-      fail(res, 400, `参数验证失败: ${parsed.error.issues.map(i => i.message).join('; ')}`);
-      return;
-    }
-    const body = pickAllowedFields(parsed.data, CREATE_ALLOWED_FIELDS);
+    // 路由中间件已完成 Zod 验证，pickAllowedFields 作为二道防线
+    const body = pickAllowedFields(req.body, CREATE_ALLOWED_FIELDS);
 
     const user = getAuthUser(req);
     if (!user) { fail(res, 401, '未认证'); return; }
@@ -195,13 +185,8 @@ export async function updateArticle(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // CRITICAL-1 fix: Zod Schema 验证 + 白名单过滤
-    const parsed = updateArticleSchema.safeParse(req.body);
-    if (!parsed.success) {
-      fail(res, 400, `参数验证失败: ${parsed.error.issues.map(i => i.message).join('; ')}`);
-      return;
-    }
-    const body = pickAllowedFields(parsed.data, UPDATE_ALLOWED_FIELDS);
+    // 路由中间件已完成 Zod 验证，pickAllowedFields 作为二道防线
+    const body = pickAllowedFields(req.body, UPDATE_ALLOWED_FIELDS);
 
     // CRITICAL-2 fix: 状态转换白名单校验
     const targetStatus = body.status as string | undefined;
@@ -234,13 +219,8 @@ export async function updateArticleContent(req: Request, res: Response): Promise
     const id = parseId(req.params.id as string, '文章ID', res);
     if (id === null) return;
 
-    // Zod schema 验证 + content 大小限制
-    const parsed = updateContentSchema.safeParse(req.body);
-    if (!parsed.success) {
-      fail(res, 400, `参数验证失败: ${parsed.error.issues.map(i => i.message).join('; ')}`);
-      return;
-    }
-    const { content } = parsed.data;
+    // 路由中间件已完成 Zod 验证
+    const { content } = req.body;
 
     const user = getAuthUser(req);
     if (!user) { fail(res, 401, '未认证'); return; }
@@ -322,12 +302,8 @@ export async function reviewArticle(req: Request, res: Response): Promise<void> 
     const id = parseId(req.params.id as string, '文章ID', res);
     if (id === null) return;
 
-    const parsed = reviewArticleSchema.safeParse(req.body);
-    if (!parsed.success) {
-      fail(res, 400, `参数验证失败: ${parsed.error.issues.map(i => i.message).join('; ')}`);
-      return;
-    }
-    const { approved } = parsed.data;
+    // 路由中间件已完成 Zod 验证
+    const { approved } = req.body;
 
     const user = getAuthUser(req);
     if (!user) { fail(res, 401, '未认证'); return; }
