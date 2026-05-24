@@ -435,7 +435,7 @@ const ArticleDetail: React.FC = () => {
     setDeleting(true);
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`/api/projects/${projectId}/articles/${id}`, {
+      await axios.delete(`/api/v1/projects/${projectId}/articles/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       message.success('文章已删除');

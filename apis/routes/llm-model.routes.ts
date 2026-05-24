@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { authMiddleware, roleMiddleware } from '../middleware';
+import { validate } from '../middleware/validate';
 import { ROLES } from '../constants/roles';
+import { createLlmModelSchema, updateLlmModelSchema } from '../schema/llm-model.schema';
 import * as ctrl from '../controller/llm-model.controller';
 
 const router = Router();
@@ -13,8 +15,8 @@ router.use(authMiddleware, roleMiddleware(ROLES.SYSADMIN));
 
 router.get('/', ctrl.listLlmModels);
 router.get('/:id', ctrl.getLlmModel);
-router.post('/', ctrl.createLlmModel);
-router.put('/:id', ctrl.updateLlmModel);
+router.post('/', validate(createLlmModelSchema), ctrl.createLlmModel);
+router.put('/:id', validate(updateLlmModelSchema), ctrl.updateLlmModel);
 router.delete('/:id', ctrl.deleteLlmModel);
 
 export default router;
