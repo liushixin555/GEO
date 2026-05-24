@@ -8,6 +8,8 @@
 **功能概述**: Markdown 预览核心渲染组件，接收 Markdown 源文本，通过 react-markdown + rehype/remark 插件链渲染为 HTML
 **评审结论**: 🔴 REJECT — 存在 3 个 P0 级关键安全缺陷，可导致 XSS 攻击、HTML 注入和恶意脚本执行
 
+> **修复状态 (2026-05-24)**: 已通过安全封装层 `pages/components/MarkdownViewer.tsx` 修复 S1-S4，并通过 `previewOptions` 将安全配置传递给 `ArticleContentEditor.tsx` 中的 MDEditor 组件。四层纵深防御：DOMPurify + safeUrlTransform(new URL) + SAFE_TAGS 白名单 + allowElement(input 类型验证)。commit: `848cbfd`
+
 **问题统计**: CRITICAL × 2 / HIGH × 2 / MEDIUM × 3 / LOW × 2 / INFO × 2
 
 ---
