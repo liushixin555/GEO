@@ -44,7 +44,7 @@ describe('AuthService', () => {
     it('密码错误时应抛出"用户名或密码错误"', async () => {
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 1, username: 'testuser', passwordHash: '$2a$10$invalidhash',
-        cnName: 'Test User', role: 'admin', companyId: 1,
+        cnName: 'Test User', role: 'admin', companyId: 1, status: true,
         selectedCompany: null, selectedProject: null,
       });
       mockedGetPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } } as any);
@@ -54,11 +54,25 @@ describe('AuthService', () => {
       ).rejects.toThrow('用户名或密码错误');
     });
 
+    it('禁用用户不可登录', async () => {
+      const hash = hashPassword('password123');
+      const mockFindUnique = jest.fn().mockResolvedValue({
+        id: 1, username: 'testuser', passwordHash: hash,
+        cnName: 'Test User', role: 'admin', companyId: 1, status: false,
+        selectedCompany: null, selectedProject: null,
+      });
+      mockedGetPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } } as any);
+
+      await expect(
+        authService.login({ username: 'testuser', password: 'password123' })
+      ).rejects.toThrow('用户名或密码错误');
+    });
+
     it('没有任何可访问公司时应抛出 LoginSelectionError', async () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 1, username: 'testuser', passwordHash: hash,
-        cnName: 'Test', role: 'view', companyId: 999,
+        cnName: 'Test', role: 'view', companyId: 999, status: true,
         selectedCompany: null, selectedProject: null,
       });
       const mockCompanyFindUnique = jest.fn().mockResolvedValue(null);
@@ -80,7 +94,7 @@ describe('AuthService', () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 1, username: 'viewer', passwordHash: hash,
-        cnName: 'Viewer', role: 'view', companyId: 1,
+        cnName: 'Viewer', role: 'view', companyId: 1, status: true,
         selectedCompany: null, selectedProject: null,
       });
       const mockCompanyFindUnique = jest.fn().mockResolvedValue({ id: 1, shortName: 'TestCo', status: true });
@@ -101,7 +115,7 @@ describe('AuthService', () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 1, username: 'admin', passwordHash: hash,
-        cnName: 'Admin', role: 'admin', companyId: 1,
+        cnName: 'Admin', role: 'admin', companyId: 1, status: true,
         selectedCompany: null, selectedProject: null,
       });
       const mockCompanyFindUnique = jest.fn().mockResolvedValue({ id: 1, shortName: 'TestCo', status: true });
@@ -124,7 +138,7 @@ describe('AuthService', () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 1, username: 'sysadmin', passwordHash: hash,
-        cnName: '系统管理员', role: 'sysadmin', companyId: null,
+        cnName: '系统管理员', role: 'sysadmin', companyId: null, status: true,
         selectedCompany: null, selectedProject: null,
       });
       const mockCompanyFindMany = jest.fn().mockResolvedValue([{ id: 1, shortName: 'TestCo' }]);
@@ -150,7 +164,7 @@ describe('AuthService', () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 1, username: 'sysadmin', passwordHash: hash,
-        cnName: '系统管理员', role: 'sysadmin', companyId: null,
+        cnName: '系统管理员', role: 'sysadmin', companyId: null, status: true,
         selectedCompany: { id: 2, shortName: 'Co2' },
         selectedProject: { id: 20, shortName: 'Proj2' },
       });
@@ -179,7 +193,7 @@ describe('AuthService', () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 1, username: 'sysadmin', passwordHash: hash,
-        cnName: '系统管理员', role: 'sysadmin', companyId: null,
+        cnName: '系统管理员', role: 'sysadmin', companyId: null, status: true,
         selectedCompany: { id: 99, shortName: 'Deleted' },
         selectedProject: { id: 99, shortName: 'Deleted' },
       });
@@ -206,7 +220,7 @@ describe('AuthService', () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 1, username: 'sysadmin', passwordHash: hash,
-        cnName: '系统管理员', role: 'sysadmin', companyId: null,
+        cnName: '系统管理员', role: 'sysadmin', companyId: null, status: true,
         selectedCompany: { id: 1, shortName: 'Co1' },
         selectedProject: { id: 99, shortName: 'Deleted' },
       });
@@ -234,7 +248,7 @@ describe('AuthService', () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 1, username: 'sysadmin', passwordHash: hash,
-        cnName: '系统管理员', role: 'sysadmin', companyId: null,
+        cnName: '系统管理员', role: 'sysadmin', companyId: null, status: true,
         selectedCompany: null, selectedProject: null,
       });
       const mockCompanyFindMany = jest.fn().mockResolvedValue([{ id: 1, shortName: 'Co1' }]);
@@ -258,7 +272,7 @@ describe('AuthService', () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 42, username: 'admin1', passwordHash: hash,
-        cnName: '管理员', role: 'admin', companyId: 5,
+        cnName: '管理员', role: 'admin', companyId: 5, status: true,
         selectedCompany: null, selectedProject: null,
       });
       const mockCompanyFindUnique = jest.fn().mockResolvedValue({ id: 5, shortName: 'Co5', status: true });
@@ -286,7 +300,7 @@ describe('AuthService', () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 1, username: 'admin', passwordHash: hash,
-        cnName: 'Admin', role: 'admin', companyId: 1,
+        cnName: 'Admin', role: 'admin', companyId: 1, status: true,
         selectedCompany: { id: 1, shortName: 'Co1' },
         selectedProject: null,
       });
@@ -310,7 +324,7 @@ describe('AuthService', () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 1, username: 'viewer', passwordHash: hash,
-        cnName: 'Viewer', role: 'view', companyId: 1,
+        cnName: 'Viewer', role: 'view', companyId: 1, status: true,
         selectedCompany: null, selectedProject: null,
       });
       const mockCompanyFindUnique = jest.fn().mockResolvedValue({ id: 1, shortName: 'Co1', status: true });
@@ -332,7 +346,7 @@ describe('AuthService', () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 1, username: 'admin', passwordHash: hash,
-        cnName: 'Admin', role: 'admin', companyId: 1,
+        cnName: 'Admin', role: 'admin', companyId: 1, status: true,
         selectedCompany: null, selectedProject: null,
       });
       const mockCompanyFindUnique = jest.fn().mockResolvedValue({ id: 1, shortName: 'Co1', status: false });
@@ -350,7 +364,7 @@ describe('AuthService', () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 42, username: 'testuser', passwordHash: hash,
-        cnName: '测试用户', role: 'admin', companyId: 5,
+        cnName: '测试用户', role: 'admin', companyId: 5, status: true,
         selectedCompany: null, selectedProject: null,
       });
       const mockCompanyFindUnique = jest.fn().mockResolvedValue({ id: 5, shortName: 'Co5', status: true });
@@ -379,7 +393,7 @@ describe('AuthService', () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 1, username: 'viewer', passwordHash: hash,
-        cnName: 'Viewer', role: 'view', companyId: 1,
+        cnName: 'Viewer', role: 'view', companyId: 1, status: true,
         selectedCompany: { id: 1, shortName: 'Co1' },
         selectedProject: { id: 10, shortName: 'Proj1' },
       });
@@ -418,6 +432,7 @@ describe('AuthService', () => {
         cnName: '测试',
         role: 'admin',
         companyId: 1,
+        status: true,
         selectedCompany: { id: 1, shortName: 'Co1' },
         selectedProject: { id: 1, shortName: 'Pr1' },
       });
@@ -924,6 +939,7 @@ describe('AuthService', () => {
         cnName: '管理员',
         role: 'admin',
         companyId: 5,
+        status: true,
         selectedCompany: { id: 5, shortName: 'Co5' },
         selectedProject: { id: 10, shortName: 'Proj10' },
       });
@@ -956,6 +972,7 @@ describe('AuthService', () => {
         cnName: '新用户',
         role: 'view',
         companyId: 1,
+        status: true,
         selectedCompany: null,
         selectedProject: null,
       });
@@ -981,6 +998,7 @@ describe('AuthService', () => {
         cnName: '系统管理员',
         role: 'sysadmin',
         companyId: null,
+        status: true,
         selectedCompany: null,
         selectedProject: null,
       });
@@ -1024,6 +1042,7 @@ describe('AuthService', () => {
         cnName: '测试',
         role: 'sysadmin',
         companyId: null,
+        status: true,
         selectedCompany: null,
         selectedProject: null,
       });
@@ -1047,7 +1066,7 @@ describe('AuthService', () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 1, username: 'admin', passwordHash: hash,
-        cnName: 'Admin', role: 'admin', companyId: undefined,
+        cnName: 'Admin', role: 'admin', companyId: undefined, status: true,
         selectedCompany: null, selectedProject: null,
       });
       mockedGetPrisma.mockReturnValue({
@@ -1063,7 +1082,7 @@ describe('AuthService', () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 1, username: 'viewer', passwordHash: hash,
-        cnName: 'Viewer', role: 'view', companyId: null,
+        cnName: 'Viewer', role: 'view', companyId: null, status: true,
         selectedCompany: null, selectedProject: null,
       });
       mockedGetPrisma.mockReturnValue({
@@ -1079,7 +1098,7 @@ describe('AuthService', () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 1, username: 'sysadmin', passwordHash: hash,
-        cnName: '系统管理员', role: 'sysadmin', companyId: null,
+        cnName: '系统管理员', role: 'sysadmin', companyId: null, status: true,
         selectedCompany: null, selectedProject: null,
       });
       const mockCompanyFindMany = jest.fn().mockResolvedValue([]);
@@ -1153,7 +1172,7 @@ describe('AuthService', () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 1, username: 'admin', passwordHash: hash,
-        cnName: 'Admin', role: 'admin', companyId: 1,
+        cnName: 'Admin', role: 'admin', companyId: 1, status: true,
         selectedCompany: { id: 1, shortName: 'Co1' },
         selectedProject: null,
       });
@@ -1179,7 +1198,7 @@ describe('AuthService', () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 1, username: 'sysadmin', passwordHash: hash,
-        cnName: '系统管理员', role: 'sysadmin', companyId: null,
+        cnName: '系统管理员', role: 'sysadmin', companyId: null, status: true,
         selectedCompany: { id: 1, shortName: 'Co1' },
         selectedProject: null,
       });
@@ -1206,7 +1225,7 @@ describe('AuthService', () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
         id: 5, username: 'admin', passwordHash: hash,
-        cnName: 'Admin', role: 'admin', companyId: 1,
+        cnName: 'Admin', role: 'admin', companyId: 1, status: true,
         selectedCompany: null, selectedProject: null,
       });
       const mockCompanyFindUnique = jest.fn().mockResolvedValue({ id: 1, shortName: 'Co1', status: true });
@@ -1284,6 +1303,7 @@ describe('AuthService', () => {
         cnName: '管理员',
         role: 'admin',
         companyId: 5,
+        status: true,
         selectedCompany: { id: 5, shortName: 'Co5' },
         selectedProject: { id: 10, shortName: 'Proj10' },
       });

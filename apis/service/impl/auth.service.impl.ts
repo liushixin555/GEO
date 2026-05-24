@@ -24,6 +24,11 @@ export class AuthServiceImpl implements IAuthService {
       throw new Error('用户名或密码错误');
     }
 
+    // L-2 fix: 禁用用户不可登录
+    if (!user.status) {
+      throw new Error('用户名或密码错误');
+    }
+
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
       throw new Error('用户名或密码错误');

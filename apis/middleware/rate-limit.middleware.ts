@@ -15,8 +15,17 @@ export const rateLimitMiddleware = rateLimit({
   legacyHeaders: false,
 });
 
-// L-1 fix: 高价值操作独立限流——删除/审核/重新生成
+// H-2 fix: 登录端点独立严格限流（防止暴力破解）
 const isTest = process.env.NODE_ENV === 'test';
+export const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 分钟
+  max: isTest ? 5000 : 10,  // 每个 IP 最多 10 次尝试
+  message: { code: 429, message: '登录尝试过于频繁，请15分钟后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// L-1 fix: 高价值操作独立限流——删除/审核/重新生成
 export const articleActionLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: isTest ? 5000 : 20,

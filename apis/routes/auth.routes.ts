@@ -1,13 +1,13 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middleware';
+import { authMiddleware, loginLimiter } from '../middleware';
 import { validate } from '../middleware/validate';
 import { loginSchema, saveSelectionSchema } from '../schema/auth.schema';
 import * as ctrl from '../controller/auth.controller';
 
 const router: Router = Router();
 
-// Public route (no auth required)
-router.post('/login', validate(loginSchema), ctrl.login);
+// Public route (no auth required, but rate-limited to prevent brute force)
+router.post('/login', loginLimiter, validate(loginSchema), ctrl.login);
 
 // Authenticated routes
 router.get('/verify', authMiddleware, ctrl.verify);
