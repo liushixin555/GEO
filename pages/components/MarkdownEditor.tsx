@@ -143,21 +143,12 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
   // UX-03: 全屏模式 Escape 退出提示状态
   const [showFullscreenHint, setShowFullscreenHint] = useState(false);
 
-  // REQ-2: 组件卸载时清理 DOM 引用和事件监听器
-  // 上游 Editor.factory.tsx:154-163 使用 useMemo 注册 mouseover/mouseleave 但无清理
+  // REQ-2: 组件卸载时清理容器引用，帮助 GC
+  // 注意：禁止在 cleanup 中使用 cloneNode(false) + replaceChild 替换 DOM 节点，
+  // React.StrictMode 会在 remount 前执行 cleanup，导致 React reconciler 丢失子树引用，
+  // textarea 无法重新渲染。上游 mouseover/mouseleave 监听器随 DOM 节点自然回收。
   useEffect(() => {
     return () => {
-      const container = editorRef.current;
-      if (!container) return;
-
-      // 清理上游泄漏的事件监听器：通过替换 textareaWarp DOM 节点移除所有匿名监听器
-      const textareaWarp = container.querySelector('.w-md-editor-text');
-      if (textareaWarp && textareaWarp instanceof HTMLElement) {
-        const clone = textareaWarp.cloneNode(false);
-        textareaWarp.parentNode?.replaceChild(clone, textareaWarp);
-      }
-
-      // 清理容器引用，帮助 GC
       editorRef.current = null;
     };
   }, []);
