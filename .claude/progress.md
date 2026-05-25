@@ -208,3 +208,4 @@
 | 2026-05-25 | tasks/review/title4.tsx.architecture.md | title4.tsx 软件架构专家评审——✅APPROVE 7.7/10（依赖拓扑健康无循环依赖+废弃策略规范+ICommand契约完整，A1 prefix!非空断言+A2 内联样式图标+A3 fontSize非等差） |
 | 2026-05-25 | tasks/review/title4.tsx.security.md | title4.tsx 代码安全专家评审——✅APPROVE 9.7/10（patched版本前序缺陷全修复：prefix!→??+role="img"+aria-hidden，零注入向量+零类型安全漏洞，仅余2项INFO供应链审计） |
 | 2026-05-25 | progress_tasks/2026-05-25-nohighlight-architecture-fix.md | nohighlight.tsx 架构评审修复——A2 纯函数提取+A3 幽灵 prop 消除+A7 共享常量，三入口（nohighlight/common/index）全同步，patch 重新生成，build+lint 通过 |
+| 2026-05-25 | tasks/review/publishing-schedule.controller.committer.md | publishing-schedule.controller.ts Committer审核专家评审（R2）——✅通过 9.2/10（R1的CRITICAL×1+H×3+M×5共9个问题全部修复，86测试全通过，可安全合并） |
