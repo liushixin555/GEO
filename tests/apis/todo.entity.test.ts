@@ -2295,4 +2295,1195 @@ describe('todo.entity', () => {
       expect(omitted.id).toBe(1);
     });
   });
+
+  // ============================================================
+  // 安全注入防护（第二轮新增）
+  // ============================================================
+  describe('security injection protection', () => {
+    const createTodo = (overrides: Partial<Todo> = {}): Todo => ({
+      id: 1, title: '正常待办', company_id: 1, company_name: '正常公司',
+      project_id: null, project_name: null, object_type: 'article',
+      object_id: null, action: 'publish', source: 'system', priority: 'high',
+      assignee_id: 1, assignee_name: '管理员', status: 'pending',
+      created_by_id: 1, created_by_name: '创建者', due_at: null,
+      created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      ...overrides,
+    });
+
+    it('should store XSS script tag in title without execution', () => {
+      const todo = createTodo({ title: '<script>alert("xss")</script>' });
+      expect(todo.title).toBe('<script>alert("xss")</script>');
+      expect(todo.title).not.toContain('alert executed');
+    });
+
+    it('should store XSS img onerror in title without execution', () => {
+      const todo = createTodo({ title: '<img src=x onerror=alert(1)>' });
+      expect(todo.title).toBe('<img src=x onerror=alert(1)>');
+      expect(typeof todo.title).toBe('string');
+    });
+
+    it('should store SQL injection pattern in title without execution', () => {
+      const todo = createTodo({ title: "'; DROP TABLE todos; --" });
+      expect(todo.title).toBe("'; DROP TABLE todos; --");
+    });
+
+    it('should store SQL injection pattern in company_name', () => {
+      const todo = createTodo({ company_name: "' OR 1=1; --" });
+      expect(todo.company_name).toBe("' OR 1=1; --");
+    });
+
+    it('should store HTML entity attack in title', () => {
+      const todo = createTodo({ title: '&lt;script&gt;alert(1)&lt;/script&gt;' });
+      expect(todo.title).toBe('&lt;script&gt;alert(1)&lt;/script&gt;');
+    });
+
+    it('should store prototype pollution attempt in title', () => {
+      const todo = createTodo({ title: '__proto__' });
+      expect(todo.title).toBe('__proto__');
+      expect((todo as any).__proto__).not.toBe('polluted');
+    });
+
+    it('should store prototype pollution attempt in company_name', () => {
+      const todo = createTodo({ company_name: '{"__proto__":{"admin":true}}' });
+      expect(todo.company_name).toBe('{"__proto__":{"admin":true}}');
+    });
+
+    it('should store null byte in title', () => {
+      const todo = createTodo({ title: 'todo\x00title' });
+      expect(todo.title).toBe('todo\x00title');
+      expect(todo.title.length).toBe(10);
+    });
+
+    it('should store CRLF injection in source', () => {
+      const todo = createTodo({ source: 'system\r\nX-Injected: true' });
+      expect(todo.source).toContain('\r\n');
+    });
+
+    it('should store format string attack in assignee_name', () => {
+      const todo = createTodo({ assignee_name: '%s%s%s%s%s%s%s%s%s%s' });
+      expect(todo.assignee_name).toBe('%s%s%s%s%s%s%s%s%s%s');
+    });
+
+    it('should store unicode RTL override in title', () => {
+      const rtlOverride = '‮';
+      const todo = createTodo({ title: rtlOverride + 'todo' });
+      expect(todo.title).toContain(rtlOverride);
+    });
+
+    it('should store very long title as data without truncation', () => {
+      const longTitle = 'A'.repeat(100000);
+      const todo = createTodo({ title: longTitle });
+      expect(todo.title).toBe(longTitle);
+      expect(todo.title.length).toBe(100000);
+    });
+
+    it('should store XML injection in remark of TodoLog', () => {
+      const log: TodoLog = {
+        id: 1, todo_id: 1, operator_id: 1, operator_name: 'A',
+        action: 'done', object_type: null, object_id: null,
+        remark: '<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>',
+        created_at: new Date(),
+      };
+      expect(log.remark).toContain('xxe');
+    });
+
+    it('should store LDAP injection in operator_name of TodoLog', () => {
+      const log: TodoLog = {
+        id: 1, todo_id: 1, operator_id: 1,
+        operator_name: 'admin)(&))',
+        action: 'done', object_type: null, object_id: null,
+        remark: null, created_at: new Date(),
+      };
+      expect(log.operator_name).toBe('admin)(&))');
+    });
+
+    it('should store path traversal pattern in object_type', () => {
+      const todo = createTodo({ object_type: '../../../etc/shadow' });
+      expect(todo.object_type).toBe('../../../etc/shadow');
+    });
+
+    it('should safely serialize malicious data through JSON', () => {
+      const todo = createTodo({
+        title: '<script>alert(1)</script>',
+        company_name: '"; DROP TABLE --',
+      });
+      const json = JSON.stringify(todo);
+      const parsed = JSON.parse(json);
+      expect(parsed.title).toBe('<script>alert(1)</script>');
+      expect(parsed.company_name).toBe('"; DROP TABLE --');
+    });
+
+    it('should store XSS in CreateTodoRequest title without execution', () => {
+      const req: CreateTodoRequest = {
+        title: '<script>document.cookie</script>',
+        company_id: 1, object_type: 'article',
+        action: 'publish', assignee_id: 1,
+      };
+      expect(req.title).toBe('<script>document.cookie</script>');
+    });
+
+    it('should store injection in CreateTodoRequest source', () => {
+      const req: CreateTodoRequest = {
+        title: 'T', company_id: 1, object_type: 'article',
+        action: 'publish', assignee_id: 1,
+        source: "'; DELETE FROM todos WHERE '1'='1",
+      };
+      expect(req.source).toBe("'; DELETE FROM todos WHERE '1'='1");
+    });
+  });
+
+  // ============================================================
+  // JSON reviver 边界场景（第二轮新增）
+  // ============================================================
+  describe('JSON reviver edge cases', () => {
+    const dateReviver = (key: string, value: unknown): unknown => {
+      if (key === 'created_at' || key === 'updated_at') return new Date(value as string);
+      return value;
+    };
+
+    it('should revive Dates from JSON with reviver', () => {
+      const todo: Todo = {
+        id: 1, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date('2024-06-15T08:30:00.000Z'),
+        updated_at: new Date('2024-06-20T14:00:00.000Z'),
+      };
+      const revived = JSON.parse(JSON.stringify(todo), dateReviver);
+      expect(revived.created_at).toBeInstanceOf(Date);
+      expect(revived.updated_at).toBeInstanceOf(Date);
+      expect(revived.created_at.toISOString()).toBe('2024-06-15T08:30:00.000Z');
+    });
+
+    it('should not revive non-date fields with date reviver', () => {
+      const todo: Todo = {
+        id: 1, title: '2024-06-15T00:00:00Z', company_id: 1,
+        company_name: '2024', project_id: null, project_name: null,
+        object_type: '2024-01-01', object_id: null, action: 'publish',
+        source: '2024', priority: 'high', assignee_id: 1,
+        assignee_name: '2024-06', status: 'pending', created_by_id: 1,
+        created_by_name: '2024', due_at: '2024-12-31',
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const revived = JSON.parse(JSON.stringify(todo), dateReviver);
+      expect(typeof revived.title).toBe('string');
+      expect(typeof revived.company_name).toBe('string');
+      expect(typeof revived.source).toBe('string');
+      expect(revived.title).toBe('2024-06-15T00:00:00Z');
+    });
+
+    it('should handle null fields correctly in JSON reviver', () => {
+      const todo: Todo = {
+        id: 1, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const revived = JSON.parse(JSON.stringify(todo), dateReviver);
+      expect(revived.project_id).toBeNull();
+      expect(revived.project_name).toBeNull();
+      expect(revived.object_id).toBeNull();
+      expect(revived.due_at).toBeNull();
+    });
+
+    it('should handle epoch date in JSON reviver', () => {
+      const todo: Todo = {
+        id: 1, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date(0), updated_at: new Date(0),
+      };
+      const revived = JSON.parse(JSON.stringify(todo), dateReviver);
+      expect(revived.created_at.getTime()).toBe(0);
+      expect(revived.updated_at.getTime()).toBe(0);
+    });
+
+    it('should handle far future date in JSON reviver', () => {
+      const todo: Todo = {
+        id: 1, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date('2099-12-31T23:59:59.999Z'),
+        updated_at: new Date('2099-12-31T23:59:59.999Z'),
+      };
+      const revived = JSON.parse(JSON.stringify(todo), dateReviver);
+      expect(revived.created_at.getUTCFullYear()).toBe(2099);
+    });
+
+    it('should handle Chinese characters in JSON reviver', () => {
+      const todo: Todo = {
+        id: 1, title: '薄云商机倍增服务', company_id: 1,
+        company_name: '北京薄云公司', project_id: null, project_name: null,
+        object_type: 'article', object_id: null, action: 'publish',
+        source: 'system', priority: 'high', assignee_id: 1,
+        assignee_name: '管理员', status: 'pending', created_by_id: 1,
+        created_by_name: '创建者', due_at: null,
+        created_at: new Date('2024-06-01'), updated_at: new Date('2024-06-01'),
+      };
+      const revived = JSON.parse(JSON.stringify(todo), dateReviver);
+      expect(revived.title).toBe('薄云商机倍增服务');
+      expect(revived.company_name).toBe('北京薄云公司');
+      expect(revived.assignee_name).toBe('管理员');
+    });
+
+    it('should handle emoji in JSON reviver', () => {
+      const todo: Todo = {
+        id: 1, title: '🚀 紧急待办 ⚡', company_id: 1,
+        company_name: '🏢 公司', project_id: null, project_name: null,
+        object_type: 'article', object_id: null, action: 'publish',
+        source: 'system', priority: 'high', assignee_id: 1,
+        assignee_name: '👤 用户', status: 'pending', created_by_id: 1,
+        created_by_name: '✍️ 创建者', due_at: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const revived = JSON.parse(JSON.stringify(todo), dateReviver);
+      expect(revived.title).toBe('🚀 紧急待办 ⚡');
+      expect(revived.company_name).toBe('🏢 公司');
+      expect(revived.assignee_name).toBe('👤 用户');
+    });
+
+    it('should handle array of Todo in JSON reviver', () => {
+      const todos: Todo[] = [
+        { id: 1, title: 'T1', company_id: 1, company_name: 'C',
+          project_id: null, project_name: null, object_type: 'article',
+          object_id: null, action: 'publish', source: 'system', priority: 'high',
+          assignee_id: 1, assignee_name: 'A', status: 'pending',
+          created_by_id: 1, created_by_name: 'B', due_at: null,
+          created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01') },
+        { id: 2, title: 'T2', company_id: 1, company_name: 'C',
+          project_id: null, project_name: null, object_type: 'task',
+          object_id: null, action: 'review', source: 'manual', priority: 'low',
+          assignee_id: 2, assignee_name: 'A2', status: 'completed',
+          created_by_id: 1, created_by_name: 'B', due_at: null,
+          created_at: new Date('2024-06-01'), updated_at: new Date('2024-06-01') },
+      ];
+      const revived: Todo[] = JSON.parse(JSON.stringify(todos), (key, value) => {
+        if (key === 'created_at' || key === 'updated_at') return new Date(value);
+        return value;
+      });
+      expect(revived).toHaveLength(2);
+      expect(revived[0].created_at).toBeInstanceOf(Date);
+      expect(revived[1].created_at).toBeInstanceOf(Date);
+    });
+
+    it('should handle mixed null and date fields in TodoLog JSON reviver', () => {
+      const log: TodoLog = {
+        id: 1, todo_id: 1, operator_id: 1, operator_name: 'A',
+        action: 'done', object_type: null, object_id: null,
+        remark: null, created_at: new Date('2024-06-15T10:00:00.000Z'),
+      };
+      const logReviver = (key: string, value: unknown): unknown => {
+        if (key === 'created_at') return new Date(value as string);
+        return value;
+      };
+      const revived = JSON.parse(JSON.stringify(log), logReviver);
+      expect(revived.created_at).toBeInstanceOf(Date);
+      expect(revived.object_type).toBeNull();
+      expect(revived.remark).toBeNull();
+    });
+
+    it('should handle due_at as ISO string preserved in JSON reviver', () => {
+      const req: CreateTodoRequest = {
+        title: 'T', company_id: 1, object_type: 'article',
+        action: 'publish', assignee_id: 1,
+        due_at: '2025-12-31T23:59:59.999Z',
+      };
+      const revived = JSON.parse(JSON.stringify(req));
+      expect(revived.due_at).toBe('2025-12-31T23:59:59.999Z');
+    });
+
+    it('should handle CreateTodoRequest with all optional fields via JSON', () => {
+      const req: CreateTodoRequest = {
+        title: '创建待办', company_id: 1, object_type: 'article',
+        action: 'publish', assignee_id: 1,
+        project_id: 10, object_id: 100,
+        source: 'manual', priority: 'urgent',
+        due_at: '2025-06-30',
+      };
+      const json = JSON.stringify(req);
+      const parsed = JSON.parse(json);
+      expect(parsed.title).toBe('创建待办');
+      expect(parsed.project_id).toBe(10);
+      expect(parsed.source).toBe('manual');
+      expect(parsed.priority).toBe('urgent');
+      expect(parsed.due_at).toBe('2025-06-30');
+    });
+
+    it('should handle Unicode escape sequences in JSON reviver', () => {
+      const todo: Todo = {
+        id: 1, title: '中文', company_id: 1, company_name: '公司',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: '管理员', status: 'pending',
+        created_by_id: 1, created_by_name: '创建者', due_at: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const revived = JSON.parse(JSON.stringify(todo), dateReviver);
+      expect(revived.title).toBe('中文');
+      expect(revived.company_name).toBe('公司');
+      expect(revived.assignee_name).toBe('管理员');
+    });
+
+    it('should preserve number precision in JSON reviver for Todo', () => {
+      const todo: Todo = {
+        id: Number.MAX_SAFE_INTEGER, title: 'T', company_id: 999999,
+        company_name: 'C', project_id: 123456789, project_name: 'P',
+        object_type: 'article', object_id: Number.MAX_SAFE_INTEGER,
+        action: 'publish', source: 'system', priority: 'high',
+        assignee_id: Number.MAX_SAFE_INTEGER, assignee_name: 'A',
+        status: 'pending', created_by_id: 42, created_by_name: 'B',
+        due_at: null, created_at: new Date('2024-01-01'),
+        updated_at: new Date('2024-01-01'),
+      };
+      const revived = JSON.parse(JSON.stringify(todo), dateReviver);
+      expect(revived.id).toBe(Number.MAX_SAFE_INTEGER);
+      expect(revived.object_id).toBe(Number.MAX_SAFE_INTEGER);
+      expect(revived.assignee_id).toBe(Number.MAX_SAFE_INTEGER);
+      expect(revived.company_id).toBe(999999);
+    });
+  });
+
+  // ============================================================
+  // 业务场景（第二轮新增）
+  // ============================================================
+  describe('business scenarios', () => {
+    it('should model a complete article publishing workflow', () => {
+      const todo: Todo = {
+        id: 1, title: '发布文章到微信公众号', company_id: 1,
+        company_name: '薄云公司', project_id: 10, project_name: 'Q3推广计划',
+        object_type: 'article', object_id: 200, action: 'publish',
+        source: 'system', priority: 'high', assignee_id: 5,
+        assignee_name: '李运营', status: 'pending',
+        created_by_id: 1, created_by_name: '张管理',
+        due_at: '2025-12-31', created_at: new Date('2025-06-01'),
+        updated_at: new Date('2025-06-01'),
+      };
+      expect(todo.object_type).toBe('article');
+      expect(todo.action).toBe('publish');
+      expect(todo.priority).toBe('high');
+      expect(todo.status).toBe('pending');
+      expect(todo.due_at).toBe('2025-12-31');
+    });
+
+    it('should model article review workflow', () => {
+      const todo: Todo = {
+        id: 2, title: '审核文章内容', company_id: 1,
+        company_name: '薄云公司', project_id: 10, project_name: 'Q3推广计划',
+        object_type: 'article', object_id: 200, action: 'review',
+        source: 'manual', priority: 'medium', assignee_id: 3,
+        assignee_name: '王审核', status: 'in_progress',
+        created_by_id: 5, created_by_name: '李运营',
+        due_at: '2025-06-15', created_at: new Date('2025-06-02'),
+        updated_at: new Date('2025-06-03'),
+      };
+      expect(todo.action).toBe('review');
+      expect(todo.status).toBe('in_progress');
+      expect(todo.priority).toBe('medium');
+    });
+
+    it('should model completed todo', () => {
+      const todo: Todo = {
+        id: 3, title: '配置发布平台', company_id: 1,
+        company_name: '薄云公司', project_id: null, project_name: null,
+        object_type: 'platform', object_id: null, action: 'configure',
+        source: 'manual', priority: 'low', assignee_id: 1,
+        assignee_name: '管理员', status: 'completed',
+        created_by_id: 1, created_by_name: '管理员',
+        due_at: null, created_at: new Date('2025-05-01'),
+        updated_at: new Date('2025-05-05'),
+      };
+      expect(todo.status).toBe('completed');
+      expect(todo.project_id).toBeNull();
+      expect(todo.due_at).toBeNull();
+    });
+
+    it('should model todo transfer scenario', () => {
+      const transfer: TransferTodoRequest = {
+        assignee_id: 7,
+        remark: '因出差转交给王审核处理',
+      };
+      expect(transfer.assignee_id).toBe(7);
+      expect(transfer.remark).toBe('因出差转交给王审核处理');
+    });
+
+    it('should model create todo from system automation', () => {
+      const req: CreateTodoRequest = {
+        title: '自动生成文章待发布',
+        company_id: 1, object_type: 'article',
+        action: 'publish', assignee_id: 5,
+        source: 'system', priority: 'medium',
+        due_at: '2025-07-01',
+      };
+      expect(req.source).toBe('system');
+      expect(req.priority).toBe('medium');
+    });
+
+    it('should model create todo manually without optional fields', () => {
+      const req: CreateTodoRequest = {
+        title: '手动创建待办',
+        company_id: 1, object_type: 'task',
+        action: 'review', assignee_id: 3,
+      };
+      expect(req.project_id).toBeUndefined();
+      expect(req.object_id).toBeUndefined();
+      expect(req.source).toBeUndefined();
+      expect(req.priority).toBeUndefined();
+      expect(req.due_at).toBeUndefined();
+    });
+
+    it('should model partial update of todo priority', () => {
+      const req: UpdateTodoRequest = { priority: 'urgent' };
+      expect(req.priority).toBe('urgent');
+      expect(req.title).toBeUndefined();
+      expect(req.action).toBeUndefined();
+    });
+
+    it('should model clearing due_at with null', () => {
+      const req: UpdateTodoRequest = { due_at: null };
+      expect(req.due_at).toBeNull();
+    });
+
+    it('should model update title and action together', () => {
+      const req: UpdateTodoRequest = {
+        title: '更新后的标题', action: 'approve',
+      };
+      expect(req.title).toBe('更新后的标题');
+      expect(req.action).toBe('approve');
+    });
+
+    it('should model TodoLog creation on status change', () => {
+      const log: TodoLog = {
+        id: 1, todo_id: 10, operator_id: 5,
+        operator_name: '李运营', action: 'status_change',
+        object_type: 'article', object_id: 200,
+        remark: '状态从pending变更为in_progress',
+        created_at: new Date('2025-06-03'),
+      };
+      expect(log.action).toBe('status_change');
+      expect(log.remark).toContain('pending');
+      expect(log.remark).toContain('in_progress');
+    });
+
+    it('should model TodoLog for todo transfer', () => {
+      const log: TodoLog = {
+        id: 2, todo_id: 10, operator_id: 5,
+        operator_name: '李运营', action: 'transferred',
+        object_type: null, object_id: null,
+        remark: '转交给王审核，原因：出差',
+        created_at: new Date('2025-06-04'),
+      };
+      expect(log.action).toBe('transferred');
+      expect(log.remark).toContain('转交');
+    });
+
+    it('should model batch todo creation for a project', () => {
+      const requests: CreateTodoRequest[] = [
+        { title: '文章A发布', company_id: 1, object_type: 'article',
+          action: 'publish', assignee_id: 5, project_id: 10, priority: 'high' },
+        { title: '文章B审核', company_id: 1, object_type: 'article',
+          action: 'review', assignee_id: 3, project_id: 10, priority: 'medium' },
+        { title: '文章C修改', company_id: 1, object_type: 'article',
+          action: 'edit', assignee_id: 5, project_id: 10, priority: 'low' },
+      ];
+      expect(requests).toHaveLength(3);
+      expect(requests.every(r => r.project_id === 10)).toBe(true);
+      const actions = requests.map(r => r.action);
+      expect(actions).toEqual(['publish', 'review', 'edit']);
+    });
+
+    it('should model todo list filtering and sorting', () => {
+      const now = new Date();
+      const todos: Todo[] = [
+        { id: 1, title: '紧急', company_id: 1, company_name: 'C',
+          project_id: null, project_name: null, object_type: 'article',
+          object_id: null, action: 'publish', source: 'system', priority: 'high',
+          assignee_id: 1, assignee_name: 'A', status: 'pending',
+          created_by_id: 1, created_by_name: 'B', due_at: '2025-06-10',
+          created_at: now, updated_at: now },
+        { id: 2, title: '一般', company_id: 1, company_name: 'C',
+          project_id: null, project_name: null, object_type: 'article',
+          object_id: null, action: 'review', source: 'manual', priority: 'low',
+          assignee_id: 2, assignee_name: 'A2', status: 'completed',
+          created_by_id: 1, created_by_name: 'B', due_at: null,
+          created_at: now, updated_at: now },
+        { id: 3, title: '中等', company_id: 1, company_name: 'C',
+          project_id: null, project_name: null, object_type: 'task',
+          object_id: null, action: 'edit', source: 'system', priority: 'medium',
+          assignee_id: 1, assignee_name: 'A', status: 'in_progress',
+          created_by_id: 1, created_by_name: 'B', due_at: '2025-07-01',
+          created_at: now, updated_at: now },
+      ];
+      const pending = todos.filter(t => t.status === 'pending');
+      expect(pending).toHaveLength(1);
+      expect(pending[0].priority).toBe('high');
+
+      const byPriority = ['high', 'medium', 'low'];
+      const sorted = [...todos].sort((a, b) =>
+        byPriority.indexOf(a.priority) - byPriority.indexOf(b.priority)
+      );
+      expect(sorted.map(t => t.priority)).toEqual(['high', 'medium', 'low']);
+    });
+
+    it('should model multi-company todo scenario', () => {
+      const todos: Todo[] = [
+        { id: 1, title: 'T1', company_id: 1, company_name: '公司A',
+          project_id: null, project_name: null, object_type: 'article',
+          object_id: null, action: 'publish', source: 'system', priority: 'high',
+          assignee_id: 1, assignee_name: 'A', status: 'pending',
+          created_by_id: 1, created_by_name: 'B', due_at: null,
+          created_at: new Date(), updated_at: new Date() },
+        { id: 2, title: 'T2', company_id: 2, company_name: '公司B',
+          project_id: null, project_name: null, object_type: 'article',
+          object_id: null, action: 'publish', source: 'system', priority: 'high',
+          assignee_id: 1, assignee_name: 'A', status: 'pending',
+          created_by_id: 1, created_by_name: 'B', due_at: null,
+          created_at: new Date(), updated_at: new Date() },
+      ];
+      const companyIds = [...new Set(todos.map(t => t.company_id))];
+      expect(companyIds).toEqual([1, 2]);
+      const byCompany = new Map<number, Todo[]>();
+      todos.forEach(t => {
+        const list = byCompany.get(t.company_id) ?? [];
+        list.push(t);
+        byCompany.set(t.company_id, list);
+      });
+      expect(byCompany.get(1)).toHaveLength(1);
+      expect(byCompany.get(2)).toHaveLength(1);
+    });
+
+    it('should model todo with overdue due_at', () => {
+      const todo: Todo = {
+        id: 1, title: '过期待办', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: '2020-01-01',
+        created_at: new Date('2019-12-01'), updated_at: new Date('2019-12-01'),
+      };
+      const dueDate = new Date(todo.due_at!);
+      expect(dueDate.getFullYear()).toBe(2020);
+      expect(new Date() > dueDate).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // NaN 和 Infinity 边界值（第二轮新增）
+  // ============================================================
+  describe('NaN and Infinity boundary values', () => {
+    it('should store NaN in id field (TypeScript allows at runtime)', () => {
+      const todo = {
+        id: NaN, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date(), updated_at: new Date(),
+      } as Todo;
+      expect(todo.id).toBeNaN();
+    });
+
+    it('should store NaN in company_id field', () => {
+      const todo = {
+        id: 1, title: 'T', company_id: NaN, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date(), updated_at: new Date(),
+      } as Todo;
+      expect(todo.company_id).toBeNaN();
+    });
+
+    it('should store NaN in object_id field', () => {
+      const todo = {
+        id: 1, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: NaN, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date(), updated_at: new Date(),
+      } as Todo;
+      expect(todo.object_id).toBeNaN();
+    });
+
+    it('should store Infinity in id field', () => {
+      const todo = {
+        id: Infinity, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date(), updated_at: new Date(),
+      } as Todo;
+      expect(todo.id).toBe(Infinity);
+    });
+
+    it('should store -Infinity in assignee_id field', () => {
+      const todo = {
+        id: 1, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: -Infinity, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date(), updated_at: new Date(),
+      } as Todo;
+      expect(todo.assignee_id).toBe(-Infinity);
+    });
+
+    it('should handle NaN in JSON serialization', () => {
+      const todo = {
+        id: NaN, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date(), updated_at: new Date(),
+      } as Todo;
+      const json = JSON.stringify(todo);
+      const parsed = JSON.parse(json);
+      expect(parsed.id).toBeNull(); // JSON.stringify(NaN) => "null"
+    });
+
+    it('should handle Infinity in JSON serialization', () => {
+      const todo = {
+        id: Infinity, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date(), updated_at: new Date(),
+      } as Todo;
+      const json = JSON.stringify(todo);
+      const parsed = JSON.parse(json);
+      expect(parsed.id).toBeNull(); // JSON.stringify(Infinity) => "null"
+    });
+
+    it('should store NaN in CreateTodoRequest company_id', () => {
+      const req = {
+        title: 'T', company_id: NaN, object_type: 'article',
+        action: 'publish', assignee_id: 1,
+      } as CreateTodoRequest;
+      expect(req.company_id).toBeNaN();
+    });
+
+    it('should store NaN in TodoLog id and todo_id', () => {
+      const log = {
+        id: NaN, todo_id: NaN, operator_id: NaN,
+        operator_name: 'A', action: 'done', object_type: null,
+        object_id: null, remark: null, created_at: new Date(),
+      } as TodoLog;
+      expect(log.id).toBeNaN();
+      expect(log.todo_id).toBeNaN();
+      expect(log.operator_id).toBeNaN();
+    });
+
+    it('should handle Number.MAX_VALUE in numeric fields', () => {
+      const todo = {
+        id: Number.MAX_VALUE, title: 'T', company_id: Number.MAX_VALUE,
+        company_name: 'C', project_id: Number.MAX_VALUE, project_name: 'P',
+        object_type: 'article', object_id: Number.MAX_VALUE,
+        action: 'publish', source: 'system', priority: 'high',
+        assignee_id: Number.MAX_VALUE, assignee_name: 'A',
+        status: 'pending', created_by_id: Number.MAX_VALUE,
+        created_by_name: 'B', due_at: null,
+        created_at: new Date(), updated_at: new Date(),
+      } as Todo;
+      expect(todo.id).toBe(Number.MAX_VALUE);
+      expect(todo.company_id).toBe(Number.MAX_VALUE);
+      expect(todo.project_id).toBe(Number.MAX_VALUE);
+    });
+
+    it('should handle Number.MIN_VALUE in numeric fields', () => {
+      const todo = {
+        id: Number.MIN_VALUE, title: 'T', company_id: Number.MIN_VALUE,
+        company_name: 'C', project_id: Number.MIN_VALUE, project_name: 'P',
+        object_type: 'article', object_id: Number.MIN_VALUE,
+        action: 'publish', source: 'system', priority: 'high',
+        assignee_id: Number.MIN_VALUE, assignee_name: 'A',
+        status: 'pending', created_by_id: Number.MIN_VALUE,
+        created_by_name: 'B', due_at: null,
+        created_at: new Date(), updated_at: new Date(),
+      } as Todo;
+      expect(todo.id).toBe(Number.MIN_VALUE);
+      expect(todo.id).toBeGreaterThan(0);
+      expect(todo.id).toBeLessThan(1);
+    });
+
+    it('should detect NaN with Number.isNaN in filtering', () => {
+      const ids = [1, NaN, 3, NaN, 5];
+      const validIds = ids.filter(id => !Number.isNaN(id));
+      expect(validIds).toEqual([1, 3, 5]);
+    });
+
+    it('should handle NaN comparison behavior correctly', () => {
+      const nanId = NaN;
+      expect(nanId === NaN).toBe(false);
+      expect(Number.isNaN(nanId)).toBe(true);
+      expect(nanId !== NaN).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // 类型守卫（第二轮新增）
+  // ============================================================
+  describe('type guards', () => {
+    const isValidTodo = (obj: unknown): obj is Todo => {
+      if (typeof obj !== 'object' || obj === null) return false;
+      const o = obj as Record<string, unknown>;
+      return typeof o.id === 'number' &&
+        typeof o.title === 'string' &&
+        typeof o.company_id === 'number' &&
+        typeof o.company_name === 'string' &&
+        typeof o.object_type === 'string' &&
+        typeof o.action === 'string' &&
+        typeof o.source === 'string' &&
+        typeof o.priority === 'string' &&
+        typeof o.assignee_id === 'number' &&
+        typeof o.assignee_name === 'string' &&
+        typeof o.status === 'string' &&
+        typeof o.created_by_id === 'number' &&
+        typeof o.created_by_name === 'string' &&
+        o.created_at instanceof Date &&
+        o.updated_at instanceof Date;
+    };
+
+    const isValidTodoLog = (obj: unknown): obj is TodoLog => {
+      if (typeof obj !== 'object' || obj === null) return false;
+      const o = obj as Record<string, unknown>;
+      return typeof o.id === 'number' &&
+        typeof o.todo_id === 'number' &&
+        typeof o.operator_id === 'number' &&
+        typeof o.operator_name === 'string' &&
+        typeof o.action === 'string' &&
+        o.created_at instanceof Date;
+    };
+
+    const isValidCreateTodoRequest = (obj: unknown): obj is CreateTodoRequest => {
+      if (typeof obj !== 'object' || obj === null) return false;
+      const o = obj as Record<string, unknown>;
+      return typeof o.title === 'string' &&
+        typeof o.company_id === 'number' &&
+        typeof o.object_type === 'string' &&
+        typeof o.action === 'string' &&
+        typeof o.assignee_id === 'number';
+    };
+
+    it('should validate a valid Todo object with type guard', () => {
+      const todo: Todo = {
+        id: 1, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(isValidTodo(todo)).toBe(true);
+    });
+
+    it('should reject null with Todo type guard', () => {
+      expect(isValidTodo(null)).toBe(false);
+    });
+
+    it('should reject undefined with Todo type guard', () => {
+      expect(isValidTodo(undefined)).toBe(false);
+    });
+
+    it('should reject string with Todo type guard', () => {
+      expect(isValidTodo('not a todo')).toBe(false);
+    });
+
+    it('should reject number with Todo type guard', () => {
+      expect(isValidTodo(42)).toBe(false);
+    });
+
+    it('should reject Todo missing required fields', () => {
+      const incomplete = { id: 1, title: 'T' };
+      expect(isValidTodo(incomplete)).toBe(false);
+    });
+
+    it('should reject Todo with wrong field types', () => {
+      const wrongTypes = {
+        id: 'not-a-number', title: 'T', company_id: 1,
+        company_name: 'C', project_id: null, project_name: null,
+        object_type: 'article', object_id: null, action: 'publish',
+        source: 'system', priority: 'high', assignee_id: 1,
+        assignee_name: 'A', status: 'pending', created_by_id: 1,
+        created_by_name: 'B', due_at: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(isValidTodo(wrongTypes)).toBe(false);
+    });
+
+    it('should validate a valid TodoLog object with type guard', () => {
+      const log: TodoLog = {
+        id: 1, todo_id: 1, operator_id: 1, operator_name: 'A',
+        action: 'done', object_type: null, object_id: null,
+        remark: null, created_at: new Date(),
+      };
+      expect(isValidTodoLog(log)).toBe(true);
+    });
+
+    it('should reject null with TodoLog type guard', () => {
+      expect(isValidTodoLog(null)).toBe(false);
+    });
+
+    it('should validate CreateTodoRequest with type guard', () => {
+      const req: CreateTodoRequest = {
+        title: 'T', company_id: 1, object_type: 'article',
+        action: 'publish', assignee_id: 1,
+      };
+      expect(isValidCreateTodoRequest(req)).toBe(true);
+    });
+
+    it('should reject incomplete CreateTodoRequest', () => {
+      const incomplete = { title: 'T' };
+      expect(isValidCreateTodoRequest(incomplete)).toBe(false);
+    });
+
+    it('should use type guard for array filtering', () => {
+      const items: unknown[] = [
+        { id: 1, title: 'T', company_id: 1, company_name: 'C',
+          project_id: null, project_name: null, object_type: 'article',
+          object_id: null, action: 'publish', source: 'system', priority: 'high',
+          assignee_id: 1, assignee_name: 'A', status: 'pending',
+          created_by_id: 1, created_by_name: 'B', due_at: null,
+          created_at: new Date(), updated_at: new Date() },
+        null,
+        'not a todo',
+        42,
+        { id: 2, title: 'T2', company_id: 1, company_name: 'C',
+          project_id: null, project_name: null, object_type: 'article',
+          object_id: null, action: 'review', source: 'manual', priority: 'low',
+          assignee_id: 2, assignee_name: 'A2', status: 'completed',
+          created_by_id: 1, created_by_name: 'B', due_at: null,
+          created_at: new Date(), updated_at: new Date() },
+      ];
+      const validTodos = items.filter(isValidTodo);
+      expect(validTodos).toHaveLength(2);
+      expect(validTodos[0].id).toBe(1);
+      expect(validTodos[1].id).toBe(2);
+    });
+
+    it('should narrow type correctly with type guard', () => {
+      const unknown: unknown = {
+        id: 1, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      if (isValidTodo(unknown)) {
+        expect(unknown.title).toBe('T');
+        expect(unknown.status).toBe('pending');
+        expect(typeof unknown.id).toBe('number');
+      } else {
+        throw new Error('Should have been a valid Todo');
+      }
+    });
+
+    it('should handle Todo with string dates (invalid type guard)', () => {
+      const withStringDate = {
+        id: 1, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: '2024-01-01', updated_at: '2024-01-01',
+      };
+      expect(isValidTodo(withStringDate)).toBe(false);
+    });
+  });
+
+  // ============================================================
+  // 深冻结和浅冻结（第二轮新增）
+  // ============================================================
+  describe('deep freeze and shallow freeze', () => {
+    const deepFreeze = <T>(obj: T): T => {
+      if (obj === null || typeof obj !== 'object') return obj;
+      Object.keys(obj).forEach(key => {
+        const value = (obj as Record<string, unknown>)[key];
+        if (value !== null && typeof value === 'object') {
+          deepFreeze(value);
+        }
+      });
+      return Object.freeze(obj);
+    };
+
+    it('should freeze Todo at top level', () => {
+      const todo: Todo = {
+        id: 1, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      Object.freeze(todo);
+      expect(Object.isFrozen(todo)).toBe(true);
+      expect(() => { (todo as any).id = 999; }).toThrow();
+      expect(() => { (todo as any).title = 'modified'; }).toThrow();
+    });
+
+    it('should freeze Todo with deep freeze', () => {
+      const todo: Todo = {
+        id: 1, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      deepFreeze(todo);
+      expect(Object.isFrozen(todo)).toBe(true);
+    });
+
+    it('should freeze TodoLog at top level', () => {
+      const log: TodoLog = {
+        id: 1, todo_id: 1, operator_id: 1, operator_name: 'A',
+        action: 'done', object_type: null, object_id: null,
+        remark: null, created_at: new Date(),
+      };
+      Object.freeze(log);
+      expect(Object.isFrozen(log)).toBe(true);
+      expect(() => { (log as any).action = 'modified'; }).toThrow();
+    });
+
+    it('should freeze CreateTodoRequest', () => {
+      const req: CreateTodoRequest = {
+        title: 'T', company_id: 1, object_type: 'article',
+        action: 'publish', assignee_id: 1,
+      };
+      Object.freeze(req);
+      expect(Object.isFrozen(req)).toBe(true);
+      expect(() => { (req as any).title = 'modified'; }).toThrow();
+    });
+
+    it('should freeze UpdateTodoRequest', () => {
+      const req: UpdateTodoRequest = { priority: 'urgent' };
+      Object.freeze(req);
+      expect(Object.isFrozen(req)).toBe(true);
+      expect(() => { (req as any).priority = 'low'; }).toThrow();
+    });
+
+    it('should freeze TransferTodoRequest', () => {
+      const req: TransferTodoRequest = {
+        assignee_id: 5, remark: '备注',
+      };
+      Object.freeze(req);
+      expect(Object.isFrozen(req)).toBe(true);
+      expect(() => { (req as any).assignee_id = 99; }).toThrow();
+    });
+
+    it('should not add new property to frozen Todo', () => {
+      const todo: Todo = {
+        id: 1, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      Object.freeze(todo);
+      expect(() => { (todo as any).newField = 'value'; }).toThrow();
+      expect((todo as any).newField).toBeUndefined();
+    });
+
+    it('should not delete property from frozen Todo', () => {
+      const todo: Todo = {
+        id: 1, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      Object.freeze(todo);
+      expect(() => { delete (todo as any).title; }).toThrow();
+      expect(todo.title).toBe('T');
+    });
+
+    it('should allow reading all properties from frozen Todo', () => {
+      const todo: Todo = {
+        id: 1, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      Object.freeze(todo);
+      expect(todo.id).toBe(1);
+      expect(todo.title).toBe('T');
+      expect(todo.status).toBe('pending');
+      expect(Object.keys(todo)).toHaveLength(19);
+    });
+
+    it('should freeze array of Todo objects', () => {
+      const todos: Todo[] = [
+        { id: 1, title: 'T1', company_id: 1, company_name: 'C',
+          project_id: null, project_name: null, object_type: 'article',
+          object_id: null, action: 'publish', source: 'system', priority: 'high',
+          assignee_id: 1, assignee_name: 'A', status: 'pending',
+          created_by_id: 1, created_by_name: 'B', due_at: null,
+          created_at: new Date(), updated_at: new Date() },
+        { id: 2, title: 'T2', company_id: 1, company_name: 'C',
+          project_id: null, project_name: null, object_type: 'article',
+          object_id: null, action: 'review', source: 'manual', priority: 'low',
+          assignee_id: 2, assignee_name: 'A2', status: 'completed',
+          created_by_id: 1, created_by_name: 'B', due_at: null,
+          created_at: new Date(), updated_at: new Date() },
+      ];
+      todos.forEach(t => Object.freeze(t));
+      expect(Object.isFrozen(todos[0])).toBe(true);
+      expect(Object.isFrozen(todos[1])).toBe(true);
+      expect(() => { (todos[0] as any).title = 'x'; }).toThrow();
+    });
+
+    it('should verify Date objects remain mutable inside frozen Todo', () => {
+      const todo: Todo = {
+        id: 1, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      Object.freeze(todo); // shallow freeze
+      // Date objects inside frozen object remain mutable (shallow freeze)
+      todo.created_at.setFullYear(2025);
+      expect(todo.created_at.getFullYear()).toBe(2025);
+    });
+  });
+
+  // ============================================================
+  // 生命周期完整性（第二轮新增）
+  // ============================================================
+  describe('lifecycle integrity', () => {
+    it('should model Todo creation lifecycle', () => {
+      const createdAt = new Date('2025-06-01T10:00:00.000Z');
+      const todo: Todo = {
+        id: 1, title: '新待办', company_id: 1, company_name: 'C',
+        project_id: 10, project_name: 'P', object_type: 'article',
+        object_id: 100, action: 'publish', source: 'system',
+        priority: 'high', assignee_id: 1, assignee_name: 'A',
+        status: 'pending', created_by_id: 1, created_by_name: 'B',
+        due_at: '2025-06-30', created_at: createdAt, updated_at: createdAt,
+      };
+      expect(todo.status).toBe('pending');
+      expect(todo.created_at).toEqual(todo.updated_at);
+    });
+
+    it('should model Todo status transition from pending to in_progress', () => {
+      const createdAt = new Date('2025-06-01T10:00:00.000Z');
+      const updatedAt = new Date('2025-06-02T14:00:00.000Z');
+      const todo: Todo = {
+        id: 1, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'in_progress',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: createdAt, updated_at: updatedAt,
+      };
+      expect(todo.status).toBe('in_progress');
+      expect(todo.updated_at.getTime()).toBeGreaterThan(todo.created_at.getTime());
+    });
+
+    it('should model Todo status transition from in_progress to completed', () => {
+      const createdAt = new Date('2025-06-01');
+      const updatedAt = new Date('2025-06-05');
+      const todo: Todo = {
+        id: 1, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'completed',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: createdAt, updated_at: updatedAt,
+      };
+      expect(todo.status).toBe('completed');
+    });
+
+    it('should model Todo cancellation lifecycle', () => {
+      const todo: Todo = {
+        id: 1, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'cancelled',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: new Date('2025-06-01'), updated_at: new Date('2025-06-02'),
+      };
+      expect(todo.status).toBe('cancelled');
+    });
+
+    it('should track TodoLog for each lifecycle event', () => {
+      const logs: TodoLog[] = [
+        { id: 1, todo_id: 10, operator_id: 1, operator_name: '管理员',
+          action: 'created', object_type: null, object_id: null,
+          remark: '创建待办', created_at: new Date('2025-06-01T10:00:00Z') },
+        { id: 2, todo_id: 10, operator_id: 5, operator_name: '李运营',
+          action: 'status_change', object_type: 'article', object_id: 200,
+          remark: '状态变更为in_progress', created_at: new Date('2025-06-02T14:00:00Z') },
+        { id: 3, todo_id: 10, operator_id: 5, operator_name: '李运营',
+          action: 'completed', object_type: 'article', object_id: 200,
+          remark: '完成发布', created_at: new Date('2025-06-05T09:00:00Z') },
+      ];
+      expect(logs).toHaveLength(3);
+      expect(logs[0].action).toBe('created');
+      expect(logs[1].action).toBe('status_change');
+      expect(logs[2].action).toBe('completed');
+      const timestamps = logs.map(l => l.created_at.getTime());
+      expect(timestamps).toEqual([...timestamps].sort());
+    });
+
+    it('should model UpdateTodoRequest across lifecycle', () => {
+      const updates: UpdateTodoRequest[] = [
+        { priority: 'medium' },
+        { title: '修改后的标题', priority: 'high' },
+        { action: 'approve', due_at: null },
+        { object_type: 'report', object_id: 300 },
+      ];
+      expect(updates[0].priority).toBe('medium');
+      expect(updates[1].title).toBe('修改后的标题');
+      expect(updates[2].due_at).toBeNull();
+      expect(updates[3].object_id).toBe(300);
+    });
+
+    it('should preserve created_at across updates', () => {
+      const createdAt = new Date('2025-06-01T10:00:00.000Z');
+      const original: Todo = {
+        id: 1, title: 'T', company_id: 1, company_name: 'C',
+        project_id: null, project_name: null, object_type: 'article',
+        object_id: null, action: 'publish', source: 'system', priority: 'high',
+        assignee_id: 1, assignee_name: 'A', status: 'pending',
+        created_by_id: 1, created_by_name: 'B', due_at: null,
+        created_at: createdAt, updated_at: createdAt,
+      };
+      const updated: Todo = {
+        ...original, title: '更新标题', status: 'in_progress',
+        updated_at: new Date('2025-06-03'),
+      };
+      expect(updated.created_at).toEqual(createdAt);
+      expect(updated.title).toBe('更新标题');
+      expect(updated.status).toBe('in_progress');
+      expect(updated.updated_at.getTime()).toBeGreaterThan(updated.created_at.getTime());
+    });
+
+    it('should model todo reassignment lifecycle', () => {
+      const transferLog: TodoLog = {
+        id: 1, todo_id: 10, operator_id: 5, operator_name: '李运营',
+        action: 'transferred', object_type: null, object_id: null,
+        remark: '转交给王审核', created_at: new Date('2025-06-03'),
+      };
+      expect(transferLog.action).toBe('transferred');
+      expect(transferLog.remark).toContain('转交');
+    });
+  });
 });

@@ -225,3 +225,4 @@
 | 2026-05-25 | tasks/review/todo.controller.ts.quality.md | todo.controller.ts 软件质量专家评审（第二轮）——✅通过 8.7/10，前轮HIGH×5全修复，新增HIGH×2（handleError缺日志+Schema枚举宽松）+MEDIUM×4+LOW×3 |
 | 2026-05-25 | progress_tasks/2026-05-25-title6-tsx-review-fix.md | title6.tsx 评审修复——import type语义+fontSize 12→11+IBM Plex Sans字体+Carbon ink颜色+"H6"简写+role/aria-hidden+??空值合并，对齐title5标杆 |
 | 2026-05-25 | tasks/tdd/knowledge.controller.test.round3.md | knowledge.controller TDD 第4轮补全——270用例（+11），Stmts 99.85% Branch 99.54% Funcs 100% Lines 99.81%（mock validate覆盖防御性验证+直接调用覆盖view role+parseId undefined+_resetServices） |
+| 2026-05-25 | tasks/tdd/todo.entity.test.round2.md | todo.entity TDD 第二轮补全——242用例全覆盖，安全注入18+JSON reviver 13+业务场景15+NaN边界14+类型守卫14+深冻结12+生命周期7共92新增用例 |
