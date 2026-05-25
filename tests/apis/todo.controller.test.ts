@@ -2828,4 +2828,685 @@ describe('Todo Controller', () => {
       });
     });
   });
+
+  // ══════════════════════════════════════════════════════════════
+  // 第四轮 TDD — 安全注入 + 角色矩阵 + 响应结构 + 错误类型多样性
+  // ══════════════════════════════════════════════════════════════
+  describe('TDD第4轮 — 安全注入·角色矩阵·响应结构·错误多样性', () => {
+    // ── 安全注入：XSS / SQL 注入 payload ──
+    describe('安全注入防御', () => {
+      it('create: 应安全处理 title 中的 XSS payload', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockCreate = jest.fn().mockResolvedValue(mockTodoFull);
+        const mockLogCreate = jest.fn().mockResolvedValue({});
+        getPrisma.mockReturnValue({
+          todo: { create: mockCreate },
+          todoLog: { create: mockLogCreate },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos')
+          .send({
+            title: '<script>alert("xss")</script>',
+            company_id: 1,
+            object_type: 'article',
+            action: 'review',
+            assignee_id: 2,
+          })
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(201);
+        expect(mockCreate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              title: '<script>alert("xss")</script>',
+            }),
+          }),
+        );
+      });
+
+      it('list: 应安全处理 search 中的 SQL 注入 payload', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockResolvedValue(0);
+        getPrisma.mockReturnValue({ todo: { findMany: mockFindMany, count: mockCount } });
+
+        const response = await agent
+          .get("/api/v1/todos?search=' OR 1=1 --")
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+      });
+
+      it('transfer: 应安全处理 remark 中的 XSS payload', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockUpdate = jest.fn().mockResolvedValue({ ...mockTodoFull, assigneeId: 3 });
+        const mockLogCreate = jest.fn().mockResolvedValue({});
+        const targetUser = { id: 3, cnName: '用户C' };
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(mockTodoFull), update: mockUpdate },
+          user: { findFirst: jest.fn().mockResolvedValue(targetUser) },
+          todoLog: { create: mockLogCreate },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos/1/transfer')
+          .send({ assignee_id: 3, remark: '<img src=x onerror=alert(1)>' })
+          .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
+
+        expect(response.status).toBe(200);
+      });
+
+      it('update: 应安全处理 title 中的特殊字符', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockUpdate = jest.fn().mockResolvedValue(mockTodoFull);
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(mockTodoFull), update: mockUpdate },
+        });
+
+        const response = await agent
+          .put('/api/v1/todos/1')
+          .send({ title: '"; DROP TABLE todos; --' })
+          .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
+
+        expect(response.status).toBe(200);
+        expect(mockUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              title: '"; DROP TABLE todos; --',
+            }),
+          }),
+        );
+      });
+
+      it('create: 应安全处理 action 中的 HTML 标签', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockCreate = jest.fn().mockResolvedValue(mockTodoFull);
+        const mockLogCreate = jest.fn().mockResolvedValue({});
+        getPrisma.mockReturnValue({
+          todo: { create: mockCreate },
+          todoLog: { create: mockLogCreate },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos')
+          .send({
+            title: 'test',
+            company_id: 1,
+            object_type: 'article',
+            action: '<b>bold</b> action',
+            assignee_id: 2,
+          })
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(201);
+      });
+    });
+
+    // ── 角色矩阵：sysadmin vs admin vs view 完整覆盖 ──
+    describe('角色矩阵完整性', () => {
+      it('listTodos: admin 应能访问 my_open tab', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: { findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
+        });
+
+        const response = await agent
+          .get('/api/v1/todos?tab=my_open')
+          .set('Authorization', `Bearer ${adminToken()}`);
+
+        expect(response.status).toBe(200);
+      });
+
+      it('listTodos: admin 应能访问 my_closed tab', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: { findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
+        });
+
+        const response = await agent
+          .get('/api/v1/todos?tab=my_closed')
+          .set('Authorization', `Bearer ${adminToken()}`);
+
+        expect(response.status).toBe(200);
+      });
+
+      it('listTodos: view 应被拒绝访问 my_open tab', async () => {
+        const response = await agent
+          .get('/api/v1/todos?tab=my_open')
+          .set('Authorization', `Bearer ${viewToken()}`);
+
+        expect(response.status).toBe(403);
+      });
+
+      it('getTodo: sysadmin 应能访问任意公司的待办', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const otherTodo = { ...mockTodoFull, companyId: 999 };
+        getPrisma.mockReturnValue({ todo: { findFirst: jest.fn().mockResolvedValue(otherTodo) } });
+
+        const response = await agent
+          .get('/api/v1/todos/1')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+      });
+
+      it('createTodo: admin 应能创建待办', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: { create: jest.fn().mockResolvedValue(mockTodoFull) },
+          todoLog: { create: jest.fn().mockResolvedValue({}) },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos')
+          .send({
+            title: 'admin创建',
+            company_id: 1,
+            object_type: 'article',
+            action: 'review',
+            assignee_id: 2,
+          })
+          .set('Authorization', `Bearer ${adminToken()}`);
+
+        expect(response.status).toBe(201);
+      });
+
+      it('updateTodo: view 应被拒绝', async () => {
+        const response = await agent
+          .put('/api/v1/todos/1')
+          .send({ title: 'x' })
+          .set('Authorization', `Bearer ${viewToken()}`);
+
+        expect(response.status).toBe(403);
+      });
+
+      it('closeTodo: view 应被拒绝', async () => {
+        const response = await agent
+          .post('/api/v1/todos/1/close')
+          .set('Authorization', `Bearer ${viewToken()}`);
+
+        expect(response.status).toBe(403);
+      });
+
+      it('reopenTodo: view 应被拒绝', async () => {
+        const response = await agent
+          .post('/api/v1/todos/1/reopen')
+          .set('Authorization', `Bearer ${viewToken()}`);
+
+        expect(response.status).toBe(403);
+      });
+
+      it('transferTodo: view 应被拒绝', async () => {
+        const response = await agent
+          .post('/api/v1/todos/1/transfer')
+          .send({ assignee_id: 2 })
+          .set('Authorization', `Bearer ${viewToken()}`);
+
+        expect(response.status).toBe(403);
+      });
+
+      it('rejectTodo: view 应被拒绝', async () => {
+        const response = await agent
+          .post('/api/v1/todos/1/reject')
+          .set('Authorization', `Bearer ${viewToken()}`);
+
+        expect(response.status).toBe(403);
+      });
+
+      it('getTodoLogs: view 应被拒绝', async () => {
+        const response = await agent
+          .get('/api/v1/todos/1/logs')
+          .set('Authorization', `Bearer ${viewToken()}`);
+
+        expect(response.status).toBe(403);
+      });
+
+      it('rejectTodo: admin 应被拒绝（仅 sysadmin 可驳回）', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(mockTodoFull) },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos/1/reject')
+          .set('Authorization', `Bearer ${adminToken()}`);
+
+        expect(response.status).toBe(403);
+      });
+    });
+
+    // ── 响应结构验证 ──
+    describe('响应结构验证', () => {
+      it('listTodos: 成功响应应包含 code=0 + data.list + data.total + data.page + data.pageSize', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: {
+            findMany: jest.fn().mockResolvedValue([mockTodoFull]),
+            count: jest.fn().mockResolvedValue(1),
+          },
+        });
+
+        const response = await agent
+          .get('/api/v1/todos?page=1&pageSize=10')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body).toMatchObject({
+          code: 0,
+          data: {
+            list: expect.any(Array),
+            total: 1,
+            page: 1,
+            pageSize: 10,
+          },
+        });
+      });
+
+      it('getTodo: 成功响应应包含 code=0 + data.id', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({ todo: { findFirst: jest.fn().mockResolvedValue(mockTodoFull) } });
+
+        const response = await agent
+          .get('/api/v1/todos/1')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body).toMatchObject({
+          code: 0,
+          data: { id: 1, title: '处理文章审核' },
+        });
+      });
+
+      it('createTodo: 成功响应应为 201 + code=0 + message', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: { create: jest.fn().mockResolvedValue(mockTodoFull) },
+          todoLog: { create: jest.fn().mockResolvedValue({}) },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos')
+          .send({
+            title: 'test',
+            company_id: 1,
+            object_type: 'article',
+            action: 'review',
+            assignee_id: 2,
+          })
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(201);
+        expect(response.body).toMatchObject({
+          code: 0,
+          message: '待办创建成功',
+        });
+      });
+
+      it('updateTodo: 成功响应应包含 code=0 + message=更新待办成功', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: {
+            findFirst: jest.fn().mockResolvedValue(mockTodoFull),
+            update: jest.fn().mockResolvedValue({ ...mockTodoFull, title: 'updated' }),
+          },
+        });
+
+        const response = await agent
+          .put('/api/v1/todos/1')
+          .send({ title: 'updated' })
+          .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body).toMatchObject({
+          code: 0,
+          message: '更新待办成功',
+        });
+      });
+
+      it('closeTodo: 成功响应应包含 message=关闭待办成功', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: {
+            findFirst: jest.fn().mockResolvedValue(mockTodoFull),
+            update: jest.fn().mockResolvedValue({ ...mockTodoFull, status: 'closed' }),
+          },
+          todoLog: { create: jest.fn().mockResolvedValue({}) },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos/1/close')
+          .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body.message).toBe('关闭待办成功');
+      });
+
+      it('reopenTodo: 成功响应应包含 message=重新打开待办成功', async () => {
+        const closedTodo = { ...mockTodoFull, status: 'closed' };
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: {
+            findFirst: jest.fn().mockResolvedValue(closedTodo),
+            update: jest.fn().mockResolvedValue({ ...closedTodo, status: 'open' }),
+          },
+          todoLog: { create: jest.fn().mockResolvedValue({}) },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos/1/reopen')
+          .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body.message).toBe('重新打开待办成功');
+      });
+
+      it('rejectTodo: 成功响应应包含 message=驳回待办成功', async () => {
+        const manualTodo = { ...mockTodoFull, source: 'manual', createdById: 1 };
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: {
+            findFirst: jest.fn().mockResolvedValue(manualTodo),
+            update: jest.fn().mockResolvedValue({ ...manualTodo, status: 'draft' }),
+          },
+          todoLog: { create: jest.fn().mockResolvedValue({}) },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos/1/reject')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body.message).toBe('驳回待办成功');
+      });
+
+      it('getTodoLogs: 成功响应应包含 code=0 + data 数组', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(mockTodoFull) },
+          todoLog: { findMany: jest.fn().mockResolvedValue([mockTodoLog]) },
+        });
+
+        const response = await agent
+          .get('/api/v1/todos/1/logs')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body).toMatchObject({
+          code: 0,
+          data: expect.any(Array),
+        });
+        expect(response.body.data[0]).toHaveProperty('operator_name', '管理员');
+      });
+
+      it('getObjectOptions: 成功响应应包含 code=0 + data 数组', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          article: { findMany: jest.fn().mockResolvedValue([{ id: 1, title: '文章A' }]) },
+        });
+
+        const response = await agent
+          .get('/api/v1/todos/object-options?projectId=1&objectType=article')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body).toMatchObject({
+          code: 0,
+          data: [{ id: 1, name: '文章A' }],
+        });
+      });
+
+      it('getAssigneeCandidates: 成功响应应包含 code=0 + data 含 id/username/cn_name/role', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          project: { findUnique: jest.fn().mockResolvedValue({ id: 1, operators: [] }) },
+          user: { findMany: jest.fn().mockResolvedValue([{ id: 1, username: 'sa', cnName: '管理', role: 'sysadmin' }]) },
+        });
+
+        const response = await agent
+          .get('/api/v1/todos/assignee-candidates?projectId=1')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body).toMatchObject({
+          code: 0,
+          data: [{ id: 1, username: 'sa', cn_name: '管理', role: 'sysadmin' }],
+        });
+      });
+    });
+
+    // ── 错误类型多样性：BusinessError / NotFoundError / ForbiddenError / ZodError ──
+    describe('错误类型多样性', () => {
+      it('getTodo: NotFoundError → 404', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({ todo: { findFirst: jest.fn().mockResolvedValue(null) } });
+
+        const response = await agent
+          .get('/api/v1/todos/999')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(404);
+        expect(response.body.message).toBe('待办不存在');
+      });
+
+      it('updateTodo: BusinessError (已关闭) → 400', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue({ ...mockTodoFull, status: 'closed' }) },
+        });
+
+        const response = await agent
+          .put('/api/v1/todos/1')
+          .send({ title: 'x' })
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe('已关闭的待办不能修改');
+      });
+
+      it('updateTodo: ForbiddenError (跨公司访问日志) → 403', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const otherCompanyTodo = { ...mockTodoFull, companyId: 999 };
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(otherCompanyTodo) },
+        });
+
+        const response = await agent
+          .get('/api/v1/todos/1/logs')
+          .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+
+        expect(response.status).toBe(403);
+      });
+
+      it('listTodos: ZodError (无效 tab) → 400', async () => {
+        const response = await agent
+          .get('/api/v1/todos?tab=invalid_tab')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(400);
+      });
+
+      it('closeTodo: BusinessError (非 open 状态) → 400', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue({ ...mockTodoFull, status: 'closed' }) },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos/1/close')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe('只有处理中的待办可以关闭');
+      });
+
+      it('reopenTodo: BusinessError (非 closed 状态) → 400', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(mockTodoFull) },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos/1/reopen')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe('只有已关闭的待办可以重新打开');
+      });
+
+      it('transferTodo: BusinessError (目标用户不存在) → 400', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(mockTodoFull) },
+          user: { findFirst: jest.fn().mockResolvedValue(null) },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos/1/transfer')
+          .send({ assignee_id: 999 })
+          .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe('目标用户不存在');
+      });
+
+      it('getTodoLogs: NotFoundError → 404', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(null) },
+        });
+
+        const response = await agent
+          .get('/api/v1/todos/999/logs')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(404);
+      });
+
+      it('listTodos: generic Error → 500', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: {
+            findMany: jest.fn().mockRejectedValue(new Error('unexpected')),
+            count: jest.fn().mockRejectedValue(new Error('unexpected')),
+          },
+        });
+
+        const response = await agent
+          .get('/api/v1/todos')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(500);
+        expect(response.body.message).toBe('获取待办列表失败');
+      });
+
+      it('createTodo: generic Error → 500 + 创建待办失败', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: { create: jest.fn().mockRejectedValue(new Error('DB crash')) },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos')
+          .send({
+            title: 'test',
+            company_id: 1,
+            object_type: 'article',
+            action: 'review',
+            assignee_id: 2,
+          })
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(500);
+        expect(response.body.message).toBe('创建待办失败');
+      });
+
+      it('updateTodo: generic Error → 500 + 更新待办失败', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockRejectedValue(new Error('crash')) },
+        });
+
+        const response = await agent
+          .put('/api/v1/todos/1')
+          .send({ title: 'x' })
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(500);
+        expect(response.body.message).toBe('更新待办失败');
+      });
+
+      it('closeTodo: generic Error → 500 + 关闭待办失败', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockRejectedValue(new Error('crash')) },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos/1/close')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(500);
+        expect(response.body.message).toBe('关闭待办失败');
+      });
+
+      it('reopenTodo: generic Error → 500 + 重新打开待办失败', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockRejectedValue(new Error('crash')) },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos/1/reopen')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(500);
+        expect(response.body.message).toBe('重新打开待办失败');
+      });
+
+      it('transferTodo: generic Error → 500 + 转交待办失败', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockRejectedValue(new Error('crash')) },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos/1/transfer')
+          .send({ assignee_id: 2 })
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(500);
+        expect(response.body.message).toBe('转交待办失败');
+      });
+
+      it('rejectTodo: generic Error → 500 + 驳回待办失败', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockRejectedValue(new Error('crash')) },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos/1/reject')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(500);
+        expect(response.body.message).toBe('驳回待办失败');
+      });
+
+      it('getTodoLogs: generic Error → 500 + 获取操作日志失败', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockRejectedValue(new Error('crash')) },
+        });
+
+        const response = await agent
+          .get('/api/v1/todos/1/logs')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(500);
+        expect(response.body.message).toBe('获取操作日志失败');
+      });
+
+    });
+  });
 });
