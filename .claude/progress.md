@@ -197,3 +197,5 @@
 | 2026-05-25 | tasks/review/title2.tsx.committer.md | title2.tsx Committer 审核专家评审——✅通过（APPROVE），pnpm patch 全面修复循环依赖/废弃注释/默认值等6项问题，生产就绪 |
 | 2026-05-25 | tasks/tdd/todo.controller.test.round4.md | todo 模块 TDD 第4轮——649用例全通过（+22新增：分页边界/创建边界/转交边界/更新边界/驳回边界/响应结构验证），4核心文件100%覆盖率 |
 | 2026-05-25 | progress_tasks/2026-05-25-project-controller-review-fix.md | project.controller.ts 二轮评审修复——Zod schema对齐DB约束(50/500)+controller精简177→161行+id>0检查+handleServiceError统一，117测试全通过 |
+| 2026-05-25 | tasks/review/title3.tsx.quality.md | title3.tsx 软件质量专家评审——⚠️有条件通过 7.2/10（循环依赖已消除+废弃策略规范，H×1 prefix!非空断言+M×3 图标风格/fontSize非等差/快捷键冲突+L×3） |
+| 2026-05-25 | tasks/review/title3.tsx.architecture.md | title3.tsx 软件架构专家评审——✅APPROVE 7.7/10（依赖拓扑健康无循环依赖+废弃策略规范+ICommand契约完整，A1 prefix!非空断言+A2 内联样式图标+A3 fontSize非等差） |
