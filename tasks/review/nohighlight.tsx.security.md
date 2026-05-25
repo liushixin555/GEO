@@ -5,6 +5,15 @@
 **评审文件**: `node_modules/@uiw/react-markdown-preview/src/nohighlight.tsx`（含关联文件 `preview.tsx`、`rehypePlugins.tsx`、`plugins/*.ts`、`plugins/useCopied.tsx`）
 **评分**: B+/8.5（安全评分，满分 10）
 
+> **修复状态 (2026-05-25)**:
+> - **#1 URL 安全过滤 [HIGH]**: ✅ 已修复 — pnpm patch 修改 `preview.tsx` 使用 `safeUrlTransform` 白名单协议过滤；`MarkdownViewer.tsx` 封装层传入独立 `safeUrlTransform`
+> - **#2 rehype-attr 属性注入 [MEDIUM]**: ✅ 已缓解 — `MarkdownViewer.tsx` rehypeRewrite 清理 on* 事件属性 + DOMPurify FORBID_ATTR 纵深防御；nohighlight.tsx 强制 `skipHtml` 阻止 HTML 解析
+> - **#3 useImperativeHandle 泄露 [MEDIUM]**: ✅ 已修复 — pnpm patch 修改 `preview.tsx` 仅暴露 `{ source, mdp }`；`Props.tsx` 中 `MarkdownPreviewRef` 不再继承 `MarkdownPreviewProps`
+> - **#4 data-code DOM 暴露 [LOW]**: ✅ 已缓解 — `rehypePlugins.tsx` 添加 `MAX_CODE_LENGTH=100_000` 限制 + `escapeHtmlAttr` 转义；`MarkdownViewer.tsx` 截断超长 data-code
+> - **#5 pluginsFilter 安全插件移除 [LOW]**: ⚠️ 设计局限 — `MarkdownViewer.tsx` 不向外部暴露 pluginsFilter，攻击面已封闭
+> - **#6 用户 rehypePlugins 攻击面 [LOW]**: ⚠️ 设计决策 — nohighlight.tsx 已改用 `??` 替代 `||`；属于库的 escape hatch 机制
+> - **综合评级提升**: B+ (8.5) → **A- (9.2)** — 三层纵深防御（pnpm patch 源码级 + MarkdownViewer 封装 + DOMPurify 消毒）
+
 ---
 
 ## 评审摘要
