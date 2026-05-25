@@ -206,6 +206,14 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
     if (!container) return;
 
     const TOOLBAR_LABELS: Record<string, string> = {
+      // heading 命令——commandsFilter 已设置精确中文标签，
+      // 此处必须在通用 'header'/'title' 之前匹配，防止 '标题' 过宽匹配覆盖 '2级标题 (Ctrl+2)' 等
+      '1级标题': '1级标题 (Ctrl+1)',
+      '2级标题': '2级标题 (Ctrl+2)',
+      '3级标题': '3级标题 (Ctrl+3)',
+      '4级标题': '4级标题 (Ctrl+4)',
+      '5级标题': '5级标题 (Ctrl+5)',
+      '6级标题': '6级标题 (Ctrl+6)',
       'header': '标题',
       'bold': '粗体 (Ctrl+B)',
       'italic': '斜体 (Ctrl+I)',
