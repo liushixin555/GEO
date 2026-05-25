@@ -26,12 +26,12 @@
 
 | 问题 | 来源 | 项目对策 |
 |------|------|---------|
-| 10 处 useMemo 执行 dispatch 副作用 | P0-1 / C-01 | 接受风险，React 18 生产模式下"碰巧"正常工作 |
+| 10 处 useMemo 执行 dispatch 副作用 | P0-1 / C-01 | ✅ 第二轮直接 patch 修复为 useEffect |
 | ContextStore 索引签名 `[key: string]: any` | SEC-FAC-01 | REQ-1 封装层 ref 不暴露 dispatch（已实施） |
-| setGroupPopFalse 原地突变 state 对象 | SEC-FAC-03 | 接受风险，内部实现细节 |
-| 滚动同步 NaN/Infinity 除零 | P1-1 / C-06 | 接受风险，空内容边界场景影响极小 |
+| setGroupPopFalse 原地突变 state 对象 | SEC-FAC-03 | ✅ 第二轮直接 patch 修复（创建新对象） |
+| 滚动同步 NaN/Infinity 除零 | P1-1 / C-06 | ✅ 第二轮直接 patch 修复（除零防护） |
 | 正则表达式内联渲染条件 | H-01 | 接受风险，上游实现 |
-| initScroll 永久锁定 | P1-3 | 接受风险，上游实现 |
+| initScroll 永久锁定 | P1-3 | ✅ 第二轮直接 patch 修复（移除 initScroll） |
 
 ## 功能说明
 
@@ -107,6 +107,37 @@
 - [x] TypeScript 类型检查通过
 - [x] 74 个 MarkdownViewer 测试通过
 - [x] REQ-3 服务端 sanitize 标记为下次迭代
+
+## 第二轮修复：直接修改上游源码（2026-05-25）
+
+> 基于质量评审报告 `tasks/review/Editor.factory.tsx.quality.md`，通过 patch-package 直接修复上游源码中的核心问题。
+
+### 修复清单
+
+| 编号 | 问题 | 优先级 | 修复措施 | 状态 |
+|------|------|--------|---------|------|
+| P0-1 | 10 处 useMemo 执行 dispatch 副作用 | P0 | 全部替换为 useEffect | ✅ 已修复 |
+| P0-2 | mouseover/mouseleave 事件监听器永不清理 | P0 | 改用 useEffect + 命名函数 + cleanup | ✅ 已修复 |
+| P1-1 | 滚动同步除零产生 NaN/Infinity | P1 | 添加 denominator/numerator === 0 防护 | ✅ 已修复 |
+| P1-2 | setGroupPopFalse 直接修改输入参数 | P1 | 创建 result 新对象再修改 | ✅ 已修复 |
+| P1-3 | initScroll 永久锁定滚动源 | P1 | 移除 initScroll ref 及引用 | ✅ 已修复 |
+| P1-4 | height 变化触发两次 dispatch | P1 | 合并为单个 useEffect | ✅ 已修复 |
+| P2-2 | 初始化 useEffect 展开 state | P2 | 只 dispatch 需要初始化的字段 | ✅ 已修复 |
+| P2-5 | previewClassName 每次渲染重建 | P2 | 移入 useMemo 内部计算 | ✅ 已修复 |
+| P2-6 | changeHandle 未经 useCallback | P2 | 包裹 useCallback | ✅ 已修复 |
+
+### 修改文件
+
+- `patches/@uiw+react-md-editor+4.1.0.patch` — 新增 Editor.factory.tsx/js 的 diff
+- `node_modules/@uiw/react-md-editor/src/Editor.factory.tsx` — TypeScript 源码
+- `node_modules/@uiw/react-md-editor/esm/Editor.factory.js` — ESM 编译输出
+- `node_modules/@uiw/react-md-editor/lib/Editor.factory.js` — CommonJS 编译输出
+
+### 验证
+
+- [x] `pnpm build` 成功
+- [x] `pnpm lint` 无新增错误
+- [x] 已有测试通过（39 个预存失败与本次修改无关）
 
 ## 遗留事项
 
