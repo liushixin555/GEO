@@ -190,3 +190,4 @@
 | 2026-05-25 | tasks/tdd/llm-model.controller.test.round3.md | llm-model.controller TDD 第3轮补全——264用例（+43），Stmts 99.21% Branch 97.43% Funcs 100% Lines 100%（覆盖null字段/AppError处理/SSRF直接调用/多字段更新/parseId边界/软删除验证） |
 | 2026-05-25 | tasks/tdd/app.test.md | app.ts TDD 第六次验证——261用例全通过，100%四维覆盖率确认无回归 |
 | 2026-05-25 | progress_tasks/2026-05-25-common-tsx-architecture-fix.md | common.tsx 架构评审修复——A-03 PipelineConfig OCP接口+A-05 export type显式导出+A-07管线顺序注释，9文件patch更新，251组件测试全通过 |
+| 2026-05-25 | tasks/review/project.controller.ts.md | project.controller.ts 软件架构专家评审——8.0/10（旧版5.7→新版8.0，旧版CRITICAL×2+HIGH×4全修复，H-1 Zod schema长度不一致+M×3+L×3） |
