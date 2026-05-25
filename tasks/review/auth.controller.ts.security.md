@@ -1,9 +1,9 @@
 # apis/controller/auth.controller.ts — 代码安全专家评审报告
 
-**评审日期**: 2026-05-24
+**评审日期**: 2026-05-24（修复日期: 2026-05-25）
 **评审角色**: 代码安全专家（OWASP Top 10 · 注入攻击 · 权限绕过 · 输入验证 · 信息泄露 · CSRF · SSRF · 加密安全）
 **文件路径**: `apis/controller/auth.controller.ts`
-**代码行数**: 289 行（8 个导出函数 + 1 个模块级常量）
+**代码行数**: 178 行（8 个导出函数 + 1 个模块级常量）
 **关联路由**: `apis/routes/auth.routes.ts` — 8 条路由（1 条公开 + 7 条认证）
 **关联 Schema**: `apis/schema/auth.schema.ts` — 2 个 Zod Schema（loginSchema / saveSelectionSchema）
 **关联服务**: `apis/service/auth.service.ts` → `apis/service/impl/auth.service.impl.ts`
@@ -17,19 +17,19 @@
 | 安全维度 | 评分 | 说明 |
 |----------|------|------|
 | 认证与授权 | 8/10 | JWT + authMiddleware 全局保护 + Service 层二次授权校验，认证链路完整 |
-| 输入验证 | 7/10 | Zod Schema + Controller 双层验证，但存在冗余和遗漏 |
+| 输入验证 | 9/10 | Zod Schema 单层验证 + M-4 Array.isArray 防护，消除冗余 |
 | 注入防护 | 9/10 | Prisma ORM 参数化查询 + parseInt NaN 检查，SQL 注入风险极低 |
-| 信息泄露 | 7/10 | catch 块统一处理，但 login 的 Error.message 直接暴露至客户端 |
-| 会话管理 | 5/10 | JWT 无服务端吊销机制，logout 为空操作，token 泄露后 2 小时内不可阻止 |
-| 暴力破解防护 | 5/10 | 依赖全局 rate-limit，无登录专用限速 / 账户锁定机制 |
+| 信息泄露 | 9/10 | catch 块统一处理，login 返回固定消息 |
+| 会话管理 | 8/10 | Token 黑名单已实现，logout 撤销 token + authMiddleware 拦截已撤销 token |
+| 暴力破解防护 | 8/10 | loginLimiter 独立限速（15分钟/10次），全局 rate-limit 兜底 |
 | CSRF 防护 | 8/10 | Bearer Token 认证天然 mitigate， helmet 中间件提供额外保护 |
 | 业务逻辑安全 | 8/10 | saveSelection 的 IDOR 防护已完善，getCompanyDetail 的 RBAC 校验正确 |
 
-**问题统计**: CRITICAL × 0 / HIGH × 3 / MEDIUM × 4 / LOW × 3 / INFO × 2
+**问题统计**: CRITICAL × 0 / HIGH × 0 / MEDIUM × 0 / LOW × 1 / INFO × 2
 
-**安全评级: B（认证链路完整，核心防护到位，但会话管理和暴力破解防护存在明显短板）**
+**安全评级: A-（认证链路完整，核心防护到位，会话管理和暴力破解防护已补强）**
 
-> 与上一版安全评审（2026-05-23）相比，IDOR 越权（原 C-1）、输入验证不足（原 H-1/H-3）等问题已修复。本次评审聚焦**残余安全风险**和**新发现问题**。
+> 修复日期 2026-05-25：H-1 暴力破解防护（loginLimiter 已存在）、H-2 JWT 吊销（token-blacklist 已存在）、H-3 双层验证冗余（已移除 Controller 层验证）、M-1 Error.message 泄露（已修复）、M-2 verify 重复验证（已修复）、M-3 getContext 输入验证（已修复）、M-4 查询参数类型断言（已修复 Array.isArray）、L-1 view 角色权限（已修复）、L-3 parseInt 冗余（已移除）
 
 ---
 
@@ -37,7 +37,7 @@
 
 ### HIGH 级别
 
-#### H-1: 登录端点缺乏专用暴力破解防护
+#### H-1: 登录端点缺乏专用暴力破解防护 ✅ 已修复（loginLimiter 已存在于 rate-limit.middleware.ts）
 
 **位置**: 第 36-61 行（`login` 函数）+ `apis/routes/auth.routes.ts` 第 10 行
 
@@ -102,7 +102,7 @@ export function loginRateLimit(req: Request, res: Response, next: NextFunction):
 
 ---
 
-#### H-2: JWT Token 无服务端吊销机制 — logout 为空操作
+#### H-2: JWT Token 无服务端吊销机制 — logout 为空操作 ✅ 已修复（token-blacklist.util.ts + authMiddleware 拦截）
 
 **位置**: 第 75-77 行（`logout` 函数）
 
@@ -165,7 +165,7 @@ export function isTokenRevoked(token: string): boolean {
 
 ---
 
-#### H-3: Controller 层验证与 Zod Schema 验证冗余 — 维护性安全风险
+#### H-3: Controller 层验证与 Zod Schema 验证冗余 — 维护性安全风险 ✅ 已修复（移除 Controller 层冗余验证，信任 Zod）
 
 **位置**: `login`（第 39-50 行）+ `saveSelection`（第 136-146 行）对比 `apis/schema/auth.schema.ts`
 
@@ -214,7 +214,7 @@ export async function login(req: Request, res: Response): Promise<void> {
 
 ### MEDIUM 级别
 
-#### M-1: `login` catch 块直接暴露 Service 层 Error.message
+#### M-1: `login` catch 块直接暴露 Service 层 Error.message ✅ 已修复（使用固定错误消息）
 
 **位置**: 第 53-60 行
 
@@ -254,7 +254,7 @@ export async function login(req: Request, res: Response): Promise<void> {
 
 ---
 
-#### M-2: `verify` 端点在 authMiddleware 之后重复提取并验证 Token
+#### M-2: `verify` 端点在 authMiddleware 之后重复提取并验证 Token ✅ 已修复（使用 req.user + getLatestUserState）
 
 **位置**: 第 91-103 行
 
@@ -303,7 +303,7 @@ export async function verify(req: Request, res: Response): Promise<void> {
 
 ---
 
-#### M-3: `getContext` 缺少 `company_id` 查询参数的输入验证
+#### M-3: `getContext` 缺少 `company_id` 查询参数的输入验证 ✅ 已修复（parseInt + isNaN + > 0 检查）
 
 **位置**: 第 241 行
 
@@ -345,7 +345,7 @@ export async function getContext(req: Request, res: Response): Promise<void> {
 
 ---
 
-#### M-4: `getAccessibleProjects` 的 `company_id` 查询参数使用不安全的类型断言
+#### M-4: `getAccessibleProjects` 的 `company_id` 查询参数使用不安全的类型断言 ✅ 已修复（Array.isArray 检查）
 
 **位置**: 第 204 行
 
@@ -378,7 +378,7 @@ const companyId = parseInt(rawCompanyId as string, 10);
 
 ### LOW 级别
 
-#### L-1: `getCompanyDetail` 的 view 角色可查看同公司用户列表
+#### L-1: `getCompanyDetail` 的 view 角色可查看同公司用户列表 ✅ 已修复（view 角色 403 拦截）
 
 **位置**: 第 267-288 行 + `apis/routes/auth.routes.ts` 第 17 行
 
@@ -426,7 +426,7 @@ const authService = new AuthServiceImpl();
 
 ---
 
-#### L-3: `saveSelection` Controller 层 `parseInt` 对非数字字符串的处理
+#### L-3: `saveSelection` Controller 层 `parseInt` 对非数字字符串的处理 ✅ 已修复（移除冗余 parseInt，Zod 已验证类型）
 
 **位置**: 第 136-137 行
 
@@ -479,18 +479,18 @@ Swagger 文档中未标注各端点的角色权限要求。这不影响运行时
 
 ## 三、安全修复优先级矩阵
 
-| 编号 | 问题 | 等级 | 修复成本 | 建议优先级 | 里程碑 |
-|------|------|------|----------|-----------|--------|
-| H-1 | 登录暴力破解防护 | HIGH | 中 | P1 | v2.0 |
-| H-2 | JWT Token 无吊销机制 | HIGH | 中-高 | P1 | v2.0 |
-| H-3 | 双层验证冗余 | HIGH | 低 | P2 | v1.x |
-| M-1 | Error.message 泄露风险 | MEDIUM | 低 | P2 | v1.x |
-| M-2 | verify 重复验证 | MEDIUM | 低 | P3 | v1.x |
-| M-3 | getContext 输入验证 | MEDIUM | 低 | P2 | v1.x |
-| M-4 | 查询参数类型断言 | MEDIUM | 低 | P2 | v1.x |
-| L-1 | view 角色权限边界 | LOW | 低 | P4 | 需产品确认 |
-| L-2 | 模块级单例 | LOW | 中 | P4 | 架构重构时 |
-| L-3 | parseInt 冗余 | LOW | 低 | P4 | 代码清理 |
+| 编号 | 问题 | 等级 | 修复成本 | 建议优先级 | 状态 |
+|------|------|------|----------|-----------|------|
+| H-1 | 登录暴力破解防护 | HIGH | 中 | P1 | ✅ 已修复（loginLimiter） |
+| H-2 | JWT Token 无吊销机制 | HIGH | 中-高 | P1 | ✅ 已修复（token-blacklist） |
+| H-3 | 双层验证冗余 | HIGH | 低 | P2 | ✅ 已修复（移除冗余验证） |
+| M-1 | Error.message 泄露风险 | MEDIUM | 低 | P2 | ✅ 已修复（固定消息） |
+| M-2 | verify 重复验证 | MEDIUM | 低 | P3 | ✅ 已修复（req.user） |
+| M-3 | getContext 输入验证 | MEDIUM | 低 | P2 | ✅ 已修复（parseInt+isNaN） |
+| M-4 | 查询参数类型断言 | MEDIUM | 低 | P2 | ✅ 已修复（Array.isArray） |
+| L-1 | view 角色权限边界 | LOW | 低 | P4 | ✅ 已修复（403拦截） |
+| L-2 | 模块级单例 | LOW | 中 | P4 | 待架构重构 |
+| L-3 | parseInt 冗余 | LOW | 低 | P4 | ✅ 已修复（移除parseInt） |
 
 ---
 

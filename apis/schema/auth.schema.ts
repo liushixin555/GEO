@@ -2,9 +2,9 @@ import { z } from 'zod';
 
 export const loginSchema = z.object({
   username: z.string({ error: '用户名不能为空' })
+    .trim()
     .min(1, '用户名不能为空')
-    .max(100, '用户名不能超过100个字符')
-    .trim(),
+    .max(100, '用户名不能超过100个字符'),
   password: z.string({ error: '密码不能为空' })
     .min(1, '密码不能为空')
     .max(200, '密码不能超过200个字符'),

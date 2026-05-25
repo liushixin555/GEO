@@ -12,20 +12,9 @@ const authService: IAuthService = new AuthServiceImpl();
 const BEARER_PREFIX = 'Bearer ';
 
 export async function login(req: Request, res: Response): Promise<void> {
+  // Zod loginSchema 已验证 username/password 为非空字符串且长度合规
   const { username, password } = req.body;
   try {
-    if (!username || !password) {
-      fail(res, 400, '用户名和密码不能为空');
-      return;
-    }
-    if (typeof username !== 'string' || typeof password !== 'string') {
-      fail(res, 400, '用户名和密码格式不正确');
-      return;
-    }
-    if (username.length > 100 || password.length > 200) {
-      fail(res, 400, '输入长度超出限制');
-      return;
-    }
     const result = await authService.login({ username, password });
     logger.info('auth.login.success', { userId: result.user.id, username, ip: req.ip });
     success(res, result, '登录成功');
@@ -74,17 +63,9 @@ export async function saveSelection(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const companyId = parseInt(req.body.company_id, 10);
-    const projectId = req.body.project_id != null ? parseInt(req.body.project_id, 10) : null;
-
-    if (isNaN(companyId) || companyId <= 0) {
-      fail(res, 400, 'company_id 必须为正整数');
-      return;
-    }
-    if (projectId !== null && (isNaN(projectId) || projectId <= 0)) {
-      fail(res, 400, 'project_id 必须为正整数或 null');
-      return;
-    }
+    // Zod saveSelectionSchema 已验证 company_id 为正整数、project_id 为正整数或 null
+    const companyId: number = req.body.company_id;
+    const projectId: number | null = req.body.project_id ?? null;
 
     await authService.saveSelection(user.userId, user.role, user.companyId, { company_id: companyId, project_id: projectId });
     logger.info('auth.selection.saved', { userId: user.userId, companyId, projectId, ip: req.ip });
@@ -121,7 +102,12 @@ export async function getAccessibleProjects(req: Request, res: Response): Promis
       fail(res, 401, '未登录');
       return;
     }
-    const companyId = parseInt(req.query.company_id as string, 10);
+    const rawCompanyId = req.query.company_id;
+    if (Array.isArray(rawCompanyId)) {
+      fail(res, 400, 'company_id 不允许多个值');
+      return;
+    }
+    const companyId = parseInt(rawCompanyId as string, 10);
     if (isNaN(companyId) || companyId <= 0) {
       fail(res, 400, 'company_id 必须为正整数');
       return;
@@ -142,7 +128,12 @@ export async function getContext(req: Request, res: Response): Promise<void> {
     }
     let targetCompanyId: number | undefined;
     if (req.query.company_id) {
-      targetCompanyId = parseInt(req.query.company_id as string, 10);
+      const rawCompanyId = req.query.company_id;
+      if (Array.isArray(rawCompanyId)) {
+        fail(res, 400, 'company_id 不允许多个值');
+        return;
+      }
+      targetCompanyId = parseInt(rawCompanyId as string, 10);
       if (isNaN(targetCompanyId) || targetCompanyId <= 0) {
         fail(res, 400, 'company_id 必须为正整数');
         return;

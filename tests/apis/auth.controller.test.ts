@@ -1254,14 +1254,13 @@ describe('Auth Controller', () => {
       expect(response.status).toBe(200);
     });
 
-    it('login should return 400 when username is whitespace only (trim→empty→controller)', async () => {
+    it('login should return 400 when username is whitespace only', async () => {
       const response = await agent
         .post(LOGIN)
         .send({ username: '   ', password: 'pass123' });
       expect(response.status).toBe(400);
-      // Zod trim() runs AFTER .min(1), so '   ' passes Zod (length 3),
-      // but controller receives '' after trim → !username triggers
-      expect(response.body.message).toBe('用户名和密码不能为空');
+      // Zod trim() runs BEFORE .min(1), so '   ' → '' → fails min(1)
+      expect(response.body.message).toBe('参数验证失败: 用户名不能为空');
     });
 
     it('login should handle non-Error thrown from service', async () => {
@@ -1492,60 +1491,6 @@ describe('Auth Controller', () => {
       return res;
     }
 
-    it('login should return 400 when username is not a string', async () => {
-      const { login } = require('../../apis/controller/auth.controller');
-      const req = { body: { username: 12345, password: 'pass123' } };
-      const res = mockRes();
-      await login(req, res);
-      expect(res.statusCode).toBe(400);
-      expect(res.body.message).toBe('用户名和密码格式不正确');
-    });
-
-    it('login should return 400 when password is not a string', async () => {
-      const { login } = require('../../apis/controller/auth.controller');
-      const req = { body: { username: 'admin', password: 12345 } };
-      const res = mockRes();
-      await login(req, res);
-      expect(res.statusCode).toBe(400);
-      expect(res.body.message).toBe('用户名和密码格式不正确');
-    });
-
-    it('login should return 400 when username is boolean', async () => {
-      const { login } = require('../../apis/controller/auth.controller');
-      const req = { body: { username: true, password: 'pass123' } };
-      const res = mockRes();
-      await login(req, res);
-      expect(res.statusCode).toBe(400);
-      expect(res.body.message).toBe('用户名和密码格式不正确');
-    });
-
-    it('login should return 400 when password is an object', async () => {
-      const { login } = require('../../apis/controller/auth.controller');
-      const req = { body: { username: 'admin', password: { val: 1 } } };
-      const res = mockRes();
-      await login(req, res);
-      expect(res.statusCode).toBe(400);
-      expect(res.body.message).toBe('用户名和密码格式不正确');
-    });
-
-    it('login should return 400 when username exceeds 100 characters', async () => {
-      const { login } = require('../../apis/controller/auth.controller');
-      const req = { body: { username: 'a'.repeat(101), password: 'pass123' } };
-      const res = mockRes();
-      await login(req, res);
-      expect(res.statusCode).toBe(400);
-      expect(res.body.message).toBe('输入长度超出限制');
-    });
-
-    it('login should return 400 when password exceeds 200 characters', async () => {
-      const { login } = require('../../apis/controller/auth.controller');
-      const req = { body: { username: 'admin', password: 'p'.repeat(201) } };
-      const res = mockRes();
-      await login(req, res);
-      expect(res.statusCode).toBe(400);
-      expect(res.body.message).toBe('输入长度超出限制');
-    });
-
     it('login should accept username at exactly 100 characters', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       getPrisma.mockReturnValue({
@@ -1571,60 +1516,6 @@ describe('Auth Controller', () => {
       await login(req, res);
       expect(res.statusCode).toBe(401);
       expect(res.body.message).toBe('用户名或密码错误');
-    });
-
-    it('saveSelection should return 400 when company_id parses to NaN', async () => {
-      const { saveSelection } = require('../../apis/controller/auth.controller');
-      const req = { body: { company_id: 'abc' }, user: { userId: 1, role: 'sysadmin', companyId: 1 } };
-      const res = mockRes();
-      await saveSelection(req, res);
-      expect(res.statusCode).toBe(400);
-      expect(res.body.message).toBe('company_id 必须为正整数');
-    });
-
-    it('saveSelection should return 400 when company_id is 0', async () => {
-      const { saveSelection } = require('../../apis/controller/auth.controller');
-      const req = { body: { company_id: 0 }, user: { userId: 1, role: 'sysadmin', companyId: 1 } };
-      const res = mockRes();
-      await saveSelection(req, res);
-      expect(res.statusCode).toBe(400);
-      expect(res.body.message).toBe('company_id 必须为正整数');
-    });
-
-    it('saveSelection should return 400 when company_id is negative', async () => {
-      const { saveSelection } = require('../../apis/controller/auth.controller');
-      const req = { body: { company_id: -5 }, user: { userId: 1, role: 'sysadmin', companyId: 1 } };
-      const res = mockRes();
-      await saveSelection(req, res);
-      expect(res.statusCode).toBe(400);
-      expect(res.body.message).toBe('company_id 必须为正整数');
-    });
-
-    it('saveSelection should return 400 when project_id is NaN', async () => {
-      const { saveSelection } = require('../../apis/controller/auth.controller');
-      const req = { body: { company_id: 1, project_id: 'abc' }, user: { userId: 1, role: 'sysadmin', companyId: 1 } };
-      const res = mockRes();
-      await saveSelection(req, res);
-      expect(res.statusCode).toBe(400);
-      expect(res.body.message).toBe('project_id 必须为正整数或 null');
-    });
-
-    it('saveSelection should return 400 when project_id is 0', async () => {
-      const { saveSelection } = require('../../apis/controller/auth.controller');
-      const req = { body: { company_id: 1, project_id: 0 }, user: { userId: 1, role: 'sysadmin', companyId: 1 } };
-      const res = mockRes();
-      await saveSelection(req, res);
-      expect(res.statusCode).toBe(400);
-      expect(res.body.message).toBe('project_id 必须为正整数或 null');
-    });
-
-    it('saveSelection should return 400 when project_id is negative', async () => {
-      const { saveSelection } = require('../../apis/controller/auth.controller');
-      const req = { body: { company_id: 1, project_id: -3 }, user: { userId: 1, role: 'sysadmin', companyId: 1 } };
-      const res = mockRes();
-      await saveSelection(req, res);
-      expect(res.statusCode).toBe(400);
-      expect(res.body.message).toBe('project_id 必须为正整数或 null');
     });
 
     it('saveSelection should accept project_id as null (bypasses Zod)', async () => {
@@ -1967,42 +1858,6 @@ describe('Auth Controller', () => {
       return res;
     }
 
-    it('login should return 400 when both username and password are missing (direct)', async () => {
-      const { login } = require('../../apis/controller/auth.controller');
-      const req = { body: {}, ip: '127.0.0.1' };
-      const res = mockRes();
-      await login(req, res);
-      expect(res.statusCode).toBe(400);
-      expect(res.body.message).toBe('用户名和密码不能为空');
-    });
-
-    it('login should return 400 when username is empty string (direct)', async () => {
-      const { login } = require('../../apis/controller/auth.controller');
-      const req = { body: { username: '', password: 'pass' }, ip: '127.0.0.1' };
-      const res = mockRes();
-      await login(req, res);
-      expect(res.statusCode).toBe(400);
-      expect(res.body.message).toBe('用户名和密码不能为空');
-    });
-
-    it('login should return 400 when password is empty string (direct)', async () => {
-      const { login } = require('../../apis/controller/auth.controller');
-      const req = { body: { username: 'admin', password: '' }, ip: '127.0.0.1' };
-      const res = mockRes();
-      await login(req, res);
-      expect(res.statusCode).toBe(400);
-      expect(res.body.message).toBe('用户名和密码不能为空');
-    });
-
-    it('login should return 400 when both username and password are empty (direct)', async () => {
-      const { login } = require('../../apis/controller/auth.controller');
-      const req = { body: { username: '', password: '' }, ip: '127.0.0.1' };
-      const res = mockRes();
-      await login(req, res);
-      expect(res.statusCode).toBe(400);
-      expect(res.body.message).toBe('用户名和密码不能为空');
-    });
-
     it('login should return 401 when user not found (direct)', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       getPrisma.mockReturnValue({
@@ -2110,20 +1965,6 @@ describe('Auth Controller', () => {
       expect(res.body.message).toBe('保存失败，请稍后重试');
     });
 
-    it('saveSelection should handle float company_id (parseInt truncation)', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      getPrisma.mockReturnValue({
-        company: { findMany: jest.fn().mockResolvedValue([{ id: 1, shortName: 'C1' }]) },
-        project: { findMany: jest.fn().mockResolvedValue([]) },
-        user: { update: jest.fn().mockResolvedValue(undefined) },
-      });
-      const { saveSelection } = require('../../apis/controller/auth.controller');
-      const req = { body: { company_id: 1.9 }, user: { userId: 1, role: 'sysadmin', companyId: 1 }, ip: '127.0.0.1' };
-      const res = mockRes();
-      await saveSelection(req, res);
-      // parseInt(1.9, 10) = 1, which is > 0, so it passes validation
-      expect(res.statusCode).toBe(200);
-    });
   });
 
   // ============================================================
@@ -2327,20 +2168,51 @@ describe('Auth Controller', () => {
       expect(response.status).toBe(200);
     });
 
-    it('saveSelection should handle string number company_id via direct call', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const prisma = {
-        company: { findMany: jest.fn().mockResolvedValue([{ id: 1, shortName: 'C1' }]) },
-        project: { findMany: jest.fn().mockResolvedValue([]) },
-        user: { update: jest.fn().mockResolvedValue(undefined) },
-      };
-      getPrisma.mockReturnValue(prisma);
-      const { saveSelection } = require('../../apis/controller/auth.controller');
-      const res = { statusCode: 200, body: {}, status(c: number) { res.statusCode = c; return res; }, json(d: any) { res.body = d; return res; } };
-      const req = { body: { company_id: '1' }, user: { userId: 1, role: 'sysadmin', companyId: 1 }, ip: '127.0.0.1' };
-      await saveSelection(req, res);
-      // parseInt('1', 10) = 1 → valid
-      expect(res.statusCode).toBe(200);
+  });
+
+  // ============================================================
+  // M-4 fix: HTTP Parameter Pollution tests (Array.isArray check)
+  // ============================================================
+  describe('M-4: Array query parameter rejection', () => {
+    it('getAccessibleProjects should return 400 when company_id is array', async () => {
+      const response = await agent
+        .get(PROJECTS)
+        .query('company_id=1&company_id=2')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('company_id 不允许多个值');
+    });
+
+    it('getContext should return 400 when company_id is array', async () => {
+      const response = await agent
+        .get(CONTEXT)
+        .query('company_id=1&company_id=2')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('company_id 不允许多个值');
+    });
+
+    it('getAccessibleProjects should accept single company_id', async () => {
+      const prisma = mockPrisma();
+      prisma.project.findMany.mockResolvedValue([]);
+
+      const response = await agent
+        .get(PROJECTS)
+        .query({ company_id: '1' })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(200);
+    });
+
+    it('getContext should accept single company_id', async () => {
+      const prisma = mockPrisma();
+      prisma.company.findMany.mockResolvedValue([{ id: 1, shortName: 'C1' }]);
+      prisma.project.findMany.mockResolvedValue([]);
+
+      const response = await agent
+        .get(CONTEXT)
+        .query({ company_id: '1' })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(200);
     });
   });
 
