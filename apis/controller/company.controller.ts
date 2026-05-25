@@ -3,6 +3,7 @@ import { CompanyServiceImpl } from '../service/impl/company.service.impl';
 import { success, fail, created } from '../utils';
 import { CreateCompanyRequest, UpdateCompanyRequest } from '../entity';
 import { NotFoundError, BusinessError } from '../errors';
+import { toggleCompanyStatusSchema } from '../schema/company.schema';
 
 const companyService = new CompanyServiceImpl();
 
@@ -92,7 +93,13 @@ export async function toggleCompanyStatus(req: Request, res: Response): Promise<
       return;
     }
 
-    const { status } = req.body;
+    const parsed = toggleCompanyStatusSchema.safeParse(req.body);
+    if (!parsed.success) {
+      fail(res, 400, parsed.error.issues.map(e => e.message).join('; '));
+      return;
+    }
+
+    const { status } = parsed.data;
     const company = await companyService.toggleStatus(id, status);
     success(res, company, status ? MSG_ENABLED : MSG_DISABLED);
   } catch (err: unknown) {

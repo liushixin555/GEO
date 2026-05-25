@@ -1,9 +1,9 @@
 # apis/controller/company.controller.ts — 软件架构专家评审报告
 
-**评审日期**: 2026-05-24
+**评审日期**: 2026-05-24（2026-05-26 修复 MINOR-1）
 **评审角色**: 软件架构专家（分层架构 + 依赖管理 + 职责边界 + 可扩展性 + 一致性）
 **文件路径**: `apis/controller/company.controller.ts`
-**代码行数**: 114 行（已从历史 237 行重构精简）
+**代码行数**: 116 行（已从历史 237 行重构精简）
 **依赖图**:
 
 ```
@@ -390,7 +390,29 @@ company.controller.ts
 2. **Zod schema 外置** — 验证规则独立管理，可复用、可独立测试
 3. **唯一不足**: `toggleCompanyStatus` 未迁移至 Zod 验证模式，是当前唯一需要修复的模块级问题
 
-**建议**: 将 MINOR-1（toggleStatus Zod 迁移）纳入下一个迭代，其余问题作为项目级统一重构计划处理。
+**建议**: ~~将 MINOR-1（toggleStatus Zod 迁移）纳入下一个迭代~~ **已于 2026-05-26 修复**，其余问题作为项目级统一重构计划处理。
+
+---
+
+## 八、修复记录
+
+### 2026-05-26: MINOR-1 修复 — toggleCompanyStatus Zod 验证迁移
+
+**修改文件**: `apis/controller/company.controller.ts`
+
+**变更内容**:
+1. 导入 `toggleCompanyStatusSchema`（schema 已预存在于 `company.schema.ts`）
+2. `toggleCompanyStatus` 函数中使用 `safeParse` 验证 `req.body`，替代直接解构 `req.body`
+3. 验证失败返回结构化错误消息（`parsed.error.issues.map(e => e.message).join('; ')`）
+
+**验证结果**:
+- `pnpm build` ✅
+- `pnpm lint` ✅
+- company 相关 509 个测试全部通过 ✅
+
+### OBS-2 确认: `as string` 非冗余
+
+经构建验证，Express 类型定义中 `req.params.id` 类型为 `string | string[]`，`as string` 断言为类型安全所需，保留不修改。
 
 ---
 
