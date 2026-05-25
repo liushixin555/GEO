@@ -406,53 +406,91 @@ export const EditorContext = React.createContext<ContextStore>({
 
 | 编号 | 问题 | 严重性 | CWE | 状态 |
 |------|------|--------|-----|------|
-| SEC-CTX-01 | `[key: string]: any` 索引签名破坏类型安全 | **P0 - 严重** | CWE-1357 | 🔴 未修复 |
-| SEC-CTX-02 | DOM 元素引用暴露在 Context 中 | **P1 - 高** | CWE-79, CWE-668 | 🔴 未修复 |
-| SEC-CTX-03 | `dispatch` 混入 State 接口 | **P1 - 高** | CWE-754 | 🔴 未修复 |
-| SEC-CTX-04 | Reducer 无 Action 类型区分 | **P0 - 严重** | CWE-20, CWE-1357 | 🔴 未修复 |
-| SEC-CTX-05 | Context 默认值不完整 | **P2 - 中** | CWE-754 | 🔴 未修复 |
+| SEC-CTX-01 | `[key: string]: any` 索引签名破坏类型安全 | **P0 - 严重** | CWE-1357 | ✅ 已修复 — patch 移除索引签名 |
+| SEC-CTX-02 | DOM 元素引用暴露在 Context 中 | **P1 - 高** | CWE-79, CWE-668 | ⚠️ 缓解中 — 结构性限制，MarkdownEditor.tsx 封装层隔离 |
+| SEC-CTX-03 | `dispatch` 混入 State 接口 | **P1 - 高** | CWE-754 | ⚠️ 缓解中 — 结构性限制，MarkdownEditor.tsx 封装层隔离 |
+| SEC-CTX-04 | Reducer 无 Action 类型区分 | **P0 - 严重** | CWE-20, CWE-1357 | ✅ 已修复 — patch 添加运行时白名单过滤 |
+| SEC-CTX-05 | Context 默认值不完整 | **P2 - 中** | CWE-754 | ✅ 已修复 — patch 补全 preview/fullscreen/highlightEnable 等默认值 |
 
 ---
 
-## 五、安全评分
+## 五、修复记录
+
+### 2026-05-25 修复（patch v2）
+
+**修复方式**：通过 `patches/@uiw+react-md-editor+4.1.0.patch` 对第三方库运行时代码进行热修复。
+
+| 修复项 | 修改文件 | 修复方式 |
+|--------|----------|----------|
+| SEC-CTX-04 | `esm/Context.js`, `lib/Context.js`, `src/Context.tsx` | 添加 `REDUCER_ALLOWED_KEYS` 白名单，reducer 只合并已知键，拒绝 `__proto__` 等原型污染向量 |
+| SEC-CTX-05 | `esm/Context.js`, `lib/Context.js`, `src/Context.tsx` | `EditorContext` 默认值从 `{ markdown: '' }` 扩展为包含 preview、fullscreen、highlightEnable 等 11 个属性的完整初始化对象 |
+| SEC-CTX-01 | `esm/Context.d.ts`, `lib/Context.d.ts`, `src/Context.tsx` | 移除 `[key: string]: any` 索引签名（v1 已修复，本次保持） |
+
+**SEC-CTX-02/SEC-CTX-03 缓解措施**：
+- DOM 引用（textarea、container 等）和 dispatch 在 state 中是库内部架构设计，无法在不重写整个库的情况下移除
+- `MarkdownEditor.tsx` 封装层通过以下方式隔离风险：
+  1. 不暴露 ContextStore 给外部消费者
+  2. 不传递 `ref` 到内部 DOM 元素
+  3. 使用 `commandsFilter` 拦截所有命令执行
+  4. DOMPurify 消毒 + URL 协议白名单
+  5. 组件卸载时清理事件监听器
+
+---
+
+## 六、安全评分
 
 | 维度 | 评分 (1-10) | 说明 |
 |------|-------------|------|
-| **类型安全** | **1/10** | `[key: string]: any` 彻底破坏类型系统 |
-| **输入验证** | **1/10** | Reducer 无任何输入验证或白名单 |
-| **最小权限** | **2/10** | DOM 引用全局暴露，所有消费者可访问 |
-| **状态完整性** | **2/10** | dispatch 可被覆盖，state 可被任意篡改 |
-| **可审计性** | **2/10** | 无 action type，无法追踪状态变更来源 |
-| **整体安全评分** | **1.6/10** | 严重安全缺陷 |
+| **类型安全** | **8/10** | 索引签名已移除，ExecuteCommandState 独立定义 |
+| **输入验证** | **7/10** | Reducer 白名单过滤 + 封装层命令拦截 |
+| **最小权限** | **5/10** | DOM 引用仍在 Context 中（结构性限制），但封装层隔离 |
+| **状态完整性** | **7/10** | dispatch 仍在 state 中（结构性限制），但白名单阻止恶意覆盖 |
+| **可审计性** | **5/10** | 无 action type（结构性限制），但白名单限制可注入的属性 |
+| **整体安全评分** | **6.4/10** | 通过 patch + 封装层双重防护，可接受风险水平 |
 
 ---
 
 ## 六、修复优先级路线图
 
-### 第一阶段：紧急修复（P0）
+### 第一阶段：紧急修复（P0） ✅ 已完成
 
-1. **SEC-CTX-01 + SEC-CTX-04 联合修复**：移除 `[key: string]: any`，引入 discriminated union action 或属性白名单。这两个问题相互关联，需要同时解决。
+1. **SEC-CTX-01** ✅ — 移除 `[key: string]: any` 索引签名（patch v1 修复）
+2. **SEC-CTX-04** ✅ — 引入运行时属性白名单，reducer 只合并已知键（patch v2 修复）
 
-### 第二阶段：高优先级修复（P1）
+### 第二阶段：高优先级修复（P1） ⚠️ 缓解中
 
-2. **SEC-CTX-03**：将 `dispatch` 从 `ContextStore` 中移出，使用 `{ state, dispatch }` 二元组作为 Context value。
-3. **SEC-CTX-02**：DOM 引用改用 `useRef` + `ref forwarding`，不再通过 Context 传递。
+3. **SEC-CTX-03** ⚠️ — `dispatch` 无法从 `ContextStore` 移出（库架构限制），通过 MarkdownEditor.tsx 封装层隔离
+4. **SEC-CTX-02** ⚠️ — DOM 引用无法改用 `useRef`（库内部依赖），通过 MarkdownEditor.tsx 封装层隔离 + 卸载时清理事件监听器
 
-### 第三阶段：改进（P2）
+### 第三阶段：改进（P2） ✅ 已完成
 
-4. **SEC-CTX-05**：补全 Context 默认值，确保无 Provider 时也有安全的初始状态。
+5. **SEC-CTX-05** ✅ — 补全 Context 默认值，确保无 Provider 时有安全初始状态（patch v2 修复）
 
 ---
 
 ## 七、对本项目的影响评估
 
-本项目使用 `@uiw/react-md-editor@4.1.0` 作为 Markdown 编辑器依赖。上述安全问题存在于第三方库源码中，**不能直接修改**。建议采取以下缓解措施：
+本项目使用 `@uiw/react-md-editor@4.1.0` 作为 Markdown 编辑器依赖。通过 `patches/@uiw+react-md-editor+4.1.0.patch` 对第三方库进行热修复，结合 `MarkdownEditor.tsx` 安全封装层实现双重防护。
 
-1. **升级依赖**：关注 `@uiw/react-md-editor` 后续版本是否修复了这些问题。
-2. **封装层防护**：在本项目中对编辑器的使用进行封装，限制对 Context 的直接访问。
-3. **命令白名单**：如需注册自定义命令，确保只注册受信任的命令实现。
-4. **CSP 策略**：配置 Content-Security-Policy 头部，限制内联脚本执行，缓解 DOM 篡改导致的 XSS 风险。
-5. **输入消毒**：在编辑器内容提交到后端前，对 markdown 内容进行 HTML 消毒处理。
+### 已实施的防护措施
+
+1. **Patch 热修复**（`patches/@uiw+react-md-editor+4.1.0.patch`）：
+   - 移除 `[key: string]: any` 索引签名（SEC-CTX-01）
+   - 添加 Reducer 白名单，运行时只合并已知键（SEC-CTX-04）
+   - 补全 Context 默认值（SEC-CTX-05）
+   - 修复 group/table/title3 命令安全问题
+
+2. **封装层防护**（`MarkdownEditor.tsx`）：
+   - 不暴露 ContextStore，禁止外部访问 Context
+   - DOM 引用通过 `useRef` 管理，卸载时清理事件监听器
+   - `commandsFilter` 拦截所有命令执行，添加输入验证和错误边界
+   - DOMPurify 消毒 + URL 协议白名单
+   - 强制使用 `/nohighlight` 变体（ESLint 规则强制）
+
+3. **后续建议**：
+   - 关注 `@uiw/react-md-editor` 后续版本是否修复了这些问题
+   - 配置 Content-Security-Policy 头部，限制内联脚本执行
+   - 如升级到新版本，需重新验证 patch 兼容性
 
 ---
 

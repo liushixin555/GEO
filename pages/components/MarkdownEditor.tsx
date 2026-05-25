@@ -4,11 +4,12 @@
  * ⚠️ 禁止改为标准入口（@uiw/react-md-editor）——标准版包含 rehype-raw XSS 风险
  *    始终使用 @uiw/react-md-editor/nohighlight 变体（ESLint 规则强制）
  *
- * 隔离 Context.tsx 已知缺陷：
- *   - [key: string]: any 索引签名（类型安全瓦解）
- *   - Reducer 无 Action 区分（状态不可追踪）
- *   - DOM 引用混入 Context（XSS 向量）
- *   - dispatch 混入 state（循环依赖）
+ * Context.tsx 安全缺陷及修复状态（via patches/@uiw+react-md-editor+4.1.0.patch）：
+ *   - SEC-CTX-01 ✅ [key: string]: any 索引签名已移除
+ *   - SEC-CTX-02 ⚠️ DOM 引用混入 Context——结构性限制，库内部依赖；本封装层隔离不暴露
+ *   - SEC-CTX-03 ⚠️ dispatch 混入 state——结构性限制，库内部依赖；本封装层隔离不暴露
+ *   - SEC-CTX-04 ✅ Reducer 白名单过滤——运行时只合并已知键，拒绝任意属性注入
+ *   - SEC-CTX-05 ✅ Context 默认值补全——preview/fullscreen/highlightEnable 等完整初始化
  *   - 零主题支持（无 Carbon 集成出口）
  *
  * 防护措施：
@@ -17,6 +18,7 @@
  *   3. 内容消毒 — 提交前通过 DOMPurify 消毒
  *   4. DOM 引用隔离 — ref 不暴露给外部
  *   5. Carbon Design System 样式对齐
+ *   6. Reducer 白名单 — 运行时拒绝未知键注入（patch 修复）
  */
 import React, { useCallback, useEffect, forwardRef, useImperativeHandle, useRef, useState, memo } from 'react';
 import MDEditor from '@uiw/react-md-editor/nohighlight';

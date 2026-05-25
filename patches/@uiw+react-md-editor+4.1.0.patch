@@ -38,6 +38,52 @@ index ede0897..7efd760 100644
 +}
 +export declare function reducer(state: ContextStore, action: ContextStore): ContextStore;
  export declare const EditorContext: React.Context<ContextStore>;
+diff --git a/node_modules/@uiw/react-md-editor/esm/Context.js b/node_modules/@uiw/react-md-editor/esm/Context.js
+index 18a2a64..324f28b 100644
+--- a/node_modules/@uiw/react-md-editor/esm/Context.js
++++ b/node_modules/@uiw/react-md-editor/esm/Context.js
+@@ -1,8 +1,38 @@
+ import _extends from "@babel/runtime/helpers/extends";
+ import React from 'react';
++
++// SEC-CTX-04: Reducer whitelist — only known keys are merged into state
++var REDUCER_ALLOWED_KEYS = new Set([
++  'components', 'commands', 'extraCommands', 'markdown', 'preview',
++  'height', 'fullscreen', 'highlightEnable', 'autoFocus', 'autoFocusEnd',
++  'textarea', 'commandOrchestrator', 'textareaWarp', 'textareaPre',
++  'container', 'dispatch', 'barPopup', 'scrollTop', 'scrollTopPreview',
++  'tabSize', 'defaultTabEnable'
++]);
++
+ export function reducer(state, action) {
+-  return _extends({}, state, action);
++  if (!action || typeof action !== 'object') return state;
++  var filtered = {};
++  var keys = Object.keys(action);
++  for (var i = 0; i < keys.length; i++) {
++    if (REDUCER_ALLOWED_KEYS.has(keys[i])) {
++      filtered[keys[i]] = action[keys[i]];
++    }
++  }
++  return _extends({}, state, filtered);
+ }
++
++// SEC-CTX-05: Complete default values for ContextStore
+ export var EditorContext = /*#__PURE__*/React.createContext({
+-  markdown: ''
++  markdown: '',
++  preview: 'live',
++  fullscreen: false,
++  highlightEnable: true,
++  autoFocus: false,
++  autoFocusEnd: false,
++  barPopup: {},
++  scrollTop: 0,
++  scrollTopPreview: 0,
++  tabSize: 2,
++  defaultTabEnable: true
+ });
+\ No newline at end of file
 diff --git a/node_modules/@uiw/react-md-editor/lib/Context.d.ts b/node_modules/@uiw/react-md-editor/lib/Context.d.ts
 index ede0897..7efd760 100644
 --- a/node_modules/@uiw/react-md-editor/lib/Context.d.ts
@@ -78,11 +124,57 @@ index ede0897..7efd760 100644
 +}
 +export declare function reducer(state: ContextStore, action: ContextStore): ContextStore;
  export declare const EditorContext: React.Context<ContextStore>;
+diff --git a/node_modules/@uiw/react-md-editor/lib/Context.js b/node_modules/@uiw/react-md-editor/lib/Context.js
+index 375c783..3ebaa5a 100644
+--- a/node_modules/@uiw/react-md-editor/lib/Context.js
++++ b/node_modules/@uiw/react-md-editor/lib/Context.js
+@@ -8,9 +8,39 @@ exports.EditorContext = void 0;
+ exports.reducer = reducer;
+ var _objectSpread2 = _interopRequireDefault(require("@babel/runtime/helpers/objectSpread2"));
+ var _react = _interopRequireDefault(require("react"));
++
++// SEC-CTX-04: Reducer whitelist — only known keys are merged into state
++var REDUCER_ALLOWED_KEYS = new Set([
++  'components', 'commands', 'extraCommands', 'markdown', 'preview',
++  'height', 'fullscreen', 'highlightEnable', 'autoFocus', 'autoFocusEnd',
++  'textarea', 'commandOrchestrator', 'textareaWarp', 'textareaPre',
++  'container', 'dispatch', 'barPopup', 'scrollTop', 'scrollTopPreview',
++  'tabSize', 'defaultTabEnable'
++]);
++
+ function reducer(state, action) {
+-  return (0, _objectSpread2["default"])((0, _objectSpread2["default"])({}, state), action);
++  if (!action || typeof action !== 'object') return state;
++  var filtered = {};
++  var keys = Object.keys(action);
++  for (var i = 0; i < keys.length; i++) {
++    if (REDUCER_ALLOWED_KEYS.has(keys[i])) {
++      filtered[keys[i]] = action[keys[i]];
++    }
++  }
++  return (0, _objectSpread2["default"])((0, _objectSpread2["default"])({}, state), filtered);
+ }
++
++// SEC-CTX-05: Complete default values for ContextStore
+ var EditorContext = exports.EditorContext = /*#__PURE__*/_react["default"].createContext({
+-  markdown: ''
++  markdown: '',
++  preview: 'live',
++  fullscreen: false,
++  highlightEnable: true,
++  autoFocus: false,
++  autoFocusEnd: false,
++  barPopup: {},
++  scrollTop: 0,
++  scrollTopPreview: 0,
++  tabSize: 2,
++  defaultTabEnable: true
+ });
 diff --git a/node_modules/@uiw/react-md-editor/src/Context.tsx b/node_modules/@uiw/react-md-editor/src/Context.tsx
-index 97ca08f..b4dbee7 100644
+index 97ca08f..ab905aa 100644
 --- a/node_modules/@uiw/react-md-editor/src/Context.tsx
 +++ b/node_modules/@uiw/react-md-editor/src/Context.tsx
-@@ -26,10 +26,13 @@ export interface ContextStore {
+@@ -26,13 +26,45 @@ export interface ContextStore {
    scrollTopPreview?: number;
    tabSize?: number;
    defaultTabEnable?: boolean;
@@ -95,9 +187,44 @@ index 97ca08f..b4dbee7 100644
 +  preview?: PreviewType;
 +  highlightEnable?: boolean;
 +}
++
++// SEC-CTX-04: Reducer whitelist — only known keys are merged into state
++const REDUCER_ALLOWED_KEYS = new Set([
++  'components', 'commands', 'extraCommands', 'markdown', 'preview',
++  'height', 'fullscreen', 'highlightEnable', 'autoFocus', 'autoFocusEnd',
++  'textarea', 'commandOrchestrator', 'textareaWarp', 'textareaPre',
++  'container', 'dispatch', 'barPopup', 'scrollTop', 'scrollTopPreview',
++  'tabSize', 'defaultTabEnable',
++]);
  
- export function reducer(state: ContextStore, action: ContextStore) {
-   return { ...state, ...action };
+-export function reducer(state: ContextStore, action: ContextStore) {
+-  return { ...state, ...action };
++export function reducer(state: ContextStore, action: ContextStore): ContextStore {
++  if (!action || typeof action !== 'object') return state;
++  const filtered: Partial<ContextStore> = {};
++  for (const key of Object.keys(action)) {
++    if (REDUCER_ALLOWED_KEYS.has(key)) {
++      (filtered as Record<string, unknown>)[key] = action[key as keyof ContextStore];
++    }
++  }
++  return { ...state, ...filtered };
+ }
+ 
+-export const EditorContext = React.createContext<ContextStore>({ markdown: '' });
++// SEC-CTX-05: Complete default values for ContextStore
++export const EditorContext = React.createContext<ContextStore>({
++  markdown: '',
++  preview: 'live',
++  fullscreen: false,
++  highlightEnable: true,
++  autoFocus: false,
++  autoFocusEnd: false,
++  barPopup: {},
++  scrollTop: 0,
++  scrollTopPreview: 0,
++  tabSize: 2,
++  defaultTabEnable: true,
++});
 diff --git a/node_modules/@uiw/react-md-editor/src/commands/group.tsx b/node_modules/@uiw/react-md-editor/src/commands/group.tsx
 index b9ca7f4..f6b71e2 100644
 --- a/node_modules/@uiw/react-md-editor/src/commands/group.tsx
