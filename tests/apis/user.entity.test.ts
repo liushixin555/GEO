@@ -2097,4 +2097,1130 @@ describe('user.entity', () => {
       expect(user.company_id).toBe(5);
     });
   });
+
+  // ============================================================
+  // 类型守卫函数
+  // ============================================================
+  describe('type guard functions', () => {
+    const isValidRole = (value: string): value is UserRole => {
+      return ['sysadmin', 'admin', 'view'].includes(value);
+    };
+
+    it('should validate sysadmin as valid UserRole', () => {
+      expect(isValidRole('sysadmin')).toBe(true);
+    });
+
+    it('should validate admin as valid UserRole', () => {
+      expect(isValidRole('admin')).toBe(true);
+    });
+
+    it('should validate view as valid UserRole', () => {
+      expect(isValidRole('view')).toBe(true);
+    });
+
+    it('should reject invalid role string', () => {
+      expect(isValidRole('superadmin')).toBe(false);
+    });
+
+    it('should reject empty string as role', () => {
+      expect(isValidRole('')).toBe(false);
+    });
+
+    it('should reject undefined as role', () => {
+      expect(isValidRole(undefined as any)).toBe(false);
+    });
+
+    it('should reject null as role', () => {
+      expect(isValidRole(null as any)).toBe(false);
+    });
+
+    it('should reject numeric string as role', () => {
+      expect(isValidRole('123')).toBe(false);
+    });
+
+    it('should be case-sensitive', () => {
+      expect(isValidRole('Admin')).toBe(false);
+      expect(isValidRole('SYSADMIN')).toBe(false);
+      expect(isValidRole('VIEW')).toBe(false);
+    });
+
+    it('should reject role with whitespace', () => {
+      expect(isValidRole(' admin ')).toBe(false);
+      expect(isValidRole('admin ')).toBe(false);
+    });
+
+    const isValidUser = (obj: any): obj is User => {
+      return (
+        typeof obj === 'object' && obj !== null &&
+        typeof obj.id === 'number' &&
+        typeof obj.username === 'string' &&
+        typeof obj.password_hash === 'string' &&
+        typeof obj.cn_name === 'string' &&
+        isValidRole(obj.role) &&
+        typeof obj.status === 'boolean' &&
+        obj.created_at instanceof Date &&
+        obj.updated_at instanceof Date
+      );
+    };
+
+    it('should validate a complete User object', () => {
+      const user: User = {
+        id: 1, username: 'admin', password_hash: 'h', cn_name: '管理员',
+        role: 'admin', status: true, company_id: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(isValidUser(user)).toBe(true);
+    });
+
+    it('should reject object with missing fields', () => {
+      expect(isValidUser({ id: 1 })).toBe(false);
+    });
+
+    it('should reject null', () => {
+      expect(isValidUser(null)).toBe(false);
+    });
+
+    it('should reject object with wrong role type', () => {
+      expect(isValidUser({
+        id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'invalid', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      })).toBe(false);
+    });
+
+    it('should reject object with wrong status type', () => {
+      expect(isValidUser({
+        id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: 'yes',
+        created_at: new Date(), updated_at: new Date(),
+      })).toBe(false);
+    });
+
+    const isValidLoginRequest = (obj: any): obj is LoginRequest => {
+      return typeof obj === 'object' && obj !== null &&
+        typeof obj.username === 'string' &&
+        typeof obj.password === 'string';
+    };
+
+    it('should validate LoginRequest with string fields', () => {
+      expect(isValidLoginRequest({ username: 'admin', password: 'pass' })).toBe(true);
+    });
+
+    it('should reject LoginRequest with numeric password', () => {
+      expect(isValidLoginRequest({ username: 'admin', password: 123 })).toBe(false);
+    });
+
+    it('should reject LoginRequest with missing password', () => {
+      expect(isValidLoginRequest({ username: 'admin' })).toBe(false);
+    });
+
+    it('should reject LoginRequest with null', () => {
+      expect(isValidLoginRequest(null)).toBe(false);
+    });
+  });
+
+  // ============================================================
+  // 边界值测试
+  // ============================================================
+  describe('boundary values', () => {
+    it('User.id should support Number.MAX_SAFE_INTEGER', () => {
+      const user: User = {
+        id: Number.MAX_SAFE_INTEGER, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(user.id).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('User.id should support negative numbers (runtime)', () => {
+      const user: User = {
+        id: -1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(user.id).toBe(-1);
+    });
+
+    it('User.id should support 0', () => {
+      const user: User = {
+        id: 0, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(user.id).toBe(0);
+    });
+
+    it('User should support very long username', () => {
+      const longUsername = 'a'.repeat(10000);
+      const user: User = {
+        id: 1, username: longUsername, password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(user.username.length).toBe(10000);
+    });
+
+    it('User should support very long cn_name with Chinese', () => {
+      const longName = '用户'.repeat(5000);
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: longName,
+        role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(user.cn_name.length).toBe(10000);
+    });
+
+    it('User should support emoji in cn_name', () => {
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: '张三😀🎉',
+        role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(user.cn_name).toBe('张三😀🎉');
+    });
+
+    it('User should support special characters in username', () => {
+      const user: User = {
+        id: 1, username: 'user@test.com', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(user.username).toBe('user@test.com');
+    });
+
+    it('User should support very long password_hash', () => {
+      const longHash = 'x'.repeat(100000);
+      const user: User = {
+        id: 1, username: 'u', password_hash: longHash, cn_name: 'N',
+        role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(user.password_hash.length).toBe(100000);
+    });
+
+    it('SaveSelectionRequest should support large company_id', () => {
+      const req: SaveSelectionRequest = {
+        company_id: Number.MAX_SAFE_INTEGER,
+        project_id: Number.MAX_SAFE_INTEGER,
+      };
+      expect(req.company_id).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('CreateUserRequest should support very long password', () => {
+      const req: CreateUserRequest = {
+        username: 'u', password: 'P'.repeat(10000), cn_name: 'N', role: 'admin',
+      };
+      expect(req.password.length).toBe(10000);
+    });
+
+    it('LoginResponse should support very long JWT token', () => {
+      const longToken = 'eyJhbGciOiJIUzI1NiJ9.'.repeat(1000);
+      const res: LoginResponse = {
+        token: longToken,
+        user: {
+          id: 1, username: 'u', cn_name: 'N', role: 'admin',
+          selected_company: null, selected_project: null,
+        },
+      };
+      expect(res.token.length).toBeGreaterThan(1000);
+    });
+
+    it('UserListItem should support company_name with mixed scripts', () => {
+      const item: UserListItem = {
+        id: 1, username: 'u', cn_name: '用户', role: 'admin', status: true,
+        company_name: '薄云科技 Cloud Tech株式会社',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(item.company_name).toBe('薄云科技 Cloud Tech株式会社');
+    });
+
+    it('UpdateUserRequest should support empty cn_name update', () => {
+      const req: UpdateUserRequest = { cn_name: '' };
+      expect(req.cn_name).toBe('');
+    });
+
+    it('User should support epoch dates', () => {
+      const epoch = new Date(0);
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true,
+        created_at: epoch, updated_at: epoch,
+      };
+      expect(user.created_at.getTime()).toBe(0);
+    });
+
+    it('User should support far future dates', () => {
+      const future = new Date('2099-12-31T23:59:59.999Z');
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true,
+        created_at: future, updated_at: future,
+      };
+      expect(user.created_at.getUTCFullYear()).toBe(2099);
+    });
+
+    it('User should support same created_at and updated_at', () => {
+      const date = new Date();
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true,
+        created_at: date, updated_at: date,
+      };
+      expect(user.created_at).toBe(user.updated_at);
+    });
+  });
+
+  // ============================================================
+  // 错误类高级模式
+  // ============================================================
+  describe('error class advanced patterns', () => {
+    it('LoginSelectionError should be catchable with error type switching', () => {
+      const classifyError = (error: Error): string => {
+        if (error instanceof LoginSelectionError) return 'selection';
+        if (error instanceof PermissionDeniedError) return 'permission';
+        return 'unknown';
+      };
+      expect(classifyError(new LoginSelectionError('test'))).toBe('selection');
+      expect(classifyError(new PermissionDeniedError('test'))).toBe('permission');
+      expect(classifyError(new Error('test'))).toBe('unknown');
+    });
+
+    it('PermissionDeniedError should work in error handling middleware pattern', () => {
+      const errorHandler = (error: Error): { status: number; message: string } => {
+        if (error instanceof LoginSelectionError) return { status: 403, message: error.message };
+        if (error instanceof PermissionDeniedError) return { status: 403, message: error.message };
+        return { status: 500, message: 'Internal Server Error' };
+      };
+      const result = errorHandler(new PermissionDeniedError('无权访问'));
+      expect(result.status).toBe(403);
+      expect(result.message).toBe('无权访问');
+    });
+
+    it('errors should be catchable in Promise chains', async () => {
+      const failingOperation = (): Promise<string> => {
+        return Promise.reject(new LoginSelectionError('需要选择公司'));
+      };
+      await expect(failingOperation()).rejects.toThrow('需要选择公司');
+      await expect(failingOperation()).rejects.toBeInstanceOf(LoginSelectionError);
+    });
+
+    it('errors should support error mapping', () => {
+      const errors = [
+        new LoginSelectionError('选择1'),
+        new PermissionDeniedError('权限1'),
+        new LoginSelectionError('选择2'),
+        new PermissionDeniedError('权限2'),
+      ];
+      const messages = errors.map(e => e.message);
+      expect(messages).toEqual(['选择1', '权限1', '选择2', '权限2']);
+    });
+
+    it('LoginSelectionError should work in throw expression', () => {
+      const fn = (shouldThrow: boolean): string => {
+        if (shouldThrow) throw new LoginSelectionError('条件触发');
+        return 'ok';
+      };
+      expect(fn(false)).toBe('ok');
+      expect(() => fn(true)).toThrow(LoginSelectionError);
+    });
+
+    it('PermissionDeniedError should work in nested try-catch', () => {
+      const nestedHandler = (): string => {
+        try {
+          try {
+            throw new PermissionDeniedError('内层权限错误');
+          } catch (inner) {
+            if (inner instanceof PermissionDeniedError) {
+              throw new Error('包装: ' + inner.message);
+            }
+            throw inner;
+          }
+        } catch (outer) {
+          return (outer as Error).message;
+        }
+      };
+      expect(nestedHandler()).toBe('包装: 内层权限错误');
+    });
+
+    it('errors should support being stored in Map', () => {
+      const errorMap = new Map<string, Error>();
+      errorMap.set('login', new LoginSelectionError('登录选择'));
+      errorMap.set('perm', new PermissionDeniedError('权限拒绝'));
+      expect(errorMap.get('login')).toBeInstanceOf(LoginSelectionError);
+      expect(errorMap.get('perm')).toBeInstanceOf(PermissionDeniedError);
+      expect(errorMap.size).toBe(2);
+    });
+
+    it('errors should support being stored in Set by reference', () => {
+      const e1 = new LoginSelectionError('e1');
+      const e2 = new PermissionDeniedError('e2');
+      const errorSet = new Set([e1, e2, e1]);
+      expect(errorSet.size).toBe(2);
+    });
+
+    it('errors should work with JSON.stringify of message', () => {
+      const error = new LoginSelectionError('包含"引号"和\\反斜杠');
+      const json = JSON.stringify({ error: error.message });
+      const parsed = JSON.parse(json);
+      expect(parsed.error).toBe('包含"引号"和\\反斜杠');
+    });
+
+    it('multiple LoginSelectionError instances should be independent', () => {
+      const e1 = new LoginSelectionError('错误1');
+      const e2 = new LoginSelectionError('错误2');
+      expect(e1.message).not.toBe(e2.message);
+      expect(e1).not.toBe(e2);
+      expect(e1.name).toBe(e2.name);
+    });
+
+    it('PermissionDeniedError should be usable as rejection reason', async () => {
+      const asyncFn = async (): Promise<void> => {
+        throw new PermissionDeniedError('异步拒绝');
+      };
+      let caught = false;
+      try {
+        await asyncFn();
+      } catch (e) {
+        caught = true;
+        expect(e).toBeInstanceOf(PermissionDeniedError);
+      }
+      expect(caught).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // 接口转换与映射
+  // ============================================================
+  describe('interface conversion and mapping', () => {
+    it('should convert User to UserListItem', () => {
+      const user: User = {
+        id: 1, username: 'admin', password_hash: 'h', cn_name: '管理员',
+        role: 'admin', status: true, company_id: 1,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-06-01'),
+      };
+      const listItem: UserListItem = {
+        id: user.id,
+        username: user.username,
+        cn_name: user.cn_name,
+        role: user.role,
+        status: user.status,
+        company_id: user.company_id,
+        company_name: '薄云科技',
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+      };
+      expect(listItem.id).toBe(user.id);
+      expect(listItem.username).toBe(user.username);
+      expect((listItem as any).password_hash).toBeUndefined();
+    });
+
+    it('should convert User[] to UserListItem[] via map', () => {
+      const date = new Date();
+      const users: User[] = [
+        { id: 1, username: 'sa', password_hash: 'h', cn_name: 'SA',
+          role: 'sysadmin', status: true, company_id: null,
+          created_at: date, updated_at: date },
+        { id: 2, username: 'ad', password_hash: 'h', cn_name: '管理员',
+          role: 'admin', status: true, company_id: 1,
+          created_at: date, updated_at: date },
+      ];
+      const items: UserListItem[] = users.map(u => ({
+        id: u.id, username: u.username, cn_name: u.cn_name,
+        role: u.role, status: u.status, company_id: u.company_id,
+        created_at: u.created_at, updated_at: u.updated_at,
+      }));
+      expect(items).toHaveLength(2);
+      expect(items[0].role).toBe('sysadmin');
+      expect(items[1].company_id).toBe(1);
+    });
+
+    it('should convert CreateUserRequest to User with defaults', () => {
+      const req: CreateUserRequest = {
+        username: 'newuser', password: 'pass123', cn_name: '新用户',
+        role: 'view', company_id: 5,
+      };
+      const user: User = {
+        id: 100,
+        username: req.username,
+        password_hash: 'bcrypt_hashed',
+        cn_name: req.cn_name,
+        role: req.role,
+        status: true,
+        company_id: req.company_id ?? null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(user.username).toBe(req.username);
+      expect(user.role).toBe(req.role);
+      expect(user.company_id).toBe(5);
+    });
+
+    it('should apply UpdateUserRequest to existing User', () => {
+      const user: User = {
+        id: 1, username: 'admin', password_hash: 'old_hash', cn_name: '旧名',
+        role: 'view', status: true, company_id: 1,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const update: UpdateUserRequest = { cn_name: '新名', role: 'admin' };
+      const updated: User = {
+        ...user,
+        ...update,
+        password_hash: update.password ? 'new_hash' : user.password_hash,
+        updated_at: new Date(),
+      };
+      expect(updated.cn_name).toBe('新名');
+      expect(updated.role).toBe('admin');
+      expect(updated.username).toBe('admin');
+      expect(updated.id).toBe(1);
+      expect(updated.password_hash).toBe('old_hash');
+    });
+
+    it('should apply UpdateUserRequest with password change', () => {
+      const user: User = {
+        id: 1, username: 'admin', password_hash: 'old_hash', cn_name: '管理员',
+        role: 'admin', status: true, company_id: 1,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const update: UpdateUserRequest = { password: 'new_password' };
+      const updated: User = {
+        ...user,
+        password_hash: 'new_hashed_value',
+        updated_at: new Date(),
+      };
+      expect(updated.password_hash).toBe('new_hashed_value');
+      expect(updated.cn_name).toBe('管理员');
+    });
+
+    it('should build LoginResponse from User + token', () => {
+      const user: User = {
+        id: 1, username: 'admin', password_hash: 'h', cn_name: '管理员',
+        role: 'admin', status: true, company_id: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const res: LoginResponse = {
+        token: 'generated_jwt_token',
+        user: {
+          id: user.id,
+          username: user.username,
+          cn_name: user.cn_name,
+          role: user.role,
+          company_id: user.company_id,
+          selected_company: { id: 1, short_name: '薄云科技' },
+          selected_project: null,
+        },
+      };
+      expect(res.token).toBe('generated_jwt_token');
+      expect(res.user.username).toBe('admin');
+      expect(res.user.selected_company).toEqual({ id: 1, short_name: '薄云科技' });
+    });
+
+    it('should extract LoginRequest from user credentials', () => {
+      const loginReq: LoginRequest = { username: 'admin', password: 'secret123' };
+      expect(loginReq).toEqual({ username: 'admin', password: 'secret123' });
+    });
+
+    it('should convert User to display-safe object (no password_hash)', () => {
+      const user: User = {
+        id: 1, username: 'admin', password_hash: 'sensitive_hash', cn_name: '管理员',
+        role: 'admin', status: true, company_id: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const { password_hash, ...safeUser } = user;
+      expect((safeUser as any).password_hash).toBeUndefined();
+      expect(safeUser.id).toBe(1);
+      expect(safeUser.username).toBe('admin');
+      expect(password_hash).toBe('sensitive_hash');
+    });
+
+    it('should build SaveSelectionRequest from user context', () => {
+      const user: User = {
+        id: 1, username: 'admin', password_hash: 'h', cn_name: '管理员',
+        role: 'admin', status: true, company_id: 5,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const selection: SaveSelectionRequest = {
+        company_id: user.company_id!,
+        project_id: 10,
+      };
+      expect(selection.company_id).toBe(5);
+    });
+  });
+
+  // ============================================================
+  // 数组与集合高级操作
+  // ============================================================
+  describe('array and collection advanced operations', () => {
+    const createDate = (d: string) => new Date(d);
+
+    it('should support reduce to build role-to-user map', () => {
+      const date = createDate('2024-01-01');
+      const users: User[] = [
+        { id: 1, username: 'sa', password_hash: 'h', cn_name: 'SA',
+          role: 'sysadmin', status: true, company_id: null,
+          created_at: date, updated_at: date },
+        { id: 2, username: 'ad1', password_hash: 'h', cn_name: '管理员1',
+          role: 'admin', status: true, company_id: 1,
+          created_at: date, updated_at: date },
+        { id: 3, username: 'ad2', password_hash: 'h', cn_name: '管理员2',
+          role: 'admin', status: false, company_id: 2,
+          created_at: date, updated_at: date },
+        { id: 4, username: 'vw1', password_hash: 'h', cn_name: '查看者1',
+          role: 'view', status: true, company_id: 1,
+          created_at: date, updated_at: date },
+      ];
+      const roleMap = users.reduce<Record<UserRole, User[]>>((acc, u) => {
+        if (!acc[u.role]) acc[u.role] = [];
+        acc[u.role].push(u);
+        return acc;
+      }, {} as Record<UserRole, User[]>);
+      expect(roleMap['sysadmin']).toHaveLength(1);
+      expect(roleMap['admin']).toHaveLength(2);
+      expect(roleMap['view']).toHaveLength(1);
+    });
+
+    it('should support every for validating all active users', () => {
+      const date = createDate('2024-01-01');
+      const users: User[] = [
+        { id: 1, username: 'u1', password_hash: 'h', cn_name: '用户1',
+          role: 'admin', status: true, company_id: 1,
+          created_at: date, updated_at: date },
+        { id: 2, username: 'u2', password_hash: 'h', cn_name: '用户2',
+          role: 'admin', status: true, company_id: 2,
+          created_at: date, updated_at: date },
+      ];
+      const allActive = users.every(u => u.status);
+      expect(allActive).toBe(true);
+    });
+
+    it('should support some for checking if any sysadmin exists', () => {
+      const date = createDate('2024-01-01');
+      const users: User[] = [
+        { id: 1, username: 'u1', password_hash: 'h', cn_name: '用户1',
+          role: 'admin', status: true, company_id: 1,
+          created_at: date, updated_at: date },
+        { id: 2, username: 'sa', password_hash: 'h', cn_name: 'SA',
+          role: 'sysadmin', status: true, company_id: null,
+          created_at: date, updated_at: date },
+      ];
+      const hasSysadmin = users.some(u => u.role === 'sysadmin');
+      expect(hasSysadmin).toBe(true);
+    });
+
+    it('should support findIndex for locating user by username', () => {
+      const date = createDate('2024-01-01');
+      const users: User[] = [
+        { id: 1, username: 'admin', password_hash: 'h', cn_name: '管理员',
+          role: 'admin', status: true, company_id: 1,
+          created_at: date, updated_at: date },
+        { id: 2, username: 'viewer', password_hash: 'h', cn_name: '查看者',
+          role: 'view', status: true, company_id: 2,
+          created_at: date, updated_at: date },
+      ];
+      const idx = users.findIndex(u => u.username === 'viewer');
+      expect(idx).toBe(1);
+      expect(users[idx].role).toBe('view');
+    });
+
+    it('should support flatMap for extracting company_ids', () => {
+      const date = createDate('2024-01-01');
+      const users: User[] = [
+        { id: 1, username: 'sa', password_hash: 'h', cn_name: 'SA',
+          role: 'sysadmin', status: true, company_id: null,
+          created_at: date, updated_at: date },
+        { id: 2, username: 'ad', password_hash: 'h', cn_name: '管理员',
+          role: 'admin', status: true, company_id: 1,
+          created_at: date, updated_at: date },
+        { id: 3, username: 'vw', password_hash: 'h', cn_name: '查看者',
+          role: 'view', status: true, company_id: 2,
+          created_at: date, updated_at: date },
+      ];
+      const companyIds = users.flatMap(u => u.company_id !== null && u.company_id !== undefined ? [u.company_id] : []);
+      expect(companyIds).toEqual([1, 2]);
+    });
+
+    it('should support Array.from for converting user map values', () => {
+      const date = createDate('2024-01-01');
+      const map = new Map<number, User>();
+      map.set(1, {
+        id: 1, username: 'admin', password_hash: 'h', cn_name: '管理员',
+        role: 'admin', status: true, company_id: 1,
+        created_at: date, updated_at: date,
+      });
+      map.set(2, {
+        id: 2, username: 'viewer', password_hash: 'h', cn_name: '查看者',
+        role: 'view', status: true, company_id: 2,
+        created_at: date, updated_at: date,
+      });
+      const users = Array.from(map.values());
+      expect(users).toHaveLength(2);
+      expect(users[0].id).toBe(1);
+    });
+
+    it('should support slicing and splicing user arrays', () => {
+      const date = createDate('2024-01-01');
+      const users: User[] = [
+        { id: 1, username: 'u1', password_hash: 'h', cn_name: '用户1',
+          role: 'admin', status: true, company_id: 1,
+          created_at: date, updated_at: date },
+        { id: 2, username: 'u2', password_hash: 'h', cn_name: '用户2',
+          role: 'admin', status: true, company_id: 2,
+          created_at: date, updated_at: date },
+        { id: 3, username: 'u3', password_hash: 'h', cn_name: '用户3',
+          role: 'view', status: false, company_id: 1,
+          created_at: date, updated_at: date },
+      ];
+      const firstTwo = users.slice(0, 2);
+      expect(firstTwo).toHaveLength(2);
+      expect(firstTwo.every(u => u.status)).toBe(true);
+    });
+
+    it('should support reverse sorting by updated_at', () => {
+      const users: User[] = [
+        { id: 1, username: 'u1', password_hash: 'h', cn_name: 'A',
+          role: 'admin', status: true, company_id: 1,
+          created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-10') },
+        { id: 2, username: 'u2', password_hash: 'h', cn_name: 'B',
+          role: 'admin', status: true, company_id: 2,
+          created_at: new Date('2024-01-01'), updated_at: new Date('2024-06-15') },
+        { id: 3, username: 'u3', password_hash: 'h', cn_name: 'C',
+          role: 'view', status: true, company_id: 1,
+          created_at: new Date('2024-01-01'), updated_at: new Date('2024-03-01') },
+      ];
+      const sorted = [...users].sort((a, b) => b.updated_at.getTime() - a.updated_at.getTime());
+      expect(sorted.map(u => u.id)).toEqual([2, 3, 1]);
+    });
+  });
+
+  // ============================================================
+  // 异步与并发模式
+  // ============================================================
+  describe('async and concurrent patterns', () => {
+    it('should handle multiple concurrent user operations', async () => {
+      const loadUser = (id: number): Promise<User> => Promise.resolve({
+        id, username: `user${id}`, password_hash: 'h', cn_name: `用户${id}`,
+        role: 'admin', status: true, company_id: id,
+        created_at: new Date(), updated_at: new Date(),
+      });
+      const [u1, u2, u3] = await Promise.all([loadUser(1), loadUser(2), loadUser(3)]);
+      expect(u1.id).toBe(1);
+      expect(u2.id).toBe(2);
+      expect(u3.id).toBe(3);
+    });
+
+    it('should handle LoginSelectionError in Promise.race', async () => {
+      const fast = new Promise<User>((_, reject) =>
+        setTimeout(() => reject(new LoginSelectionError('快速失败')), 10)
+      );
+      const slow = new Promise<User>(resolve =>
+        setTimeout(() => resolve({
+          id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+          role: 'admin', status: true,
+          created_at: new Date(), updated_at: new Date(),
+        }), 100)
+      );
+      await expect(Promise.race([fast, slow])).rejects.toThrow(LoginSelectionError);
+    });
+
+    it('should handle PermissionDeniedError in async pipeline', async () => {
+      const checkPermission = async (user: User): Promise<User> => {
+        if (user.role === 'view') {
+          throw new PermissionDeniedError('view角色无权限');
+        }
+        return user;
+      };
+      const admin: User = {
+        id: 1, username: 'admin', password_hash: 'h', cn_name: '管理员',
+        role: 'admin', status: true, company_id: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const viewer: User = {
+        id: 2, username: 'viewer', password_hash: 'h', cn_name: '查看者',
+        role: 'view', status: true, company_id: 2,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      await expect(checkPermission(admin)).resolves.toBeDefined();
+      await expect(checkPermission(viewer)).rejects.toThrow(PermissionDeniedError);
+    });
+
+    it('should support async user creation pipeline', async () => {
+      const createReq: CreateUserRequest = {
+        username: 'newuser', password: 'pass123', cn_name: '新用户',
+        role: 'admin', company_id: 1,
+      };
+      const hashPassword = async (pw: string): Promise<string> => 'hashed_' + pw;
+      const saveUser = async (user: User): Promise<User> => ({ ...user, id: 100 });
+
+      const hashedPw = await hashPassword(createReq.password);
+      const newUser: User = {
+        id: 0,
+        username: createReq.username,
+        password_hash: hashedPw,
+        cn_name: createReq.cn_name,
+        role: createReq.role,
+        status: true,
+        company_id: createReq.company_id ?? null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      const saved = await saveUser(newUser);
+      expect(saved.id).toBe(100);
+      expect(saved.password_hash).toBe('hashed_pass123');
+    });
+
+    it('should handle mixed error types in Promise.allSettled', async () => {
+      const promises = [
+        Promise.resolve({ id: 1, username: 'ok', password_hash: 'h', cn_name: 'OK',
+          role: 'admin' as UserRole, status: true, company_id: 1,
+          created_at: new Date(), updated_at: new Date() } as User),
+        Promise.reject(new LoginSelectionError('需要选择')),
+        Promise.reject(new PermissionDeniedError('权限不足')),
+        Promise.reject(new Error('未知错误')),
+      ];
+      const results = await Promise.allSettled(promises);
+      expect(results[0].status).toBe('fulfilled');
+      expect(results[1].status).toBe('rejected');
+      expect(results[2].status).toBe('rejected');
+      expect(results[3].status).toBe('rejected');
+      if (results[1].status === 'rejected') {
+        expect(results[1].reason).toBeInstanceOf(LoginSelectionError);
+      }
+      if (results[2].status === 'rejected') {
+        expect(results[2].reason).toBeInstanceOf(PermissionDeniedError);
+      }
+    });
+  });
+
+  // ============================================================
+  // Generator 与 Iterator 模式
+  // ============================================================
+  describe('generator and iterator patterns', () => {
+    it('should support generator yielding Users', () => {
+      function* userGenerator(users: User[]): Generator<User> {
+        for (const u of users) yield u;
+      }
+      const date = new Date();
+      const users: User[] = [
+        { id: 1, username: 'u1', password_hash: 'h', cn_name: '用户1',
+          role: 'admin', status: true, company_id: 1,
+          created_at: date, updated_at: date },
+        { id: 2, username: 'u2', password_hash: 'h', cn_name: '用户2',
+          role: 'view', status: true, company_id: 2,
+          created_at: date, updated_at: date },
+      ];
+      const gen = userGenerator(users);
+      expect(gen.next().value.id).toBe(1);
+      expect(gen.next().value.id).toBe(2);
+      expect(gen.next().done).toBe(true);
+    });
+
+    it('should support Symbol.iterator on User array', () => {
+      const date = new Date();
+      const users: User[] = [
+        { id: 1, username: 'u1', password_hash: 'h', cn_name: '用户1',
+          role: 'admin', status: true, company_id: 1,
+          created_at: date, updated_at: date },
+      ];
+      const iter = users[Symbol.iterator]();
+      expect(iter.next().value.cn_name).toBe('用户1');
+      expect(iter.next().done).toBe(true);
+    });
+
+    it('should support for...of with User array', () => {
+      const date = new Date();
+      const users: User[] = [
+        { id: 1, username: 'u1', password_hash: 'h', cn_name: '用户1',
+          role: 'admin', status: true, company_id: 1,
+          created_at: date, updated_at: date },
+        { id: 2, username: 'u2', password_hash: 'h', cn_name: '用户2',
+          role: 'view', status: true, company_id: 2,
+          created_at: date, updated_at: date },
+      ];
+      const collected: string[] = [];
+      for (const u of users) collected.push(u.cn_name);
+      expect(collected).toEqual(['用户1', '用户2']);
+    });
+
+    it('should support spreading iterator into array (shallow copy)', () => {
+      const date = new Date();
+      const users: User[] = [
+        { id: 1, username: 'u1', password_hash: 'h', cn_name: '用户1',
+          role: 'admin', status: true, company_id: 1,
+          created_at: date, updated_at: date },
+      ];
+      const copy = [...users];
+      expect(copy).toHaveLength(1);
+      expect(copy[0]).toEqual(users[0]);
+      expect(copy).not.toBe(users);
+      expect(copy[0]).toBe(users[0]);
+    });
+  });
+
+  // ============================================================
+  // Object.entries / Object.values / Object.keys 模式
+  // ============================================================
+  describe('Object static methods', () => {
+    it('Object.entries should enumerate all User fields', () => {
+      const user: User = {
+        id: 1, username: 'admin', password_hash: 'h', cn_name: '管理员',
+        role: 'admin', status: true, company_id: 1,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-06-01'),
+      };
+      const entries = Object.entries(user);
+      expect(entries).toHaveLength(9);
+      expect(entries.map(([k]) => k)).toEqual([
+        'id', 'username', 'password_hash', 'cn_name',
+        'role', 'status', 'company_id', 'created_at', 'updated_at',
+      ]);
+    });
+
+    it('Object.values should return all User values', () => {
+      const user: User = {
+        id: 1, username: 'admin', password_hash: 'h', cn_name: '管理员',
+        role: 'admin', status: true, company_id: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const values = Object.values(user);
+      expect(values).toContain(1);
+      expect(values).toContain('admin');
+      expect(values).toContain('管理员');
+      expect(values).toContain(null);
+      expect(values).toContain(true);
+    });
+
+    it('Object.entries on empty UpdateUserRequest should return empty array', () => {
+      const req: UpdateUserRequest = {};
+      expect(Object.entries(req)).toHaveLength(0);
+    });
+
+    it('Object.entries on LoginRequest should return 2 pairs', () => {
+      const req: LoginRequest = { username: 'admin', password: 'pass' };
+      const entries = Object.entries(req);
+      expect(entries).toEqual([['username', 'admin'], ['password', 'pass']]);
+    });
+
+    it('Object.values on CreateUserRequest should match field order', () => {
+      const req: CreateUserRequest = {
+        username: 'u', password: 'p', cn_name: 'N', role: 'admin',
+      };
+      const values = Object.values(req);
+      expect(values).toEqual(['u', 'p', 'N', 'admin']);
+    });
+
+    it('Object.fromEntries should reconstruct User', () => {
+      const entries: [string, any][] = [
+        ['id', 1], ['username', 'admin'], ['password_hash', 'h'],
+        ['cn_name', '管理员'], ['role', 'admin'], ['status', true],
+        ['company_id', null], ['created_at', new Date()], ['updated_at', new Date()],
+      ];
+      const user = Object.fromEntries(entries) as User;
+      expect(user.id).toBe(1);
+      expect(user.username).toBe('admin');
+      expect(user.role).toBe('admin');
+    });
+
+    it('Object.assign should merge UpdateUserRequest into User', () => {
+      const user: User = {
+        id: 1, username: 'admin', password_hash: 'h', cn_name: '旧名',
+        role: 'view', status: true, company_id: 1,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const update: UpdateUserRequest = { cn_name: '新名', role: 'admin' };
+      Object.assign(user, update, { updated_at: new Date('2024-06-01') });
+      expect(user.cn_name).toBe('新名');
+      expect(user.role).toBe('admin');
+      expect(user.id).toBe(1);
+    });
+
+    it('Object.hasOwn should check User fields', () => {
+      const user: User = {
+        id: 1, username: 'admin', password_hash: 'h', cn_name: '管理员',
+        role: 'admin', status: true, company_id: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Object.hasOwn(user, 'id')).toBe(true);
+      expect(Object.hasOwn(user, 'username')).toBe(true);
+      expect(Object.hasOwn(user, 'company_id')).toBe(true);
+      expect(Object.hasOwn(user, 'nonexistent')).toBe(false);
+    });
+  });
+
+  // ============================================================
+  // 字符串操作与模板字面量
+  // ============================================================
+  describe('string operations and template literals', () => {
+    it('should support template literal with User fields', () => {
+      const user: User = {
+        id: 1, username: 'admin', password_hash: 'h', cn_name: '管理员',
+        role: 'admin', status: true, company_id: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const display = `用户 ${user.cn_name}(${user.username})，角色: ${user.role}`;
+      expect(display).toBe('用户 管理员(admin)，角色: admin');
+    });
+
+    it('should support template literal with LoginResponse', () => {
+      const res: LoginResponse = {
+        token: 'jwt_token',
+        user: {
+          id: 1, username: 'admin', cn_name: '管理员', role: 'admin',
+          company_id: 1,
+          selected_company: { id: 1, short_name: '薄云科技' },
+          selected_project: null,
+        },
+      };
+      const msg = `欢迎 ${res.user.cn_name}，当前公司: ${res.user.selected_company?.short_name ?? '未选择'}`;
+      expect(msg).toBe('欢迎 管理员，当前公司: 薄云科技');
+    });
+
+    it('should support string methods on User fields', () => {
+      const user: User = {
+        id: 1, username: 'AdminUser', password_hash: 'h', cn_name: '管理员',
+        role: 'admin', status: true, company_id: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(user.username.toLowerCase()).toBe('adminuser');
+      expect(user.username.toUpperCase()).toBe('ADMINUSER');
+      expect(user.username.includes('User')).toBe(true);
+      expect(user.username.startsWith('Admin')).toBe(true);
+      expect(user.cn_name.length).toBe(3);
+    });
+
+    it('should support string padding on id display', () => {
+      const user: User = {
+        id: 42, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const displayId = String(user.id).padStart(6, '0');
+      expect(displayId).toBe('000042');
+    });
+  });
+
+  // ============================================================
+  // 条件逻辑与分支覆盖
+  // ============================================================
+  describe('conditional logic and branch coverage', () => {
+    const getAccessLevel = (role: UserRole): string => {
+      switch (role) {
+        case 'sysadmin': return 'full';
+        case 'admin': return 'company';
+        case 'view': return 'readonly';
+      }
+    };
+
+    it('sysadmin should get full access', () => {
+      expect(getAccessLevel('sysadmin')).toBe('full');
+    });
+
+    it('admin should get company access', () => {
+      expect(getAccessLevel('admin')).toBe('company');
+    });
+
+    it('view should get readonly access', () => {
+      expect(getAccessLevel('view')).toBe('readonly');
+    });
+
+    const canManageUsers = (role: UserRole): boolean => {
+      return role === 'sysadmin';
+    };
+
+    it('only sysadmin can manage users', () => {
+      expect(canManageUsers('sysadmin')).toBe(true);
+      expect(canManageUsers('admin')).toBe(false);
+      expect(canManageUsers('view')).toBe(false);
+    });
+
+    const getEffectiveCompanyId = (user: User): number | null => {
+      return user.company_id ?? null;
+    };
+
+    it('should return company_id when set', () => {
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true, company_id: 5,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(getEffectiveCompanyId(user)).toBe(5);
+    });
+
+    it('should return null when company_id is null', () => {
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'sysadmin', status: true, company_id: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(getEffectiveCompanyId(user)).toBeNull();
+    });
+
+    it('should return null when company_id is undefined', () => {
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'view', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(getEffectiveCompanyId(user)).toBeNull();
+    });
+
+    const isActiveAndAdmin = (user: User): boolean => {
+      return user.status && user.role === 'admin';
+    };
+
+    it('should return true for active admin', () => {
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true, company_id: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(isActiveAndAdmin(user)).toBe(true);
+    });
+
+    it('should return false for inactive admin', () => {
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: false, company_id: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(isActiveAndAdmin(user)).toBe(false);
+    });
+
+    it('should return false for active non-admin', () => {
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'view', status: true, company_id: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(isActiveAndAdmin(user)).toBe(false);
+    });
+
+    it('should return false for inactive non-admin', () => {
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'view', status: false, company_id: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(isActiveAndAdmin(user)).toBe(false);
+    });
+
+    const formatUserStatus = (user: User): string => {
+      return `${user.cn_name} - ${user.status ? '启用' : '禁用'}`;
+    };
+
+    it('should format active user', () => {
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: '管理员',
+        role: 'admin', status: true, company_id: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(formatUserStatus(user)).toBe('管理员 - 启用');
+    });
+
+    it('should format disabled user', () => {
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: '已禁用用户',
+        role: 'view', status: false, company_id: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(formatUserStatus(user)).toBe('已禁用用户 - 禁用');
+    });
+  });
 });

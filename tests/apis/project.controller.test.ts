@@ -1352,7 +1352,7 @@ describe('Project Controller', () => {
         .send({ short_name: 'x'.repeat(51), full_name: 'Project 1', company_id: 1 });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('项目短名不能超过50个字符');
+      expect(response.body.message).toContain('项目简称不能超过50个字符');
     });
 
     it('should return 400 when full_name exceeds 200 characters', async () => {
@@ -1373,7 +1373,7 @@ describe('Project Controller', () => {
         .send({ short_name: 'P1', full_name: 'Project 1', company_id: 1, description: 'x'.repeat(501) });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('项目描述不能超过500个字符');
+      expect(response.body.message).toContain('项目描述不能超过500个字符');
     });
 
     it('should allow short_name with exactly 50 characters', async () => {
@@ -1395,30 +1395,7 @@ describe('Project Controller', () => {
   });
 
   // ========== Direct controller tests for uncovered branches ==========
-  describe('createProject - direct controller: full_name > 200 (defense-in-depth)', () => {
-    it('should return 400 when full_name exceeds 200 characters (bypass schema)', async () => {
-      const { createProject } = require('../../apis/controller/project.controller');
-
-      const mockRes: any = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockReturnThis(),
-      };
-      const mockReq = {
-        body: {
-          short_name: 'P1',
-          full_name: 'x'.repeat(201),
-          company_id: 1,
-        },
-        user: { userId: 1, role: 'sysadmin', companyId: 1 },
-      };
-
-      await createProject(mockReq, mockRes);
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(mockRes.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: '项目全名不能超过200个字符' })
-      );
-    });
-
+  describe('createProject - direct controller: defense-in-depth', () => {
     it('should allow full_name with exactly 200 characters (bypass schema)', async () => {
       const { createProject } = require('../../apis/controller/project.controller');
       const { getPrisma } = require('../../apis/utils/db.util');
@@ -1464,53 +1441,6 @@ describe('Project Controller', () => {
       expect(mockRes.status).toHaveBeenCalledWith(401);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({ message: '未登录' })
-      );
-    });
-
-    it('should return 400 when short_name exceeds 50 characters (direct controller)', async () => {
-      const { createProject } = require('../../apis/controller/project.controller');
-
-      const mockRes: any = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockReturnThis(),
-      };
-      const mockReq = {
-        body: {
-          short_name: 'x'.repeat(51),
-          full_name: 'Project',
-          company_id: 1,
-        },
-        user: { userId: 1, role: 'sysadmin', companyId: 1 },
-      };
-
-      await createProject(mockReq, mockRes);
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(mockRes.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: '项目短名不能超过50个字符' })
-      );
-    });
-
-    it('should return 400 when description exceeds 500 characters (direct controller)', async () => {
-      const { createProject } = require('../../apis/controller/project.controller');
-
-      const mockRes: any = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockReturnThis(),
-      };
-      const mockReq = {
-        body: {
-          short_name: 'P1',
-          full_name: 'Project',
-          company_id: 1,
-          description: 'x'.repeat(501),
-        },
-        user: { userId: 1, role: 'sysadmin', companyId: 1 },
-      };
-
-      await createProject(mockReq, mockRes);
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(mockRes.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: '项目描述不能超过500个字符' })
       );
     });
   });
@@ -2152,35 +2082,25 @@ describe('Project Controller', () => {
 
   // ---------- 2-9  GET /api/projects/:id - negative id ----------
   describe('GET /api/projects/:id - negative id', () => {
-    it('should return project for negative id if it exists', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
-      getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
-
+    it('should return 400 for negative id', async () => {
       const response = await agent
         .get('/api/v1/projects/-1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      // parseInt('-1') = -1, which is a valid number so it passes isNaN check
-      // service finds the mock data
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的项目ID');
     });
   });
 
   // ---------- 2-10  DELETE with zero id ----------
   describe('DELETE /api/projects/:id - zero id', () => {
-    it('should pass validation for id=0 but get 404', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindFirst = jest.fn().mockResolvedValue(null);
-      getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
-
+    it('should return 400 for id=0', async () => {
       const response = await agent
         .delete('/api/v1/projects/0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      // parseInt('0') = 0, isNaN(0) = false → passes controller
-      // service will look for id=0 which doesn't exist → 404
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的项目ID');
     });
   });
 

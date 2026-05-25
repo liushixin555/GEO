@@ -196,3 +196,4 @@
 | 2026-05-25 | tasks/review/title2.tsx.ui.md | title2.tsx 软件 UI 专家评审——⚠️有条件通过 3.9/10（P2×2 纯文本div替代SVG与Carbon不兼容+icon缺aria-hidden，P3×4 toggle降级/快捷键未区分平台/图标风格不统一/触摸不足） |
 | 2026-05-25 | tasks/review/title2.tsx.committer.md | title2.tsx Committer 审核专家评审——✅通过（APPROVE），pnpm patch 全面修复循环依赖/废弃注释/默认值等6项问题，生产就绪 |
 | 2026-05-25 | tasks/tdd/todo.controller.test.round4.md | todo 模块 TDD 第4轮——649用例全通过（+22新增：分页边界/创建边界/转交边界/更新边界/驳回边界/响应结构验证），4核心文件100%覆盖率 |
+| 2026-05-25 | progress_tasks/2026-05-25-project-controller-review-fix.md | project.controller.ts 二轮评审修复——Zod schema对齐DB约束(50/500)+controller精简177→161行+id>0检查+handleServiceError统一，117测试全通过 |

@@ -49,7 +49,7 @@ export async function listProjects(req: Request, res: Response): Promise<void> {
     const { list, total } = await projectService.list(page, pageSize, search, company_id, status, userId, role);
     paginate(res, list, total, page, pageSize);
   } catch (err: unknown) {
-    fail(res, 500, getErrorMessage(err, '获取项目列表失败'));
+    handleServiceError(res, err, '获取项目列表失败');
   }
 }
 
@@ -57,7 +57,7 @@ export async function getProject(req: Request, res: Response): Promise<void> {
   try {
     if (!req.user) { fail(res, 401, '未登录'); return; }
     const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id)) { fail(res, 400, '无效的项目ID'); return; }
+    if (isNaN(id) || id <= 0) { fail(res, 400, '无效的项目ID'); return; }
 
     const { userId, role } = req.user;
 
@@ -81,25 +81,9 @@ export async function createProject(req: Request, res: Response): Promise<void> 
     const { short_name, full_name } = req.body;
 
     // Admin's company_id comes from auth; sysadmin must provide it
-    const hasCompanyId = req.user.role === 'admin' ? !!req.user.companyId : !!req.body.company_id;
-
-    if (!short_name || !full_name || !hasCompanyId) {
-      fail(res, 400, '项目短名、项目全名、所属公司不能为空');
-      return;
-    }
-
-    // Validate string lengths (matching DB constraints: shortName=50, fullName=200, description=500)
-    if (short_name.length > 50) {
-      fail(res, 400, '项目短名不能超过50个字符');
-      return;
-    }
-    if (full_name.length > 200) {
-      fail(res, 400, '项目全名不能超过200个字符');
-      return;
-    }
-    const description: string | undefined = req.body.description;
-    if (description && description.length > 500) {
-      fail(res, 400, '项目描述不能超过500个字符');
+    const effectiveCompanyId = req.user.role === 'admin' ? req.user.companyId : req.body.company_id;
+    if (!effectiveCompanyId) {
+      fail(res, 400, '所属公司不能为空');
       return;
     }
 
@@ -107,8 +91,8 @@ export async function createProject(req: Request, res: Response): Promise<void> 
     const data = {
       short_name,
       full_name,
-      description,
-      company_id: req.body.company_id,
+      description: req.body.description,
+      company_id: effectiveCompanyId,
       operator_ids: req.body.operator_ids,
       viewer_ids: req.body.viewer_ids,
     };
@@ -124,7 +108,7 @@ export async function updateProject(req: Request, res: Response): Promise<void> 
   try {
     if (!req.user) { fail(res, 401, '未登录'); return; }
     const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id)) { fail(res, 400, '无效的项目ID'); return; }
+    if (isNaN(id) || id <= 0) { fail(res, 400, '无效的项目ID'); return; }
 
     const { userId, role } = req.user;
 
@@ -157,7 +141,7 @@ export async function deleteProject(req: Request, res: Response): Promise<void> 
   try {
     if (!req.user) { fail(res, 401, '未登录'); return; }
     const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id)) { fail(res, 400, '无效的项目ID'); return; }
+    if (isNaN(id) || id <= 0) { fail(res, 400, '无效的项目ID'); return; }
 
     const { userId, role } = req.user;
 
