@@ -3443,4 +3443,397 @@ describe('LLM Model Controller', () => {
       expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
     });
   });
+
+  // ========== validateOptionalString undefined 分支覆盖 ==========
+  describe('validateOptionalString undefined branch coverage via direct call', () => {
+    let mockJson: jest.Mock;
+    let mockStatus: jest.Mock;
+    let mockRes: any;
+
+    beforeEach(() => {
+      mockJson = jest.fn();
+      mockStatus = jest.fn().mockReturnValue({ json: mockJson });
+      mockRes = { status: mockStatus, json: mockJson };
+    });
+
+    it('should skip validation when optional string fields are explicitly undefined', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { updateLlmModel } = require('../../apis/controller/llm-model.controller');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, status: false });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      // Only status is provided, all optional string fields are absent (undefined after destructuring)
+      const mockReq = { params: { id: '1' }, body: { status: false } };
+
+      await updateLlmModel(mockReq as any, mockRes as any);
+
+      // Should succeed without validating string fields (they are all undefined)
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ code: 0, message: '更新LLM模型成功' }));
+    });
+
+    it('should update only status without triggering validateOptionalString', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { updateLlmModel } = require('../../apis/controller/llm-model.controller');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, status: false });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const mockReq = { params: { id: '1' }, body: { status: false, provider: undefined } };
+
+      await updateLlmModel(mockReq as any, mockRes as any);
+
+      // provider: undefined means validateOptionalString won't be called for it
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
+    });
+  });
+
+  // ========== handleError AppError 分支补充 ==========
+  describe('handleError with various AppError status codes', () => {
+    let mockJson: jest.Mock;
+    let mockStatus: jest.Mock;
+    let mockRes: any;
+
+    beforeEach(() => {
+      mockJson = jest.fn();
+      mockStatus = jest.fn().mockReturnValue({ json: mockJson });
+      mockRes = { status: mockStatus, json: mockJson };
+    });
+
+    it('deleteLlmModel: should handle AppError (404 NotFoundError) from service', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { deleteLlmModel } = require('../../apis/controller/llm-model.controller');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getPrisma } = require('../../apis/utils/db.util');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { NotFoundError } = require('../../apis/errors');
+
+      getPrisma.mockReturnValue({
+        llmModel: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          delete: jest.fn().mockRejectedValue(new NotFoundError('LLM模型不存在')),
+        },
+      });
+
+      const mockReq = { params: { id: '1' } };
+      await deleteLlmModel(mockReq as any, mockRes as any);
+
+      expect(mockStatus).toHaveBeenCalledWith(404);
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ message: 'LLM模型不存在' }));
+    });
+
+    it('getLlmModel: should handle NotFoundError from service', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getLlmModel } = require('../../apis/controller/llm-model.controller');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getPrisma } = require('../../apis/utils/db.util');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { NotFoundError } = require('../../apis/errors');
+
+      // NotFoundError appends '不存在' to the entity name
+      getPrisma.mockReturnValue({
+        llmModel: {
+          findFirst: jest.fn().mockRejectedValue(new NotFoundError('LLM模型')),
+        },
+      });
+
+      const mockReq = { params: { id: '1' } };
+      await getLlmModel(mockReq as any, mockRes as any);
+
+      expect(mockStatus).toHaveBeenCalledWith(404);
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ message: 'LLM模型不存在' }));
+    });
+  });
+
+  // ========== parseId NaN 边界（String(id) !== raw.trim()） ==========
+  describe('parseId NaN branch: parseFloat that passes isNaN but fails string match', () => {
+    let mockJson: jest.Mock;
+    let mockStatus: jest.Mock;
+    let mockRes: any;
+
+    beforeEach(() => {
+      mockJson = jest.fn();
+      mockStatus = jest.fn().mockReturnValue({ json: mockJson });
+      mockRes = { status: mockStatus, json: mockJson };
+    });
+
+    it('getLlmModel: should reject id "1e5" (scientific notation)', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getLlmModel } = require('../../apis/controller/llm-model.controller');
+
+      const mockReq = { params: { id: '1e5' } };
+      await getLlmModel(mockReq as any, mockRes as any);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ message: '无效的模型ID' }));
+    });
+
+    it('updateLlmModel: should reject id "1e5"', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { updateLlmModel } = require('../../apis/controller/llm-model.controller');
+
+      const mockReq = { params: { id: '1e5' }, body: { status: true } };
+      await updateLlmModel(mockReq as any, mockRes as any);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ message: '无效的模型ID' }));
+    });
+
+    it('deleteLlmModel: should reject id "1e5"', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { deleteLlmModel } = require('../../apis/controller/llm-model.controller');
+
+      const mockReq = { params: { id: '1e5' } };
+      await deleteLlmModel(mockReq as any, mockRes as any);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ message: '无效的模型ID' }));
+    });
+
+    it('getLlmModel: should accept id " 1 " (trim normalizes it to valid)', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getLlmModel } = require('../../apis/controller/llm-model.controller');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+
+      const mockReq = { params: { id: ' 1 ' } };
+      await getLlmModel(mockReq as any, mockRes as any);
+
+      // parseInt(' 1 ', 10) = 1, String(1) = '1', ' 1 '.trim() = '1', so '1' === '1' → valid
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
+    });
+  });
+
+  // ========== isUrlSafe additional edge cases ==========
+  describe('isUrlSafe additional edge cases via update', () => {
+    let mockJson: jest.Mock;
+    let mockStatus: jest.Mock;
+    let mockRes: any;
+
+    beforeEach(() => {
+      mockJson = jest.fn();
+      mockStatus = jest.fn().mockReturnValue({ json: mockJson });
+      mockRes = { status: mockStatus, json: mockJson };
+    });
+
+    it('should reject 172.20.x.x in base_url during update (RFC 1918)', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { updateLlmModel } = require('../../apis/controller/llm-model.controller');
+
+      const mockReq = { params: { id: '1' }, body: { base_url: 'http://172.20.1.1/v1' } };
+      await updateLlmModel(mockReq as any, mockRes as any);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('内网') }));
+    });
+
+    it('should reject 172.29.x.x in base_url during update', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { updateLlmModel } = require('../../apis/controller/llm-model.controller');
+
+      const mockReq = { params: { id: '1' }, body: { base_url: 'http://172.29.0.1/v1' } };
+      await updateLlmModel(mockReq as any, mockRes as any);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+    });
+
+    it('should accept base_url with empty host through SSRF check (hostname is empty string, not blocked)', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { updateLlmModel } = require('../../apis/controller/llm-model.controller');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, baseUrl: 'http:///path' });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      // new URL('http:///path') is valid, hostname is empty string — not in BLOCKED_HOSTNAMES
+      const mockReq = { params: { id: '1' }, body: { base_url: 'http:///path' } };
+      await updateLlmModel(mockReq as any, mockRes as any);
+
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
+    });
+  });
+
+  // ========== createLlmModel additional validation ==========
+  describe('createLlmModel additional boundary validation', () => {
+    let mockJson: jest.Mock;
+    let mockStatus: jest.Mock;
+    let mockRes: any;
+
+    beforeEach(() => {
+      mockJson = jest.fn();
+      mockStatus = jest.fn().mockReturnValue({ json: mockJson });
+      mockRes = { status: mockStatus, json: mockJson };
+    });
+
+    it('should return 400 when provider is a number', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { createLlmModel } = require('../../apis/controller/llm-model.controller');
+
+      const mockReq = { body: { provider: 123, base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' } };
+      await createLlmModel(mockReq as any, mockRes as any);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('字符串类型') }));
+    });
+
+    it('should return 400 when base_url is a number', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { createLlmModel } = require('../../apis/controller/llm-model.controller');
+
+      const mockReq = { body: { provider: 'OpenAI', base_url: 999, api_key: 'sk-test', model_name: 'gpt-4o' } };
+      await createLlmModel(mockReq as any, mockRes as any);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('字符串类型') }));
+    });
+
+    it('should return 400 when api_key is a number', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { createLlmModel } = require('../../apis/controller/llm-model.controller');
+
+      const mockReq = { body: { provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 12345, model_name: 'gpt-4o' } };
+      await createLlmModel(mockReq as any, mockRes as any);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('字符串类型') }));
+    });
+
+    it('should return 400 when model_name is an array', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { createLlmModel } = require('../../apis/controller/llm-model.controller');
+
+      const mockReq = { body: { provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: ['gpt-4o'] } };
+      await createLlmModel(mockReq as any, mockRes as any);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('字符串类型') }));
+    });
+  });
+
+  // ========== updateLlmModel: status validation edge cases ==========
+  describe('updateLlmModel status validation edge cases', () => {
+    let mockJson: jest.Mock;
+    let mockStatus: jest.Mock;
+    let mockRes: any;
+
+    beforeEach(() => {
+      mockJson = jest.fn();
+      mockStatus = jest.fn().mockReturnValue({ json: mockJson });
+      mockRes = { status: mockStatus, json: mockJson };
+    });
+
+    it('should reject status as string "true"', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { updateLlmModel } = require('../../apis/controller/llm-model.controller');
+
+      const mockReq = { params: { id: '1' }, body: { status: 'true' } };
+      await updateLlmModel(mockReq as any, mockRes as any);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ message: 'status 必须为布尔值' }));
+    });
+
+    it('should reject status as number 1', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { updateLlmModel } = require('../../apis/controller/llm-model.controller');
+
+      const mockReq = { params: { id: '1' }, body: { status: 1 } };
+      await updateLlmModel(mockReq as any, mockRes as any);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ message: 'status 必须为布尔值' }));
+    });
+
+    it('should reject status as null', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { updateLlmModel } = require('../../apis/controller/llm-model.controller');
+
+      const mockReq = { params: { id: '1' }, body: { status: null } };
+      await updateLlmModel(mockReq as any, mockRes as any);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ message: 'status 必须为布尔值' }));
+    });
+
+    it('should accept status as boolean true', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { updateLlmModel } = require('../../apis/controller/llm-model.controller');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: false, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, status: true });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const mockReq = { params: { id: '1' }, body: { status: true } };
+      await updateLlmModel(mockReq as any, mockRes as any);
+
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
+    });
+  });
+
+  // ========== listLlmModels & listEnabledLlmModels AppError handling ==========
+  describe('listEndpoints AppError handling via direct call', () => {
+    let mockJson: jest.Mock;
+    let mockStatus: jest.Mock;
+    let mockRes: any;
+
+    beforeEach(() => {
+      mockJson = jest.fn();
+      mockStatus = jest.fn().mockReturnValue({ json: mockJson });
+      mockRes = { status: mockStatus, json: mockJson };
+    });
+
+    it('listLlmModels: should handle BusinessError from service', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { listLlmModels } = require('../../apis/controller/llm-model.controller');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getPrisma } = require('../../apis/utils/db.util');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { BusinessError } = require('../../apis/errors');
+
+      getPrisma.mockReturnValue({
+        llmModel: { findMany: jest.fn().mockRejectedValue(new BusinessError('维护中')) },
+      });
+
+      await listLlmModels({} as any, mockRes as any);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ message: '维护中' }));
+    });
+
+    it('listEnabledLlmModels: should handle BusinessError from service', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { listEnabledLlmModels } = require('../../apis/controller/llm-model.controller');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getPrisma } = require('../../apis/utils/db.util');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { BusinessError } = require('../../apis/errors');
+
+      getPrisma.mockReturnValue({
+        llmModel: { findMany: jest.fn().mockRejectedValue(new BusinessError('服务不可用')) },
+      });
+
+      await listEnabledLlmModels({} as any, mockRes as any);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ message: '服务不可用' }));
+    });
+  });
 });
