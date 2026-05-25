@@ -448,3 +448,54 @@ swagger: {
 ---
 
 *软件架构专家评审完成 — 2026-05-24*
+
+---
+
+## 十、修复执行记录
+
+**修复日期**: 2026-05-25
+**修复人**: 软件开发专家
+
+### 10.1 已完成修复
+
+| # | 编号 | 修复内容 | 工作量 | 状态 |
+|---|------|----------|--------|------|
+| 1 | A-01 | database 配置节添加 JSDoc 注释，说明 Prisma 使用 DATABASE_URL 独立连接，config.database 仅用于文档化和诊断 | 2min | ✅ 已修复 |
+
+### 10.2 验证结果
+
+| 验证项 | 结果 |
+|--------|------|
+| `pnpm build` | ✅ backend tsc + frontend vite 通过 |
+| `pnpm lint` | ✅ eslint 无错误 |
+| config 模块测试 | ✅ 283 用例全部通过 |
+| auth + server 测试 | ✅ 317 用例全部通过（无回归） |
+
+### 10.3 修复前已完成的项（前三轮）
+
+以下项在之前的修复轮次中已全部到位，本轮验证确认无遗漏：
+
+| 编号 | 修复内容 | 来源 |
+|------|----------|------|
+| A-03 | bodyLimitMb 纳入 config，app.ts 使用 `config.bodyLimitMb` | 架构 P1 |
+| A-04 | Swagger 配置封装环境约束 `&& NODE_ENV !== 'production'` | 架构 P0 |
+| Q-01 | 子接口属性添加 readonly | 质量 P0 |
+| Q-02 | DEFAULTS 常量集中管理 | 质量 P1 |
+| Q-03 | dotenv.config() 简化 | 质量 P1 |
+| Q-04 | IIFE 提取为命名函数（resolvePassword/resolveJwtSecret/resolveUploadDir） | 质量 P1 |
+| Q-05 | safeParseInt 浮点字符串拒绝 `/^-?\d+$/` | 质量 P2 |
+| Q-06 | JWT Secret 长度 < 32 字符警告 | 质量 P0 |
+| Q-07 | CRON 表达式 5 段格式校验（validateCronExpression） | 质量 P2 |
+| Q-08 | 连接池参数环境变量化（DB_POOL_MIN/DB_POOL_MAX） | 质量 P2 |
+| Q-09 | deepFreeze 添加适用范围 JSDoc 注释 | 质量 P2 |
+| SEC-CFG-03 | JWT_EXPIRES_IN 格式校验（validateTimeSpan） | 安全 P2 |
+| SEC-CFG-04 | CRON_ARTICLE_INTERVAL 5 段格式校验 | 安全 P3 |
+| SEC-CFG-05 | uploadDir 路径遍历防护（resolveUploadDir） | 安全 P2 |
+| SEC-CFG-07 | DB_POOL_MAX max:100 上限约束 | 安全 P4 |
+
+### 10.4 未修复项（维持原裁决）
+
+| 编号 | 原因 |
+|------|------|
+| A-02（模块副作用延迟加载） | P2 长期演进，涉及 13 个消费模块 import 修改 |
+| A-01 方案 B（DATABASE_URL 解析） | P2 长期演进，方案 A 注释标注已满足当前需求 |

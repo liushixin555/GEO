@@ -202,6 +202,9 @@ const config: Readonly<AppConfig> = deepFreeze({
     port: safeParseInt(process.env.PORT, DEFAULTS.PORT, 'PORT', { min: 1, max: 65535 }),
     trustProxy: safeParseInt(process.env.TRUST_PROXY, 1, 'TRUST_PROXY', { min: 0, max: 10 }),
   },
+  /** Prisma 使用 DATABASE_URL 环境变量建立数据库连接，不读取 config.database。
+   *  以下字段仅用于配置文档化、诊断日志和数据库连接信息展示（system-config 控制器）。
+   *  修改 DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD 不会影响 Prisma 的实际连接行为。 */
   database: {
     host: process.env.DB_HOST || DEFAULTS.DB_HOST,
     port: safeParseInt(process.env.DB_PORT, DEFAULTS.DB_PORT, 'DB_PORT', { min: 1, max: 65535 }),
