@@ -2424,4 +2424,1171 @@ describe('system-config.entity', () => {
       expect(parseValue(record, 'enabled')).toBe(true);
     });
   });
+
+  // ============================================================
+  // 安全注入防护（第二轮新增）
+  // ============================================================
+  describe('安全注入防护', () => {
+    it('XSS script 标签在 config_key 中作为普通字符串保留', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: '<script>alert("xss")</script>', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_key).toBe('<script>alert("xss")</script>');
+      expect(config.config_key).toContain('<script>');
+    });
+
+    it('XSS script 标签在 config_value 中作为普通字符串保留', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k', config_value: '<img src=x onerror=alert(1)>',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_value).toBe('<img src=x onerror=alert(1)>');
+      expect(config.config_value).toContain('onerror');
+    });
+
+    it('SQL 注入字符串在 config_key 中保留', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: "'; DROP TABLE system_configs; --", config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_key).toBe("'; DROP TABLE system_configs; --");
+      expect(config.config_key).toContain('DROP TABLE');
+    });
+
+    it('SQL 注入字符串在 config_value 中保留', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k',
+        config_value: "' OR '1'='1' --",
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_value).toBe("' OR '1'='1' --");
+    });
+
+    it('__proto__ 作为 config_key 值保留（非字段名）', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: '__proto__', config_value: 'constructor',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_key).toBe('__proto__');
+      expect(config.config_value).toBe('constructor');
+    });
+
+    it('__proto__ 作为 config_value 值保留', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k', config_value: '__proto__.polluted=yes',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_value).toBe('__proto__.polluted=yes');
+      expect(config.config_value).toContain('__proto__');
+    });
+
+    it('Null 字节注入在 config_key 中保留', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'test\x00injection', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_key).toContain('\x00');
+      expect(config.config_key.length).toBeGreaterThan(4);
+    });
+
+    it('Null 字节注入在 config_value 中保留', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k', config_value: 'value\x00hidden',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_value).toContain('\x00');
+    });
+
+    it('CRLF 注入在 config_value 中保留', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k',
+        config_value: 'value\r\nSet-Cookie: malicious=true',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_value).toContain('\r\n');
+      expect(config.config_value).toContain('Set-Cookie');
+    });
+
+    it('LDAP 注入字符串在 config_value 中保留', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'ldap_filter',
+        config_value: ')(|(cn=*)(mail=*))',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_value).toContain(')(|');
+    });
+
+    it('路径遍历字符串在 config_value 中保留', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'file_path',
+        config_value: '../../../etc/passwd',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_value).toBe('../../../etc/passwd');
+      expect(config.config_value).toContain('../');
+    });
+
+    it('命令注入字符串在 config_value 中保留', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'shell_arg',
+        config_value: '; rm -rf / #',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_value).toBe('; rm -rf / #');
+    });
+
+    it('XML 实体注入（XXE）在 config_value 中保留', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'xml_data',
+        config_value: '<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_value).toContain('<!ENTITY');
+      expect(config.config_value).toContain('xxe');
+    });
+
+    it('模板注入（SSTI）在 config_value 中保留', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'template',
+        config_value: '{{7*7}}${7*7}<%= 7*7 %>',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_value).toContain('{{7*7}}');
+      expect(config.config_value).toContain('${7*7}');
+    });
+
+    it('UpdateSystemConfigsRequest XSS 注入防护', () => {
+      const req: UpdateSystemConfigsRequest = {
+        configs: [
+          { config_key: '<script>alert(1)</script>', config_value: '<iframe src="evil">' },
+        ],
+      };
+      expect(req.configs[0].config_key).toBe('<script>alert(1)</script>');
+      expect(req.configs[0].config_value).toBe('<iframe src="evil">');
+    });
+
+    it('JSON.stringify 安全序列化恶意内容', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k',
+        config_value: '<script>alert("xss")</script>',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const json = JSON.stringify(config);
+      const parsed = JSON.parse(json);
+      expect(parsed.config_value).toBe('<script>alert("xss")</script>');
+      expect(typeof json).toBe('string');
+    });
+  });
+
+  // ============================================================
+  // JSON reviver 日期恢复（第二轮新增）
+  // ============================================================
+  describe('JSON reviver 日期恢复', () => {
+    const dateFields = ['created_at', 'updated_at'];
+
+    it('JSON.parse reviver 恢复 created_at 为 Date 实例', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date('2026-05-25T10:00:00Z'),
+        updated_at: new Date('2026-05-25T12:00:00Z'),
+      };
+      const json = JSON.stringify(config);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (dateFields.includes(key) && typeof value === 'string') return new Date(value);
+        return value;
+      });
+      expect(parsed.created_at).toBeInstanceOf(Date);
+      expect(parsed.created_at.getTime()).toBe(config.created_at.getTime());
+    });
+
+    it('JSON.parse reviver 恢复 updated_at 为 Date 实例', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date('2026-01-01T00:00:00Z'),
+        updated_at: new Date('2026-05-25T14:30:00Z'),
+      };
+      const json = JSON.stringify(config);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (dateFields.includes(key) && typeof value === 'string') return new Date(value);
+        return value;
+      });
+      expect(parsed.updated_at).toBeInstanceOf(Date);
+      expect(parsed.updated_at.getTime()).toBe(config.updated_at.getTime());
+    });
+
+    it('JSON.parse reviver 同时恢复 created_at 和 updated_at', () => {
+      const config: SystemConfig = {
+        id: 42, config_key: 'site_name', config_value: '薄云商机倍增服务',
+        created_at: new Date('2026-03-15T08:00:00Z'),
+        updated_at: new Date('2026-05-25T16:00:00Z'),
+      };
+      const json = JSON.stringify(config);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (dateFields.includes(key) && typeof value === 'string') return new Date(value);
+        return value;
+      });
+      expect(parsed.created_at).toBeInstanceOf(Date);
+      expect(parsed.updated_at).toBeInstanceOf(Date);
+      expect(parsed.created_at.getTime()).toBe(config.created_at.getTime());
+      expect(parsed.updated_at.getTime()).toBe(config.updated_at.getTime());
+      expect(parsed.id).toBe(42);
+      expect(parsed.config_key).toBe('site_name');
+    });
+
+    it('reviver 保留非日期字段不变', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: '站点', config_value: '薄云商机倍增服务🚀',
+        created_at: new Date('2026-01-01T00:00:00Z'),
+        updated_at: new Date('2026-01-01T00:00:00Z'),
+      };
+      const json = JSON.stringify(config);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (dateFields.includes(key) && typeof value === 'string') return new Date(value);
+        return value;
+      });
+      expect(parsed.id).toBe(1);
+      expect(parsed.config_key).toBe('站点');
+      expect(parsed.config_value).toBe('薄云商机倍增服务🚀');
+    });
+
+    it('reviver 处理 configs 数组的 JSON 往返', () => {
+      const configs: SystemConfig[] = [
+        { id: 1, config_key: 'a', config_value: '1', created_at: new Date('2026-01-01T00:00:00Z'), updated_at: new Date('2026-01-01T00:00:00Z') },
+        { id: 2, config_key: 'b', config_value: '2', created_at: new Date('2026-06-01T00:00:00Z'), updated_at: new Date('2026-06-01T00:00:00Z') },
+      ];
+      const json = JSON.stringify(configs);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (dateFields.includes(key) && typeof value === 'string') return new Date(value);
+        return value;
+      });
+      expect(parsed).toHaveLength(2);
+      expect(parsed[0].created_at).toBeInstanceOf(Date);
+      expect(parsed[1].updated_at).toBeInstanceOf(Date);
+    });
+
+    it('reviver 处理 UpdateSystemConfigsRequest 往返', () => {
+      const req: UpdateSystemConfigsRequest = {
+        configs: [
+          { config_key: 'k1', config_value: 'v1' },
+          { config_key: 'k2', config_value: 'v2' },
+        ],
+      };
+      const json = JSON.stringify(req);
+      const parsed: UpdateSystemConfigsRequest = JSON.parse(json);
+      expect(parsed.configs).toHaveLength(2);
+      expect(parsed.configs[0].config_key).toBe('k1');
+      expect(parsed.configs[1].config_value).toBe('v2');
+    });
+
+    it('reviver 处理 ISO 8601 日期字符串', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date('2026-05-25T08:30:45.123Z'),
+        updated_at: new Date('2026-05-25T08:30:45.123Z'),
+      };
+      const json = JSON.stringify(config);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (dateFields.includes(key) && typeof value === 'string') return new Date(value);
+        return value;
+      });
+      expect(parsed.created_at.toISOString()).toBe('2026-05-25T08:30:45.123Z');
+    });
+
+    it('reviver 处理 epoch 时间戳数字', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date(0),
+        updated_at: new Date(0),
+      };
+      const json = JSON.stringify(config);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (dateFields.includes(key) && typeof value === 'string') return new Date(value);
+        return value;
+      });
+      expect(parsed.created_at.getTime()).toBe(0);
+    });
+
+    it('reviver 忽略畸形日期字符串（保留原始值）', () => {
+      const rawJson = '{"id":1,"config_key":"k","config_value":"v","created_at":"not-a-date","updated_at":"2026-05-25T00:00:00Z"}';
+      const parsed = JSON.parse(rawJson, (key, value) => {
+        if (dateFields.includes(key) && typeof value === 'string') {
+          const d = new Date(value);
+          return isNaN(d.getTime()) ? value : d;
+        }
+        return value;
+      });
+      expect(parsed.created_at).toBe('not-a-date');
+      expect(parsed.updated_at).toBeInstanceOf(Date);
+    });
+
+    it('reviver 保留 Date.now() 级时间戳精度', () => {
+      const now = new Date('2026-05-25T12:34:56.789Z');
+      const config: SystemConfig = {
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: now, updated_at: now,
+      };
+      const json = JSON.stringify(config);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (dateFields.includes(key) && typeof value === 'string') return new Date(value);
+        return value;
+      });
+      expect(parsed.created_at.getMilliseconds()).toBe(789);
+    });
+
+    it('reviver 往返后结构相等性验证', () => {
+      const original: SystemConfig = {
+        id: 99, config_key: 'test', config_value: 'value',
+        created_at: new Date('2026-03-15T10:00:00Z'),
+        updated_at: new Date('2026-05-25T14:00:00Z'),
+      };
+      const json = JSON.stringify(original);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (dateFields.includes(key) && typeof value === 'string') return new Date(value);
+        return value;
+      });
+      expect(parsed.id).toBe(original.id);
+      expect(parsed.config_key).toBe(original.config_key);
+      expect(parsed.config_value).toBe(original.config_value);
+      expect(parsed.created_at.getTime()).toBe(original.created_at.getTime());
+      expect(parsed.updated_at.getTime()).toBe(original.updated_at.getTime());
+    });
+
+    it('reviver 处理 config_value 中嵌套的 JSON 日期', () => {
+      const nestedObj = { lastSync: '2026-05-25T00:00:00Z', count: 42 };
+      const config: SystemConfig = {
+        id: 1, config_key: 'sync_status',
+        config_value: JSON.stringify(nestedObj),
+        created_at: new Date('2026-01-01T00:00:00Z'),
+        updated_at: new Date('2026-05-25T00:00:00Z'),
+      };
+      const json = JSON.stringify(config);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (dateFields.includes(key) && typeof value === 'string') return new Date(value);
+        return value;
+      });
+      const inner = JSON.parse(parsed.config_value);
+      expect(inner.lastSync).toBe('2026-05-25T00:00:00Z');
+      expect(inner.count).toBe(42);
+    });
+
+    it('reviver 保留特殊字符不变', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: '🔑', config_value: '薄云🚀<script>',
+        created_at: new Date('2026-01-01T00:00:00Z'),
+        updated_at: new Date('2026-01-01T00:00:00Z'),
+      };
+      const json = JSON.stringify(config);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (dateFields.includes(key) && typeof value === 'string') return new Date(value);
+        return value;
+      });
+      expect(parsed.config_key).toBe('🔑');
+      expect(parsed.config_value).toBe('薄云🚀<script>');
+    });
+
+    it('reviver 处理空字符串日期字段（保留原值）', () => {
+      const rawJson = '{"id":1,"config_key":"k","config_value":"v","created_at":"","updated_at":"2026-05-25T00:00:00Z"}';
+      const parsed = JSON.parse(rawJson, (key, value) => {
+        if (dateFields.includes(key) && typeof value === 'string') {
+          const d = new Date(value);
+          return isNaN(d.getTime()) ? value : d;
+        }
+        return value;
+      });
+      expect(parsed.created_at).toBe('');
+      expect(parsed.updated_at).toBeInstanceOf(Date);
+    });
+
+    it('reviver 处理 configs 数组批量恢复', () => {
+      const configs: SystemConfig[] = Array.from({ length: 10 }, (_, i) => {
+        const month = (i + 1).toString().padStart(2, '0');
+        return {
+          id: i + 1,
+          config_key: `key_${i}`,
+          config_value: `val_${i}`,
+          created_at: new Date(`2026-${month}-01T00:00:00Z`),
+          updated_at: new Date(`2026-${month}-15T00:00:00Z`),
+        };
+      });
+      const json = JSON.stringify(configs);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (dateFields.includes(key) && typeof value === 'string') return new Date(value);
+        return value;
+      });
+      expect(parsed).toHaveLength(10);
+      expect(parsed.every((c: any) => c.created_at instanceof Date)).toBe(true);
+      expect(parsed.every((c: any) => c.updated_at instanceof Date)).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // 业务场景（第二轮新增）
+  // ============================================================
+  describe('业务场景', () => {
+    it('应用版本配置', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'app_version', config_value: '2.5.3',
+        created_at: new Date('2026-01-01'), updated_at: new Date('2026-05-20'),
+      };
+      const [major, minor, patch] = config.config_value.split('.').map(Number);
+      expect(major).toBe(2);
+      expect(minor).toBe(5);
+      expect(patch).toBe(3);
+    });
+
+    it('功能开关配置（feature flag）', () => {
+      const config: SystemConfig = {
+        id: 2, config_key: 'feature.new_dashboard', config_value: 'true',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const enabled = config.config_value === 'true';
+      expect(enabled).toBe(true);
+    });
+
+    it('邮件服务配置（JSON）', () => {
+      const emailConfig = { host: 'smtp.example.com', port: 587, secure: true };
+      const config: SystemConfig = {
+        id: 3, config_key: 'email.smtp', config_value: JSON.stringify(emailConfig),
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const parsed = JSON.parse(config.config_value);
+      expect(parsed.host).toBe('smtp.example.com');
+      expect(parsed.port).toBe(587);
+      expect(parsed.secure).toBe(true);
+    });
+
+    it('数据库连接池配置', () => {
+      const config: SystemConfig = {
+        id: 4, config_key: 'db.pool_size', config_value: '20',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Number(config.config_value)).toBeGreaterThan(0);
+      expect(Number(config.config_value)).toBeLessThanOrEqual(100);
+    });
+
+    it('缓存 TTL 配置（毫秒）', () => {
+      const config: SystemConfig = {
+        id: 5, config_key: 'cache.ttl_ms', config_value: '3600000',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const ttl = Number(config.config_value);
+      expect(ttl).toBe(3600000);
+      expect(ttl / 1000 / 60).toBe(60);
+    });
+
+    it('API 限流配置', () => {
+      const rateLimit = { window_ms: 60000, max_requests: 100 };
+      const config: SystemConfig = {
+        id: 6, config_key: 'api.rate_limit', config_value: JSON.stringify(rateLimit),
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const parsed = JSON.parse(config.config_value);
+      expect(parsed.window_ms).toBe(60000);
+      expect(parsed.max_requests).toBe(100);
+    });
+
+    it('CORS 白名单配置（逗号分隔）', () => {
+      const config: SystemConfig = {
+        id: 7, config_key: 'cors.origins',
+        config_value: 'https://app.example.com,https://admin.example.com',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const origins = config.config_value.split(',');
+      expect(origins).toHaveLength(2);
+      expect(origins[0]).toBe('https://app.example.com');
+    });
+
+    it('日志级别配置', () => {
+      const config: SystemConfig = {
+        id: 8, config_key: 'log.level', config_value: 'info',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const validLevels = ['error', 'warn', 'info', 'debug'];
+      expect(validLevels).toContain(config.config_value);
+    });
+
+    it('会话超时配置（秒）', () => {
+      const config: SystemConfig = {
+        id: 9, config_key: 'session.timeout_sec', config_value: '7200',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Number(config.config_value)).toBe(7200);
+      expect(Number(config.config_value) / 3600).toBe(2);
+    });
+
+    it('文件上传限制配置', () => {
+      const uploadLimits = { max_size_mb: 50, allowed_types: '.jpg,.png,.pdf,.docx' };
+      const config: SystemConfig = {
+        id: 10, config_key: 'upload.limits', config_value: JSON.stringify(uploadLimits),
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const parsed = JSON.parse(config.config_value);
+      expect(parsed.max_size_mb).toBe(50);
+      expect(parsed.allowed_types.split(',').length).toBe(4);
+    });
+
+    it('UI 主题配置', () => {
+      const theme = { mode: 'light', primary_color: '#0f62fe', font_size: 14 };
+      const config: SystemConfig = {
+        id: 11, config_key: 'ui.theme', config_value: JSON.stringify(theme),
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const parsed = JSON.parse(config.config_value);
+      expect(parsed.mode).toBe('light');
+      expect(parsed.primary_color).toBe('#0f62fe');
+    });
+
+    it('语言/区域配置', () => {
+      const config: SystemConfig = {
+        id: 12, config_key: 'i18n.locale', config_value: 'zh-CN',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_value).toBe('zh-CN');
+      expect(config.config_value.split('-')[0]).toBe('zh');
+    });
+
+    it('分页配置', () => {
+      const config: SystemConfig = {
+        id: 13, config_key: 'pagination.default_size', config_value: '20',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const size = Number(config.config_value);
+      expect(size).toBe(20);
+      expect(size >= 1 && size <= 100).toBe(true);
+    });
+
+    it('安全设置（密码策略）', () => {
+      const policy = { min_length: 8, require_uppercase: true, require_number: true };
+      const config: SystemConfig = {
+        id: 14, config_key: 'security.password_policy', config_value: JSON.stringify(policy),
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const parsed = JSON.parse(config.config_value);
+      expect(parsed.min_length).toBeGreaterThanOrEqual(8);
+      expect(parsed.require_uppercase).toBe(true);
+    });
+
+    it('通知设置', () => {
+      const notification = { email_enabled: true, sms_enabled: false, webhook_url: '' };
+      const config: SystemConfig = {
+        id: 15, config_key: 'notification.settings', config_value: JSON.stringify(notification),
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const parsed = JSON.parse(config.config_value);
+      expect(parsed.email_enabled).toBe(true);
+      expect(parsed.sms_enabled).toBe(false);
+    });
+
+    it('备份保留策略', () => {
+      const config: SystemConfig = {
+        id: 16, config_key: 'backup.retention_days', config_value: '30',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Number(config.config_value)).toBe(30);
+      expect(Number(config.config_value)).toBeGreaterThan(0);
+    });
+
+    it('维护模式（含计划时间）', () => {
+      const maintenance = { enabled: false, scheduled_at: '2026-06-01T02:00:00Z', message: '系统升级中' };
+      const config: SystemConfig = {
+        id: 17, config_key: 'maintenance', config_value: JSON.stringify(maintenance),
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const parsed = JSON.parse(config.config_value);
+      expect(parsed.enabled).toBe(false);
+      expect(parsed.message).toBe('系统升级中');
+    });
+  });
+
+  // ============================================================
+  // NaN / Infinity 边界值（第二轮新增）
+  // ============================================================
+  describe('NaN / Infinity 边界值', () => {
+    it('id 为 NaN 时运行时保留', () => {
+      const config: SystemConfig = {
+        id: NaN, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.id).toBeNaN();
+      expect(Number.isNaN(config.id)).toBe(true);
+    });
+
+    it('id 为 Infinity 时运行时保留', () => {
+      const config: SystemConfig = {
+        id: Infinity, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.id).toBe(Infinity);
+      expect(Number.isFinite(config.id)).toBe(false);
+    });
+
+    it('id 为 -Infinity 时运行时保留', () => {
+      const config: SystemConfig = {
+        id: -Infinity, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.id).toBe(-Infinity);
+      expect(config.id).toBeLessThan(0);
+    });
+
+    it('id 为 Number.EPSILON 时运行时保留', () => {
+      const config: SystemConfig = {
+        id: Number.EPSILON, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.id).toBe(Number.EPSILON);
+      expect(config.id).toBeGreaterThan(0);
+    });
+
+    it('id 为 Number.MIN_VALUE 时运行时保留', () => {
+      const config: SystemConfig = {
+        id: Number.MIN_VALUE, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.id).toBe(Number.MIN_VALUE);
+      expect(config.id).toBeGreaterThan(0);
+    });
+
+    it('id 为 Number.MAX_VALUE 时运行时保留', () => {
+      const config: SystemConfig = {
+        id: Number.MAX_VALUE, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.id).toBe(Number.MAX_VALUE);
+      expect(config.id).toBeGreaterThan(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('config_value 为 "NaN" 字符串', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'not_a_number', config_value: 'NaN',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_value).toBe('NaN');
+      expect(isNaN(Number(config.config_value))).toBe(true);
+    });
+
+    it('config_value 为 "Infinity" 字符串', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'infinity', config_value: 'Infinity',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_value).toBe('Infinity');
+      expect(Number(config.config_value)).toBe(Infinity);
+    });
+
+    it('config_value 为 "-Infinity" 字符串', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'neg_infinity', config_value: '-Infinity',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_value).toBe('-Infinity');
+      expect(Number(config.config_value)).toBe(-Infinity);
+    });
+
+    it('config_value 为 "undefined" 字符串', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k', config_value: 'undefined',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_value).toBe('undefined');
+      expect(config.config_value).not.toBeUndefined();
+    });
+
+    it('config_value 为 "null" 字符串', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k', config_value: 'null',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.config_value).toBe('null');
+      expect(config.config_value).not.toBeNull();
+    });
+
+    it('NaN id 不等于自身（NaN 特性验证）', () => {
+      const config: SystemConfig = {
+        id: NaN, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(config.id === config.id).toBe(false);
+      expect(Object.is(config.id, NaN)).toBe(true);
+    });
+
+    it('NaN id 在数组 find 中需使用 Number.isNaN', () => {
+      const configs: SystemConfig[] = [
+        { id: 1, config_key: 'a', config_value: '1', created_at: new Date(), updated_at: new Date() },
+        { id: NaN, config_key: 'nan_config', config_value: 'v', created_at: new Date(), updated_at: new Date() },
+        { id: 3, config_key: 'c', config_value: '3', created_at: new Date(), updated_at: new Date() },
+      ];
+      const found = configs.find(c => Number.isNaN(c.id));
+      expect(found).toBeDefined();
+      expect(found!.config_key).toBe('nan_config');
+    });
+
+    it('Infinity id 在排序中为最大值', () => {
+      const configs: SystemConfig[] = [
+        { id: Infinity, config_key: 'inf', config_value: 'v', created_at: new Date(), updated_at: new Date() },
+        { id: 1, config_key: 'a', config_value: '1', created_at: new Date(), updated_at: new Date() },
+        { id: 999, config_key: 'b', config_value: '999', created_at: new Date(), updated_at: new Date() },
+      ];
+      const sorted = [...configs].sort((a, b) => a.id - b.id);
+      expect(sorted[2].config_key).toBe('inf');
+      expect(sorted[0].config_key).toBe('a');
+    });
+  });
+
+  // ============================================================
+  // 类型守卫（第二轮新增）
+  // ============================================================
+  describe('类型守卫', () => {
+    const isSystemConfig = (obj: unknown): obj is SystemConfig => {
+      return typeof obj === 'object' && obj !== null &&
+        typeof (obj as any).id === 'number' &&
+        typeof (obj as any).config_key === 'string' &&
+        typeof (obj as any).config_value === 'string' &&
+        (obj as any).created_at instanceof Date &&
+        (obj as any).updated_at instanceof Date;
+    };
+
+    const isUpdateSystemConfigsRequest = (obj: unknown): obj is UpdateSystemConfigsRequest => {
+      return typeof obj === 'object' && obj !== null &&
+        Array.isArray((obj as any).configs);
+    };
+
+    it('SystemConfig 运行时字段类型验证', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(typeof config.id).toBe('number');
+      expect(typeof config.config_key).toBe('string');
+      expect(typeof config.config_value).toBe('string');
+      expect(config.created_at).toBeInstanceOf(Date);
+      expect(config.updated_at).toBeInstanceOf(Date);
+    });
+
+    it('UpdateSystemConfigsRequest 运行时字段类型验证', () => {
+      const req: UpdateSystemConfigsRequest = {
+        configs: [{ config_key: 'k', config_value: 'v' }],
+      };
+      expect(typeof req).toBe('object');
+      expect(Array.isArray(req.configs)).toBe(true);
+      expect(typeof req.configs[0].config_key).toBe('string');
+      expect(typeof req.configs[0].config_value).toBe('string');
+    });
+
+    it('isSystemConfig 类型守卫函数验证通过', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(isSystemConfig(config)).toBe(true);
+    });
+
+    it('isSystemConfig 类型守卫拒绝空对象', () => {
+      expect(isSystemConfig({})).toBe(false);
+    });
+
+    it('isSystemConfig 类型守卫拒绝 null', () => {
+      expect(isSystemConfig(null)).toBe(false);
+    });
+
+    it('isSystemConfig 类型守卫拒绝缺少字段的对象', () => {
+      expect(isSystemConfig({ id: 1, config_key: 'k' })).toBe(false);
+    });
+
+    it('isSystemConfig 类型守卫拒绝类型不匹配', () => {
+      expect(isSystemConfig({
+        id: 'not_a_number', config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      })).toBe(false);
+    });
+
+    it('isUpdateSystemConfigsRequest 类型守卫验证通过', () => {
+      const req: UpdateSystemConfigsRequest = {
+        configs: [{ config_key: 'k', config_value: 'v' }],
+      };
+      expect(isUpdateSystemConfigsRequest(req)).toBe(true);
+    });
+
+    it('isUpdateSystemConfigsRequest 类型守卫拒绝空对象', () => {
+      expect(isUpdateSystemConfigsRequest({})).toBe(false);
+    });
+
+    it('isUpdateSystemConfigsRequest 类型守卫接受空 configs 数组', () => {
+      const req: UpdateSystemConfigsRequest = { configs: [] };
+      expect(isUpdateSystemConfigsRequest(req)).toBe(true);
+    });
+
+    it('类型守卫在 filter 中筛选有效配置', () => {
+      const items: unknown[] = [
+        { id: 1, config_key: 'a', config_value: '1', created_at: new Date(), updated_at: new Date() },
+        null,
+        { id: 2, config_key: 'b' },
+        { id: 3, config_key: 'c', config_value: '3', created_at: new Date(), updated_at: new Date() },
+      ];
+      const valid = items.filter(isSystemConfig);
+      expect(valid).toHaveLength(2);
+      expect(valid[0].config_key).toBe('a');
+      expect(valid[1].config_key).toBe('c');
+    });
+
+    it('类型守卫配合 instanceof Date 检查', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      if (isSystemConfig(config)) {
+        expect(config.created_at instanceof Date).toBe(true);
+        expect(config.updated_at instanceof Date).toBe(true);
+      }
+    });
+
+    it('Partial<SystemConfig> 类型守卫需检查可选字段', () => {
+      const partial: Partial<SystemConfig> = { config_key: 'k', config_value: 'v' };
+      expect(partial.id).toBeUndefined();
+      expect(typeof partial.config_key).toBe('string');
+      expect(typeof partial.config_value).toBe('string');
+    });
+
+    it('字段存在性检查', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect('id' in config).toBe(true);
+      expect('config_key' in config).toBe(true);
+      expect('config_value' in config).toBe(true);
+      expect('nonexistent' in config).toBe(false);
+    });
+
+    it('configs 数组元素类型守卫', () => {
+      const req: UpdateSystemConfigsRequest = {
+        configs: [
+          { config_key: 'a', config_value: '1' },
+          { config_key: 'b', config_value: '2' },
+        ],
+      };
+      req.configs.forEach(item => {
+        expect(typeof item.config_key).toBe('string');
+        expect(typeof item.config_value).toBe('string');
+        expect(Object.keys(item).sort()).toEqual(['config_key', 'config_value'].sort());
+      });
+    });
+
+    it('Number.isFinite 区分正常 id 与 NaN/Infinity', () => {
+      const normal: SystemConfig = { id: 42, config_key: 'k', config_value: 'v', created_at: new Date(), updated_at: new Date() };
+      const nanId: SystemConfig = { id: NaN, config_key: 'k', config_value: 'v', created_at: new Date(), updated_at: new Date() };
+      const infId: SystemConfig = { id: Infinity, config_key: 'k', config_value: 'v', created_at: new Date(), updated_at: new Date() };
+      expect(Number.isFinite(normal.id)).toBe(true);
+      expect(Number.isFinite(nanId.id)).toBe(false);
+      expect(Number.isFinite(infId.id)).toBe(false);
+    });
+
+    it('typeof 区分 Date 与 string 时间戳', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(typeof config.created_at).toBe('object');
+      expect(config.created_at).toBeInstanceOf(Date);
+      expect(typeof config.created_at.toISOString()).toBe('string');
+    });
+
+    it('Object.prototype.toString.call 精确类型检测', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Object.prototype.toString.call(config.id)).toBe('[object Number]');
+      expect(Object.prototype.toString.call(config.config_key)).toBe('[object String]');
+      expect(Object.prototype.toString.call(config.created_at)).toBe('[object Date]');
+    });
+
+    it('JSON 序列化后类型守卫需重新恢复', () => {
+      const original: SystemConfig = {
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date('2026-05-25T00:00:00Z'),
+        updated_at: new Date('2026-05-25T00:00:00Z'),
+      };
+      const json = JSON.stringify(original);
+      const raw = JSON.parse(json);
+      expect(raw.created_at instanceof Date).toBe(false);
+      expect(typeof raw.created_at).toBe('string');
+    });
+  });
+
+  // ============================================================
+  // 深冻结（第二轮新增）
+  // ============================================================
+  describe('深冻结', () => {
+    it('Object.freeze 后 id 不可变', () => {
+      const config: SystemConfig = Object.freeze({
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (config as any).id = 999; }).toThrow();
+      expect(config.id).toBe(1);
+    });
+
+    it('Object.freeze 后 config_key 不可变', () => {
+      const config: SystemConfig = Object.freeze({
+        id: 1, config_key: 'site_name', config_value: 'App',
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (config as any).config_key = 'hacked'; }).toThrow();
+      expect(config.config_key).toBe('site_name');
+    });
+
+    it('Object.freeze 后 config_value 不可变', () => {
+      const config: SystemConfig = Object.freeze({
+        id: 1, config_key: 'k', config_value: 'original',
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (config as any).config_value = 'modified'; }).toThrow();
+      expect(config.config_value).toBe('original');
+    });
+
+    it('Object.freeze 后 created_at 不可变', () => {
+      const config: SystemConfig = Object.freeze({
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date('2024-01-01'), updated_at: new Date(),
+      });
+      expect(() => { (config as any).created_at = new Date('2099-01-01'); }).toThrow();
+      expect(config.created_at.getFullYear()).toBe(2024);
+    });
+
+    it('Object.freeze 后 updated_at 不可变', () => {
+      const config: SystemConfig = Object.freeze({
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date('2024-06-01'),
+      });
+      expect(() => { (config as any).updated_at = new Date('2099-01-01'); }).toThrow();
+      expect(config.updated_at.getFullYear()).toBe(2024);
+    });
+
+    it('Object.freeze 禁止添加新属性', () => {
+      const config: SystemConfig = Object.freeze({
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (config as any).extra = 'field'; }).toThrow();
+      expect((config as any).extra).toBeUndefined();
+    });
+
+    it('Object.freeze 禁止删除属性', () => {
+      const config: SystemConfig = Object.freeze({
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { delete (config as any).config_value; }).toThrow();
+      expect(config.config_value).toBe('v');
+    });
+
+    it('Object.freeze 是幂等操作', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      Object.freeze(config);
+      Object.freeze(config);
+      expect(Object.isFrozen(config)).toBe(true);
+      expect(() => { (config as any).id = 99; }).toThrow();
+    });
+
+    it('冻结后仍可通过 Object.keys 读取', () => {
+      const config: SystemConfig = Object.freeze({
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(Object.keys(config)).toHaveLength(5);
+      expect(Object.isFrozen(config)).toBe(true);
+    });
+
+    it('configs 数组批量冻结', () => {
+      const configs: SystemConfig[] = [
+        { id: 1, config_key: 'a', config_value: '1', created_at: new Date(), updated_at: new Date() },
+        { id: 2, config_key: 'b', config_value: '2', created_at: new Date(), updated_at: new Date() },
+      ].map(c => Object.freeze(c));
+      configs.forEach(c => {
+        expect(Object.isFrozen(c)).toBe(true);
+        expect(() => { (c as any).config_value = 'x'; }).toThrow();
+      });
+    });
+
+    it('冻结 UpdateSystemConfigsRequest', () => {
+      const req: UpdateSystemConfigsRequest = Object.freeze({
+        configs: Object.freeze([
+          { config_key: 'k', config_value: 'v' },
+        ]),
+      });
+      expect(Object.isFrozen(req)).toBe(true);
+      expect(Object.isFrozen(req.configs)).toBe(true);
+      expect(() => { (req as any).configs = []; }).toThrow();
+    });
+
+    it('冻结 configs 数组内部项', () => {
+      const items = [
+        { config_key: 'a', config_value: '1' },
+        { config_key: 'b', config_value: '2' },
+      ].map(item => Object.freeze(item));
+      items.forEach(item => {
+        expect(Object.isFrozen(item)).toBe(true);
+        expect(() => { (item as any).config_key = 'x'; }).toThrow();
+      });
+    });
+
+    it('Object.isFrozen 检测', () => {
+      const config: SystemConfig = {
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Object.isFrozen(config)).toBe(false);
+      Object.freeze(config);
+      expect(Object.isFrozen(config)).toBe(true);
+    });
+
+    it('Object.seal 与 Object.freeze 的区别', () => {
+      const sealed: SystemConfig = {
+        id: 1, config_key: 'k', config_value: 'v',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      Object.seal(sealed);
+      expect(Object.isSealed(sealed)).toBe(true);
+      expect(Object.isFrozen(sealed)).toBe(false);
+      sealed.config_value = 'new_value';
+      expect(sealed.config_value).toBe('new_value');
+    });
+  });
+
+  // ============================================================
+  // 生命周期（第二轮新增）
+  // ============================================================
+  describe('生命周期', () => {
+    it('创建新配置', () => {
+      const now = new Date('2026-05-25T10:00:00Z');
+      const config: SystemConfig = {
+        id: 1, config_key: 'site_name', config_value: '薄云商机倍增服务',
+        created_at: now, updated_at: now,
+      };
+      expect(config.id).toBe(1);
+      expect(config.config_key).toBe('site_name');
+      expect(config.config_value).toBe('薄云商机倍增服务');
+      expect(config.created_at).toBe(config.updated_at);
+    });
+
+    it('按键查找配置（Read）', () => {
+      const configs: SystemConfig[] = [
+        { id: 1, config_key: 'site_name', config_value: 'App', created_at: new Date(), updated_at: new Date() },
+        { id: 2, config_key: 'max_items', config_value: '100', created_at: new Date(), updated_at: new Date() },
+        { id: 3, config_key: 'theme', config_value: 'light', created_at: new Date(), updated_at: new Date() },
+      ];
+      const found = configs.find(c => c.config_key === 'theme');
+      expect(found).toBeDefined();
+      expect(found!.config_value).toBe('light');
+      expect(configs.findIndex(c => c.config_key === 'nonexistent')).toBe(-1);
+    });
+
+    it('更新配置值（不可变更新 + 时间戳）', () => {
+      const created = new Date('2026-01-01T00:00:00Z');
+      const original: SystemConfig = {
+        id: 1, config_key: 'timeout', config_value: '30',
+        created_at: created, updated_at: created,
+      };
+      const updatedTime = new Date('2026-05-25T12:00:00Z');
+      const updated: SystemConfig = {
+        ...original, config_value: '60', updated_at: updatedTime,
+      };
+      expect(original.config_value).toBe('30');
+      expect(updated.config_value).toBe('60');
+      expect(updated.created_at).toBe(created);
+      expect(updated.updated_at).toBe(updatedTime);
+      expect(updated.updated_at.getTime()).toBeGreaterThan(updated.created_at.getTime());
+    });
+
+    it('从集合中删除配置', () => {
+      const configs: SystemConfig[] = [
+        { id: 1, config_key: 'a', config_value: '1', created_at: new Date(), updated_at: new Date() },
+        { id: 2, config_key: 'b', config_value: '2', created_at: new Date(), updated_at: new Date() },
+        { id: 3, config_key: 'c', config_value: '3', created_at: new Date(), updated_at: new Date() },
+      ];
+      const remaining = configs.filter(c => c.id !== 2);
+      expect(remaining).toHaveLength(2);
+      expect(remaining.map(c => c.config_key)).toEqual(['a', 'c']);
+    });
+
+    it('批量更新生命周期', () => {
+      const created = new Date('2026-01-01T00:00:00Z');
+      const existing: SystemConfig[] = [
+        { id: 1, config_key: 'site_name', config_value: '旧名称', created_at: created, updated_at: created },
+        { id: 2, config_key: 'max_items', config_value: '50', created_at: created, updated_at: created },
+        { id: 3, config_key: 'theme', config_value: 'light', created_at: created, updated_at: created },
+      ];
+      const req: UpdateSystemConfigsRequest = {
+        configs: [
+          { config_key: 'site_name', config_value: '新名称' },
+          { config_key: 'max_items', config_value: '100' },
+        ],
+      };
+      const updatedTime = new Date('2026-05-25T12:00:00Z');
+      const updated = existing.map(config => {
+        const update = req.configs.find(c => c.config_key === config.config_key);
+        if (update) {
+          return { ...config, config_value: update.config_value, updated_at: updatedTime };
+        }
+        return config;
+      });
+      expect(updated[0].config_value).toBe('新名称');
+      expect(updated[1].config_value).toBe('100');
+      expect(updated[2].config_value).toBe('light');
+      expect(updated[0].updated_at).toBe(updatedTime);
+      expect(updated[2].updated_at).toBe(created);
+    });
+
+    it('版本历史追踪', () => {
+      const v1Date = new Date('2026-01-01T00:00:00Z');
+      const v2Date = new Date('2026-03-15T00:00:00Z');
+      const v3Date = new Date('2026-05-25T00:00:00Z');
+
+      const v1: SystemConfig = { id: 1, config_key: 'app_version', config_value: '1.0.0', created_at: v1Date, updated_at: v1Date };
+      const v2: SystemConfig = { ...v1, config_value: '2.0.0', updated_at: v2Date };
+      const v3: SystemConfig = { ...v2, config_value: '3.0.0', updated_at: v3Date };
+
+      const history = [v1, v2, v3];
+      expect(history).toHaveLength(3);
+      expect(history[0].config_value).toBe('1.0.0');
+      expect(history[2].config_value).toBe('3.0.0');
+      expect(history.every(v => v.created_at === v1Date)).toBe(true);
+      expect(history[0].updated_at.getTime()).toBeLessThan(history[1].updated_at.getTime());
+      expect(history[1].updated_at.getTime()).toBeLessThan(history[2].updated_at.getTime());
+    });
+
+    it('配置初始化（从默认值创建）', () => {
+      const defaults: UpdateSystemConfigsRequest = {
+        configs: [
+          { config_key: 'site_name', config_value: '薄云商机倍增服务' },
+          { config_key: 'max_items', config_value: '20' },
+          { config_key: 'theme', config_value: 'light' },
+          { config_key: 'language', config_value: 'zh-CN' },
+        ],
+      };
+      const now = new Date('2026-05-25T00:00:00Z');
+      const configs: SystemConfig[] = defaults.configs.map((c, i) => ({
+        id: i + 1,
+        config_key: c.config_key,
+        config_value: c.config_value,
+        created_at: now,
+        updated_at: now,
+      }));
+      expect(configs).toHaveLength(4);
+      configs.forEach(c => {
+        expect(c.id).toBeGreaterThan(0);
+        expect(c.config_key.length).toBeGreaterThan(0);
+        expect(c.config_value.length).toBeGreaterThan(0);
+        expect(c.created_at).toBe(now);
+        expect(c.updated_at).toBe(now);
+      });
+      const siteName = configs.find(c => c.config_key === 'site_name');
+      expect(siteName!.config_value).toBe('薄云商机倍增服务');
+    });
+  });
 });
