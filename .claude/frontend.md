@@ -58,6 +58,7 @@
   - 安全防护：复用 MarkdownViewer 的 safeUrlTransform + SAFE_TAGS，DOMPurify 消毒（getSanitizedHTML()），2MB 内容长度截断
   - forwardRef + useImperativeHandle：暴露 getSanitizedHTML/getRawMarkdown/focus
   - DOM 引用隔离：ref 不暴露给外部，编辑器内部 DOM 不可被外部代码访问
+  - **禁止在 useEffect cleanup 中替换 React 管理的 DOM 节点**（cloneNode+replaceChild），React.StrictMode 的 mount→unmount→remount 流程会导致 reconciler 丢失子树引用，textarea 等子元素无法重新渲染（2026-05-25 fix018）
   - 专用 CSS：`pages/styles/markdown-editor.css`，Carbon Design System 样式全覆盖（字体/颜色/圆角/工具栏/预览区）
   - ArticleContentEditor.tsx 已从直接使用 MDEditor 改为使用此封装组件
   - **commandsFilter 覆盖机制**：拦截第三方库命令并覆盖
