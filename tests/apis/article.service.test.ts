@@ -1847,6 +1847,10 @@ describe('ArticleServiceImpl', () => {
       expect(service.isValidStatusTransition('publishing', 'publish_failed')).toBe(true);
     });
 
+    it('publishing → pending_review 应是合法转换', () => {
+      expect(service.isValidStatusTransition('publishing', 'pending_review')).toBe(true);
+    });
+
     it('publish_failed → publishing 应是合法转换', () => {
       expect(service.isValidStatusTransition('publish_failed', 'publishing')).toBe(true);
     });

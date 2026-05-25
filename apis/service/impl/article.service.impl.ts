@@ -16,7 +16,7 @@ export class ArticleServiceImpl implements IArticleService {
     'generating': ['pending_review', 'generate_failed'],
     'generate_failed': ['generating'],
     'pending_review': ['publishing', 'manual_writing', 'draft', 'generating'],
-    'publishing': ['published', 'publish_failed', 'manual_writing', 'draft'],
+    'publishing': ['published', 'publish_failed', 'pending_review', 'manual_writing', 'draft'],
     'publish_failed': ['publishing'],
   };
 
@@ -514,8 +514,8 @@ export class ArticleServiceImpl implements IArticleService {
         throw new ForbiddenError('不能驳回自己创建的文章');
       }
 
-      // Determine reject target status based on writeMode
-      const rejectStatus = existing.writeMode === 'manual' ? 'manual_writing' : 'draft';
+      // Reject always returns article to pending_review for re-review
+      const rejectStatus = 'pending_review';
 
       // Defense-in-depth: validate transition against state machine
       if (!this.isValidStatusTransition(existing.status, rejectStatus)) {

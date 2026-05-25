@@ -228,7 +228,7 @@ const PublishingSchedulePage: React.FC = () => {
           {data.map((item) => {
             const statusCfg = getDerivedStatus(item);
             const canEditThis = (user.role === 'sysadmin' || item.created_by === user.id) && item.status === 'publishing';
-            const canRejectThis = user.role === 'sysadmin' || (item.created_by !== null && item.created_by !== user.id);
+            const canRejectThis = (user.role === 'sysadmin' || (item.created_by !== null && item.created_by !== user.id)) && item.status === 'publishing';
             return (
               <Card key={item.id} size="small" title={item.title} extra={<Tag color={statusCfg.color}>{statusCfg.label}</Tag>}>
                 <Descriptions column={2} size="small" colon={false}>
@@ -253,7 +253,7 @@ const PublishingSchedulePage: React.FC = () => {
                     {canRejectThis && (
                       <Popconfirm
                         title="确认驳回"
-                        description="驳回后文章将退回修改状态，确定继续？"
+                        description="驳回后文章将退回待审核状态，确定继续？"
                         onConfirm={() => handleReject(item.id)}
                         okText="确定"
                         cancelText="取消"

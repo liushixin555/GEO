@@ -1866,7 +1866,7 @@ describe('PublishingSchedule Controller', () => {
       id: 1,
       project_id: 10,
       title: '测试文章',
-      status: 'draft',
+      status: 'pending_review',
       created_by: 2,
       created_at: new Date('2025-01-01'),
       updated_at: new Date('2025-01-02'),
@@ -1899,7 +1899,7 @@ describe('PublishingSchedule Controller', () => {
     });
 
     it('should reject successfully for admin (non-creator)', async () => {
-      mockRejectPublish.mockResolvedValue({ ...mockRejectedArticle, status: 'manual_writing' });
+      mockRejectPublish.mockResolvedValue({ ...mockRejectedArticle, status: 'pending_review' });
 
       const response = await agent
         .put('/api/v1/publishing-schedule/1/reject')
