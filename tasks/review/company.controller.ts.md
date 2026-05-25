@@ -339,3 +339,18 @@ if (!Number.isInteger(id) || id <= 0) {
 ---
 
 *代码安全专家评审完成（第二轮修复验证） — 2026-05-24*
+
+---
+
+## 附录：额外修复 — 统一 errors 模块（2026-05-25）
+
+**问题**: `apis/entity/errors.ts` 与 `apis/errors.ts` 存在重复的错误类定义。`entity/errors.ts` 中的 `NotFoundError`/`BusinessError`/`ConflictError` 直接继承 `Error`，而 `apis/errors.ts` 中继承 `AppError`。技能服务模块（`skills-file.service.ts`、`skills.service.impl.ts`）使用了 `entity/errors.ts` 的版本，可能导致 `instanceof AppError` 检查失败，错误回退为 500。
+
+**修复**:
+
+1. `apis/entity/errors.ts` 改为从 `../errors` 重新导出，消除重复定义
+2. `apis/service/skills-file.service.ts` 改为从 `../errors` 导入 `BusinessError`
+3. `apis/service/impl/skills.service.impl.ts` 改为从 `../../errors` 导入 `NotFoundError`、`ConflictError`
+4. 对应测试文件更新原型链断言（`Error.prototype` → `AppError.prototype`）
+
+**验证**: 197 个 entity 测试全部通过，10956 个总测试通过，构建和 lint 无新错误。

@@ -2,10 +2,11 @@
  * @jest-environment node
  */
 import {
+  AppError,
   NotFoundError,
   ConflictError,
   BusinessError,
-} from '../../../apis/entity/errors';
+} from '../../../apis/errors';
 
 describe('entity/errors', () => {
   // ============================================================
@@ -84,7 +85,7 @@ describe('entity/errors', () => {
       it('原型链应正确', () => {
         const err = new NotFoundError('用户');
         expect(Object.getPrototypeOf(err)).toBe(NotFoundError.prototype);
-        expect(Object.getPrototypeOf(NotFoundError.prototype)).toBe(Error.prototype);
+        expect(Object.getPrototypeOf(NotFoundError.prototype)).toBe(AppError.prototype);
       });
 
       it('constructor 应指向 NotFoundError', () => {
@@ -369,7 +370,7 @@ describe('entity/errors', () => {
       it('原型链应正确', () => {
         const err = new ConflictError('test');
         expect(Object.getPrototypeOf(err)).toBe(ConflictError.prototype);
-        expect(Object.getPrototypeOf(ConflictError.prototype)).toBe(Error.prototype);
+        expect(Object.getPrototypeOf(ConflictError.prototype)).toBe(AppError.prototype);
       });
 
       it('constructor 应指向 ConflictError', () => {
@@ -605,7 +606,7 @@ describe('entity/errors', () => {
       it('原型链应正确', () => {
         const err = new BusinessError('test');
         expect(Object.getPrototypeOf(err)).toBe(BusinessError.prototype);
-        expect(Object.getPrototypeOf(BusinessError.prototype)).toBe(Error.prototype);
+        expect(Object.getPrototypeOf(BusinessError.prototype)).toBe(AppError.prototype);
       });
 
       it('constructor 应指向 BusinessError', () => {

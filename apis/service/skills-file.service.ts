@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import AdmZip from 'adm-zip';
 import { parseSkillMd } from '../utils/skill-md.util';
-import { BusinessError } from '../entity/errors';
+import { BusinessError } from '../errors';
 
 const MAX_ENTRY_SIZE = 100 * 1024 * 1024; // 100MB per entry
 const MAX_TOTAL_EXTRACTED_SIZE = 500 * 1024 * 1024; // 500MB total extracted

@@ -1,6 +1,6 @@
 import { getPrisma } from '../../utils';
 import { Skills, CreateSkillsRequest, UpdateSkillsRequest } from '../../entity';
-import { NotFoundError, ConflictError } from '../../entity/errors';
+import { NotFoundError, ConflictError } from '../../errors';
 import { mapSkills } from '../../map';
 import { ISkillsService } from '../skills.service';
 

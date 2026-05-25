@@ -9,7 +9,7 @@
 // 直接导入源模块，用于验证引用同一性
 // ============================================================
 import * as userEntity from '../../../apis/entity/user.entity';
-import * as errorsEntity from '../../../apis/entity/errors';
+import * as errorsEntity from '../../../apis/errors';
 
 // 通过 barrel 导入运行时值（5 个 class）
 import {
