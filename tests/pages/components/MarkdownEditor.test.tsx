@@ -1041,6 +1041,19 @@ describe('MarkdownEditor', () => {
       // Should return the original command unchanged (no execute to wrap)
       expect(result).toBe(cmd);
     });
+
+    // I18N-01: 中文 ARIA 标注——渲染时即生效
+    it.each([
+      { name: 'bold', expectedLabel: '粗体 (Ctrl+B)' },
+      { name: 'italic', expectedLabel: '斜体 (Ctrl+I)' },
+      { name: 'strikethrough', expectedLabel: '删除线' },
+    ])('should use Chinese buttonProps for $name (I18N-01)', ({ name, expectedLabel }) => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createFormattingCommand(name, name === 'bold' ? '**' : name === 'italic' ? '*' : '~~');
+      const result = commandsFilterFn!(cmd, false);
+      expect(result.buttonProps['aria-label']).toBe(expectedLabel);
+      expect(result.buttonProps.title).toBe(expectedLabel);
+    });
   });
 
   describe('commandsFilter — table command override', () => {

@@ -161,8 +161,8 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
 
     const TOOLBAR_LABELS: Record<string, string> = {
       'header': '标题',
-      'bold': '粗体',
-      'italic': '斜体',
+      'bold': '粗体 (Ctrl+B)',
+      'italic': '斜体 (Ctrl+I)',
       'strikethrough': '删除线',
       'hr': '分隔线',
       'title': '标题',
@@ -195,7 +195,7 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
         const title = btn.getAttribute('title') ?? '';
         let matched = false;
         for (const [key, label] of Object.entries(TOOLBAR_LABELS)) {
-          if (title.toLowerCase().includes(key.toLowerCase())) {
+          if (title.toLowerCase().includes(key.toLowerCase()) || title.includes(label)) {
             btn.setAttribute('aria-label', label);
             btn.setAttribute('title', label);
             // UX-01: CSS tooltip 数据属性，配合 CSS 伪元素实现快速显示的悬停提示
@@ -808,13 +808,21 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
         }
       }
 
-      // SEC-M1/SEC-M2/QUAL-M1/QUAL-M2/QUAL-L2:
-      // 修复 italic/bold/strikethrough 命令——prefix! 非空断言崩溃 + 输入边界校验 + 错误处理
+      // SEC-M1/SEC-M2/QUAL-M1/QUAL-M2/QUAL-L2/I18N-01:
+      // 修复 italic/bold/strikethrough 命令——prefix! 非空断言崩溃 + 输入边界校验 + 错误处理 + 中文 ARIA
       if (command.name === 'italic' || command.name === 'bold' || command.name === 'strikethrough') {
         const originalExecute = command.execute;
+        // I18N-01: 中文 ARIA 标注——渲染时即生效，无需等待 annotateToolbar 后处理
+        const INLINE_LABELS: Record<string, { 'aria-label': string; title: string }> = {
+          bold: { 'aria-label': '粗体 (Ctrl+B)', title: '粗体 (Ctrl+B)' },
+          italic: { 'aria-label': '斜体 (Ctrl+I)', title: '斜体 (Ctrl+I)' },
+          strikethrough: { 'aria-label': '删除线', title: '删除线' },
+        };
+        const inlineLabel = INLINE_LABELS[command.name];
         if (originalExecute) {
           return {
             ...command,
+            ...(inlineLabel ? { buttonProps: inlineLabel } : {}),
             execute: (state: any, api: any) => {
               try {
                 if (!state.command?.prefix) return;
