@@ -108,6 +108,9 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
   autoFocus = false,
 }, ref) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
+  // 激活模式高亮：追踪当前 preview prop，供 annotateToolbar 读取
+  const previewRef = useRef(preview);
+  previewRef.current = preview;
 
   // REQ-2: 组件卸载时清理 DOM 引用和事件监听器
   // 上游 Editor.factory.tsx:154-163 使用 useMemo 注册 mouseover/mouseleave 但无清理
@@ -221,6 +224,23 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
           }
         });
       });
+
+      // 激活模式按钮高亮——根据当前 preview 模式设置 data-mode-active 属性
+      // CSS 已定义 data-mode-active="true" 样式（Carbon product-tab 视觉规范）
+      const modeLabels: Record<string, string> = {
+        edit: '编辑模式',
+        live: '实时预览',
+        preview: '预览模式',
+      };
+      const activeLabel = modeLabels[previewRef.current];
+      toolbar.querySelectorAll('button').forEach((btn) => {
+        const title = btn.getAttribute('title') ?? '';
+        if (activeLabel && title.includes(activeLabel)) {
+          btn.setAttribute('data-mode-active', 'true');
+        } else if (btn.hasAttribute('data-mode-active')) {
+          btn.removeAttribute('data-mode-active');
+        }
+      });
     };
 
     // 立即执行一次
@@ -244,8 +264,9 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
         const key = e.key.toLowerCase();
           // UI-P1-01: 拦截 Ctrl+L 防止浏览器选中地址栏导致焦点跳走
           // title3.tsx review: 拦截 Ctrl+1-6 防止浏览器切换标签页（与 heading 命令快捷键冲突）
-          const headingKeys = new Set(['1', '2', '3', '4', '5', '6']);
-          if (key === 'j' || key === 'l' || (key === 'h' && !e.shiftKey) || (key === 'q' && !e.shiftKey) || headingKeys.has(key)) {
+          // commands-preview.tsx review: 拦截 Ctrl+7-9 防止浏览器切换标签页（与 preview 命令快捷键冲突）
+          const interceptedNumKeys = new Set(['1', '2', '3', '4', '5', '6', '7', '8', '9']);
+          if (key === 'j' || key === 'l' || (key === 'h' && !e.shiftKey) || (key === 'q' && !e.shiftKey) || interceptedNumKeys.has(key)) {
           e.preventDefault();
         }
       }
