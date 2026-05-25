@@ -327,7 +327,7 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
       if ((e.key === 'Enter' || e.key === ' ') && (e.target as HTMLElement).closest('.copied')) {
         e.preventDefault();
         (e.target as HTMLElement).click();
