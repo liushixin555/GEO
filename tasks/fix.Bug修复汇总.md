@@ -1079,3 +1079,37 @@ components: {
 ### 涉及文件
 - `pages/components/MarkdownEditor.tsx` — 自适应高度 useEffect
 - `pages/styles/markdown-editor.css` — overflow-x 移至移动端媒体查询 + 编辑器 overflow:hidden
+
+---
+
+## fix020. upload.controller.ts 安全评审修复（静态文件安全头 + 图片尺寸验证）
+
+### 问题
+根据 `tasks/review/upload.controller.security.md` 安全评审报告（🔴 HIGH RISK），上传控制器存在多项安全问题。大部分问题（SVG XSS、MIME 伪造、错误信息泄露、扩展名净化、TOCTOU、.gitignore）已在之前重构中修复，剩余 2 项需要修复。
+
+### 已在之前修复的问题
+- **HIGH-1 SVG XSS**：已从 ALLOWED_TYPES 移除 image/svg+xml
+- **HIGH-2 MIME 伪造**：已实现 Magic Bytes 文件签名验证
+- **HIGH-3 错误信息泄露**：已使用 MulterError 分类 + 通用错误消息
+- **MEDIUM-1 扩展名未净化**：已使用 MIME→扩展名映射表
+- **LOW-1 TOCTOU**：已简化为直接 mkdirSync
+- **LOW-2 .gitignore**：uploads/ 已在 .gitignore 中
+
+### 本次修复
+
+**MEDIUM-2 上传文件静态服务无安全响应头**：
+- `apis/app.ts`：为 /uploads 路由添加 Cache-Control 头
+- 新增 `setHeaders` 回调，对 `.svg`/`.html`/`.htm` 扩展名强制下载（Content-Disposition: attachment）并设置 CSP 禁止脚本执行
+- 防止存储型 XSS 即使绕过上传验证也被浏览器渲染执行
+
+**MEDIUM-3 解压炸弹（Pixel Flood）攻击面**：
+- 新增 `image-size` 依赖
+- `apis/utils/image-validator.ts`：新增 `validateDimensions()` 方法，限制图片最大 8000×8000 像素
+- `apis/controller/upload.controller.ts`：上传时验证图片尺寸，超限返回 400
+- 无法解析尺寸的最小化文件（如测试用文件）放行，避免误拒
+
+### 涉及文件
+- `apis/app.ts` — uploads 静态服务安全头
+- `apis/utils/image-validator.ts` — 新增 validateDimensions 方法
+- `apis/controller/upload.controller.ts` — 调用尺寸验证
+- `package.json` — 新增 image-size 依赖

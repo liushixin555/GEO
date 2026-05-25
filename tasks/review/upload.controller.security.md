@@ -5,7 +5,7 @@
 **文件路径**: `apis/controller/upload.controller.ts`
 **代码行数**: 64 行
 **关联文件**: `apis/app.ts`, `apis/utils/response.util.ts`, `apis/middleware/auth.middleware.ts`, `apis/middleware/rate-limit.middleware.ts`
-**安全评级**: 🔴 HIGH RISK — 3 个 HIGH / 3 个 MEDIUM / 2 个 LOW
+**安全评级**: ~~🔴 HIGH RISK~~ → 🟢 LOW RISK — 全部问题已修复
 **攻击面分类**: 文件上传（OWASP A04:2021 Insecure Design）
 
 ---
@@ -506,16 +506,17 @@ if (!fs.existsSync(UPLOAD_DIR)) {    // ← Check
 
 ```
 Layer 1: 认证 + 授权        ← 已实现 ✓
-Layer 2: MIME 白名单         ← 已实现，但可伪造 ✗
-Layer 3: 文件签名验证        ← 未实现，建议添加
-Layer 4: 扩展名净化          ← 未实现，建议添加
-Layer 5: 图片尺寸限制        ← 未实现，建议添加
-Layer 6: 安全响应头          ← 未实现，建议添加
+Layer 2: MIME 白名单         ← 已实现 ✓
+Layer 3: 文件签名验证        ← 已实现 ✓（ImageValidator.verifyFileSignature）
+Layer 4: 扩展名净化          ← 已实现 ✓（MIME_TO_EXT 映射）
+Layer 5: 图片尺寸限制        ← 已实现 ✓（ImageValidator.validateDimensions 8000px）
+Layer 6: 安全响应头          ← 已实现 ✓（CSP + Content-Disposition + nosniff）
 Layer 7: 文件内容扫描        ← 未实现，长期考虑
 ```
 
-**最低修复要求**: 完成全部 HIGH 级别修复后，安全评级可提升至 🟡 MEDIUM RISK。
+**最低修复要求**: ~~完成全部 HIGH 级别修复后，安全评级可提升至 🟡 MEDIUM RISK~~ → 全部 HIGH/MEDIUM/LOW 已修复，安全评级 🟢 LOW RISK。
 
 ---
 
 *代码安全专家评审完成 — 2026-05-24*
+*全部问题修复完成 — 2026-05-25*

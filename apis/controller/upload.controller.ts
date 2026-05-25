@@ -30,6 +30,12 @@ export async function uploadFile(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    if (!ImageValidator.validateDimensions(req.file.path).valid) {
+      try { fs.unlinkSync(req.file.path); } catch {}
+      fail(res, 400, '图片尺寸超过限制（最大 8000x8000 像素）');
+      return;
+    }
+
     const url = `/uploads/${req.file.filename}`;
     success(res, { url }, '上传成功');
   } catch {

@@ -63,8 +63,18 @@ app.use(express.json({ limit: `${config.bodyLimitMb}mb` }));
 app.use('/uploads', (_req, res, next) => {
   res.set('Cross-Origin-Resource-Policy', 'cross-origin');
   res.set('X-Content-Type-Options', 'nosniff');
+  res.set('Cache-Control', 'private, max-age=3600');
   next();
-}, express.static(config.uploadDir));
+}, express.static(config.uploadDir, {
+  setHeaders: (res, filePath) => {
+    // 对危险扩展名强制下载而非渲染，防止存储型 XSS
+    const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
+    if (['.svg', '.html', '.htm'].includes(ext)) {
+      res.set('Content-Disposition', 'attachment');
+      res.set('Content-Security-Policy', "default-src 'none'; script-src 'none'");
+    }
+  },
+}));
 
 // Anti-crawl & rate limiting — intentionally placed before login route to prevent brute force
 app.use(antiCrawlMiddleware);
