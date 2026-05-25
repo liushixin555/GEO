@@ -5,12 +5,8 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  '@uiw/react-markdown-preview@5.2.1':
-    hash: f32654e724845ff1550a294b4428f4a91d435be79a51ecaa41a75cd65db5eaf4
-    path: patches/@uiw__react-markdown-preview@5.2.1.patch
-  '@uiw/react-md-editor@4.1.0':
-    hash: 6d7268215eba0a1c293eacbe438b83509827dc74cf73bde9fed76333b462cabe
-    path: patches/@uiw__react-md-editor@4.1.0.patch
+  '@uiw/react-markdown-preview@5.2.1': f32654e724845ff1550a294b4428f4a91d435be79a51ecaa41a75cd65db5eaf4
+  '@uiw/react-md-editor@4.1.0': 21ed0dd87d8140fa46bde168cac63db67dd687a9f2e69170a59f25f989002c69
 
 importers:
 
@@ -36,7 +32,7 @@ importers:
         version: 5.2.1(patch_hash=f32654e724845ff1550a294b4428f4a91d435be79a51ecaa41a75cd65db5eaf4)(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@uiw/react-md-editor':
         specifier: ^4.1.0
-        version: 4.1.0(patch_hash=6d7268215eba0a1c293eacbe438b83509827dc74cf73bde9fed76333b462cabe)(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 4.1.0(patch_hash=21ed0dd87d8140fa46bde168cac63db67dd687a9f2e69170a59f25f989002c69)(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       adm-zip:
         specifier: ^0.5.17
         version: 0.5.17
@@ -5730,7 +5726,7 @@ snapshots:
       - '@types/react'
       - supports-color
 
-  '@uiw/react-md-editor@4.1.0(patch_hash=6d7268215eba0a1c293eacbe438b83509827dc74cf73bde9fed76333b462cabe)(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@uiw/react-md-editor@4.1.0(patch_hash=21ed0dd87d8140fa46bde168cac63db67dd687a9f2e69170a59f25f989002c69)(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@babel/runtime': 7.29.2
       '@uiw/react-markdown-preview': 5.2.1(patch_hash=f32654e724845ff1550a294b4428f4a91d435be79a51ecaa41a75cd65db5eaf4)(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)

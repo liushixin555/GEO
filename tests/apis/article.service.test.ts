@@ -3,7 +3,6 @@
  */
 import { ArticleServiceImpl } from '../../apis/service/impl/article.service.impl';
 import { ArticleStatus } from '../../apis/entity';
-import { AuthContext } from '../../apis/service/article.service';
 import { Prisma } from '@prisma/client';
 
 // Mock getPrisma
@@ -55,14 +54,9 @@ import { getPrisma } from '../../apis/utils/db.util';
 
 const service = new ArticleServiceImpl();
 
-const PROJECT_ID = 10;
-const sysadminAuth: AuthContext = { userId: 1, role: 'sysadmin' };
-const adminAuth: AuthContext = { userId: 2, role: 'admin' };
-const otherAuth: AuthContext = { userId: 3, role: 'sysadmin' };
-
 const baseArticle = {
   id: 1,
-  projectId: PROJECT_ID,
+  projectId: 10,
   title: '测试文章',
   articleType: 'seo',
   writeMode: 'ai',
@@ -86,50 +80,6 @@ describe('ArticleServiceImpl', () => {
     jest.clearAllMocks();
   });
 
-  // ─── Business rule queries (C-2: moved from controller) ───
-
-  describe('Business rule queries', () => {
-    it('isSettingsEditable: draft可编辑设置', () => {
-      expect(service.isSettingsEditable('draft')).toBe(true);
-    });
-
-    it('isSettingsEditable: 非draft不可编辑设置', () => {
-      expect(service.isSettingsEditable('manual_writing')).toBe(false);
-      expect(service.isSettingsEditable('generating')).toBe(false);
-      expect(service.isSettingsEditable('published')).toBe(false);
-    });
-
-    it('isContentEditable: 允许编辑正文的状态', () => {
-      expect(service.isContentEditable('draft')).toBe(true);
-      expect(service.isContentEditable('manual_writing')).toBe(true);
-      expect(service.isContentEditable('generate_failed')).toBe(true);
-      expect(service.isContentEditable('publish_failed')).toBe(true);
-    });
-
-    it('isContentEditable: 不允许编辑正文的状态', () => {
-      expect(service.isContentEditable('generating')).toBe(false);
-      expect(service.isContentEditable('pending_review')).toBe(false);
-      expect(service.isContentEditable('publishing')).toBe(false);
-      expect(service.isContentEditable('published')).toBe(false);
-    });
-
-    it('isValidStatusTransition: 合法转换', () => {
-      expect(service.isValidStatusTransition('draft', 'generating')).toBe(true);
-      expect(service.isValidStatusTransition('draft', 'manual_writing')).toBe(true);
-      expect(service.isValidStatusTransition('manual_writing', 'pending_review')).toBe(true);
-    });
-
-    it('isValidStatusTransition: 非法转换', () => {
-      expect(service.isValidStatusTransition('draft', 'pending_review')).toBe(false);
-      expect(service.isValidStatusTransition('draft', 'published')).toBe(false);
-      expect(service.isValidStatusTransition('published', 'draft')).toBe(false);
-    });
-
-    it('isValidStatusTransition: 不存在的源状态', () => {
-      expect(service.isValidStatusTransition('nonexistent', 'draft')).toBe(false);
-    });
-  });
-
   // ─── list ───
 
   describe('list', () => {
@@ -137,7 +87,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([baseArticle]);
       mockArticleCount.mockResolvedValue(1);
 
-      const result = await service.list(PROJECT_ID, 1, 10);
+      const result = await service.list(10, 1, 10);
 
       expect(result.list).toHaveLength(1);
       expect(result.list[0].id).toBe(1);
@@ -146,7 +96,7 @@ describe('ArticleServiceImpl', () => {
 
       expect(mockArticleFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({ projectId: PROJECT_ID, deletedAt: null }),
+          where: expect.objectContaining({ projectId: 10, deletedAt: null }),
           orderBy: { id: 'desc' },
           skip: 0,
           take: 10,
@@ -158,7 +108,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(25);
 
-      const result = await service.list(PROJECT_ID, 3, 10);
+      const result = await service.list(10, 3, 10);
 
       expect(result.total).toBe(25);
       expect(mockArticleFindMany).toHaveBeenCalledWith(
@@ -173,7 +123,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(PROJECT_ID, 1, 10, '测试关键词');
+      await service.list(10, 1, 10, '测试关键词');
 
       expect(mockArticleFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -188,7 +138,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(PROJECT_ID, 1, 10, undefined, 'draft');
+      await service.list(10, 1, 10, undefined, 'draft');
 
       expect(mockArticleFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -201,7 +151,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(PROJECT_ID, 1, 10, '关键词', 'pending_review');
+      await service.list(10, 1, 10, '关键词', 'pending_review');
 
       expect(mockArticleFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -217,13 +167,13 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(PROJECT_ID, 1, 10, undefined, undefined, adminAuth);
+      await service.list(10, 1, 10, undefined, undefined, 2, 'admin');
 
       expect(mockArticleFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             project: {
-              operators: { some: { userId: adminAuth.userId } },
+              operators: { some: { userId: 2 } },
               company: { status: true },
               status: true,
             },
@@ -236,17 +186,17 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(PROJECT_ID, 1, 10, undefined, undefined, sysadminAuth);
+      await service.list(10, 1, 10, undefined, undefined, 1, 'sysadmin');
 
       const callArgs = mockArticleFindMany.mock.calls[0][0] as any;
       expect(callArgs.where.project).toBeUndefined();
     });
 
-    it('admin角色但userId为0不添加项目操作员过滤', async () => {
+    it('admin角色但没有userId不添加项目操作员过滤', async () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(PROJECT_ID, 1, 10, undefined, undefined, { userId: 0, role: 'admin' });
+      await service.list(10, 1, 10, undefined, undefined, undefined, 'admin');
 
       const callArgs = mockArticleFindMany.mock.calls[0][0] as any;
       expect(callArgs.where.project).toBeUndefined();
@@ -256,7 +206,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      const result = await service.list(PROJECT_ID, 1, 10);
+      const result = await service.list(10, 1, 10);
 
       expect(result.list).toHaveLength(0);
       expect(result.total).toBe(0);
@@ -266,7 +216,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(PROJECT_ID, 1, 10, '');
+      await service.list(10, 1, 10, '');
 
       const callArgs = mockArticleFindMany.mock.calls[0][0] as any;
       expect(callArgs.where.keywords).toBeUndefined();
@@ -276,7 +226,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(PROJECT_ID, 1, 10, undefined, '');
+      await service.list(10, 1, 10, undefined, '');
 
       const callArgs = mockArticleFindMany.mock.calls[0][0] as any;
       expect(callArgs.where.status).toBeUndefined();
@@ -286,7 +236,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(PROJECT_ID, 1, 10, undefined, undefined, { userId: 3, role: 'view' });
+      await service.list(10, 1, 10, undefined, undefined, 3, 'view');
 
       const callArgs = mockArticleFindMany.mock.calls[0][0] as any;
       expect(callArgs.where.project).toBeUndefined();
@@ -296,13 +246,13 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(PROJECT_ID, 1, 10, '关键词', 'draft', adminAuth);
+      await service.list(10, 1, 10, '关键词', 'draft', 2, 'admin');
 
       const callArgs = mockArticleFindMany.mock.calls[0][0] as any;
       expect(callArgs.where.keywords).toEqual({ contains: '关键词', mode: 'insensitive' });
       expect(callArgs.where.status).toBe('draft');
       expect(callArgs.where.project).toEqual({
-        operators: { some: { userId: adminAuth.userId } },
+        operators: { some: { userId: 2 } },
         company: { status: true },
         status: true,
       });
@@ -312,7 +262,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(PROJECT_ID, 1, 20);
+      await service.list(10, 1, 20);
 
       expect(mockArticleFindMany).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 0, take: 20 }),
@@ -323,11 +273,57 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(PROJECT_ID, 2, 5);
+      await service.list(10, 2, 5);
 
       expect(mockArticleFindMany).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 5, take: 5 }),
       );
+    });
+
+    it('page为0时skip应为负数', async () => {
+      mockArticleFindMany.mockResolvedValue([]);
+      mockArticleCount.mockResolvedValue(0);
+
+      await service.list(10, 0, 10);
+
+      expect(mockArticleFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: -10, take: 10 }),
+      );
+    });
+
+    it('count和findMany应使用相同的where条件', async () => {
+      mockArticleFindMany.mockResolvedValue([]);
+      mockArticleCount.mockResolvedValue(0);
+
+      await service.list(10, 1, 10, '搜索', 'draft', 2, 'admin');
+
+      const findWhere = mockArticleFindMany.mock.calls[0][0].where;
+      const countWhere = mockArticleCount.mock.calls[0][0].where;
+      expect(countWhere).toEqual(findWhere);
+    });
+
+    it('projectId为0时应正确查询', async () => {
+      mockArticleFindMany.mockResolvedValue([]);
+      mockArticleCount.mockResolvedValue(0);
+
+      await service.list(0, 1, 10);
+
+      expect(mockArticleFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ projectId: 0 }),
+        }),
+      );
+    });
+
+    it('所有参数均为undefined时只带projectId和deletedAt', async () => {
+      mockArticleFindMany.mockResolvedValue([]);
+      mockArticleCount.mockResolvedValue(0);
+
+      await service.list(10, 1, 10);
+
+      const callArgs = mockArticleFindMany.mock.calls[0][0] as any;
+      const where = callArgs.where;
+      expect(Object.keys(where)).toEqual(['projectId', 'deletedAt']);
     });
   });
 
@@ -341,7 +337,7 @@ describe('ArticleServiceImpl', () => {
 
       expect(result.id).toBe(1);
       expect(result.title).toBe('测试文章');
-      expect(result.project_id).toBe(PROJECT_ID);
+      expect(result.project_id).toBe(10);
       expect(mockArticleFindFirst).toHaveBeenCalledWith({
         where: { id: 1, deletedAt: null },
       });
@@ -353,13 +349,31 @@ describe('ArticleServiceImpl', () => {
       await expect(service.getById(999)).rejects.toThrow('文章不存在');
     });
 
-    it('getById不需要auth参数', async () => {
+    it('应传递userId和role参数', async () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
 
-      await service.getById(1);
+      await service.getById(1, 2, 'admin');
 
       expect(mockArticleFindFirst).toHaveBeenCalledWith({
         where: { id: 1, deletedAt: null },
+      });
+    });
+
+    it('id为负数时查询不抛异常', async () => {
+      mockArticleFindFirst.mockResolvedValue(null);
+
+      await expect(service.getById(-1)).rejects.toThrow('文章不存在');
+      expect(mockArticleFindFirst).toHaveBeenCalledWith({
+        where: { id: -1, deletedAt: null },
+      });
+    });
+
+    it('id为0时查询不抛异常', async () => {
+      mockArticleFindFirst.mockResolvedValue(null);
+
+      await expect(service.getById(0)).rejects.toThrow('文章不存在');
+      expect(mockArticleFindFirst).toHaveBeenCalledWith({
+        where: { id: 0, deletedAt: null },
       });
     });
   });
@@ -370,16 +384,16 @@ describe('ArticleServiceImpl', () => {
     it('应创建文章并返回映射后的对象', async () => {
       mockArticleCreate.mockResolvedValue(baseArticle);
 
-      const result = await service.create(PROJECT_ID, { title: '测试文章' }, sysadminAuth);
+      const result = await service.create(10, { title: '测试文章' }, 1);
 
       expect(result.id).toBe(1);
       expect(result.title).toBe('测试文章');
       expect(mockArticleCreate).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          projectId: PROJECT_ID,
+          projectId: 10,
           title: '测试文章',
           version: 1,
-          createdBy: sysadminAuth.userId,
+          createdBy: 1,
         }),
       });
     });
@@ -387,7 +401,7 @@ describe('ArticleServiceImpl', () => {
     it('未提供title时应默认为空字符串', async () => {
       mockArticleCreate.mockResolvedValue({ ...baseArticle, title: '' });
 
-      await service.create(PROJECT_ID, {}, sysadminAuth);
+      await service.create(10, {}, 1);
 
       expect(mockArticleCreate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -399,7 +413,7 @@ describe('ArticleServiceImpl', () => {
     it('未提供status时应默认为draft', async () => {
       mockArticleCreate.mockResolvedValue(baseArticle);
 
-      await service.create(PROJECT_ID, { title: 'T' }, sysadminAuth);
+      await service.create(10, { title: 'T' }, 1);
 
       expect(mockArticleCreate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -411,7 +425,7 @@ describe('ArticleServiceImpl', () => {
     it('应支持所有可选字段', async () => {
       mockArticleCreate.mockResolvedValue(baseArticle);
 
-      await service.create(PROJECT_ID, {
+      await service.create(10, {
         title: '标题',
         article_type: 'seo',
         write_mode: 'manual',
@@ -423,7 +437,7 @@ describe('ArticleServiceImpl', () => {
         llm_model_id: 2,
         content: '内容',
         status: 'manual_writing',
-      }, sysadminAuth);
+      }, 1);
 
       const callData = mockArticleCreate.mock.calls[0][0].data;
       expect(callData.articleType).toBe('seo');
@@ -439,12 +453,12 @@ describe('ArticleServiceImpl', () => {
     it('空值字段应设为null', async () => {
       mockArticleCreate.mockResolvedValue(baseArticle);
 
-      await service.create(PROJECT_ID, {
+      await service.create(10, {
         article_type: '',
         write_mode: '',
         keywords: '',
         portrait: '',
-      }, sysadminAuth);
+      }, 1);
 
       const callData = mockArticleCreate.mock.calls[0][0].data;
       expect(callData.articleType).toBeNull();
@@ -457,14 +471,14 @@ describe('ArticleServiceImpl', () => {
       mockArticleCreate.mockResolvedValue(baseArticle);
       mockArticleVersionCreate.mockResolvedValue({});
 
-      await service.create(PROJECT_ID, { title: 'T', content: '初始内容' }, sysadminAuth);
+      await service.create(10, { title: 'T', content: '初始内容' }, 1);
 
       expect(mockArticleVersionCreate).toHaveBeenCalledWith({
         data: {
           articleId: 1,
           version: 1,
           content: '初始内容',
-          createdBy: sysadminAuth.userId,
+          createdBy: 1,
         },
       });
     });
@@ -472,7 +486,7 @@ describe('ArticleServiceImpl', () => {
     it('无content时不应创建版本快照', async () => {
       mockArticleCreate.mockResolvedValue(baseArticle);
 
-      await service.create(PROJECT_ID, { title: 'T' }, sysadminAuth);
+      await service.create(10, { title: 'T' }, 1);
 
       expect(mockArticleVersionCreate).not.toHaveBeenCalled();
     });
@@ -480,7 +494,7 @@ describe('ArticleServiceImpl', () => {
     it('content为空字符串时不应创建版本快照', async () => {
       mockArticleCreate.mockResolvedValue(baseArticle);
 
-      await service.create(PROJECT_ID, { title: 'T', content: '' }, sysadminAuth);
+      await service.create(10, { title: 'T', content: '' }, 1);
 
       expect(mockArticleVersionCreate).not.toHaveBeenCalled();
     });
@@ -488,7 +502,7 @@ describe('ArticleServiceImpl', () => {
     it('images未提供时应设为Prisma.JsonNull', async () => {
       mockArticleCreate.mockResolvedValue(baseArticle);
 
-      await service.create(PROJECT_ID, { title: 'T' }, sysadminAuth);
+      await service.create(10, { title: 'T' }, 1);
 
       const callData = mockArticleCreate.mock.calls[0][0].data;
       expect(callData.images).toBe(Prisma.JsonNull);
@@ -497,7 +511,7 @@ describe('ArticleServiceImpl', () => {
     it('platforms未提供时应设为Prisma.JsonNull', async () => {
       mockArticleCreate.mockResolvedValue(baseArticle);
 
-      await service.create(PROJECT_ID, { title: 'T' }, sysadminAuth);
+      await service.create(10, { title: 'T' }, 1);
 
       const callData = mockArticleCreate.mock.calls[0][0].data;
       expect(callData.platforms).toBe(Prisma.JsonNull);
@@ -506,7 +520,7 @@ describe('ArticleServiceImpl', () => {
     it('skills未提供时应设为Prisma.JsonNull', async () => {
       mockArticleCreate.mockResolvedValue(baseArticle);
 
-      await service.create(PROJECT_ID, { title: 'T' }, sysadminAuth);
+      await service.create(10, { title: 'T' }, 1);
 
       const callData = mockArticleCreate.mock.calls[0][0].data;
       expect(callData.skills).toBe(Prisma.JsonNull);
@@ -515,7 +529,7 @@ describe('ArticleServiceImpl', () => {
     it('images为空数组时应保留空数组', async () => {
       mockArticleCreate.mockResolvedValue(baseArticle);
 
-      await service.create(PROJECT_ID, { title: 'T', images: [] }, sysadminAuth);
+      await service.create(10, { title: 'T', images: [] }, 1);
 
       const callData = mockArticleCreate.mock.calls[0][0].data;
       expect(callData.images).toEqual([]);
@@ -524,7 +538,7 @@ describe('ArticleServiceImpl', () => {
     it('platforms为空数组时应保留空数组', async () => {
       mockArticleCreate.mockResolvedValue(baseArticle);
 
-      await service.create(PROJECT_ID, { title: 'T', platforms: [] }, sysadminAuth);
+      await service.create(10, { title: 'T', platforms: [] }, 1);
 
       const callData = mockArticleCreate.mock.calls[0][0].data;
       expect(callData.platforms).toEqual([]);
@@ -533,7 +547,7 @@ describe('ArticleServiceImpl', () => {
     it('skills为空数组时应保留空数组', async () => {
       mockArticleCreate.mockResolvedValue(baseArticle);
 
-      await service.create(PROJECT_ID, { title: 'T', skills: [] }, sysadminAuth);
+      await service.create(10, { title: 'T', skills: [] }, 1);
 
       const callData = mockArticleCreate.mock.calls[0][0].data;
       expect(callData.skills).toEqual([]);
@@ -542,7 +556,7 @@ describe('ArticleServiceImpl', () => {
     it('status为generating时应正确设置', async () => {
       mockArticleCreate.mockResolvedValue({ ...baseArticle, status: 'generating' });
 
-      await service.create(PROJECT_ID, { title: 'T', status: 'generating' }, sysadminAuth);
+      await service.create(10, { title: 'T', status: 'generating' }, 1);
 
       const callData = mockArticleCreate.mock.calls[0][0].data;
       expect(callData.status).toBe('generating');
@@ -551,7 +565,7 @@ describe('ArticleServiceImpl', () => {
     it('status为manual_writing时应正确设置', async () => {
       mockArticleCreate.mockResolvedValue({ ...baseArticle, status: 'manual_writing' });
 
-      await service.create(PROJECT_ID, { title: 'T', status: 'manual_writing' }, sysadminAuth);
+      await service.create(10, { title: 'T', status: 'manual_writing' }, 1);
 
       const callData = mockArticleCreate.mock.calls[0][0].data;
       expect(callData.status).toBe('manual_writing');
@@ -560,7 +574,7 @@ describe('ArticleServiceImpl', () => {
     it('llm_model_id为0时应设为null', async () => {
       mockArticleCreate.mockResolvedValue(baseArticle);
 
-      await service.create(PROJECT_ID, { title: 'T', llm_model_id: 0 }, sysadminAuth);
+      await service.create(10, { title: 'T', llm_model_id: 0 }, 1);
 
       const callData = mockArticleCreate.mock.calls[0][0].data;
       expect(callData.llmModelId).toBeNull();
@@ -569,7 +583,7 @@ describe('ArticleServiceImpl', () => {
     it('images为null时应设为Prisma.JsonNull', async () => {
       mockArticleCreate.mockResolvedValue(baseArticle);
 
-      await service.create(PROJECT_ID, { title: 'T', images: null as any }, sysadminAuth);
+      await service.create(10, { title: 'T', images: null as any }, 1);
 
       const callData = mockArticleCreate.mock.calls[0][0].data;
       expect(callData.images).toBe(Prisma.JsonNull);
@@ -580,27 +594,95 @@ describe('ArticleServiceImpl', () => {
       mockArticleCreate.mockResolvedValue(created);
       mockArticleVersionCreate.mockResolvedValue({});
 
-      await service.create(PROJECT_ID, { title: 'T', content: '内容' }, sysadminAuth);
+      await service.create(10, { title: 'T', content: '内容' }, 1);
 
       expect(mockArticleVersionCreate).toHaveBeenCalledWith({
         data: {
           articleId: 42,
           version: 1,
           content: '内容',
-          createdBy: sysadminAuth.userId,
+          createdBy: 1,
+        },
+      });
+    });
+
+    it('status为空字符串时应默认为draft', async () => {
+      mockArticleCreate.mockResolvedValue(baseArticle);
+
+      await service.create(10, { title: 'T', status: '' as any }, 1);
+
+      const callData = mockArticleCreate.mock.calls[0][0].data;
+      expect(callData.status).toBe('draft');
+    });
+
+    it('content为空格字符串时不应创建版本快照', async () => {
+      mockArticleCreate.mockResolvedValue(baseArticle);
+
+      await service.create(10, { title: 'T', content: '   ' }, 1);
+
+      expect(mockArticleVersionCreate).not.toHaveBeenCalled();
+    });
+
+    it('projectId为0时应正确创建', async () => {
+      mockArticleCreate.mockResolvedValue({ ...baseArticle, projectId: 0 });
+
+      await service.create(0, { title: 'T' }, 1);
+
+      expect(mockArticleCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ projectId: 0 }),
+        }),
+      );
+    });
+
+    it('userId为0时应正确设置createdBy', async () => {
+      mockArticleCreate.mockResolvedValue(baseArticle);
+
+      await service.create(10, { title: 'T' }, 0);
+
+      const callData = mockArticleCreate.mock.calls[0][0].data;
+      expect(callData.createdBy).toBe(0);
+    });
+
+    it('所有可选字段为undefined时应正确设置默认值', async () => {
+      mockArticleCreate.mockResolvedValue(baseArticle);
+
+      await service.create(10, { title: 'T' }, 1);
+
+      const callData = mockArticleCreate.mock.calls[0][0].data;
+      expect(callData.articleType).toBeNull();
+      expect(callData.writeMode).toBeNull();
+      expect(callData.keywords).toBeNull();
+      expect(callData.portrait).toBeNull();
+      expect(callData.llmModelId).toBeNull();
+      expect(callData.content).toBeNull();
+    });
+
+    it('content有值时创建的版本快照应记录userId', async () => {
+      mockArticleCreate.mockResolvedValue({ ...baseArticle, id: 99 });
+      mockArticleVersionCreate.mockResolvedValue({});
+
+      await service.create(10, { title: 'T', content: '内容' }, 5);
+
+      expect(mockArticleVersionCreate).toHaveBeenCalledWith({
+        data: {
+          articleId: 99,
+          version: 1,
+          content: '内容',
+          createdBy: 5,
         },
       });
     });
   });
 
-  // ─── update (with H-3/H-4 auth checks inside transaction) ───
+  // ─── update ───
 
   describe('update', () => {
     it('应更新文章并返回映射后的对象', async () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
       mockArticleUpdate.mockResolvedValue({ ...baseArticle, title: '新标题' });
 
-      const result = await service.update(PROJECT_ID, 1, { title: '新标题' }, sysadminAuth);
+      const result = await service.update(1, { title: '新标题' }, 1);
 
       expect(result.title).toBe('新标题');
     });
@@ -608,56 +690,14 @@ describe('ArticleServiceImpl', () => {
     it('文章不存在时应抛出异常', async () => {
       mockArticleFindFirst.mockResolvedValue(null);
 
-      await expect(service.update(PROJECT_ID, 999, { title: 'T' }, sysadminAuth)).rejects.toThrow('文章不存在');
-    });
-
-    it('项目ID不匹配时应抛出异常', async () => {
-      mockArticleFindFirst.mockResolvedValue(baseArticle);
-
-      await expect(service.update(999, 1, { title: 'T' }, sysadminAuth)).rejects.toThrow('文章不存在');
-    });
-
-    it('非创建者非sysadmin应抛出权限异常', async () => {
-      mockArticleFindFirst.mockResolvedValue(baseArticle); // createdBy: 1
-
-      await expect(service.update(PROJECT_ID, 1, { title: 'T' }, adminAuth)).rejects.toThrow('只能修改自己创建的文章');
-    });
-
-    it('非draft状态不可编辑设置', async () => {
-      mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'manual_writing' });
-
-      await expect(service.update(PROJECT_ID, 1, { title: 'T' }, sysadminAuth)).rejects.toThrow('当前文章状态不可编辑');
-    });
-
-    it('非法状态转换应抛出异常', async () => {
-      mockArticleFindFirst.mockResolvedValue(baseArticle); // status: 'draft'
-
-      await expect(service.update(PROJECT_ID, 1, { status: 'pending_review' }, sysadminAuth)).rejects.toThrow('非法的状态转换');
-    });
-
-    it('draft→generating状态转换应成功', async () => {
-      mockArticleFindFirst.mockResolvedValue(baseArticle);
-      mockArticleUpdate.mockResolvedValue({ ...baseArticle, status: 'generating' });
-
-      const result = await service.update(PROJECT_ID, 1, { status: 'generating' }, sysadminAuth);
-
-      expect(result.status).toBe('generating');
-    });
-
-    it('draft→manual_writing状态转换应成功', async () => {
-      mockArticleFindFirst.mockResolvedValue(baseArticle);
-      mockArticleUpdate.mockResolvedValue({ ...baseArticle, status: 'manual_writing' });
-
-      const result = await service.update(PROJECT_ID, 1, { status: 'manual_writing' }, sysadminAuth);
-
-      expect(result.status).toBe('manual_writing');
+      await expect(service.update(999, { title: 'T' })).rejects.toThrow('文章不存在');
     });
 
     it('只更新提供的字段', async () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
       mockArticleUpdate.mockResolvedValue(baseArticle);
 
-      await service.update(PROJECT_ID, 1, { title: '新标题' }, sysadminAuth);
+      await service.update(1, { title: '新标题' });
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.title).toBe('新标题');
@@ -669,7 +709,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
       mockArticleUpdate.mockResolvedValue(baseArticle);
 
-      await service.update(PROJECT_ID, 1, {
+      await service.update(1, {
         title: '标题',
         article_type: 'blog',
         write_mode: 'manual',
@@ -679,8 +719,8 @@ describe('ArticleServiceImpl', () => {
         platforms: ['搜狐'],
         skills: 2,
         llm_model_id: 3,
-        status: 'generating',
-      }, sysadminAuth);
+        status: 'pending_review',
+      });
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.title).toBe('标题');
@@ -688,19 +728,19 @@ describe('ArticleServiceImpl', () => {
       expect(updateData.writeMode).toBe('manual');
       expect(updateData.keywords).toBe('kw2');
       expect(updateData.portrait).toBe('画像2');
-      expect(updateData.status).toBe('generating');
+      expect(updateData.status).toBe('pending_review');
     });
 
     it('空字符串字段应设为null', async () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
       mockArticleUpdate.mockResolvedValue(baseArticle);
 
-      await service.update(PROJECT_ID, 1, {
+      await service.update(1, {
         article_type: '',
         write_mode: '',
         keywords: '',
         portrait: '',
-      }, sysadminAuth);
+      });
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.articleType).toBeNull();
@@ -713,12 +753,12 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
       mockArticleUpdate.mockResolvedValue(baseArticle);
 
-      await service.update(PROJECT_ID, 1, {
+      await service.update(1, {
         images: null as any,
         platforms: null as any,
         skills: 0,
         llm_model_id: 0,
-      }, sysadminAuth);
+      });
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.images).toBe(Prisma.JsonNull);
@@ -731,7 +771,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
       mockArticleUpdate.mockResolvedValue(baseArticle);
 
-      await service.update(PROJECT_ID, 1, { scheduled_publish_at: '2026-06-01T10:00:00Z' }, sysadminAuth);
+      await service.update(1, { scheduled_publish_at: '2026-06-01T10:00:00Z' });
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.scheduledPublishAt).toBeInstanceOf(Date);
@@ -741,7 +781,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
       mockArticleUpdate.mockResolvedValue(baseArticle);
 
-      await service.update(PROJECT_ID, 1, { scheduled_publish_at: null }, sysadminAuth);
+      await service.update(1, { scheduled_publish_at: null });
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.scheduledPublishAt).toBeNull();
@@ -752,7 +792,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleUpdate.mockResolvedValue({ ...baseArticle, content: '新内容', version: 2 });
       mockArticleVersionCreate.mockResolvedValue({});
 
-      await service.update(PROJECT_ID, 1, { content: '新内容' }, sysadminAuth);
+      await service.update(1, { content: '新内容' }, 1);
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.version).toBe(2);
@@ -762,7 +802,7 @@ describe('ArticleServiceImpl', () => {
           articleId: 1,
           version: 2,
           content: '新内容',
-          createdBy: sysadminAuth.userId,
+          createdBy: 1,
         }),
       });
     });
@@ -771,7 +811,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
       mockArticleUpdate.mockResolvedValue(baseArticle);
 
-      await service.update(PROJECT_ID, 1, { content: '文章内容' }, sysadminAuth);
+      await service.update(1, { content: '文章内容' }); // same as baseArticle.content
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.version).toBeUndefined();
@@ -784,7 +824,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleUpdate.mockResolvedValue({ ...aiArticle, title: 'AI标题', version: 2 });
       mockArticleVersionCreate.mockResolvedValue({});
 
-      await service.update(PROJECT_ID, 1, { content: '# AI标题\n\n正文内容' }, sysadminAuth);
+      await service.update(1, { content: '# AI标题\n\n正文内容' }, 1);
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.title).toBe('AI标题');
@@ -796,7 +836,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleUpdate.mockResolvedValue({ ...aiArticle, version: 2 });
       mockArticleVersionCreate.mockResolvedValue({});
 
-      await service.update(PROJECT_ID, 1, { content: '   \n  \n  ' }, sysadminAuth);
+      await service.update(1, { content: '   \n  \n  ' }, 1);
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.title).toBeUndefined();
@@ -808,7 +848,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleUpdate.mockResolvedValue({ ...manualArticle, version: 2 });
       mockArticleVersionCreate.mockResolvedValue({});
 
-      await service.update(PROJECT_ID, 1, { content: '# 标题\n\n正文' }, sysadminAuth);
+      await service.update(1, { content: '# 标题\n\n正文' }, 1);
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.title).toBeUndefined();
@@ -820,10 +860,24 @@ describe('ArticleServiceImpl', () => {
       mockArticleUpdate.mockResolvedValue({ ...aiArticleWithTitle, version: 2 });
       mockArticleVersionCreate.mockResolvedValue({});
 
-      await service.update(PROJECT_ID, 1, { content: '新内容' }, sysadminAuth);
+      await service.update(1, { content: '新内容' }, 1);
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.title).toBeUndefined();
+    });
+
+    it('内容更新但userId为空时版本快照createdBy应为null', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle);
+      mockArticleUpdate.mockResolvedValue({ ...baseArticle, version: 2 });
+      mockArticleVersionCreate.mockResolvedValue({});
+
+      await service.update(1, { content: '新内容' }); // no userId
+
+      expect(mockArticleVersionCreate).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          createdBy: null,
+        }),
+      });
     });
 
     it('版本号为非整数时Math.floor应正确计算新版本号', async () => {
@@ -832,7 +886,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleUpdate.mockResolvedValue({ ...baseArticle, version: 3 });
       mockArticleVersionCreate.mockResolvedValue({});
 
-      await service.update(PROJECT_ID, 1, { content: '更新内容' }, sysadminAuth);
+      await service.update(1, { content: '更新内容' }, 1);
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.version).toBe(3);
@@ -844,7 +898,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleUpdate.mockResolvedValue({ ...aiArticle, version: 2 });
       mockArticleVersionCreate.mockResolvedValue({});
 
-      await service.update(PROJECT_ID, 1, { content: '## 二级标题\n正文内容' }, sysadminAuth);
+      await service.update(1, { content: '## 二级标题\n正文内容' }, 1);
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.title).toBe('二级标题');
@@ -856,7 +910,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleUpdate.mockResolvedValue({ ...aiArticle, version: 2 });
       mockArticleVersionCreate.mockResolvedValue({});
 
-      await service.update(PROJECT_ID, 1, { content: '### 三级标题\n正文' }, sysadminAuth);
+      await service.update(1, { content: '### 三级标题\n正文' }, 1);
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.title).toBe('三级标题');
@@ -868,7 +922,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleUpdate.mockResolvedValue({ ...aiArticle, version: 2 });
       mockArticleVersionCreate.mockResolvedValue({});
 
-      await service.update(PROJECT_ID, 1, { content: '普通标题行\n正文内容' }, sysadminAuth);
+      await service.update(1, { content: '普通标题行\n正文内容' }, 1);
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.title).toBe('普通标题行');
@@ -880,7 +934,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleUpdate.mockResolvedValue({ ...aiArticle, version: 2 });
       mockArticleVersionCreate.mockResolvedValue({});
 
-      await service.update(PROJECT_ID, 1, { content: '   \n\n  \n## 有效标题\n正文' }, sysadminAuth);
+      await service.update(1, { content: '   \n\n  \n## 有效标题\n正文' }, 1);
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.title).toBe('有效标题');
@@ -892,7 +946,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleUpdate.mockResolvedValue({ ...baseArticle, version: 2, content: '新内容' });
       mockArticleVersionCreate.mockResolvedValue({});
 
-      await service.update(PROJECT_ID, 1, { content: '新内容' }, sysadminAuth);
+      await service.update(1, { content: '新内容' }, 1);
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.version).toBe(2);
@@ -900,15 +954,15 @@ describe('ArticleServiceImpl', () => {
       expect(mockArticleVersionCreate).toHaveBeenCalled();
     });
 
-    it('只更新status（合法转换）不触发版本递增', async () => {
+    it('只更新status不触发版本递增', async () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
-      mockArticleUpdate.mockResolvedValue({ ...baseArticle, status: 'generating' });
+      mockArticleUpdate.mockResolvedValue({ ...baseArticle, status: 'pending_review' });
 
-      await service.update(PROJECT_ID, 1, { status: 'generating' }, sysadminAuth);
+      await service.update(1, { status: 'pending_review' });
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.version).toBeUndefined();
-      expect(updateData.status).toBe('generating');
+      expect(updateData.status).toBe('pending_review');
       expect(mockArticleVersionCreate).not.toHaveBeenCalled();
     });
 
@@ -917,7 +971,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleUpdate.mockResolvedValue({ ...baseArticle, title: '新标题', version: 2 });
       mockArticleVersionCreate.mockResolvedValue({});
 
-      await service.update(PROJECT_ID, 1, { title: '新标题', content: '新内容', keywords: '新关键词' }, sysadminAuth);
+      await service.update(1, { title: '新标题', content: '新内容', keywords: '新关键词' }, 1);
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.title).toBe('新标题');
@@ -931,7 +985,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
       mockArticleUpdate.mockResolvedValue(baseArticle);
 
-      await service.update(PROJECT_ID, 1, { images: [] }, sysadminAuth);
+      await service.update(1, { images: [] });
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.images).toEqual([]);
@@ -941,84 +995,190 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
       mockArticleUpdate.mockResolvedValue(baseArticle);
 
-      await service.update(PROJECT_ID, 1, { scheduled_publish_at: '' as any }, sysadminAuth);
+      await service.update(1, { scheduled_publish_at: '' as any });
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
+      // empty string is falsy → null (new Date('') is Invalid Date, but the code does new Date(value) for truthy)
+      // Actually looking at the code: request.scheduled_publish_at ? new Date(...) : null
+      // '' is falsy, so it goes to null
       expect(updateData.scheduledPublishAt).toBeNull();
     });
 
-    it('generating状态转换应剥离content', async () => {
-      mockArticleFindFirst.mockResolvedValue(baseArticle);
-      mockArticleUpdate.mockResolvedValue({ ...baseArticle, status: 'generating' });
-
-      await service.update(PROJECT_ID, 1, { status: 'generating', content: '不应保存的内容' }, sysadminAuth);
-
-      const updateData = mockArticleUpdate.mock.calls[0][0].data;
-      expect(updateData.status).toBe('generating');
-      expect(updateData.content).toBeUndefined();
-      expect(mockArticleVersionCreate).not.toHaveBeenCalled();
-    });
-  });
-
-  // ─── updateContent ───
-
-  describe('updateContent', () => {
-    it('应更新文章正文并创建版本快照', async () => {
-      mockArticleFindFirst.mockResolvedValue(baseArticle);
-      mockArticleUpdate.mockResolvedValue({ ...baseArticle, content: '新正文', version: 2 });
+    it('content显式设为null且existing有内容时应触发版本递增', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle); // content = '文章内容'
+      mockArticleUpdate.mockResolvedValue({ ...baseArticle, content: null, version: 2 });
       mockArticleVersionCreate.mockResolvedValue({});
 
-      const result = await service.updateContent(PROJECT_ID, 1, '新正文', sysadminAuth);
+      await service.update(1, { content: null as any }, 1);
 
-      expect(result.content).toBe('新正文');
+      const updateData = mockArticleUpdate.mock.calls[0][0].data;
+      expect(updateData.version).toBe(2);
+      expect(updateData.content).toBeNull();
       expect(mockArticleVersionCreate).toHaveBeenCalled();
     });
 
-    it('非创建者非sysadmin应抛出权限异常', async () => {
-      mockArticleFindFirst.mockResolvedValue(baseArticle);
+    it('content设为null且existing也为null时不应触发版本递增', async () => {
+      const nullContentArticle = { ...baseArticle, content: null };
+      mockArticleFindFirst.mockResolvedValue(nullContentArticle);
+      mockArticleUpdate.mockResolvedValue(nullContentArticle);
 
-      await expect(service.updateContent(PROJECT_ID, 1, '内容', adminAuth)).rejects.toThrow('只能修改自己创建的文章');
+      await service.update(1, { content: null as any }, 1);
+
+      const updateData = mockArticleUpdate.mock.calls[0][0].data;
+      expect(updateData.version).toBeUndefined();
+      expect(mockArticleVersionCreate).not.toHaveBeenCalled();
     });
 
-    it('项目ID不匹配应抛出异常', async () => {
-      mockArticleFindFirst.mockResolvedValue(baseArticle);
+    it('content设为空字符串且existing有内容时应触发版本递增', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle); // content = '文章内容'
+      mockArticleUpdate.mockResolvedValue({ ...baseArticle, content: '', version: 2 });
+      mockArticleVersionCreate.mockResolvedValue({});
 
-      await expect(service.updateContent(999, 1, '内容', sysadminAuth)).rejects.toThrow('文章不存在');
+      await service.update(1, { content: '' }, 1);
+
+      const updateData = mockArticleUpdate.mock.calls[0][0].data;
+      expect(updateData.version).toBe(2);
+      expect(mockArticleVersionCreate).toHaveBeenCalled();
     });
 
-    it('非content-editable状态不可编辑正文', async () => {
-      mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'pending_review' });
+    it('content设为空字符串且existing也是空字符串时不应触发版本递增', async () => {
+      const emptyContentArticle = { ...baseArticle, content: '' };
+      mockArticleFindFirst.mockResolvedValue(emptyContentArticle);
+      mockArticleUpdate.mockResolvedValue(emptyContentArticle);
 
-      await expect(service.updateContent(PROJECT_ID, 1, '内容', sysadminAuth)).rejects.toThrow('当前文章状态不可编辑正文');
+      await service.update(1, { content: '' }, 1);
+
+      const updateData = mockArticleUpdate.mock.calls[0][0].data;
+      expect(updateData.version).toBeUndefined();
+      expect(mockArticleVersionCreate).not.toHaveBeenCalled();
     });
 
-    it('draft状态可编辑正文', async () => {
-      mockArticleFindFirst.mockResolvedValue(baseArticle);
-      mockArticleUpdate.mockResolvedValue({ ...baseArticle, version: 2 });
+    it('version为0时新版本应为1', async () => {
+      const zeroVersionArticle = { ...baseArticle, version: 0 };
+      mockArticleFindFirst.mockResolvedValue(zeroVersionArticle);
+      mockArticleUpdate.mockResolvedValue({ ...baseArticle, version: 1 });
+      mockArticleVersionCreate.mockResolvedValue({});
 
-      await service.updateContent(PROJECT_ID, 1, '新内容', sysadminAuth);
+      await service.update(1, { content: '新内容' }, 1);
 
-      expect(mockArticleUpdate).toHaveBeenCalled();
+      const updateData = mockArticleUpdate.mock.calls[0][0].data;
+      expect(updateData.version).toBe(1);
     });
 
-    it('manual_writing状态可编辑正文', async () => {
-      mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'manual_writing' });
-      mockArticleUpdate.mockResolvedValue({ ...baseArticle, version: 2 });
+    it('writeMode为空字符串（非manual）且标题为空时应提取标题', async () => {
+      const emptyModeArticle = { ...baseArticle, writeMode: '', title: '' };
+      mockArticleFindFirst.mockResolvedValue(emptyModeArticle);
+      mockArticleUpdate.mockResolvedValue({ ...emptyModeArticle, version: 2 });
+      mockArticleVersionCreate.mockResolvedValue({});
 
-      await service.updateContent(PROJECT_ID, 1, '新内容', sysadminAuth);
-
-      expect(mockArticleUpdate).toHaveBeenCalled();
-    });
-
-    it('AI文章正文更新且标题为空时应提取标题', async () => {
-      const aiArticle = { ...baseArticle, writeMode: 'ai', title: '' };
-      mockArticleFindFirst.mockResolvedValue(aiArticle);
-      mockArticleUpdate.mockResolvedValue({ ...aiArticle, version: 2 });
-
-      await service.updateContent(PROJECT_ID, 1, '# 提取标题\n正文', sysadminAuth);
+      await service.update(1, { content: '# 提取标题\n正文' }, 1);
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.title).toBe('提取标题');
+    });
+
+    it('writeMode为null（非manual）且标题为空时应提取标题', async () => {
+      const nullModeArticle = { ...baseArticle, writeMode: null, title: '' };
+      mockArticleFindFirst.mockResolvedValue(nullModeArticle);
+      mockArticleUpdate.mockResolvedValue({ ...nullModeArticle, version: 2 });
+      mockArticleVersionCreate.mockResolvedValue({});
+
+      await service.update(1, { content: '## Null模式标题\n正文' }, 1);
+
+      const updateData = mockArticleUpdate.mock.calls[0][0].data;
+      expect(updateData.title).toBe('Null模式标题');
+    });
+
+    it('内容只有一行Markdown标题时应正确提取', async () => {
+      const aiArticle = { ...baseArticle, writeMode: 'ai', title: '' };
+      mockArticleFindFirst.mockResolvedValue(aiArticle);
+      mockArticleUpdate.mockResolvedValue({ ...aiArticle, version: 2 });
+      mockArticleVersionCreate.mockResolvedValue({});
+
+      await service.update(1, { content: '# 唯一标题' }, 1);
+
+      const updateData = mockArticleUpdate.mock.calls[0][0].data;
+      expect(updateData.title).toBe('唯一标题');
+    });
+
+    it('####四级标题也应正确提取', async () => {
+      const aiArticle = { ...baseArticle, writeMode: 'ai', title: '' };
+      mockArticleFindFirst.mockResolvedValue(aiArticle);
+      mockArticleUpdate.mockResolvedValue({ ...aiArticle, version: 2 });
+      mockArticleVersionCreate.mockResolvedValue({});
+
+      await service.update(1, { content: '#### 四级标题\n正文' }, 1);
+
+      const updateData = mockArticleUpdate.mock.calls[0][0].data;
+      expect(updateData.title).toBe('四级标题');
+    });
+
+    it('所有字段均为undefined时不应更新任何字段', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle);
+      mockArticleUpdate.mockResolvedValue(baseArticle);
+
+      await service.update(1, {});
+
+      const updateData = mockArticleUpdate.mock.calls[0][0].data;
+      expect(Object.keys(updateData)).toHaveLength(0);
+    });
+
+    it('平台为空数组时应保留空数组', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle);
+      mockArticleUpdate.mockResolvedValue(baseArticle);
+
+      await service.update(1, { platforms: [] });
+
+      const updateData = mockArticleUpdate.mock.calls[0][0].data;
+      expect(updateData.platforms).toEqual([]);
+    });
+
+    it('技能为空数组时应保留空数组', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle);
+      mockArticleUpdate.mockResolvedValue(baseArticle);
+
+      await service.update(1, { skills: [] });
+
+      const updateData = mockArticleUpdate.mock.calls[0][0].data;
+      expect(updateData.skills).toEqual([]);
+    });
+
+    it('scheduled_publish_at为有效日期字符串时应正确转换', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle);
+      mockArticleUpdate.mockResolvedValue(baseArticle);
+
+      await service.update(1, { scheduled_publish_at: '2026-12-31T23:59:59.000Z' });
+
+      const updateData = mockArticleUpdate.mock.calls[0][0].data;
+      expect(updateData.scheduledPublishAt).toBeInstanceOf(Date);
+      expect(updateData.scheduledPublishAt!.toISOString()).toBe('2026-12-31T23:59:59.000Z');
+    });
+
+    it('content相同但其他字段不同时不应触发版本递增', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle);
+      mockArticleUpdate.mockResolvedValue({ ...baseArticle, keywords: '新关键词' });
+
+      await service.update(1, { content: '文章内容', keywords: '新关键词' });
+
+      const updateData = mockArticleUpdate.mock.calls[0][0].data;
+      expect(updateData.version).toBeUndefined();
+      expect(updateData.keywords).toBe('新关键词');
+      expect(mockArticleVersionCreate).not.toHaveBeenCalled();
+    });
+
+    it('内容更新时应在事务中先保存版本快照再更新文章', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle);
+      mockArticleUpdate.mockResolvedValue({ ...baseArticle, version: 2 });
+      mockArticleVersionCreate.mockResolvedValue({});
+
+      const callOrder: string[] = [];
+      mockArticleFindFirst.mockImplementation(() => { callOrder.push('findFirst'); return Promise.resolve(baseArticle); });
+      mockArticleVersionCreate.mockImplementation(() => { callOrder.push('versionCreate'); return Promise.resolve({}); });
+      mockArticleUpdate.mockImplementation(() => { callOrder.push('update'); return Promise.resolve({ ...baseArticle, version: 2 }); });
+
+      await service.update(1, { content: '新内容' }, 1);
+
+      expect(callOrder).toEqual(['findFirst', 'versionCreate', 'update']);
     });
   });
 
@@ -1029,7 +1189,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
       mockArticleUpdate.mockResolvedValue({ ...baseArticle, deletedAt: new Date() });
 
-      await service.delete(PROJECT_ID, 1, sysadminAuth);
+      await service.delete(1);
 
       expect(mockArticleUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -1040,13 +1200,13 @@ describe('ArticleServiceImpl', () => {
     it('文章不存在时应抛出异常', async () => {
       mockArticleFindFirst.mockResolvedValue(null);
 
-      await expect(service.delete(PROJECT_ID, 999, sysadminAuth)).rejects.toThrow('文章不存在');
+      await expect(service.delete(999)).rejects.toThrow('文章不存在');
     });
 
     it('已软删除的文章再次删除应抛出异常', async () => {
       mockArticleFindFirst.mockResolvedValue(null);
 
-      await expect(service.delete(PROJECT_ID, 1, sysadminAuth)).rejects.toThrow('文章不存在');
+      await expect(service.delete(1)).rejects.toThrow('文章不存在');
       expect(mockArticleUpdate).not.toHaveBeenCalled();
     });
 
@@ -1054,7 +1214,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
       mockArticleUpdate.mockResolvedValue({ ...baseArticle, deletedAt: new Date() });
 
-      await service.delete(PROJECT_ID, 1, sysadminAuth);
+      await service.delete(1);
 
       expect(mockArticleUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -1062,22 +1222,26 @@ describe('ArticleServiceImpl', () => {
       });
     });
 
-    it('非创建者非sysadmin应抛出权限异常', async () => {
+    it('软删除应接受userId和role参数', async () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
+      mockArticleUpdate.mockResolvedValue({ ...baseArticle, deletedAt: new Date() });
 
-      await expect(service.delete(PROJECT_ID, 1, adminAuth)).rejects.toThrow('只能删除自己创建的文章');
+      await service.delete(1, 5, 'admin');
+
+      expect(mockArticleUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { deletedAt: expect.any(Date) },
+      });
     });
 
-    it('已发布的文章不能删除', async () => {
-      mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'published' });
-
-      await expect(service.delete(PROJECT_ID, 1, sysadminAuth)).rejects.toThrow('已发布的文章不能删除');
-    });
-
-    it('项目ID不匹配应抛出异常', async () => {
+    it('软删除应在事务中执行', async () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
+      mockArticleUpdate.mockResolvedValue({ ...baseArticle, deletedAt: new Date() });
 
-      await expect(service.delete(999, 1, sysadminAuth)).rejects.toThrow('文章不存在');
+      const prisma = getPrisma();
+      await service.delete(1);
+
+      expect(prisma.$transaction).toHaveBeenCalled();
     });
   });
 
@@ -1090,7 +1254,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindFirst.mockResolvedValue(pendingArticle);
       mockArticleUpdate.mockResolvedValue({ ...pendingArticle, status: 'publishing' });
 
-      const result = await service.review(PROJECT_ID, 1, true, sysadminAuth);
+      const result = await service.review(1, true);
 
       expect(result.status).toBe('publishing');
       expect(mockArticleUpdate).toHaveBeenCalledWith({
@@ -1104,7 +1268,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindFirst.mockResolvedValue(aiPending);
       mockArticleUpdate.mockResolvedValue({ ...aiPending, status: 'draft' });
 
-      const result = await service.review(PROJECT_ID, 1, false, sysadminAuth);
+      const result = await service.review(1, false);
 
       expect(result.status).toBe('draft');
     });
@@ -1114,7 +1278,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindFirst.mockResolvedValue(manualPending);
       mockArticleUpdate.mockResolvedValue({ ...manualPending, status: 'manual_writing' });
 
-      const result = await service.review(PROJECT_ID, 1, false, sysadminAuth);
+      const result = await service.review(1, false);
 
       expect(result.status).toBe('manual_writing');
     });
@@ -1122,13 +1286,13 @@ describe('ArticleServiceImpl', () => {
     it('文章不存在时应抛出异常', async () => {
       mockArticleFindFirst.mockResolvedValue(null);
 
-      await expect(service.review(PROJECT_ID, 999, true, sysadminAuth)).rejects.toThrow('文章不存在');
+      await expect(service.review(999, true)).rejects.toThrow('文章不存在');
     });
 
     it('文章状态不是pending_review时应抛出异常', async () => {
       mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'draft' });
 
-      await expect(service.review(PROJECT_ID, 1, true, sysadminAuth)).rejects.toThrow('文章当前状态不支持审核操作');
+      await expect(service.review(1, true)).rejects.toThrow('文章当前状态不支持审核操作');
     });
 
     it('writeMode为null时审核不通过应设为draft', async () => {
@@ -1136,7 +1300,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindFirst.mockResolvedValue(nullModeArticle);
       mockArticleUpdate.mockResolvedValue({ ...nullModeArticle, status: 'draft' });
 
-      const result = await service.review(PROJECT_ID, 1, false, sysadminAuth);
+      const result = await service.review(1, false);
 
       expect(result.status).toBe('draft');
     });
@@ -1146,7 +1310,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindFirst.mockResolvedValue(undefinedModeArticle);
       mockArticleUpdate.mockResolvedValue({ ...undefinedModeArticle, status: 'draft' });
 
-      const result = await service.review(PROJECT_ID, 1, false, sysadminAuth);
+      const result = await service.review(1, false);
 
       expect(result.status).toBe('draft');
     });
@@ -1154,46 +1318,81 @@ describe('ArticleServiceImpl', () => {
     it('generating状态的文件不能审核', async () => {
       mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'generating' });
 
-      await expect(service.review(PROJECT_ID, 1, true, sysadminAuth)).rejects.toThrow('文章当前状态不支持审核操作');
+      await expect(service.review(1, true)).rejects.toThrow('文章当前状态不支持审核操作');
     });
 
     it('published状态的文件不能审核', async () => {
       mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'published' });
 
-      await expect(service.review(PROJECT_ID, 1, true, sysadminAuth)).rejects.toThrow('文章当前状态不支持审核操作');
+      await expect(service.review(1, true)).rejects.toThrow('文章当前状态不支持审核操作');
     });
 
     it('publish_failed状态的文件不能审核', async () => {
       mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'publish_failed' });
 
-      await expect(service.review(PROJECT_ID, 1, true, sysadminAuth)).rejects.toThrow('文章当前状态不支持审核操作');
+      await expect(service.review(1, true)).rejects.toThrow('文章当前状态不支持审核操作');
     });
 
     it('manual_writing状态的文件不能审核', async () => {
       mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'manual_writing' });
 
-      await expect(service.review(PROJECT_ID, 1, true, sysadminAuth)).rejects.toThrow('文章当前状态不支持审核操作');
+      await expect(service.review(1, true)).rejects.toThrow('文章当前状态不支持审核操作');
     });
 
-    it('创建者（非sysadmin）不能审核自己的文章', async () => {
-      mockArticleFindFirst.mockResolvedValue(pendingArticle); // createdBy: 1
-
-      await expect(service.review(PROJECT_ID, 1, true, { userId: 1, role: 'admin' })).rejects.toThrow('不能审核自己创建的文章');
-    });
-
-    it('项目ID不匹配应抛出异常', async () => {
-      mockArticleFindFirst.mockResolvedValue(pendingArticle);
-
-      await expect(service.review(999, 1, true, sysadminAuth)).rejects.toThrow('文章不存在');
-    });
-
-    it('非创建者的admin可以审核', async () => {
+    it('审核操作应传递userId和role参数', async () => {
       mockArticleFindFirst.mockResolvedValue(pendingArticle);
       mockArticleUpdate.mockResolvedValue({ ...pendingArticle, status: 'publishing' });
 
-      const result = await service.review(PROJECT_ID, 1, true, adminAuth); // userId: 2, not creator
+      await service.review(1, true, 2, 'admin');
 
-      expect(result.status).toBe('publishing');
+      expect(mockArticleUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: 'publishing' },
+      });
+    });
+
+    it('writeMode为空字符串时审核不通过应设为draft', async () => {
+      const emptyModeArticle = { ...pendingArticle, writeMode: '' };
+      mockArticleFindFirst.mockResolvedValue(emptyModeArticle);
+      mockArticleUpdate.mockResolvedValue({ ...emptyModeArticle, status: 'draft' });
+
+      const result = await service.review(1, false);
+
+      expect(result.status).toBe('draft');
+    });
+
+    it('审核应在事务中执行', async () => {
+      mockArticleFindFirst.mockResolvedValue(pendingArticle);
+      mockArticleUpdate.mockResolvedValue({ ...pendingArticle, status: 'publishing' });
+
+      const prisma = getPrisma();
+      await service.review(1, true);
+
+      expect(prisma.$transaction).toHaveBeenCalled();
+    });
+
+    it('审核不通过AI文章的完整流程验证', async () => {
+      const aiArticle = { ...baseArticle, status: 'pending_review' as const, writeMode: 'ai' };
+      mockArticleFindFirst.mockResolvedValue(aiArticle);
+      mockArticleUpdate.mockResolvedValue({ ...aiArticle, status: 'draft' });
+
+      const result = await service.review(1, false, 3, 'admin');
+
+      expect(result.status).toBe('draft');
+      expect(mockArticleUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: 'draft' },
+      });
+    });
+
+    it('draft状态不应被审核', async () => {
+      mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'draft' });
+      await expect(service.review(1, true)).rejects.toThrow('文章当前状态不支持审核操作');
+    });
+
+    it('generate_failed状态不应被审核', async () => {
+      mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'generate_failed' });
+      await expect(service.review(1, true)).rejects.toThrow('文章当前状态不支持审核操作');
     });
   });
 
@@ -1206,7 +1405,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindFirst.mockResolvedValue(pendingArticle);
       mockArticleUpdate.mockResolvedValue({ ...pendingArticle, status: 'generating' });
 
-      const result = await service.regenerate(PROJECT_ID, 1, sysadminAuth);
+      const result = await service.regenerate(1);
 
       expect(result.status).toBe('generating');
       expect(mockArticleUpdate).toHaveBeenCalledWith({
@@ -1218,13 +1417,13 @@ describe('ArticleServiceImpl', () => {
     it('文章不存在时应抛出异常', async () => {
       mockArticleFindFirst.mockResolvedValue(null);
 
-      await expect(service.regenerate(PROJECT_ID, 999, sysadminAuth)).rejects.toThrow('文章不存在');
+      await expect(service.regenerate(999)).rejects.toThrow('文章不存在');
     });
 
-    it('文章状态不是合法状态时应抛出异常', async () => {
+    it('文章状态不是pending_review时应抛出异常', async () => {
       mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'draft' });
 
-      await expect(service.regenerate(PROJECT_ID, 1, sysadminAuth)).rejects.toThrow('当前文章状态不支持重新生成');
+      await expect(service.regenerate(1)).rejects.toThrow('文章当前状态不支持重新生成');
     });
 
     it('generate_failed状态应允许重新生成', async () => {
@@ -1232,108 +1431,85 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindFirst.mockResolvedValue(failedArticle);
       mockArticleUpdate.mockResolvedValue({ ...failedArticle, status: 'generating' });
 
-      const result = await service.regenerate(PROJECT_ID, 1, sysadminAuth);
+      const result = await service.regenerate(1);
 
       expect(result.status).toBe('generating');
+      expect(mockArticleUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: 'generating' },
+      });
     });
 
     it('draft状态不能重新生成', async () => {
       mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'draft' });
 
-      await expect(service.regenerate(PROJECT_ID, 1, sysadminAuth)).rejects.toThrow('当前文章状态不支持重新生成');
+      await expect(service.regenerate(1)).rejects.toThrow('文章当前状态不支持重新生成');
     });
 
     it('manual_writing状态不能重新生成', async () => {
       mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'manual_writing' });
 
-      await expect(service.regenerate(PROJECT_ID, 1, sysadminAuth)).rejects.toThrow('当前文章状态不支持重新生成');
+      await expect(service.regenerate(1)).rejects.toThrow('文章当前状态不支持重新生成');
     });
 
     it('generating状态不能重新生成', async () => {
       mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'generating' });
 
-      await expect(service.regenerate(PROJECT_ID, 1, sysadminAuth)).rejects.toThrow('当前文章状态不支持重新生成');
+      await expect(service.regenerate(1)).rejects.toThrow('文章当前状态不支持重新生成');
     });
 
     it('publishing状态不能重新生成', async () => {
       mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'publishing' });
 
-      await expect(service.regenerate(PROJECT_ID, 1, sysadminAuth)).rejects.toThrow('当前文章状态不支持重新生成');
+      await expect(service.regenerate(1)).rejects.toThrow('文章当前状态不支持重新生成');
     });
 
     it('publish_failed状态不能重新生成', async () => {
       mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'publish_failed' });
 
-      await expect(service.regenerate(PROJECT_ID, 1, sysadminAuth)).rejects.toThrow('当前文章状态不支持重新生成');
+      await expect(service.regenerate(1)).rejects.toThrow('文章当前状态不支持重新生成');
     });
 
     it('published状态不能重新生成', async () => {
       mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'published' });
 
-      await expect(service.regenerate(PROJECT_ID, 1, sysadminAuth)).rejects.toThrow('当前文章状态不支持重新生成');
+      await expect(service.regenerate(1)).rejects.toThrow('文章当前状态不支持重新生成');
     });
 
-    it('非创建者非sysadmin应抛出权限异常', async () => {
+    it('重新生成应传递userId和role参数', async () => {
       mockArticleFindFirst.mockResolvedValue(pendingArticle);
+      mockArticleUpdate.mockResolvedValue({ ...pendingArticle, status: 'generating' });
 
-      await expect(service.regenerate(PROJECT_ID, 1, adminAuth)).rejects.toThrow('只能重新生成自己创建的文章');
+      await service.regenerate(1, 2, 'admin');
+
+      expect(mockArticleUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: 'generating' },
+      });
     });
 
-    it('项目ID不匹配应抛出异常', async () => {
+    it('重新生成应在事务中执行', async () => {
       mockArticleFindFirst.mockResolvedValue(pendingArticle);
+      mockArticleUpdate.mockResolvedValue({ ...pendingArticle, status: 'generating' });
 
-      await expect(service.regenerate(999, 1, sysadminAuth)).rejects.toThrow('文章不存在');
-    });
-  });
+      const prisma = getPrisma();
+      await service.regenerate(1);
 
-  // ─── submitForReview ───
-
-  describe('submitForReview', () => {
-    const manualArticle = { ...baseArticle, status: 'manual_writing', writeMode: 'manual', content: '正文内容' };
-
-    it('手工编写中文章应成功提交审核', async () => {
-      mockArticleFindFirst.mockResolvedValue(manualArticle);
-      mockArticleUpdate.mockResolvedValue({ ...manualArticle, status: 'pending_review' });
-
-      const result = await service.submitForReview(PROJECT_ID, 1, sysadminAuth);
-
-      expect(result.status).toBe('pending_review');
+      expect(prisma.$transaction).toHaveBeenCalled();
     });
 
-    it('非manual_writing状态不能提交审核', async () => {
-      mockArticleFindFirst.mockResolvedValue(baseArticle); // status: 'draft'
+    it('generate_failed状态的完整重新生成流程', async () => {
+      const failedArticle = { ...baseArticle, status: 'generate_failed' as const };
+      mockArticleFindFirst.mockResolvedValue(failedArticle);
+      mockArticleUpdate.mockResolvedValue({ ...failedArticle, status: 'generating' });
 
-      await expect(service.submitForReview(PROJECT_ID, 1, sysadminAuth)).rejects.toThrow('只有手工编写中的文章可以提交审核');
-    });
+      const result = await service.regenerate(1, 5, 'admin');
 
-    it('内容为空不能提交审核', async () => {
-      mockArticleFindFirst.mockResolvedValue({ ...manualArticle, content: '' });
-
-      await expect(service.submitForReview(PROJECT_ID, 1, sysadminAuth)).rejects.toThrow('文章内容不能为空');
-    });
-
-    it('内容为null不能提交审核', async () => {
-      mockArticleFindFirst.mockResolvedValue({ ...manualArticle, content: null });
-
-      await expect(service.submitForReview(PROJECT_ID, 1, sysadminAuth)).rejects.toThrow('文章内容不能为空');
-    });
-
-    it('内容为纯空格不能提交审核', async () => {
-      mockArticleFindFirst.mockResolvedValue({ ...manualArticle, content: '   ' });
-
-      await expect(service.submitForReview(PROJECT_ID, 1, sysadminAuth)).rejects.toThrow('文章内容不能为空');
-    });
-
-    it('非创建者非sysadmin不能提交审核', async () => {
-      mockArticleFindFirst.mockResolvedValue(manualArticle);
-
-      await expect(service.submitForReview(PROJECT_ID, 1, adminAuth)).rejects.toThrow('只能操作自己创建的文章');
-    });
-
-    it('项目ID不匹配应抛出异常', async () => {
-      mockArticleFindFirst.mockResolvedValue(manualArticle);
-
-      await expect(service.submitForReview(999, 1, sysadminAuth)).rejects.toThrow('文章不存在');
+      expect(result.status).toBe('generating');
+      expect(mockArticleUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: 'generating' },
+      });
     });
   });
 
@@ -1415,6 +1591,43 @@ describe('ArticleServiceImpl', () => {
         orderBy: { version: 'desc' },
       });
     });
+
+    it('articleId为0时应正确查询', async () => {
+      mockArticleVersionFindMany.mockResolvedValue([]);
+
+      await service.listVersions(0);
+
+      expect(mockArticleVersionFindMany).toHaveBeenCalledWith({
+        where: { articleId: 0, deletedAt: null },
+        orderBy: { version: 'desc' },
+      });
+    });
+
+    it('版本内容为null时应正确映射', async () => {
+      const version = {
+        id: 1, articleId: 1, version: 1, content: null,
+        createdBy: 1, createdAt: new Date(), deletedAt: null,
+      };
+      mockArticleVersionFindMany.mockResolvedValue([version]);
+
+      const result = await service.listVersions(1);
+
+      expect(result[0].content).toBeNull();
+    });
+
+    it('单个版本应正确返回', async () => {
+      const version = {
+        id: 5, articleId: 2, version: 1, content: '唯一版本',
+        createdBy: 3, createdAt: new Date('2026-05-01'), deletedAt: null,
+      };
+      mockArticleVersionFindMany.mockResolvedValue([version]);
+
+      const result = await service.listVersions(2);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(5);
+      expect(result[0].article_id).toBe(2);
+    });
   });
 
   // ─── mapArticle 映射验证 ───
@@ -1423,7 +1636,7 @@ describe('ArticleServiceImpl', () => {
     it('mapArticle应正确映射所有字段', async () => {
       const fullArticle = {
         id: 42,
-        projectId: PROJECT_ID,
+        projectId: 10,
         title: '完整文章',
         articleType: 'seo',
         writeMode: 'ai',
@@ -1447,7 +1660,7 @@ describe('ArticleServiceImpl', () => {
       const result = await service.getById(42);
 
       expect(result.id).toBe(42);
-      expect(result.project_id).toBe(PROJECT_ID);
+      expect(result.project_id).toBe(10);
       expect(result.title).toBe('完整文章');
       expect(result.article_type).toBe('seo');
       expect(result.write_mode).toBe('ai');
@@ -1467,7 +1680,7 @@ describe('ArticleServiceImpl', () => {
     it('mapArticle应正确处理null字段', async () => {
       const nullArticle = {
         id: 1,
-        projectId: PROJECT_ID,
+        projectId: 10,
         title: 'T',
         articleType: null,
         writeMode: null,
@@ -1523,10 +1736,6 @@ describe('ArticleServiceImpl', () => {
       expect(typeof service.update).toBe('function');
     });
 
-    it('应实现updateContent方法', () => {
-      expect(typeof service.updateContent).toBe('function');
-    });
-
     it('应实现delete方法', () => {
       expect(typeof service.delete).toBe('function');
     });
@@ -1539,24 +1748,8 @@ describe('ArticleServiceImpl', () => {
       expect(typeof service.regenerate).toBe('function');
     });
 
-    it('应实现submitForReview方法', () => {
-      expect(typeof service.submitForReview).toBe('function');
-    });
-
     it('应实现listVersions方法', () => {
       expect(typeof service.listVersions).toBe('function');
-    });
-
-    it('应实现isSettingsEditable方法', () => {
-      expect(typeof service.isSettingsEditable).toBe('function');
-    });
-
-    it('应实现isContentEditable方法', () => {
-      expect(typeof service.isContentEditable).toBe('function');
-    });
-
-    it('应实现isValidStatusTransition方法', () => {
-      expect(typeof service.isValidStatusTransition).toBe('function');
     });
   });
 
@@ -1574,6 +1767,136 @@ describe('ArticleServiceImpl', () => {
         const result = await service.getById(1);
         expect(result.status).toBe(status);
       }
+    });
+  });
+
+  // ─── 事务边界测试 ───
+
+  describe('事务边界', () => {
+    it('update应在事务中执行', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle);
+      mockArticleUpdate.mockResolvedValue(baseArticle);
+
+      const prisma = getPrisma();
+      await service.update(1, { title: 'T' });
+
+      expect(prisma.$transaction).toHaveBeenCalled();
+    });
+
+    it('create不在事务中执行（直接使用getPrisma）', async () => {
+      mockArticleCreate.mockResolvedValue(baseArticle);
+
+      const prisma = getPrisma();
+      await service.create(10, { title: 'T' }, 1);
+
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('list不在事务中执行', async () => {
+      mockArticleFindMany.mockResolvedValue([]);
+      mockArticleCount.mockResolvedValue(0);
+
+      const prisma = getPrisma();
+      await service.list(10, 1, 10);
+
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('getById不在事务中执行', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle);
+
+      const prisma = getPrisma();
+      await service.getById(1);
+
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('listVersions不在事务中执行', async () => {
+      mockArticleVersionFindMany.mockResolvedValue([]);
+
+      const prisma = getPrisma();
+      await service.listVersions(1);
+
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── 返回值类型验证 ───
+
+  describe('返回值结构验证', () => {
+    it('list返回值应包含list和total字段', async () => {
+      mockArticleFindMany.mockResolvedValue([baseArticle]);
+      mockArticleCount.mockResolvedValue(1);
+
+      const result = await service.list(10, 1, 10);
+
+      expect(result).toHaveProperty('list');
+      expect(result).toHaveProperty('total');
+      expect(Array.isArray(result.list)).toBe(true);
+      expect(typeof result.total).toBe('number');
+    });
+
+    it('getById返回值应包含所有必要字段', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle);
+
+      const result = await service.getById(1);
+
+      expect(result).toHaveProperty('id');
+      expect(result).toHaveProperty('project_id');
+      expect(result).toHaveProperty('title');
+      expect(result).toHaveProperty('status');
+      expect(result).toHaveProperty('version');
+    });
+
+    it('create返回值应包含所有必要字段', async () => {
+      mockArticleCreate.mockResolvedValue(baseArticle);
+
+      const result = await service.create(10, { title: 'T' }, 1);
+
+      expect(result).toHaveProperty('id');
+      expect(result).toHaveProperty('project_id');
+      expect(result).toHaveProperty('created_by');
+    });
+
+    it('update返回值应包含所有必要字段', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle);
+      mockArticleUpdate.mockResolvedValue(baseArticle);
+
+      const result = await service.update(1, { title: '新标题' });
+
+      expect(result).toHaveProperty('id');
+      expect(result).toHaveProperty('project_id');
+    });
+
+    it('listVersions返回值每个元素应包含必要字段', async () => {
+      const version = {
+        id: 1, articleId: 1, version: 1, content: 'c',
+        createdBy: 1, createdAt: new Date(), deletedAt: null,
+      };
+      mockArticleVersionFindMany.mockResolvedValue([version]);
+
+      const result = await service.listVersions(1);
+
+      expect(result[0]).toHaveProperty('id');
+      expect(result[0]).toHaveProperty('article_id');
+      expect(result[0]).toHaveProperty('version');
+      expect(result[0]).toHaveProperty('content');
+      expect(result[0]).toHaveProperty('created_by');
+      expect(result[0]).toHaveProperty('created_at');
+    });
+  });
+
+  // ─── 并发与Promise测试 ───
+
+  describe('并发行为', () => {
+    it('list中findMany和count应并发执行（Promise.all）', async () => {
+      mockArticleFindMany.mockResolvedValue([baseArticle]);
+      mockArticleCount.mockResolvedValue(1);
+
+      await service.list(10, 1, 10);
+
+      expect(mockArticleFindMany).toHaveBeenCalledTimes(1);
+      expect(mockArticleCount).toHaveBeenCalledTimes(1);
     });
   });
 });

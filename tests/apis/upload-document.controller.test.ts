@@ -406,6 +406,175 @@ describe('Upload Document Controller - Integration', () => {
 
     try { fs.unlinkSync(csvPath); } catch {}
   });
+
+  // ---------- Filename validation ----------
+
+  it('should reject filename exceeding 255 characters with 400', async () => {
+    const longName = 'a'.repeat(252) + '.pdf';
+    const buffer = Buffer.from('%PDF-1.4 test');
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', buffer, longName);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain('文件名过长');
+  });
+
+  it('should return 400 for LIMIT_UNEXPECTED_FILE when wrong field name', async () => {
+    const buffer = Buffer.from('{"test": true}');
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('document', buffer, 'test.json');
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain('上传字段名应为 file');
+  });
+
+  // ---------- OLE2 format uploads ----------
+
+  it('should upload DOC (OLE2) document successfully', async () => {
+    const docPath = path.join(uploadsDir, '_test_doc.doc');
+    const OLE2_MAGIC = Buffer.from([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]);
+    const docBuffer = Buffer.alloc(512);
+    OLE2_MAGIC.copy(docBuffer);
+    fs.writeFileSync(docPath, docBuffer);
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', docPath);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.fileType).toBe('doc');
+
+    const uploadedFile = path.join(uploadsDir, response.body.data.url.replace('/uploads/', ''));
+    try { fs.unlinkSync(uploadedFile); } catch {}
+    try { fs.unlinkSync(docPath); } catch {}
+  });
+
+  it('should upload XLS (OLE2) document successfully', async () => {
+    const xlsPath = path.join(uploadsDir, '_test_doc.xls');
+    const OLE2_MAGIC = Buffer.from([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]);
+    const xlsBuffer = Buffer.alloc(512);
+    OLE2_MAGIC.copy(xlsBuffer);
+    fs.writeFileSync(xlsPath, xlsBuffer);
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .attach('file', xlsPath);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.fileType).toBe('xls');
+
+    const uploadedFile = path.join(uploadsDir, response.body.data.url.replace('/uploads/', ''));
+    try { fs.unlinkSync(uploadedFile); } catch {}
+    try { fs.unlinkSync(xlsPath); } catch {}
+  });
+
+  it('should upload PPT (OLE2) document successfully', async () => {
+    const pptPath = path.join(uploadsDir, '_test_doc.ppt');
+    const OLE2_MAGIC = Buffer.from([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]);
+    const pptBuffer = Buffer.alloc(512);
+    OLE2_MAGIC.copy(pptBuffer);
+    fs.writeFileSync(pptPath, pptBuffer);
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', pptPath);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.fileType).toBe('ppt');
+
+    const uploadedFile = path.join(uploadsDir, response.body.data.url.replace('/uploads/', ''));
+    try { fs.unlinkSync(uploadedFile); } catch {}
+    try { fs.unlinkSync(pptPath); } catch {}
+  });
+
+  it('should reject OLE2 file with wrong extension (.pdf) with 400', async () => {
+    const pdfPath = path.join(uploadsDir, '_test_ole2_fake.pdf');
+    const OLE2_MAGIC = Buffer.from([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]);
+    const ole2Buffer = Buffer.alloc(512);
+    OLE2_MAGIC.copy(ole2Buffer);
+    fs.writeFileSync(pdfPath, ole2Buffer);
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', pdfPath);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain('OLE2');
+
+    try { fs.unlinkSync(pdfPath); } catch {}
+  });
+
+  // ---------- Markdown validation edge case ----------
+
+  it('should reject Markdown without valid patterns with 400', async () => {
+    const mdPath = path.join(uploadsDir, '_test_plain.md');
+    fs.writeFileSync(mdPath, 'Just plain text without any markdown syntax at all.');
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', mdPath);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain('Markdown');
+
+    try { fs.unlinkSync(mdPath); } catch {}
+  });
+
+  it('should reject XML declared but content is PDF with 400', async () => {
+    const xmlPath = path.join(uploadsDir, '_test_pdf_as_xml.xml');
+    fs.writeFileSync(xmlPath, '%PDF-1.4 fake pdf content');
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', xmlPath);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain('不匹配');
+
+    try { fs.unlinkSync(xmlPath); } catch {}
+  });
+
+  it('should reject YAML with null content with 400', async () => {
+    const yamlPath = path.join(uploadsDir, '_test_null.yaml');
+    fs.writeFileSync(yamlPath, '');
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', yamlPath);
+
+    expect(response.status).toBe(400);
+
+    try { fs.unlinkSync(yamlPath); } catch {}
+  });
+
+  it('should reject XLSX declared but content is DOCX with 400', async () => {
+    const xlsxPath = path.join(uploadsDir, '_test_fake.xlsx');
+    const zip = new AdmZip();
+    zip.addFile('word/document.xml', Buffer.from('<?xml version="1.0"?><w:document/>'));
+    zip.writeZip(xlsxPath);
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', xlsxPath);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain('不匹配');
+
+    try { fs.unlinkSync(xlsxPath); } catch {}
+  });
 });
 
 // ==================== Unit Tests: uploadDocumentMiddleware ====================
@@ -472,6 +641,123 @@ describe('uploadDocumentMiddleware - Unit', () => {
 
       expect(status).toHaveBeenCalledWith(500);
       expect(json).toHaveBeenCalledWith({ code: 500, message: '上传失败' });
+      expect(next).not.toHaveBeenCalled();
+    });
+  });
+
+  it('should return 400 for path traversal characters in extension', () => {
+    jest.isolateModules(() => {
+      let capturedFileFilter: any;
+
+      jest.doMock('multer', () => {
+        const mockMulter: any = jest.fn().mockImplementation((opts: any) => {
+          capturedFileFilter = opts.fileFilter;
+          return {
+            single: () => (req: any, res: any, cb: any) => {
+              capturedFileFilter(req, { originalname: 'test.doc' }, (err: any) => {
+                if (err) cb(err);
+                else cb(null);
+              });
+            },
+          };
+        });
+        mockMulter.diskStorage = jest.fn().mockReturnValue({});
+        mockMulter.MulterError = class MulterError extends Error { code = ''; };
+        return mockMulter;
+      });
+
+      const actualPath = jest.requireActual('path');
+      jest.doMock('path', () => ({
+        ...actualPath,
+        extname: () => '.doc/..',
+      }));
+
+      const { uploadDocumentMiddleware: mockedMiddleware } =
+        require('../../apis/controller/upload-document.controller');
+
+      const json = jest.fn();
+      const status = jest.fn().mockReturnValue({ json });
+      const res = { status, json } as unknown as Response;
+      const next = jest.fn();
+
+      mockedMiddleware({} as Request, res, next);
+
+      expect(status).toHaveBeenCalledWith(400);
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining('非法文件扩展名') })
+      );
+      expect(next).not.toHaveBeenCalled();
+    });
+  });
+
+  it('should return 400 for LIMIT_UNEXPECTED_FILE MulterError', () => {
+    jest.isolateModules(() => {
+      jest.doMock('multer', () => {
+        class MockMulterError extends Error {
+          code: string;
+          constructor(code: string) {
+            super(code);
+            this.code = code;
+          }
+        }
+        const mockMulter: any = jest.fn().mockReturnValue({
+          single: () => (_req: any, _res: any, cb: any) => {
+            cb(new MockMulterError('LIMIT_UNEXPECTED_FILE'));
+          },
+        });
+        mockMulter.diskStorage = jest.fn().mockReturnValue({});
+        mockMulter.MulterError = MockMulterError;
+        return mockMulter;
+      });
+
+      const { uploadDocumentMiddleware: mockedMiddleware } =
+        require('../../apis/controller/upload-document.controller');
+
+      const json = jest.fn();
+      const status = jest.fn().mockReturnValue({ json });
+      const res = { status, json } as unknown as Response;
+      const next = jest.fn();
+
+      mockedMiddleware({} as Request, res, next);
+
+      expect(status).toHaveBeenCalledWith(400);
+      expect(json).toHaveBeenCalledWith({ code: 400, message: '上传字段名应为 file' });
+      expect(next).not.toHaveBeenCalled();
+    });
+  });
+
+  it('should return 400 for generic MulterError (LIMIT_FIELD_COUNT)', () => {
+    jest.isolateModules(() => {
+      jest.doMock('multer', () => {
+        class MockMulterError extends Error {
+          code: string;
+          constructor(code: string) {
+            super(code);
+            this.code = code;
+          }
+        }
+        const mockMulter: any = jest.fn().mockReturnValue({
+          single: () => (_req: any, _res: any, cb: any) => {
+            cb(new MockMulterError('LIMIT_FIELD_COUNT'));
+          },
+        });
+        mockMulter.diskStorage = jest.fn().mockReturnValue({});
+        mockMulter.MulterError = MockMulterError;
+        return mockMulter;
+      });
+
+      const { uploadDocumentMiddleware: mockedMiddleware } =
+        require('../../apis/controller/upload-document.controller');
+
+      const json = jest.fn();
+      const status = jest.fn().mockReturnValue({ json });
+      const res = { status, json } as unknown as Response;
+      const next = jest.fn();
+
+      mockedMiddleware({} as Request, res, next);
+
+      expect(status).toHaveBeenCalledWith(400);
+      expect(json).toHaveBeenCalledWith({ code: 400, message: '上传参数错误' });
       expect(next).not.toHaveBeenCalled();
     });
   });

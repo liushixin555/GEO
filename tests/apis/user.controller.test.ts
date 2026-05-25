@@ -1084,4 +1084,29 @@ describe('User Controller', () => {
       expect(response.body.message).toBe('更新用户成功');
     });
   });
+
+  // ============================================================
+  // handleError ZodError 分支覆盖（line 11）
+  // ============================================================
+  describe('handleError ZodError branch', () => {
+    it('should return 400 with ZodError issues when service throws ZodError', async () => {
+      const { z: zod } = require('zod');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      // 让 listUsers 的 userService.list 抛出 ZodError
+      const zodError = new zod.ZodError([
+        { code: 'custom', path: ['role'], message: '无效角色' },
+      ]);
+      const mockFindMany = jest.fn().mockRejectedValue(zodError);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get('/api/v1/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('无效角色');
+    });
+  });
 });

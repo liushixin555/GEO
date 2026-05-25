@@ -248,11 +248,11 @@ title6.tsx 的安全风险全部来自执行链下游（`InsertTextAtPosition.ts
 
 ### 合并前必须完成（CSS 覆盖）：
 
-- [ ] 确认本项目未使用废弃的 `title6` 导入名（应使用 `heading6`）
+- [x] ~~确认本项目未使用废弃的 `title6` 导入名（应使用 `heading6`）~~ — 已通过 pnpm patch 修复（`import type` + `??` 空值合并 + fontSize: 11 + `fontFamily`/`color` + `role="img"`/`aria-hidden` + "H6" 文本）
 - [ ] 在 `global.css` 中为 `.w-md-editor-toolbar button` 添加 hover/active/focus 交互状态
-- [ ] 在 `global.css` 中为 H6 按钮添加差异化样式（与 H5 视觉区分）
-- [ ] 通过 `pnpm build:page` 构建验证
-- [ ] 通过 `pnpm lint` 无错误
+- [x] ~~在 `global.css` 中为 H6 按钮添加差异化样式（与 H5 视觉区分）~~ — 已通过 pnpm patch 将 fontSize 从 12 改为 11，与 H5 的 12px 形成视觉区分
+- [ ] 通过 `pnpm build:page` 构建验证（前端构建因 esbuild OOM 失败，非代码问题）
+- [x] 通过 `pnpm lint` 无错误
 
 ### 合并后应排期改进：
 
