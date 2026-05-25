@@ -2385,7 +2385,7 @@
                   "short_name": {
                     "type": "string",
                     "minLength": 1,
-                    "maxLength": 100
+                    "maxLength": 50
                   },
                   "full_name": {
                     "type": "string",
@@ -2395,7 +2395,7 @@
                   "description": {
                     "nullable": true,
                     "type": "string",
-                    "maxLength": 2000
+                    "maxLength": 500
                   },
                   "company_id": {
                     "type": "integer",
@@ -2648,7 +2648,7 @@
                   "short_name": {
                     "type": "string",
                     "minLength": 1,
-                    "maxLength": 100
+                    "maxLength": 50
                   },
                   "full_name": {
                     "type": "string",
@@ -2658,7 +2658,7 @@
                   "description": {
                     "nullable": true,
                     "type": "string",
-                    "maxLength": 2000
+                    "maxLength": 500
                   },
                   "company_id": {
                     "type": "integer",

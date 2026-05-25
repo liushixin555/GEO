@@ -22,8 +22,6 @@ import CompanyProjectSwitcher from './CompanyProjectSwitcher';
 import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
-  userRole: string;
-  cnName: string;
   collapsed: boolean;
   onCollapse: (collapsed: boolean) => void;
   isMobile?: boolean;
@@ -50,15 +48,15 @@ const menuItems: MenuItemDef[] = [
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({
-  userRole,
-  cnName,
   collapsed,
   onCollapse,
   isMobile,
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+  const userRole = user?.role ?? '';
+  const cnName = user?.cn_name ?? '';
 
   const visibleMenuItems = menuItems.filter((item) => item.roles.includes(userRole));
 

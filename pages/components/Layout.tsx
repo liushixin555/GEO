@@ -3,7 +3,6 @@ import { Layout as AntLayout, Button } from 'antd';
 import { MenuUnfoldOutlined } from '@ant-design/icons';
 import Sidebar from './Sidebar';
 import PageRouter from '../router/routes';
-import { AppContextProvider } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 
 const { Sider, Content } = AntLayout;
@@ -31,49 +30,45 @@ const Layout: React.FC = () => {
   if (!user) return null;
 
   return (
-    <AppContextProvider>
-      <AntLayout className="app-layout-root">
-        {isMobile && collapsed && (
-          <Button
-            type="text"
-            icon={<MenuUnfoldOutlined />}
-            onClick={() => setCollapsed(false)}
-            className="sidebar-mobile-unfold"
-            aria-label="展开侧边栏"
-          />
-        )}
-        <Sider
-          width={240}
-          collapsedWidth={isMobile ? 0 : 64}
+    <AntLayout className="app-layout-root">
+      {isMobile && collapsed && (
+        <Button
+          type="text"
+          icon={<MenuUnfoldOutlined />}
+          onClick={() => setCollapsed(false)}
+          className="sidebar-mobile-unfold"
+          aria-label="展开侧边栏"
+        />
+      )}
+      <Sider
+        width={240}
+        collapsedWidth={isMobile ? 0 : 64}
+        collapsed={collapsed}
+        trigger={null}
+        className={[
+          'app-sider',
+          isMobile ? 'app-sider-mobile' : '',
+          isMobile && collapsed ? 'app-sider-mobile-collapsed' : '',
+        ].filter(Boolean).join(' ')}
+      >
+        <Sidebar
           collapsed={collapsed}
-          trigger={null}
-          className={[
-            'app-sider',
-            isMobile ? 'app-sider-mobile' : '',
-            isMobile && collapsed ? 'app-sider-mobile-collapsed' : '',
-          ].filter(Boolean).join(' ')}
-        >
-          <Sidebar
-            userRole={user.role}
-            cnName={user.cn_name}
-            collapsed={collapsed}
-            onCollapse={setCollapsed}
-            isMobile={isMobile}
-          />
-        </Sider>
+          onCollapse={setCollapsed}
+          isMobile={isMobile}
+        />
+      </Sider>
 
-        {isMobile && !collapsed && (
-          <div className="mobile-overlay" onClick={() => setCollapsed(true)} role="presentation" aria-hidden="true" />
-        )}
+      {isMobile && !collapsed && (
+        <div className="mobile-overlay" onClick={() => setCollapsed(true)} role="presentation" aria-hidden="true" />
+      )}
 
-        <Content className="main-content">
-          <a href="#main-content" className="skip-to-content">跳到主要内容</a>
-          <div id="main-content">
-            <PageRouter />
-          </div>
-        </Content>
-      </AntLayout>
-    </AppContextProvider>
+      <Content className="main-content">
+        <a href="#main-content" className="skip-to-content">跳到主要内容</a>
+        <div id="main-content">
+          <PageRouter />
+        </div>
+      </Content>
+    </AntLayout>
   );
 };
 
