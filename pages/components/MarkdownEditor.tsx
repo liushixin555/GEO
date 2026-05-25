@@ -64,6 +64,10 @@ export interface MarkdownEditorRef {
 
 const MAX_CONTENT_LENGTH = 2_097_152; // 2MB 内容上限
 
+// ARCH-H2: help 命令配置常量——集中管理 URL / 窗口特性，便于企业级定制
+const HELP_URL = 'https://www.markdownguide.org/basic-syntax/';
+const HELP_WINDOW_FEATURES = 'noopener,noreferrer';
+
 // REQ-4: Error Boundary 防止 Markdown 渲染崩溃导致页面白屏
 interface EditorErrorBoundaryState {
   hasError: boolean;
@@ -312,6 +316,13 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
   // S1/S2/C-03: 防御性封装 — 非空断言防护 + try-catch
   const commandsFilter = useCallback(
     (command: any, isExtra: boolean) => {
+      // ARCH-H1/H2/M2/L2: help 命令安全覆盖——
+      //   1. SSR 环境检测（typeof window !== 'undefined'），防止 Node.js 运行时崩溃
+      //   2. 常量提取（HELP_URL / HELP_WINDOW_FEATURES），便于企业内网/内部文档定制
+      //   3. try-catch 错误边界，防止 window.open 异常冒泡至 orchestrator
+      //   4. 弹窗拦截降级 + console.warn 可观测性
+      //   5. noopener+noreferrer 防反向标签劫持
+      //   6. F1 快捷键 + 中文 ARIA + antd 图标
       if (command.name === 'help') {
         return {
           ...command,
@@ -322,10 +333,18 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
           },
           icon: <QuestionCircleOutlined style={{ fontSize: 16 }} />,
           execute: () => {
-            const HELP_URL = 'https://www.markdownguide.org/basic-syntax/';
-            const newWindow = window.open(HELP_URL, '_blank', 'noopener,noreferrer');
-            if (!newWindow || newWindow.closed) {
-              window.location.href = HELP_URL;
+            try {
+              // ARCH-H1: SSR 安全——window 在 Node.js 中不存在
+              if (typeof window === 'undefined') return;
+              const newWindow = window.open(HELP_URL, '_blank', HELP_WINDOW_FEATURES);
+              if (!newWindow || newWindow.closed) {
+                // ARCH-M2: 弹窗拦截降级——同窗口导航 + 可观测性日志
+                console.warn('[MarkdownEditor] help 命令: 弹窗被拦截，降级为同窗口导航');
+                window.location.href = HELP_URL;
+              }
+            } catch (err) {
+              // ARCH-L2: 错误边界——防止 CSP 策略等异常冒泡至 orchestrator
+              console.error('[MarkdownEditor] help 命令执行失败:', err);
             }
           },
         };

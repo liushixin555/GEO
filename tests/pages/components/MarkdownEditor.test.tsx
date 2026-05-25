@@ -302,6 +302,86 @@ describe('MarkdownEditor', () => {
       const result = commandsFilterFn!({ name: 'help' }, false);
       expect(result.shortcuts).toBe('f1');
     });
+
+    // ARCH-H1: SSR 安全——window 不存在时 execute 不崩溃
+    it('should not crash when window is undefined (SSR safety)', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!({ name: 'help' }, false);
+
+      const originalWindow = global.window;
+      // @ts-expect-error — 模拟 SSR 环境
+      delete global.window;
+
+      expect(() => {
+        result.execute();
+      }).not.toThrow();
+
+      global.window = originalWindow;
+    });
+
+    // ARCH-L2: 错误边界——window.open 抛出异常时 execute 不崩溃
+    it('should handle window.open throwing error gracefully (ARCH-L2)', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!({ name: 'help' }, false);
+
+      const mockOpen = jest.spyOn(window, 'open').mockImplementation(() => {
+        throw new Error('CSP blocked window.open');
+      });
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      expect(() => {
+        result.execute();
+      }).not.toThrow();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[MarkdownEditor] help 命令执行失败:',
+        expect.any(Error),
+      );
+
+      mockOpen.mockRestore();
+      consoleSpy.mockRestore();
+    });
+
+    // ARCH-M2: 弹窗拦截可观测性——console.warn 输出降级日志
+    it('should log console.warn when popup is blocked (ARCH-M2)', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!({ name: 'help' }, false);
+
+      const mockOpen = jest.spyOn(window, 'open').mockReturnValue(null);
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const originalLocation = window.location;
+      const hrefSetter = jest.fn();
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        get: () => ({ ...originalLocation, set href(val: string) { hrefSetter(val); } }),
+      });
+
+      result.execute();
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[MarkdownEditor] help 命令: 弹窗被拦截，降级为同窗口导航',
+      );
+      expect(hrefSetter).toHaveBeenCalledWith('https://www.markdownguide.org/basic-syntax/');
+
+      mockOpen.mockRestore();
+      warnSpy.mockRestore();
+      Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
+    });
+
+    // ARCH-H2: 常量验证——HELP_URL 使用模块级常量
+    it('should use centralized HELP_URL constant', () => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!({ name: 'help' }, false);
+
+      const mockOpen = jest.spyOn(window, 'open').mockReturnValue({} as Window);
+      result.execute();
+      expect(mockOpen).toHaveBeenCalledWith(
+        'https://www.markdownguide.org/basic-syntax/',
+        '_blank',
+        'noopener,noreferrer',
+      );
+      mockOpen.mockRestore();
+    });
   });
 
   describe('commandsFilter — issue command defensive override', () => {
