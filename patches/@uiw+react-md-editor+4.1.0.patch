@@ -444,6 +444,50 @@ index a0cc770..d46d53d 100644
      }
    },
  };
+diff --git a/node_modules/@uiw/react-md-editor/src/commands/title1.tsx b/node_modules/@uiw/react-md-editor/src/commands/title1.tsx
+index 09ff595..cd60751 100644
+--- a/node_modules/@uiw/react-md-editor/src/commands/title1.tsx
++++ b/node_modules/@uiw/react-md-editor/src/commands/title1.tsx
+@@ -11,13 +11,13 @@ export const heading1: ICommand = {
+   buttonProps: { 'aria-label': 'Insert Heading 1 (ctrl + 1)', title: 'Insert Heading 1 (ctrl + 1)' },
+   icon: <div style={{ fontSize: 18, textAlign: 'left' }}>Heading 1</div>,
+   execute: (state: ExecuteState, api: TextAreaTextApi) => {
+-    headingExecute({ state, api, prefix: state.command.prefix!, suffix: state.command.suffix });
++    headingExecute({ state, api, prefix: state.command.prefix ?? '# ', suffix: state.command.suffix ?? '' });
+   },
+ };
+ 
+ /**
+- * @deprecated Use `heading1` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title1` for inserting Heading 1.
++ * @deprecated Since v4.0.0. Use `heading1` instead.
++ * Scheduled for removal in v5.0.0.
++ * @see heading1
+  */
+ export const title1: ICommand = heading1;
+diff --git a/node_modules/@uiw/react-md-editor/src/commands/title2.tsx b/node_modules/@uiw/react-md-editor/src/commands/title2.tsx
+index 4ab3753..14ab295 100644
+--- a/node_modules/@uiw/react-md-editor/src/commands/title2.tsx
++++ b/node_modules/@uiw/react-md-editor/src/commands/title2.tsx
+@@ -11,13 +11,13 @@ export const heading2: ICommand = {
+   buttonProps: { 'aria-label': 'Insert Heading 2 (ctrl + 2)', title: 'Insert Heading 2 (ctrl + 2)' },
+   icon: <div style={{ fontSize: 16, textAlign: 'left' }}>Heading 2</div>,
+   execute: (state: ExecuteState, api: TextAreaTextApi) => {
+-    headingExecute({ state, api, prefix: state.command.prefix!, suffix: state.command.suffix });
++    headingExecute({ state, api, prefix: state.command.prefix ?? '## ', suffix: state.command.suffix ?? '' });
+   },
+ };
+ 
+ /**
+- * @deprecated Use `heading2` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title2` for inserting Heading 2.
++ * @deprecated Since v4.0.0. Use `heading2` instead.
++ * Scheduled for removal in v5.0.0.
++ * @see heading2
+  */
+ export const title2: ICommand = heading2;
 diff --git a/node_modules/@uiw/react-md-editor/src/commands/title3.tsx b/node_modules/@uiw/react-md-editor/src/commands/title3.tsx
 index bde067d..fa3bfb8 100644
 --- a/node_modules/@uiw/react-md-editor/src/commands/title3.tsx
@@ -466,3 +510,69 @@ index bde067d..fa3bfb8 100644
 + * @see heading3
   */
  export const title3: ICommand = heading3;
+diff --git a/node_modules/@uiw/react-md-editor/src/commands/title4.tsx b/node_modules/@uiw/react-md-editor/src/commands/title4.tsx
+index 219f84e..0915a95 100644
+--- a/node_modules/@uiw/react-md-editor/src/commands/title4.tsx
++++ b/node_modules/@uiw/react-md-editor/src/commands/title4.tsx
+@@ -11,13 +11,13 @@ export const heading4: ICommand = {
+   buttonProps: { 'aria-label': 'Insert Heading 4 (ctrl + 4)', title: 'Insert Heading 4 (ctrl + 4)' },
+   icon: <div style={{ fontSize: 14, textAlign: 'left' }}>Heading 4</div>,
+   execute: (state: ExecuteState, api: TextAreaTextApi) => {
+-    headingExecute({ state, api, prefix: state.command.prefix!, suffix: state.command.suffix });
++    headingExecute({ state, api, prefix: state.command.prefix ?? '#### ', suffix: state.command.suffix ?? '' });
+   },
+ };
+ 
+ /**
+- * @deprecated Use `heading4` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title4` for inserting Heading 4.
++ * @deprecated Since v4.0.0. Use `heading4` instead.
++ * Scheduled for removal in v5.0.0.
++ * @see heading4
+  */
+ export const title4: ICommand = heading4;
+diff --git a/node_modules/@uiw/react-md-editor/src/commands/title5.tsx b/node_modules/@uiw/react-md-editor/src/commands/title5.tsx
+index 89347df..f2ca58c 100644
+--- a/node_modules/@uiw/react-md-editor/src/commands/title5.tsx
++++ b/node_modules/@uiw/react-md-editor/src/commands/title5.tsx
+@@ -11,13 +11,13 @@ export const heading5: ICommand = {
+   buttonProps: { 'aria-label': 'Insert Heading 5 (ctrl + 5)', title: 'Insert Heading 5 (ctrl + 5)' },
+   icon: <div style={{ fontSize: 12, textAlign: 'left' }}>Heading 5</div>,
+   execute: (state: ExecuteState, api: TextAreaTextApi) => {
+-    headingExecute({ state, api, prefix: state.command.prefix!, suffix: state.command.suffix });
++    headingExecute({ state, api, prefix: state.command.prefix ?? '##### ', suffix: state.command.suffix ?? '' });
+   },
+ };
+ 
+ /**
+- * @deprecated Use `heading5` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title5` for inserting Heading 5.
++ * @deprecated Since v4.0.0. Use `heading5` instead.
++ * Scheduled for removal in v5.0.0.
++ * @see heading5
+  */
+ export const title5: ICommand = heading5;
+diff --git a/node_modules/@uiw/react-md-editor/src/commands/title6.tsx b/node_modules/@uiw/react-md-editor/src/commands/title6.tsx
+index d959038..0630d3f 100644
+--- a/node_modules/@uiw/react-md-editor/src/commands/title6.tsx
++++ b/node_modules/@uiw/react-md-editor/src/commands/title6.tsx
+@@ -11,13 +11,13 @@ export const heading6: ICommand = {
+   buttonProps: { 'aria-label': 'Insert Heading 6 (ctrl + 6)', title: 'Insert Heading 6 (ctrl + 6)' },
+   icon: <div style={{ fontSize: 12, textAlign: 'left' }}>Heading 6</div>,
+   execute: (state: ExecuteState, api: TextAreaTextApi) => {
+-    headingExecute({ state, api, prefix: state.command.prefix!, suffix: state.command.suffix });
++    headingExecute({ state, api, prefix: state.command.prefix ?? '###### ', suffix: state.command.suffix ?? '' });
+   },
+ };
+ 
+ /**
+- * @deprecated Use `heading6` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title6` for inserting Heading 6.
++ * @deprecated Since v4.0.0. Use `heading6` instead.
++ * Scheduled for removal in v5.0.0.
++ * @see heading6
+  */
+ export const title6: ICommand = heading6;
