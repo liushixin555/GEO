@@ -357,7 +357,7 @@ describe('Upload Document Controller - Integration', () => {
       .attach('file', zipPath);
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toContain('ZIP');
+    expect(response.body.message).toContain('不是有效的 Office 文档');
 
     try { fs.unlinkSync(zipPath); } catch {}
   });
@@ -508,7 +508,7 @@ describe('Upload Document Controller - Integration', () => {
       .attach('file', pdfPath);
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toContain('OLE2');
+    expect(response.body.message).toContain('不匹配');
 
     try { fs.unlinkSync(pdfPath); } catch {}
   });
@@ -1808,6 +1808,138 @@ describe('Upload Document Controller - Boundary & Security', () => {
         fileType: expect.stringMatching(/^(yaml|yml)$/),
       }),
     });
+
+    try { fs.unlinkSync(tempPath); } catch {}
+  });
+
+  // ---------- H-1: Text file size limit (5MB) ----------
+
+  it('should reject text file exceeding 5MB via unit test', async () => {
+    const tempPath = path.join(uploadsDir, '_unit_test_large_text.json');
+    // Create a JSON file larger than 5MB
+    const largeData = { x: 'a'.repeat(6 * 1024 * 1024) };
+    fs.writeFileSync(tempPath, JSON.stringify(largeData));
+
+    const req = {
+      file: {
+        path: tempPath,
+        originalname: 'large.json',
+        filename: 'large.json',
+        size: fs.statSync(tempPath).size,
+      },
+    } as unknown as Request;
+
+    const json = jest.fn();
+    const status = jest.fn().mockReturnValue({ json });
+    const res = { status, json } as unknown as Response;
+
+    await uploadDocumentFile(req, res);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('文本文件大小超过限制') })
+    );
+    // File should be cleaned up
+    expect(fs.existsSync(tempPath)).toBe(false);
+  });
+
+  // ---------- H-1: Binary format header-only validation ----------
+
+  it('should validate large PDF using header-only read', async () => {
+    // Create a 100KB PDF file - only header should be read for validation
+    const tempPath = path.join(uploadsDir, '_unit_test_large_pdf.pdf');
+    const header = Buffer.from('%PDF-1.4 test pdf content');
+    const padding = Buffer.alloc(100 * 1024 - header.length, 0x20); // pad with spaces
+    fs.writeFileSync(tempPath, Buffer.concat([header, padding]));
+
+    const req = {
+      file: {
+        path: tempPath,
+        originalname: 'large.pdf',
+        filename: 'uuid-large.pdf',
+        size: 100 * 1024,
+      },
+    } as unknown as Request;
+    const json = jest.fn();
+    const res = { json } as unknown as Response;
+
+    await uploadDocumentFile(req, res);
+
+    expect(json).toHaveBeenCalledWith({
+      code: 0,
+      message: '上传成功',
+      data: expect.objectContaining({
+        fileType: 'pdf',
+        fileSize: 100 * 1024,
+      }),
+    });
+
+    try { fs.unlinkSync(tempPath); } catch {}
+  });
+
+  it('should validate large OLE2 (DOC) using header-only read', async () => {
+    const tempPath = path.join(uploadsDir, '_unit_test_large_doc.doc');
+    const OLE2_MAGIC = Buffer.from([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]);
+    const buf = Buffer.alloc(100 * 1024); // 100KB
+    OLE2_MAGIC.copy(buf);
+    fs.writeFileSync(tempPath, buf);
+
+    const req = {
+      file: {
+        path: tempPath,
+        originalname: 'large.doc',
+        filename: 'uuid-large.doc',
+        size: 100 * 1024,
+      },
+    } as unknown as Request;
+    const json = jest.fn();
+    const res = { json } as unknown as Response;
+
+    await uploadDocumentFile(req, res);
+
+    expect(json).toHaveBeenCalledWith({
+      code: 0,
+      message: '上传成功',
+      data: expect.objectContaining({
+        fileType: 'doc',
+        fileSize: 100 * 1024,
+      }),
+    });
+
+    try { fs.unlinkSync(tempPath); } catch {}
+  });
+
+  // ---------- H-3: Error message sanitization ----------
+
+  it('should sanitize content mismatch error to hide detected type', async () => {
+    const tempPath = path.join(uploadsDir, '_unit_test_sanitize.docx');
+    const zip = new AdmZip();
+    zip.addFile('xl/workbook.xml', Buffer.from('<?xml version="1.0"?><workbook/>'));
+    zip.writeZip(tempPath);
+
+    const req = {
+      file: {
+        path: tempPath,
+        originalname: 'fake.docx',
+        filename: 'sanitize.docx',
+        size: fs.statSync(tempPath).size,
+      },
+    } as unknown as Request;
+
+    const json = jest.fn();
+    const status = jest.fn().mockReturnValue({ json });
+    const res = { status, json } as unknown as Response;
+
+    await uploadDocumentFile(req, res);
+
+    expect(status).toHaveBeenCalledWith(400);
+    // Should NOT reveal detected type (xlsx) in the error message
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.not.stringContaining('实际为') })
+    );
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('不匹配') })
+    );
 
     try { fs.unlinkSync(tempPath); } catch {}
   });

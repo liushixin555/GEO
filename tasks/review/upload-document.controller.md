@@ -4,8 +4,22 @@
 **评审角色**: 软件质量专家（代码安全 + 架构质量 + 输入验证 + 错误处理 + API 设计）
 **文件路径**: `apis/controller/upload-document.controller.ts`
 **代码行数**: 89 行
-**关联文件**: `apis/utils/document-validator.ts`, `apis/app.ts`, `tests/apis/upload-document.controller.test.ts`
+**关联文件**: `apis/utils/document-validator.ts`, `apis/utils/upload-factory.ts`, `apis/app.ts`, `tests/apis/upload-document.controller.test.ts`
 **严重级别**: HIGH(3) / MEDIUM(4) / LOW(2)
+
+## 修复状态（2026-05-25 更新）
+
+| 编号 | 问题 | 状态 | 修复方式 |
+|------|------|------|----------|
+| H-1 | 30MB 文件全量读入内存 | **已修复** | PDF/OLE2 仅读 4KB 头部；文本格式 5MB 限制 |
+| H-2 | `(err: any)` 类型不安全 | **已修复** | upload-factory.ts 使用 `unknown` + instanceof |
+| H-3 | 错误消息泄露内部信息 | **已修复** | 脱敏 detected type/OLE2/ZIP 细节；catch 返回通用消息 |
+| M-1 | 模块级副作用 | **已修复** | upload-factory.ts 延迟初始化 |
+| M-2 | 重复目录检查 | **已修复** | 统一到 upload-factory.ts |
+| M-3 | 同步文件操作 | **已修复** | 全部使用 `fs/promises` 异步 API |
+| M-4 | 无文件生命周期管理 | 待定 | 中长期优化 |
+| L-1 | 扩展名提取无保底 | **已修复** | upload-factory.ts 已有空扩展名保护 |
+| L-2 | next() 风格不一致 | **已修复** | upload-factory.ts 统一 return |
 
 ---
 
