@@ -1944,4 +1944,484 @@ describe('Todo Controller', () => {
       expect(response.status).toBe(400);
     });
   });
+
+  // ============================================================
+  // handleError ZodError 分支覆盖（line 24）
+  // ============================================================
+  describe('handleError ZodError branch', () => {
+    it('should return 400 with ZodError issues when service throws ZodError', async () => {
+      const { z: zod } = require('zod');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      // 让 listTodos 的 todoService.list 抛出 ZodError
+      const zodError = new zod.ZodError([
+        { code: 'custom', path: ['tab'], message: '无效标签' },
+      ]);
+      const mockFindMany = jest.fn().mockRejectedValue(zodError);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+        user: { findFirst: jest.fn().mockResolvedValue(null) },
+      });
+
+      const response = await agent
+        .get('/api/v1/todos')
+        .query({ page: 1, pageSize: 10, tab: 'my_open' })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('无效标签');
+    });
+  });
+
+  // ============================================================
+  // companyId ?? null 分支覆盖（lines 60, 74, 179）
+  // ============================================================
+  describe('companyId null branch coverage', () => {
+    // 创建不带 companyId 的 token 以触发 ?? null 分支
+    function noCompanyToken(userId = 99) {
+      return jwt.sign(
+        { userId, username: 'sysadmin', role: 'sysadmin' },
+        'test-secret',
+        { expiresIn: '2h' }
+      );
+    }
+
+    it('listTodos: should handle companyId undefined (line 60)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+        user: { findFirst: jest.fn().mockResolvedValue(null) },
+      });
+
+      const response = await agent
+        .get('/api/v1/todos')
+        .query({ page: 1, pageSize: 10, tab: 'all_open' })
+        .set('Authorization', `Bearer ${noCompanyToken()}`);
+
+      expect(response.status).toBe(200);
+    });
+
+    it('getTodo: should handle companyId undefined (line 74)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(mockTodoFull);
+      getPrisma.mockReturnValue({ todo: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .get('/api/v1/todos/1')
+        .set('Authorization', `Bearer ${noCompanyToken()}`);
+
+      expect(response.status).toBe(200);
+    });
+
+    it('getTodoLogs: should handle companyId undefined (line 179)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(mockTodoFull);
+      const mockLogFindMany = jest.fn().mockResolvedValue([]);
+      getPrisma.mockReturnValue({
+        todo: { findFirst: mockFindFirst },
+        todoLog: { findMany: mockLogFindMany },
+      });
+
+      const response = await agent
+        .get('/api/v1/todos/1/logs')
+        .set('Authorization', `Bearer ${noCompanyToken()}`);
+
+      expect(response.status).toBe(200);
+    });
+  });
+
+  // ============================================================
+  // 第二轮 TDD — 覆盖 todo.service.impl.ts 未覆盖行
+  // Lines 39-40: list() default 分支
+  // Lines 44-45: list() all_open/all_closed + non-sysadmin + companyId
+  // Line 393: getObjectOptions() 未知 objectType 返回 []
+  // ============================================================
+  describe('TodoServiceImpl — direct service coverage (round 2)', () => {
+    const { TodoServiceImpl } = require('../../apis/service/impl/todo.service.impl');
+
+    it('list: default tab falls back to my_open behavior (lines 39-40)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const service = new TodoServiceImpl();
+      await service.list({
+        page: 1,
+        pageSize: 10,
+        tab: 'unknown_tab', // 触发 default 分支
+        userId: 5,
+        role: 'admin',
+        companyId: 1,
+      });
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            assigneeId: 5,
+            status: { in: ['open', 'draft'] },
+          }),
+        })
+      );
+    });
+
+    it('list: all_open + non-sysadmin + companyId sets companyId filter (lines 44-45)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const service = new TodoServiceImpl();
+      await service.list({
+        page: 1,
+        pageSize: 10,
+        tab: 'all_open',
+        userId: 5,
+        role: 'admin',
+        companyId: 99,
+      });
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            companyId: 99,
+          }),
+        })
+      );
+    });
+
+    it('list: all_closed + non-sysadmin + companyId sets companyId filter (lines 44-45)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const service = new TodoServiceImpl();
+      await service.list({
+        page: 1,
+        pageSize: 10,
+        tab: 'all_closed',
+        userId: 5,
+        role: 'admin',
+        companyId: 42,
+      });
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            companyId: 42,
+            status: 'closed',
+          }),
+        })
+      );
+    });
+
+    it('list: all_open + non-sysadmin + null companyId does not set companyId filter', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const service = new TodoServiceImpl();
+      await service.list({
+        page: 1,
+        pageSize: 10,
+        tab: 'all_open',
+        userId: 5,
+        role: 'admin',
+        companyId: null,
+      });
+
+      const calledWith = mockFindMany.mock.calls[0][0] as any;
+      expect(calledWith.where.companyId).toBeUndefined();
+    });
+
+    it('getObjectOptions: unknown objectType returns empty array (line 393)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({});
+
+      const service = new TodoServiceImpl();
+      const result = await service.getObjectOptions({
+        projectId: 1,
+        objectType: 'unknown_type', // 非 article 也非 keyword
+        action: undefined,
+      });
+
+      expect(result).toEqual([]);
+    });
+
+    it('list: all_open + sysadmin does not set companyId filter', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const service = new TodoServiceImpl();
+      await service.list({
+        page: 1,
+        pageSize: 10,
+        tab: 'all_open',
+        userId: 1,
+        role: 'sysadmin',
+        companyId: 99,
+      });
+
+      const calledWith = mockFindMany.mock.calls[0][0] as any;
+      expect(calledWith.where.companyId).toBeUndefined();
+    });
+
+    it('list: all_closed + sysadmin does not set companyId filter', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        todo: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const service = new TodoServiceImpl();
+      await service.list({
+        page: 1,
+        pageSize: 10,
+        tab: 'all_closed',
+        userId: 1,
+        role: 'sysadmin',
+        companyId: 99,
+      });
+
+      const calledWith = mockFindMany.mock.calls[0][0] as any;
+      expect(calledWith.where.companyId).toBeUndefined();
+    });
+
+    // Lines 152-156: update() optional fields coverage
+    it('update: should update all optional fields when provided', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(mockTodoFull);
+      const mockUpdate = jest.fn().mockResolvedValue(mockTodoFull);
+      getPrisma.mockReturnValue({
+        todo: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const service = new TodoServiceImpl();
+      await service.update(1, {
+        title: '新标题',
+        object_type: '关键词',
+        object_id: 20,
+        action: '更新关键词',
+        priority: 'P0',
+        due_at: '2026-06-01T00:00:00Z',
+      }, 1, 'sysadmin');
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            title: '新标题',
+            objectType: '关键词',
+            objectId: 20,
+            action: '更新关键词',
+            priority: 'P0',
+            dueAt: expect.any(Date),
+          }),
+        })
+      );
+    });
+
+    it('update: should set dueAt to null when due_at is empty string', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(mockTodoFull);
+      const mockUpdate = jest.fn().mockResolvedValue(mockTodoFull);
+      getPrisma.mockReturnValue({
+        todo: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const service = new TodoServiceImpl();
+      await service.update(1, {
+        due_at: '',
+      }, 1, 'sysadmin');
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            dueAt: null,
+          }),
+        })
+      );
+    });
+
+    // Line 305: reject() sysadmin?.id null fallback
+    it('reject: falls back to createdById when no sysadmin user exists (line 305)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const sysTodo = { ...mockTodoFull, source: 'daily_check', createdById: 5 };
+      const mockUpdate = jest.fn().mockResolvedValue({ ...sysTodo, status: 'draft' });
+      const mockLogCreate = jest.fn().mockResolvedValue({});
+      getPrisma.mockReturnValue({
+        todo: {
+          findFirst: jest.fn().mockResolvedValue(sysTodo),
+          update: mockUpdate,
+        },
+        user: { findFirst: jest.fn().mockResolvedValue(null) },
+        todoLog: { create: mockLogCreate },
+      });
+
+      const service = new TodoServiceImpl();
+      const result = await service.reject(1, 1, 'sysadmin');
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: 'draft',
+            assigneeId: 5, // falls back to createdById
+          }),
+        })
+      );
+    });
+
+    // Line 383: keyword deletedAt filter for non-restore action
+    it('getObjectOptions: keyword without action uses deletedAt null filter (line 383)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockKbFindMany = jest.fn().mockResolvedValue([{ id: 10 }]);
+      const mockKwFindMany = jest.fn().mockResolvedValue([
+        { id: 1, keyword: '关键词X' },
+        { id: 2, keyword: '关键词Y' },
+      ]);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockKbFindMany },
+        knowledgeKeyword: { findMany: mockKwFindMany },
+      });
+
+      const service = new TodoServiceImpl();
+      const result = await service.getObjectOptions({
+        projectId: 1,
+        objectType: 'keyword',
+        action: undefined, // showDeleted = false
+      });
+
+      expect(result).toHaveLength(2);
+      expect(mockKwFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            deletedAt: null,
+          }),
+        })
+      );
+    });
+
+    // Line 427: getAssigneeCandidates dedup with duplicate IDs
+    it('getAssigneeCandidates: filters duplicates when user appears in both operators and sysadmin list (line 427)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockProject = {
+        id: 1,
+        operators: [{ userId: 1 }, { userId: 5 }],
+      };
+      // userId=1 appears both as operator and sysadmin
+      const mockUsers = [
+        { id: 1, username: 'sysadmin', cnName: '管理员', role: 'sysadmin' },
+        { id: 5, username: 'op5', cnName: '运营5', role: 'admin' },
+      ];
+      getPrisma.mockReturnValue({
+        project: { findUnique: jest.fn().mockResolvedValue(mockProject) },
+        user: { findMany: jest.fn().mockResolvedValue(mockUsers) },
+      });
+
+      const service = new TodoServiceImpl();
+      const result = await service.getAssigneeCandidates(1);
+
+      // sysadmin (id=1) appears only once despite being both operator and sysadmin
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe(1);
+      expect(result[1].id).toBe(5);
+    });
+
+    // Line 383: keyword restore action uses deletedAt { not: null }
+    it('getObjectOptions: keyword with restore action uses deletedAt not-null filter (line 383 true branch)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockKbFindMany = jest.fn().mockResolvedValue([{ id: 10 }]);
+      const mockKwFindMany = jest.fn().mockResolvedValue([
+        { id: 5, keyword: '已删除关键词' },
+      ]);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockKbFindMany },
+        knowledgeKeyword: { findMany: mockKwFindMany },
+      });
+
+      const service = new TodoServiceImpl();
+      const result = await service.getObjectOptions({
+        projectId: 1,
+        objectType: 'keyword',
+        action: 'restore', // showDeleted = true
+      });
+
+      expect(result).toHaveLength(1);
+      expect(mockKwFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            deletedAt: { not: null },
+          }),
+        })
+      );
+    });
+
+    // Line 427: getAssigneeCandidates with no duplicates (covers seen.has false path)
+    it('getAssigneeCandidates: no duplicates covers seen.has false branch (line 427)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockProject = {
+        id: 1,
+        operators: [{ userId: 10 }],
+      };
+      const mockUsers = [
+        { id: 1, username: 'sysadmin', cnName: '管理员', role: 'sysadmin' },
+        { id: 10, username: 'op10', cnName: '运营10', role: 'admin' },
+      ];
+      getPrisma.mockReturnValue({
+        project: { findUnique: jest.fn().mockResolvedValue(mockProject) },
+        user: { findMany: jest.fn().mockResolvedValue(mockUsers) },
+      });
+
+      const service = new TodoServiceImpl();
+      const result = await service.getAssigneeCandidates(1);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe(1);
+      expect(result[1].id).toBe(10);
+    });
+
+    // Line 427 true branch: actual duplicate user in DB results triggers seen.has return false
+    it('getAssigneeCandidates: DB returns duplicate user rows triggers dedup (line 427 true branch)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockProject = {
+        id: 1,
+        operators: [{ userId: 1 }],
+      };
+      // Simulate DB returning user id=1 twice (once as operator match, once as sysadmin match)
+      const mockUsers = [
+        { id: 1, username: 'sysadmin', cnName: '管理员', role: 'sysadmin' },
+        { id: 1, username: 'sysadmin', cnName: '管理员', role: 'sysadmin' },
+        { id: 5, username: 'op5', cnName: '运营5', role: 'admin' },
+      ];
+      getPrisma.mockReturnValue({
+        project: { findUnique: jest.fn().mockResolvedValue(mockProject) },
+        user: { findMany: jest.fn().mockResolvedValue(mockUsers) },
+      });
+
+      const service = new TodoServiceImpl();
+      const result = await service.getAssigneeCandidates(1);
+
+      // duplicate id=1 should be filtered to single entry
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe(1);
+      expect(result[1].id).toBe(5);
+    });
+  });
 });
