@@ -4667,4 +4667,412 @@ describe('Article Controller', () => {
       expect(response.body.message).toBe('已重新提交AI生成');
     });
   });
+
+  // ============= 第五轮补全：覆盖残留分支 =============
+
+  describe('第五轮补全 — parseId 负数/零值 + submitForReview 空内容 + handleServerError 字符串异常', () => {
+    // ---- parseId: negative and zero values ----
+    it('应拒绝零值项目 ID', async () => {
+      const response = await agent
+        .get('/api/v1/projects/0/articles')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的项目ID');
+    });
+
+    it('应拒绝负数文章 ID', async () => {
+      const response = await agent
+        .get('/api/v1/projects/1/articles/-5')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的文章ID');
+    });
+
+    it('应拒绝零值文章 ID', async () => {
+      const response = await agent
+        .get('/api/v1/projects/1/articles/0')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的文章ID');
+    });
+
+    // ---- submitForReview: empty content (line 415-416) ----
+    it('submitForReview 应在文章内容为空字符串时返回 400', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+          content: '', version: 1,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('文章内容不能为空');
+    });
+
+    it('submitForReview 应在文章内容为纯空格时返回 400', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+          content: '   \n\t  ', version: 1,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('文章内容不能为空');
+    });
+
+    it('submitForReview 应在文章内容为 null 时返回 400', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+          images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+          content: null, version: 1,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('文章内容不能为空');
+    });
+
+    // ---- handleServerError with non-Error (string) for all endpoints ----
+    it('handleServerError 应处理字符串异常 — listArticles', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findMany: jest.fn().mockRejectedValue('string error'),
+          count: jest.fn().mockRejectedValue('string error'),
+        },
+      });
+
+      const response = await agent
+        .get(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取文章列表失败');
+    });
+
+    it('handleServerError 应处理字符串异常 — getArticle', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockRejectedValue('string error') },
+      });
+
+      const response = await agent
+        .get(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取文章详情失败');
+    });
+
+    it('handleServerError 应处理字符串异常 — createArticle', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { create: jest.fn().mockRejectedValue('string error') },
+      });
+
+      const response = await agent
+        .post(BASE)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Test' });
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('创建文章失败');
+    });
+
+    it('handleServerError 应处理字符串异常 — updateArticle', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+            images: null, platforms: null, status: 'draft', createdBy: 1,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+          update: jest.fn().mockRejectedValue('string error'),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Updated' });
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('更新文章失败');
+    });
+
+    it('handleServerError 应处理字符串异常 — updateArticleContent', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+            images: null, platforms: null, status: 'draft', createdBy: 1,
+            content: 'old', version: 1,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+          update: jest.fn().mockRejectedValue('string error'),
+        },
+        articleVersion: { create: jest.fn().mockResolvedValue({}) },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'new' });
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('更新文章失败');
+    });
+
+    it('handleServerError 应处理字符串异常 — deleteArticle', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+            images: null, platforms: null, status: 'draft', createdBy: 1,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+          update: jest.fn().mockRejectedValue('string error'),
+        },
+      });
+
+      const response = await agent
+        .delete(`${BASE}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('删除文章失败');
+    });
+
+    it('handleServerError 应处理字符串异常 — reviewArticle', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+            images: null, platforms: null, status: 'pending_review', createdBy: 2,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+          update: jest.fn().mockRejectedValue('string error'),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ approved: true });
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('审核操作失败');
+    });
+
+    it('handleServerError 应处理字符串异常 — regenerateArticle', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+            images: null, platforms: null, status: 'generate_failed', createdBy: 1,
+            content: 'c', version: 1,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+          update: jest.fn().mockRejectedValue('string error'),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/regenerate`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('重新生成操作失败');
+    });
+
+    it('handleServerError 应处理字符串异常 — submitForReview', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
+            images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+            content: 'c', version: 1,
+            createdAt: new Date(), updatedAt: new Date(),
+          }),
+          update: jest.fn().mockRejectedValue('string error'),
+        },
+      });
+
+      const response = await agent
+        .put(`${BASE}/1/submit-review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('提交审核失败');
+    });
+
+    it('handleServerError 应处理字符串异常 — listArticleVersions', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        article: { findFirst: jest.fn().mockResolvedValue({
+          id: 1, projectId: 1, title: 'A', status: 'draft', createdBy: 1,
+          createdAt: new Date(), updatedAt: new Date(),
+        }) },
+        articleVersion: { findMany: jest.fn().mockRejectedValue('string error') },
+      });
+
+      const response = await agent
+        .get(`${BASE}/1/versions`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('获取版本历史失败');
+    });
+
+    // ---- Negative/zero ID for update/delete/review/regenerate/content/submit/versions ----
+    it('updateArticle 应拒绝负数项目 ID', async () => {
+      const response = await agent
+        .put('/api/v1/projects/-1/articles/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Test' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的项目ID');
+    });
+
+    it('deleteArticle 应拒绝负数项目 ID', async () => {
+      const response = await agent
+        .delete('/api/v1/projects/-1/articles/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的项目ID');
+    });
+
+    it('reviewArticle 应拒绝负数项目 ID', async () => {
+      const response = await agent
+        .put('/api/v1/projects/-1/articles/1/review')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ approved: true });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的项目ID');
+    });
+
+    it('regenerateArticle 应拒绝负数项目 ID', async () => {
+      const response = await agent
+        .put('/api/v1/projects/-1/articles/1/regenerate')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的项目ID');
+    });
+
+    it('updateArticleContent 应拒绝负数项目 ID', async () => {
+      const response = await agent
+        .put('/api/v1/projects/-1/articles/1/content')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'new' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的项目ID');
+    });
+
+    it('submitForReview 应拒绝负数项目 ID', async () => {
+      const response = await agent
+        .put('/api/v1/projects/-1/articles/1/submit-review')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的项目ID');
+    });
+
+    it('listArticleVersions 应拒绝负数项目 ID', async () => {
+      const response = await agent
+        .get('/api/v1/projects/-1/articles/1/versions')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的项目ID');
+    });
+
+    it('updateArticle 应拒绝负数文章 ID', async () => {
+      const response = await agent
+        .put(`${BASE}/-1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Test' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的文章ID');
+    });
+
+    it('updateArticle 应拒绝零值文章 ID', async () => {
+      const response = await agent
+        .put(`${BASE}/0`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ title: 'Test' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的文章ID');
+    });
+
+    it('deleteArticle 应拒绝负数文章 ID', async () => {
+      const response = await agent
+        .delete(`${BASE}/-1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的文章ID');
+    });
+
+    it('deleteArticle 应拒绝零值文章 ID', async () => {
+      const response = await agent
+        .delete(`${BASE}/0`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的文章ID');
+    });
+
+    it('updateArticleContent 应拒绝负数文章 ID', async () => {
+      const response = await agent
+        .put(`${BASE}/-1/content`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ content: 'new' });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的文章ID');
+    });
+
+    it('reviewArticle 应拒绝负数文章 ID', async () => {
+      const response = await agent
+        .put(`${BASE}/-1/review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ approved: true });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的文章ID');
+    });
+
+    it('regenerateArticle 应拒绝负数文章 ID', async () => {
+      const response = await agent
+        .put(`${BASE}/-1/regenerate`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的文章ID');
+    });
+
+    it('submitForReview 应拒绝负数文章 ID', async () => {
+      const response = await agent
+        .put(`${BASE}/-1/submit-review`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的文章ID');
+    });
+
+    it('listArticleVersions 应拒绝负数文章 ID', async () => {
+      const response = await agent
+        .get(`${BASE}/-1/versions`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的文章ID');
+    });
+  });
 });
