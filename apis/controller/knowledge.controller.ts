@@ -5,7 +5,7 @@ import { KnowledgeBaseServiceImpl } from '../service/impl/knowledge-base.service
 import { ProjectServiceImpl } from '../service/impl/project.service.impl';
 import { LlmServiceImpl } from '../service/impl/llm.service.impl';
 import { success, fail, paginate, created, getPrisma } from '../utils';
-import { AppError, NotFoundError, BusinessError, ForbiddenError, ConflictError } from '../errors';
+import { AppError, NotFoundError, BusinessError, ForbiddenError, ConflictError, UnauthorizedError } from '../errors';
 import { logger } from '../utils/logger.util';
 import {
   createKeywordSchema, updateKeywordSchema, batchCreateKeywordsSchema, expandKeywordsSchema,
@@ -89,6 +89,15 @@ function sanitizeForLlm(input: string): string {
 
 /** SEC-H-02: listInventory 每类最多加载数量，防止内存溢出 */
 const MAX_INVENTORY_ITEMS_PER_CATEGORY = 1000;
+/** H-8: 加载用户可访问知识库的上限常量，替代硬编码 */
+const MAX_ACCESSIBLE_BASES = 10000;
+
+/** C-4: 防御性 user 解构，替代 req.user! 非空断言 */
+function getUser(req: Request): { userId: number; role: string } {
+  const user = req.user;
+  if (!user) throw new UnauthorizedError();
+  return user;
+}
 
 async function checkBaseAccess(baseId: number, userId: number, role: string): Promise<void> {
   if (role === 'view') throw new ForbiddenError('权限不足');
@@ -129,7 +138,7 @@ export async function listKeywords(req: Request, res: Response): Promise<void> {
     const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
     const search = req.query.search as string | undefined;
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { keywordService } = getServices();
@@ -147,7 +156,7 @@ export async function getKeyword(req: Request, res: Response): Promise<void> {
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
     if (id === null) { fail(res, 400, '无效的关键词ID'); return; }
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { keywordService } = getServices();
@@ -168,7 +177,7 @@ export async function createKeyword(req: Request, res: Response): Promise<void> 
 
     const validated = createKeywordSchema.parse(req.body);
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { keywordService } = getServices();
@@ -186,7 +195,7 @@ export async function updateKeyword(req: Request, res: Response): Promise<void> 
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
     if (id === null) { fail(res, 400, '无效的关键词ID'); return; }
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { keywordService } = getServices();
@@ -212,7 +221,7 @@ export async function deleteKeyword(req: Request, res: Response): Promise<void> 
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
     if (id === null) { fail(res, 400, '无效的关键词ID'); return; }
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { keywordService } = getServices();
@@ -236,7 +245,7 @@ export async function batchCreateKeywords(req: Request, res: Response): Promise<
 
     const { keywords, seed_word } = batchCreateKeywordsSchema.parse(req.body);
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { keywordService } = getServices();
@@ -254,7 +263,7 @@ export async function expandKeywords(req: Request, res: Response): Promise<void>
 
     const { keyword } = expandKeywordsSchema.parse(req.body);
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { llmService } = getServices();
@@ -277,7 +286,7 @@ export async function listPortraits(req: Request, res: Response): Promise<void> 
     const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
     const search = req.query.search as string | undefined;
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { portraitService } = getServices();
@@ -295,7 +304,7 @@ export async function getPortrait(req: Request, res: Response): Promise<void> {
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
     if (id === null) { fail(res, 400, '无效的画像ID'); return; }
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { portraitService } = getServices();
@@ -316,7 +325,7 @@ export async function createPortrait(req: Request, res: Response): Promise<void>
 
     const validated = createPortraitSchema.parse(req.body);
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { portraitService } = getServices();
@@ -334,7 +343,7 @@ export async function updatePortrait(req: Request, res: Response): Promise<void>
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
     if (id === null) { fail(res, 400, '无效的画像ID'); return; }
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { portraitService } = getServices();
@@ -358,7 +367,7 @@ export async function deletePortrait(req: Request, res: Response): Promise<void>
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
     if (id === null) { fail(res, 400, '无效的画像ID'); return; }
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { portraitService } = getServices();
@@ -386,7 +395,7 @@ export async function listImages(req: Request, res: Response): Promise<void> {
     const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
     const search = req.query.search as string | undefined;
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { imageService } = getServices();
@@ -404,7 +413,7 @@ export async function getImage(req: Request, res: Response): Promise<void> {
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
     if (id === null) { fail(res, 400, '无效的图片ID'); return; }
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { imageService } = getServices();
@@ -425,7 +434,7 @@ export async function createImage(req: Request, res: Response): Promise<void> {
 
     const validated = createImageSchema.parse(req.body);
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { imageService } = getServices();
@@ -445,7 +454,7 @@ export async function updateImage(req: Request, res: Response): Promise<void> {
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
     if (id === null) { fail(res, 400, '无效的图片ID'); return; }
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { imageService } = getServices();
@@ -474,7 +483,7 @@ export async function deleteImage(req: Request, res: Response): Promise<void> {
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
     if (id === null) { fail(res, 400, '无效的图片ID'); return; }
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { imageService } = getServices();
@@ -502,7 +511,7 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
     const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
     const search = req.query.search as string | undefined;
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { documentService } = getServices();
@@ -520,7 +529,7 @@ export async function getDocument(req: Request, res: Response): Promise<void> {
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
     if (id === null) { fail(res, 400, '无效的文档ID'); return; }
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { documentService } = getServices();
@@ -541,7 +550,7 @@ export async function createDocument(req: Request, res: Response): Promise<void>
 
     const validated = createDocumentSchema.parse(req.body);
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { documentService } = getServices();
@@ -561,7 +570,7 @@ export async function updateDocument(req: Request, res: Response): Promise<void>
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
     if (id === null) { fail(res, 400, '无效的文档ID'); return; }
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { documentService } = getServices();
@@ -590,7 +599,7 @@ export async function deleteDocument(req: Request, res: Response): Promise<void>
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
     if (id === null) { fail(res, 400, '无效的文档ID'); return; }
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { documentService } = getServices();
@@ -618,7 +627,7 @@ export async function listProjectKeywords(req: Request, res: Response): Promise<
     const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
     const search = req.query.search as string | undefined;
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkProjectOperator(projectId, userId, role);
 
     const { keywordService } = getServices();
@@ -638,7 +647,7 @@ export async function listProjectPortraits(req: Request, res: Response): Promise
     const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
     const search = req.query.search as string | undefined;
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkProjectOperator(projectId, userId, role);
 
     const { portraitService } = getServices();
@@ -658,7 +667,7 @@ export async function listProjectImages(req: Request, res: Response): Promise<vo
     const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
     const search = req.query.search as string | undefined;
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkProjectOperator(projectId, userId, role);
 
     const { imageService } = getServices();
@@ -678,7 +687,7 @@ export async function listProjectDocuments(req: Request, res: Response): Promise
     const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
     const search = req.query.search as string | undefined;
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkProjectOperator(projectId, userId, role);
 
     const { documentService } = getServices();
@@ -698,10 +707,10 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
     const category = req.query.category as string | undefined;
     const search = req.query.search as string | undefined;
 
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     const { knowledgeBaseService } = getServices();
 
-    const { list: bases } = await knowledgeBaseService.list(1, 10000, undefined, undefined, undefined, userId, role);
+    const { list: bases } = await knowledgeBaseService.list(1, MAX_ACCESSIBLE_BASES, undefined, undefined, undefined, userId, role);
     const baseIds = bases.map(b => b.id);
     const baseMap = new Map(bases.map(b => [b.id, b]));
 
@@ -847,7 +856,7 @@ export async function listMinedKeywords(req: Request, res: Response): Promise<vo
   try {
     const baseId = parseId(req.params.baseId, '知识库ID');
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
     const { minedKeywordService } = getServices();
     const items = await minedKeywordService.listByBase(baseId);
@@ -861,7 +870,7 @@ export async function mineKeywords(req: Request, res: Response): Promise<void> {
   try {
     const baseId = parseId(req.params.baseId, '知识库ID');
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
 
     const { source_type: sourceType } = mineKeywordsSchema.parse(req.body);
@@ -885,7 +894,7 @@ export async function saveMinedKeywords(req: Request, res: Response): Promise<vo
   try {
     const baseId = parseId(req.params.baseId, '知识库ID');
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
     const { keywords } = saveMinedKeywordsSchema.parse(req.body);
 
@@ -902,7 +911,7 @@ export async function toggleMinedKeywordsBatch(req: Request, res: Response): Pro
   try {
     const baseId = parseId(req.params.baseId, '知识库ID');
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
     const { ids, selected } = toggleMinedKeywordsBatchSchema.parse(req.body);
     const { minedKeywordService } = getServices();
@@ -918,7 +927,7 @@ export async function deleteMinedKeywords(req: Request, res: Response): Promise<
   try {
     const baseId = parseId(req.params.baseId, '知识库ID');
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
-    const { userId, role } = req.user!;
+    const { userId, role } = getUser(req);
     await checkBaseAccess(baseId, userId, role);
     const { minedKeywordService } = getServices();
     await minedKeywordService.clearAll(baseId);

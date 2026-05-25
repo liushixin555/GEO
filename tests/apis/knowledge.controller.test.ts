@@ -800,18 +800,18 @@ describe('Images - createImage', () => {
         create: jest.fn().mockResolvedValue({ id: 1, baseId: 10, title: '图片', imageUrl: '/test.png', createdBy: 1, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '图片', image_url: '/test.png' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '图片', image_url: 'https://example.com/test.png' });
     expect(res.status).toBe(201);
     expect(res.body.message).toBe('创建图片成功');
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.post('/api/v1/knowledge-bases/abc/images').set('Authorization', auth()).send({ title: 'x', image_url: '/y' });
+    const res = await agent.post('/api/v1/knowledge-bases/abc/images').set('Authorization', auth()).send({ title: 'x', image_url: 'https://example.com/y' });
     expect(res.status).toBe(400);
   });
 
   test('title为空返回400', async () => {
-    const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ image_url: '/test.png' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ image_url: 'https://example.com/test.png' });
     expect(res.status).toBe(400);
     expect(res.body.message).toContain('标题不能为空');
   });
@@ -829,7 +829,7 @@ describe('Images - createImage', () => {
         create: jest.fn(),
       },
     });
-    const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '重复标题', image_url: '/test.png' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '重复标题', image_url: 'https://example.com/test.png' });
     expect(res.status).toBe(409);
     expect(res.body.message).toBe('该知识库已存在相同标题的图片');
   });
@@ -843,7 +843,7 @@ describe('Images - createImage', () => {
         create: jest.fn(),
       },
     });
-    const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '新标题', image_url: '/dup.png' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '新标题', image_url: 'https://example.com/dup.png' });
     expect(res.status).toBe(409);
     expect(res.body.message).toBe('该知识库已存在相同的图片');
   });
@@ -855,7 +855,7 @@ describe('Images - createImage', () => {
         create: jest.fn().mockRejectedValue(new Error('知识库不存在')),
       },
     });
-    const res = await agent.post('/api/v1/knowledge-bases/999/images').set('Authorization', auth()).send({ title: '图片', image_url: '/test.png' });
+    const res = await agent.post('/api/v1/knowledge-bases/999/images').set('Authorization', auth()).send({ title: '图片', image_url: 'https://example.com/test.png' });
     expect(res.status).toBe(500);
   });
 
@@ -866,7 +866,7 @@ describe('Images - createImage', () => {
         create: jest.fn().mockRejectedValue(new Error('Unexpected')),
       },
     });
-    const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '图片', image_url: '/test.png' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '图片', image_url: 'https://example.com/test.png' });
     expect(res.status).toBe(500);
   });
 });
@@ -1102,18 +1102,18 @@ describe('Documents - createDocument', () => {
         create: jest.fn().mockResolvedValue({ id: 1, baseId: 10, title: '文档', fileName: 'test.pdf', fileUrl: '/test.pdf', fileType: 'pdf', fileSize: 1024, createdBy: 1, createdAt: new Date(), updatedAt: new Date() }),
       },
     });
-    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: '文档', file_url: '/test.pdf', file_name: 'test.pdf', file_type: 'pdf', file_size: 1024 });
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: '文档', file_url: 'https://example.com/test.pdf', file_name: 'test.pdf', file_type: 'pdf', file_size: 1024 });
     expect(res.status).toBe(201);
     expect(res.body.message).toBe('创建文档成功');
   });
 
   test('无效的baseId返回400', async () => {
-    const res = await agent.post('/api/v1/knowledge-bases/abc/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
+    const res = await agent.post('/api/v1/knowledge-bases/abc/documents').set('Authorization', auth()).send({ title: 'x', file_url: 'https://example.com/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(400);
   });
 
   test('title为空返回400', async () => {
-    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ file_url: 'https://example.com/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(400);
     expect(res.body.message).toContain('标题不能为空');
   });
@@ -1125,19 +1125,19 @@ describe('Documents - createDocument', () => {
   });
 
   test('file_name为空返回400', async () => {
-    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_type: 'pdf', file_size: 1 });
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: 'https://example.com/y', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(400);
     expect(res.body.message).toContain('文件名不能为空');
   });
 
   test('file_type为空返回400', async () => {
-    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_name: 'z', file_size: 1 });
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: 'https://example.com/y', file_name: 'z', file_size: 1 });
     expect(res.status).toBe(400);
     expect(res.body.message).toContain('文件类型不能为空');
   });
 
   test('file_size为空返回400', async () => {
-    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: 'https://example.com/y', file_name: 'z', file_type: 'pdf' });
     expect(res.status).toBe(400);
     expect(res.body.message).toContain('文件大小不能为空');
   });
@@ -1149,7 +1149,7 @@ describe('Documents - createDocument', () => {
         create: jest.fn(),
       },
     });
-    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: '重复', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: '重复', file_url: 'https://example.com/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(409);
     expect(res.body.message).toBe('该知识库已存在相同标题的文档');
   });
@@ -1163,7 +1163,7 @@ describe('Documents - createDocument', () => {
         create: jest.fn(),
       },
     });
-    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: '新文档', file_url: '/dup.pdf', file_name: 'z', file_type: 'pdf', file_size: 1 });
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: '新文档', file_url: 'https://example.com/dup.pdf', file_name: 'z', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(409);
     expect(res.body.message).toBe('该知识库已存在相同的文档');
   });
@@ -1175,7 +1175,7 @@ describe('Documents - createDocument', () => {
         create: jest.fn().mockRejectedValue(new Error('知识库不存在')),
       },
     });
-    const res = await agent.post('/api/v1/knowledge-bases/999/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
+    const res = await agent.post('/api/v1/knowledge-bases/999/documents').set('Authorization', auth()).send({ title: 'x', file_url: 'https://example.com/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(500);
   });
 
@@ -1186,7 +1186,7 @@ describe('Documents - createDocument', () => {
         create: jest.fn().mockRejectedValue(new Error('Unexpected')),
       },
     });
-    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: 'https://example.com/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(500);
   });
 });
@@ -2976,7 +2976,7 @@ describe('Error catch - createImage 知识库不存在 via checkBaseAccess', () 
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth(adminToken)).send({ title: '图片', image_url: '/test.png' });
+    const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth(adminToken)).send({ title: '图片', image_url: 'https://example.com/test.png' });
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -2995,7 +2995,7 @@ describe('Error catch - createDocument 知识库不存在 via checkBaseAccess', 
         findFirst: jest.fn().mockResolvedValue({ id: 2, companyId: 2, deletedAt: null }),
       },
     });
-    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth(adminToken)).send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth(adminToken)).send({ title: 'x', file_url: 'https://example.com/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(404);
     expect(res.body.message).toBe('知识库不存在');
   });
@@ -4030,7 +4030,7 @@ describe('createDocument - file_size 边界值', () => {
   test('file_size为负数返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/documents')
       .set('Authorization', auth())
-      .send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: -1 });
+      .send({ title: 'x', file_url: 'https://example.com/y', file_name: 'z', file_type: 'pdf', file_size: -1 });
     expect(res.status).toBe(400);
     expect(res.body.message).toContain('文件大小必须为正整数');
   });
@@ -4038,21 +4038,21 @@ describe('createDocument - file_size 边界值', () => {
   test('file_size为0返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/documents')
       .set('Authorization', auth())
-      .send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 0 });
+      .send({ title: 'x', file_url: 'https://example.com/y', file_name: 'z', file_type: 'pdf', file_size: 0 });
     expect(res.status).toBe(400);
   });
 
   test('file_size为字符串返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/documents')
       .set('Authorization', auth())
-      .send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 'big' });
+      .send({ title: 'x', file_url: 'https://example.com/y', file_name: 'z', file_type: 'pdf', file_size: 'big' });
     expect(res.status).toBe(400);
   });
 
   test('file_size为Infinity返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/documents')
       .set('Authorization', auth())
-      .send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: Infinity });
+      .send({ title: 'x', file_url: 'https://example.com/y', file_name: 'z', file_type: 'pdf', file_size: Infinity });
     expect(res.status).toBe(400);
   });
 });
