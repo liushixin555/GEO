@@ -172,14 +172,16 @@ export class ArticleServiceImpl implements IArticleService {
 
       // Content versioning: if content is being updated, bump version and save history
       if (effectiveRequest.content !== undefined && effectiveRequest.content !== existing.content) {
-        // REQ-3: 服务端 Markdown 内容消毒
-        const safeContent = validateAndSanitizeMarkdown(effectiveRequest.content);
+        // REQ-3: 服务端 Markdown 内容消毒（防御 null 内容）
+        const safeContent = typeof effectiveRequest.content === 'string'
+          ? validateAndSanitizeMarkdown(effectiveRequest.content)
+          : null;
         const newVersion = Math.floor(existing.version) + 1.0;
         data.version = newVersion;
         data.content = safeContent;
 
         // For AI-generated articles, extract first non-empty line as title
-        if (existing.writeMode !== 'manual' && !existing.title) {
+        if (safeContent && existing.writeMode !== 'manual' && !existing.title) {
           const firstLine = safeContent.split('\n').map(l => l.replace(/^#+\s*/, '').trim()).find(l => l.length > 0);
           if (firstLine) data.title = firstLine;
         }
@@ -189,7 +191,7 @@ export class ArticleServiceImpl implements IArticleService {
           data: {
             articleId: id,
             version: newVersion,
-            content: safeContent,
+            content: safeContent ?? '',
             createdBy: auth.userId,
           },
         });

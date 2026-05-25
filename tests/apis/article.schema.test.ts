@@ -128,13 +128,13 @@ describe('createArticleSchema', () => {
       expect(createArticleSchema.parse({ write_mode: 'auto' }).write_mode).toBe('auto');
     });
 
-    it('应接受最长50字符', () => {
-      const write_mode = 'x'.repeat(50);
+    it('应接受最长20字符', () => {
+      const write_mode = 'x'.repeat(20);
       expect(createArticleSchema.parse({ write_mode }).write_mode).toBe(write_mode);
     });
 
-    it('应拒绝超过50字符', () => {
-      const result = createArticleSchema.safeParse({ write_mode: 'x'.repeat(51) });
+    it('应拒绝超过20字符', () => {
+      const result = createArticleSchema.safeParse({ write_mode: 'x'.repeat(21) });
       expect(result.success).toBe(false);
     });
   });

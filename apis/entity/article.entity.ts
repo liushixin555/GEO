@@ -52,10 +52,10 @@ export interface CreateArticleRequest {
   write_mode?: string;
   keywords?: string;
   portrait?: string;
-  images?: string[];
-  platforms?: string[];
+  images?: string[] | null;
+  platforms?: string[] | null;
   skills?: number[] | null;
-  llm_model_id?: number;
+  llm_model_id?: number | null;
   content?: string;
   status?: 'draft' | 'generating' | 'manual_writing';
 }
@@ -66,10 +66,10 @@ export interface UpdateArticleRequest {
   write_mode?: string;
   keywords?: string;
   portrait?: string;
-  images?: string[];
-  platforms?: string[];
+  images?: string[] | null;
+  platforms?: string[] | null;
   skills?: number[] | null;
-  llm_model_id?: number;
+  llm_model_id?: number | null;
   content?: string;
   status?: ArticleStatus;
   scheduled_publish_at?: string | null;

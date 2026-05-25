@@ -5223,7 +5223,7 @@
                   },
                   "write_mode": {
                     "type": "string",
-                    "maxLength": 50
+                    "maxLength": 20
                   },
                   "keywords": {
                     "type": "string",
@@ -5516,7 +5516,7 @@
                   },
                   "write_mode": {
                     "type": "string",
-                    "maxLength": 50
+                    "maxLength": 20
                   },
                   "keywords": {
                     "type": "string",

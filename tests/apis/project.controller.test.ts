@@ -16,10 +16,24 @@ jest.mock('../../apis/utils/logger.util', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: mockLoggerError, debug: jest.fn() },
 }));
 
-jest.mock('../../apis/utils/db.util', () => ({
-  getPrisma: jest.fn(),
-  closePrisma: jest.fn(),
-}));
+jest.mock('../../apis/utils/db.util', () => {
+  // Auto-inject $transaction pass-through so Prisma transaction mocks work
+  const createMockGetPrisma = () => {
+    const fn = jest.fn();
+    const originalMockReturnValue = fn.mockReturnValue.bind(fn);
+    fn.mockReturnValue = (value: any) => {
+      if (value && typeof value === 'object' && !('$transaction' in value)) {
+        value.$transaction = async (cb: any) => cb(value);
+      }
+      return originalMockReturnValue(value);
+    };
+    return fn;
+  };
+  return {
+    getPrisma: createMockGetPrisma(),
+    closePrisma: jest.fn(),
+  };
+});
 
 import app from '../../apis/app';
 

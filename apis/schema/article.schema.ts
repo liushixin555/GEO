@@ -15,7 +15,7 @@ export const articleStatusSchema = z.enum([
 export const createArticleSchema = z.object({
   title: z.string().max(500).optional(),
   article_type: z.string().max(50).optional(),
-  write_mode: z.string().max(50).optional(),
+  write_mode: z.string().max(20).optional(),
   keywords: z.string().max(500).optional(),
   portrait: z.string().max(2000).optional(),
   images: z.array(z.string().max(2000)).max(20).nullable().optional(),
@@ -29,7 +29,7 @@ export const createArticleSchema = z.object({
 export const updateArticleSchema = z.object({
   title: z.string().max(500).optional(),
   article_type: z.string().max(50).optional(),
-  write_mode: z.string().max(50).optional(),
+  write_mode: z.string().max(20).optional(),
   keywords: z.string().max(500).optional(),
   portrait: z.string().max(2000).optional(),
   images: z.array(z.string().max(2000)).max(20).nullable().optional(),

@@ -6,7 +6,7 @@ export { LlmModel, CreateLlmModelRequest, UpdateLlmModelRequest } from './llm-mo
 export { SystemConfig, UpdateSystemConfigsRequest } from './system-config.entity';
 export { PublishingPlatform } from './publishing-platform.entity';
 export { Project, CreateProjectRequest, UpdateProjectRequest } from './project.entity';
-export { Article, ArticleStatus, ArticleVersion, CreateArticleRequest, UpdateArticleRequest, ReviewArticleRequest } from './article.entity';
+export { Article, ArticleStatus, ScheduleType, ArticleVersion, CreateArticleRequest, UpdateArticleRequest, ReviewArticleRequest } from './article.entity';
 export { KnowledgeKeyword, KeywordExpandedWord, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, CreateKeywordRequest, UpdateKeywordRequest, CreatePortraitRequest, UpdatePortraitRequest, CreateImageRequest, UpdateImageRequest, CreateDocumentRequest, UpdateDocumentRequest, MinedKeyword } from './knowledge.entity';
 export { KnowledgeBase, CreateKnowledgeBaseRequest, UpdateKnowledgeBaseRequest } from './knowledge-base.entity';
 export { Todo, TodoLog, CreateTodoRequest, UpdateTodoRequest, TransferTodoRequest } from './todo.entity';

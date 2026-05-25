@@ -1,36 +1,22 @@
 import { Request, Response } from 'express';
+import { z } from 'zod';
 import { createArticleService, createProjectService, IArticleService, IProjectService } from '../service';
 import { AuthContext } from '../service/article.service';
 import { success, fail, paginate, created } from '../utils';
 import { AppError, ForbiddenError, NotFoundError } from '../errors';
 import { logger } from '../utils/logger.util';
 import { ROLES } from '../constants/roles';
+import {
+  createArticleSchema,
+  updateArticleSchema,
+  reviewArticleSchema,
+  updateContentSchema,
+  listArticlesSchema,
+} from '../schema/article.schema';
 
 // M-1 fix: Factory pattern — lazy initialization, testable via module mock
 const articleService: IArticleService = createArticleService();
 const projectService: IProjectService = createProjectService();
-
-// Field whitelists — defense-in-depth alongside Zod schema validation
-const UPDATE_ALLOWED_FIELDS = [
-  'title', 'article_type', 'write_mode', 'keywords', 'portrait',
-  'images', 'platforms', 'skills', 'llm_model_id', 'content',
-  'status', 'scheduled_publish_at',
-];
-
-const CREATE_ALLOWED_FIELDS = [
-  'title', 'article_type', 'write_mode', 'keywords', 'portrait',
-  'images', 'platforms', 'skills', 'llm_model_id', 'content', 'status',
-];
-
-function pickAllowedFields(body: Record<string, unknown>, allowed: string[]): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const key of allowed) {
-    if (body[key] !== undefined) {
-      result[key] = body[key];
-    }
-  }
-  return result;
-}
 
 async function checkProjectOperator(projectId: number, userId: number, role: string): Promise<void> {
   if (role === ROLES.SYSADMIN) return;
@@ -42,7 +28,9 @@ async function checkProjectOperator(projectId: number, userId: number, role: str
 
 // Unified error handling — AppError hierarchy maps to HTTP status codes
 function handleServerError(res: Response, err: unknown, contextMsg: string): void {
-  if (err instanceof AppError) {
+  if (err instanceof z.ZodError) {
+    fail(res, 400, err.issues.map((e: any) => e.message).join('; '));
+  } else if (err instanceof AppError) {
     fail(res, err.statusCode, err.message);
   } else {
     logger.error('unhandled_error', { error: err instanceof Error ? err.message : String(err), context: contextMsg });
@@ -104,7 +92,7 @@ function withArticleAuth(handler: AuthenticatedHandler, options: WithAuthOptions
 // --- Handlers (thin — business logic delegated to service layer) ---
 
 export const listArticles = withArticleAuth(async (req, res, ctx) => {
-  const { page, pageSize, search, status } = req.query as any;
+  const { page, pageSize, search, status } = listArticlesSchema.parse(req.query);
   const { list, total } = await articleService.list(ctx.projectId, page, pageSize, search, status, ctx);
   paginate(res, list, total, page, pageSize);
 }, { errorContext: '获取文章列表失败' });
@@ -118,19 +106,19 @@ export const getArticle = withArticleAuth(async (req, res, ctx) => {
 }, { requireId: true, errorContext: '获取文章详情失败' });
 
 export const createArticle = withArticleAuth(async (req, res, ctx) => {
-  const body = pickAllowedFields(req.body, CREATE_ALLOWED_FIELDS);
+  const body = createArticleSchema.parse(req.body);
   const item = await articleService.create(ctx.projectId, body, ctx);
   created(res, item, '创建文章成功');
 }, { errorContext: '创建文章失败' });
 
 export const updateArticle = withArticleAuth(async (req, res, ctx) => {
-  const body = pickAllowedFields(req.body, UPDATE_ALLOWED_FIELDS);
+  const body = updateArticleSchema.parse(req.body);
   const item = await articleService.update(ctx.projectId, ctx.articleId!, body, ctx);
   success(res, item, body.status === 'generating' ? '已提交AI生成' : '更新文章成功');
 }, { requireId: true, errorContext: '更新文章失败' });
 
 export const updateArticleContent = withArticleAuth(async (req, res, ctx) => {
-  const { content } = req.body;
+  const { content } = updateContentSchema.parse(req.body);
   const item = await articleService.updateContent(ctx.projectId, ctx.articleId!, content, ctx);
   success(res, item, '更新正文成功');
 }, { requireId: true, errorContext: '更新文章失败' });
@@ -142,7 +130,7 @@ export const deleteArticle = withArticleAuth(async (req, res, ctx) => {
 }, { requireId: true, errorContext: '删除文章失败' });
 
 export const reviewArticle = withArticleAuth(async (req, res, ctx) => {
-  const { approved } = req.body;
+  const { approved } = reviewArticleSchema.parse(req.body);
   const item = await articleService.review(ctx.projectId, ctx.articleId!, approved, ctx);
   success(res, item, approved ? '审核通过' : '审核不通过');
 }, { requireId: true, errorContext: '审核操作失败' });
