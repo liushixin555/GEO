@@ -4,6 +4,8 @@
 **评审角色**: 软件UI专家（用户界面设计 · 交互体验 · 设计系统合规 · 可访问性 · 渲染管线 · 开发者体验）
 **评审日期**: 2026-05-24
 **评审结论**: ⚠️ CONDITIONAL APPROVE（有条件通过 — 组件具备基本渲染能力，但渲染管线硬编码、无可访问性支持、与设计系统严重脱节、性能隐患明显）
+**修复日期**: 2026-05-26
+**修复状态**: ✅ 已修复（UI-P2-01/P2-03/P2-04/P3-01 + A-02/A-03/A-07 + PipelineConfig + 显式导出）
 
 ---
 
@@ -566,3 +568,51 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, loading
 ---
 
 *软件UI专家评审完成 — 2026-05-24*
+
+---
+
+## 十、修复记录（2026-05-26）
+
+### 已修复问题
+
+| 编号 | 问题 | 修复方式 | 状态 |
+|---|---|---|---|
+| UI-P2-01 | 插件数组每次渲染重建 | `useMemo` 稳定插件数组，依赖 `rewriteFn`/`userPlugins`/`pipeline` | ✅ |
+| UI-P2-03 | 与 preview.tsx 的 rehypeRaw 重复处理 | forwardRef 中强制 `skipHtml: true`，阻止 preview.tsx 重复添加 rehype-raw | ✅ |
+| UI-P2-04 | forwardRef 无 displayName | 添加 `displayName = 'MarkdownPreviewHighlighted'`（nohighlight 为 `'MarkdownPreviewNoHighlight'`） | ✅ |
+| UI-P3-01 | rehypeRewriteHandle 每次渲染创建新闭包 | `useMemo` 包裹 rewriteFn，依赖 `disableCopy`/`userRewrite` | ✅ |
+| A-02 | 渲染管线与组件逻辑耦合 | 提取 `buildCommonPipeline` 纯函数，可独立测试 | ✅ |
+| A-03 | 插件管线无扩展点 | 添加 `PipelineConfig`（prepend/append），支持 OCP 扩展 | ✅ |
+| A-07 | rehypeAttrs 配置硬编码分散 | 提取 `REHYPE_ATTRS_CONFIG` 共享常量 | ✅ |
+
+### 修复覆盖范围
+
+| 文件 | 类型 | 修复状态 |
+|---|---|---|
+| `src/index.tsx` | TypeScript 源码 | ✅ |
+| `src/Props.tsx` | TypeScript 类型源码（PipelineConfig） | ✅ |
+| `esm/index.js` | ESM 编译（主入口） | ✅ |
+| `esm/common.js` | ESM 编译（common 入口） | ✅ 已有 |
+| `esm/nohighlight.js` | ESM 编译（无高亮入口） | ✅ |
+| `lib/index.js` | CJS 编译（主入口） | ✅ |
+| `lib/common.js` | CJS 编译（common 入口） | ✅ |
+| `lib/nohighlight.js` | CJS 编译（无高亮入口） | ✅ |
+| `esm/Props.d.ts` + `lib/Props.d.ts` | 类型声明 | ✅ 已有 |
+| `esm/index.d.ts` + `lib/index.d.ts` | 类型声明 | ✅ 已有 |
+| `esm/nohighlight.d.ts` + `lib/nohighlight.d.ts` | 类型声明 | ✅ 已有 |
+
+### 未修复问题（需项目级别处理）
+
+| 编号 | 问题 | 原因 | 建议处理方式 |
+|---|---|---|---|
+| UI-P1-01 | rehypePrism 强制 GitHub 主题 | 第三方库核心功能，patch 替换成本过高 | 项目级 CSS 覆盖或使用 nohighlight 入口 |
+| UI-P1-03 | rehypeAttrs 允许属性注入 | 需要 rehype-sanitize 等额外插件 | 项目级封装组件中添加消毒层 |
+| UI-P2-02 | 用户插件插入位置固定 | PipelineConfig.prepend/append 部分解决 | 完整解决需重构插件注册机制 |
+| UI-P3-04 | 无错误边界 | 需要 ErrorBoundary 组件包裹 | 项目级封装组件中添加 |
+
+### 验证结果
+
+- `pnpm build`: ✅ 通过
+- `pnpm lint`: ✅ 通过
+- `pnpm test`: ⚠️ OOM（预存环境问题，与本次修改无关）
+- `patch-package`: ✅ 已重新生成 `patches/@uiw+react-markdown-preview+5.2.1.patch`

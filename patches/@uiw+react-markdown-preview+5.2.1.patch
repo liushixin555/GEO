@@ -121,7 +121,7 @@ index 85d7c47..d56177d 100644
 +declare const MarkdownPreviewHighlighted: React.ForwardRefExoticComponent<MarkdownPreviewProps & React.RefAttributes<MarkdownPreviewRef>>;
 +export default MarkdownPreviewHighlighted;
 diff --git a/node_modules/@uiw/react-markdown-preview/esm/common.js b/node_modules/@uiw/react-markdown-preview/esm/common.js
-index 3201d50..caa8ebe 100644
+index 3201d50..e0134b3 100644
 --- a/node_modules/@uiw/react-markdown-preview/esm/common.js
 +++ b/node_modules/@uiw/react-markdown-preview/esm/common.js
 @@ -1,5 +1,5 @@
@@ -131,7 +131,7 @@ index 3201d50..caa8ebe 100644
  import rehypePrism from 'rehype-prism-plus/common';
  import rehypeRewrite from 'rehype-rewrite';
  import rehypeAttrs from 'rehype-attr';
-@@ -10,17 +10,60 @@ import { retrieveMeta } from "./plugins/retrieveMeta.js";
+@@ -10,17 +10,59 @@ import { retrieveMeta } from "./plugins/retrieveMeta.js";
  import { rehypeRewriteHandle, defaultRehypePlugins } from "./rehypePlugins.js";
  import { jsx as _jsx } from "react/jsx-runtime";
  export * from "./Props.js";
@@ -200,7 +200,6 @@ index 3201d50..caa8ebe 100644
    }));
  });
 +MarkdownPreviewHighlighted.displayName = 'MarkdownPreviewHighlighted';
-+export default MarkdownPreviewHighlighted;
 \ No newline at end of file
 diff --git a/node_modules/@uiw/react-markdown-preview/esm/index.d.ts b/node_modules/@uiw/react-markdown-preview/esm/index.d.ts
 index 85d7c47..d56177d 100644
@@ -226,6 +225,86 @@ index 85d7c47..d56177d 100644
 +}): PluggableList;
 +declare const MarkdownPreviewHighlighted: React.ForwardRefExoticComponent<MarkdownPreviewProps & React.RefAttributes<MarkdownPreviewRef>>;
 +export default MarkdownPreviewHighlighted;
+diff --git a/node_modules/@uiw/react-markdown-preview/esm/index.js b/node_modules/@uiw/react-markdown-preview/esm/index.js
+index 397cab4..03dc302 100644
+--- a/node_modules/@uiw/react-markdown-preview/esm/index.js
++++ b/node_modules/@uiw/react-markdown-preview/esm/index.js
+@@ -1,5 +1,5 @@
+ import _extends from "@babel/runtime/helpers/extends";
+-import React from 'react';
++import React, { useMemo as _useMemo } from 'react';
+ import rehypePrism from 'rehype-prism-plus';
+ import rehypeRewrite from 'rehype-rewrite';
+ import rehypeAttrs from 'rehype-attr';
+@@ -10,17 +10,59 @@ import { retrieveMeta } from "./plugins/retrieveMeta.js";
+ import { rehypeRewriteHandle, defaultRehypePlugins } from "./rehypePlugins.js";
+ import { jsx as _jsx } from "react/jsx-runtime";
+ export * from "./Props.js";
+-export default /*#__PURE__*/React.forwardRef((props, ref) => {
+-  var _props$disableCopy;
+-  var rehypePlugins = [reservedMeta, rehypeRaw, retrieveMeta, ...defaultRehypePlugins, [rehypeRewrite, {
+-    rewrite: rehypeRewriteHandle((_props$disableCopy = props.disableCopy) != null ? _props$disableCopy : false, props.rehypeRewrite)
+-  }], [rehypeAttrs, {
+-    properties: 'attr'
+-  }], ...(props.rehypePlugins || []), [rehypePrism, {
++// UI-P2-01/A-07: 共享插件配置常量（A-07 消除硬编码分散）
++var REHYPE_ATTRS_CONFIG = [rehypeAttrs, { properties: 'attr' }];
++/**
++ * UI-P2-01/A-02: 纯函数构建 rehype 管线。
++ * 脱离 React 运行时可独立测试，插件链配置与渲染逻辑分离。
++ *
++ * 管线顺序（严格，不可随意调整）：
++ *   1. pipeline.prepend    — 用户自定义前缀插件（A-03 OCP）
++ *   2. reservedMeta        — 保留元数据
++ *   3. rehypeRaw           — HTML 解析
++ *   4. retrieveMeta        — 恢复元数据
++ *   5. defaultRehypePlugins — slug/headings/ignore
++ *   6. rehypeRewrite       — AST 重写（代码复制按钮）
++ *   7. rehypeAttrs         — 属性转换（A-07 共享常量）
++ *   8. userPlugins         — 用户自定义插件
++ *   9. rehypePrism         — 代码语法高亮
++ *  10. pipeline.append     — 用户自定义后缀插件（A-03 OCP）
++ * UI-P2-03 已修复：forwardRef 中强制 skipHtml，阻止 preview.tsx 重复添加 rehype-raw
++ */
++export function buildCommonPipeline(options) {
++  return [].concat(options.pipeline?.prepend ?? [], [reservedMeta, rehypeRaw, retrieveMeta], defaultRehypePlugins, [[rehypeRewrite, {
++    rewrite: options.rewriteFn
++  }], REHYPE_ATTRS_CONFIG], options.userPlugins ?? [], [[rehypePrism, {
+     ignoreMissing: true
+-  }]];
+-  return /*#__PURE__*/_jsx(MarkdownPreview, _extends({}, props, {
++  }]], options.pipeline?.append ?? []);
++}
++// UI-P2-01/UI-P3-01 性能修复：useMemo 稳定插件数组 + rehypeRewriteHandle 闭包
++var MarkdownPreviewHighlighted = /*#__PURE__*/React.forwardRef(function (props, ref) {
++  // A-03: 解构已消费的 props，消除幽灵 prop 泄漏到下游 preview.tsx
++  var disableCopy = props.disableCopy;
++  var userRewrite = props.rehypeRewrite;
++  var userPlugins = props.rehypePlugins;
++  var pipeline = props.pipeline;
++  var restProps = _extends({}, props);
++  delete restProps.disableCopy;
++  delete restProps.rehypeRewrite;
++  delete restProps.rehypePlugins;
++  delete restProps.pipeline;
++  // UI-P3-01: 稳定 rewrite 闭包
++  var rewriteFn = _useMemo(function () {
++    return rehypeRewriteHandle(disableCopy != null ? disableCopy : false, userRewrite);
++  }, [disableCopy, userRewrite]);
++  // UI-P2-01/A-02: 稳定插件数组
++  var rehypePlugins = _useMemo(function () {
++    return buildCommonPipeline({ rewriteFn: rewriteFn, userPlugins: userPlugins, pipeline: pipeline });
++  }, [rewriteFn, userPlugins, pipeline]);
++  // A-03: 仅透传未消费的 props
++  // UI-P2-03: 强制 skipHtml，防止 preview.tsx 重复添加 rehype-raw
++  return /*#__PURE__*/_jsx(MarkdownPreview, _extends({}, restProps, {
++    skipHtml: true,
+     rehypePlugins: rehypePlugins,
+     ref: ref
+   }));
+ });
++MarkdownPreviewHighlighted.displayName = 'MarkdownPreviewHighlighted';
++export default MarkdownPreviewHighlighted;
 diff --git a/node_modules/@uiw/react-markdown-preview/esm/nohighlight.d.ts b/node_modules/@uiw/react-markdown-preview/esm/nohighlight.d.ts
 index 85d7c47..d56177d 100644
 --- a/node_modules/@uiw/react-markdown-preview/esm/nohighlight.d.ts
@@ -250,6 +329,68 @@ index 85d7c47..d56177d 100644
 +}): PluggableList;
 +declare const MarkdownPreviewHighlighted: React.ForwardRefExoticComponent<MarkdownPreviewProps & React.RefAttributes<MarkdownPreviewRef>>;
 +export default MarkdownPreviewHighlighted;
+diff --git a/node_modules/@uiw/react-markdown-preview/esm/nohighlight.js b/node_modules/@uiw/react-markdown-preview/esm/nohighlight.js
+index 5399bb6..98855bb 100644
+--- a/node_modules/@uiw/react-markdown-preview/esm/nohighlight.js
++++ b/node_modules/@uiw/react-markdown-preview/esm/nohighlight.js
+@@ -1,5 +1,5 @@
+ import _extends from "@babel/runtime/helpers/extends";
+-import React from 'react';
++import React, { useMemo as _useMemo } from 'react';
+ import MarkdownPreview from "./preview.js";
+ import rehypeRewrite from 'rehype-rewrite';
+ import rehypeAttrs from 'rehype-attr';
+@@ -8,15 +8,42 @@ import { retrieveMeta } from "./plugins/retrieveMeta.js";
+ import { rehypeRewriteHandle, defaultRehypePlugins } from "./rehypePlugins.js";
+ import { jsx as _jsx } from "react/jsx-runtime";
+ export * from "./Props.js";
+-export default /*#__PURE__*/React.forwardRef((props, ref) => {
+-  var _props$disableCopy;
+-  var rehypePlugins = [reservedMeta, retrieveMeta, ...defaultRehypePlugins, [rehypeRewrite, {
+-    rewrite: rehypeRewriteHandle((_props$disableCopy = props.disableCopy) != null ? _props$disableCopy : false, props.rehypeRewrite)
+-  }], [rehypeAttrs, {
+-    properties: 'attr'
+-  }], ...(props.rehypePlugins || [])];
+-  return /*#__PURE__*/_jsx(MarkdownPreview, _extends({}, props, {
++// UI-P2-01/A-07: 共享插件配置常量
++var REHYPE_ATTRS_CONFIG = [rehypeAttrs, { properties: 'attr' }];
++/**
++ * UI-P2-01/A-02: 纯函数构建 nohighlight rehype 管线（无代码语法高亮）。
++ */
++export function buildCommonPipeline(options) {
++  return [].concat(options.pipeline?.prepend ?? [], [reservedMeta, retrieveMeta], defaultRehypePlugins, [[rehypeRewrite, {
++    rewrite: options.rewriteFn
++  }], REHYPE_ATTRS_CONFIG], options.userPlugins ?? [], options.pipeline?.append ?? []);
++}
++// UI-P2-01/UI-P3-01 性能修复
++var MarkdownPreviewNoHighlight = /*#__PURE__*/React.forwardRef(function (props, ref) {
++  // A-03: 解构已消费的 props
++  var disableCopy = props.disableCopy;
++  var userRewrite = props.rehypeRewrite;
++  var userPlugins = props.rehypePlugins;
++  var pipeline = props.pipeline;
++  var restProps = _extends({}, props);
++  delete restProps.disableCopy;
++  delete restProps.rehypeRewrite;
++  delete restProps.rehypePlugins;
++  delete restProps.pipeline;
++  // UI-P3-01: 稳定 rewrite 闭包
++  var rewriteFn = _useMemo(function () {
++    return rehypeRewriteHandle(disableCopy != null ? disableCopy : false, userRewrite);
++  }, [disableCopy, userRewrite]);
++  // UI-P2-01: 稳定插件数组
++  var rehypePlugins = _useMemo(function () {
++    return buildCommonPipeline({ rewriteFn: rewriteFn, userPlugins: userPlugins, pipeline: pipeline });
++  }, [rewriteFn, userPlugins, pipeline]);
++  // UI-P2-03: 强制 skipHtml
++  return /*#__PURE__*/_jsx(MarkdownPreview, _extends({}, restProps, {
++    skipHtml: true,
+     rehypePlugins: rehypePlugins,
+     ref: ref
+   }));
+ });
++MarkdownPreviewNoHighlight.displayName = 'MarkdownPreviewNoHighlight';
++export default MarkdownPreviewNoHighlight;
 diff --git a/node_modules/@uiw/react-markdown-preview/lib/Props.d.ts b/node_modules/@uiw/react-markdown-preview/lib/Props.d.ts
 index b550d96..8fdf888 100644
 --- a/node_modules/@uiw/react-markdown-preview/lib/Props.d.ts
@@ -372,6 +513,80 @@ index 85d7c47..d56177d 100644
 +}): PluggableList;
 +declare const MarkdownPreviewHighlighted: React.ForwardRefExoticComponent<MarkdownPreviewProps & React.RefAttributes<MarkdownPreviewRef>>;
 +export default MarkdownPreviewHighlighted;
+diff --git a/node_modules/@uiw/react-markdown-preview/lib/common.js b/node_modules/@uiw/react-markdown-preview/lib/common.js
+index b911908..5839d23 100644
+--- a/node_modules/@uiw/react-markdown-preview/lib/common.js
++++ b/node_modules/@uiw/react-markdown-preview/lib/common.js
+@@ -5,6 +5,7 @@ Object.defineProperty(exports, "__esModule", {
+   value: true
+ });
+ var _exportNames = {};
++exports.buildCommonPipeline = buildCommonPipeline;
+ exports["default"] = void 0;
+ var _objectSpread2 = _interopRequireDefault(require("@babel/runtime/helpers/objectSpread2"));
+ var _toConsumableArray2 = _interopRequireDefault(require("@babel/runtime/helpers/toConsumableArray"));
+@@ -19,6 +20,7 @@ var _retrieveMeta = require("./plugins/retrieveMeta");
+ var _rehypePlugins = require("./rehypePlugins");
+ var _jsxRuntime = require("react/jsx-runtime");
+ var _Props = require("./Props");
++// UI-P2-06: 显式导出
+ Object.keys(_Props).forEach(function (key) {
+   if (key === "default" || key === "__esModule") return;
+   if (Object.prototype.hasOwnProperty.call(_exportNames, key)) return;
+@@ -30,17 +32,44 @@ Object.keys(_Props).forEach(function (key) {
+     }
+   });
+ });
+-var _default = exports["default"] = /*#__PURE__*/_react["default"].forwardRef(function (props, ref) {
+-  var _props$disableCopy;
+-  var rehypePlugins = [_reservedMeta.reservedMeta, _rehypeRaw["default"], _retrieveMeta.retrieveMeta].concat((0, _toConsumableArray2["default"])(_rehypePlugins.defaultRehypePlugins), [[_rehypeRewrite["default"], {
+-    rewrite: (0, _rehypePlugins.rehypeRewriteHandle)((_props$disableCopy = props.disableCopy) !== null && _props$disableCopy !== void 0 ? _props$disableCopy : false, props.rehypeRewrite)
+-  }], [_rehypeAttr["default"], {
+-    properties: 'attr'
+-  }]], (0, _toConsumableArray2["default"])(props.rehypePlugins || []), [[_common["default"], {
++// UI-P2-01/A-07: 共享插件配置常量
++var REHYPE_ATTRS_CONFIG = [_rehypeAttr["default"], { properties: 'attr' }];
++/**
++ * UI-P2-01/A-02: 纯函数构建 rehype 管线。
++ */
++function buildCommonPipeline(options) {
++  return [].concat((0, _toConsumableArray2["default"])(options.pipeline?.prepend ?? []), [_reservedMeta.reservedMeta, _rehypeRaw["default"], _retrieveMeta.retrieveMeta], (0, _toConsumableArray2["default"])(_rehypePlugins.defaultRehypePlugins), [[_rehypeRewrite["default"], {
++    rewrite: options.rewriteFn
++  }], REHYPE_ATTRS_CONFIG], (0, _toConsumableArray2["default"])(options.userPlugins ?? []), [[_common["default"], {
+     ignoreMissing: true
+-  }]]);
+-  return /*#__PURE__*/(0, _jsxRuntime.jsx)(_preview["default"], (0, _objectSpread2["default"])((0, _objectSpread2["default"])({}, props), {}, {
++  }]], (0, _toConsumableArray2["default"])(options.pipeline?.append ?? []));
++}
++// UI-P2-01/UI-P3-01 性能修复
++var MarkdownPreviewHighlighted = /*#__PURE__*/_react["default"].forwardRef(function (props, ref) {
++  // A-03: 解构已消费的 props
++  var disableCopy = props.disableCopy;
++  var userRewrite = props.rehypeRewrite;
++  var userPlugins = props.rehypePlugins;
++  var pipeline = props.pipeline;
++  var restProps = (0, _objectSpread2["default"])({}, props);
++  delete restProps.disableCopy;
++  delete restProps.rehypeRewrite;
++  delete restProps.rehypePlugins;
++  delete restProps.pipeline;
++  // UI-P3-01: 稳定 rewrite 闭包
++  var rewriteFn = _react["default"].useMemo(function () {
++    return (0, _rehypePlugins.rehypeRewriteHandle)(disableCopy != null ? disableCopy : false, userRewrite);
++  }, [disableCopy, userRewrite]);
++  // UI-P2-01: 稳定插件数组
++  var rehypePlugins = _react["default"].useMemo(function () {
++    return buildCommonPipeline({ rewriteFn: rewriteFn, userPlugins: userPlugins, pipeline: pipeline });
++  }, [rewriteFn, userPlugins, pipeline]);
++  // UI-P2-03: 强制 skipHtml
++  return /*#__PURE__*/(0, _jsxRuntime.jsx)(_preview["default"], (0, _objectSpread2["default"])((0, _objectSpread2["default"])({}, restProps), {}, {
++    skipHtml: true,
+     rehypePlugins: rehypePlugins,
+     ref: ref
+   }));
+ });
++MarkdownPreviewHighlighted.displayName = 'MarkdownPreviewHighlighted';
++var _default = exports["default"] = MarkdownPreviewHighlighted;
 diff --git a/node_modules/@uiw/react-markdown-preview/lib/index.d.ts b/node_modules/@uiw/react-markdown-preview/lib/index.d.ts
 index 85d7c47..d56177d 100644
 --- a/node_modules/@uiw/react-markdown-preview/lib/index.d.ts
@@ -396,6 +611,80 @@ index 85d7c47..d56177d 100644
 +}): PluggableList;
 +declare const MarkdownPreviewHighlighted: React.ForwardRefExoticComponent<MarkdownPreviewProps & React.RefAttributes<MarkdownPreviewRef>>;
 +export default MarkdownPreviewHighlighted;
+diff --git a/node_modules/@uiw/react-markdown-preview/lib/index.js b/node_modules/@uiw/react-markdown-preview/lib/index.js
+index ff5212d..86a6544 100644
+--- a/node_modules/@uiw/react-markdown-preview/lib/index.js
++++ b/node_modules/@uiw/react-markdown-preview/lib/index.js
+@@ -5,6 +5,7 @@ Object.defineProperty(exports, "__esModule", {
+   value: true
+ });
+ var _exportNames = {};
++exports.buildCommonPipeline = buildCommonPipeline;
+ exports["default"] = void 0;
+ var _objectSpread2 = _interopRequireDefault(require("@babel/runtime/helpers/objectSpread2"));
+ var _toConsumableArray2 = _interopRequireDefault(require("@babel/runtime/helpers/toConsumableArray"));
+@@ -19,6 +20,7 @@ var _retrieveMeta = require("./plugins/retrieveMeta");
+ var _rehypePlugins = require("./rehypePlugins");
+ var _jsxRuntime = require("react/jsx-runtime");
+ var _Props = require("./Props");
++// UI-P2-06: 显式导出
+ Object.keys(_Props).forEach(function (key) {
+   if (key === "default" || key === "__esModule") return;
+   if (Object.prototype.hasOwnProperty.call(_exportNames, key)) return;
+@@ -30,17 +32,44 @@ Object.keys(_Props).forEach(function (key) {
+     }
+   });
+ });
+-var _default = exports["default"] = /*#__PURE__*/_react["default"].forwardRef(function (props, ref) {
+-  var _props$disableCopy;
+-  var rehypePlugins = [_reservedMeta.reservedMeta, _rehypeRaw["default"], _retrieveMeta.retrieveMeta].concat((0, _toConsumableArray2["default"])(_rehypePlugins.defaultRehypePlugins), [[_rehypeRewrite["default"], {
+-    rewrite: (0, _rehypePlugins.rehypeRewriteHandle)((_props$disableCopy = props.disableCopy) !== null && _props$disableCopy !== void 0 ? _props$disableCopy : false, props.rehypeRewrite)
+-  }], [_rehypeAttr["default"], {
+-    properties: 'attr'
+-  }]], (0, _toConsumableArray2["default"])(props.rehypePlugins || []), [[_rehypePrismPlus["default"], {
++// UI-P2-01/A-07: 共享插件配置常量
++var REHYPE_ATTRS_CONFIG = [_rehypeAttr["default"], { properties: 'attr' }];
++/**
++ * UI-P2-01/A-02: 纯函数构建 rehype 管线。
++ */
++function buildCommonPipeline(options) {
++  return [].concat((0, _toConsumableArray2["default"])(options.pipeline?.prepend ?? []), [_reservedMeta.reservedMeta, _rehypeRaw["default"], _retrieveMeta.retrieveMeta], (0, _toConsumableArray2["default"])(_rehypePlugins.defaultRehypePlugins), [[_rehypeRewrite["default"], {
++    rewrite: options.rewriteFn
++  }], REHYPE_ATTRS_CONFIG], (0, _toConsumableArray2["default"])(options.userPlugins ?? []), [[_rehypePrismPlus["default"], {
+     ignoreMissing: true
+-  }]]);
+-  return /*#__PURE__*/(0, _jsxRuntime.jsx)(_preview["default"], (0, _objectSpread2["default"])((0, _objectSpread2["default"])({}, props), {}, {
++  }]], (0, _toConsumableArray2["default"])(options.pipeline?.append ?? []));
++}
++// UI-P2-01/UI-P3-01 性能修复
++var MarkdownPreviewHighlighted = /*#__PURE__*/_react["default"].forwardRef(function (props, ref) {
++  // A-03: 解构已消费的 props
++  var disableCopy = props.disableCopy;
++  var userRewrite = props.rehypeRewrite;
++  var userPlugins = props.rehypePlugins;
++  var pipeline = props.pipeline;
++  var restProps = (0, _objectSpread2["default"])({}, props);
++  delete restProps.disableCopy;
++  delete restProps.rehypeRewrite;
++  delete restProps.rehypePlugins;
++  delete restProps.pipeline;
++  // UI-P3-01: 稳定 rewrite 闭包
++  var rewriteFn = _react["default"].useMemo(function () {
++    return (0, _rehypePlugins.rehypeRewriteHandle)(disableCopy != null ? disableCopy : false, userRewrite);
++  }, [disableCopy, userRewrite]);
++  // UI-P2-01: 稳定插件数组
++  var rehypePlugins = _react["default"].useMemo(function () {
++    return buildCommonPipeline({ rewriteFn: rewriteFn, userPlugins: userPlugins, pipeline: pipeline });
++  }, [rewriteFn, userPlugins, pipeline]);
++  // UI-P2-03: 强制 skipHtml
++  return /*#__PURE__*/(0, _jsxRuntime.jsx)(_preview["default"], (0, _objectSpread2["default"])((0, _objectSpread2["default"])({}, restProps), {}, {
++    skipHtml: true,
+     rehypePlugins: rehypePlugins,
+     ref: ref
+   }));
+ });
++MarkdownPreviewHighlighted.displayName = 'MarkdownPreviewHighlighted';
++var _default = exports["default"] = MarkdownPreviewHighlighted;
 diff --git a/node_modules/@uiw/react-markdown-preview/lib/nohighlight.d.ts b/node_modules/@uiw/react-markdown-preview/lib/nohighlight.d.ts
 index 85d7c47..d56177d 100644
 --- a/node_modules/@uiw/react-markdown-preview/lib/nohighlight.d.ts
@@ -419,4 +708,202 @@ index 85d7c47..d56177d 100644
 +    pipeline?: PipelineConfig;
 +}): PluggableList;
 +declare const MarkdownPreviewHighlighted: React.ForwardRefExoticComponent<MarkdownPreviewProps & React.RefAttributes<MarkdownPreviewRef>>;
++export default MarkdownPreviewHighlighted;
+diff --git a/node_modules/@uiw/react-markdown-preview/lib/nohighlight.js b/node_modules/@uiw/react-markdown-preview/lib/nohighlight.js
+index 2900c92..5d71674 100644
+--- a/node_modules/@uiw/react-markdown-preview/lib/nohighlight.js
++++ b/node_modules/@uiw/react-markdown-preview/lib/nohighlight.js
+@@ -5,6 +5,7 @@ Object.defineProperty(exports, "__esModule", {
+   value: true
+ });
+ var _exportNames = {};
++exports.buildCommonPipeline = buildCommonPipeline;
+ exports["default"] = void 0;
+ var _objectSpread2 = _interopRequireDefault(require("@babel/runtime/helpers/objectSpread2"));
+ var _toConsumableArray2 = _interopRequireDefault(require("@babel/runtime/helpers/toConsumableArray"));
+@@ -17,6 +18,7 @@ var _retrieveMeta = require("./plugins/retrieveMeta");
+ var _rehypePlugins = require("./rehypePlugins");
+ var _jsxRuntime = require("react/jsx-runtime");
+ var _Props = require("./Props");
++// UI-P2-06: 显式导出
+ Object.keys(_Props).forEach(function (key) {
+   if (key === "default" || key === "__esModule") return;
+   if (Object.prototype.hasOwnProperty.call(_exportNames, key)) return;
+@@ -28,15 +30,42 @@ Object.keys(_Props).forEach(function (key) {
+     }
+   });
+ });
+-var _default = exports["default"] = /*#__PURE__*/_react["default"].forwardRef(function (props, ref) {
+-  var _props$disableCopy;
+-  var rehypePlugins = [_reservedMeta.reservedMeta, _retrieveMeta.retrieveMeta].concat((0, _toConsumableArray2["default"])(_rehypePlugins.defaultRehypePlugins), [[_rehypeRewrite["default"], {
+-    rewrite: (0, _rehypePlugins.rehypeRewriteHandle)((_props$disableCopy = props.disableCopy) !== null && _props$disableCopy !== void 0 ? _props$disableCopy : false, props.rehypeRewrite)
+-  }], [_rehypeAttr["default"], {
+-    properties: 'attr'
+-  }]], (0, _toConsumableArray2["default"])(props.rehypePlugins || []));
+-  return /*#__PURE__*/(0, _jsxRuntime.jsx)(_preview["default"], (0, _objectSpread2["default"])((0, _objectSpread2["default"])({}, props), {}, {
++// UI-P2-01/A-07: 共享插件配置常量
++var REHYPE_ATTRS_CONFIG = [_rehypeAttr["default"], { properties: 'attr' }];
++/**
++ * UI-P2-01/A-02: 纯函数构建 nohighlight rehype 管线（无代码语法高亮）。
++ */
++function buildCommonPipeline(options) {
++  return [].concat((0, _toConsumableArray2["default"])(options.pipeline?.prepend ?? []), [_reservedMeta.reservedMeta, _retrieveMeta.retrieveMeta], (0, _toConsumableArray2["default"])(_rehypePlugins.defaultRehypePlugins), [[_rehypeRewrite["default"], {
++    rewrite: options.rewriteFn
++  }], REHYPE_ATTRS_CONFIG], (0, _toConsumableArray2["default"])(options.userPlugins ?? []), (0, _toConsumableArray2["default"])(options.pipeline?.append ?? []));
++}
++// UI-P2-01/UI-P3-01 性能修复
++var MarkdownPreviewNoHighlight = /*#__PURE__*/_react["default"].forwardRef(function (props, ref) {
++  // A-03: 解构已消费的 props
++  var disableCopy = props.disableCopy;
++  var userRewrite = props.rehypeRewrite;
++  var userPlugins = props.rehypePlugins;
++  var pipeline = props.pipeline;
++  var restProps = (0, _objectSpread2["default"])({}, props);
++  delete restProps.disableCopy;
++  delete restProps.rehypeRewrite;
++  delete restProps.rehypePlugins;
++  delete restProps.pipeline;
++  // UI-P3-01: 稳定 rewrite 闭包
++  var rewriteFn = _react["default"].useMemo(function () {
++    return (0, _rehypePlugins.rehypeRewriteHandle)(disableCopy != null ? disableCopy : false, userRewrite);
++  }, [disableCopy, userRewrite]);
++  // UI-P2-01: 稳定插件数组
++  var rehypePlugins = _react["default"].useMemo(function () {
++    return buildCommonPipeline({ rewriteFn: rewriteFn, userPlugins: userPlugins, pipeline: pipeline });
++  }, [rewriteFn, userPlugins, pipeline]);
++  // UI-P2-03: 强制 skipHtml
++  return /*#__PURE__*/(0, _jsxRuntime.jsx)(_preview["default"], (0, _objectSpread2["default"])((0, _objectSpread2["default"])({}, restProps), {}, {
++    skipHtml: true,
+     rehypePlugins: rehypePlugins,
+     ref: ref
+   }));
+ });
++MarkdownPreviewNoHighlight.displayName = 'MarkdownPreviewNoHighlight';
++var _default = exports["default"] = MarkdownPreviewNoHighlight;
+diff --git a/node_modules/@uiw/react-markdown-preview/src/Props.tsx b/node_modules/@uiw/react-markdown-preview/src/Props.tsx
+index ac09f1f..10911d8 100644
+--- a/node_modules/@uiw/react-markdown-preview/src/Props.tsx
++++ b/node_modules/@uiw/react-markdown-preview/src/Props.tsx
+@@ -2,6 +2,17 @@ import { type Options } from 'react-markdown';
+ import { type RehypeRewriteOptions } from 'rehype-rewrite';
+ import { type PluggableList } from 'unified';
+ 
++/**
++ * 管线配置接口（A-03 OCP 修复）。
++ * 允许在默认管线的头部/尾部插入自定义插件，无需修改源码。
++ */
++export interface PipelineConfig {
++  /** 在默认管线之前插入（reservedMeta 之前） */
++  prepend?: PluggableList;
++  /** 在默认管线之后追加（rehypePrism 之后） */
++  append?: PluggableList;
++}
++
+ export interface MarkdownPreviewProps extends Omit<Options, 'children'> {
+   prefixCls?: string;
+   className?: string;
+@@ -22,8 +33,10 @@ export interface MarkdownPreviewProps extends Omit<Options, 'children'> {
+   onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
+   onMouseOver?: (e: React.MouseEvent<HTMLDivElement>) => void;
+   rehypeRewrite?: RehypeRewriteOptions['rewrite'];
++  /** 管线配置（A-03 OCP），允许在默认管线头部/尾部插入自定义插件 */
++  pipeline?: PipelineConfig;
+ }
+ 
+-export interface MarkdownPreviewRef extends MarkdownPreviewProps {
++export interface MarkdownPreviewRef {
+   mdp: React.RefObject<HTMLDivElement>;
+ }
+diff --git a/node_modules/@uiw/react-markdown-preview/src/index.tsx b/node_modules/@uiw/react-markdown-preview/src/index.tsx
+index 0063641..0ace315 100644
+--- a/node_modules/@uiw/react-markdown-preview/src/index.tsx
++++ b/node_modules/@uiw/react-markdown-preview/src/index.tsx
+@@ -1,4 +1,4 @@
+-import React from 'react';
++import React, { useMemo } from 'react';
+ import rehypePrism from 'rehype-prism-plus';
+ import type { PluggableList } from 'unified';
+ import rehypeRewrite from 'rehype-rewrite';
+@@ -8,20 +8,73 @@ import MarkdownPreview from './preview';
+ import { reservedMeta } from './plugins/reservedMeta';
+ import { retrieveMeta } from './plugins/retrieveMeta';
+ import { rehypeRewriteHandle, defaultRehypePlugins } from './rehypePlugins';
+-import type { MarkdownPreviewProps, MarkdownPreviewRef } from './Props';
++import type { MarkdownPreviewProps, MarkdownPreviewRef, PipelineConfig } from './Props';
+ 
+-export * from './Props';
++// UI-P2-06: 显式导出，替代 export *
++export type { MarkdownPreviewProps, MarkdownPreviewRef, PipelineConfig } from './Props';
+ 
+-export default React.forwardRef<MarkdownPreviewRef, MarkdownPreviewProps>((props, ref) => {
+-  const rehypePlugins: PluggableList = [
++// UI-P2-01/A-07: 共享插件配置常量，消除硬编码分散
++const REHYPE_ATTRS_CONFIG: [typeof rehypeAttrs, { properties: string }] = [rehypeAttrs, { properties: 'attr' }];
++
++/**
++ * UI-P2-01/A-02: 纯函数构建 rehype 管线。
++ * 脱离 React 运行时可独立测试，插件链配置与渲染逻辑分离。
++ *
++ * 管线顺序（严格，不可随意调整）：
++ *   1. pipeline.prepend    — 用户自定义前缀插件（A-03 OCP）
++ *   2. reservedMeta        — 保留元数据
++ *   3. rehypeRaw           — HTML 解析
++ *   4. retrieveMeta        — 恢复元数据
++ *   5. defaultRehypePlugins — slug/headings/ignore
++ *   6. rehypeRewrite       — AST 重写（代码复制按钮）
++ *   7. rehypeAttrs         — 属性转换（A-07 共享常量）
++ *   8. userPlugins         — 用户自定义插件
++ *   9. rehypePrism         — 代码语法高亮
++ *  10. pipeline.append     — 用户自定义后缀插件（A-03 OCP）
++ * UI-P2-03 已修复：forwardRef 中强制 skipHtml，阻止 preview.tsx 重复添加 rehype-raw
++ */
++export function buildCommonPipeline(options: {
++  rewriteFn: (node: any, index?: number | undefined, parent?: any) => void;
++  userPlugins?: PluggableList;
++  pipeline?: PipelineConfig;
++}): PluggableList {
++  return [
++    ...(options.pipeline?.prepend ?? []),
+     reservedMeta,
+     rehypeRaw,
+     retrieveMeta,
+     ...defaultRehypePlugins,
+-    [rehypeRewrite, { rewrite: rehypeRewriteHandle(props.disableCopy ?? false, props.rehypeRewrite) }],
+-    [rehypeAttrs, { properties: 'attr' }],
+-    ...(props.rehypePlugins || []),
++    [rehypeRewrite, { rewrite: options.rewriteFn }],
++    REHYPE_ATTRS_CONFIG,
++    ...(options.userPlugins ?? []),
+     [rehypePrism, { ignoreMissing: true }],
++    ...(options.pipeline?.append ?? []),
+   ];
+-  return <MarkdownPreview {...props} rehypePlugins={rehypePlugins} ref={ref} />;
+-});
++}
++
++// UI-P2-04: 具名 forwardRef + displayName
++const MarkdownPreviewHighlighted = React.forwardRef<MarkdownPreviewRef, MarkdownPreviewProps>(
++  (props, ref) => {
++    // A-03: 解构已消费的 props，消除幽灵 prop 泄漏到下游 preview.tsx
++    const { disableCopy, rehypeRewrite: userRewrite, rehypePlugins: userPlugins, pipeline, ...restProps } = props;
++
++    // UI-P3-01: 稳定 rewrite 闭包，避免每次渲染创建新函数
++    const rewriteFn = useMemo(
++      () => rehypeRewriteHandle(disableCopy ?? false, userRewrite),
++      [disableCopy, userRewrite],
++    );
++
++    // UI-P2-01: 稳定插件数组，仅在依赖变化时重建
++    const rehypePlugins = useMemo(
++      () => buildCommonPipeline({ rewriteFn, userPlugins, pipeline }),
++      [rewriteFn, userPlugins, pipeline],
++    );
++
++    // UI-P2-03: 强制 skipHtml，防止 preview.tsx 重复添加 rehype-raw
++    return <MarkdownPreview {...restProps} skipHtml rehypePlugins={rehypePlugins} ref={ref} />;
++  },
++);
++
++MarkdownPreviewHighlighted.displayName = 'MarkdownPreviewHighlighted';
++
 +export default MarkdownPreviewHighlighted;
