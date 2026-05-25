@@ -673,6 +673,54 @@ a:hover {
   border-radius: 0 !important;
 }
 
+/* 编辑器工具栏按钮 — Carbon Design System 合规补偿 */
+.w-md-editor-toolbar button,
+.w-md-editor-toolbar [role="button"] {
+  font-family: var(--font-family);
+  font-size: var(--font-size-body-sm, 14px);
+  font-weight: 400;
+  letter-spacing: 0.16px;
+  color: var(--color-ink, #161616);
+  border-radius: var(--rounded-none, 0);
+  transition: background-color 110ms ease;
+}
+
+.w-md-editor-toolbar button:hover,
+.w-md-editor-toolbar [role="button"]:hover {
+  background-color: var(--color-surface-1, #f4f4f4);
+}
+
+.w-md-editor-toolbar button:active,
+.w-md-editor-toolbar [role="button"]:active {
+  background-color: var(--color-surface-2, #e0e0e0);
+}
+
+.w-md-editor-toolbar button:focus-visible,
+.w-md-editor-toolbar [role="button"]:focus-visible {
+  outline: 2px solid var(--color-primary, #0f62fe);
+  outline-offset: -2px;
+}
+
+@media (pointer: coarse) {
+  .w-md-editor-toolbar button,
+  .w-md-editor-toolbar [role="button"] {
+    min-width: 48px;
+    min-height: 48px;
+  }
+}
+
+/* 标题按钮图标 — DESIGN.md token 驱动 */
+.wmd-button-icon[data-heading] {
+  font-family: var(--font-family);
+  font-weight: 400;
+  letter-spacing: 0.16px;
+  text-align: center;
+}
+
+.wmd-button-icon[data-heading="4"] {
+  font-size: var(--font-size-body-sm, 14px);
+}
+
 /* Article content preview — 样式已统一迁移至 markdown-viewer.css */
 
 /* ========================================
