@@ -2164,6 +2164,47 @@ describe('Company Controller', () => {
     });
   });
 
+  // ========== toggleCompanyStatus BusinessError 分支 ==========
+  describe('ToggleCompanyStatus BusinessError', () => {
+    it('should return 400 when company already enabled (BusinessError)', async () => {
+      mockPrisma({
+        company: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'TEST', fullName: 'Test Corp',
+            status: true, deletedAt: null,
+          }),
+        },
+      });
+
+      const response = await agent
+        .put('/api/v1/companies/1/status')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: true });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('公司已处于启用状态');
+    });
+
+    it('should return 400 when company already disabled (BusinessError)', async () => {
+      mockPrisma({
+        company: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 1, shortName: 'TEST', fullName: 'Test Corp',
+            status: false, deletedAt: null,
+          }),
+        },
+      });
+
+      const response = await agent
+        .put('/api/v1/companies/1/status')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ status: false });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('公司已处于禁用状态');
+    });
+  });
+
   // ========== getCompany 深度测试 ==========
   describe('GetCompany Deep Tests', () => {
     it('should return 404 for soft-deleted company in detail', async () => {

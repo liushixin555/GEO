@@ -98,6 +98,8 @@ export async function toggleCompanyStatus(req: Request, res: Response): Promise<
   } catch (err: unknown) {
     if (err instanceof NotFoundError) {
       fail(res, 404, MSG_NOT_FOUND);
+    } else if (err instanceof BusinessError) {
+      fail(res, 400, err.message);
     } else {
       console.error('[CompanyController] toggleCompanyStatus failed:', err);
       fail(res, 500, MSG_TOGGLE_FAIL);

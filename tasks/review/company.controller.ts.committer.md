@@ -1,6 +1,6 @@
 # apis/controller/company.controller.ts — Committer 审核专家评审报告
 
-**评审日期**: 2026-05-24
+**评审日期**: 2026-05-24（2026-05-25 修复验证通过）
 **评审角色**: Committer 审核专家（代码合并准入 + 测试完备性 + API 契约正确性 + 项目规范遵循 + 生产就绪度）
 **文件路径**: `apis/controller/company.controller.ts`
 **代码行数**: 114 行
