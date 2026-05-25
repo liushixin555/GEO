@@ -1,11 +1,12 @@
 # apis/controller/upload.controller.ts — 软件质量专家评审报告
 
 **评审日期**: 2026-05-24
+**评审状态**: ✅ 全部已修复（2026-05-26 验证通过）
 **评审角色**: 软件质量专家（代码安全 + 架构质量 + 输入验证 + 错误处理 + API 设计）
 **文件路径**: `apis/controller/upload.controller.ts`
-**代码行数**: 64 行
-**关联文件**: `apis/app.ts`, `apis/utils/response.util.ts`, `tests/apis/upload.controller.test.ts`
-**严重级别**: HIGH(3) / MEDIUM(4) / LOW(3)
+**代码行数**: 48 行（重构后）
+**关联文件**: `apis/utils/upload-factory.ts`, `apis/utils/image-validator.ts`, `apis/config/index.ts`, `tests/apis/upload.controller.test.ts`
+**严重级别**: HIGH(3) / MEDIUM(4) / LOW(3) — 全部已修复
 
 ---
 
@@ -451,4 +452,27 @@ upload.single('file')(req, res, (err: MulterError | Error | undefined) => {
 
 ---
 
+## 七、修复记录（2026-05-26 验证）
+
+| 编号 | 问题 | 修复方案 | 修复文件 |
+|------|------|----------|----------|
+| H-1 | SVG XSS 攻击面 | 从白名单移除 SVG，仅保留 jpeg/png/gif/webp | `apis/utils/image-validator.ts` |
+| H-2 | MIME 类型可伪造 | 添加 Magic Bytes 文件签名验证 | `apis/utils/image-validator.ts` |
+| H-3 | err: any + 消息泄露 | `unknown` 类型 + `MulterError`/`FileFilterError` 分支 + 通用消息 + 413 状态码 | `apis/utils/upload-factory.ts` |
+| M-1 | 模块级副作用 | `getUploadDir()` 延迟初始化模式 | `apis/utils/upload-factory.ts` |
+| M-2 | 重复目录检查 | 仅保留 `getUploadDir()` 一处 | `apis/utils/upload-factory.ts` |
+| M-3 | 配置硬编码 | 使用 `config.upload.imageMaxSize` + `config.uploadDir` | `apis/controller/upload.controller.ts`, `apis/utils/upload-factory.ts` |
+| L-1 | 扩展名无净化 | 使用 `ImageValidator.getExtension(mimetype)` 替代 `path.extname(originalname)` | `apis/utils/image-validator.ts` |
+| L-2 | next() 风格不一致 | 添加 `return` | `apis/utils/upload-factory.ts` |
+| L-3 | 类型不严格 | `MulterError` + `FileFilterError` + `unknown` | `apis/utils/upload-factory.ts` |
+
+**额外改进**:
+- 新增图片尺寸验证（最大 8000x8000 像素）
+- `app.ts` 静态文件服务对 SVG/HTML 强制 `Content-Disposition: attachment`
+- 新增 `upload-factory.ts` 通用上传工厂 + `image-validator.ts` 验证器，抽离关注点
+- 231 个测试用例全部通过
+
+---
+
 *软件质量专家评审完成 — 2026-05-24*
+*修复验证通过 — 2026-05-26*
