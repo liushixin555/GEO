@@ -1,9 +1,8 @@
 import { getPrisma } from '../../utils';
 import { IPublishingScheduleService } from '../publishing-schedule.service';
 import { NotFoundError, BusinessError, ForbiddenError } from '../../errors';
+import { PUBLISH_STATUSES } from '../../constants/publish-statuses';
 import type { PublishingScheduleItem, PublishingScheduleUpdateResult } from '../../entity/publishing-schedule.entity';
-
-const PUBLISH_STATUSES = ['publishing', 'published', 'publish_failed'];
 
 export class PublishingScheduleServiceImpl implements IPublishingScheduleService {
   async list(params: {

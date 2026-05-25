@@ -749,71 +749,25 @@ describe('PublishingSchedule Controller', () => {
 
   // ========== Unit tests: direct controller function calls (dead code coverage) ==========
   describe('updatePublishingSchedule - unit tests (bypass schema)', () => {
-    it('should return 400 when schedule_type is invalid (controller validation)', async () => {
+    it('should pass through schedule_type to service (validation is Zod middleware responsibility)', async () => {
+      mockUpdateSchedule.mockResolvedValue({ ...mockScheduleItem, schedule_type: 'asap' });
+
       const req = {
         user: { userId: 1, role: 'sysadmin' },
         params: { id: '1' },
-        body: { schedule_type: 'invalid_type', scheduled_publish_at: '2025-06-01T10:00:00.000Z' },
+        body: { schedule_type: 'asap', scheduled_publish_at: '2025-06-01T10:00:00.000Z' },
       } as any;
       const res = createMockRes();
 
       await updatePublishingSchedule(req, res);
 
-      expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'schedule_type参数无效' })
+        expect.objectContaining({ code: 0 })
       );
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '2025-06-01T10:00:00.000Z', 'asap', 1, 'sysadmin');
     });
 
-    it('should return 400 when scheduled_publish_at is a number (controller validation)', async () => {
-      const req = {
-        user: { userId: 1, role: 'sysadmin' },
-        params: { id: '1' },
-        body: { scheduled_publish_at: 12345 },
-      } as any;
-      const res = createMockRes();
-
-      await updatePublishingSchedule(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'scheduled_publish_at参数无效' })
-      );
-    });
-
-    it('should return 400 when scheduled_publish_at is a boolean (controller validation)', async () => {
-      const req = {
-        user: { userId: 1, role: 'sysadmin' },
-        params: { id: '1' },
-        body: { scheduled_publish_at: true },
-      } as any;
-      const res = createMockRes();
-
-      await updatePublishingSchedule(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'scheduled_publish_at参数无效' })
-      );
-    });
-
-    it('should return 400 when scheduled_publish_at is invalid date string (controller validation)', async () => {
-      const req = {
-        user: { userId: 1, role: 'sysadmin' },
-        params: { id: '1' },
-        body: { scheduled_publish_at: 'not-a-date' },
-      } as any;
-      const res = createMockRes();
-
-      await updatePublishingSchedule(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'scheduled_publish_at日期格式无效' })
-      );
-    });
-
-    it('should return 200 when scheduled_publish_at is null (controller allows null)', async () => {
+    it('should pass through scheduled_publish_at null to service (validation is Zod middleware responsibility)', async () => {
       mockUpdateSchedule.mockResolvedValue({ ...mockScheduleItem, scheduled_publish_at: null });
 
       const req = {
@@ -831,7 +785,7 @@ describe('PublishingSchedule Controller', () => {
       expect(mockUpdateSchedule).toHaveBeenCalledWith(1, null, null, 1, 'sysadmin');
     });
 
-    it('should return 200 when scheduled_publish_at is undefined (controller allows missing)', async () => {
+    it('should pass through empty body to service (scheduled_publish_at undefined, schedule_type null)', async () => {
       mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
 
       const req = {
@@ -846,10 +800,10 @@ describe('PublishingSchedule Controller', () => {
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ code: 0 })
       );
-      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, undefined, null, 1, 'sysadmin');
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, null, null, 1, 'sysadmin');
     });
 
-    it('should return 200 when scheduled_publish_at is empty string (controller allows empty)', async () => {
+    it('should pass through scheduled_publish_at empty string to service', async () => {
       mockUpdateSchedule.mockResolvedValue({ ...mockScheduleItem, scheduled_publish_at: '' });
 
       const req = {
@@ -1107,7 +1061,7 @@ describe('PublishingSchedule Controller', () => {
       );
     });
 
-    it('should update with only schedule_type (no scheduled_publish_at) via unit test', async () => {
+    it('should update with only schedule_type via unit test (scheduled_publish_at defaults to null)', async () => {
       mockUpdateSchedule.mockResolvedValue({ ...mockScheduleItem, schedule_type: 'asap' });
 
       const req = {
@@ -1122,10 +1076,12 @@ describe('PublishingSchedule Controller', () => {
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ code: 0 })
       );
-      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, undefined, 'asap', 1, 'sysadmin');
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, null, 'asap', 1, 'sysadmin');
     });
 
-    it('should return 400 when scheduled_publish_at is object via unit test', async () => {
+    it('should pass through scheduled_publish_at object to service (Zod middleware validates)', async () => {
+      mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
+
       const req = {
         user: { userId: 1, role: 'sysadmin' },
         params: { id: '1' },
@@ -1135,13 +1091,12 @@ describe('PublishingSchedule Controller', () => {
 
       await updatePublishingSchedule(req, res);
 
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'scheduled_publish_at参数无效' })
-      );
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, { year: 2025 }, null, 1, 'sysadmin');
     });
 
-    it('should return 400 when scheduled_publish_at is array via unit test', async () => {
+    it('should pass through scheduled_publish_at array to service (Zod middleware validates)', async () => {
+      mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
+
       const req = {
         user: { userId: 1, role: 'sysadmin' },
         params: { id: '1' },
@@ -1151,10 +1106,7 @@ describe('PublishingSchedule Controller', () => {
 
       await updatePublishingSchedule(req, res);
 
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'scheduled_publish_at参数无效' })
-      );
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, ['2025-06-01'], null, 1, 'sysadmin');
     });
 
     it('should allow valid ISO date-only format via unit test', async () => {
@@ -1209,7 +1161,9 @@ describe('PublishingSchedule Controller', () => {
       expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '2025-06-01T10:00:00.000Z', null, 1, 'sysadmin');
     });
 
-    it('should reject schedule_type=number via unit test', async () => {
+    it('should pass schedule_type=number through to service (Zod middleware validates)', async () => {
+      mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
+
       const req = {
         user: { userId: 1, role: 'sysadmin' },
         params: { id: '1' },
@@ -1219,13 +1173,12 @@ describe('PublishingSchedule Controller', () => {
 
       await updatePublishingSchedule(req, res);
 
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'schedule_type参数无效' })
-      );
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '2025-06-01T10:00:00.000Z', 123, 1, 'sysadmin');
     });
 
-    it('should reject schedule_type=boolean via unit test', async () => {
+    it('should pass schedule_type=boolean through to service (Zod middleware validates)', async () => {
+      mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
+
       const req = {
         user: { userId: 1, role: 'sysadmin' },
         params: { id: '1' },
@@ -1235,13 +1188,12 @@ describe('PublishingSchedule Controller', () => {
 
       await updatePublishingSchedule(req, res);
 
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'schedule_type参数无效' })
-      );
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '2025-06-01T10:00:00.000Z', true, 1, 'sysadmin');
     });
 
-    it('should reject schedule_type=object via unit test', async () => {
+    it('should pass schedule_type=object through to service (Zod middleware validates)', async () => {
+      mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
+
       const req = {
         user: { userId: 1, role: 'sysadmin' },
         params: { id: '1' },
@@ -1251,13 +1203,12 @@ describe('PublishingSchedule Controller', () => {
 
       await updatePublishingSchedule(req, res);
 
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'schedule_type参数无效' })
-      );
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '2025-06-01T10:00:00.000Z', { type: 'asap' }, 1, 'sysadmin');
     });
 
-    it('should reject schedule_type=empty string via unit test', async () => {
+    it('should pass schedule_type=empty string through to service (Zod middleware validates)', async () => {
+      mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
+
       const req = {
         user: { userId: 1, role: 'sysadmin' },
         params: { id: '1' },
@@ -1267,10 +1218,7 @@ describe('PublishingSchedule Controller', () => {
 
       await updatePublishingSchedule(req, res);
 
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'schedule_type参数无效' })
-      );
+      expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '2025-06-01T10:00:00.000Z', '', 1, 'sysadmin');
     });
   });
 });

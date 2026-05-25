@@ -64,3 +64,37 @@
 ---
 
 *软件开发专家评审修复完成 — 2026-05-24*
+
+---
+
+## R3 修复（2026-05-25）——基于 R2 架构评审 + Committer 评审 + 质量评审
+
+**修复依据**: R2 架构评审 H-1/M-1/M-2、质量评审 M-1/M-2、Committer 评审 R2-1
+
+### 已修复
+
+| 编号 | 级别 | 问题 | 修复方案 |
+|------|------|------|----------|
+| H-1 | HIGH | Controller 与 Zod 中间件双重校验冗余（违反 DRY + SoC） | 移除 controller 内 schedule_type 和 scheduled_publish_at 校验逻辑（第 53-69 行），完全依赖 Zod validate 中间件 |
+| M-1 | MEDIUM | VALID_STATUSES 与 PUBLISH_STATUSES 重复定义 | 新建 `apis/constants/publish-statuses.ts` 共享常量，controller 和 service impl 统一引用 |
+| M-2 | MEDIUM | list 缺少 AppError 错误区分 | list 的 catch 块增加 `instanceof AppError` 判断，与 update 策略统一 |
+| R2-1 | LOW | VALID_STATUSES 模块级 vs validScheduleTypes 函数内不一致 | 随 H-1 一并消除（validScheduleTypes 已删除） |
+
+### 变更文件
+
+| 文件 | 变更说明 |
+|------|----------|
+| `apis/controller/publishing-schedule.controller.ts` | 移除重复验证逻辑，引入 PUBLISH_STATUSES 共享常量，list 增加 AppError 处理 |
+| `apis/constants/publish-statuses.ts` | 新建共享常量文件（PUBLISH_STATUSES + PublishStatus 类型） |
+| `apis/service/impl/publishing-schedule.service.impl.ts` | 引用共享常量替代本地重复定义 |
+| `tests/apis/publishing-schedule.controller.test.ts` | 更新 12 个测试用例：移除 controller 层验证断言，改为验证参数透传 |
+
+### 测试结果
+
+- **Controller 测试**: 83 个测试全部通过
+- **Entity 测试**: 通过
+- **全部 publishing-schedule 测试**: 253 个通过，0 个失败
+- **TypeScript 编译**: 通过
+- **ESLint**: 通过
+
+*软件开发专家评审 R3 修复完成 — 2026-05-25*
