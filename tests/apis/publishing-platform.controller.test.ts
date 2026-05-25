@@ -3,6 +3,7 @@
  */
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
+import { BusinessError } from '../../apis/errors';
 
 process.env.JWT_SECRET = 'test-secret';
 process.env.JWT_EXPIRES_IN = '2h';
@@ -31,8 +32,9 @@ jest.mock('../../apis/service/impl/system-config.service.impl', () => ({
 
 const mockLoggerInfo = jest.fn();
 const mockLoggerError = jest.fn();
+const mockLoggerWarn = jest.fn();
 jest.mock('../../apis/utils/logger.util', () => ({
-  logger: { info: mockLoggerInfo, warn: jest.fn(), error: mockLoggerError, debug: jest.fn() },
+  logger: { info: mockLoggerInfo, warn: mockLoggerWarn, error: mockLoggerError, debug: jest.fn() },
 }));
 
 jest.mock('../../apis/utils/db.util', () => ({
@@ -110,7 +112,7 @@ describe('PublishingPlatform Controller', () => {
     });
 
     it('should return 400 when credentials not configured', async () => {
-      mockSyncFromSystemConfig.mockRejectedValue(new Error('请先配置软盟账号和密码'));
+      mockSyncFromSystemConfig.mockRejectedValue(new BusinessError('请先配置软盟账号和密码'));
 
       const response = await agent
         .post('/api/v1/publishing-platforms/sync')
@@ -206,14 +208,14 @@ describe('PublishingPlatform Controller', () => {
       expect(mockLoggerError).toHaveBeenCalledWith('publishing-platform.sync.failed', expect.objectContaining({ err: '网络超时', username: 'sysadmin' }));
     });
 
-    it('should log sync failed on config error', async () => {
-      mockSyncFromSystemConfig.mockRejectedValue(new Error('请先配置软盟账号和密码'));
+    it('should log sync business-error on config error', async () => {
+      mockSyncFromSystemConfig.mockRejectedValue(new BusinessError('请先配置软盟账号和密码'));
 
       await agent
         .post('/api/v1/publishing-platforms/sync')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(mockLoggerError).toHaveBeenCalledWith('publishing-platform.sync.failed', expect.objectContaining({ err: '请先配置软盟账号和密码' }));
+      expect(mockLoggerWarn).toHaveBeenCalledWith('publishing-platform.sync.business-error', expect.objectContaining({ err: '请先配置软盟账号和密码' }));
     });
   });
 
@@ -348,7 +350,7 @@ describe('PublishingPlatform Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('数据库连接失败');
+      expect(response.body.message).toBe('获取发布平台失败');
     });
 
     it('should return 500 with default message when listAll error has no message', async () => {
@@ -370,7 +372,7 @@ describe('PublishingPlatform Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('查询超时');
+      expect(response.body.message).toBe('获取发布平台失败');
     });
 
     it('should return 500 with default message when paginated list error has no message', async () => {
@@ -640,7 +642,7 @@ describe('PublishingPlatform Controller', () => {
       expect(mockList).toHaveBeenCalledWith(1, 1, undefined, undefined, undefined, undefined);
     });
 
-    it('should allow empty string search without triggering validation error', async () => {
+    it('should treat empty string search as no search (trim + undefined)', async () => {
       mockList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
@@ -648,7 +650,7 @@ describe('PublishingPlatform Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
-      expect(mockList).toHaveBeenCalledWith(1, 10, '', undefined, undefined, undefined);
+      expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, undefined, undefined);
     });
 
     it('should return 500 when non-Error is thrown from paginated list', async () => {
@@ -911,15 +913,15 @@ describe('PublishingPlatform Controller', () => {
       expect(response.body.message).toBe('同步发布平台失败');
     });
 
-    it('should return 400 when error message contains 请先配置 as substring', async () => {
-      mockSyncFromSystemConfig.mockRejectedValue(new Error('请先配置系统参数后再同步'));
+    it('should return 400 when BusinessError is thrown with custom message', async () => {
+      mockSyncFromSystemConfig.mockRejectedValue(new BusinessError('配置缺失，请检查系统设置'));
 
       const response = await agent
         .post('/api/v1/publishing-platforms/sync')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('请先配置系统参数后再同步');
+      expect(response.body.message).toBe('配置缺失，请检查系统设置');
     });
   });
 
@@ -1195,7 +1197,7 @@ describe('PublishingPlatform Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('Cannot read property');
+      expect(response.body.message).toBe('获取发布平台失败');
     });
 
     it('should handle null thrown from listAll', async () => {
@@ -1292,6 +1294,166 @@ describe('PublishingPlatform Controller', () => {
 
       expect(response.status).toBe(400);
       expect(mockList).not.toHaveBeenCalled();
+    });
+  });
+
+  // ========== Round 3: taxonomy 长度校验测试 ==========
+
+  describe('taxonomy 长度校验', () => {
+    it('should return 400 when taxonomy exceeds max length', async () => {
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&taxonomy=' + 'a'.repeat(101))
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('分类筛选不能超过');
+    });
+
+    it('should allow taxonomy at max length boundary', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&taxonomy=' + 'a'.repeat(100))
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, undefined, 'a'.repeat(100), undefined, undefined);
+    });
+  });
+
+  // ========== Round 3: search trim 测试 ==========
+
+  describe('search trim 处理', () => {
+    it('should treat whitespace-only search as no search', async () => {
+      mockListAll.mockResolvedValue([]);
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?search=%20%20%20')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockListAll).toHaveBeenCalled();
+      expect(mockList).not.toHaveBeenCalled();
+    });
+
+    it('should trim leading/trailing whitespace from search', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&search=%20%E6%96%B0%E6%B5%AA%20')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, '新浪', undefined, undefined, undefined);
+    });
+  });
+
+  // ========== Round 3: sync 并发锁测试 ==========
+
+  describe('sync 并发控制', () => {
+    it('should release sync lock after success allowing subsequent sync', async () => {
+      mockSyncFromSystemConfig.mockResolvedValue(5);
+
+      const res1 = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(res1.status).toBe(200);
+      expect(res1.body.data.count).toBe(5);
+
+      mockSyncFromSystemConfig.mockResolvedValue(3);
+      const res2 = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(res2.status).toBe(200);
+      expect(res2.body.data.count).toBe(3);
+    });
+
+    it('should release sync lock after error allowing subsequent sync', async () => {
+      mockSyncFromSystemConfig.mockRejectedValue(new Error('网络超时'));
+
+      const res1 = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(res1.status).toBe(500);
+
+      mockSyncFromSystemConfig.mockResolvedValue(7);
+      const res2 = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(res2.status).toBe(200);
+      expect(res2.body.data.count).toBe(7);
+    });
+
+    it('should release sync lock after BusinessError allowing subsequent sync', async () => {
+      mockSyncFromSystemConfig.mockRejectedValue(new BusinessError('请先配置软盟账号和密码'));
+
+      const res1 = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(res1.status).toBe(400);
+
+      mockSyncFromSystemConfig.mockResolvedValue(12);
+      const res2 = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(res2.status).toBe(200);
+      expect(res2.body.data.count).toBe(12);
+    });
+  });
+
+  // ========== Round 3: list 错误日志测试 ==========
+
+  describe('list 错误日志', () => {
+    it('should log error when listAll fails', async () => {
+      mockListAll.mockRejectedValue(new Error('数据库连接失败'));
+
+      await agent
+        .get('/api/v1/publishing-platforms')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(mockLoggerError).toHaveBeenCalledWith(
+        'publishing-platform.list.failed',
+        expect.objectContaining({ err: '数据库连接失败' })
+      );
+    });
+
+    it('should log error when paginated list fails', async () => {
+      mockList.mockRejectedValue(new Error('查询超时'));
+
+      await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(mockLoggerError).toHaveBeenCalledWith(
+        'publishing-platform.list.failed',
+        expect.objectContaining({ err: '查询超时' })
+      );
+    });
+  });
+
+  // ========== Round 3: query 参数数组防护测试 ==========
+
+  describe('query 参数数组防护', () => {
+    it('should use first value when search is an array', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&search=foo&search=bar')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, 'foo', undefined, undefined, undefined);
+    });
+
+    it('should use first value when sortBy is an array', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&sortBy=name&sortBy=price')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, 'name', undefined);
     });
   });
 });

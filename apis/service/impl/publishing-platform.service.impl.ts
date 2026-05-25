@@ -2,6 +2,7 @@ import { getPrisma } from '../../utils';
 import { getRmToken, getAllRmResources } from '../../utils/rmapi.utils';
 import { PublishingPlatform } from '../../entity';
 import { mapPublishingPlatform } from '../../map';
+import { BusinessError } from '../../errors';
 import { IPublishingPlatformService } from '../publishing-platform.service';
 import type { ISystemConfigService } from '../system-config.service';
 import { SystemConfigServiceImpl } from './system-config.service.impl';
@@ -20,7 +21,7 @@ export class PublishingPlatformServiceImpl implements IPublishingPlatformService
     const password = configMap.get('ruanmeng_password');
 
     if (!username || !password) {
-      throw new Error('请先配置软盟账号和密码');
+      throw new BusinessError('请先配置软盟账号和密码');
     }
 
     return this.syncFromRm(username, password);
