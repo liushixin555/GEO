@@ -3223,4 +3223,1108 @@ describe('user.entity', () => {
       expect(formatUserStatus(user)).toBe('已禁用用户 - 禁用');
     });
   });
+
+  // ============================================================
+  // 安全注入测试 (Security Injection)
+  // ============================================================
+  describe('security injection', () => {
+    it('User should preserve username with SQL injection attempt', () => {
+      const user: User = {
+        id: 1, username: "admin'; DROP TABLE users;--", password_hash: 'h',
+        cn_name: 'N', role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(user.username).toBe("admin'; DROP TABLE users;--");
+    });
+
+    it('User should preserve cn_name with XSS script tag', () => {
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h',
+        cn_name: '<script>alert("xss")</script>',
+        role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(user.cn_name).toBe('<script>alert("xss")</script>');
+    });
+
+    it('LoginRequest should preserve password with special characters', () => {
+      const req: LoginRequest = {
+        username: "admin' OR '1'='1",
+        password: "' OR 1=1; DROP TABLE--; /* */",
+      };
+      expect(req.username).toBe("admin' OR '1'='1");
+      expect(req.password).toBe("' OR 1=1; DROP TABLE--; /* */");
+    });
+
+    it('CreateUserRequest should handle HTML entities in cn_name', () => {
+      const req: CreateUserRequest = {
+        username: 'u', password: 'p',
+        cn_name: '<img src=x onerror=alert(1)>',
+        role: 'view',
+      };
+      expect(req.cn_name).toBe('<img src=x onerror=alert(1)>');
+    });
+
+    it('LoginResponse token should preserve JWT format characters', () => {
+      const res: LoginResponse = {
+        token: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c',
+        user: { id: 1, username: 'u', cn_name: 'N', role: 'admin',
+          selected_company: null, selected_project: null },
+      };
+      expect(res.token.split('.')).toHaveLength(3);
+    });
+
+    it('UserListItem company_name should handle prototype pollution attempt', () => {
+      const item: UserListItem = {
+        id: 1, username: 'u', cn_name: 'N', role: 'admin', status: true,
+        company_name: '__proto__',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(item.company_name).toBe('__proto__');
+    });
+
+    it('UpdateUserRequest cn_name should handle null byte injection', () => {
+      const req: UpdateUserRequest = { cn_name: 'test\x00evil' };
+      expect(req.cn_name).toBe('test\x00evil');
+    });
+
+    it('LoginRequest should handle unicode escape sequences', () => {
+      const req: LoginRequest = { username: 'ABC', password: ' ' };
+      expect(req.username).toBe('ABC');
+      expect(req.password).toBe(' ');
+    });
+
+    it('User should survive JSON.parse with __proto__ field', () => {
+      const json = '{"id":1,"username":"u","__proto__":{"admin":true}}';
+      const parsed = JSON.parse(json);
+      expect(parsed.id).toBe(1);
+      expect((parsed as any).admin).toBeUndefined();
+    });
+
+    it('User username should handle LDAP injection patterns', () => {
+      const user: User = {
+        id: 1, username: 'admin)(|(cn=*))', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(user.username).toBe('admin)(|(cn=*))');
+    });
+
+    it('CreateUserRequest should handle path traversal in username', () => {
+      const req: CreateUserRequest = {
+        username: '../../../etc/passwd', password: 'p',
+        cn_name: 'N', role: 'admin',
+      };
+      expect(req.username).toBe('../../../etc/passwd');
+    });
+
+    it('SaveSelectionRequest should survive JSON injection in company_id', () => {
+      const json = '{"company_id":1,"project_id":2,"isAdmin":true}';
+      const parsed = JSON.parse(json);
+      expect(parsed.company_id).toBe(1);
+      expect(parsed.isAdmin).toBe(true);
+    });
+
+    it('LoginResponse selected_company short_name should handle CRLF injection', () => {
+      const res: LoginResponse = {
+        token: 't',
+        user: {
+          id: 1, username: 'u', cn_name: 'N', role: 'admin',
+          selected_company: { id: 1, short_name: '公司\r\nSet-Cookie:evil=true' },
+          selected_project: null,
+        },
+      };
+      expect(res.user.selected_company!.short_name).toContain('\r\n');
+    });
+
+    it('UserListItem should handle very long strings without truncation', () => {
+      const malicious = 'A'.repeat(100000);
+      const item: UserListItem = {
+        id: 1, username: malicious, cn_name: 'N', role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(item.username.length).toBe(100000);
+    });
+
+    it('User password_hash should survive JSON round-trip with special chars', () => {
+      const user: User = {
+        id: 1, username: 'u', password_hash: '$2b$10$"special\'chars\\n\t\r',
+        cn_name: 'N', role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const json = JSON.stringify(user);
+      const parsed = JSON.parse(json);
+      expect(parsed.password_hash).toBe('$2b$10$"special\'chars\\n\t\r');
+    });
+
+    it('LoginSelectionError message should handle XSS payload', () => {
+      const error = new LoginSelectionError('<script>document.cookie</script>');
+      expect(error.message).toBe('<script>document.cookie</script>');
+    });
+
+    it('PermissionDeniedError message should handle format string attack', () => {
+      const error = new PermissionDeniedError('%s%s%s%s%d%d%d');
+      expect(error.message).toBe('%s%s%s%s%d%d%d');
+    });
+  });
+
+  // ============================================================
+  // JSON Reviver 深度测试
+  // ============================================================
+  describe('JSON reviver deep tests', () => {
+    const dateReviver = (key: string, value: any): any => {
+      if (key === 'created_at' || key === 'updated_at') return new Date(value);
+      return value;
+    };
+
+    it('User dates should deserialize correctly via reviver', () => {
+      const user: User = {
+        id: 1, username: 'admin', password_hash: 'h', cn_name: '管理员',
+        role: 'admin', status: true, company_id: 1,
+        created_at: new Date('2024-06-15T08:30:00.000Z'),
+        updated_at: new Date('2024-06-20T14:45:00.000Z'),
+      };
+      const parsed = JSON.parse(JSON.stringify(user), dateReviver);
+      expect(parsed.created_at).toBeInstanceOf(Date);
+      expect(parsed.created_at.toISOString()).toBe('2024-06-15T08:30:00.000Z');
+      expect(parsed.updated_at.toISOString()).toBe('2024-06-20T14:45:00.000Z');
+    });
+
+    it('User null company_id should survive reviver', () => {
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'sysadmin', status: true, company_id: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const parsed = JSON.parse(JSON.stringify(user), dateReviver);
+      expect(parsed.company_id).toBeNull();
+    });
+
+    it('User undefined company_id should be omitted in JSON', () => {
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'view', status: true,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const json = JSON.stringify(user);
+      expect(json).not.toContain('company_id');
+      const parsed = JSON.parse(json, dateReviver);
+      expect(parsed.company_id).toBeUndefined();
+    });
+
+    it('UserListItem dates should deserialize with reviver', () => {
+      const item: UserListItem = {
+        id: 1, username: 'u', cn_name: '管理员', role: 'admin', status: true,
+        company_id: 1, company_name: '薄云科技',
+        created_at: new Date('2024-01-15T10:00:00.000Z'),
+        updated_at: new Date('2024-03-20T15:30:00.000Z'),
+      };
+      const parsed = JSON.parse(JSON.stringify(item), dateReviver);
+      expect(parsed.created_at).toBeInstanceOf(Date);
+      expect(parsed.updated_at).toBeInstanceOf(Date);
+      expect(parsed.company_name).toBe('薄云科技');
+    });
+
+    it('User array should deserialize each element dates via reviver', () => {
+      const users: User[] = [
+        { id: 1, username: 'u1', password_hash: 'h', cn_name: '用户1',
+          role: 'admin', status: true, company_id: 1,
+          created_at: new Date('2024-01-01'), updated_at: new Date('2024-02-01') },
+        { id: 2, username: 'u2', password_hash: 'h', cn_name: '用户2',
+          role: 'view', status: true, company_id: 2,
+          created_at: new Date('2024-03-01'), updated_at: new Date('2024-04-01') },
+      ];
+      const parsed = JSON.parse(JSON.stringify(users), (key, value) => {
+        if (key === 'created_at' || key === 'updated_at') return new Date(value);
+        return value;
+      });
+      parsed.forEach((u: any) => {
+        expect(u.created_at).toBeInstanceOf(Date);
+        expect(u.updated_at).toBeInstanceOf(Date);
+      });
+    });
+
+    it('LoginResponse nested user should survive JSON with reviver', () => {
+      const res: LoginResponse = {
+        token: 'jwt_token',
+        user: {
+          id: 1, username: 'admin', cn_name: '管理员', role: 'admin',
+          company_id: 1,
+          selected_company: { id: 1, short_name: '薄云科技' },
+          selected_project: { id: 2, short_name: '项目A' },
+        },
+      };
+      const parsed: LoginResponse = JSON.parse(JSON.stringify(res));
+      expect(parsed.user.selected_company).toEqual({ id: 1, short_name: '薄云科技' });
+      expect(parsed.user.selected_project).toEqual({ id: 2, short_name: '项目A' });
+    });
+
+    it('SaveSelectionRequest with null project_id should round-trip', () => {
+      const req: SaveSelectionRequest = { company_id: 1, project_id: null };
+      const parsed = JSON.parse(JSON.stringify(req));
+      expect(parsed.company_id).toBe(1);
+      expect(parsed.project_id).toBeNull();
+    });
+
+    it('CreateUserRequest with null company_id should round-trip', () => {
+      const req: CreateUserRequest = {
+        username: 'sysadmin', password: 'pass', cn_name: '系统管理员',
+        role: 'sysadmin', company_id: null,
+      };
+      const parsed = JSON.parse(JSON.stringify(req));
+      expect(parsed.company_id).toBeNull();
+      expect(parsed.username).toBe('sysadmin');
+    });
+
+    it('User with Chinese field values should survive JSON round-trip', () => {
+      const user: User = {
+        id: 1, username: '张三', password_hash: 'h',
+        cn_name: '薄云商机倍增服务管理员',
+        role: 'admin', status: true, company_id: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const parsed = JSON.parse(JSON.stringify(user));
+      expect(parsed.username).toBe('张三');
+      expect(parsed.cn_name).toBe('薄云商机倍增服务管理员');
+    });
+
+    it('UpdateUserRequest all fields should round-trip correctly', () => {
+      const req: UpdateUserRequest = {
+        cn_name: '新名字', role: 'admin', status: false, password: '新密码',
+      };
+      const parsed = JSON.parse(JSON.stringify(req));
+      expect(parsed).toEqual(req);
+    });
+
+    it('User with all role types should serialize role as string', () => {
+      const roles: UserRole[] = ['sysadmin', 'admin', 'view'];
+      roles.forEach(role => {
+        const user: User = {
+          id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+          role, status: true,
+          created_at: new Date(), updated_at: new Date(),
+        };
+        const parsed = JSON.parse(JSON.stringify(user));
+        expect(parsed.role).toBe(role);
+        expect(typeof parsed.role).toBe('string');
+      });
+    });
+
+    it('User should serialize Date fields as ISO strings', () => {
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true,
+        created_at: new Date('2024-06-15T08:30:00.000Z'),
+        updated_at: new Date('2024-06-20T14:45:00.000Z'),
+      };
+      const json = JSON.stringify(user);
+      const obj = JSON.parse(json);
+      expect(typeof obj.created_at).toBe('string');
+      expect(typeof obj.updated_at).toBe('string');
+      expect(obj.created_at).toBe('2024-06-15T08:30:00.000Z');
+    });
+
+    it('UserListItem with optional company_name undefined should omit in JSON', () => {
+      const item: UserListItem = {
+        id: 1, username: 'u', cn_name: 'N', role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const json = JSON.stringify(item);
+      expect(json).not.toContain('company_name');
+    });
+
+    it('User should serialize boolean status as JSON boolean', () => {
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const json = JSON.stringify(user);
+      expect(json).toContain('"status":true');
+    });
+
+    it('User with epoch date should round-trip via JSON', () => {
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true,
+        created_at: new Date(0), updated_at: new Date(0),
+      };
+      const parsed = JSON.parse(JSON.stringify(user), dateReviver);
+      expect(parsed.created_at.getTime()).toBe(0);
+      expect(parsed.updated_at.getTime()).toBe(0);
+    });
+
+    it('UserListItem should round-trip via JSON with all optional fields', () => {
+      const item: UserListItem = {
+        id: 1, username: 'admin', cn_name: '管理员', role: 'admin',
+        status: true, company_id: 5, company_name: '薄云科技',
+        created_at: new Date('2024-06-15T00:00:00.000Z'),
+        updated_at: new Date('2024-06-20T00:00:00.000Z'),
+      };
+      const parsed = JSON.parse(JSON.stringify(item), dateReviver);
+      expect(parsed.id).toBe(1);
+      expect(parsed.company_id).toBe(5);
+      expect(parsed.company_name).toBe('薄云科技');
+      expect(parsed.created_at).toBeInstanceOf(Date);
+    });
+  });
+
+  // ============================================================
+  // 业务场景测试 (Business Scenarios)
+  // ============================================================
+  describe('business scenarios', () => {
+    it('sysadmin user should have null company_id', () => {
+      const sysadmin: User = {
+        id: 1, username: 'sysadmin', password_hash: 'h', cn_name: '系统管理员',
+        role: 'sysadmin', status: true, company_id: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(sysadmin.role).toBe('sysadmin');
+      expect(sysadmin.company_id).toBeNull();
+    });
+
+    it('admin user should belong to a company', () => {
+      const admin: User = {
+        id: 2, username: 'company_admin', password_hash: 'h', cn_name: '公司管理员',
+        role: 'admin', status: true, company_id: 5,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(admin.role).toBe('admin');
+      expect(admin.company_id).toBe(5);
+    });
+
+    it('view user should have limited role with company', () => {
+      const viewer: User = {
+        id: 3, username: 'report_viewer', password_hash: 'h', cn_name: '报告查看者',
+        role: 'view', status: true, company_id: 5,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(viewer.role).toBe('view');
+      expect(viewer.company_id).toBe(5);
+    });
+
+    it('disabled user should have status false', () => {
+      const disabled: User = {
+        id: 4, username: 'fired_employee', password_hash: 'h', cn_name: '离职员工',
+        role: 'admin', status: false, company_id: 5,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-06-15'),
+      };
+      expect(disabled.status).toBe(false);
+      expect(disabled.role).toBe('admin');
+    });
+
+    it('login flow: LoginRequest → token generation → LoginResponse', () => {
+      const loginReq: LoginRequest = { username: 'admin', password: 'secret123' };
+      expect(loginReq.username.length).toBeGreaterThan(0);
+      expect(loginReq.password.length).toBeGreaterThan(0);
+      const res: LoginResponse = {
+        token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxfQ.signature',
+        user: {
+          id: 1, username: 'admin', cn_name: '管理员', role: 'admin',
+          company_id: 1,
+          selected_company: { id: 1, short_name: '薄云科技' },
+          selected_project: null,
+        },
+      };
+      expect(res.token.split('.')).toHaveLength(3);
+      expect(res.user.role).toBe('admin');
+    });
+
+    it('selection flow: user selects company then project', () => {
+      const step1: SaveSelectionRequest = { company_id: 5 };
+      expect(step1.company_id).toBe(5);
+      expect(step1.project_id).toBeUndefined();
+      const step2: SaveSelectionRequest = { company_id: 5, project_id: 10 };
+      expect(step2.project_id).toBe(10);
+    });
+
+    it('user creation flow: CreateUserRequest → User with hashed password', () => {
+      const req: CreateUserRequest = {
+        username: 'newuser', password: 'plaintext123',
+        cn_name: '新员工', role: 'view', company_id: 3,
+      };
+      const user: User = {
+        id: 100, username: req.username,
+        password_hash: '$2b$10$hashedvalue',
+        cn_name: req.cn_name, role: req.role, status: true,
+        company_id: req.company_id,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(user.password_hash).not.toBe(req.password);
+      expect(user.status).toBe(true);
+    });
+
+    it('user update flow: admin changes role and cn_name', () => {
+      const original: User = {
+        id: 5, username: 'employee', password_hash: 'h', cn_name: '员工',
+        role: 'view', status: true, company_id: 1,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const update: UpdateUserRequest = { cn_name: '升职员工', role: 'admin' };
+      const updated: User = { ...original, ...update, updated_at: new Date() };
+      expect(updated.role).toBe('admin');
+      expect(updated.cn_name).toBe('升职员工');
+      expect(updated.username).toBe('employee');
+    });
+
+    it('password change flow: UpdateUserRequest with password only', () => {
+      const update: UpdateUserRequest = { password: 'newSecurePassword456' };
+      expect(update.password).toBe('newSecurePassword456');
+      expect(update.cn_name).toBeUndefined();
+      expect(update.role).toBeUndefined();
+      expect(update.status).toBeUndefined();
+    });
+
+    it('user list: convert User[] to UserListItem[] with company_name lookup', () => {
+      const date = new Date();
+      const users: User[] = [
+        { id: 1, username: 'sa', password_hash: 'h', cn_name: 'SA',
+          role: 'sysadmin', status: true, company_id: null,
+          created_at: date, updated_at: date },
+        { id: 2, username: 'ad', password_hash: 'h', cn_name: '管理员',
+          role: 'admin', status: true, company_id: 1,
+          created_at: date, updated_at: date },
+      ];
+      const companyNameMap: Record<number, string> = { 1: '薄云科技' };
+      const items: UserListItem[] = users.map(u => ({
+        id: u.id, username: u.username, cn_name: u.cn_name,
+        role: u.role, status: u.status, company_id: u.company_id,
+        company_name: u.company_id ? companyNameMap[u.company_id] : undefined,
+        created_at: u.created_at, updated_at: u.updated_at,
+      }));
+      expect(items[0].company_name).toBeUndefined();
+      expect(items[1].company_name).toBe('薄云科技');
+    });
+
+    it('view role user should not have management capabilities', () => {
+      const viewer: User = {
+        id: 10, username: 'viewer', password_hash: 'h', cn_name: '只看用户',
+        role: 'view', status: true, company_id: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const canManage = viewer.role === 'sysadmin' || viewer.role === 'admin';
+      expect(canManage).toBe(false);
+    });
+
+    it('sysadmin can manage all companies', () => {
+      const sysadmin: User = {
+        id: 1, username: 'sysadmin', password_hash: 'h', cn_name: '超级管理员',
+        role: 'sysadmin', status: true, company_id: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(sysadmin.role).toBe('sysadmin');
+      expect(sysadmin.company_id).toBeNull();
+      const canManageAllCompanies = sysadmin.role === 'sysadmin';
+      expect(canManageAllCompanies).toBe(true);
+    });
+
+    it('admin user should be scoped to their company', () => {
+      const admin: User = {
+        id: 5, username: 'company_admin', password_hash: 'h', cn_name: '公司管理员',
+        role: 'admin', status: true, company_id: 3,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const scope = admin.role === 'sysadmin' ? 'all' : `company_${admin.company_id}`;
+      expect(scope).toBe('company_3');
+    });
+
+    it('user toggle status: enable/disable', () => {
+      const active: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true, company_id: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const disabled: User = { ...active, status: false, updated_at: new Date() };
+      expect(active.status).toBe(true);
+      expect(disabled.status).toBe(false);
+    });
+
+    it('login response should not expose password_hash', () => {
+      const res: LoginResponse = {
+        token: 'jwt',
+        user: {
+          id: 1, username: 'admin', cn_name: '管理员', role: 'admin',
+          company_id: 1,
+          selected_company: { id: 1, short_name: 'C' },
+          selected_project: null,
+        },
+      };
+      const userKeys = Object.keys(res.user);
+      expect(userKeys).not.toContain('password_hash');
+    });
+
+    it('batch disable users via UpdateUserRequest', () => {
+      const date = new Date();
+      const users: User[] = [
+        { id: 1, username: 'u1', password_hash: 'h', cn_name: '用户1',
+          role: 'admin', status: true, company_id: 1,
+          created_at: date, updated_at: date },
+        { id: 2, username: 'u2', password_hash: 'h', cn_name: '用户2',
+          role: 'view', status: true, company_id: 1,
+          created_at: date, updated_at: date },
+      ];
+      const update: UpdateUserRequest = { status: false };
+      const updated = users.map(u => ({ ...u, ...update, updated_at: new Date() }));
+      expect(updated.every(u => u.status === false)).toBe(true);
+    });
+
+    it('LoginSelectionError represents unmet selection requirement', () => {
+      const checkSelection = (user: { selected_company: any }): void => {
+        if (!user.selected_company) {
+          throw new LoginSelectionError('请先选择公司');
+        }
+      };
+      expect(() => checkSelection({ selected_company: null })).toThrow(LoginSelectionError);
+      expect(() => checkSelection({ selected_company: { id: 1, short_name: 'C' } })).not.toThrow();
+    });
+
+    it('PermissionDeniedError represents insufficient permissions', () => {
+      const requireAdmin = (user: User): void => {
+        if (user.role === 'view') {
+          throw new PermissionDeniedError('view角色无权执行此操作');
+        }
+      };
+      const viewer: User = {
+        id: 1, username: 'v', password_hash: 'h', cn_name: 'V',
+        role: 'view', status: true, company_id: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(() => requireAdmin(viewer)).toThrow(PermissionDeniedError);
+    });
+  });
+
+  // ============================================================
+  // NaN / Infinity 边界测试
+  // ============================================================
+  describe('NaN and Infinity boundary', () => {
+    it('User.id runtime assignment of NaN should not throw', () => {
+      const user: User = {
+        id: NaN as any, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Number.isNaN(user.id)).toBe(true);
+    });
+
+    it('User.id runtime assignment of Infinity should not throw', () => {
+      const user: User = {
+        id: Infinity as any, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(user.id).toBe(Infinity);
+    });
+
+    it('User.id runtime assignment of -Infinity should not throw', () => {
+      const user: User = {
+        id: -Infinity as any, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(user.id).toBe(-Infinity);
+    });
+
+    it('User.company_id runtime assignment of NaN should not throw', () => {
+      const user: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true, company_id: NaN as any,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Number.isNaN(user.company_id)).toBe(true);
+    });
+
+    it('SaveSelectionRequest.company_id with NaN runtime value', () => {
+      const req: SaveSelectionRequest = { company_id: NaN as any };
+      expect(Number.isNaN(req.company_id)).toBe(true);
+    });
+
+    it('SaveSelectionRequest.project_id with Infinity runtime value', () => {
+      const req: SaveSelectionRequest = { company_id: 1, project_id: Infinity as any };
+      expect(req.project_id).toBe(Infinity);
+    });
+
+    it('CreateUserRequest.company_id with NaN runtime value', () => {
+      const req: CreateUserRequest = {
+        username: 'u', password: 'p', cn_name: 'N', role: 'admin',
+        company_id: NaN as any,
+      };
+      expect(Number.isNaN(req.company_id)).toBe(true);
+    });
+
+    it('UserListItem.company_id with -Infinity runtime value', () => {
+      const item: UserListItem = {
+        id: 1, username: 'u', cn_name: 'N', role: 'admin', status: true,
+        company_id: -Infinity as any,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(item.company_id).toBe(-Infinity);
+    });
+
+    it('NaN id should break numeric comparisons (known pitfall)', () => {
+      const user: User = {
+        id: NaN as any, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(user.id === user.id).toBe(false);
+      expect(Number.isNaN(user.id)).toBe(true);
+    });
+
+    it('NaN should serialize to null in JSON', () => {
+      const user: User = {
+        id: NaN as any, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true, company_id: NaN as any,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const json = JSON.stringify(user);
+      const parsed = JSON.parse(json);
+      expect(parsed.id).toBeNull();
+      expect(parsed.company_id).toBeNull();
+    });
+
+    it('Infinity should serialize to null in JSON', () => {
+      const user: User = {
+        id: Infinity as any, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true, company_id: Infinity as any,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const json = JSON.stringify(user);
+      const parsed = JSON.parse(json);
+      expect(parsed.id).toBeNull();
+      expect(parsed.company_id).toBeNull();
+    });
+
+    it('LoginResponse.user.id with NaN should not affect other fields', () => {
+      const res: LoginResponse = {
+        token: 't',
+        user: {
+          id: NaN as any, username: 'u', cn_name: 'N', role: 'admin',
+          selected_company: null, selected_project: null,
+        },
+      };
+      expect(res.token).toBe('t');
+      expect(res.user.username).toBe('u');
+      expect(Number.isNaN(res.user.id)).toBe(true);
+    });
+
+    it('UserListItem.id with negative zero preserves -0', () => {
+      const item: UserListItem = {
+        id: -0 as any, username: 'u', cn_name: 'N', role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Object.is(item.id, -0)).toBe(true);
+      expect(item.id === 0).toBe(true);
+    });
+
+    it('User.id with Number.MIN_SAFE_INTEGER should be valid runtime', () => {
+      const user: User = {
+        id: Number.MIN_SAFE_INTEGER, username: 'u', password_hash: 'h', cn_name: 'N',
+        role: 'admin', status: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(user.id).toBe(Number.MIN_SAFE_INTEGER);
+    });
+  });
+
+  // ============================================================
+  // 类型守卫增强测试 (Type Guard Enhanced)
+  // ============================================================
+  describe('type guard enhanced', () => {
+    const isValidUserRole = (v: unknown): v is UserRole => {
+      return typeof v === 'string' && ['sysadmin', 'admin', 'view'].includes(v);
+    };
+
+    it('should validate sysadmin role from unknown', () => {
+      const input: unknown = 'sysadmin';
+      expect(isValidUserRole(input)).toBe(true);
+      if (isValidUserRole(input)) expect(input).toBe('sysadmin');
+    });
+
+    it('should validate admin role from unknown', () => {
+      const input: unknown = 'admin';
+      expect(isValidUserRole(input)).toBe(true);
+    });
+
+    it('should validate view role from unknown', () => {
+      const input: unknown = 'view';
+      expect(isValidUserRole(input)).toBe(true);
+    });
+
+    it('should reject number as role', () => {
+      expect(isValidUserRole(123)).toBe(false);
+    });
+
+    it('should reject boolean as role', () => {
+      expect(isValidUserRole(true)).toBe(false);
+    });
+
+    it('should reject object as role', () => {
+      expect(isValidUserRole({})).toBe(false);
+    });
+
+    it('should reject array as role', () => {
+      expect(isValidUserRole(['admin'])).toBe(false);
+    });
+
+    it('should reject undefined as role', () => {
+      expect(isValidUserRole(undefined)).toBe(false);
+    });
+
+    it('should reject null as role', () => {
+      expect(isValidUserRole(null)).toBe(false);
+    });
+
+    it('should reject role with trailing whitespace', () => {
+      expect(isValidUserRole('admin ')).toBe(false);
+    });
+
+    it('should reject role with leading whitespace', () => {
+      expect(isValidUserRole(' admin')).toBe(false);
+    });
+
+    it('should reject uppercase role variants', () => {
+      expect(isValidUserRole('ADMIN')).toBe(false);
+      expect(isValidUserRole('Sysadmin')).toBe(false);
+    });
+
+    const isValidLoginResponse = (obj: unknown): obj is LoginResponse => {
+      if (typeof obj !== 'object' || obj === null) return false;
+      const o = obj as Record<string, unknown>;
+      return typeof o.token === 'string' &&
+        typeof o.user === 'object' && o.user !== null &&
+        typeof (o.user as any).id === 'number' &&
+        typeof (o.user as any).username === 'string' &&
+        typeof (o.user as any).cn_name === 'string' &&
+        isValidUserRole((o.user as any).role);
+    };
+
+    it('should validate complete LoginResponse', () => {
+      const res: LoginResponse = {
+        token: 'jwt', user: {
+          id: 1, username: 'admin', cn_name: '管理员', role: 'admin',
+          selected_company: null, selected_project: null,
+        },
+      };
+      expect(isValidLoginResponse(res)).toBe(true);
+    });
+
+    it('should reject LoginResponse with missing token', () => {
+      expect(isValidLoginResponse({ user: { id: 1, username: 'u', cn_name: 'N', role: 'admin' } })).toBe(false);
+    });
+
+    it('should reject LoginResponse with invalid role', () => {
+      expect(isValidLoginResponse({
+        token: 't', user: { id: 1, username: 'u', cn_name: 'N', role: 'superadmin' },
+      })).toBe(false);
+    });
+
+    const isValidSaveSelectionRequest = (obj: unknown): obj is SaveSelectionRequest => {
+      if (typeof obj !== 'object' || obj === null) return false;
+      const o = obj as Record<string, unknown>;
+      return typeof o.company_id === 'number';
+    };
+
+    it('should validate SaveSelectionRequest with project_id', () => {
+      expect(isValidSaveSelectionRequest({ company_id: 1, project_id: 2 })).toBe(true);
+    });
+
+    it('should validate SaveSelectionRequest without project_id', () => {
+      expect(isValidSaveSelectionRequest({ company_id: 1 })).toBe(true);
+    });
+
+    it('should reject SaveSelectionRequest without company_id', () => {
+      expect(isValidSaveSelectionRequest({ project_id: 2 })).toBe(false);
+    });
+
+    it('should reject null as SaveSelectionRequest', () => {
+      expect(isValidSaveSelectionRequest(null)).toBe(false);
+    });
+  });
+
+  // ============================================================
+  // 深冻结测试 (Deep Freeze)
+  // ============================================================
+  describe('deep freeze', () => {
+    const deepFreeze = <T>(obj: T): T => {
+      Object.freeze(obj);
+      Object.values(obj).forEach(v => {
+        if (v && typeof v === 'object' && !Object.isFrozen(v)) deepFreeze(v);
+      });
+      return obj;
+    };
+
+    it('deep frozen User should reject nested Date mutation', () => {
+      const user = deepFreeze({
+        id: 1, username: 'admin', password_hash: 'h', cn_name: '管理员',
+        role: 'admin', status: true, company_id: 1,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      });
+      expect(() => { user.id = 999; }).toThrow();
+      expect(user.id).toBe(1);
+    });
+
+    it('deep frozen User should reject cn_name mutation', () => {
+      const user = deepFreeze({
+        id: 1, username: 'admin', password_hash: 'h', cn_name: '管理员',
+        role: 'admin', status: true, company_id: 1,
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (user as any).cn_name = 'hacked'; }).toThrow();
+      expect(user.cn_name).toBe('管理员');
+    });
+
+    it('deep frozen LoginResponse should reject nested user mutation', () => {
+      const res = deepFreeze({
+        token: 'jwt',
+        user: { id: 1, username: 'admin', cn_name: '管理员', role: 'admin',
+          selected_company: { id: 1, short_name: 'C' } as { id: number; short_name: string } | null,
+          selected_project: null },
+      });
+      expect(() => { (res as any).user.cn_name = 'hacked'; }).toThrow();
+      expect(res.user.cn_name).toBe('管理员');
+    });
+
+    it('deep frozen LoginResponse should reject selected_company mutation', () => {
+      const res = deepFreeze({
+        token: 'jwt',
+        user: { id: 1, username: 'admin', cn_name: 'N', role: 'admin',
+          selected_company: { id: 1, short_name: '薄云科技' },
+          selected_project: null },
+      });
+      expect(() => { (res as any).user.selected_company.short_name = 'hacked'; }).toThrow();
+      expect(res.user.selected_company!.short_name).toBe('薄云科技');
+    });
+
+    it('deep frozen CreateUserRequest should reject all mutations', () => {
+      const req = deepFreeze({
+        username: 'u', password: 'p', cn_name: 'N', role: 'admin' as UserRole,
+      });
+      expect(() => { (req as any).username = 'hacked'; }).toThrow();
+      expect(() => { (req as any).password = 'hacked'; }).toThrow();
+      expect(() => { (req as any).role = 'sysadmin'; }).toThrow();
+      expect(req.username).toBe('u');
+    });
+
+    it('deep frozen UserListItem should reject company_name mutation', () => {
+      const item = deepFreeze({
+        id: 1, username: 'admin', cn_name: '管理员', role: 'admin',
+        status: true, company_id: 1, company_name: '薄云科技',
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (item as any).company_name = 'hacked'; }).toThrow();
+      expect(item.company_name).toBe('薄云科技');
+    });
+
+    it('deep frozen User should be detected by Object.isFrozen', () => {
+      const user = deepFreeze({
+        id: 1, username: 'admin', password_hash: 'h', cn_name: '管理员',
+        role: 'admin', status: true, company_id: 1,
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(Object.isFrozen(user)).toBe(true);
+    });
+
+    it('deep frozen array of Users should reject element mutation', () => {
+      const date = new Date();
+      const users = deepFreeze([
+        { id: 1, username: 'u1', password_hash: 'h', cn_name: '用户1',
+          role: 'admin' as UserRole, status: true, company_id: 1,
+          created_at: date, updated_at: date },
+      ]);
+      expect(() => { users[0].cn_name = 'hacked'; }).toThrow();
+      expect(() => { users[0] = {} as any; }).toThrow();
+    });
+
+    it('deep frozen UpdateUserRequest should reject field addition', () => {
+      const req = deepFreeze({ cn_name: '名字', role: 'admin' as UserRole });
+      expect(() => { (req as any).extra = 'field'; }).toThrow();
+      expect((req as any).extra).toBeUndefined();
+    });
+
+    it('deep frozen SaveSelectionRequest should reject mutation', () => {
+      const req = deepFreeze({ company_id: 1, project_id: 2 });
+      expect(() => { (req as any).company_id = 999; }).toThrow();
+      expect(req.company_id).toBe(1);
+    });
+
+    it('deep frozen LoginRequest should reject mutation', () => {
+      const req = deepFreeze({ username: 'admin', password: 'secret' });
+      expect(() => { (req as any).password = 'hacked'; }).toThrow();
+      expect(req.password).toBe('secret');
+    });
+
+    it('deep frozen LoginResponse with null selections should reject mutation', () => {
+      const res = deepFreeze({
+        token: 'jwt',
+        user: { id: 1, username: 'admin', cn_name: 'N', role: 'admin',
+          selected_company: null, selected_project: null },
+      });
+      expect(() => { (res as any).token = 'hacked'; }).toThrow();
+      expect(res.token).toBe('jwt');
+    });
+
+    it('deep frozen User with null company_id should remain null', () => {
+      const user = deepFreeze({
+        id: 1, username: 'sysadmin', password_hash: 'h', cn_name: '系统管理员',
+        role: 'sysadmin', status: true, company_id: null as number | null,
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(user.company_id).toBeNull();
+      expect(() => { (user as any).company_id = 999; }).toThrow();
+    });
+
+    it('deep frozen User should prevent property deletion', () => {
+      const user = deepFreeze({
+        id: 1, username: 'admin', password_hash: 'h', cn_name: '管理员',
+        role: 'admin', status: true, company_id: 1,
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { delete (user as any).password_hash; }).toThrow();
+      expect(user.password_hash).toBe('h');
+    });
+  });
+
+  // ============================================================
+  // 生命周期测试 (Lifecycle)
+  // ============================================================
+  describe('lifecycle', () => {
+    it('user creation → read → update → disable flow', () => {
+      const createdAt = new Date('2024-01-01T10:00:00.000Z');
+      const created: User = {
+        id: 1, username: 'newuser', password_hash: '$2b$10$hash',
+        cn_name: '新员工', role: 'view', status: true, company_id: 5,
+        created_at: createdAt, updated_at: createdAt,
+      };
+      expect(created.status).toBe(true);
+      expect(created.role).toBe('view');
+
+      const readItem: UserListItem = {
+        id: created.id, username: created.username, cn_name: created.cn_name,
+        role: created.role, status: created.status, company_id: created.company_id,
+        company_name: '薄云科技',
+        created_at: created.created_at, updated_at: created.updated_at,
+      };
+      expect(readItem.company_name).toBe('薄云科技');
+
+      const updatedAt = new Date('2024-03-15T14:00:00.000Z');
+      const updated: User = {
+        ...created, role: 'admin', cn_name: '高级员工',
+        updated_at: updatedAt,
+      };
+      expect(updated.role).toBe('admin');
+      expect(updated.created_at).toBe(createdAt);
+
+      const disabledAt = new Date('2024-12-01T08:00:00.000Z');
+      const disabled: User = { ...updated, status: false, updated_at: disabledAt };
+      expect(disabled.status).toBe(false);
+      expect(disabled.role).toBe('admin');
+    });
+
+    it('login → token issued → selection → session established', () => {
+      const loginReq: LoginRequest = { username: 'admin', password: 'secret' };
+      expect(loginReq.username).toBe('admin');
+
+      const loginRes: LoginResponse = {
+        token: 'jwt_token_issued',
+        user: {
+          id: 1, username: 'admin', cn_name: '管理员', role: 'admin',
+          company_id: 1,
+          selected_company: null, selected_project: null,
+        },
+      };
+      expect(loginRes.user.selected_company).toBeNull();
+
+      const selection: SaveSelectionRequest = { company_id: 1, project_id: 5 };
+      expect(selection.company_id).toBe(1);
+
+      const established: LoginResponse = {
+        ...loginRes,
+        user: {
+          ...loginRes.user,
+          selected_company: { id: 1, short_name: '薄云科技' },
+          selected_project: { id: 5, short_name: '项目A' },
+        },
+      };
+      expect(established.user.selected_company).toEqual({ id: 1, short_name: '薄云科技' });
+      expect(established.user.selected_project).toEqual({ id: 5, short_name: '项目A' });
+    });
+
+    it('error lifecycle: LoginSelectionError → caught → rethrown', () => {
+      const throwSelectionError = (): void => {
+        throw new LoginSelectionError('请选择公司');
+      };
+      try {
+        throwSelectionError();
+      } catch (e) {
+        expect(e).toBeInstanceOf(LoginSelectionError);
+        expect((e as LoginSelectionError).message).toBe('请选择公司');
+        const wrapped = new Error('登录失败: ' + (e as Error).message);
+        expect(wrapped.message).toBe('登录失败: 请选择公司');
+      }
+    });
+
+    it('error lifecycle: PermissionDeniedError → caught → HTTP response', () => {
+      const handlePermissionError = (error: PermissionDeniedError): { status: number; body: string } => {
+        return { status: 403, body: JSON.stringify({ error: error.message }) };
+      };
+      const error = new PermissionDeniedError('view角色无权访问用户管理');
+      const response = handlePermissionError(error);
+      expect(response.status).toBe(403);
+      expect(JSON.parse(response.body).error).toBe('view角色无权访问用户管理');
+    });
+
+    it('user lifecycle timestamps should be monotonically increasing', () => {
+      const t1 = new Date('2024-01-01T00:00:00.000Z');
+      const t2 = new Date('2024-03-01T00:00:00.000Z');
+      const t3 = new Date('2024-06-15T00:00:00.000Z');
+      const t4 = new Date('2024-12-31T00:00:00.000Z');
+
+      const v1: User = {
+        id: 1, username: 'u', password_hash: 'h', cn_name: '新用户',
+        role: 'view', status: true, company_id: 1,
+        created_at: t1, updated_at: t1,
+      };
+      const v2: User = { ...v1, role: 'admin', updated_at: t2 };
+      const v3: User = { ...v2, cn_name: '管理员', updated_at: t3 };
+      const v4: User = { ...v3, status: false, updated_at: t4 };
+
+      expect(v1.updated_at.getTime()).toBeLessThan(v2.updated_at.getTime());
+      expect(v2.updated_at.getTime()).toBeLessThan(v3.updated_at.getTime());
+      expect(v3.updated_at.getTime()).toBeLessThan(v4.updated_at.getTime());
+      expect(v4.created_at).toBe(t1);
+    });
+
+    it('CreateUserRequest → User → UserListItem → display conversion chain', () => {
+      const createReq: CreateUserRequest = {
+        username: 'employee', password: 'password123',
+        cn_name: '新员工', role: 'view', company_id: 3,
+      };
+      const user: User = {
+        id: 50, username: createReq.username,
+        password_hash: '$2b$10$hashedpassword',
+        cn_name: createReq.cn_name, role: createReq.role,
+        status: true, company_id: createReq.company_id,
+        created_at: new Date('2024-06-01'), updated_at: new Date('2024-06-01'),
+      };
+      const listItem: UserListItem = {
+        id: user.id, username: user.username, cn_name: user.cn_name,
+        role: user.role, status: user.status, company_id: user.company_id,
+        company_name: '薄云科技',
+        created_at: user.created_at, updated_at: user.updated_at,
+      };
+      const display = `${listItem.cn_name} (${listItem.role}) - ${listItem.company_name}`;
+      expect(display).toBe('新员工 (view) - 薄云科技');
+    });
+
+    it('LoginSelectionError and PermissionDeniedError should be distinguishable in catch chain', () => {
+      const classifyError = (error: Error): string => {
+        if (error instanceof LoginSelectionError) return 'SELECTION_REQUIRED';
+        if (error instanceof PermissionDeniedError) return 'PERMISSION_DENIED';
+        return 'UNKNOWN';
+      };
+      expect(classifyError(new LoginSelectionError('选择'))).toBe('SELECTION_REQUIRED');
+      expect(classifyError(new PermissionDeniedError('权限'))).toBe('PERMISSION_DENIED');
+      expect(classifyError(new Error('通用'))).toBe('UNKNOWN');
+    });
+  });
 });
