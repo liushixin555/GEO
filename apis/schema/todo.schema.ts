@@ -41,6 +41,10 @@ export const objectOptionsSchema = z.object({
   action: z.string().optional(),
 });
 
+export const todoIdSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
 export const assigneeCandidatesSchema = z.object({
   projectId: z.coerce.number().int().positive(),
 });

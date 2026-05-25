@@ -15,6 +15,10 @@ jest.mock('../../apis/utils/db.util', () => ({
   closePrisma: jest.fn(),
 }));
 
+jest.mock('../../apis/middleware/anti-crawl.middleware', () => ({
+  antiCrawlMiddleware: (_req: any, _res: any, next: any) => next(),
+}));
+
 import app from '../../apis/app';
 
 const agent = request.agent(app).set('User-Agent', 'test-agent/1.0');
@@ -366,7 +370,7 @@ describe('Todo Controller', () => {
         .get('/api/v1/todos/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的待办ID');
+      expect(response.body.message).toContain('参数验证失败');
     });
 
     it('should return 404 for non-existent todo', async () => {
@@ -479,6 +483,62 @@ describe('Todo Controller', () => {
 
       expect(response.status).toBe(201);
       expect(response.body.code).toBe(0);
+    });
+
+    it('admin should use own companyId instead of body company_id (H-2)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue(mockTodoFull);
+      const mockLogCreate = jest.fn().mockResolvedValue({});
+      getPrisma.mockReturnValue({
+        todo: { create: mockCreate },
+        todoLog: { create: mockLogCreate },
+      });
+
+      const response = await agent
+        .post('/api/v1/todos')
+        .send({
+          title: '跨公司测试',
+          company_id: 1,
+          object_type: 'article',
+          action: 'update',
+          assignee_id: 2,
+        })
+        .set('Authorization', `Bearer ${adminToken(5, 99)}`);
+
+      expect(response.status).toBe(201);
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: 99 }),
+        })
+      );
+    });
+
+    it('sysadmin should use body company_id as-is (H-2)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue(mockTodoFull);
+      const mockLogCreate = jest.fn().mockResolvedValue({});
+      getPrisma.mockReturnValue({
+        todo: { create: mockCreate },
+        todoLog: { create: mockLogCreate },
+      });
+
+      const response = await agent
+        .post('/api/v1/todos')
+        .send({
+          title: 'sysadmin测试',
+          company_id: 42,
+          object_type: 'article',
+          action: 'update',
+          assignee_id: 2,
+        })
+        .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
+
+      expect(response.status).toBe(201);
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: 42 }),
+        })
+      );
     });
 
     it('should default priority to P2 when not specified', async () => {
@@ -1426,7 +1486,7 @@ describe('Todo Controller', () => {
         .get('/api/v1/todos/0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的待办ID');
+      expect(response.body.message).toContain('参数验证失败');
     });
 
     it('should return 400 for negative id on getTodo', async () => {
@@ -1434,7 +1494,7 @@ describe('Todo Controller', () => {
         .get('/api/v1/todos/-1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的待办ID');
+      expect(response.body.message).toContain('参数验证失败');
     });
 
     it('should return 400 for id=0 on updateTodo', async () => {
@@ -1443,7 +1503,7 @@ describe('Todo Controller', () => {
         .send({ title: 'x' })
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的待办ID');
+      expect(response.body.message).toContain('参数验证失败');
     });
 
     it('should return 400 for negative id on updateTodo', async () => {
@@ -1452,7 +1512,7 @@ describe('Todo Controller', () => {
         .send({ title: 'x' })
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的待办ID');
+      expect(response.body.message).toContain('参数验证失败');
     });
 
     it('should return 400 for id=0 on closeTodo', async () => {
@@ -1460,7 +1520,7 @@ describe('Todo Controller', () => {
         .post('/api/v1/todos/0/close')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的待办ID');
+      expect(response.body.message).toContain('参数验证失败');
     });
 
     it('should return 400 for negative id on closeTodo', async () => {
@@ -1468,7 +1528,7 @@ describe('Todo Controller', () => {
         .post('/api/v1/todos/-3/close')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的待办ID');
+      expect(response.body.message).toContain('参数验证失败');
     });
 
     it('should return 400 for id=0 on reopenTodo', async () => {
@@ -1476,7 +1536,7 @@ describe('Todo Controller', () => {
         .post('/api/v1/todos/0/reopen')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的待办ID');
+      expect(response.body.message).toContain('参数验证失败');
     });
 
     it('should return 400 for negative id on reopenTodo', async () => {
@@ -1484,7 +1544,7 @@ describe('Todo Controller', () => {
         .post('/api/v1/todos/-2/reopen')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的待办ID');
+      expect(response.body.message).toContain('参数验证失败');
     });
 
     it('should return 400 for id=0 on transferTodo', async () => {
@@ -1493,7 +1553,7 @@ describe('Todo Controller', () => {
         .send({ assignee_id: 2 })
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的待办ID');
+      expect(response.body.message).toContain('参数验证失败');
     });
 
     it('should return 400 for negative id on transferTodo', async () => {
@@ -1502,7 +1562,7 @@ describe('Todo Controller', () => {
         .send({ assignee_id: 2 })
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的待办ID');
+      expect(response.body.message).toContain('参数验证失败');
     });
 
     it('should return 400 for id=0 on rejectTodo', async () => {
@@ -1510,7 +1570,7 @@ describe('Todo Controller', () => {
         .post('/api/v1/todos/0/reject')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的待办ID');
+      expect(response.body.message).toContain('参数验证失败');
     });
 
     it('should return 400 for negative id on rejectTodo', async () => {
@@ -1518,7 +1578,7 @@ describe('Todo Controller', () => {
         .post('/api/v1/todos/-1/reject')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的待办ID');
+      expect(response.body.message).toContain('参数验证失败');
     });
 
     it('should return 400 for id=0 on getTodoLogs', async () => {
@@ -1526,7 +1586,7 @@ describe('Todo Controller', () => {
         .get('/api/v1/todos/0/logs')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的待办ID');
+      expect(response.body.message).toContain('参数验证失败');
     });
 
     it('should return 400 for negative id on getTodoLogs', async () => {
@@ -1534,7 +1594,7 @@ describe('Todo Controller', () => {
         .get('/api/v1/todos/-1/logs')
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的待办ID');
+      expect(response.body.message).toContain('参数验证失败');
     });
   });
 
@@ -1793,6 +1853,34 @@ describe('Todo Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
+    });
+
+    it('should return 403 when project not found instead of 404 (M-4)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        project: { findFirst: jest.fn().mockResolvedValue(null) },
+      });
+
+      const response = await agent
+        .get('/api/v1/todos/object-options?projectId=9999&objectType=article')
+        .set('Authorization', `Bearer ${adminToken(5, 2)}`);
+
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('无权访问该项目');
+    });
+
+    it('should return 403 for assignee-candidates when project not found (M-4)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        project: { findFirst: jest.fn().mockResolvedValue(null) },
+      });
+
+      const response = await agent
+        .get('/api/v1/todos/assignee-candidates?projectId=9999')
+        .set('Authorization', `Bearer ${adminToken(5, 2)}`);
+
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('无权访问该项目');
     });
   });
 

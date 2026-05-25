@@ -24,6 +24,8 @@ todo.routes.ts (路由注册 + validate 中间件编排)
 **关联映射**: `apis/map/index.ts` — `mapTodo()`, `mapTodoLog()`
 **严重级别**: HIGH(2) / MEDIUM(4) / OBSERVATION(3)
 
+**第二轮修复状态**: H-1 ✅ | H-2 ✅ | M-1 ✅ | M-2 ✅ | M-3 ✅(已有z.enum) | M-4 ✅
+
 ---
 
 ## 〇、与前轮评审对比
