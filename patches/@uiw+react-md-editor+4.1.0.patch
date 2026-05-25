@@ -1,0 +1,477 @@
+diff --git a/node_modules/@uiw/react-md-editor/esm/commands/title.js b/node_modules/@uiw/react-md-editor/esm/commands/title.js
+index c5e5dd6..4dcfc42 100644
+--- a/node_modules/@uiw/react-md-editor/esm/commands/title.js
++++ b/node_modules/@uiw/react-md-editor/esm/commands/title.js
+@@ -1,6 +1,4 @@
+-import _extends from "@babel/runtime/helpers/extends";
+ import React from 'react';
+-import { heading1 } from "./title1.js";
+ import { selectLine, executeCommand } from "../utils/markdownUtils.js";
+ import { jsx as _jsx } from "react/jsx-runtime";
+ export function headingExecute(_ref) {
+@@ -8,7 +6,7 @@ export function headingExecute(_ref) {
+     state,
+     api,
+     prefix,
+-    suffix = prefix
++    suffix = ''
+   } = _ref;
+   var newSelectionRange = selectLine({
+     text: state.text,
+@@ -23,7 +21,24 @@ export function headingExecute(_ref) {
+     suffix
+   });
+ }
+-export var heading = _extends({}, heading1, {
++export var heading = {
++  name: 'heading',
++  keyCommand: 'heading',
++  shortcuts: 'ctrlcmd+1',
++  prefix: '# ',
++  suffix: '',
++  buttonProps: {
++    'aria-label': 'Insert Heading 1 (ctrl + 1)',
++    title: 'Insert Heading 1 (ctrl + 1)'
++  },
++  execute: function execute(state, api) {
++    headingExecute({
++      state,
++      api,
++      prefix: state.command.prefix,
++      suffix: state.command.suffix
++    });
++  },
+   icon: /*#__PURE__*/_jsx("svg", {
+     width: "12",
+     height: "12",
+@@ -33,11 +48,10 @@ export var heading = _extends({}, heading1, {
+       d: "M15.7083333,468 C7.03242448,468 0,462.030833 0,454.666667 L0,421.333333 C0,413.969167 7.03242448,408 15.7083333,408 L361.291667,408 C369.967576,408 377,413.969167 377,421.333333 L377,454.666667 C377,462.030833 369.967576,468 361.291667,468 L15.7083333,468 Z M21.6666667,366 C9.69989583,366 0,359.831861 0,352.222222 L0,317.777778 C0,310.168139 9.69989583,304 21.6666667,304 L498.333333,304 C510.300104,304 520,310.168139 520,317.777778 L520,352.222222 C520,359.831861 510.300104,366 498.333333,366 L21.6666667,366 Z M136.835938,64 L136.835937,126 L107.25,126 L107.25,251 L40.75,251 L40.75,126 L-5.68434189e-14,126 L-5.68434189e-14,64 L136.835938,64 Z M212,64 L212,251 L161.648438,251 L161.648438,64 L212,64 Z M378,64 L378,126 L343.25,126 L343.25,251 L281.75,251 L281.75,126 L238,126 L238,64 L378,64 Z M449.047619,189.550781 L520,189.550781 L520,251 L405,251 L405,64 L449.047619,64 L449.047619,189.550781 Z"
+     })
+   })
+-});
++};
+ 
+ /**
+- * @deprecated Use `heading` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title` for inserting headings.
++ * @deprecated Since v4.0.0. Use `heading` instead.
++ * Will be removed in v5.0.0.
+  */
+ export var title = heading;
+diff --git a/node_modules/@uiw/react-md-editor/esm/commands/title1.js b/node_modules/@uiw/react-md-editor/esm/commands/title1.js
+index 73b9b24..7006ae2 100644
+--- a/node_modules/@uiw/react-md-editor/esm/commands/title1.js
++++ b/node_modules/@uiw/react-md-editor/esm/commands/title1.js
+@@ -22,15 +22,14 @@ export var heading1 = {
+     headingExecute({
+       state,
+       api,
+-      prefix: state.command.prefix,
+-      suffix: state.command.suffix
++      prefix: state.command.prefix ?? '# ',
++      suffix: state.command.suffix ?? ''
+     });
+   }
+ };
+ 
+ /**
+- * @deprecated Use `heading1` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title1` for inserting Heading 1.
++ * @deprecated Since v4.0.0. Use `heading1` instead.
++ * Will be removed in v5.0.0.
+  */
+ export var title1 = heading1;
+\ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/esm/commands/title2.js b/node_modules/@uiw/react-md-editor/esm/commands/title2.js
+index 0453ae6..d014657 100644
+--- a/node_modules/@uiw/react-md-editor/esm/commands/title2.js
++++ b/node_modules/@uiw/react-md-editor/esm/commands/title2.js
+@@ -22,15 +22,14 @@ export var heading2 = {
+     headingExecute({
+       state,
+       api,
+-      prefix: state.command.prefix,
+-      suffix: state.command.suffix
++      prefix: state.command.prefix ?? '## ',
++      suffix: state.command.suffix ?? ''
+     });
+   }
+ };
+ 
+ /**
+- * @deprecated Use `heading2` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title2` for inserting Heading 2.
++ * @deprecated Since v4.0.0. Use `heading2` instead.
++ * Will be removed in v5.0.0.
+  */
+ export var title2 = heading2;
+\ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/esm/commands/title3.js b/node_modules/@uiw/react-md-editor/esm/commands/title3.js
+index 00c09f1..3622664 100644
+--- a/node_modules/@uiw/react-md-editor/esm/commands/title3.js
++++ b/node_modules/@uiw/react-md-editor/esm/commands/title3.js
+@@ -22,15 +22,14 @@ export var heading3 = {
+     headingExecute({
+       state,
+       api,
+-      prefix: state.command.prefix,
+-      suffix: state.command.suffix
++      prefix: state.command.prefix ?? '### ',
++      suffix: state.command.suffix ?? ''
+     });
+   }
+ };
+ 
+ /**
+- * @deprecated Use `heading3` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title3` for inserting Heading 3.
++ * @deprecated Since v4.0.0. Use `heading3` instead.
++ * Will be removed in v5.0.0.
+  */
+ export var title3 = heading3;
+\ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/esm/commands/title4.js b/node_modules/@uiw/react-md-editor/esm/commands/title4.js
+index 26bba92..e962cea 100644
+--- a/node_modules/@uiw/react-md-editor/esm/commands/title4.js
++++ b/node_modules/@uiw/react-md-editor/esm/commands/title4.js
+@@ -22,15 +22,14 @@ export var heading4 = {
+     headingExecute({
+       state,
+       api,
+-      prefix: state.command.prefix,
+-      suffix: state.command.suffix
++      prefix: state.command.prefix ?? '#### ',
++      suffix: state.command.suffix ?? ''
+     });
+   }
+ };
+ 
+ /**
+- * @deprecated Use `heading4` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title4` for inserting Heading 4.
++ * @deprecated Since v4.0.0. Use `heading4` instead.
++ * Will be removed in v5.0.0.
+  */
+ export var title4 = heading4;
+\ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/esm/commands/title5.js b/node_modules/@uiw/react-md-editor/esm/commands/title5.js
+index 241d34d..a263968 100644
+--- a/node_modules/@uiw/react-md-editor/esm/commands/title5.js
++++ b/node_modules/@uiw/react-md-editor/esm/commands/title5.js
+@@ -22,15 +22,14 @@ export var heading5 = {
+     headingExecute({
+       state,
+       api,
+-      prefix: state.command.prefix,
+-      suffix: state.command.suffix
++      prefix: state.command.prefix ?? '##### ',
++      suffix: state.command.suffix ?? ''
+     });
+   }
+ };
+ 
+ /**
+- * @deprecated Use `heading5` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title5` for inserting Heading 5.
++ * @deprecated Since v4.0.0. Use `heading5` instead.
++ * Will be removed in v5.0.0.
+  */
+ export var title5 = heading5;
+\ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/esm/commands/title6.js b/node_modules/@uiw/react-md-editor/esm/commands/title6.js
+index 85c7a20..2114d15 100644
+--- a/node_modules/@uiw/react-md-editor/esm/commands/title6.js
++++ b/node_modules/@uiw/react-md-editor/esm/commands/title6.js
+@@ -22,15 +22,14 @@ export var heading6 = {
+     headingExecute({
+       state,
+       api,
+-      prefix: state.command.prefix,
+-      suffix: state.command.suffix
++      prefix: state.command.prefix ?? '###### ',
++      suffix: state.command.suffix ?? ''
+     });
+   }
+ };
+ 
+ /**
+- * @deprecated Use `heading6` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title6` for inserting Heading 6.
++ * @deprecated Since v4.0.0. Use `heading6` instead.
++ * Will be removed in v5.0.0.
+  */
+ export var title6 = heading6;
+\ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/lib/commands/title.js b/node_modules/@uiw/react-md-editor/lib/commands/title.js
+index 26cf10b..8894632 100644
+--- a/node_modules/@uiw/react-md-editor/lib/commands/title.js
++++ b/node_modules/@uiw/react-md-editor/lib/commands/title.js
+@@ -7,9 +7,7 @@ Object.defineProperty(exports, "__esModule", {
+ exports.heading = void 0;
+ exports.headingExecute = headingExecute;
+ exports.title = void 0;
+-var _objectSpread2 = _interopRequireDefault(require("@babel/runtime/helpers/objectSpread2"));
+ var _react = _interopRequireDefault(require("react"));
+-var _title = require("./title1");
+ var _markdownUtils = require("../utils/markdownUtils");
+ var _jsxRuntime = require("react/jsx-runtime");
+ function headingExecute(_ref) {
+@@ -17,7 +15,7 @@ function headingExecute(_ref) {
+     api = _ref.api,
+     prefix = _ref.prefix,
+     _ref$suffix = _ref.suffix,
+-    suffix = _ref$suffix === void 0 ? prefix : _ref$suffix;
++    suffix = _ref$suffix === void 0 ? '' : _ref$suffix;
+   var newSelectionRange = (0, _markdownUtils.selectLine)({
+     text: state.text,
+     selection: state.selection
+@@ -31,7 +29,24 @@ function headingExecute(_ref) {
+     suffix: suffix
+   });
+ }
+-var heading = exports.heading = (0, _objectSpread2["default"])((0, _objectSpread2["default"])({}, _title.heading1), {}, {
++var heading = exports.heading = {
++  name: 'heading',
++  keyCommand: 'heading',
++  shortcuts: 'ctrlcmd+1',
++  prefix: '# ',
++  suffix: '',
++  buttonProps: {
++    'aria-label': 'Insert Heading 1 (ctrl + 1)',
++    title: 'Insert Heading 1 (ctrl + 1)'
++  },
++  execute: function execute(state, api) {
++    headingExecute({
++      state: state,
++      api: api,
++      prefix: state.command.prefix,
++      suffix: state.command.suffix
++    });
++  },
+   icon: /*#__PURE__*/(0, _jsxRuntime.jsx)("svg", {
+     width: "12",
+     height: "12",
+@@ -41,11 +56,10 @@ var heading = exports.heading = (0, _objectSpread2["default"])((0, _objectSpread
+       d: "M15.7083333,468 C7.03242448,468 0,462.030833 0,454.666667 L0,421.333333 C0,413.969167 7.03242448,408 15.7083333,408 L361.291667,408 C369.967576,408 377,413.969167 377,421.333333 L377,454.666667 C377,462.030833 369.967576,468 361.291667,468 L15.7083333,468 Z M21.6666667,366 C9.69989583,366 0,359.831861 0,352.222222 L0,317.777778 C0,310.168139 9.69989583,304 21.6666667,304 L498.333333,304 C510.300104,304 520,310.168139 520,317.777778 L520,352.222222 C520,359.831861 510.300104,366 498.333333,366 L21.6666667,366 Z M136.835938,64 L136.835937,126 L107.25,126 L107.25,251 L40.75,251 L40.75,126 L-5.68434189e-14,126 L-5.68434189e-14,64 L136.835938,64 Z M212,64 L212,251 L161.648438,251 L161.648438,64 L212,64 Z M378,64 L378,126 L343.25,126 L343.25,251 L281.75,251 L281.75,126 L238,126 L238,64 L378,64 Z M449.047619,189.550781 L520,189.550781 L520,251 L405,251 L405,64 L449.047619,64 L449.047619,189.550781 Z"
+     })
+   })
+-});
++};
+ 
+ /**
+- * @deprecated Use `heading` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title` for inserting headings.
++ * @deprecated Since v4.0.0. Use `heading` instead.
++ * Will be removed in v5.0.0.
+  */
+ var title = exports.title = heading;
+diff --git a/node_modules/@uiw/react-md-editor/lib/commands/title1.js b/node_modules/@uiw/react-md-editor/lib/commands/title1.js
+index c2ee93c..1155ea6 100644
+--- a/node_modules/@uiw/react-md-editor/lib/commands/title1.js
++++ b/node_modules/@uiw/react-md-editor/lib/commands/title1.js
+@@ -29,15 +29,14 @@ var heading1 = exports.heading1 = {
+     (0, _title.headingExecute)({
+       state: state,
+       api: api,
+-      prefix: state.command.prefix,
+-      suffix: state.command.suffix
++      prefix: state.command.prefix ?? '# ',
++      suffix: state.command.suffix ?? ''
+     });
+   }
+ };
+ 
+ /**
+- * @deprecated Use `heading1` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title1` for inserting Heading 1.
++ * @deprecated Since v4.0.0. Use `heading1` instead.
++ * Will be removed in v5.0.0.
+  */
+ var title1 = exports.title1 = heading1;
+\ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/lib/commands/title2.js b/node_modules/@uiw/react-md-editor/lib/commands/title2.js
+index 64081a9..3ccf049 100644
+--- a/node_modules/@uiw/react-md-editor/lib/commands/title2.js
++++ b/node_modules/@uiw/react-md-editor/lib/commands/title2.js
+@@ -29,15 +29,14 @@ var heading2 = exports.heading2 = {
+     (0, _title.headingExecute)({
+       state: state,
+       api: api,
+-      prefix: state.command.prefix,
+-      suffix: state.command.suffix
++      prefix: state.command.prefix ?? '## ',
++      suffix: state.command.suffix ?? ''
+     });
+   }
+ };
+ 
+ /**
+- * @deprecated Use `heading2` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title2` for inserting Heading 2.
++ * @deprecated Since v4.0.0. Use `heading2` instead.
++ * Will be removed in v5.0.0.
+  */
+ var title2 = exports.title2 = heading2;
+\ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/lib/commands/title3.js b/node_modules/@uiw/react-md-editor/lib/commands/title3.js
+index c1ead2d..98f0130 100644
+--- a/node_modules/@uiw/react-md-editor/lib/commands/title3.js
++++ b/node_modules/@uiw/react-md-editor/lib/commands/title3.js
+@@ -29,15 +29,14 @@ var heading3 = exports.heading3 = {
+     (0, _title.headingExecute)({
+       state: state,
+       api: api,
+-      prefix: state.command.prefix,
+-      suffix: state.command.suffix
++      prefix: state.command.prefix ?? '### ',
++      suffix: state.command.suffix ?? ''
+     });
+   }
+ };
+ 
+ /**
+- * @deprecated Use `heading3` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title3` for inserting Heading 3.
++ * @deprecated Since v4.0.0. Use `heading3` instead.
++ * Will be removed in v5.0.0.
+  */
+ var title3 = exports.title3 = heading3;
+\ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/lib/commands/title4.js b/node_modules/@uiw/react-md-editor/lib/commands/title4.js
+index 36dcd33..6d3e492 100644
+--- a/node_modules/@uiw/react-md-editor/lib/commands/title4.js
++++ b/node_modules/@uiw/react-md-editor/lib/commands/title4.js
+@@ -29,15 +29,14 @@ var heading4 = exports.heading4 = {
+     (0, _title.headingExecute)({
+       state: state,
+       api: api,
+-      prefix: state.command.prefix,
+-      suffix: state.command.suffix
++      prefix: state.command.prefix ?? '#### ',
++      suffix: state.command.suffix ?? ''
+     });
+   }
+ };
+ 
+ /**
+- * @deprecated Use `heading4` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title4` for inserting Heading 4.
++ * @deprecated Since v4.0.0. Use `heading4` instead.
++ * Will be removed in v5.0.0.
+  */
+ var title4 = exports.title4 = heading4;
+\ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/lib/commands/title5.js b/node_modules/@uiw/react-md-editor/lib/commands/title5.js
+index 203e500..24d8b0c 100644
+--- a/node_modules/@uiw/react-md-editor/lib/commands/title5.js
++++ b/node_modules/@uiw/react-md-editor/lib/commands/title5.js
+@@ -29,15 +29,14 @@ var heading5 = exports.heading5 = {
+     (0, _title.headingExecute)({
+       state: state,
+       api: api,
+-      prefix: state.command.prefix,
+-      suffix: state.command.suffix
++      prefix: state.command.prefix ?? '##### ',
++      suffix: state.command.suffix ?? ''
+     });
+   }
+ };
+ 
+ /**
+- * @deprecated Use `heading5` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title5` for inserting Heading 5.
++ * @deprecated Since v4.0.0. Use `heading5` instead.
++ * Will be removed in v5.0.0.
+  */
+ var title5 = exports.title5 = heading5;
+\ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/lib/commands/title6.js b/node_modules/@uiw/react-md-editor/lib/commands/title6.js
+index 1ad2f6f..aa08f19 100644
+--- a/node_modules/@uiw/react-md-editor/lib/commands/title6.js
++++ b/node_modules/@uiw/react-md-editor/lib/commands/title6.js
+@@ -29,15 +29,14 @@ var heading6 = exports.heading6 = {
+     (0, _title.headingExecute)({
+       state: state,
+       api: api,
+-      prefix: state.command.prefix,
+-      suffix: state.command.suffix
++      prefix: state.command.prefix ?? '###### ',
++      suffix: state.command.suffix ?? ''
+     });
+   }
+ };
+ 
+ /**
+- * @deprecated Use `heading6` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title6` for inserting Heading 6.
++ * @deprecated Since v4.0.0. Use `heading6` instead.
++ * Will be removed in v5.0.0.
+  */
+ var title6 = exports.title6 = heading6;
+\ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/src/commands/title.tsx b/node_modules/@uiw/react-md-editor/src/commands/title.tsx
+index 9f6206e..bab26cb 100644
+--- a/node_modules/@uiw/react-md-editor/src/commands/title.tsx
++++ b/node_modules/@uiw/react-md-editor/src/commands/title.tsx
+@@ -1,13 +1,12 @@
+ import React from 'react';
+ import { ICommand, ExecuteState, TextAreaTextApi } from './';
+-import { heading1 } from './title1';
+ import { selectLine, executeCommand } from '../utils/markdownUtils';
+ 
+ export function headingExecute({
+   state,
+   api,
+   prefix,
+-  suffix = prefix,
++  suffix = '',
+ }: {
+   state: ExecuteState;
+   api: TextAreaTextApi;
+@@ -16,11 +15,20 @@ export function headingExecute({
+ }) {
+   const newSelectionRange = selectLine({ text: state.text, selection: state.selection });
+   const state1 = api.setSelectionRange(newSelectionRange);
++  // 使用原始光标位置，操作后恢复到原位置附近（偏移 prefix 长度）
+   executeCommand({ api, selectedText: state1.selectedText, selection: state.selection, prefix, suffix });
+ }
+ 
+ export const heading: ICommand = {
+-  ...heading1,
++  name: 'heading',
++  keyCommand: 'heading',
++  shortcuts: 'ctrlcmd+1',
++  prefix: '# ',
++  suffix: '',
++  buttonProps: { 'aria-label': 'Insert Heading 1 (ctrl + 1)', title: 'Insert Heading 1 (ctrl + 1)' },
++  execute: (state: ExecuteState, api: TextAreaTextApi) => {
++    headingExecute({ state, api, prefix: state.command.prefix!, suffix: state.command.suffix });
++  },
+   icon: (
+     <svg width="12" height="12" viewBox="0 0 520 520">
+       <path
+@@ -32,8 +40,7 @@ export const heading: ICommand = {
+ };
+ 
+ /**
+- * @deprecated Use `heading` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title` for inserting headings.
++ * @deprecated Since v4.0.0. Use `heading` instead.
++ * Will be removed in v5.0.0.
+  */
+ export const title: ICommand = heading;
