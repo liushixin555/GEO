@@ -222,3 +222,4 @@
 | 2026-05-25 | tasks/review/title6.tsx.ui.md | title6.tsx 软件UI专家评审——⚠️有条件通过 6.4/10（HIGH×2交互状态缺失+H5/H6视觉无区分，MEDIUM×7原生div/内联样式/排版/颜色/间距/无障碍/焦点，LOW×2平台适配/i18n） |
 | 2026-05-25 | tasks/review/title6.tsx.committer.md | title6.tsx Committer审核专家评审——⚠️有条件通过（CONDITIONAL APPROVE），命令功能正确可安全使用，需补充工具栏CSS样式覆盖（交互状态+H5/H6区分） |
 | 2026-05-25 | tasks/review/knowledge.controller.ts.architecture.md | knowledge.controller.ts 架构评审修复——C×4+H×6+M×5+L×4共19项，延迟初始化+typed errors+Zod schema+事务化+parseId安全解析，1172测试全通过，评分3.1→7.9 |
+| 2026-05-25 | tasks/review/todo.controller.ts.quality.md | todo.controller.ts 软件质量专家评审（第二轮）——✅通过 8.7/10，前轮HIGH×5全修复，新增HIGH×2（handleError缺日志+Schema枚举宽松）+MEDIUM×4+LOW×3 |
