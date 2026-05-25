@@ -345,6 +345,9 @@ describe('System Config Controller', () => {
       expect(response.body.code).toBe(0);
       expect(response.body.message).toContain('成功');
       expect(response.body.data).toHaveLength(2);
+      // PUT 响应也需脱敏 password
+      expect(response.body.data[0].config_value).toBe('new_user');
+      expect(response.body.data[1].config_value).toBe('ne****');
     });
 
     it('应成功更新单条配置', async () => {
@@ -661,7 +664,12 @@ describe('System Config Controller', () => {
         await updateSystemConfigs(req, mockRes);
 
         expect(mockJson).toHaveBeenCalledWith(
-          expect.objectContaining({ code: 0 })
+          expect.objectContaining({
+            code: 0,
+            data: expect.arrayContaining([
+              expect.objectContaining({ config_key: 'yishangshu_password', config_value: 'ne****' }),
+            ]),
+          })
         );
       });
     });
@@ -865,6 +873,9 @@ describe('System Config Controller', () => {
         expect(response.body.data).toHaveLength(2);
         expect(response.body.data[0].config_key).toBe('yishangshu_username');
         expect(response.body.data[1].config_key).toBe('yishangshu_password');
+        // PUT 响应脱敏验证
+        expect(response.body.data[0].config_value).toBe('new_user');
+        expect(response.body.data[1].config_value).toBe('ne****');
       });
 
       it('应返回更新成功消息', async () => {

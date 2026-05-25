@@ -53,7 +53,11 @@ export async function updateSystemConfigs(req: Request, res: Response): Promise<
     }
 
     const items = await systemConfigService.batchUpdate({ configs });
-    success(res, items, '更新系统配置成功');
+    const sanitized = items.map(item => ({
+      ...item,
+      config_value: maskSensitiveValue(item.config_key, item.config_value),
+    }));
+    success(res, sanitized, '更新系统配置成功');
   } catch (_err: unknown) {
     fail(res, 500, '更新系统配置失败');
   }
