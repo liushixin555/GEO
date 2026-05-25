@@ -523,6 +523,11 @@ describe('article.entity', () => {
       expect(req.skills).toEqual([1, 2, 3]);
     });
 
+    it('should allow skills as null', () => {
+      const req: CreateArticleRequest = { skills: null };
+      expect(req.skills).toBeNull();
+    });
+
     it('should have correct number of fields when all set', () => {
       const req: CreateArticleRequest = {
         title: 'T', article_type: 'a', write_mode: 'w', keywords: 'k',
@@ -622,7 +627,7 @@ describe('article.entity', () => {
         portrait: '新画像',
         images: ['new.jpg'],
         platforms: ['新平台'],
-        skills: 2,
+        skills: [2],
         llm_model_id: 2,
         content: '更新内容',
         status: 'published',
@@ -672,7 +677,7 @@ describe('article.entity', () => {
     it('should have correct number of fields when all set', () => {
       const req: UpdateArticleRequest = {
         title: 'T', article_type: 'a', write_mode: 'w', keywords: 'k',
-        portrait: 'p', images: [], platforms: [], skills: 1, llm_model_id: 1,
+        portrait: 'p', images: [], platforms: [], skills: [1], llm_model_id: 1,
         content: 'c', status: 'draft', scheduled_publish_at: '2026-01-01T00:00:00.000Z',
       };
       expect(Object.keys(req)).toHaveLength(12);
@@ -725,8 +730,13 @@ describe('article.entity', () => {
     });
 
     it('should allow updating only skills', () => {
-      const req: UpdateArticleRequest = { skills: { model: 'gpt-4' } };
-      expect(typeof req.skills).toBe('object');
+      const req: UpdateArticleRequest = { skills: [1, 2, 3] };
+      expect(req.skills).toEqual([1, 2, 3]);
+    });
+
+    it('should allow updating skills to null', () => {
+      const req: UpdateArticleRequest = { skills: null };
+      expect(req.skills).toBeNull();
     });
 
     it('should allow updating only llm_model_id', () => {
