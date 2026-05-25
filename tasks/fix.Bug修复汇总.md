@@ -1113,3 +1113,28 @@ components: {
 - `apis/utils/image-validator.ts` — 新增 validateDimensions 方法
 - `apis/controller/upload.controller.ts` — 调用尺寸验证
 - `package.json` — 新增 image-size 依赖
+
+---
+
+## fix021. title3.tsx 安全评审修复（非空断言 prefix! 防御性默认值）
+
+### 问题
+根据 `tasks/review/title3.tsx.security.md` 安全评审报告（8.5/10 APPROVE），`@uiw/react-md-editor` 的 `title3.tsx` 存在非空断言绕过类型系统的风险。
+
+### 修复
+
+**问题 #1（MEDIUM）prefix! 非空断言 CWE-476**：
+- `state.command.prefix!` 替换为 `state.command.prefix ?? '### '`，使用 nullish coalescing 提供防御性默认值
+- 消除运行时 undefined 传入 `headingExecute` 导致 textarea 内容被污染为 "undefined" 文本的风险
+
+**问题 #2（LOW）suffix 缺少防御性处理**：
+- `state.command.suffix` 替换为 `state.command.suffix ?? ''`，统一防御性编码风格
+
+### 修复范围
+通过 pnpm patch 修改第三方库文件（src + esm + lib 三份输出同步修复）：
+- `src/commands/title3.tsx` — TypeScript 源码修复
+- `esm/commands/title3.js` — ESM 编译输出同步
+- `lib/commands/title3.js` — CJS 编译输出同步
+
+### 涉及文件
+- `patches/@uiw__react-md-editor@4.1.0.patch` — 新增 title3.tsx diff

@@ -4716,6 +4716,7 @@
                 "type": "object",
                 "properties": {
                   "scheduled_publish_at": {
+                    "nullable": true,
                     "type": "string"
                   },
                   "schedule_type": {
@@ -4728,9 +4729,6 @@
                     ]
                   }
                 },
-                "required": [
-                  "scheduled_publish_at"
-                ],
                 "additionalProperties": false
               }
             }

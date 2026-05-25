@@ -1,5 +1,5 @@
 diff --git a/esm/commands/link.js b/esm/commands/link.js
-index 5b354a3c764d75f8e1266eb2b0ff44e515f5cbee..a925c2bcc56499d7eb6ab8c498fcc269c8b21621 100644
+index 5b354a3c764d75f8e1266eb2b0ff44e515f5cbee..68531eef58efd035a5a6a9c8f2b624e7ee947581 100644
 --- a/esm/commands/link.js
 +++ b/esm/commands/link.js
 @@ -1,68 +1,42 @@
@@ -103,8 +103,28 @@ index 5b354a3c764d75f8e1266eb2b0ff44e515f5cbee..a925c2bcc56499d7eb6ab8c498fcc269
      }
    }
  };
+\ No newline at end of file
+diff --git a/esm/commands/title3.js b/esm/commands/title3.js
+index 00c09f1abaaebf52067016a15ee86e112c35caeb..6f53e5e5956117b2c46723e18d446cb502556c97 100644
+--- a/esm/commands/title3.js
++++ b/esm/commands/title3.js
+@@ -19,11 +19,12 @@ export var heading3 = {
+     children: "Heading 3"
+   }),
+   execute: (state, api) => {
++    // S1: 防御性默认值 — nullish coalescing 替代直接传递，防止 undefined
+     headingExecute({
+       state,
+       api,
+-      prefix: state.command.prefix,
+-      suffix: state.command.suffix
++      prefix: state.command.prefix ?? '### ',
++      suffix: state.command.suffix ?? ''
+     });
+   }
+ };
 diff --git a/lib/commands/link.js b/lib/commands/link.js
-index e6d6a2fb202cd4005b34351b0d2b5e983ae37ca9..bca533c70f036cf5f9366eac034d1c366401a08d 100644
+index e6d6a2fb202cd4005b34351b0d2b5e983ae37ca9..2b94ab74828755310c6678d0b9b39c603ccdf178 100644
 --- a/lib/commands/link.js
 +++ b/lib/commands/link.js
 @@ -1,75 +1,45 @@
@@ -213,6 +233,26 @@ index e6d6a2fb202cd4005b34351b0d2b5e983ae37ca9..bca533c70f036cf5f9366eac034d1c36
 -      }
 +      (0, _markdownUtils.executeCommand)({ api: api, selectedText: state1.selectedText, selection: state1.selection, prefix: prefix, suffix: suffix });
      }
+   }
+ };
+\ No newline at end of file
+diff --git a/lib/commands/title3.js b/lib/commands/title3.js
+index c1ead2d85c922c1accae66ff82f6805d6b796193..128ae363ca74a376aba90a2993bb02f5b33590cc 100644
+--- a/lib/commands/title3.js
++++ b/lib/commands/title3.js
+@@ -26,11 +26,12 @@ var heading3 = exports.heading3 = {
+     children: "Heading 3"
+   }),
+   execute: function execute(state, api) {
++    // S1: 防御性默认值 — nullish coalescing 替代直接传递，防止 undefined
+     (0, _title.headingExecute)({
+       state: state,
+       api: api,
+-      prefix: state.command.prefix,
+-      suffix: state.command.suffix
++      prefix: state.command.prefix ?? '### ',
++      suffix: state.command.suffix ?? ''
+     });
    }
  };
 diff --git a/src/commands/link.tsx b/src/commands/link.tsx
@@ -352,3 +392,19 @@ index 1f103e736d7a0989793ec49a29e83265d02b0fb0..e61f34272060f64fe8b6e3dc0f331a29
      }
    },
  };
+diff --git a/src/commands/title3.tsx b/src/commands/title3.tsx
+index bde067d01ae1c306a1bd89b064edb3a985fb569d..1d1bfb5b60190a8cd3ad53b0619a5885de2629e9 100644
+--- a/src/commands/title3.tsx
++++ b/src/commands/title3.tsx
+@@ -11,7 +11,10 @@ export const heading3: ICommand = {
+   buttonProps: { 'aria-label': 'Insert Heading 3 (ctrl + 3)', title: 'Insert Heading 3 (ctrl + 3)' },
+   icon: <div style={{ fontSize: 15, textAlign: 'left' }}>Heading 3</div>,
+   execute: (state: ExecuteState, api: TextAreaTextApi) => {
+-    headingExecute({ state, api, prefix: state.command.prefix!, suffix: state.command.suffix });
++    // S1: 防御性默认值 — 替换非空断言 prefix! 为 ?? '### '，防止 undefined 传入
++    const prefix = state.command.prefix ?? '### ';
++    const suffix = state.command.suffix ?? '';
++    headingExecute({ state, api, prefix, suffix });
+   },
+ };
+ 
