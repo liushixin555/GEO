@@ -1179,3 +1179,20 @@ components: {
 
 ### 涉及文件
 - `patches/@uiw+react-md-editor+4.1.0.patch` — 替换旧补丁，包含 title.tsx/title1-6.tsx 全部修复
+
+---
+
+## fix035. 发布中(publishing)状态的文章不能删除
+
+### 问题
+文章列表页中，状态为"发布中"(publishing)的文章没有删除限制，用户可以删除正在发布流程中的文章，导致发布流程异常中断。前后端均只拦截了 `published` 状态，遗漏了 `publishing` 状态。
+
+### 修复
+1. 后端 `article.service.impl.ts`：`delete` 方法从仅拦截 `published` 扩展为拦截 `published` + `publishing`，错误消息更新为"发布中或已发布的文章不能删除"
+2. 前端 `pages/article/index.tsx`：`canDelete` 函数增加 `publishing` 状态判断，删除按钮在发布中状态时禁用
+
+### 涉及文件
+- `apis/service/impl/article.service.impl.ts` — delete 方法增加 publishing 状态拦截
+- `pages/article/index.tsx` — canDelete 增加 publishing 判断
+- `tests/apis/article.controller.test.ts` — publishing 删除测试从期望200改为期望400，错误消息断言更新
+- `tests/apis/article.service.test.ts` — 新增 publishing 状态删除测试，published 测试错误消息更新
