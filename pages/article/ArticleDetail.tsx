@@ -38,6 +38,17 @@ const ArticleDetail: React.FC = () => {
   const statusCfg = detail.article ? (STATUS_CONFIG[detail.article.status] || { label: detail.article.status, color: 'default' }) : null;
   const originalContentRef = useRef('');
 
+  // 同步 writeMode / imageList state 与已加载文章数据
+  useEffect(() => {
+    if (!detail.article) return;
+    if (detail.article.write_mode) {
+      setWriteMode(detail.article.write_mode);
+    }
+    if (detail.article.images?.length) {
+      setImageList(detail.article.images);
+    }
+  }, [detail.article]);
+
   useEffect(() => {
     if (detail.article?.content) originalContentRef.current = detail.article.content;
   }, [detail.article?.content]);

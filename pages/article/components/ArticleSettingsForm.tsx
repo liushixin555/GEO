@@ -60,7 +60,7 @@ const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
 
   return (
     <>
-      <Form form={form} onFinish={onSave} layout="vertical">
+      <Form form={form} onFinish={onSave} layout="vertical" initialValues={{ write_mode: 'ai' }}>
         {error && <Alert type="error" message={error} className="form-alert" showIcon closable onClose={onErrorClear} />}
         <Form.Item name="write_mode" label="编写方式" rules={[{ required: true, message: '请选择编写方式' }]}>
           <Radio.Group
