@@ -3990,3 +3990,171 @@ describe('checkProjectOperator - admin非运营者检查', () => {
     expect(res.body.message).toBe('无权操作该项目');
   });
 });
+
+// ==================== 第四轮补全：覆盖 controller 自身验证分支 ====================
+
+// _resetServices 函数覆盖
+describe('_resetServices', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('重置services后可正常重新初始化', async () => {
+    const { _resetServices } = require('../../apis/controller/knowledge.controller');
+
+    mockPrisma({
+      knowledgeKeyword: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0),
+      },
+    });
+    const res1 = await agent.get('/api/v1/knowledge-bases/10/keywords').set('Authorization', auth());
+    expect(res1.status).toBe(200);
+
+    _resetServices();
+
+    mockPrisma({
+      knowledgeKeyword: {
+        findMany: jest.fn().mockResolvedValue([{ id: 1, baseId: 10, keyword: 'SEO', createdBy: 1, createdAt: new Date(), updatedAt: new Date() }]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+    });
+    const res2 = await agent.get('/api/v1/knowledge-bases/10/keywords').set('Authorization', auth());
+    expect(res2.status).toBe(200);
+    expect(res2.body.data.total).toBe(1);
+  });
+});
+
+// createDocument file_size 边界值
+describe('createDocument - file_size 边界值', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('file_size为负数返回400', async () => {
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents')
+      .set('Authorization', auth())
+      .send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: -1 });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toContain('文件大小必须为正整数');
+  });
+
+  test('file_size为0返回400', async () => {
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents')
+      .set('Authorization', auth())
+      .send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 0 });
+    expect(res.status).toBe(400);
+  });
+
+  test('file_size为字符串返回400', async () => {
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents')
+      .set('Authorization', auth())
+      .send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 'big' });
+    expect(res.status).toBe(400);
+  });
+
+  test('file_size为Infinity返回400', async () => {
+    const res = await agent.post('/api/v1/knowledge-bases/10/documents')
+      .set('Authorization', auth())
+      .send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: Infinity });
+    expect(res.status).toBe(400);
+  });
+});
+
+// toggleMinedKeywordsBatch selected 非布尔值
+describe('toggleMinedKeywordsBatch - selected非布尔值', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('selected为字符串返回400', async () => {
+    const res = await agent.put('/api/v1/knowledge-bases/10/mined-keywords/batch-toggle')
+      .set('Authorization', auth())
+      .send({ ids: [1, 2], selected: 'yes' });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toContain('selected必须为布尔值');
+  });
+});
+
+// mineKeywords - 各 source_type 路径覆盖（无内容场景）
+describe('mineKeywords - source_type 路径覆盖', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('source_type=document 无内容返回400', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: { findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'platform', status: true }) },
+      knowledgeDocument: { findMany: jest.fn().mockResolvedValue([]) },
+      minedKeyword: { findMany: jest.fn().mockResolvedValue([]) },
+    });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/mine')
+      .set('Authorization', auth())
+      .send({ source_type: 'document' });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('知识库中暂无内容可供挖掘');
+  });
+
+  test('source_type=portrait 无内容返回400', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: { findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'platform', status: true }) },
+      knowledgePortrait: { findMany: jest.fn().mockResolvedValue([]) },
+      minedKeyword: { findMany: jest.fn().mockResolvedValue([]) },
+    });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/mine')
+      .set('Authorization', auth())
+      .send({ source_type: 'portrait' });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('知识库中暂无内容可供挖掘');
+  });
+
+  test('source_type=image 无内容返回400', async () => {
+    const { getPrisma } = require('../../apis/utils/db.util');
+    getPrisma.mockReturnValue({
+      knowledgeBase: { findFirst: jest.fn().mockResolvedValue({ id: 10, scope: 'platform', status: true }) },
+      knowledgeImage: { findMany: jest.fn().mockResolvedValue([]) },
+      minedKeyword: { findMany: jest.fn().mockResolvedValue([]) },
+    });
+    const res = await agent.post('/api/v1/knowledge-bases/10/keywords/mine')
+      .set('Authorization', auth())
+      .send({ source_type: 'image' });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('知识库中暂无内容可供挖掘');
+  });
+});
+
+// ==================== 直接调用 controller 函数覆盖中间件阻塞的分支 ====================
+
+describe('checkBaseAccess - view role 直接测试', () => {
+  test('view角色被checkBaseAccess拦截返回403', async () => {
+    const { listKeywords } = require('../../apis/controller/knowledge.controller');
+
+    const json = jest.fn();
+    const status = jest.fn(() => ({ json }));
+    const res = { status, json } as any;
+
+    const req = {
+      params: { baseId: '10' },
+      query: { page: '1', pageSize: '10' },
+      user: { userId: 3, username: 'viewer', role: 'view', companyId: 2 },
+    } as any;
+
+    await listKeywords(req, res);
+
+    expect(status).toHaveBeenCalledWith(403);
+  });
+});
+
+describe('parseId - undefined 参数直接测试', () => {
+  test('baseId为undefined返回400', async () => {
+    const { listKeywords } = require('../../apis/controller/knowledge.controller');
+
+    const json = jest.fn();
+    const status = jest.fn(() => ({ json }));
+    const res = { status, json } as any;
+
+    const req = {
+      params: {},
+      query: { page: '1', pageSize: '10' },
+      user: { userId: 1, username: 'sysadmin', role: 'sysadmin', companyId: 1 },
+    } as any;
+
+    await listKeywords(req, res);
+
+    expect(status).toHaveBeenCalledWith(400);
+  });
+});
