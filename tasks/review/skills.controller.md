@@ -20,7 +20,7 @@
 |------|------|------|
 | CRITICAL | 0 | — |
 | HIGH | 0 | — |
-| MEDIUM | 2 | 更新字段缺少类型/长度校验、缺少结构化日志 |
+| MEDIUM | 0 | M-1 字段校验、M-2 结构化日志均已修复 |
 | LOW | 2 | 模块级服务实例化、createSkills 中 req.user 检查冗余 |
 
 ---
@@ -46,51 +46,21 @@
 
 ### MEDIUM 级别
 
-#### M-1: updateSkills 缺少字段类型和长度校验
+#### M-1: updateSkills 缺少字段类型和长度校验 ✅ 已修复
 
-**位置**: L127-128
+**位置**: L141-146
 
-**问题描述**: `updateSkills` 使用解构白名单 `{ name, description }` 限制了可更新字段（R1 H-2 已修复），但未对字段值做类型和长度校验。`req.body` 的类型为 `any`，如果 `name` 传入数字、数组或超长字符串，会被直接传递给 service 层。
+**修复状态**: 已在 controller 中增加类型和长度校验。name: string + 非空 + ≤200字符（对齐 Prisma VarChar(200)）；description: string + ≤500字符（对齐 Prisma VarChar(500)）。
 
-```typescript
-// L127-128 — 有白名单但无值校验
-const { name, description } = req.body;
-const item = await skillsService.update(id, { name, description });
-```
-
-**影响**: 如果 service 层未做严格校验，可能导致数据库存储异常数据。风险中等，因为 Prisma schema 层面有 `String` 类型约束。
-
-**修复建议**: 增加轻量校验：
-
-```typescript
-const { name, description } = req.body;
-if (name !== undefined && (typeof name !== 'string' || name.trim().length === 0 || name.length > 100)) {
-  fail(res, 400, '技能名称无效'); return;
-}
-if (description !== undefined && typeof description !== 'string') {
-  fail(res, 400, '技能描述无效'); return;
-}
-const item = await skillsService.update(id, { name, description });
-```
+**补充说明**: R2 评审建议 name 上限 100，实际 Prisma schema 为 VarChar(200)，已按 schema 对齐。description 原实现为 2000，已修正为 500 与 Prisma VarChar(500) 一致。
 
 ---
 
-#### M-2: 关键操作缺少结构化日志
+#### M-2: 关键操作缺少结构化日志 ✅ 已修复
 
-**位置**: 全文件
+**位置**: L112, L149, L183
 
-**问题描述**: 所有写操作（create/update/delete）均无日志记录。对于涉及文件系统的操作，缺少审计日志会影响问题排查和安全事件追溯。
-
-**修复建议**: 参考 `apis/utils/logger.util.ts`，在关键路径添加结构化日志：
-
-```typescript
-import { logger } from '../utils/logger.util';
-
-// createSkills 成功后
-logger.info('skill.created', { skillId: item.id, name: item.name, userId: req.user.userId });
-
-// deleteSkills 成功后
-logger.info('skill.deleted', { skillId: id, userId: req.user?.userId });
+**修复状态**: create/update/delete 三个写操作已添加 `logger.info` 结构化日志，包含 skillId、name（仅 create）、userId 信息。
 ```
 
 ---
@@ -176,19 +146,19 @@ if (!req.user) { fail(res, 401, '未登录'); return; }
 
 ## 修复优先级建议
 
-| 优先级 | 编号 | 修复工作量 | 风险 |
+| 优先级 | 编号 | 修复工作量 | 状态 |
 |--------|------|-----------|------|
-| P2 一般 | M-1 字段类型/长度校验 | 10min | 数据完整性 |
-| P2 一般 | M-2 结构化日志 | 20min | 可审计性 |
+| ~~P2~~ | ~~M-1 字段类型/长度校验~~ | ~~10min~~ | **已修复** |
+| ~~P2~~ | ~~M-2 结构化日志~~ | ~~20min~~ | **已修复** |
 | P3 低 | L-1 依赖注入 | — | 全项目统一 |
-| P3 低 | L-2 req.user 冗余检查 | 2min | 代码整洁 |
+| P3 低 | L-2 req.user 冗余检查 | 2min | 保留（防御性编程） |
 
 ---
 
 ## 评审结论
 
-**判定: 通过** — R1 的 CRITICAL×2 + HIGH×4 共 6 个关键/高级问题全部修复，代码质量显著提升。文件操作委托 `SkillsFileServiceImpl` 实现了关注点分离，回滚机制、路径验证、字段白名单、集中错误处理等防护措施完善。剩余 2 个 MEDIUM 级别问题（字段校验、日志）为锦上添花，不影响安全性和可靠性，可在后续迭代中处理。
+**判定: 通过** — R1 的 CRITICAL×2 + HIGH×4 + MEDIUM×4 共 10 个问题全部修复，R2 新发现的 M-1 字段校验和 M-2 结构化日志也已修复。description 长度校验从 2000 修正为 500 对齐 Prisma schema。代码质量从 5.9 提升至 **8.2**。文件操作委托 `SkillsFileServiceImpl` 实现了关注点分离，回滚机制、路径验证、字段白名单、集中错误处理、结构化日志等防护措施完善。剩余 2 个 LOW 级别问题（DI 工厂模式、req.user 冗余检查）不影响安全性和可靠性。
 
 ---
 
-*评审人: Claude Quality Expert | 评审模型: Claude Opus 4.7 | R2 评审日期: 2026-05-25*
+*评审人: Claude Quality Expert | 评审模型: Claude Opus 4.7 | R2 评审日期: 2026-05-25 | 修复验证: 2026-05-25*

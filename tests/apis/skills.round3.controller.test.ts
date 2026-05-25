@@ -340,7 +340,7 @@ describe('PUT /api/skills/:id — description 验证', () => {
     expect(response.body.message).toBe('技能描述无效');
   });
 
-  it('description 超过 2000 字符时应返回 400', async () => {
+  it('description 超过 500 字符时应返回 400', async () => {
     const { getPrisma } = require('../../apis/utils/db.util');
     const existing = {
       id: 1, name: 'Old', description: 'desc', skillDir: 'old', createdBy: 1,
@@ -352,26 +352,26 @@ describe('PUT /api/skills/:id — description 验证', () => {
     const response = await agent
       .put('/api/v1/skills/1')
       .set('Authorization', `Bearer ${sysadminToken()}`)
-      .send({ description: 'a'.repeat(2001) });
+      .send({ description: 'a'.repeat(501) });
 
     expect(response.status).toBe(400);
     expect(response.body.message).toBe('技能描述无效');
   });
 
-  it('description 恰好 2000 字符时应成功', async () => {
+  it('description 恰好 500 字符时应成功', async () => {
     const { getPrisma } = require('../../apis/utils/db.util');
     const existing = {
       id: 1, name: 'Old', description: 'desc', skillDir: 'old', createdBy: 1,
       creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date(),
     };
     const mockFindFirst = jest.fn().mockResolvedValue(existing);
-    const mockUpdate = jest.fn().mockResolvedValue({ ...existing, description: 'a'.repeat(2000) });
+    const mockUpdate = jest.fn().mockResolvedValue({ ...existing, description: 'a'.repeat(500) });
     getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
 
     const response = await agent
       .put('/api/v1/skills/1')
       .set('Authorization', `Bearer ${sysadminToken()}`)
-      .send({ description: 'a'.repeat(2000) });
+      .send({ description: 'a'.repeat(500) });
 
     expect(response.status).toBe(200);
   });

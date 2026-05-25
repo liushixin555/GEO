@@ -141,7 +141,7 @@ export async function updateSkills(req: Request, res: Response): Promise<void> {
     if (name !== undefined && (typeof name !== 'string' || name.trim().length === 0 || name.length > 200)) {
       fail(res, 400, '技能名称无效'); return;
     }
-    if (description !== undefined && (typeof description !== 'string' || description.length > 2000)) {
+    if (description !== undefined && (typeof description !== 'string' || description.length > 500)) {
       fail(res, 400, '技能描述无效'); return;
     }
     const item = await skillsService.update(id, { name, description });

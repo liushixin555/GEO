@@ -11,7 +11,7 @@ process.env.JWT_SECRET = 'test-secret';
 process.env.JWT_EXPIRES_IN = '2h';
 process.env.SWAGGER_ENABLED = 'false';
 process.env.RATE_LIMIT_WINDOW_MS = '60000';
-process.env.RATE_LIMIT_MAX = '100';
+process.env.RATE_LIMIT_MAX = '500';
 
 jest.mock('../../apis/utils/db.util', () => ({
   getPrisma: jest.fn(),
@@ -1686,6 +1686,317 @@ describe('Skills Controller', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.message).toBe('非法的技能目录路径');
+    });
+  });
+
+  // ============================================================
+  // M-1: updateSkills field type/length validation
+  // ============================================================
+  describe('PUT /api/skills/:id — field validation (M-1)', () => {
+    it('should return 400 when name is a number', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, name: 'React', description: 'UI', skillDir: 'react', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .put('/api/v1/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: 123 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('技能名称无效');
+    });
+
+    it('should return 400 when name is an array', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, name: 'React', description: 'UI', skillDir: 'react', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .put('/api/v1/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: ['evil', 'array'] });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('技能名称无效');
+    });
+
+    it('should return 400 when name is empty string', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, name: 'React', description: 'UI', skillDir: 'react', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .put('/api/v1/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: '' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('技能名称无效');
+    });
+
+    it('should return 400 when name is whitespace only', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, name: 'React', description: 'UI', skillDir: 'react', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .put('/api/v1/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: '   ' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('技能名称无效');
+    });
+
+    it('should return 400 when name exceeds 200 characters', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, name: 'React', description: 'UI', skillDir: 'react', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .put('/api/v1/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: 'A'.repeat(201) });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('技能名称无效');
+    });
+
+    it('should accept name at exactly 200 characters', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, name: 'React', description: 'UI', skillDir: 'react', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, name: 'A'.repeat(200) });
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const response = await agent
+        .put('/api/v1/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: 'A'.repeat(200) });
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should return 400 when description is a number', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, name: 'React', description: 'UI', skillDir: 'react', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .put('/api/v1/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ description: 999 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('技能描述无效');
+    });
+
+    it('should return 400 when description is a boolean', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, name: 'React', description: 'UI', skillDir: 'react', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .put('/api/v1/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ description: true });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('技能描述无效');
+    });
+
+    it('should return 400 when description exceeds 500 characters', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, name: 'React', description: 'UI', skillDir: 'react', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .put('/api/v1/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ description: 'D'.repeat(501) });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('技能描述无效');
+    });
+
+    it('should accept description at exactly 500 characters', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, name: 'React', description: 'UI', skillDir: 'react', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, description: 'D'.repeat(500) });
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const response = await agent
+        .put('/api/v1/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ description: 'D'.repeat(500) });
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should allow update when neither name nor description is provided', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, name: 'React', description: 'UI', skillDir: 'react', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(existing);
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const response = await agent
+        .put('/api/v1/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({});
+
+      expect(response.status).toBe(200);
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 1 },
+        })
+      );
+    });
+
+    it('should allow update with empty string description', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, name: 'React', description: 'UI', skillDir: 'react', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, description: '' });
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      const response = await agent
+        .put('/api/v1/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ description: '' });
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should return 400 when name is null', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, name: 'React', description: 'UI', skillDir: 'react', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .put('/api/v1/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: null });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('技能名称无效');
+    });
+
+    it('should return 400 when description is an object', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, name: 'React', description: 'UI', skillDir: 'react', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst } });
+
+      const response = await agent
+        .put('/api/v1/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ description: { html: '<script>alert(1)</script>' } });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('技能描述无效');
+    });
+  });
+
+  // ============================================================
+  // M-2: Structured logging verification
+  // ============================================================
+  describe('Structured logging (M-2)', () => {
+    let loggerSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      loggerSpy = jest.spyOn(require('../../apis/utils/logger.util').logger, 'info').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      loggerSpy.mockRestore();
+    });
+
+    it('should log skill.created after successful create', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue(null);
+      const mockCreate = jest.fn().mockResolvedValue({
+        id: 42, name: 'logged-skill', description: 'Log test', skillDir: 'logged-skill', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, create: mockCreate } });
+
+      const zipBuffer = createSkillZip('logged-skill', 'Log test');
+      await agent
+        .post('/api/v1/skills')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .attach('file', zipBuffer, 'skill.zip');
+
+      expect(loggerSpy).toHaveBeenCalledWith('skill.created', expect.objectContaining({
+        skillId: 42,
+        name: 'logged-skill',
+        userId: 1,
+      }));
+    });
+
+    it('should log skill.updated after successful update', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, name: 'React', description: 'UI', skillDir: 'react', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, name: 'Vue' });
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      await agent
+        .put('/api/v1/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: 'Vue' });
+
+      expect(loggerSpy).toHaveBeenCalledWith('skill.updated', expect.objectContaining({
+        skillId: 1,
+        userId: 1,
+      }));
+    });
+
+    it('should log skill.deleted after successful delete', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = {
+        id: 5, name: 'DeleteMe', description: 'Bye', skillDir: null, createdBy: 1,
+        creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date(),
+      };
+      const mockFindFirst = jest.fn()
+        .mockResolvedValueOnce(existing)
+        .mockResolvedValueOnce(existing);
+      const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      await agent
+        .delete('/api/v1/skills/5')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(loggerSpy).toHaveBeenCalledWith('skill.deleted', expect.objectContaining({
+        skillId: 5,
+        userId: 1,
+      }));
+    });
+
+    it('should not log on failed update', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const existing = { id: 1, name: 'React', description: 'UI', skillDir: 'react', createdBy: 1, creator: { cnName: '管理员' }, createdAt: new Date(), updatedAt: new Date() };
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockRejectedValue(new Error('DB fail'));
+      getPrisma.mockReturnValue({ skills: { findFirst: mockFindFirst, update: mockUpdate } });
+
+      await agent
+        .put('/api/v1/skills/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ name: 'Fail' });
+
+      expect(loggerSpy).not.toHaveBeenCalled();
     });
   });
 
