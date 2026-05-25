@@ -190,7 +190,6 @@
 | 2026-05-25 | tasks/tdd/llm-model.controller.test.round3.md | llm-model.controller TDD 第3轮补全——264用例（+43），Stmts 99.21% Branch 97.43% Funcs 100% Lines 100%（覆盖null字段/AppError处理/SSRF直接调用/多字段更新/parseId边界/软删除验证） |
 | 2026-05-25 | tasks/tdd/app.test.md | app.ts TDD 第六次验证——261用例全通过，100%四维覆盖率确认无回归 |
 | 2026-05-25 | progress_tasks/2026-05-25-common-tsx-architecture-fix.md | common.tsx 架构评审修复——A-03 PipelineConfig OCP接口+A-05 export type显式导出+A-07管线顺序注释，9文件patch更新，251组件测试全通过 |
-<<<<<<< HEAD
 | 2026-05-25 | tasks/review/project.controller.ts.md | project.controller.ts 软件架构专家评审——8.0/10（旧版5.7→新版8.0，旧版CRITICAL×2+HIGH×4全修复，H-1 Zod schema长度不一致+M×3+L×3） |
 | 2026-05-25 | tasks/review/title2.tsx.architecture.md | title2.tsx 软件架构专家评审——7.9/10 APPROVE（经典Command Pattern，A-02 ICommand胖接口+A-03 headingExecute具体依赖+A-01模板化DRY权衡） |
 | 2026-05-25 | tasks/tdd/system-config.test.round3.md | system-config 模块 TDD 第3轮补全——347用例全通过，4文件100%覆盖率（+23新增：maskSensitiveValue边界/Token安全/Controller直接调用/PUT body边界） |
@@ -204,3 +203,4 @@
 | 2026-05-25 | tasks/review/publishing-platform.controller.committer.md | publishing-platform.controller.ts Committer 审核专家评审（v2）——APPROVE 通过，v1全部8项问题已修复，83测试用例覆盖率>98%，代码质量为项目标杆 |
 | 2026-05-25 | progress_tasks/2026-05-25-context-tsx-architecture-fix.md | Context.tsx 架构评审修复——P0-1移除[key:string]:any+P2-2 ExecuteCommandState显式定义+reducer返回类型简化，patch-package补丁，129测试全通过 |
 | 2026-05-25 | progress_tasks/2026-05-25-title3-tsx-review-fix.md | title3.tsx 评审封装层修复——Ctrl+1-6快捷键拦截+IBM Plex Sans字体声明+H5/H6最小12px+role="img"无障碍属性 |
+| 2026-05-25 | tasks/review/title4.tsx.md | title4.tsx 软件质量专家评审——⚠️有条件通过 6.9/10（循环依赖已消除+废弃策略规范9分，H×1 prefix!非空断言CWE-476+M×3 DRY六文件同构/内联样式/冗余参数传递+L×3 快捷键冲突/注册名不一致/缺文档） |
