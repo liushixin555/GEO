@@ -4,6 +4,7 @@ import { mapArticle, mapArticleVersion } from '../../map';
 import { IArticleService, AuthContext } from '../article.service';
 import { Prisma } from '@prisma/client';
 import { NotFoundError, BusinessError, ForbiddenError } from '../../errors';
+import { validateAndSanitizeMarkdown } from '../../utils/sanitize-markdown.util';
 
 export class ArticleServiceImpl implements IArticleService {
   // C-1 fix: Complete state machine — all 8 states with valid transitions
@@ -92,6 +93,9 @@ export class ArticleServiceImpl implements IArticleService {
   async create(projectId: number, request: CreateArticleRequest, auth: AuthContext): Promise<Article> {
     const prisma = getPrisma();
 
+    // REQ-3: 服务端 Markdown 内容消毒
+    const safeContent = request.content ? validateAndSanitizeMarkdown(request.content) : null;
+
     const version = 1;
     const item = await prisma.article.create({
       data: {
@@ -105,7 +109,7 @@ export class ArticleServiceImpl implements IArticleService {
         platforms: request.platforms || Prisma.JsonNull,
         skills: request.skills || Prisma.JsonNull,
         llmModelId: request.llm_model_id || null,
-        content: request.content || null,
+        content: safeContent,
         status: (request.status as ArticleStatus) || 'draft',
         version,
         createdBy: auth.userId,
@@ -113,12 +117,12 @@ export class ArticleServiceImpl implements IArticleService {
     });
 
     // Save initial content as version snapshot
-    if (request.content) {
+    if (safeContent) {
       await prisma.articleVersion.create({
         data: {
           articleId: item.id,
           version,
-          content: request.content,
+          content: safeContent,
           createdBy: auth.userId,
         },
       });
@@ -166,13 +170,15 @@ export class ArticleServiceImpl implements IArticleService {
 
       // Content versioning: if content is being updated, bump version and save history
       if (effectiveRequest.content !== undefined && effectiveRequest.content !== existing.content) {
+        // REQ-3: 服务端 Markdown 内容消毒
+        const safeContent = validateAndSanitizeMarkdown(effectiveRequest.content);
         const newVersion = Math.floor(existing.version) + 1.0;
         data.version = newVersion;
-        data.content = effectiveRequest.content;
+        data.content = safeContent;
 
         // For AI-generated articles, extract first non-empty line as title
         if (existing.writeMode !== 'manual' && !existing.title) {
-          const firstLine = effectiveRequest.content.split('\n').map(l => l.replace(/^#+\s*/, '').trim()).find(l => l.length > 0);
+          const firstLine = safeContent.split('\n').map(l => l.replace(/^#+\s*/, '').trim()).find(l => l.length > 0);
           if (firstLine) data.title = firstLine;
         }
 
@@ -181,7 +187,7 @@ export class ArticleServiceImpl implements IArticleService {
           data: {
             articleId: id,
             version: newVersion,
-            content: effectiveRequest.content,
+            content: safeContent,
             createdBy: auth.userId,
           },
         });
@@ -196,6 +202,9 @@ export class ArticleServiceImpl implements IArticleService {
   }
 
   async updateContent(projectId: number, id: number, content: string, auth: AuthContext): Promise<Article> {
+    // REQ-3: 服务端 Markdown 内容消毒
+    const safeContent = validateAndSanitizeMarkdown(content);
+
     return await getPrisma().$transaction(async (tx: Prisma.TransactionClient) => {
       const existing = await this.findArticleOrThrow(id, tx);
 
@@ -209,16 +218,16 @@ export class ArticleServiceImpl implements IArticleService {
       }
 
       // Content versioning — only if content changed
-      if (content === existing.content) {
+      if (safeContent === existing.content) {
         return mapArticle(existing);
       }
 
       const newVersion = Math.floor(existing.version) + 1.0;
-      const data: any = { version: newVersion, content };
+      const data: any = { version: newVersion, content: safeContent };
 
       // Title extraction for AI articles
       if (existing.writeMode !== 'manual' && !existing.title) {
-        const firstLine = content.split('\n').map(l => l.replace(/^#+\s*/, '').trim()).find(l => l.length > 0);
+        const firstLine = safeContent.split('\n').map(l => l.replace(/^#+\s*/, '').trim()).find(l => l.length > 0);
         if (firstLine) data.title = firstLine;
       }
 
@@ -226,7 +235,7 @@ export class ArticleServiceImpl implements IArticleService {
         data: {
           articleId: id,
           version: newVersion,
-          content,
+          content: safeContent,
           createdBy: auth.userId,
         },
       });

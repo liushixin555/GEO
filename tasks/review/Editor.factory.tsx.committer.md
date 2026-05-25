@@ -306,12 +306,13 @@ Markdown 编辑器属于**领域专用组件**，不在 antd 组件覆盖范围�
 | URL 白名单 | ✅ 已实施 | ✅ 防止恶意链接 |
 | 标签白名单 | ✅ 已实施 | ✅ 限制 HTML 标签范围 |
 | 内容长度限制 | ✅ 已实施 | ✅ 防止 DoS |
-| ref 接口精简（不暴露 dispatch） | ⚠️ 未确认 | 🔴 **必须验证** — 如果暴露了 dispatch，攻击者可注入任意状态 |
-| 组件卸载时清理 DOM 事件监听 | ⚠️ 未确认 | 🔴 建议补充 |
-| Error Boundary 包裹 | ⚠️ 未确认 | 🟡 建议补充 |
-| CSS 覆盖对齐 Carbon Design | ✅ 部分实施 | 🟡 需验证覆盖完备性 |
-| React StrictMode 测试 | ⚠️ 未确认 | 🟡 建议补充 |
-| 服务端 Markdown sanitize | ⚠️ 未确认 | 🟡 建议补充 |
+| ref 接口精简（不暴露 dispatch） | ✅ 已验证 (REQ-1) | ✅ `MarkdownEditorRef` 仅暴露 `getSanitizedHTML/getRawMarkdown/focus`，无 dispatch/DOM 引用 |
+| 组件卸载时清理 DOM 事件监听 | ✅ 已验证 (REQ-2) | ✅ `useEffect` 清理函数通过 `cloneNode` 移除泄漏监听器 + `editorRef.current = null` |
+| Error Boundary 包裹 | ✅ 已验证 (REQ-4) | ✅ `MarkdownEditorErrorBoundary` 包裹编辑器，渲染崩溃显示 antd Empty |
+| CSS 覆盖对齐 Carbon Design | ✅ 已验证 (REQ-5) | ✅ `markdown-editor.css` 覆盖编辑器容器/工具栏/预览区/滚动条/全屏/下拉菜单等全部视觉要素 |
+| React StrictMode 测试 | ⚠️ 待后续补充 | 🟡 建议补充 |
+| 服务端 Markdown sanitize | ✅ 已实施 (REQ-3) | ✅ `sanitize-markdown.util.ts` + article service `create/update/updateContent` 集成，30 测试用例 |
+| ARIA 无障碍支持 | ✅ 已验证 (REQ-6) | ✅ `role="application"` + `aria-label` + 工具栏/拖拽条/预览区 ARIA 注入 |
 
 ---
 
