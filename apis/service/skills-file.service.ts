@@ -6,6 +6,8 @@ import { BusinessError } from '../entity/errors';
 
 const MAX_ENTRY_SIZE = 100 * 1024 * 1024; // 100MB per entry
 const MAX_TOTAL_EXTRACTED_SIZE = 500 * 1024 * 1024; // 500MB total extracted
+const MAX_NAME_LENGTH = 200;
+const MAX_DESC_LENGTH = 2000;
 
 export interface SkillZipResult {
   topDir: string;
@@ -68,6 +70,14 @@ export class SkillsFileServiceImpl implements ISkillsFileService {
     // Parse SKILL.md
     const skillMdContent = skillMdEntry.getData().toString('utf-8');
     const { name, description } = parseSkillMd(skillMdContent);
+
+    // Validate parsed field lengths
+    if (name.length > MAX_NAME_LENGTH) {
+      throw new BusinessError(`技能名称长度不能超过 ${MAX_NAME_LENGTH} 个字符`);
+    }
+    if (description.length > MAX_DESC_LENGTH) {
+      throw new BusinessError(`技能描述长度不能超过 ${MAX_DESC_LENGTH} 个字符`);
+    }
 
     // Determine the top-level directory in the zip
     const entryPath = skillMdEntry.entryName;

@@ -665,6 +665,124 @@ describe('SkillsFileServiceImpl — 单元测试', () => {
         if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
       }
     });
+
+    it('当 name 超过 200 字符时应抛出 BusinessError', () => {
+      jest.isolateModules(() => {
+        const longName = 'x'.repeat(201);
+        const skillMdContent = `---\nname: ${longName}\n---\n`;
+        const mockEntry = {
+          isDirectory: false,
+          entryName: 'long-name-skill/SKILL.md',
+          getData: () => Buffer.from(skillMdContent),
+          header: { size: skillMdContent.length },
+        };
+        const mockZip = { getEntries: () => [mockEntry] };
+        jest.doMock('adm-zip', () => jest.fn().mockImplementation(() => mockZip));
+
+        const { SkillsFileServiceImpl } = require('../../apis/service/skills-file.service');
+        const svc = new SkillsFileServiceImpl();
+        const zipPath = path.join(tmpBase, 'mock-long-name.zip');
+        const pkBuffer = Buffer.alloc(4);
+        pkBuffer[0] = 0x50; pkBuffer[1] = 0x4B; pkBuffer[2] = 0x03; pkBuffer[3] = 0x04;
+        fs.writeFileSync(zipPath, pkBuffer);
+
+        try {
+          expect(() => svc.extractSkillZip(zipPath)).toThrow('技能名称长度不能超过 200 个字符');
+        } finally {
+          if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
+        }
+      });
+    });
+
+    it('当 name 恰好为 200 字符时不应抛出异常', () => {
+      jest.isolateModules(() => {
+        const exactName = 'x'.repeat(200);
+        const skillMdContent = `---\nname: ${exactName}\n---\n`;
+        const mockEntry = {
+          isDirectory: false,
+          entryName: 'exact-name-skill/SKILL.md',
+          getData: () => Buffer.from(skillMdContent),
+          header: { size: skillMdContent.length },
+        };
+        const mockZip = { getEntries: () => [mockEntry] };
+        jest.doMock('adm-zip', () => jest.fn().mockImplementation(() => mockZip));
+
+        const { SkillsFileServiceImpl } = require('../../apis/service/skills-file.service');
+        const svc = new SkillsFileServiceImpl();
+        const zipPath = path.join(tmpBase, 'mock-exact-name.zip');
+        const pkBuffer = Buffer.alloc(4);
+        pkBuffer[0] = 0x50; pkBuffer[1] = 0x4B; pkBuffer[2] = 0x03; pkBuffer[3] = 0x04;
+        fs.writeFileSync(zipPath, pkBuffer);
+
+        try {
+          const result = svc.extractSkillZip(zipPath);
+          expect(result.name.length).toBe(200);
+        } finally {
+          if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
+          const skillDir = path.join(skillsBase, 'exact-name-skill');
+          if (fs.existsSync(skillDir)) fs.rmSync(skillDir, { recursive: true, force: true });
+        }
+      });
+    });
+
+    it('当 description 超过 2000 字符时应抛出 BusinessError', () => {
+      jest.isolateModules(() => {
+        const longDesc = 'd'.repeat(2001);
+        const skillMdContent = `---\nname: long-desc-skill\ndescription: ${longDesc}\n---\n`;
+        const mockEntry = {
+          isDirectory: false,
+          entryName: 'long-desc-skill/SKILL.md',
+          getData: () => Buffer.from(skillMdContent),
+          header: { size: skillMdContent.length },
+        };
+        const mockZip = { getEntries: () => [mockEntry] };
+        jest.doMock('adm-zip', () => jest.fn().mockImplementation(() => mockZip));
+
+        const { SkillsFileServiceImpl } = require('../../apis/service/skills-file.service');
+        const svc = new SkillsFileServiceImpl();
+        const zipPath = path.join(tmpBase, 'mock-long-desc.zip');
+        const pkBuffer = Buffer.alloc(4);
+        pkBuffer[0] = 0x50; pkBuffer[1] = 0x4B; pkBuffer[2] = 0x03; pkBuffer[3] = 0x04;
+        fs.writeFileSync(zipPath, pkBuffer);
+
+        try {
+          expect(() => svc.extractSkillZip(zipPath)).toThrow('技能描述长度不能超过 2000 个字符');
+        } finally {
+          if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
+        }
+      });
+    });
+
+    it('当 description 恰好为 2000 字符时不应抛出异常', () => {
+      jest.isolateModules(() => {
+        const exactDesc = 'd'.repeat(2000);
+        const skillMdContent = `---\nname: exact-desc-skill\ndescription: ${exactDesc}\n---\n`;
+        const mockEntry = {
+          isDirectory: false,
+          entryName: 'exact-desc-skill/SKILL.md',
+          getData: () => Buffer.from(skillMdContent),
+          header: { size: skillMdContent.length },
+        };
+        const mockZip = { getEntries: () => [mockEntry] };
+        jest.doMock('adm-zip', () => jest.fn().mockImplementation(() => mockZip));
+
+        const { SkillsFileServiceImpl } = require('../../apis/service/skills-file.service');
+        const svc = new SkillsFileServiceImpl();
+        const zipPath = path.join(tmpBase, 'mock-exact-desc.zip');
+        const pkBuffer = Buffer.alloc(4);
+        pkBuffer[0] = 0x50; pkBuffer[1] = 0x4B; pkBuffer[2] = 0x03; pkBuffer[3] = 0x04;
+        fs.writeFileSync(zipPath, pkBuffer);
+
+        try {
+          const result = svc.extractSkillZip(zipPath);
+          expect(result.description.length).toBe(2000);
+        } finally {
+          if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
+          const skillDir = path.join(skillsBase, 'exact-desc-skill');
+          if (fs.existsSync(skillDir)) fs.rmSync(skillDir, { recursive: true, force: true });
+        }
+      });
+    });
   });
 
   describe('validateSkillDirPath()', () => {
