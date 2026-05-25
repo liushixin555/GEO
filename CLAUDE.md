@@ -96,7 +96,7 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 
 ### 任务结束铁律（每次任务结束后必须执行）
 1. **更新任务描述** — 参考 `tasks/dev001.登录功能.md` 格式，更新本次任务对应的 tasks/ 文档（功能说明、业务规则、验收标准等）
-2. **更新 `tasks/fix.Bug修复汇总.md`** — 如果本次涉及 Bug 修复，追加记录
+2. **更新 `tasks/fix.Bug修复汇总.md`** — 如果本次涉及 Bug 修复，仅追加索引条目（编号、标题、关联文件），详细修复内容记录到 `tasks/progress_tasks/` 下的独立文件，禁止在汇总文件中直接写详细内容
 3. **更新 `tasks/db.数据模型变更汇总.md`** — 如果本次涉及数据库 schema 变更，追加记录
 4. **执行 `git add` + `git commit` + `git push`** — 将所有变更提交并推送到远程仓库，commit 消息使用中文
 5. **更新记忆** — 每次任务结束后，将价值信息持久化保存到本项目 `.claude/` 目录下的对应文件以及本项目的CLAUDE.md文件，禁止保存到用户目录 `~/.claude/projects/`
