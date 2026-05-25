@@ -98,3 +98,25 @@ index 97ca08f..b4dbee7 100644
  
  export function reducer(state: ContextStore, action: ContextStore) {
    return { ...state, ...action };
+diff --git a/node_modules/@uiw/react-md-editor/src/commands/title3.tsx b/node_modules/@uiw/react-md-editor/src/commands/title3.tsx
+index bde067d..fa3bfb8 100644
+--- a/node_modules/@uiw/react-md-editor/src/commands/title3.tsx
++++ b/node_modules/@uiw/react-md-editor/src/commands/title3.tsx
+@@ -11,13 +11,13 @@ export const heading3: ICommand = {
+   buttonProps: { 'aria-label': 'Insert Heading 3 (ctrl + 3)', title: 'Insert Heading 3 (ctrl + 3)' },
+   icon: <div style={{ fontSize: 15, textAlign: 'left' }}>Heading 3</div>,
+   execute: (state: ExecuteState, api: TextAreaTextApi) => {
+-    headingExecute({ state, api, prefix: state.command.prefix!, suffix: state.command.suffix });
++    headingExecute({ state, api, prefix: state.command.prefix ?? '### ', suffix: state.command.suffix ?? '' });
+   },
+ };
+ 
+ /**
+- * @deprecated Use `heading3` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title3` for inserting Heading 3.
++ * @deprecated Since v4.0.0. Use `heading3` instead.
++ * Scheduled for removal in v5.0.0.
++ * @see heading3
+  */
+ export const title3: ICommand = heading3;
