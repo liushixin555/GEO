@@ -234,3 +234,9 @@ tests/apis/  + tests/pages/  测试文件
 	  - 仅 2 个 Minor 问题：内联样式（建议改 CSS 类/变量）、title1-6 可提取为工厂模式（Info）
 	  - 建议作为 title1-6 家族的参考实现
 	  - 详见 `tasks/review/title5.tsx.architecture.md`
+		- **@uiw/react-md-editor（title5.tsx）** — 代码安全专家评审 9.0/10 A- 级 APPROVE（2026-05-25）
+		  - 攻击面极小（纯客户端 textarea 文本操作，无网络/存储/DOM 注入），无 CRITICAL/HIGH 风险
+		  - 1 个 MEDIUM：上游 InsertTextAtPosition.ts 使用已废弃 document.execCommand（间接影响）
+		  - 3 个 LOW：内联样式覆盖向量、类型导入语义模糊（建议改 import type）、IE 兼容死代码
+		  - 执行链路安全属性全部通过（输入/输出/注入/XSS/CSRF/权限/并发/原型污染）
+		  - 详见 `tasks/review/title5.tsx.security.md`
