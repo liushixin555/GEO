@@ -635,9 +635,13 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
         };
       }
 
-      // ARCH-CRITICAL-1/SEC-S1/S2/SEC-S4/Q1~Q7/UI-P1~P3:
-      // issue 命令防御性覆盖——# 前缀与 Markdown H1 标题语义碰撞、prefix! 非空断言、
-      // 无错误边界、SVG 无障碍缺陷。命令未被默认工具栏注册（死代码），此处为防御性保护
+      // S1/S2/S3/S4/S5: issue 命令防御性覆盖
+      //   S1 — prefix! 非空断言：前置 prefix 空值守卫，尊重 ICommand 接口可选性
+      //   S2 — 无错误边界：try-catch 防止 selectWord/executeCommand 异常冒泡至编排层
+      //   S3 — selectWord 返回值未校验：选区范围四维校验 + text 类型检查
+      //   S4 — # 与 Markdown H1~H6 标题语义碰撞：正则检测当前行标题模式，跳过以保护文档结构
+      //   S5 — prefix/suffix 防御策略不一致：统一通过 prefix 空值守卫 + suffix 原样透传
+      //   S6 — 命令未被默认工具栏注册（信息级），死代码安全缺陷已被封装层覆盖
       if (command.name === 'issue') {
         const originalExecute = command.execute;
         return {
@@ -657,14 +661,29 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
           ),
           execute: (state: any, api: any) => {
             try {
+              // S1: prefix 防御性检查——尊重 ICommand.prefix 的可选性
               if (!state.command?.prefix) return;
+
+              // S3: 输入边界校验——text 必须为非空字符串，选区范围必须有效
               const { text, selection } = state;
-              if (!text || selection?.start == null) return;
+              if (!text || typeof text !== 'string') return;
+              if (selection?.start == null || selection.end == null) return;
+              if (selection.start < 0 || selection.end < selection.start || selection.end > text.length) return;
+
+              // 行首检测——cursor 在行首时无有效选区可包裹，跳过防止 selectWord 扩展至整行
               const lineStart = text.lastIndexOf('\n', selection.start - 1) + 1;
               const beforeCursor = text.slice(lineStart, selection.start).trim();
-              if (beforeCursor === '' || beforeCursor === '#') return;
+              if (beforeCursor === '') return;
+
+              // S4: 标题语义碰撞检测——当前行为 Markdown H1~H6 标题时跳过，
+              //     防止 # 前缀 toggle 意外删除标题标记导致文档结构破坏
+              const lineEnd = text.indexOf('\n', selection.start);
+              const currentLine = text.slice(lineStart, lineEnd === -1 ? text.length : lineEnd);
+              if (/^#{1,6}\s/.test(currentLine)) return;
+
               originalExecute?.(state, api);
             } catch (err) {
+              // S2: 错误边界——防止 selectWord/executeCommand 异常冒泡至编排层
               console.error('[MarkdownEditor] issue 命令执行失败:', err);
             }
           },

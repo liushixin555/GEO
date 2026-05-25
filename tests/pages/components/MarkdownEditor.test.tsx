@@ -570,6 +570,123 @@ describe('MarkdownEditor', () => {
         );
       }).not.toThrow();
     });
+
+    // S3: 选区范围校验——start < 0 / end < start / end > text.length 均应跳过
+    it('should skip when selection.start is negative (S3)', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createIssueCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: 'Hello', selection: { start: -1, end: 3 }, command: { prefix: '#' } },
+        api,
+      );
+
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it('should skip when selection.end < selection.start (S3)', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createIssueCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: 'Hello', selection: { start: 4, end: 2 }, command: { prefix: '#' } },
+        api,
+      );
+
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it('should skip when selection.end exceeds text.length (S3)', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createIssueCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: 'Hello', selection: { start: 2, end: 100 }, command: { prefix: '#' } },
+        api,
+      );
+
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it('should skip when text is not a string (S3)', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createIssueCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: 123 as any, selection: { start: 1, end: 2 }, command: { prefix: '#' } },
+        api,
+      );
+
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    // S4: 标题语义碰撞检测——H1~H6 标题行应跳过
+    it('should skip on H1 heading line (# Title) (S4)', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createIssueCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: '# Important Notice', selection: { start: 10, end: 10 }, command: { prefix: '#' } },
+        api,
+      );
+
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it('should skip on H2 heading line (## Subtitle) (S4)', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createIssueCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: '## Section Title', selection: { start: 10, end: 10 }, command: { prefix: '#' } },
+        api,
+      );
+
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it('should skip on H3 heading line (### Subtitle) (S4)', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createIssueCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: '### Deep Heading', selection: { start: 10, end: 10 }, command: { prefix: '#' } },
+        api,
+      );
+
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    it('should allow issue command on non-heading # in mid-text (S4)', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createIssueCommand();
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      // Line starts with "See " (not heading), cursor after "See #123"
+      const state = {
+        text: 'See #123 for details',
+        selection: { start: 8, end: 8 },
+        command: { prefix: '#' },
+      };
+      result.execute(state, api);
+
+      expect(cmd.execute).toHaveBeenCalledWith(state, api);
+    });
   });
 
   describe('commandsFilter — quote command override', () => {
