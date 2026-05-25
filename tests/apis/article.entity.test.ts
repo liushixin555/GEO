@@ -908,4 +908,881 @@ describe('article.entity', () => {
       expect(article.title).toBe('T');
     });
   });
+
+  // ==================== 第二轮 TDD 补全 ====================
+
+  describe('Article JSON 序列化/反序列化', () => {
+    const baseArticle: Article = {
+      id: 1, project_id: 1, title: '测试文章', article_type: 'seo',
+      write_mode: 'auto', keywords: '关键词', portrait: '画像',
+      images: ['img1.jpg'], platforms: ['新浪'], skills: null,
+      llm_model_id: 1, content: '内容', version: 1, status: 'draft',
+      scheduled_publish_at: new Date('2026-06-01T10:00:00Z'),
+      schedule_type: 'scheduled', created_by: 1,
+      created_at: new Date('2026-05-24T08:00:00Z'),
+      updated_at: new Date('2026-05-24T09:00:00Z'),
+    };
+
+    it('should serialize Article to JSON with Date as ISO string', () => {
+      const json = JSON.stringify(baseArticle);
+      const parsed = JSON.parse(json);
+      expect(typeof parsed.created_at).toBe('string');
+      expect(typeof parsed.updated_at).toBe('string');
+      expect(typeof parsed.scheduled_publish_at).toBe('string');
+      expect(parsed.created_at).toBe('2026-05-24T08:00:00.000Z');
+    });
+
+    it('should deserialize JSON back to Article with Date conversion', () => {
+      const json = JSON.stringify(baseArticle);
+      const parsed = JSON.parse(json);
+      const restored: Article = {
+        ...parsed,
+        created_at: new Date(parsed.created_at),
+        updated_at: new Date(parsed.updated_at),
+        scheduled_publish_at: parsed.scheduled_publish_at ? new Date(parsed.scheduled_publish_at) : null,
+      };
+      expect(restored.created_at).toBeInstanceOf(Date);
+      expect(restored.updated_at).toBeInstanceOf(Date);
+      expect(restored.scheduled_publish_at).toBeInstanceOf(Date);
+      expect(restored.id).toBe(baseArticle.id);
+      expect(restored.title).toBe(baseArticle.title);
+    });
+
+    it('should serialize null Date fields as null in JSON', () => {
+      const article: Article = {
+        ...baseArticle, scheduled_publish_at: null,
+      };
+      const json = JSON.stringify(article);
+      const parsed = JSON.parse(json);
+      expect(parsed.scheduled_publish_at).toBeNull();
+    });
+
+    it('should serialize images array correctly', () => {
+      const article: Article = { ...baseArticle, images: ['a.jpg', 'b.png'] };
+      const json = JSON.stringify(article);
+      const parsed = JSON.parse(json);
+      expect(parsed.images).toEqual(['a.jpg', 'b.png']);
+    });
+
+    it('should serialize platforms array correctly', () => {
+      const article: Article = { ...baseArticle, platforms: ['头条', '百家号'] };
+      const json = JSON.stringify(article);
+      const parsed = JSON.parse(json);
+      expect(parsed.platforms).toEqual(['头条', '百家号']);
+    });
+
+    it('should serialize skills as unknown JSON value', () => {
+      const article: Article = { ...baseArticle, skills: { model: 'gpt-4', temp: 0.7 } };
+      const json = JSON.stringify(article);
+      const parsed = JSON.parse(json);
+      expect(parsed.skills.model).toBe('gpt-4');
+      expect(parsed.skills.temp).toBe(0.7);
+    });
+
+    it('should serialize null fields as null in JSON', () => {
+      const article: Article = {
+        ...baseArticle, article_type: null, write_mode: null, keywords: null,
+        portrait: null, images: null, platforms: null, skills: null,
+        llm_model_id: null, content: null, created_by: null,
+      };
+      const json = JSON.stringify(article);
+      const parsed = JSON.parse(json);
+      expect(parsed.article_type).toBeNull();
+      expect(parsed.write_mode).toBeNull();
+      expect(parsed.keywords).toBeNull();
+      expect(parsed.portrait).toBeNull();
+      expect(parsed.images).toBeNull();
+      expect(parsed.platforms).toBeNull();
+      expect(parsed.skills).toBeNull();
+      expect(parsed.llm_model_id).toBeNull();
+      expect(parsed.content).toBeNull();
+      expect(parsed.created_by).toBeNull();
+    });
+
+    it('should preserve numeric fields through JSON roundtrip', () => {
+      const json = JSON.stringify(baseArticle);
+      const parsed = JSON.parse(json);
+      expect(parsed.id).toBe(1);
+      expect(parsed.project_id).toBe(1);
+      expect(parsed.llm_model_id).toBe(1);
+      expect(parsed.version).toBe(1);
+    });
+
+    it('should handle ArticleVersion JSON roundtrip', () => {
+      const version: ArticleVersion = {
+        id: 1, article_id: 1, version: 1, content: '版本内容',
+        created_by: 1, created_at: new Date('2026-05-24T10:00:00Z'),
+      };
+      const json = JSON.stringify(version);
+      const parsed = JSON.parse(json);
+      expect(parsed.id).toBe(1);
+      expect(parsed.article_id).toBe(1);
+      expect(parsed.content).toBe('版本内容');
+      expect(parsed.created_at).toBe('2026-05-24T10:00:00.000Z');
+    });
+  });
+
+  describe('Article 对象拷贝与不可变性', () => {
+    const baseArticle: Article = {
+      id: 1, project_id: 1, title: '原始标题', article_type: null,
+      write_mode: null, keywords: null, portrait: null, images: ['a.jpg'],
+      platforms: ['p1'], skills: null, llm_model_id: null, content: null,
+      version: 1, status: 'draft', scheduled_publish_at: null,
+      schedule_type: null, created_by: null,
+      created_at: new Date(), updated_at: new Date(),
+    };
+
+    it('should create independent copy via spread operator', () => {
+      const copy: Article = { ...baseArticle, title: '新标题' };
+      expect(copy.title).toBe('新标题');
+      expect(baseArticle.title).toBe('原始标题');
+    });
+
+    it('should share array references in shallow copy (images)', () => {
+      const copy: Article = { ...baseArticle };
+      expect(copy.images).toBe(baseArticle.images);
+      copy.images!.push('b.jpg');
+      expect(baseArticle.images).toContain('b.jpg');
+    });
+
+    it('should create independent arrays with explicit copy', () => {
+      const fresh: Article = { ...baseArticle, images: ['x.jpg'] };
+      const copy: Article = { ...fresh, images: [...fresh.images!] };
+      copy.images!.push('y.jpg');
+      expect(fresh.images).not.toContain('y.jpg');
+    });
+
+    it('should create independent platforms with explicit copy', () => {
+      const fresh: Article = { ...baseArticle, platforms: ['px'] };
+      const copy: Article = { ...fresh, platforms: [...fresh.platforms!] };
+      copy.platforms!.push('py');
+      expect(fresh.platforms).not.toContain('py');
+    });
+
+    it('should support Object.freeze on Article', () => {
+      const frozen = Object.freeze({ ...baseArticle });
+      expect(() => { (frozen as any).title = 'modified'; }).toThrow();
+      expect(frozen.title).toBe('原始标题');
+    });
+
+    it('should support Object.freeze on nested arrays', () => {
+      const frozen = Object.freeze({
+        ...baseArticle,
+        images: Object.freeze(['a.jpg']),
+      });
+      expect(() => { (frozen.images as any).push('b.jpg'); }).toThrow();
+    });
+
+    it('should preserve Date object identity in spread', () => {
+      const copy: Article = { ...baseArticle };
+      expect(copy.created_at).toBe(baseArticle.created_at);
+    });
+
+    it('should support deep clone via JSON roundtrip', () => {
+      const json = JSON.stringify(baseArticle);
+      const parsed = JSON.parse(json);
+      const cloned: Article = {
+        ...parsed,
+        created_at: new Date(parsed.created_at),
+        updated_at: new Date(parsed.updated_at),
+        scheduled_publish_at: parsed.scheduled_publish_at ? new Date(parsed.scheduled_publish_at) : null,
+      };
+      cloned.title = '克隆标题';
+      expect(baseArticle.title).toBe('原始标题');
+      expect(cloned.title).toBe('克隆标题');
+    });
+  });
+
+  describe('跨接口一致性', () => {
+    it('CreateArticleRequest fields should be subset of Article fields', () => {
+      const req: CreateArticleRequest = {
+        title: '新文章', article_type: 'seo', write_mode: 'auto',
+        keywords: 'kw', portrait: 'p', images: [], platforms: [],
+        skills: [1], llm_model_id: 1, content: 'c', status: 'draft',
+      };
+      // All CreateArticleRequest fields should map to Article fields
+      const article: Article = {
+        id: 1, project_id: 1,
+        title: req.title ?? '',
+        article_type: req.article_type ?? null,
+        write_mode: req.write_mode ?? null,
+        keywords: req.keywords ?? null,
+        portrait: req.portrait ?? null,
+        images: req.images ?? null,
+        platforms: req.platforms ?? null,
+        skills: req.skills ?? null,
+        llm_model_id: req.llm_model_id ?? null,
+        content: req.content ?? null,
+        version: 0,
+        status: req.status ?? 'draft',
+        scheduled_publish_at: null,
+        schedule_type: null,
+        created_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(article.title).toBe('新文章');
+      expect(article.status).toBe('draft');
+    });
+
+    it('UpdateArticleRequest should be applicable to existing Article', () => {
+      const article: Article = {
+        id: 1, project_id: 1, title: '原标题', article_type: null,
+        write_mode: null, keywords: null, portrait: null, images: null,
+        platforms: null, skills: null, llm_model_id: null, content: null,
+        version: 1, status: 'draft', scheduled_publish_at: null,
+        schedule_type: null, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const update: UpdateArticleRequest = { title: '新标题', status: 'pending_review' };
+      const updated: Article = { ...article, ...update, updated_at: new Date() };
+      expect(updated.title).toBe('新标题');
+      expect(updated.status).toBe('pending_review');
+      expect(updated.id).toBe(1);
+      expect(updated.project_id).toBe(1);
+    });
+
+    it('ArticleVersion should reference Article by article_id', () => {
+      const article: Article = {
+        id: 42, project_id: 1, title: 'T', article_type: null,
+        write_mode: null, keywords: null, portrait: null, images: null,
+        platforms: null, skills: null, llm_model_id: null, content: null,
+        version: 3, status: 'published', scheduled_publish_at: null,
+        schedule_type: null, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const version: ArticleVersion = {
+        id: 1, article_id: article.id, version: 3,
+        content: 'v3内容', created_by: 1, created_at: new Date(),
+      };
+      expect(version.article_id).toBe(article.id);
+      expect(version.version).toBe(article.version);
+    });
+
+    it('CreateArticleRequest status values should be subset of ArticleStatus', () => {
+      const createStatuses: Array<CreateArticleRequest['status']> = ['draft', 'generating', 'manual_writing'];
+      const articleStatuses: ArticleStatus[] = [
+        'draft', 'manual_writing', 'generating', 'generate_failed',
+        'pending_review', 'publishing', 'publish_failed', 'published',
+      ];
+      createStatuses.forEach(s => {
+        expect(articleStatuses).toContain(s);
+      });
+    });
+
+    it('UpdateArticleRequest skills type should be number[] | null (aligned with entity fix)', () => {
+      const req1: UpdateArticleRequest = { skills: [1, 2, 3] };
+      const req2: UpdateArticleRequest = { skills: null };
+      const req3: UpdateArticleRequest = { skills: [] };
+      expect(Array.isArray(req1.skills)).toBe(true);
+      expect(req2.skills).toBeNull();
+      expect(req3.skills).toEqual([]);
+    });
+
+    it('CreateArticleRequest skills type should be number[] | null (aligned with entity fix)', () => {
+      const req1: CreateArticleRequest = { skills: [10, 20] };
+      const req2: CreateArticleRequest = { skills: null };
+      expect(req1.skills).toEqual([10, 20]);
+      expect(req2.skills).toBeNull();
+    });
+  });
+
+  describe('Article 边界值补充', () => {
+    const baseArticle: Article = {
+      id: 1, project_id: 1, title: 'T', article_type: null,
+      write_mode: null, keywords: null, portrait: null, images: null,
+      platforms: null, skills: null, llm_model_id: null, content: null,
+      version: 1, status: 'draft', scheduled_publish_at: null,
+      schedule_type: null, created_by: null,
+      created_at: new Date(), updated_at: new Date(),
+    };
+
+    it('should support id as 0', () => {
+      const article: Article = { ...baseArticle, id: 0 };
+      expect(article.id).toBe(0);
+    });
+
+    it('should support project_id as 0', () => {
+      const article: Article = { ...baseArticle, project_id: 0 };
+      expect(article.project_id).toBe(0);
+    });
+
+    it('should support created_by as 0', () => {
+      const article: Article = { ...baseArticle, created_by: 0 };
+      expect(article.created_by).toBe(0);
+    });
+
+    it('should support llm_model_id as negative', () => {
+      const article: Article = { ...baseArticle, llm_model_id: -1 };
+      expect(article.llm_model_id).toBe(-1);
+    });
+
+    it('should support title with only spaces', () => {
+      const article: Article = { ...baseArticle, title: '   ' };
+      expect(article.title).toBe('   ');
+    });
+
+    it('should support content with only spaces', () => {
+      const article: Article = { ...baseArticle, content: '  \n\t  ' };
+      expect(article.content).toBe('  \n\t  ');
+    });
+
+    it('should support keywords with single character', () => {
+      const article: Article = { ...baseArticle, keywords: 'A' };
+      expect(article.keywords).toBe('A');
+    });
+
+    it('should support extremely long keywords string', () => {
+      const longKeywords = '关键词'.repeat(5000);
+      const article: Article = { ...baseArticle, keywords: longKeywords };
+      expect(article.keywords!.length).toBe(15000);
+    });
+
+    it('should support extremely long portrait string', () => {
+      const longPortrait = '画像描述'.repeat(5000);
+      const article: Article = { ...baseArticle, portrait: longPortrait };
+      expect(article.portrait!.length).toBe(20000);
+    });
+
+    it('should support images array with many elements', () => {
+      const manyImages = Array.from({ length: 100 }, (_, i) => `img${i}.jpg`);
+      const article: Article = { ...baseArticle, images: manyImages };
+      expect(article.images).toHaveLength(100);
+    });
+
+    it('should support platforms array with many elements', () => {
+      const manyPlatforms = Array.from({ length: 50 }, (_, i) => `平台${i}`);
+      const article: Article = { ...baseArticle, platforms: manyPlatforms };
+      expect(article.platforms).toHaveLength(50);
+    });
+
+    it('should support scheduled_publish_at as Date epoch', () => {
+      const article: Article = { ...baseArticle, scheduled_publish_at: new Date(0) };
+      expect(article.scheduled_publish_at!.getTime()).toBe(0);
+    });
+
+    it('should support scheduled_publish_at as far future date', () => {
+      const farFuture = new Date('2100-12-31T23:59:59Z');
+      const article: Article = { ...baseArticle, scheduled_publish_at: farFuture, schedule_type: 'scheduled' };
+      expect(article.scheduled_publish_at!.getUTCFullYear()).toBe(2100);
+    });
+
+    it('should support images with duplicate values', () => {
+      const article: Article = { ...baseArticle, images: ['same.jpg', 'same.jpg', 'same.jpg'] };
+      expect(article.images).toHaveLength(3);
+      expect(article.images!.every(img => img === 'same.jpg')).toBe(true);
+    });
+
+    it('should support platforms with duplicate values', () => {
+      const article: Article = { ...baseArticle, platforms: ['新浪', '新浪', '新浪'] };
+      expect(article.platforms).toHaveLength(3);
+    });
+
+    it('should support version as Number.MAX_SAFE_INTEGER', () => {
+      const article: Article = { ...baseArticle, version: Number.MAX_SAFE_INTEGER };
+      expect(article.version).toBe(Number.MAX_SAFE_INTEGER);
+    });
+  });
+
+  describe('ArticleVersion 边界值补充', () => {
+    it('should support id as 0', () => {
+      const version: ArticleVersion = {
+        id: 0, article_id: 1, version: 1, content: 'c',
+        created_by: null, created_at: new Date(),
+      };
+      expect(version.id).toBe(0);
+    });
+
+    it('should support article_id as 0', () => {
+      const version: ArticleVersion = {
+        id: 1, article_id: 0, version: 1, content: 'c',
+        created_by: null, created_at: new Date(),
+      };
+      expect(version.article_id).toBe(0);
+    });
+
+    it('should support version as Number.MAX_SAFE_INTEGER', () => {
+      const version: ArticleVersion = {
+        id: 1, article_id: 1, version: Number.MAX_SAFE_INTEGER,
+        content: 'c', created_by: null, created_at: new Date(),
+      };
+      expect(version.version).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('should support fractional version', () => {
+      const version: ArticleVersion = {
+        id: 1, article_id: 1, version: 2.5, content: 'c',
+        created_by: null, created_at: new Date(),
+      };
+      expect(version.version).toBe(2.5);
+    });
+
+    it('should support content with null bytes', () => {
+      const version: ArticleVersion = {
+        id: 1, article_id: 1, version: 1, content: 'content\x00with\x00nulls',
+        created_by: null, created_at: new Date(),
+      };
+      expect(version.content).toContain('\x00');
+    });
+
+    it('should support created_at as epoch', () => {
+      const version: ArticleVersion = {
+        id: 1, article_id: 1, version: 1, content: 'c',
+        created_by: null, created_at: new Date(0),
+      };
+      expect(version.created_at.getTime()).toBe(0);
+    });
+  });
+
+  describe('安全相关测试', () => {
+    const baseArticle: Article = {
+      id: 1, project_id: 1, title: 'T', article_type: null,
+      write_mode: null, keywords: null, portrait: null, images: null,
+      platforms: null, skills: null, llm_model_id: null, content: null,
+      version: 1, status: 'draft', scheduled_publish_at: null,
+      schedule_type: null, created_by: null,
+      created_at: new Date(), updated_at: new Date(),
+    };
+
+    it('should store title with script tags as plain text', () => {
+      const xssTitle = '<script>alert("xss")</script>';
+      const article: Article = { ...baseArticle, title: xssTitle };
+      expect(article.title).toBe(xssTitle);
+      expect(article.title).toContain('<script>');
+    });
+
+    it('should store content with SQL injection pattern as plain text', () => {
+      const sqlContent = "'; DROP TABLE articles; --";
+      const article: Article = { ...baseArticle, content: sqlContent };
+      expect(article.content).toBe(sqlContent);
+      expect(article.content).toContain('DROP TABLE');
+    });
+
+    it('should store keywords with HTML entities as plain text', () => {
+      const htmlKeywords = '&lt;script&gt;&amp;&lt;/script&gt;';
+      const article: Article = { ...baseArticle, keywords: htmlKeywords };
+      expect(article.keywords).toBe(htmlKeywords);
+    });
+
+    it('should store portrait with path traversal pattern as plain text', () => {
+      const traversal = '../../../etc/passwd';
+      const article: Article = { ...baseArticle, portrait: traversal };
+      expect(article.portrait).toBe(traversal);
+    });
+
+    it('should store images with javascript: protocol as plain string', () => {
+      const xssImages = ['javascript:alert(1)', 'data:text/html,<h1>test</h1>'];
+      const article: Article = { ...baseArticle, images: xssImages };
+      expect(article.images![0]).toBe('javascript:alert(1)');
+      expect(article.images![1]).toBe('data:text/html,<h1>test</h1>');
+    });
+
+    it('should store content with prototype pollution pattern as plain text', () => {
+      const pollution = '{"__proto__":{"admin":true}}';
+      const article: Article = { ...baseArticle, content: pollution };
+      expect(article.content).toBe(pollution);
+    });
+
+    it('should store content with very large unicode safely', () => {
+      const bigUnicode = '￿'.repeat(1000);
+      const article: Article = { ...baseArticle, content: bigUnicode };
+      expect(article.content!.length).toBe(1000);
+    });
+
+    it('should store title with null bytes safely', () => {
+      const nullTitle = 'title\x00injection';
+      const article: Article = { ...baseArticle, title: nullTitle };
+      expect(article.title).toContain('\x00');
+    });
+  });
+
+  describe('CreateArticleRequest 补充测试', () => {
+    it('should support content with HTML markup', () => {
+      const req: CreateArticleRequest = { content: '<h1>标题</h1><p>段落</p>' };
+      expect(req.content).toContain('<h1>');
+      expect(req.content).toContain('</p>');
+    });
+
+    it('should support portrait with detailed description', () => {
+      const portrait = '目标受众：25-35岁科技从业者，关注AI和大模型技术';
+      const req: CreateArticleRequest = { portrait };
+      expect(req.portrait).toContain('25-35岁');
+    });
+
+    it('should support write_mode with custom value', () => {
+      const req: CreateArticleRequest = { write_mode: 'ai_assist' };
+      expect(req.write_mode).toBe('ai_assist');
+    });
+
+    it('should support article_type with custom value', () => {
+      const req: CreateArticleRequest = { article_type: '技术博客' };
+      expect(req.article_type).toBe('技术博客');
+    });
+
+    it('should support images with mixed URL formats', () => {
+      const req: CreateArticleRequest = {
+        images: ['https://cdn.example.com/img.jpg', '/uploads/local.png', 'relative/path.gif'],
+      };
+      expect(req.images).toHaveLength(3);
+    });
+
+    it('should support platforms with mixed Chinese and English', () => {
+      const req: CreateArticleRequest = { platforms: ['微信公众号', 'Medium', 'Dev.to'] };
+      expect(req.platforms).toHaveLength(3);
+    });
+
+    it('should support skills with zero values', () => {
+      const req: CreateArticleRequest = { skills: [0, 0, 0] };
+      expect(req.skills).toEqual([0, 0, 0]);
+    });
+
+    it('should support skills with large IDs', () => {
+      const req: CreateArticleRequest = { skills: [Number.MAX_SAFE_INTEGER] };
+      expect(req.skills![0]).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('should support all three valid status values independently', () => {
+      const statuses: Array<NonNullable<CreateArticleRequest['status']>> = ['draft', 'generating', 'manual_writing'];
+      statuses.forEach(status => {
+        const req: CreateArticleRequest = { status };
+        expect(req.status).toBe(status);
+      });
+    });
+
+    it('should support content with mixed line endings', () => {
+      const req: CreateArticleRequest = { content: 'line1\r\nline2\nline3\rline4' };
+      expect(req.content).toContain('\r\n');
+      expect(req.content).toContain('\n');
+    });
+  });
+
+  describe('UpdateArticleRequest 补充测试', () => {
+    it('should support scheduled_publish_at as RFC 2822 format string', () => {
+      const req: UpdateArticleRequest = { scheduled_publish_at: 'Sat, 01 Jan 2026 00:00:00 GMT' };
+      expect(typeof req.scheduled_publish_at).toBe('string');
+    });
+
+    it('should support scheduled_publish_at as date-only string', () => {
+      const req: UpdateArticleRequest = { scheduled_publish_at: '2026-06-15' };
+      expect(req.scheduled_publish_at).toBe('2026-06-15');
+    });
+
+    it('should support schedule_type and scheduled_publish_at consistency', () => {
+      const req: UpdateArticleRequest = {
+        schedule_type: 'scheduled',
+        scheduled_publish_at: '2026-12-31T23:59:59Z',
+      };
+      expect(req.schedule_type).toBe('scheduled');
+      expect(req.scheduled_publish_at).toBeTruthy();
+    });
+
+    it('should support asap with null scheduled_publish_at (clear schedule)', () => {
+      const req: UpdateArticleRequest = {
+        schedule_type: 'asap',
+        scheduled_publish_at: null,
+      };
+      expect(req.schedule_type).toBe('asap');
+      expect(req.scheduled_publish_at).toBeNull();
+    });
+
+    it('should support updating only write_mode', () => {
+      const req: UpdateArticleRequest = { write_mode: 'manual' };
+      expect(Object.keys(req)).toEqual(['write_mode']);
+    });
+
+    it('should support updating only article_type', () => {
+      const req: UpdateArticleRequest = { article_type: '技术深度' };
+      expect(Object.keys(req)).toEqual(['article_type']);
+    });
+
+    it('should support updating title and content together', () => {
+      const req: UpdateArticleRequest = { title: '新标题', content: '新内容' };
+      expect(Object.keys(req).sort()).toEqual(['content', 'title']);
+    });
+
+    it('should support updating all status transitions', () => {
+      type StatusTransition = [from: ArticleStatus, to: ArticleStatus];
+      const transitions: StatusTransition[] = [
+        ['draft', 'manual_writing'],
+        ['draft', 'generating'],
+        ['generating', 'generate_failed'],
+        ['generating', 'pending_review'],
+        ['manual_writing', 'pending_review'],
+        ['pending_review', 'publishing'],
+        ['pending_review', 'draft'],
+        ['publishing', 'published'],
+        ['publishing', 'publish_failed'],
+        ['publish_failed', 'publishing'],
+      ];
+      transitions.forEach(([from, to]) => {
+        const req: UpdateArticleRequest = { status: to };
+        expect(req.status).toBe(to);
+      });
+    });
+
+    it('should support skills as empty array to clear skills', () => {
+      const req: UpdateArticleRequest = { skills: [] };
+      expect(req.skills).toEqual([]);
+    });
+
+    it('should support updating only images to empty array', () => {
+      const req: UpdateArticleRequest = { images: [] };
+      expect(req.images).toEqual([]);
+    });
+
+    it('should support updating only platforms to empty array', () => {
+      const req: UpdateArticleRequest = { platforms: [] };
+      expect(req.platforms).toEqual([]);
+    });
+  });
+
+  describe('ReviewArticleRequest 补充测试', () => {
+    it('should support boolean equality comparison', () => {
+      const approve: ReviewArticleRequest = { approved: true };
+      const reject: ReviewArticleRequest = { approved: false };
+      expect(approve.approved === true).toBe(true);
+      expect(reject.approve !== undefined ? reject.approved === false : false).toBe(false);
+      expect(reject.approved === false).toBe(true);
+    });
+
+    it('should support conditional branching based on approved', () => {
+      const req: ReviewArticleRequest = { approved: true };
+      let result = '';
+      if (req.approved) {
+        result = '通过';
+      } else {
+        result = '拒绝';
+      }
+      expect(result).toBe('通过');
+    });
+
+    it('should support negation pattern', () => {
+      const req: ReviewArticleRequest = { approved: false };
+      expect(!req.approved).toBe(true);
+    });
+
+    it('should support array filter with approved status', () => {
+      const reviews: ReviewArticleRequest[] = [
+        { approved: true },
+        { approved: false },
+        { approved: true },
+      ];
+      const approved = reviews.filter(r => r.approved);
+      const rejected = reviews.filter(r => !r.approved);
+      expect(approved).toHaveLength(2);
+      expect(rejected).toHaveLength(1);
+    });
+  });
+
+  describe('ArticleStatus 完整生命周期', () => {
+    it('should represent complete AI generation flow', () => {
+      const flow: ArticleStatus[] = [
+        'draft',
+        'generating',
+        'pending_review',
+        'publishing',
+        'published',
+      ];
+      expect(flow[0]).toBe('draft');
+      expect(flow[flow.length - 1]).toBe('published');
+    });
+
+    it('should represent failed generation flow', () => {
+      const flow: ArticleStatus[] = ['draft', 'generating', 'generate_failed'];
+      expect(flow).toHaveLength(3);
+      expect(flow[2]).toContain('failed');
+    });
+
+    it('should represent failed publishing flow', () => {
+      const flow: ArticleStatus[] = ['pending_review', 'publishing', 'publish_failed'];
+      expect(flow).toHaveLength(3);
+      expect(flow[2]).toContain('failed');
+    });
+
+    it('should represent retry after generation failure', () => {
+      const flow: ArticleStatus[] = ['generate_failed', 'generating', 'pending_review', 'publishing', 'published'];
+      expect(flow[0]).toBe('generate_failed');
+      expect(flow[flow.length - 1]).toBe('published');
+    });
+
+    it('should represent retry after publish failure', () => {
+      const flow: ArticleStatus[] = ['publish_failed', 'publishing', 'published'];
+      expect(flow[0]).toBe('publish_failed');
+      expect(flow[flow.length - 1]).toBe('published');
+    });
+
+    it('should represent manual writing to publish flow', () => {
+      const flow: ArticleStatus[] = ['manual_writing', 'pending_review', 'publishing', 'published'];
+      expect(flow[0]).toBe('manual_writing');
+      expect(flow).toHaveLength(4);
+    });
+
+    it('should represent draft back from review', () => {
+      const flow: ArticleStatus[] = ['pending_review', 'draft'];
+      expect(flow).toHaveLength(2);
+    });
+
+    it('should have exactly 8 unique status values', () => {
+      const allStatuses: ArticleStatus[] = [
+        'draft', 'manual_writing', 'generating', 'generate_failed',
+        'pending_review', 'publishing', 'publish_failed', 'published',
+      ];
+      expect(allStatuses).toHaveLength(8);
+      expect(new Set(allStatuses).size).toBe(8);
+    });
+
+    it('should have 3 failure/terminal states', () => {
+      const failureStates: ArticleStatus[] = ['generate_failed', 'publish_failed'];
+      const terminalStates: ArticleStatus[] = ['published'];
+      expect(failureStates).toHaveLength(2);
+      expect(terminalStates).toHaveLength(1);
+    });
+  });
+
+  describe('实际使用场景', () => {
+    it('should create article from CreateArticleRequest with defaults', () => {
+      const req: CreateArticleRequest = {
+        title: 'AI时代的技术写作',
+        article_type: 'seo',
+        write_mode: 'auto',
+        keywords: 'AI,技术写作,大模型',
+        portrait: '科技从业者',
+        images: [],
+        platforms: ['微信公众号'],
+        skills: [1, 2],
+        llm_model_id: 5,
+        content: '',
+        status: 'draft',
+      };
+      const article: Article = {
+        id: 1,
+        project_id: 10,
+        title: req.title ?? '',
+        article_type: req.article_type ?? null,
+        write_mode: req.write_mode ?? null,
+        keywords: req.keywords ?? null,
+        portrait: req.portrait ?? null,
+        images: req.images ?? null,
+        platforms: req.platforms ?? null,
+        skills: req.skills ?? null,
+        llm_model_id: req.llm_model_id ?? null,
+        content: req.content ?? null,
+        version: 0,
+        status: req.status ?? 'draft',
+        scheduled_publish_at: null,
+        schedule_type: null,
+        created_by: 1,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(article.title).toBe('AI时代的技术写作');
+      expect(article.status).toBe('draft');
+      expect(article.version).toBe(0);
+    });
+
+    it('should apply partial update to existing article', () => {
+      const original: Article = {
+        id: 1, project_id: 1, title: '原标题', article_type: 'seo',
+        write_mode: 'auto', keywords: '旧关键词', portrait: '旧画像',
+        images: ['old.jpg'], platforms: ['旧平台'], skills: [1],
+        llm_model_id: 1, content: '旧内容', version: 2, status: 'draft',
+        scheduled_publish_at: null, schedule_type: null, created_by: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const update: UpdateArticleRequest = {
+        title: '更新标题',
+        status: 'pending_review',
+      };
+      const result: Article = { ...original, ...update, updated_at: new Date() };
+      expect(result.title).toBe('更新标题');
+      expect(result.status).toBe('pending_review');
+      expect(result.content).toBe('旧内容');
+      expect(result.version).toBe(2);
+      expect(result.article_type).toBe('seo');
+    });
+
+    it('should handle review flow with ReviewArticleRequest', () => {
+      const article: Article = {
+        id: 1, project_id: 1, title: '审核文章', article_type: null,
+        write_mode: null, keywords: null, portrait: null, images: null,
+        platforms: null, skills: null, llm_model_id: null, content: '内容',
+        version: 1, status: 'pending_review', scheduled_publish_at: null,
+        schedule_type: null, created_by: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const review: ReviewArticleRequest = { approved: true };
+      const afterReview: Article = {
+        ...article,
+        status: review.approved ? 'publishing' : 'draft',
+        updated_at: new Date(),
+      };
+      expect(afterReview.status).toBe('publishing');
+    });
+
+    it('should handle rejected review', () => {
+      const review: ReviewArticleRequest = { approved: false };
+      const afterReject = review.approved ? 'publishing' : 'draft';
+      expect(afterReject).toBe('draft');
+    });
+
+    it('should create article version for content history', () => {
+      const article: Article = {
+        id: 1, project_id: 1, title: '版本化文章', article_type: null,
+        write_mode: null, keywords: null, portrait: null, images: null,
+        platforms: null, skills: null, llm_model_id: null, content: 'v3内容',
+        version: 3, status: 'draft', scheduled_publish_at: null,
+        schedule_type: null, created_by: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const versions: ArticleVersion[] = [
+        { id: 1, article_id: article.id, version: 1, content: 'v1', created_by: 1, created_at: new Date() },
+        { id: 2, article_id: article.id, version: 2, content: 'v2', created_by: 1, created_at: new Date() },
+        { id: 3, article_id: article.id, version: 3, content: article.content ?? '', created_by: 1, created_at: new Date() },
+      ];
+      expect(versions).toHaveLength(3);
+      expect(versions[2].version).toBe(article.version);
+      expect(versions.every(v => v.article_id === article.id)).toBe(true);
+    });
+
+    it('should handle schedule update for publishing', () => {
+      const article: Article = {
+        id: 1, project_id: 1, title: '定时发布', article_type: null,
+        write_mode: null, keywords: null, portrait: null, images: null,
+        platforms: null, skills: null, llm_model_id: null, content: '内容',
+        version: 1, status: 'pending_review', scheduled_publish_at: null,
+        schedule_type: null, created_by: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const update: UpdateArticleRequest = {
+        schedule_type: 'scheduled',
+        scheduled_publish_at: '2026-06-15T10:00:00+08:00',
+      };
+      const result: Article = {
+        ...article, ...update, updated_at: new Date(),
+      };
+      expect(result.schedule_type).toBe('scheduled');
+      expect(result.scheduled_publish_at).toBe('2026-06-15T10:00:00+08:00');
+    });
+
+    it('should handle clear schedule (asap)', () => {
+      const article: Article = {
+        id: 1, project_id: 1, title: '取消定时', article_type: null,
+        write_mode: null, keywords: null, portrait: null, images: null,
+        platforms: null, skills: null, llm_model_id: null, content: '内容',
+        version: 1, status: 'draft',
+        scheduled_publish_at: new Date('2026-06-15T10:00:00Z'),
+        schedule_type: 'scheduled', created_by: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const update: UpdateArticleRequest = {
+        schedule_type: 'asap',
+        scheduled_publish_at: null,
+      };
+      const result: Article = {
+        ...article, ...update, updated_at: new Date(),
+      };
+      expect(result.schedule_type).toBe('asap');
+      expect(result.scheduled_publish_at).toBeNull();
+    });
+  });
 });
