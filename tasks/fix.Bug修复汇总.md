@@ -1058,3 +1058,24 @@ components: {
 
 ### 涉及文件
 - `pages/components/MarkdownEditor.tsx` — 移除 cloneNode+replaceChild cleanup
+
+---
+
+## fix019. Markdown 编辑器横向滚动条 + 高度不自适应
+
+### 问题
+1. 所有编辑界面的 Markdown 编辑器工具栏出现横向滚动条（桌面端），因 `overflow-x: auto` 在全局生效
+2. 编辑长文章时编辑器高度固定（320/600px），textarea 内部出现纵向滚动条，无法看到全部内容
+
+### 修复
+1. 横向滚动条：`overflow-x: auto` 从工具栏全局规则移至 `@media (max-width: 672px)` 移动端媒体查询内，桌面端依赖库的 `flex-wrap: wrap` 自动换行。编辑器容器添加 `overflow: hidden` 防止溢出
+2. 高度自适应：改为 `useEffect` 测量 textarea `scrollHeight` 动态计算编辑器高度，替代固定值。编辑器根据内容自动撑高，通过页面滚动代替编辑器内部滚动
+
+### 验证
+- article/10 编辑模式：编辑器高度 2669px ≈ textarea scrollHeight 2666px，无内部滚动条
+- article/new 手工编写：编辑器容器 `overflow: hidden`，无横向滚动条
+- 164 个 MarkdownEditor 测试全部通过
+
+### 涉及文件
+- `pages/components/MarkdownEditor.tsx` — 自适应高度 useEffect
+- `pages/styles/markdown-editor.css` — overflow-x 移至移动端媒体查询 + 编辑器 overflow:hidden
