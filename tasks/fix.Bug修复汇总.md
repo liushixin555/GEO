@@ -49,3 +49,5 @@
 | fix041 | title3.tsx 安全修复 | prefix!→`?? '### '`、suffix→`?? ''` | `patches/@uiw+react-md-editor+4.1.0.patch` |
 | fix042 | title.tsx 评审修复 | 循环依赖消除、废弃注释统一、suffix 默认值→''、patch-package v8 迁移 | `patches/@uiw+react-md-editor+4.1.0.patch` |
 | fix043 | 发布中状态文章禁止删除 | 后端 delete 拦截 publishing，前端 canDelete 增加 publishing 判断 | `article.service.impl.ts`, `pages/article/index.tsx` |
+| fix044 | 发布管理驳回后文章退回待审核状态 | 状态机 publishing→pending_review，rejectPublish 目标改为 pending_review，卡片视图权限修复 | `article.service.impl.ts`, `pages/publish/index.tsx` |
+| fix045 | 全局错误消息显示API返回的message | 13个页面 message.error 统一使用 getApiErrorMessage，4xx 显示后端消息，5xx 脱敏 | 13 个 `pages/` 文件 |

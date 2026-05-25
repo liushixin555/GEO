@@ -125,10 +125,13 @@
   - 查看者：从所有 `role='view'` 用户中选择（`Select mode="multiple"`）
 
 ## 文章页面模式
+- **文章状态机**：draft → generating/manual_writing → pending_review → publishing → published/publish_failed
+  - publishing 可驳回至 pending_review（待审核），由非创建者的 sysadmin/admin 操作
+  - published 和 publishing 状态的文章禁止删除
 - **文章列表页** `/article`：卡片网格 + 搜索 + 状态筛选 + 分页
   - 点击卡片 → `navigate('/article/${id}')` 进入详情/编辑页
   - 点击「添加文章」→ `navigate('/article/new')`
-  - 删除仅限非已发布状态+创建者/sysadmin，通过 Popconfirm 确认
+  - 删除仅限非 published/publishing 状态+创建者/sysadmin，通过 Popconfirm 确认
 - **文章详情/编辑页** `/article/:id`：独立路由页面（非Modal）
   - 顶部：返回箭头 + 标题 + 状态 Tag
   - Tabs 标签页切换：「文章设置」和「正文」（有正文时才显示正文Tab）
