@@ -243,7 +243,9 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
       if ((e.ctrlKey || e.metaKey) && !e.altKey) {
         const key = e.key.toLowerCase();
           // UI-P1-01: 拦截 Ctrl+L 防止浏览器选中地址栏导致焦点跳走
-          if (key === 'j' || key === 'l' || (key === 'h' && !e.shiftKey) || (key === 'q' && !e.shiftKey)) {
+          // title3.tsx review: 拦截 Ctrl+1-6 防止浏览器切换标签页（与 heading 命令快捷键冲突）
+          const headingKeys = new Set(['1', '2', '3', '4', '5', '6']);
+          if (key === 'j' || key === 'l' || (key === 'h' && !e.shiftKey) || (key === 'q' && !e.shiftKey) || headingKeys.has(key)) {
           e.preventDefault();
         }
       }
@@ -318,6 +320,35 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
             'aria-label': '选择标题级别',
             'aria-haspopup': 'menu',
             title: '选择标题级别',
+          },
+        };
+      }
+
+      // P2-01/A-01/I18N-01: 覆盖 heading1~6 命令——中文 ARIA + 图标文本 HN + prefix! 防御
+      if (command.name?.startsWith('heading') && /^heading[1-6]$/.test(command.name)) {
+        const level = command.name.replace('heading', '');
+        const levelNum = Number(level);
+        const prefixMap: Record<string, string> = {
+          '1': '# ', '2': '## ', '3': '### ', '4': '#### ', '5': '##### ', '6': '###### ',
+        };
+        const originalExecute = command.execute;
+        return {
+          ...command,
+          icon: <span role="img" aria-hidden="true" style={{ fontSize: Math.max(12, 20 - levelNum * 2), fontWeight: 500, fontFamily: "'IBM Plex Sans', sans-serif" }}>H{level}</span>,
+          buttonProps: {
+            'aria-label': `${level}级标题 (Ctrl+${level})`,
+            title: `${level}级标题 (Ctrl+${level})`,
+          },
+          execute: (state: any, api: any) => {
+            try {
+              if (!state.command?.prefix) return;
+              if (!state.text || typeof state.text !== 'string') return;
+              const { start, end } = state.selection ?? {};
+              if (start == null || end == null || start < 0 || end < start || end > state.text.length) return;
+              originalExecute?.(state, api);
+            } catch (err) {
+              console.error(`[MarkdownEditor] 命令 "${command.name}" 执行失败:`, err);
+            }
           },
         };
       }

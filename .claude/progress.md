@@ -203,3 +203,4 @@
 | 2026-05-25 | tasks/review/publishing-platform.controller.security.md | publishing-platform.controller.ts 代码安全专家评审（v2）——HIGH×2（凭证明文链路H-1+sync无并发控制H-2）+MEDIUM×5+LOW×3，v1全部10项已修复 |
 | 2026-05-25 | tasks/review/publishing-platform.controller.committer.md | publishing-platform.controller.ts Committer 审核专家评审（v2）——APPROVE 通过，v1全部8项问题已修复，83测试用例覆盖率>98%，代码质量为项目标杆 |
 | 2026-05-25 | progress_tasks/2026-05-25-context-tsx-architecture-fix.md | Context.tsx 架构评审修复——P0-1移除[key:string]:any+P2-2 ExecuteCommandState显式定义+reducer返回类型简化，patch-package补丁，129测试全通过 |
+| 2026-05-25 | progress_tasks/2026-05-25-title3-tsx-review-fix.md | title3.tsx 评审封装层修复——Ctrl+1-6快捷键拦截+IBM Plex Sans字体声明+H5/H6最小12px+role="img"无障碍属性 |
