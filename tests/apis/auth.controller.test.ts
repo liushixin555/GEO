@@ -2125,4 +2125,727 @@ describe('Auth Controller', () => {
       expect(res.statusCode).toBe(200);
     });
   });
+
+  // ============================================================
+  // Round 4: Security & injection boundary tests
+  // ============================================================
+  describe('Round 4: Security & injection boundaries', () => {
+    it('login should handle SQL injection in username', async () => {
+      const response = await agent
+        .post(LOGIN)
+        .send({ username: "admin' OR '1'='1", password: 'pass123' });
+      expect(response.status).toBe(401);
+      expect(response.body.message).toBe('用户名或密码错误');
+    });
+
+    it('login should handle SQL injection in password', async () => {
+      const response = await agent
+        .post(LOGIN)
+        .send({ username: 'admin', password: "' OR '1'='1" });
+      expect(response.status).toBe(401);
+      expect(response.body.message).toBe('用户名或密码错误');
+    });
+
+    it('login should handle NoSQL injection in username', async () => {
+      const response = await agent
+        .post(LOGIN)
+        .send({ username: { $gt: '' }, password: 'pass123' });
+      expect(response.status).toBe(400);
+    });
+
+    it('login should handle XSS payload in username', async () => {
+      const response = await agent
+        .post(LOGIN)
+        .send({ username: '<script>alert(1)</script>', password: 'pass123' });
+      expect(response.status).toBe(401);
+    });
+
+    it('login should handle Unicode username', async () => {
+      const response = await agent
+        .post(LOGIN)
+        .send({ username: '用户名🎉', password: 'pass123' });
+      expect(response.status).toBe(401);
+    });
+
+    it('login should handle null byte in username', async () => {
+      const response = await agent
+        .post(LOGIN)
+        .send({ username: 'admin\x00evil', password: 'pass123' });
+      expect(response.status).toBe(401);
+    });
+
+    it('saveSelection should handle SQL injection in company_id via Zod', async () => {
+      const response = await agent
+        .put(SELECTION)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ company_id: "1; DROP TABLE users--" });
+      expect(response.status).toBe(400);
+    });
+
+    it('getAccessibleProjects should safely handle SQL injection in company_id (parseInt truncates)', async () => {
+      const prisma = mockPrisma();
+      prisma.project.findMany.mockResolvedValue([]);
+
+      const response = await agent
+        .get(PROJECTS)
+        .query({ company_id: "1 OR 1=1" })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      // parseInt("1 OR 1=1", 10) = 1 → valid, query executes safely (parameterized)
+      expect(response.status).toBe(200);
+    });
+
+    it('getCompanyDetail should safely handle SQL injection in id param (parseInt truncates)', async () => {
+      const prisma = mockPrisma();
+      prisma.user.findMany.mockResolvedValue([]);
+
+      const response = await agent
+        .get(`${COMPANIES}/1;DROP TABLE users`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      // parseInt("1;DROP TABLE users", 10) = 1 → valid, query executes safely (parameterized)
+      expect(response.status).toBe(200);
+    });
+
+    it('getContext should handle special characters in company_id', async () => {
+      const response = await agent
+        .get(CONTEXT)
+        .query({ company_id: '<script>' })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('company_id 必须为正整数');
+    });
+
+    it('should reject token tampered payload (different user)', async () => {
+      const token = jwt.sign(
+        { userId: 1, username: 'sysadmin', role: 'sysadmin', companyId: 1 },
+        'test-secret',
+        { expiresIn: '2h' }
+      );
+      // Tamper by modifying a character in the payload section
+      const parts = token.split('.');
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+      payload.role = 'superadmin';
+      parts[1] = Buffer.from(JSON.stringify(payload)).toString('base64url').replace(/=/g, '');
+      const tamperedToken = parts.join('.');
+
+      const response = await agent
+        .get(VERIFY)
+        .set('Authorization', `Bearer ${tamperedToken}`);
+      expect(response.status).toBe(401);
+    });
+  });
+
+  // ============================================================
+  // Round 5: Boundary value tests
+  // ============================================================
+  describe('Round 5: Boundary value tests', () => {
+    it('login should accept username at boundary 100 chars', async () => {
+      const response = await agent
+        .post(LOGIN)
+        .send({ username: 'a'.repeat(100), password: 'pass123' });
+      // Should not be 400 for length — may be 401 for wrong creds
+      expect(response.status).not.toBe(400);
+      expect([200, 401]).toContain(response.status);
+    });
+
+    it('login should reject username at 101 chars', async () => {
+      const response = await agent
+        .post(LOGIN)
+        .send({ username: 'a'.repeat(101), password: 'pass123' });
+      expect(response.status).toBe(400);
+    });
+
+    it('login should accept password at boundary 200 chars', async () => {
+      const response = await agent
+        .post(LOGIN)
+        .send({ username: 'admin', password: 'p'.repeat(200) });
+      expect(response.status).not.toBe(400);
+      expect([200, 401]).toContain(response.status);
+    });
+
+    it('login should reject password at 201 chars', async () => {
+      const response = await agent
+        .post(LOGIN)
+        .send({ username: 'admin', password: 'p'.repeat(201) });
+      expect(response.status).toBe(400);
+    });
+
+    it('saveSelection should accept very large valid company_id', async () => {
+      const prisma = mockPrisma();
+      prisma.company.findMany.mockResolvedValue([{ id: 999999999, shortName: 'Big Co' }]);
+
+      const response = await agent
+        .put(SELECTION)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ company_id: 999999999 });
+      expect(response.status).toBe(200);
+    });
+
+    it('getAccessibleProjects should handle company_id as max safe integer', async () => {
+      const prisma = mockPrisma();
+      prisma.project.findMany.mockResolvedValue([]);
+
+      const response = await agent
+        .get(PROJECTS)
+        .query({ company_id: '2147483647' })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(200);
+    });
+
+    it('getCompanyDetail should handle very large id', async () => {
+      const prisma = mockPrisma();
+      prisma.user.findMany.mockResolvedValue([]);
+
+      const response = await agent
+        .get(`${COMPANIES}/999999`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(200);
+    });
+
+    it('getContext should return projects as empty when company has no projects', async () => {
+      const prisma = mockPrisma();
+      prisma.company.findMany.mockResolvedValue([{ id: 1, shortName: 'C1' }]);
+      prisma.project.findMany.mockResolvedValue([]);
+
+      const response = await agent
+        .get(CONTEXT)
+        .query({ company_id: '1' })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(200);
+      expect(response.body.data.companies).toHaveLength(1);
+      expect(response.body.data.projects).toHaveLength(0);
+    });
+
+    it('getContext should handle company_id at boundary 1 (minimum valid)', async () => {
+      const prisma = mockPrisma();
+      prisma.company.findMany.mockResolvedValue([{ id: 1, shortName: 'C1' }]);
+      prisma.project.findMany.mockResolvedValue([]);
+
+      const response = await agent
+        .get(CONTEXT)
+        .query({ company_id: '1' })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(200);
+    });
+
+    it('saveSelection should handle string number company_id via direct call', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const prisma = {
+        company: { findMany: jest.fn().mockResolvedValue([{ id: 1, shortName: 'C1' }]) },
+        project: { findMany: jest.fn().mockResolvedValue([]) },
+        user: { update: jest.fn().mockResolvedValue(undefined) },
+      };
+      getPrisma.mockReturnValue(prisma);
+      const { saveSelection } = require('../../apis/controller/auth.controller');
+      const res = { statusCode: 200, body: {}, status(c: number) { res.statusCode = c; return res; }, json(d: any) { res.body = d; return res; } };
+      const req = { body: { company_id: '1' }, user: { userId: 1, role: 'sysadmin', companyId: 1 }, ip: '127.0.0.1' };
+      await saveSelection(req, res);
+      // parseInt('1', 10) = 1 → valid
+      expect(res.statusCode).toBe(200);
+    });
+  });
+
+  // ============================================================
+  // Round 6: Token lifecycle & concurrent access tests
+  // ============================================================
+  describe('Round 6: Token lifecycle tests', () => {
+    it('should reject expired token on verify', async () => {
+      const expiredToken = jwt.sign(
+        { userId: 1, username: 'sysadmin', role: 'sysadmin', companyId: 1 },
+        'test-secret',
+        { expiresIn: '0ms' }
+      );
+      const response = await agent
+        .get(VERIFY)
+        .set('Authorization', `Bearer ${expiredToken}`);
+      expect(response.status).toBe(401);
+      expect(response.body.message).toBe('登录已过期，请重新登录');
+    });
+
+    it('should allow multiple requests with same valid token', async () => {
+      const token = sysadminToken(50, 50);
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        user: { findUnique: jest.fn().mockResolvedValue({
+          id: 50, username: 'test', cnName: 'Test', role: 'sysadmin', companyId: 50,
+          selectedCompany: null, selectedProject: null,
+        })},
+      });
+
+      const responses = await Promise.all([
+        agent.get(VERIFY).set('Authorization', `Bearer ${token}`),
+        agent.get(VERIFY).set('Authorization', `Bearer ${token}`),
+        agent.get(VERIFY).set('Authorization', `Bearer ${token}`),
+      ]);
+      responses.forEach(r => expect(r.status).toBe(200));
+    });
+
+    it('should handle token with missing username field', async () => {
+      const incompleteToken = jwt.sign(
+        { userId: 1, role: 'sysadmin', companyId: 1 },
+        'test-secret',
+        { expiresIn: '2h' }
+      );
+      const response = await agent
+        .get(VERIFY)
+        .set('Authorization', `Bearer ${incompleteToken}`);
+      // Middleware may still pass but the verify may work
+      expect([200, 401]).toContain(response.status);
+    });
+
+    it('should blacklist revoked token and reject subsequent requests', async () => {
+      const token = sysadminToken(60, 60);
+      // Logout to revoke
+      await agent.post(LOGOUT).set('Authorization', `Bearer ${token}`);
+
+      // Second request with same token should fail
+      const verifyRes = await agent
+        .get(VERIFY)
+        .set('Authorization', `Bearer ${token}`);
+      expect(verifyRes.status).toBe(401);
+
+      // Third request should also fail
+      const contextRes = await agent
+        .get(CONTEXT)
+        .set('Authorization', `Bearer ${token}`);
+      expect(contextRes.status).toBe(401);
+    });
+
+    it('should handle multiple tokens revoked independently', async () => {
+      const token1 = sysadminToken(61, 61);
+      const token2 = sysadminToken(62, 62);
+      const token3 = sysadminToken(63, 63);
+
+      // Revoke token1 and token3
+      await agent.post(LOGOUT).set('Authorization', `Bearer ${token1}`);
+      await agent.post(LOGOUT).set('Authorization', `Bearer ${token3}`);
+
+      // token2 should still work
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        user: { findUnique: jest.fn().mockResolvedValue({
+          id: 62, username: 'test2', cnName: 'Test2', role: 'sysadmin', companyId: 62,
+          selectedCompany: null, selectedProject: null,
+        })},
+      });
+      const res2 = await agent.get(VERIFY).set('Authorization', `Bearer ${token2}`);
+      expect(res2.status).toBe(200);
+
+      // token1 should fail
+      const res1 = await agent.get(VERIFY).set('Authorization', `Bearer ${token1}`);
+      expect(res1.status).toBe(401);
+
+      // token3 should fail
+      const res3 = await agent.get(VERIFY).set('Authorization', `Bearer ${token3}`);
+      expect(res3.status).toBe(401);
+    });
+
+    it('logout with non-Bearer authorization should not revoke anything', async () => {
+      const { logout } = require('../../apis/controller/auth.controller');
+      const req = { headers: { authorization: 'Token abc123' }, user: { userId: 1, role: 'sysadmin' }, ip: '127.0.0.1' };
+      const res = { statusCode: 200, body: {}, status(c: number) { res.statusCode = c; return res; }, json(d: any) { res.body = d; return res; } };
+      await logout(req, res);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.message).toBe('登出成功');
+    });
+  });
+
+  // ============================================================
+  // Round 7: Role-based access control depth tests
+  // ============================================================
+  describe('Round 7: RBAC depth tests', () => {
+    it('view role should access verify endpoint', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        user: { findUnique: jest.fn().mockResolvedValue({
+          id: 3, username: 'viewer', cnName: 'Viewer', role: 'view', companyId: 2,
+          selectedCompany: { id: 2, shortName: 'C2' }, selectedProject: null,
+        })},
+      });
+
+      const response = await agent
+        .get(VERIFY)
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(200);
+      expect(response.body.data.valid).toBe(true);
+    });
+
+    it('view role should access companies endpoint', async () => {
+      const prisma = mockPrisma();
+      prisma.company.findUnique.mockResolvedValue({ id: 2, shortName: 'C2', status: true });
+
+      const response = await agent
+        .get(COMPANIES)
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(1);
+    });
+
+    it('view role should access projects endpoint', async () => {
+      const prisma = mockPrisma();
+      prisma.company.findUnique.mockResolvedValue({ id: 2, shortName: 'C2', status: true });
+      prisma.projectViewer.findMany.mockResolvedValue([
+        { project: { id: 4, shortName: 'P4' } },
+      ]);
+
+      const response = await agent
+        .get(PROJECTS)
+        .query({ company_id: '2' })
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(1);
+    });
+
+    it('view role should access context endpoint', async () => {
+      const prisma = mockPrisma();
+      prisma.company.findUnique.mockResolvedValue({ id: 2, shortName: 'C2', status: true });
+      prisma.projectViewer.findMany.mockResolvedValue([
+        { project: { id: 4, shortName: 'P4' } },
+      ]);
+
+      const response = await agent
+        .get(CONTEXT)
+        .query({ company_id: '2' })
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(200);
+      expect(response.body.data.companies).toHaveLength(1);
+      expect(response.body.data.projects).toHaveLength(1);
+    });
+
+    it('view role should be denied getCompanyDetail', async () => {
+      const response = await agent
+        .get(`${COMPANIES}/2`)
+        .set('Authorization', `Bearer ${viewToken()}`);
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('当前角色无权查看公司用户');
+    });
+
+    it('view role should access saveSelection', async () => {
+      const prisma = mockPrisma();
+      prisma.company.findUnique.mockResolvedValue({ id: 2, shortName: 'C2', status: true });
+      prisma.projectViewer.findMany.mockResolvedValue([
+        { project: { id: 4, shortName: 'P4' } },
+      ]);
+
+      const response = await agent
+        .put(SELECTION)
+        .set('Authorization', `Bearer ${viewToken()}`)
+        .send({ company_id: 2, project_id: 4 });
+      expect(response.status).toBe(200);
+    });
+
+    it('admin should be denied getCompanyDetail for different company', async () => {
+      const response = await agent
+        .get(`${COMPANIES}/1`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('无权查看其他公司的用户');
+    });
+
+    it('admin should access getCompanyDetail for own company', async () => {
+      const prisma = mockPrisma();
+      prisma.user.findMany.mockResolvedValue([
+        { id: 2, role: 'admin', cnName: 'Admin', username: 'admin' },
+      ]);
+
+      const response = await agent
+        .get(`${COMPANIES}/2`)
+        .set('Authorization', `Bearer ${adminToken(2, 2)}`);
+      expect(response.status).toBe(200);
+      expect(response.body.data.operators).toHaveLength(1);
+    });
+
+    it('sysadmin should access getCompanyDetail for any company', async () => {
+      const prisma = mockPrisma();
+      prisma.user.findMany.mockResolvedValue([]);
+
+      const response = await agent
+        .get(`${COMPANIES}/555`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.status).toBe(200);
+    });
+  });
+
+  // ============================================================
+  // Round 8: Response format & data shape validation
+  // ============================================================
+  describe('Round 8: Response format validation', () => {
+    it('login success response should have correct structure', async () => {
+      const prisma = mockPrisma();
+      const user = {
+        id: 1, username: 'sysadmin', passwordHash: hashedPassword,
+        cnName: '系统管理员', role: 'sysadmin', status: true, companyId: 1,
+        selectedCompany: { id: 1, shortName: 'Company A' },
+        selectedProject: { id: 1, shortName: 'Project 1' },
+      };
+      prisma.user.findUnique.mockResolvedValue(user);
+      jest.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
+      prisma.company.findMany.mockResolvedValue([{ id: 1, shortName: 'Company A' }]);
+      prisma.project.findMany.mockResolvedValue([{ id: 1, shortName: 'Project 1' }]);
+      prisma.user.update.mockResolvedValue(undefined);
+
+      const response = await agent
+        .post(LOGIN)
+        .send({ username: 'sysadmin', password: 'pass123' });
+      expect(response.body).toMatchObject({
+        code: 0,
+        message: '登录成功',
+        data: {
+          token: expect.any(String),
+          user: expect.objectContaining({
+            id: 1,
+            username: 'sysadmin',
+            role: 'sysadmin',
+          }),
+        },
+      });
+    });
+
+    it('logout response should have correct structure', async () => {
+      const response = await agent
+        .post(LOGOUT)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.body).toMatchObject({
+        code: 0,
+        message: '登出成功',
+        data: null,
+      });
+    });
+
+    it('verify response should have correct structure', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        user: { findUnique: jest.fn().mockResolvedValue({
+          id: 1, username: 'sysadmin', cnName: '系统管理员', role: 'sysadmin', companyId: 1,
+          selectedCompany: { id: 1, shortName: '测试公司' },
+          selectedProject: null,
+        })},
+      });
+
+      const response = await agent
+        .get(VERIFY)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.body).toMatchObject({
+        code: 0,
+        message: 'token有效',
+        data: {
+          valid: true,
+          user: expect.objectContaining({
+            id: 1,
+            username: 'sysadmin',
+          }),
+        },
+      });
+    });
+
+    it('saveSelection success response should have correct structure', async () => {
+      const prisma = mockPrisma();
+      prisma.company.findMany.mockResolvedValue([{ id: 1, shortName: 'Company A' }]);
+
+      const response = await agent
+        .put(SELECTION)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ company_id: 1 });
+      expect(response.body).toMatchObject({
+        code: 0,
+        message: '保存成功',
+        data: null,
+      });
+    });
+
+    it('getCompanies response should have snake_case keys', async () => {
+      const prisma = mockPrisma();
+      prisma.company.findMany.mockResolvedValue([
+        { id: 1, shortName: 'Company A' },
+      ]);
+
+      const response = await agent
+        .get(COMPANIES)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.body.data[0]).toEqual({ id: 1, short_name: 'Company A' });
+    });
+
+    it('getProjects response should have snake_case keys', async () => {
+      const prisma = mockPrisma();
+      prisma.project.findMany.mockResolvedValue([
+        { id: 1, shortName: 'Project A' },
+      ]);
+
+      const response = await agent
+        .get(PROJECTS)
+        .query({ company_id: '1' })
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.body.data[0]).toEqual({ id: 1, short_name: 'Project A' });
+    });
+
+    it('getCompanyDetail response should separate operators and viewers', async () => {
+      const prisma = mockPrisma();
+      prisma.user.findMany.mockResolvedValue([
+        { id: 1, role: 'sysadmin', cnName: '系统管理员', username: 'sysadmin' },
+        { id: 2, role: 'admin', cnName: '管理员A', username: 'admin_a' },
+        { id: 3, role: 'admin', cnName: '管理员B', username: 'admin_b' },
+        { id: 4, role: 'view', cnName: '查看者1', username: 'viewer_1' },
+        { id: 5, role: 'view', cnName: '查看者2', username: 'viewer_2' },
+      ]);
+
+      const response = await agent
+        .get(`${COMPANIES}/1`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(response.body.data.operators).toHaveLength(2); // only admin roles (sysadmin excluded)
+      expect(response.body.data.viewers).toHaveLength(2);
+      expect(response.body.data.operators[0]).toHaveProperty('cn_name');
+      expect(response.body.data.operators[0]).toHaveProperty('username');
+    });
+
+    it('error responses should have code and message', async () => {
+      const response = await agent
+        .post(LOGIN)
+        .send({ username: 'admin', password: 'wrong' });
+      expect(response.body).toHaveProperty('code');
+      expect(response.body).toHaveProperty('message');
+      expect(typeof response.body.code).toBe('number');
+      expect(typeof response.body.message).toBe('string');
+    });
+  });
+
+  // ============================================================
+  // Round 9: HTTP method & content-type tests
+  // ============================================================
+  describe('Round 9: HTTP method & content-type tests', () => {
+    it('GET /login should return 404 or 405', async () => {
+      const response = await agent.get(LOGIN);
+      expect([404, 405]).toContain(response.status);
+    });
+
+    it('DELETE /login should return 404 or 405', async () => {
+      const response = await agent.delete(LOGIN);
+      expect([404, 405]).toContain(response.status);
+    });
+
+    it('GET /logout should return 404 or 405', async () => {
+      const response = await agent.get(LOGOUT);
+      expect([404, 405]).toContain(response.status);
+    });
+
+    it('GET /selection should return 404 or 405', async () => {
+      const response = await agent
+        .get(SELECTION)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect([404, 405]).toContain(response.status);
+    });
+
+    it('POST /selection should return 404 or 405', async () => {
+      const response = await agent
+        .post(SELECTION)
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ company_id: 1 });
+      expect([404, 405]).toContain(response.status);
+    });
+
+    it('POST /verify should return 404 or 405', async () => {
+      const response = await agent
+        .post(VERIFY)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect([404, 405]).toContain(response.status);
+    });
+  });
+
+  // ============================================================
+  // Round 10: Direct controller error path completeness
+  // ============================================================
+  describe('Round 10: Error path completeness (direct)', () => {
+    function mockRes() {
+      const res: any = {
+        statusCode: 200,
+        body: {},
+        status(code: number) { res.statusCode = code; return res; },
+        json(data: any) { res.body = data; return res; },
+      };
+      return res;
+    }
+
+    it('login should throw on undefined body (direct — unreachable via Express)', async () => {
+      const { login } = require('../../apis/controller/auth.controller');
+      const req = { body: undefined as any, ip: '127.0.0.1' };
+      const res = mockRes();
+      // Express always provides req.body, but direct call with undefined triggers destructuring error
+      await expect(login(req, res)).rejects.toThrow();
+    });
+
+    it('login should throw on null body (direct — unreachable via Express)', async () => {
+      const { login } = require('../../apis/controller/auth.controller');
+      const req = { body: null as any, ip: '127.0.0.1' };
+      const res = mockRes();
+      await expect(login(req, res)).rejects.toThrow();
+    });
+
+    it('login should handle LoginSelectionError with custom message (direct)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const { LoginSelectionError } = require('../../apis/entity');
+      getPrisma.mockReturnValue({
+        user: { findUnique: jest.fn().mockRejectedValue(new LoginSelectionError('自定义错误')) },
+      });
+      const { login } = require('../../apis/controller/auth.controller');
+      const req = { body: { username: 'admin', password: 'pass' }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await login(req, res);
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toBe('自定义错误');
+    });
+
+    it('saveSelection should handle PermissionDeniedError with custom message (direct)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        company: { findMany: jest.fn().mockResolvedValue([{ id: 1, shortName: 'C1' }]) },
+        project: { findMany: jest.fn().mockResolvedValue([{ id: 99, shortName: 'P99' }]) },
+        user: { update: jest.fn().mockRejectedValue(new (require('../../apis/entity')).PermissionDeniedError('自定义禁止')) },
+      });
+      const { saveSelection } = require('../../apis/controller/auth.controller');
+      const req = { body: { company_id: 1, project_id: 99 }, user: { userId: 1, role: 'sysadmin', companyId: 1 }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await saveSelection(req, res);
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toBe('自定义禁止');
+    });
+
+    it('verify should handle undefined user in getLatestUserState (direct)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        user: { findUnique: jest.fn().mockResolvedValue(null) },
+      });
+      const { verify } = require('../../apis/controller/auth.controller');
+      const req = { user: { userId: 999 }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await verify(req, res);
+      // getLatestUserState throws because user not found
+      expect(res.statusCode).toBe(401);
+    });
+
+    it('getCompanyDetail should log error on service failure (direct)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        user: { findMany: jest.fn().mockRejectedValue(new Error('Connection timeout')) },
+      });
+      const { getCompanyDetail } = require('../../apis/controller/auth.controller');
+      const req = { params: { id: '1' }, user: { userId: 1, role: 'sysadmin', companyId: 1 }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await getCompanyDetail(req, res);
+      expect(res.statusCode).toBe(500);
+      expect(res.body.message).toBe('获取公司用户失败，请稍后重试');
+    });
+
+    it('getContext should handle projects fetch error after companies succeed (direct)', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      let callCount = 0;
+      getPrisma.mockReturnValue({
+        company: { findMany: jest.fn().mockResolvedValue([{ id: 1, shortName: 'C1' }]) },
+        project: { findMany: jest.fn().mockRejectedValue(new Error('Project DB error')) },
+      });
+      const { getContext } = require('../../apis/controller/auth.controller');
+      const req = { query: { company_id: '1' }, user: { userId: 1, role: 'sysadmin', companyId: 1 }, ip: '127.0.0.1' };
+      const res = mockRes();
+      await getContext(req, res);
+      expect(res.statusCode).toBe(500);
+      expect(res.body.message).toBe('获取上下文失败，请稍后重试');
+    });
+  });
 });
