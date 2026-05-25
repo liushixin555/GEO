@@ -19,6 +19,10 @@ jest.mock('../../apis/middleware/anti-crawl.middleware', () => ({
   antiCrawlMiddleware: (_req: any, _res: any, next: any) => next(),
 }));
 
+jest.mock('../../apis/middleware/validate', () => ({
+  validate: (_schema: any) => (_req: any, _res: any, next: any) => next(),
+}));
+
 import app from '../../apis/app';
 
 const agent = request.agent(app).set('User-Agent', 'test-agent/1.0');
@@ -405,7 +409,7 @@ describe('Keywords - batchCreateKeywords', () => {
   test('keywords非数组返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/keywords/batch').set('Authorization', auth()).send({ keywords: 'not-array' });
     expect(res.status).toBe(400);
-    expect(res.body.message).toContain('参数验证失败');
+    expect(res.body.message).toContain('关键词列表不能为空');
   });
 
   test('keywords为空数组返回400', async () => {
@@ -1135,7 +1139,7 @@ describe('Documents - createDocument', () => {
   test('file_size为空返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf' });
     expect(res.status).toBe(400);
-    expect(res.body.message).toContain('文件大小必须为正数');
+    expect(res.body.message).toContain('文件大小不能为空');
   });
 
   test('标题重复返回409', async () => {
@@ -1514,7 +1518,7 @@ describe('Mined Keywords - saveMinedKeywords', () => {
   test('keywords非数组返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/mined-keywords/save').set('Authorization', auth()).send({ keywords: 'not-array' });
     expect(res.status).toBe(400);
-    expect(res.body.message).toContain('参数验证失败');
+    expect(res.body.message).toContain('请选择至少一个关键词');
   });
 
   test('keywords为空数组返回400', async () => {
@@ -1549,7 +1553,7 @@ describe('Mined Keywords - toggleMinedKeywordsBatch', () => {
   test('ids非数组返回400', async () => {
     const res = await agent.put('/api/v1/knowledge-bases/10/mined-keywords/batch-toggle').set('Authorization', auth()).send({ ids: 'not-array', selected: true });
     expect(res.status).toBe(400);
-    expect(res.body.message).toContain('参数验证失败');
+    expect(res.body.message).toContain('请选择关键词');
   });
 
   test('ids为空数组返回400', async () => {

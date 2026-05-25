@@ -158,13 +158,13 @@
 
 ## 六、问题清单汇总
 
-| 编号 | 级别 | 类别 | 描述 | 建议 |
-|------|------|------|------|------|
-| Q-01 | P1 | 性能 | 每次渲染重建 rehype 插件数组 | 使用 useMemo 缓存 |
-| Q-02 | P1 | 安全 | rehypeRaw 无条件开启 HTML 注入 | 按需引入或服务端消毒 |
-| Q-03 | P2 | 安全 | 用户 rehypePlugins 无验证 | 文档约束或白名单 |
-| Q-04 | P2 | 架构 | common.tsx 与 preview.tsx 双重 rehypeRaw | 统一到单一入口 |
-| Q-05 | P2 | 性能 | rehypeRewriteHandle 每次创建新闭包 | 抽离到 useMemo |
-| Q-06 | P3 | 架构 | 自定义插件插入位置固定 | 支持优先级配置 |
-| Q-07 | P3 | 安全 | rehypeAttrs 允许属性注入 | 限制允许的属性名 |
-| Q-08 | P3 | 可维护性 | 缺少插件顺序说明注释 | 添加行内注释 |
+| 编号 | 级别 | 类别 | 描述 | 建议 | 状态 |
+|------|------|------|------|------|------|
+| Q-01 | P1 | 性能 | 每次渲染重建 rehype 插件数组 | 使用 useMemo 缓存 | ✅ 已修复（patch） |
+| Q-02 | P1 | 安全 | rehypeRaw 无条件开启 HTML 注入 | 按需引入或服务端消毒 | ✅ 无风险（nohighlight 无 rehypeRaw + DOMPurify） |
+| Q-03 | P2 | 安全 | 用户 rehypePlugins 无验证 | 文档约束或白名单 | ✅ 无风险（MarkdownViewer 未传入自定义 rehypePlugins） |
+| Q-04 | P2 | 架构 | common.tsx 与 preview.tsx 双重 rehypeRaw | 统一到单一入口 | ✅ 已修复（强制 skipHtml 阻止重复添加） |
+| Q-05 | P2 | 性能 | rehypeRewriteHandle 每次创建新闭包 | 抽离到 useMemo | ✅ 已修复（patch） |
+| Q-06 | P3 | 架构 | 自定义插件插入位置固定 | 支持优先级配置 | ✅ 已修复（PipelineConfig prepend/append） |
+| Q-07 | P3 | 安全 | rehypeAttrs 允许属性注入 | 限制允许的属性名 | ✅ 已缓解（rehypeRewrite 清理 + content 来源受控） |
+| Q-08 | P3 | 可维护性 | 缺少插件顺序说明注释 | 添加行内注释 | ✅ 已修复（patch） |

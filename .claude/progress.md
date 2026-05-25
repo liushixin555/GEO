@@ -14,7 +14,7 @@
 | 项目管理 | ✅ | CRUD + 运营者/查看者多对多 |
 | 技能管理 | ✅ | CRUD + created_by 权限控制 |
 | 文章管理 | ✅ | CRUD + AI生成 + 正文编辑 + 版本历史 + 审核 |
-| 知识库 | ✅ | 关键词/画像/图片 + 扩展词 |
+| 知识库 | ✅ | 关键词/画像/图片/文档 + 扩展词 + 关键词挖掘 + Zod schema验证 + 架构评审7.9/10 |
 | 发布管理 | ✅ | 发布平台 + 发布调度 |
 | LLM 模型 | ✅ | CRUD（仅 sysadmin） |
 | 系统配置 | ✅ | 配置管理（仅 sysadmin） |
@@ -166,7 +166,7 @@
 | 2026-05-25 | tasks/review/hr.tsx.ui.md | hr.tsx UI 专家评审——REJECT 3.2/10（P1×3 SVG字母HR语义错位+Ctrl+H冲突浏览器历史+选区丢弃；P2×3 tooltip语义+无role=img+focus缺失；P3×4 触摸+移动端+i18n+aria） |
 | 2026-05-25 | tasks/tdd/system-config.service.test.md | system-config.service.impl TDD 第2轮——53用例100%覆盖率（+30新增：错误类型验证+数据一致性+字符串边界纯空格/Unicode/SQL注入+数值边界id=0/极大值+事务深度重复key/P2002+实例独立性+接口一致性） |
 | 2026-05-25 | tasks/review/hr.tsx.committer.md | hr.tsx Committer 审核专家评审——⚠️有条件通过 5.0/10（P1×2 Ctrl+H快捷键冲突+SVG图标语义错位需封装层修复，C-01 selectWord不适用行级块元素+17项已知问题均可封装层解决） |
-| 2026-05-25 | progress_tasks/2026-05-25-common-tsx-quality-fix.md | common.tsx 质量评审修复——Q-01/Q-05 useMemo性能优化 + Q-04注释 + Q-08插件顺序注释，nohighlight+common双文件patch |
+| 2026-05-25 | progress_tasks/2026-05-25-common-tsx-quality-fix.md | common.tsx 质量评审修复——Q-01~Q-08全部修复：Q-04强制skipHtml阻止双重rehype-raw，9个文件patch重新生成 |
 | 2026-05-25 | progress_tasks/2026-05-25-service-index-tdd.md | service/index.ts barrel 文件 TDD——72用例100%覆盖率（13类测试：导出数量/存在性/实例化/工厂函数/源模块关联/重导入/唯一性/方法存在性/异步验证/参数数量） |
 | 2026-05-25 | tasks/review/image.tsx.committer.md | image.tsx Committer 审核专家评审——⚠️有条件通过 5.0/10（P1×4 Ctrl+K严重违反行业"插入链接"惯例与link.tsx冲突+SVG缺aria-hidden无障碍不合规+图标13px远低于Carbon标准16/20px+URL检测includes误判漏判并存，安全评审3.5/10 CRITICAL XSS注入，封装层必须创建customImage覆盖） |
 | 2026-05-25 | tasks/tdd/knowledge-base.service.test.round2.md | knowledge-base.service TDD 第3轮补全——128用例100%覆盖率（+44新增：接口契约7+错误类型statusCode 8+字段映射3+list边界6+getById边界3+create边界4+update边界6+delete边界3+getAccessibleBaseIds边界3+deletedAt过滤器验证） |
@@ -221,3 +221,4 @@
 | 2026-05-25 | tasks/review/title6.tsx.security.md | title6.tsx 代码安全专家评审——⚠️有条件通过 7.2/10（本体零攻击面，MEDIUM×3 execCommand废弃API+手动伪造UIEvent+非空断言DoS，LOW×5） |
 | 2026-05-25 | tasks/review/title6.tsx.ui.md | title6.tsx 软件UI专家评审——⚠️有条件通过 6.4/10（HIGH×2交互状态缺失+H5/H6视觉无区分，MEDIUM×7原生div/内联样式/排版/颜色/间距/无障碍/焦点，LOW×2平台适配/i18n） |
 | 2026-05-25 | tasks/review/title6.tsx.committer.md | title6.tsx Committer审核专家评审——⚠️有条件通过（CONDITIONAL APPROVE），命令功能正确可安全使用，需补充工具栏CSS样式覆盖（交互状态+H5/H6区分） |
+| 2026-05-25 | tasks/review/knowledge.controller.ts.architecture.md | knowledge.controller.ts 架构评审修复——C×4+H×6+M×5+L×4共19项，延迟初始化+typed errors+Zod schema+事务化+parseId安全解析，1172测试全通过，评分3.1→7.9 |
