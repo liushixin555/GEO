@@ -38,7 +38,9 @@ function handleSkillError(res: Response, err: unknown, contextMsg: string): void
   } else if (err instanceof BusinessError) {
     fail(res, 400, err.message);
   } else {
-    fail(res, 500, contextMsg);
+    const reason = err instanceof Error ? err.message : String(err);
+    logger.error('skill.error', { context: contextMsg, error: reason, stack: err instanceof Error ? err.stack : undefined });
+    fail(res, 500, `${contextMsg}：${reason}`);
   }
 }
 
@@ -72,7 +74,7 @@ export async function listSkills(req: Request, res: Response): Promise<void> {
     const { list, total } = await skillsService.list(page, pageSize, search);
     paginate(res, list, total, page, pageSize);
   } catch (err: unknown) {
-    fail(res, 500, '获取技能列表失败');
+    handleSkillError(res, err, '获取技能列表失败');
   }
 }
 

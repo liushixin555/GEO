@@ -135,7 +135,7 @@ describe('Skills Controller', () => {
       expect(response.status).toBe(200);
       expect(mockFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: {},
+          where: { deletedAt: null },
         })
       );
     });
@@ -153,7 +153,7 @@ describe('Skills Controller', () => {
       expect(response.status).toBe(200);
       expect(mockFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { name: { contains: 'react', mode: 'insensitive' } },
+          where: { deletedAt: null, name: { contains: 'react', mode: 'insensitive' } },
         })
       );
     });
@@ -220,7 +220,7 @@ describe('Skills Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('获取技能列表失败');
+      expect(response.body.message).toContain('获取技能列表失败');
     });
 
     it('should default to page 1 when page=0 is provided', async () => {
@@ -419,7 +419,7 @@ describe('Skills Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('获取技能详情失败');
+      expect(response.body.message).toContain('获取技能详情失败');
     });
 
     it('should return 404 for id=0 (valid parseInt but not found)', async () => {
@@ -701,7 +701,7 @@ describe('Skills Controller', () => {
         .attach('file', zip.toBuffer(), 'skill.zip');
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('创建技能失败');
+      expect(response.body.message).toContain('创建技能失败');
     });
 
     it('should return 500 when SKILL.md has no name field', async () => {
@@ -714,7 +714,7 @@ describe('Skills Controller', () => {
         .attach('file', zip.toBuffer(), 'skill.zip');
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('创建技能失败');
+      expect(response.body.message).toContain('创建技能失败');
     });
 
     it('should return 500 on database error during create (service throws)', async () => {
@@ -731,7 +731,7 @@ describe('Skills Controller', () => {
         .attach('file', zipBuffer, 'skill.zip');
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('创建技能失败');
+      expect(response.body.message).toContain('DB create error');
     });
 
     it('should return 500 with default message when create error has no message', async () => {
@@ -748,7 +748,7 @@ describe('Skills Controller', () => {
         .attach('file', zipBuffer, 'skill.zip');
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('创建技能失败');
+      expect(response.body.message).toContain('创建技能失败');
     });
 
     it('should clean up temp file after successful create', async () => {
@@ -1067,7 +1067,7 @@ describe('Skills Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('获取技能详情失败');
+      expect(response.body.message).toContain('获取技能详情失败');
     });
 
     it('should return 400 for zip entry with path traversal in validation loop', async () => {
@@ -1233,7 +1233,7 @@ describe('Skills Controller', () => {
         .send({ name: 'Vue' });
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('更新技能失败');
+      expect(response.body.message).toContain('更新技能失败');
     });
 
     it('should return 500 with default message when update error has no message', async () => {
@@ -1249,7 +1249,7 @@ describe('Skills Controller', () => {
         .send({ name: 'Vue' });
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('更新技能失败');
+      expect(response.body.message).toContain('更新技能失败');
     });
 
     it('should update only description field', async () => {
@@ -1536,7 +1536,7 @@ describe('Skills Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('删除技能失败');
+      expect(response.body.message).toContain('删除技能失败');
     });
 
     it('should return 500 with default message when delete error has no message', async () => {
@@ -1556,7 +1556,7 @@ describe('Skills Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('删除技能失败');
+      expect(response.body.message).toContain('删除技能失败');
     });
 
     it('should remove skill directory with subdirectories recursively', async () => {
