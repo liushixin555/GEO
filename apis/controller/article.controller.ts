@@ -1,17 +1,14 @@
 import { Request, Response } from 'express';
-import { IArticleService } from '../service/article.service';
-import { IProjectService } from '../service/project.service';
-import { ArticleServiceImpl } from '../service/impl/article.service.impl';
-import { ProjectServiceImpl } from '../service/impl/project.service.impl';
+import { createArticleService, createProjectService, IArticleService, IProjectService } from '../service';
 import { AuthContext } from '../service/article.service';
 import { success, fail, paginate, created } from '../utils';
 import { AppError, ForbiddenError, NotFoundError } from '../errors';
 import { logger } from '../utils/logger.util';
 import { ROLES } from '../constants/roles';
 
-// H-1 fix: declare interface types (dependency inversion principle)
-const articleService: IArticleService = new ArticleServiceImpl();
-const projectService: IProjectService = new ProjectServiceImpl();
+// M-1 fix: Factory pattern — lazy initialization, testable via module mock
+const articleService: IArticleService = createArticleService();
+const projectService: IProjectService = createProjectService();
 
 // Field whitelists — defense-in-depth alongside Zod schema validation
 const UPDATE_ALLOWED_FIELDS = [

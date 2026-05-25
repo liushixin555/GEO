@@ -1524,7 +1524,7 @@ describe('Article Controller', () => {
         .put(`${BASE}/1/regenerate`)
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('当前文章状态不支持重新生成');
+      expect(response.body.message).toBe('文章当前状态不支持重新生成');
     });
 
     it('should regenerate as admin operator', async () => {
@@ -3602,7 +3602,7 @@ describe('Article Controller', () => {
       expect(response.body.message).toBe('文章不存在');
     });
 
-    it('should return 400 when regenerate service throws 当前文章状态不支持重新生成', async () => {
+    it('should return 400 when regenerate service throws 文章当前状态不支持重新生成', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       getPrisma.mockReturnValue({
         article: {
@@ -3612,7 +3612,7 @@ describe('Article Controller', () => {
             content: 'c', version: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
-          update: jest.fn().mockRejectedValue(new BusinessError('当前文章状态不支持重新生成')),
+          update: jest.fn().mockRejectedValue(new BusinessError('文章当前状态不支持重新生成')),
         },
       });
 
@@ -3620,7 +3620,7 @@ describe('Article Controller', () => {
         .put(`${BASE}/1/regenerate`)
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('当前文章状态不支持重新生成');
+      expect(response.body.message).toBe('文章当前状态不支持重新生成');
     });
 
     it('should return 400 when submit-review service throws 当前文章状态不支持审核操作', async () => {
@@ -3997,7 +3997,7 @@ describe('Article Controller', () => {
             content: 'c', version: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
-          update: jest.fn().mockRejectedValue(new BusinessError('当前文章状态不支持重新生成')),
+          update: jest.fn().mockRejectedValue(new BusinessError('文章当前状态不支持重新生成')),
         },
       });
 
@@ -4005,7 +4005,7 @@ describe('Article Controller', () => {
         .put(`${BASE}/1/regenerate`)
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('当前文章状态不支持重新生成');
+      expect(response.body.message).toBe('文章当前状态不支持重新生成');
     });
 
     it('should return 404 when regenerate service throws NotFoundError', async () => {
@@ -4639,7 +4639,7 @@ describe('Article Controller', () => {
         .put(`${BASE}/1/regenerate`)
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('当前文章状态不支持重新生成');
+      expect(response.body.message).toBe('文章当前状态不支持重新生成');
     });
 
     it('should regenerate generate_failed article as sysadmin', async () => {

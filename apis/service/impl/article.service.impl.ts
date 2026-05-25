@@ -6,10 +6,15 @@ import { Prisma } from '@prisma/client';
 import { NotFoundError, BusinessError, ForbiddenError } from '../../errors';
 
 export class ArticleServiceImpl implements IArticleService {
-  // C-2: Business constants — moved from controller to service layer
+  // C-1 fix: Complete state machine — all 8 states with valid transitions
   private static readonly STATUS_TRANSITIONS: Record<string, string[]> = {
     'draft': ['generating', 'manual_writing'],
     'manual_writing': ['pending_review'],
+    'generating': ['pending_review', 'generate_failed'],
+    'generate_failed': ['generating'],
+    'pending_review': ['publishing', 'manual_writing', 'draft', 'generating'],
+    'publishing': ['published', 'publish_failed'],
+    'publish_failed': ['publishing'],
   };
 
   private static readonly SETTINGS_EDITABLE_STATUSES = ['draft'];
@@ -260,6 +265,7 @@ export class ArticleServiceImpl implements IArticleService {
         throw new ForbiddenError('不能审核自己创建的文章');
       }
 
+      // Review only accepts pending_review articles (business constraint beyond state machine)
       if (existing.status !== 'pending_review') {
         throw new BusinessError('文章当前状态不支持审核操作');
       }
@@ -281,9 +287,11 @@ export class ArticleServiceImpl implements IArticleService {
       this.checkProjectOwnership(existing, projectId);
       this.checkCreatorOrAdmin(existing, auth, '只能重新生成自己创建的文章');
 
+      // Regenerate has stricter constraints than general state machine:
+      // only generate_failed and pending_review can trigger regeneration
       const allowedRegenerateStatuses = ['generate_failed', 'pending_review'];
       if (!allowedRegenerateStatuses.includes(existing.status)) {
-        throw new BusinessError('当前文章状态不支持重新生成');
+        throw new BusinessError('文章当前状态不支持重新生成');
       }
 
       const updated = await tx.article.update({
@@ -302,7 +310,7 @@ export class ArticleServiceImpl implements IArticleService {
       this.checkProjectOwnership(existing, projectId);
       this.checkCreatorOrAdmin(existing, auth, '只能操作自己创建的文章');
 
-      // Status check
+      // Business rule: only manual_writing articles can submit for review
       if (existing.status !== 'manual_writing') {
         throw new BusinessError('只有手工编写中的文章可以提交审核');
       }
@@ -312,7 +320,7 @@ export class ArticleServiceImpl implements IArticleService {
         throw new BusinessError('文章内容不能为空');
       }
 
-      // Status transition check
+      // Defense-in-depth: validate transition against state machine
       if (!this.isValidStatusTransition(existing.status, 'pending_review')) {
         throw new BusinessError('非法的状态转换');
       }

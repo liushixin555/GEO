@@ -28,3 +28,20 @@ export { IPublishingPlatformService } from './publishing-platform.service';
 export { PublishingPlatformServiceImpl } from './impl/publishing-platform.service.impl';
 export { ITodoService } from './todo.service';
 export { TodoServiceImpl } from './impl/todo.service.impl';
+export { IArticleService, AuthContext as ArticleAuthContext } from './article.service';
+export { ArticleServiceImpl } from './impl/article.service.impl';
+export { IProjectService } from './project.service';
+export { ProjectServiceImpl } from './impl/project.service.impl';
+
+import { IArticleService } from './article.service';
+import { ArticleServiceImpl } from './impl/article.service.impl';
+import { IProjectService } from './project.service';
+import { ProjectServiceImpl } from './impl/project.service.impl';
+
+export function createArticleService(): IArticleService {
+  return new ArticleServiceImpl();
+}
+
+export function createProjectService(): IProjectService {
+  return new ProjectServiceImpl();
+}
