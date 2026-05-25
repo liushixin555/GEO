@@ -564,6 +564,363 @@ describe('System Config Controller', () => {
           expect.objectContaining({ message: '获取系统配置失败' })
         );
       });
+
+      it('应返回200并脱敏敏感配置（直接调用）', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          systemConfig: {
+            findMany: jest.fn().mockResolvedValue([
+              { id: 1, configKey: 'yishangshu_username', configValue: 'user1', createdAt: new Date(), updatedAt: new Date() },
+              { id: 2, configKey: 'yishangshu_password', configValue: 'secret_pass', createdAt: new Date(), updatedAt: new Date() },
+            ]),
+          },
+        });
+
+        const req = {} as any;
+        await getSystemConfigs(req, mockRes);
+
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({
+            code: 0,
+            data: expect.arrayContaining([
+              expect.objectContaining({ config_key: 'yishangshu_username', config_value: 'user1' }),
+              expect.objectContaining({ config_key: 'yishangshu_password', config_value: 'se****' }),
+            ]),
+          })
+        );
+      });
+
+      it('应返回200和空数组（直接调用）', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          systemConfig: { findMany: jest.fn().mockResolvedValue([]) },
+        });
+
+        const req = {} as any;
+        await getSystemConfigs(req, mockRes);
+
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({ code: 0, data: [] })
+        );
+      });
+    });
+
+    describe('updateSystemConfigs — 成功路径（直接调用）', () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { updateSystemConfigs } = require('../../apis/controller/system-config.controller');
+
+      it('应返回200当合法更新时（直接调用）', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockResult = { id: 1, configKey: 'yishangshu_username', configValue: 'new_user', createdAt: new Date(), updatedAt: new Date() };
+        const mockTransaction = jest.fn().mockResolvedValue([mockResult]);
+        getPrisma.mockReturnValue({
+          systemConfig: { upsert: jest.fn() },
+          $transaction: mockTransaction,
+        });
+
+        const req = { body: { configs: [{ config_key: 'yishangshu_username', config_value: 'new_user' }] } } as any;
+        await updateSystemConfigs(req, mockRes);
+
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({
+            code: 0,
+            data: expect.arrayContaining([
+              expect.objectContaining({ config_key: 'yishangshu_username' }),
+            ]),
+          })
+        );
+      });
+
+      it('应允许 config_value 为空字符串（直接调用）', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockResult = { id: 1, configKey: 'yishangshu_username', configValue: '', createdAt: new Date(), updatedAt: new Date() };
+        const mockTransaction = jest.fn().mockResolvedValue([mockResult]);
+        getPrisma.mockReturnValue({
+          systemConfig: { upsert: jest.fn() },
+          $transaction: mockTransaction,
+        });
+
+        const req = { body: { configs: [{ config_key: 'yishangshu_username', config_value: '' }] } } as any;
+        await updateSystemConfigs(req, mockRes);
+
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({ code: 0 })
+        );
+      });
+
+      it('应成功更新 yishangshu_password（直接调用）', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockResult = { id: 2, configKey: 'yishangshu_password', configValue: 'new_pass', createdAt: new Date(), updatedAt: new Date() };
+        const mockTransaction = jest.fn().mockResolvedValue([mockResult]);
+        getPrisma.mockReturnValue({
+          systemConfig: { upsert: jest.fn() },
+          $transaction: mockTransaction,
+        });
+
+        const req = { body: { configs: [{ config_key: 'yishangshu_password', config_value: 'new_pass' }] } } as any;
+        await updateSystemConfigs(req, mockRes);
+
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({ code: 0 })
+        );
+      });
+    });
+
+    describe('updateSystemConfigs — 错误路径（直接调用）', () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { updateSystemConfigs } = require('../../apis/controller/system-config.controller');
+
+      it('应返回500当数据库操作抛出异常时（直接调用）', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockTransaction = jest.fn().mockRejectedValue(new Error('TX error'));
+        getPrisma.mockReturnValue({
+          systemConfig: { upsert: jest.fn() },
+          $transaction: mockTransaction,
+        });
+
+        const req = { body: { configs: [{ config_key: 'yishangshu_username', config_value: 'test' }] } } as any;
+        await updateSystemConfigs(req, mockRes);
+
+        expect(mockStatus).toHaveBeenCalledWith(500);
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({ message: '更新系统配置失败' })
+        );
+      });
+
+      it('应返回400当多条配置中第一条key不在白名单时（直接调用）', async () => {
+        const req = { body: { configs: [{ config_key: 'invalid', config_value: 'test' }, { config_key: 'yishangshu_username', config_value: 'test' }] } } as any;
+        await updateSystemConfigs(req, mockRes);
+
+        expect(mockStatus).toHaveBeenCalledWith(400);
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({ message: expect.stringContaining('不允许修改的配置项') })
+        );
+      });
+
+      it('应返回400当多条配置中第二条key不在白名单时（直接调用）', async () => {
+        const req = { body: { configs: [{ config_key: 'yishangshu_username', config_value: 'test' }, { config_key: 'invalid', config_value: 'test' }] } } as any;
+        await updateSystemConfigs(req, mockRes);
+
+        expect(mockStatus).toHaveBeenCalledWith(400);
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({ message: expect.stringContaining('不允许修改的配置项') })
+        );
+      });
+    });
+  });
+
+  // ─── 第3轮补全——maskSensitiveValue 边界 + token 安全 + 混合场景 ───
+  describe('第3轮补全——边界与安全场景', () => {
+    describe('maskSensitiveValue 边界场景', () => {
+      it('应脱敏长度为1的敏感配置（不脱敏，因为 <=2）', async () => {
+        mockPrismaForGet([
+          { id: 1, configKey: 'yishangshu_password', configValue: 'a', createdAt: new Date(), updatedAt: new Date() },
+        ]);
+
+        const response = await agent
+          .get('/api/v1/system-configs')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body.data[0].config_value).toBe('a');
+      });
+
+      it('应脱敏长度为4的敏感配置', async () => {
+        mockPrismaForGet([
+          { id: 1, configKey: 'yishangshu_password', configValue: 'abcd', createdAt: new Date(), updatedAt: new Date() },
+        ]);
+
+        const response = await agent
+          .get('/api/v1/system-configs')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body.data[0].config_value).toBe('ab****');
+      });
+
+      it('应脱敏超长密码值', async () => {
+        const longPass = 'x'.repeat(100);
+        mockPrismaForGet([
+          { id: 1, configKey: 'yishangshu_password', configValue: longPass, createdAt: new Date(), updatedAt: new Date() },
+        ]);
+
+        const response = await agent
+          .get('/api/v1/system-configs')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body.data[0].config_value).toBe('xx****');
+      });
+
+      it('不应脱敏非敏感配置', async () => {
+        mockPrismaForGet([
+          { id: 1, configKey: 'yishangshu_username', configValue: 'admin_user', createdAt: new Date(), updatedAt: new Date() },
+        ]);
+
+        const response = await agent
+          .get('/api/v1/system-configs')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body.data[0].config_value).toBe('admin_user');
+      });
+
+      it('应脱敏混合敏感和非敏感配置', async () => {
+        mockPrismaForGet([
+          { id: 1, configKey: 'yishangshu_username', configValue: 'user123', createdAt: new Date(), updatedAt: new Date() },
+          { id: 2, configKey: 'yishangshu_password', configValue: 'super_secret', createdAt: new Date(), updatedAt: new Date() },
+        ]);
+
+        const response = await agent
+          .get('/api/v1/system-configs')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body.data[0].config_value).toBe('user123');
+        expect(response.body.data[1].config_value).toBe('su****');
+      });
+    });
+
+    describe('Token 安全场景', () => {
+      it('GET 应返回401当token过期时', async () => {
+        const expiredToken = jwt.sign(
+          { userId: 1, username: 'sysadmin', role: 'sysadmin', companyId: 1 },
+          'test-secret',
+          { expiresIn: '0s' }
+        );
+
+        const response = await agent
+          .get('/api/v1/system-configs')
+          .set('Authorization', `Bearer ${expiredToken}`);
+
+        expect(response.status).toBe(401);
+      });
+
+      it('PUT 应返回401当token过期时', async () => {
+        const expiredToken = jwt.sign(
+          { userId: 1, username: 'sysadmin', role: 'sysadmin', companyId: 1 },
+          'test-secret',
+          { expiresIn: '0s' }
+        );
+
+        const response = await agent
+          .put('/api/v1/system-configs')
+          .set('Authorization', `Bearer ${expiredToken}`)
+          .send({ configs: [{ config_key: 'yishangshu_username', config_value: 'test' }] });
+
+        expect(response.status).toBe(401);
+      });
+
+      it('GET 应返回401当token无效时', async () => {
+        const response = await agent
+          .get('/api/v1/system-configs')
+          .set('Authorization', 'Bearer invalid-token-here');
+
+        expect(response.status).toBe(401);
+      });
+
+      it('PUT 应返回401当token无效时', async () => {
+        const response = await agent
+          .put('/api/v1/system-configs')
+          .set('Authorization', 'Bearer invalid-token-here')
+          .send({ configs: [{ config_key: 'yishangshu_username', config_value: 'test' }] });
+
+        expect(response.status).toBe(401);
+      });
+    });
+
+    describe('PUT 接口额外边界', () => {
+      it('应允许 config_value 包含特殊字符', async () => {
+        const specialValue = '<script>alert("xss")</script>';
+        const result = { id: 1, configKey: 'yishangshu_username', configValue: specialValue, createdAt: new Date(), updatedAt: new Date() };
+        mockPrismaForUpdate([result]);
+
+        const response = await agent
+          .put('/api/v1/system-configs')
+          .set('Authorization', `Bearer ${sysadminToken()}`)
+          .send({
+            configs: [{ config_key: 'yishangshu_username', config_value: specialValue }],
+          });
+
+        expect(response.status).toBe(200);
+        expect(response.body.data[0].config_value).toBe(specialValue);
+      });
+
+      it('应允许同时更新两条白名单内的配置', async () => {
+        const result1 = { id: 1, configKey: 'yishangshu_username', configValue: 'new_user', createdAt: new Date(), updatedAt: new Date() };
+        const result2 = { id: 2, configKey: 'yishangshu_password', configValue: 'new_pass', createdAt: new Date(), updatedAt: new Date() };
+        mockPrismaForUpdate([result1, result2]);
+
+        const response = await agent
+          .put('/api/v1/system-configs')
+          .set('Authorization', `Bearer ${sysadminToken()}`)
+          .send({
+            configs: [
+              { config_key: 'yishangshu_username', config_value: 'new_user' },
+              { config_key: 'yishangshu_password', config_value: 'new_pass' },
+            ],
+          });
+
+        expect(response.status).toBe(200);
+        expect(response.body.data).toHaveLength(2);
+        expect(response.body.data[0].config_key).toBe('yishangshu_username');
+        expect(response.body.data[1].config_key).toBe('yishangshu_password');
+      });
+
+      it('应返回更新成功消息', async () => {
+        const result = { id: 1, configKey: 'yishangshu_username', configValue: 'val', createdAt: new Date(), updatedAt: new Date() };
+        mockPrismaForUpdate([result]);
+
+        const response = await agent
+          .put('/api/v1/system-configs')
+          .set('Authorization', `Bearer ${sysadminToken()}`)
+          .send({
+            configs: [{ config_key: 'yishangshu_username', config_value: 'val' }],
+          });
+
+        expect(response.status).toBe(200);
+        expect(response.body.message).toBe('更新系统配置成功');
+      });
+
+      it('应返回400当body为null时', async () => {
+        const response = await agent
+          .put('/api/v1/system-configs')
+          .set('Authorization', `Bearer ${sysadminToken()}`)
+          .send(null);
+
+        expect(response.status).toBe(400);
+      });
+
+      it('应返回400当body为空字符串时', async () => {
+        const response = await agent
+          .put('/api/v1/system-configs')
+          .set('Authorization', `Bearer ${sysadminToken()}`)
+          .set('Content-Type', 'application/json')
+          .send('');
+
+        expect(response.status).toBe(400);
+      });
+    });
+
+    describe('GET 接口额外边界', () => {
+      it('应正确返回多条配置的完整数据', async () => {
+        const now = new Date();
+        mockPrismaForGet([
+          { id: 1, configKey: 'yishangshu_username', configValue: 'user1', createdAt: now, updatedAt: now },
+          { id: 2, configKey: 'yishangshu_password', configValue: 'pass123', createdAt: now, updatedAt: now },
+        ]);
+
+        const response = await agent
+          .get('/api/v1/system-configs')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body.code).toBe(0);
+        expect(response.body.data).toHaveLength(2);
+        const keys = response.body.data.map((d: any) => d.config_key);
+        expect(keys).toContain('yishangshu_username');
+        expect(keys).toContain('yishangshu_password');
+      });
     });
   });
 });
