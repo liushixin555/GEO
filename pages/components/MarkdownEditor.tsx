@@ -134,11 +134,25 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
   autoFocus = false,
 }, ref) => {
   // A-01: size prop 优先，否则使用 height prop（默认 400）
-  const height = size ? SIZE_HEIGHT_MAP[size] : (heightProp ?? 400);
+  const minHeight = size ? SIZE_HEIGHT_MAP[size] : (heightProp ?? 400);
   const editorRef = useRef<HTMLDivElement | null>(null);
   // 激活模式高亮：追踪当前 preview prop，供 annotateToolbar 读取
   const previewRef = useRef(preview);
   previewRef.current = preview;
+
+  // 自适应高度：测量 textarea 的 scrollHeight 动态调整编辑器高度
+  const [autoHeight, setAutoHeight] = useState(minHeight);
+  useEffect(() => {
+    const container = editorRef.current;
+    if (!container) return;
+    const textarea = container.querySelector('textarea');
+    if (!textarea) return;
+    // toolbar 高度 + textarea 内容高度 + 内边距
+    const toolbar = container.querySelector('.w-md-editor-toolbar') as HTMLElement | null;
+    const toolbarH = toolbar ? toolbar.offsetHeight : 38;
+    const needed = textarea.scrollHeight + toolbarH + 8; // 8px 安全边距
+    setAutoHeight(Math.max(minHeight, needed));
+  }, [value, minHeight, preview]);
 
   // UX-03: 全屏模式 Escape 退出提示状态
   const [showFullscreenHint, setShowFullscreenHint] = useState(false);
@@ -972,7 +986,7 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
         <MDEditor
           value={value}
           onChange={handleChange}
-          height={height}
+          height={autoHeight}
           preview={preview}
           tabSize={tabSize}
           autoFocus={autoFocus}

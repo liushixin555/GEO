@@ -15,6 +15,7 @@
   border: 1px solid var(--color-hairline) !important;
   border-radius: 0 !important;
   box-shadow: none !important;
+  overflow: hidden !important;
   font-family: var(--font-family) !important;
   color: var(--color-ink) !important;
   background-color: var(--color-canvas) !important;
@@ -294,11 +295,7 @@
   opacity: 1;
 }
 
-/* 工具栏移动端横向滚动（R-01） */
-.markdown-editor-wrapper .w-md-editor-toolbar {
-  overflow-x: auto !important;
-  -webkit-overflow-scrolling: touch !important;
-}
+/* 工具栏移动端横向滚动（R-01）— 仅移动端生效，桌面端依赖 flex-wrap: wrap 自动换行 */
 
 /* 拖拽条视觉样式（CSS-02） */
 .markdown-editor-wrapper .w-md-editor-drag {
@@ -347,6 +344,11 @@
 
 /* R-01: 移动端响应式 — 增大工具栏按钮触控目标至 44px（WCAG AAA） */
 @media (max-width: 672px) {
+  .markdown-editor-wrapper .w-md-editor-toolbar {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
   .markdown-editor-wrapper .w-md-editor-toolbar button {
     min-height: 44px !important;
     min-width: 44px !important;
