@@ -557,7 +557,7 @@ if (existing.status === 'published') {
 | H-3 | P1 | 简化三重验证为两层 | ✅ 已修复 |
 | M-1 | P2 | `PermissionDeniedError` 替换为 `ForbiddenError` | ✅ 已修复 |
 | M-2 | P2 | parseInt 添加 `> 0` 边界检查 | ✅ 已修复 |
-| M-3 | P2 | sysadmin 自审限制（待业务确认） | ⏳ 待确认 |
+| M-3 | P2 | sysadmin 自审限制——移除 role !== 'sysadmin' 条件，所有角色均不可自审 | ✅ 已修复 |
 | M-4 | P2 | regenerate/submitReview 添加状态预检 | ✅ 已修复 |
 | L-1 | P3 | 高价值端点添加独立速率限制 | ✅ 已修复 |
 

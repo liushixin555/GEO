@@ -3462,8 +3462,8 @@ describe('Article Controller', () => {
 
   // ============= Sysadmin self-review bypass =============
 
-  describe('PUT /api/projects/:projectId/articles/:id/review - sysadmin self-review', () => {
-    it('should allow sysadmin to review own article (bypasses SoD check)', async () => {
+  describe('PUT /api/projects/:projectId/articles/:id/review - sysadmin self-review (M-3 fix)', () => {
+    it('should reject sysadmin reviewing own article (SoD enforcement)', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const pendingArticle = {
         id: 1, projectId: 1, title: 'Self Review', keywords: null, portrait: null,
@@ -3482,11 +3482,11 @@ describe('Article Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`) // userId=1 = createdBy=1
         .send({ approved: true });
 
-      expect(response.status).toBe(200);
-      expect(response.body.data.status).toBe('publishing');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('不能审核自己创建的文章');
     });
 
-    it('should allow sysadmin to reject own article', async () => {
+    it('should reject sysadmin rejecting own article (SoD enforcement)', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const pendingArticle = {
         id: 1, projectId: 1, title: 'Self Reject', keywords: null, portrait: null,
@@ -3505,8 +3505,8 @@ describe('Article Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ approved: false });
 
-      expect(response.status).toBe(200);
-      expect(response.body.data.status).toBe('draft');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('不能审核自己创建的文章');
     });
   });
 

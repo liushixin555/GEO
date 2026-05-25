@@ -255,8 +255,8 @@ export class ArticleServiceImpl implements IArticleService {
       // H-3/H-4: Auth checks inside transaction
       this.checkProjectOwnership(existing, projectId);
 
-      // Creator cannot review own article
-      if (auth.role !== 'sysadmin' && existing.createdBy === auth.userId) {
+      // M-3 fix: Creator cannot review own article — including sysadmin (segregation of duties)
+      if (existing.createdBy === auth.userId) {
         throw new ForbiddenError('不能审核自己创建的文章');
       }
 
