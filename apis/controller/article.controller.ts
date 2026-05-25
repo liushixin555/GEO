@@ -92,7 +92,8 @@ function withArticleAuth(handler: AuthenticatedHandler, options: WithAuthOptions
 // --- Handlers (thin — business logic delegated to service layer) ---
 
 export const listArticles = withArticleAuth(async (req, res, ctx) => {
-  const { page, pageSize, search, status } = listArticlesSchema.parse(req.query);
+  // Route validate() middleware already validated req.query — no redundant parse
+  const { page, pageSize, search, status } = req.query as unknown as z.infer<typeof listArticlesSchema>;
   const { list, total } = await articleService.list(ctx.projectId, page, pageSize, search, status, ctx);
   paginate(res, list, total, page, pageSize);
 }, { errorContext: '获取文章列表失败' });
@@ -106,19 +107,19 @@ export const getArticle = withArticleAuth(async (req, res, ctx) => {
 }, { requireId: true, errorContext: '获取文章详情失败' });
 
 export const createArticle = withArticleAuth(async (req, res, ctx) => {
-  const body = createArticleSchema.parse(req.body);
+  const body = req.body as z.infer<typeof createArticleSchema>;
   const item = await articleService.create(ctx.projectId, body, ctx);
   created(res, item, '创建文章成功');
 }, { errorContext: '创建文章失败' });
 
 export const updateArticle = withArticleAuth(async (req, res, ctx) => {
-  const body = updateArticleSchema.parse(req.body);
+  const body = req.body as z.infer<typeof updateArticleSchema>;
   const item = await articleService.update(ctx.projectId, ctx.articleId!, body, ctx);
   success(res, item, body.status === 'generating' ? '已提交AI生成' : '更新文章成功');
 }, { requireId: true, errorContext: '更新文章失败' });
 
 export const updateArticleContent = withArticleAuth(async (req, res, ctx) => {
-  const { content } = updateContentSchema.parse(req.body);
+  const { content } = req.body as z.infer<typeof updateContentSchema>;
   const item = await articleService.updateContent(ctx.projectId, ctx.articleId!, content, ctx);
   success(res, item, '更新正文成功');
 }, { requireId: true, errorContext: '更新文章失败' });
@@ -130,7 +131,7 @@ export const deleteArticle = withArticleAuth(async (req, res, ctx) => {
 }, { requireId: true, errorContext: '删除文章失败' });
 
 export const reviewArticle = withArticleAuth(async (req, res, ctx) => {
-  const { approved } = reviewArticleSchema.parse(req.body);
+  const { approved } = req.body as z.infer<typeof reviewArticleSchema>;
   const item = await articleService.review(ctx.projectId, ctx.articleId!, approved, ctx);
   success(res, item, approved ? '审核通过' : '审核不通过');
 }, { requireId: true, errorContext: '审核操作失败' });

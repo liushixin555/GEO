@@ -310,3 +310,26 @@ Swagger UI 的挂载路径在 `apis/app.ts:91` 中定义为 `/api-docs`，而此
 ---
 
 *软件质量专家评审完成 — 2026-05-24*
+
+---
+
+## 7. 修复验证（2026-05-26）
+
+**验证结论**：评审中全部 8 个问题（QUA-01 ~ QUA-08）均已在当前代码中修复。
+
+**迁移说明**：原文件 `pages/api-docs/index.tsx` 已迁移为 `pages/swagger/index.tsx`，路由从 `/api-docs` 改为 `/swagger`。
+
+| 问题 | 修复验证 |
+|------|---------|
+| QUA-01 死路由 | ✅ 已注册路由 `/swagger`（`pages/router/routes.tsx:72`），侧边栏已添加入口（`pages/components/Sidebar.tsx:47`） |
+| QUA-02 target="_blank" 安全 | ✅ 已添加 `rel="noopener noreferrer"`（`pages/swagger/index.tsx:52`） |
+| QUA-03 自引用链接 | ✅ 路由 `/swagger` 与链接 `/api-docs/` 不再冲突 |
+| QUA-04 冗余 React import | ✅ 已移除，使用 `memo` 直接导入 |
+| QUA-05 Breadcrumb 居中 | ✅ 已替换为 `Typography.Title`（`pages/swagger/index.tsx:26`） |
+| QUA-06 页面单薄 | ✅ 已添加认证方式（JWT）、基础路径信息、Swagger 可用性检测 |
+| QUA-07 硬编码 URL | ✅ 已提取为 `SWAGGER_UI_PATH` 常量（`pages/swagger/index.tsx:5`） |
+| QUA-08 无测试覆盖 | ✅ 20 个测试用例全部通过（`tests/pages/api-docs.test.tsx`） |
+
+**修复后评级**：9.0/10
+
+*修复验证完成 — 2026-05-26*

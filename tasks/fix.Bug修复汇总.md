@@ -53,3 +53,4 @@
 | fix044 | 技能接口错误信息优化+硬删除 | `apis/controller/skills.controller.ts`, `apis/service/impl/skills.service.impl.ts` |
 | fix045 | app.ts 评审验证+ESLint/Jest 修复 | `apis/utils/pagination.util.ts`, `jest.config.ts`, `tests/apis/__mocks__/scalar.ts` |
 | fix046 | help.tsx UI评审源文件修复（图标尺寸+noopener+弹窗拦截） | `node_modules/.../react-md-editor/` 三份输出（src/esm/lib） |
+| fix047 | swagger/index.tsx 评审验证确认（8项问题全部已修复） | `tasks/review/index.tsx.md` |
