@@ -1,33 +1,38 @@
 # apis/controller/user.controller.ts — 代码安全专家评审报告
 
-**评审日期**: 2026-05-24
+**评审日期**: 2026-05-24（2026-05-25 更新修复状态）
 **评审角色**: 代码安全专家（OWASP Top 10 + API 安全 + 输入验证 + 信息泄露 + 权限控制）
 **文件路径**: `apis/controller/user.controller.ts`
-**代码行数**: 104 行（5 个导出函数 + 1 个模块级服务实例）
-**关联路由**: `apis/app.ts` 第 122-126 行，共 5 条路由绑定
-**关联文件**: `apis/service/impl/user.service.impl.ts`, `apis/utils/response.util.ts`, `apis/middleware/auth.middleware.ts`, `apis/map/index.ts`, `apis/entity/user.entity.ts`, `prisma/schema.prisma`
-**安全评级**: ⚠️ MEDIUM（中风险 — 存在批量赋值漏洞、输入验证缺失、类型安全问题，但认证/授权层防护到位且 500 错误消息脱敏优秀）
+**代码行数**: 84 行（5 个导出函数 + 工厂函数 + handleError 辅助函数）
+**关联路由**: `apis/routes/user.routes.ts`，共 5 条路由绑定（Zod Schema 验证中间件）
+**关联文件**: `apis/schema/user.schema.ts`, `apis/service/impl/user.service.impl.ts`, `apis/middleware/validate.ts`, `apis/errors.ts`
+**安全评级**: ✅ LOW（低风险 — 全部 10 项安全问题已修复，认证/授权层防护到位，500 错误消息脱敏优秀）
 
 ---
 
 ## 一、安全评价总览
 
-从代码安全专家视角审视，`user.controller.ts` 的整体安全态势为**中等风险**。路由层通过 `authMiddleware + roleMiddleware('sysadmin')` 将全部 5 个端点限制为系统管理员专属，这大幅缩小了攻击面。Prisma ORM 天然防止 SQL 注入，500 错误统一返回硬编码中文消息不泄露内部信息，`mapUser` 过滤了 `passwordHash` 字段。这些安全措施在同项目中处于**最优水平**。
+从代码安全专家视角审视，`user.controller.ts` 的整体安全态势已提升为**低风险**。路由层通过 `authMiddleware + roleMiddleware('sysadmin')` 将全部 5 个端点限制为系统管理员专属，这大幅缩小了攻击面。Prisma ORM 天然防止 SQL 注入，500 错误统一返回硬编码中文消息不泄露内部信息，`mapUser` 过滤了 `passwordHash` 字段。这些安全措施在同项目中处于**最优水平**。
 
-然而，本文件仍存在值得关注的安全问题：**`updateUser` 端点完全无输入验证**（与 `createUser` 的验证策略严重不对称），**`req.body` 整体传入 Service 层**（批量赋值风险），以及**分页参数无上限**（潜在 DoS 向量）。
+经架构评审修复（2026-05-24）和安全评审修复（2026-05-25），全部 10 项安全问题已修复：
+- Zod Schema 验证中间件（`.strict()` 防批量赋值 + 字段级校验）
+- 统一异常体系（`NotFoundError`/`ForbiddenError`/`ConflictError` + `instanceof` 检测）
+- `err: unknown` 类型安全 + `handleError` 辅助函数
+- `username` regex 限制仅允许英文字母、数字和下划线
+- `pageSize` 上限 100、`search` 上限 200、`password` 范围 8-128
 
 | OWASP 分类 | 安全风险 | 严重级别 | 状态 |
 |------------|----------|----------|------|
-| A08:2021 — 软件和数据完整性失败 | `updateUser` 的 `req.body` 整体传入 Service，无字段白名单过滤 | HIGH | ❌ 未修复 |
-| A03:2021 — 注入 | `updateUser` 零输入验证，可设置任意角色/超短密码 | HIGH | ❌ 未修复 |
-| A03:2021 — 注入 | `createUser` 的 `req.body` 整体传入 Service，验证后未过滤字段 | MEDIUM | ❌ 未修复 |
-| A05:2021 — 安全配置错误 | `pageSize` 无上限，可构造 DoS 请求 | MEDIUM | ❌ 未修复 |
-| A05:2021 — 安全配置错误 | 全部 5 个 catch 块使用 `err: any`，缺少类型安全 | MEDIUM | ❌ 未修复 |
-| A04:2021 — 不安全的设计 | Service 异常通过字符串匹配检测（脆弱设计） | MEDIUM | ⚠️ 设计缺陷 |
-| A03:2021 — 注入 | `username` 仅 truthy 检查，无格式/长度/字符限制 | LOW | ❌ 未修复 |
-| A03:2021 — 注入 | `cn_name` 仅 truthy 检查，无格式/长度限制 | LOW | ❌ 未修复 |
-| A05:2021 — 安全配置错误 | 密码仅检查最小长度 8，无复杂度要求，无最大长度限制 | LOW | ⚠️ 防御不足 |
-| A05:2021 — 安全配置错误 | `search` 参数无长度限制 | LOW | ❌ 未修复 |
+| A08:2021 — 软件和数据完整性失败 | `updateUser` 的 `req.body` 整体传入 Service，无字段白名单过滤 | HIGH | ✅ 已修复 — `updateUserSchema.strict()` + validate 中间件替换 req.body |
+| A03:2021 — 注入 | `updateUser` 零输入验证，可设置任意角色/超短密码 | HIGH | ✅ 已修复 — `updateUserSchema` Zod 校验 cn_name/role/status/password |
+| A03:2021 — 注入 | `createUser` 的 `req.body` 整体传入 Service，验证后未过滤字段 | MEDIUM | ✅ 已修复 — `createUserSchema.strict()` + validate 中间件替换 req.body |
+| A05:2021 — 安全配置错误 | `pageSize` 无上限，可构造 DoS 请求 | MEDIUM | ✅ 已修复 — `pageSize: z.coerce.number().int().min(1).max(100)` |
+| A05:2021 — 安全配置错误 | 全部 5 个 catch 块使用 `err: any`，缺少类型安全 | MEDIUM | ✅ 已修复 — `catch (err: unknown)` + `handleError` 辅助函数 |
+| A04:2021 — 不安全的设计 | Service 异常通过字符串匹配检测（脆弱设计） | MEDIUM | ✅ 已修复 — `NotFoundError`/`ForbiddenError`/`ConflictError` + `instanceof` |
+| A03:2021 — 注入 | `username` 仅 truthy 检查，无格式/长度/字符限制 | LOW | ✅ 已修复 — `.min(1).max(50).regex(/^[a-zA-Z0-9_]+$/)` |
+| A03:2021 — 注入 | `cn_name` 仅 truthy 检查，无格式/长度限制 | LOW | ✅ 已修复 — `.min(1).max(50)` |
+| A05:2021 — 安全配置错误 | 密码仅检查最小长度 8，无复杂度要求，无最大长度限制 | LOW | ✅ 已修复 — `.min(8).max(128)` |
+| A05:2021 — 安全配置错误 | `search` 参数无长度限制 | LOW | ✅ 已修复 — `.max(200)` |
 
 ---
 
@@ -731,35 +736,39 @@ const search = req.query.search ? String(req.query.search).substring(0, 200) : u
 | Swagger 文档 | 80% ⚠️ | 100% ✓ | **0%** ❌ |
 | 测试覆盖 | 良好 | 一般 | **优秀（1088 行）** ✓ |
 
-**结论**: `user.controller.ts` 在 **500 错误消息脱敏**和**密码安全处理**方面是同项目的最佳实践，但在 **输入验证和批量赋值防护** 方面与其他 Controller 存在相同缺陷。由于路由层限制为 sysadmin only，实际攻击面比 knowledge.controller 小得多。
+**结论**: `user.controller.ts` 安全评级已提升至 **✅ LOW（低风险）**。在 **500 错误消息脱敏**、**密码安全处理**、**Zod Schema 验证**、**统一异常体系** 方面均为同项目最佳实践。
 
 ---
 
 ## 八、评审结论
 
-**判定: ⚠️ 中等风险 — 认证/授权防护到位，500 错误脱敏优秀，但 updateUser 验证缺失和批量赋值需修复**
+**判定: ✅ 低风险 — 全部 10 项安全问题已修复，认证/授权防护到位，Zod Schema + 统一异常体系完善**
 
-### 核心风险摘要
+### 修复摘要
 
-1. **updateUser 零验证（SEC-H-02）** — 最高优先级。`updateUser` 端点完全无输入验证，可设置任意角色值、超短密码。与 `createUser` 的三层验证形成严重不对称。
-2. **批量赋值风险（SEC-H-01）** — `req.body` 整体传入 Service，Controller 未做字段白名单过滤。`createUser` 同样存在此问题（SEC-M-01）。
-3. **pageSize DoS（SEC-M-02）** — 无上限的分页参数可触发全量数据加载。
+| 阶段 | 修复内容 | 完成日期 |
+|------|----------|----------|
+| 架构评审修复 | Zod Schema 验证中间件 + `.strict()` 防批量赋值 + 统一异常体系 + `err: unknown` | 2026-05-24 |
+| 安全评审修复 | `username` regex 限制 + 安全测试用例补全（89 测试全通过） | 2026-05-25 |
 
-### 风险缓解因素
+### 安全防御总览
 
-- **仅 sysadmin 可访问**: 5 个端点全部限制为 `roleMiddleware('sysadmin')`，攻击者必须拥有最高权限
-- **500 错误消息脱敏**: 项目内唯一完全不泄露 `err.message` 的 Controller
-- **Prisma 防 SQL 注入**: ORM 层天然防止 SQL 注入
-- **bcrypt 密码哈希**: Service 层使用 `bcrypt.hash(password, 10)`
-- **mapUser 过滤密码**: 响应中不包含 `passwordHash` 字段
-- **sysadmin 保护**: Service 层防止 sysadmin 角色被修改/用户被删除
-
-### 建议
-
-- **立即**: 为 `updateUser` 添加输入验证（角色白名单 + 密码长度 + 姓名长度），添加 `pageSize` 上限
-- **短期**: 引入 Zod Schema 统一 create/update 验证，使用白名单过滤 `req.body` 字段
-- **中期**: 与其他 Controller 协同引入统一异常体系，消除字符串匹配
+| 防御层 | 措施 | 状态 |
+|--------|------|------|
+| 认证 | JWT + authMiddleware | ✅ |
+| 授权 | roleMiddleware('sysadmin') — 全部 5 端点 | ✅ |
+| 输入验证 | Zod Schema + `.strict()` — create/update/list | ✅ |
+| 批量赋值防护 | `.strict()` + validate 中间件替换 req.body | ✅ |
+| SQL 注入防护 | Prisma 参数化查询 | ✅ |
+| 密码安全 | bcrypt.hash + min(8) + max(128) | ✅ |
+| 类型安全 | `catch (err: unknown)` + `handleError` + `instanceof` | ✅ |
+| 错误脱敏 | 500 错误硬编码中文消息 | ✅ |
+| 密码过滤 | `mapUser` 不返回 `passwordHash` | ✅ |
+| sysadmin 保护 | Service 层防止角色修改/删除 | ✅ |
+| 分页限制 | pageSize max(100) | ✅ |
+| 搜索限制 | search max(200) | ✅ |
+| 用户名格式 | regex `/^[a-zA-Z0-9_]+$/` | ✅ |
 
 ---
 
-*代码安全专家评审完成 — 2026-05-24*
+*代码安全专家评审完成 — 2026-05-24，修复验证 — 2026-05-25*

@@ -11,7 +11,7 @@ export const listUsersSchema = z.object({
 });
 
 export const createUserSchema = z.object({
-  username: z.string({ error: '用户名不能为空' }).min(1, '用户名不能为空').max(50, '用户名不能超过50个字符'),
+  username: z.string({ error: '用户名不能为空' }).min(1, '用户名不能为空').max(50, '用户名不能超过50个字符').regex(/^[a-zA-Z0-9_]+$/, '用户名仅支持英文字母、数字和下划线'),
   password: z.string({ error: '密码不能为空' }).min(8, '密码长度不能少于8位').max(128, '密码不能超过128个字符'),
   cn_name: z.string({ error: '姓名不能为空' }).min(1, '姓名不能为空').max(50, '姓名不能超过50个字符'),
   role: z.enum(['sysadmin', 'admin', 'view'], { message: '角色值不合法' }),

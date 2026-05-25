@@ -716,7 +716,7 @@ describe('User Controller', () => {
         .send({ username: '', password: 'Pass1234', cn_name: 'Test', role: 'admin' });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('参数验证失败: 用户名不能为空');
+      expect(response.body.message).toContain('用户名不能为空');
     });
 
     // createUser: empty string password
@@ -839,6 +839,159 @@ describe('User Controller', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.message).toBe('参数验证失败: 角色值不合法');
+    });
+
+    // SEC-L-01: username with special/XSS chars should be rejected
+    it('should reject username with XSS characters', async () => {
+      const response = await agent
+        .post('/api/v1/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: '<script>alert(1)</script>', password: 'Pass1234', cn_name: 'XSS', role: 'admin' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('用户名仅支持英文字母、数字和下划线');
+    });
+
+    // SEC-L-01: username with spaces should be rejected
+    it('should reject username with spaces', async () => {
+      const response = await agent
+        .post('/api/v1/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: 'test user', password: 'Pass1234', cn_name: 'Test', role: 'admin' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('用户名仅支持英文字母、数字和下划线');
+    });
+
+    // SEC-L-01: username with SQL injection pattern should be rejected
+    it('should reject username with SQL injection pattern', async () => {
+      const response = await agent
+        .post('/api/v1/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: "drop table users;--", password: 'Pass1234', cn_name: 'Test', role: 'admin' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('用户名仅支持英文字母、数字和下划线');
+    });
+
+    // SEC-L-01: username with underscore should be accepted
+    it('should accept username with underscore', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindUnique = jest.fn().mockResolvedValue(null);
+      const mockCreate = jest.fn().mockResolvedValue({
+        id: 10, username: 'test_user', cnName: '下划线用户', role: 'admin', status: true, companyId: 1,
+        company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
+      });
+      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
+
+      const response = await agent
+        .post('/api/v1/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: 'test_user', password: 'Pass1234', cn_name: '下划线用户', role: 'admin' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.username).toBe('test_user');
+    });
+
+    // SEC-L-01: username exceeding 50 chars should be rejected
+    it('should reject username exceeding 50 characters', async () => {
+      const longUsername = 'a'.repeat(51);
+      const response = await agent
+        .post('/api/v1/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: longUsername, password: 'Pass1234', cn_name: 'Test', role: 'admin' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('用户名不能超过50个字符');
+    });
+
+    // SEC-M-02: pageSize exceeding 100 should be capped
+    it('should cap pageSize to 100', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
+
+      const response = await agent
+        .get('/api/v1/users?pageSize=999999')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+    });
+
+    // SEC-M-01: extra fields in createUser should be rejected by strict()
+    it('should reject extra unknown fields in createUser', async () => {
+      const response = await agent
+        .post('/api/v1/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: 'test', password: 'Pass1234', cn_name: 'Test', role: 'admin', isAdmin: true });
+
+      expect(response.status).toBe(400);
+    });
+
+    // SEC-H-01: extra fields in updateUser should be rejected by strict()
+    it('should reject extra unknown fields in updateUser', async () => {
+      const response = await agent
+        .put('/api/v1/users/2')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ cn_name: 'Test', isAdmin: true });
+
+      expect(response.status).toBe(400);
+    });
+
+    // SEC-H-02: updateUser password less than 8 chars should be rejected
+    it('should reject short password in updateUser', async () => {
+      const response = await agent
+        .put('/api/v1/users/2')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ password: 'short' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('密码长度不能少于8位');
+    });
+
+    // SEC-H-02: updateUser invalid role should be rejected
+    it('should reject invalid role in updateUser', async () => {
+      const response = await agent
+        .put('/api/v1/users/2')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ role: 'superadmin' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('角色值不合法');
+    });
+
+    // SEC-H-02: updateUser empty cn_name should be rejected
+    it('should reject empty cn_name in updateUser', async () => {
+      const response = await agent
+        .put('/api/v1/users/2')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ cn_name: '' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('姓名不能为空');
+    });
+
+    // SEC-L-03: password exceeding 128 chars should be rejected
+    it('should reject password exceeding 128 characters', async () => {
+      const longPassword = 'a'.repeat(129);
+      const response = await agent
+        .post('/api/v1/users')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ username: 'test', password: longPassword, cn_name: 'Test', role: 'admin' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('密码不能超过128个字符');
+    });
+
+    // SEC-L-04: search exceeding 200 chars should be rejected
+    it('should reject search exceeding 200 characters', async () => {
+      const longSearch = 'a'.repeat(201);
+      const response = await agent
+        .get(`/api/v1/users?search=${longSearch}`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
     });
 
     // getUser: edge case with id=0
