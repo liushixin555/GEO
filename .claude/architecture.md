@@ -228,3 +228,9 @@ tests/apis/  + tests/pages/  测试文件
 	  - 7 项问题：MEDIUM×3（prefix! 非空断言类型安全、SVG 缺 title/aria-hidden 可访问性、selection 语义混淆）+ LOW×2 + INFO×3
 	  - 与 bold.tsx 代码完全相同（仅 prefix 不同），存在可提取的公共逻辑
 	  - 详见 `tasks/review/italic.tsx.md`
+	- **@uiw/react-md-editor（title5.tsx）** — 软件架构专家评审 7.8/10 APPROVE（2026-05-25）
+	  - 命令模式实现正确，依赖拓扑健康（从 headingUtils 独立模块导入，无循环依赖）
+	  - 比同族 title1.tsx 三项改进：消除循环依赖、空值合替代非空断言、补全无障碍属性（role="img"+aria-hidden）
+	  - 仅 2 个 Minor 问题：内联样式（建议改 CSS 类/变量）、title1-6 可提取为工厂模式（Info）
+	  - 建议作为 title1-6 家族的参考实现
+	  - 详见 `tasks/review/title5.tsx.architecture.md`
