@@ -277,8 +277,8 @@ describe('ArticleDetail', () => {
     });
   });
 
-  // === 9. 待审核正文可编辑 (BLK-03 修复验证) ===
-  it('should allow content editing in pending_review status', async () => {
+  // === 9. 待审核正文不可编辑 ===
+  it('should NOT allow content editing in pending_review status', async () => {
     setupMockGet({ status: 'pending_review' });
 
     renderWithRouter('/article/1');
@@ -291,8 +291,8 @@ describe('ArticleDetail', () => {
       expect(screen.getByText('该文章待审核')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('浏览')).toBeInTheDocument();
-    expect(screen.getByText('编辑')).toBeInTheDocument();
+    // pending_review 不在 EDITABLE_STATUSES 中，不应出现编辑相关元素
+    expect(screen.queryByText('编辑')).not.toBeInTheDocument();
   });
 
   // === 10. JSON.parse 容错 (HIG-01 修复验证) ===

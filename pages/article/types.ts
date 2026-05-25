@@ -93,7 +93,7 @@ export const STATUS_CONFIG: Record<ArticleStatus, { label: string; color: string
   published: { label: '已发布', color: 'success' },
 };
 
-export const EDITABLE_STATUSES: ArticleStatus[] = ['draft', 'manual_writing', 'generate_failed', 'publish_failed', 'pending_review'];
+export const EDITABLE_STATUSES: ArticleStatus[] = ['draft', 'manual_writing', 'generate_failed', 'publish_failed'];
 
 export const ARTICLE_TYPE_OPTIONS: { label: string; value: ArticleType }[] = [
   { label: '榜单排名', value: '榜单排名' },

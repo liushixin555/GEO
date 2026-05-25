@@ -97,10 +97,10 @@ describe('useArticlePermissions', () => {
       expect(result.current.canEditContent).toBe(true);
     });
 
-    it('pending_review 状态下创建者可编辑正文（规格 BLK-03）', () => {
+    it('pending_review 状态下创建者不可编辑正文（待审核禁止编辑）', () => {
       localStorage.setItem('user', JSON.stringify({ id: 10, role: 'admin' }));
       const { result } = renderHook(() => useArticlePermissions(mockArticle({ status: 'pending_review', created_by: 10 })));
-      expect(result.current.canEditContent).toBe(true);
+      expect(result.current.canEditContent).toBe(false);
     });
 
     it('generating 状态下不可编辑正文', () => {
@@ -121,10 +121,10 @@ describe('useArticlePermissions', () => {
       expect(result.current.canEditContent).toBe(false);
     });
 
-    it('pending_review 状态下 sysadmin 可编辑正文', () => {
+    it('pending_review 状态下 sysadmin 也不可编辑正文（待审核禁止编辑）', () => {
       localStorage.setItem('user', JSON.stringify({ id: 99, role: 'sysadmin' }));
       const { result } = renderHook(() => useArticlePermissions(mockArticle({ status: 'pending_review', created_by: 10 })));
-      expect(result.current.canEditContent).toBe(true);
+      expect(result.current.canEditContent).toBe(false);
     });
   });
 
