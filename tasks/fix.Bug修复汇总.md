@@ -1138,3 +1138,44 @@ components: {
 
 ### 涉及文件
 - `patches/@uiw__react-md-editor@4.1.0.patch` — 新增 title3.tsx diff
+
+---
+
+## fix034. title.tsx 评审修复（循环依赖消除 + 废弃注释修正 + suffix 默认值 + patch-package v8 迁移）
+
+### 问题
+根据 `tasks/review/title.tsx.md` 软件质量专家评审报告（6.9/10 CONDITIONAL APPROVE），`@uiw/react-md-editor` 的 `title.tsx` 存在循环依赖、废弃注释矛盾、suffix 默认值语义错误等问题。
+
+### 修复
+
+**P1-01（HIGH）title.tsx 与 title1.tsx 循环依赖**：
+- `title.tsx` 移除 `import { heading1 } from './title1'`
+- `heading` 命令从 `...heading1` spread 改为显式定义所有属性（name/keyCommand/shortcuts/prefix/suffix/execute/icon）
+- 消除 title.tsx → title1.tsx → title.tsx 的循环导入
+
+**P2-01（MEDIUM）废弃注释自相矛盾**：
+- title.tsx 和 title1-6.tsx/esm/lib：移除 "Use `titleX` for inserting Heading X" 矛盾行
+- 统一为 `@deprecated Since v4.0.0. Use heading instead. Will be removed in v5.0.0.`
+
+**P2-04（LOW）spread 继承 heading1 隐式耦合**：
+- heading 命令改为显式列出所有属性，语义清晰
+
+**P3-01（LOW）suffix 默认值语义错误**：
+- `headingExecute` 的 `suffix` 参数默认值从 `prefix`（即 `"# "`）改为 `''`（空字符串）
+- 标题 Markdown 语法只需行首前缀，不需要后缀
+
+**P3-02（LOW）selection 参数选择意图注释**：
+- 为 `executeCommand` 中使用 `state.selection`（原始光标位置）而非 `state1.selection`（整行范围）添加意图注释
+
+**P3-03（LOW）废弃版本信息**：
+- 废弃注释补充 "Since v4.0.0" 和 "Will be removed in v5.0.0"
+
+**title1-6 execute 函数空值合并**：
+- `state.command.prefix` → `state.command.prefix ?? '# '`（每级对应默认值）
+- `state.command.suffix` → `state.command.suffix ?? ''`
+
+**patch-package v8 命名迁移**：
+- 补丁文件从旧格式 `@uiw__react-md-editor@4.1.0.patch` 迁移到 v8 格式 `@uiw+react-md-editor+4.1.0.patch`
+
+### 涉及文件
+- `patches/@uiw+react-md-editor+4.1.0.patch` — 替换旧补丁，包含 title.tsx/title1-6.tsx 全部修复
