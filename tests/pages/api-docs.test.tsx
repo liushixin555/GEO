@@ -1,7 +1,6 @@
 /**
  * @jest-environment jsdom
  */
-import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import ApiDocsPage from '../../pages/swagger';
@@ -30,11 +29,6 @@ describe('ApiDocsPage', () => {
   it('should set document title', () => {
     renderWithRouter();
     expect(document.title).toBe('API 文档 - 薄云商机倍增服务');
-  });
-
-  it('should render breadcrumb', () => {
-    renderWithRouter();
-    expect(document.querySelector('[data-testid="Breadcrumb"]')).toBeTruthy();
   });
 
   it('should render API 文档 heading', () => {
@@ -119,5 +113,54 @@ describe('ApiDocsPage', () => {
     renderWithRouter();
     expect(document.querySelector('[data-testid="Card"]')).toBeTruthy();
     expect(document.querySelector('[data-testid="Space"]')).toBeTruthy();
+  });
+
+  it('should have rel="noopener noreferrer" on external link button for security', async () => {
+    renderWithRouter();
+    await waitFor(() => {
+      const button = screen.getByText('打开 API 文档').closest('[data-testid="Button"]');
+      expect(button).toBeTruthy();
+      expect(button?.getAttribute('rel')).toBe('noopener noreferrer');
+    });
+  });
+
+  it('should have target="_blank" on external link button', async () => {
+    renderWithRouter();
+    await waitFor(() => {
+      const button = screen.getByText('打开 API 文档').closest('[data-testid="Button"]');
+      expect(button).toBeTruthy();
+      expect(button?.getAttribute('target')).toBe('_blank');
+    });
+  });
+
+  it('should have aria-label on the button for accessibility', async () => {
+    renderWithRouter();
+    await waitFor(() => {
+      const button = screen.getByText('打开 API 文档').closest('[data-testid="Button"]');
+      expect(button).toBeTruthy();
+      expect(button?.getAttribute('aria-label')).toBe('在新窗口打开 API 文档');
+    });
+  });
+
+  it('should fetch Swagger UI path on mount', () => {
+    renderWithRouter();
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api-docs/',
+      expect.objectContaining({ method: 'HEAD' })
+    );
+  });
+
+  it('should abort fetch on unmount', () => {
+    const { unmount } = renderWithRouter();
+    unmount();
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api-docs/',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+  });
+
+  it('should not render breadcrumb (QUA-05: removed single-level breadcrumb)', () => {
+    renderWithRouter();
+    expect(document.querySelector('[data-testid="Breadcrumb"]')).toBeFalsy();
   });
 });

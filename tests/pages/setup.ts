@@ -50,7 +50,13 @@ jest.mock('antd', () => {
       }
       // Render message/title/tip/label prop + action + children for text-based assertions
       const textContent = props.message || props.title || props.tip || props.label || null;
-      return React.createElement('div', { 'data-testid': name }, textContent, props.action, props.children);
+      // Forward common HTML attributes for realistic testing (href, target, rel, aria-*, etc.)
+      const htmlAttrs: Record<string, any> = { 'data-testid': name };
+      for (const key of ['href', 'target', 'rel', 'aria-label', 'aria-hidden', 'role', 'type', 'disabled', 'className', 'id', 'placeholder', 'value', 'src', 'alt', 'name']) {
+        if (props[key] !== undefined) htmlAttrs[key] = props[key];
+      }
+      if (props.style) htmlAttrs.style = props.style;
+      return React.createElement('div', htmlAttrs, textContent, props.action, props.children);
     };
     Comp.displayName = name;
     const cache: Record<string, any> = {};

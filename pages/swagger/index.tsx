@@ -1,8 +1,10 @@
-import React, { useState, useEffect, memo } from 'react';
-import { Typography, Button, Card, Space, Breadcrumb, Alert, Spin, Divider } from 'antd';
+import { useState, useEffect, memo } from 'react';
+import { Typography, Button, Card, Space, Alert, Spin, Divider } from 'antd';
 import { LinkOutlined, ApiOutlined, SafetyCertificateOutlined, GlobalOutlined } from '@ant-design/icons';
 
-const ApiDocsPage: React.FC = memo(() => {
+const SWAGGER_UI_PATH = '/api-docs/' as const;
+
+const ApiDocsPage = memo(() => {
   const [apiDocsAvailable, setApiDocsAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -11,7 +13,7 @@ const ApiDocsPage: React.FC = memo(() => {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/api-docs/', { method: 'HEAD', signal: controller.signal })
+    fetch(SWAGGER_UI_PATH, { method: 'HEAD', signal: controller.signal })
       .then(res => setApiDocsAvailable(res.status !== 404 && res.status !== 502 && res.status !== 503))
       .catch(() => setApiDocsAvailable(false));
     return () => controller.abort();
@@ -19,9 +21,6 @@ const ApiDocsPage: React.FC = memo(() => {
 
   return (
     <div className="page-container">
-      <div className="page-breadcrumb">
-        <Breadcrumb items={[{ title: 'API 文档' }]} />
-      </div>
       <Card variant="borderless" style={{ maxWidth: 600 }}>
         <Space orientation="vertical" size="large" style={{ width: '100%' }}>
           <Typography.Title level={3} style={{ margin: 0 }}>
@@ -48,7 +47,7 @@ const ApiDocsPage: React.FC = memo(() => {
             <Button
               type="primary"
               icon={<LinkOutlined />}
-              href="/api-docs/"
+              href={SWAGGER_UI_PATH}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="在新窗口打开 API 文档"
