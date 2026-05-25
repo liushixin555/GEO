@@ -1037,3 +1037,24 @@ components: {
 - `pages/components/MarkdownEditor.tsx` — 移除死代码 + 修复无障碍矛盾
 - `tests/pages/components/MarkdownEditor.test.tsx` — 14 个新增 heading 测试
 - `tasks/fix.title2命令评审修复.md`（新建）— 修复文档
+
+---
+
+## fix018. Markdown 编辑器 textarea 不渲染——StrictMode cleanup 销毁 DOM 子树
+
+### 问题
+所有页面编辑界面（如 `/article/new` 选择手工编写、`/article/13` 切换编辑模式）的 Markdown 编辑器无法编辑。`.w-md-editor-text` 容器为空，textarea 元素未渲染到 DOM 中。
+
+### 根因
+`MarkdownEditor.tsx` 的 `useEffect` cleanup 使用 `cloneNode(false)` + `replaceChild` 替换 `.w-md-editor-text` DOM 节点以"清理上游泄漏的事件监听器"。但 `React.StrictMode`（dev 模式）执行 mount → unmount(cleanup) → remount 流程，cleanup 阶段用空克隆替换了原始节点，导致 React reconciler 在 remount 时丢失 textarea 子树引用，textarea 无法重新渲染。
+
+### 修复
+移除 destructive DOM cleanup（`cloneNode(false)` + `replaceChild`），仅保留 `editorRef.current = null`。上游 `mouseover`/`mouseleave` 匿名监听器随 DOM 节点卸载自然被 GC 回收。
+
+### 验证
+- gstack browse 验证 `/article/new` 手工编写模式 textarea 正常渲染（visible=true, height=279px）
+- 164 个 MarkdownEditor 测试全部通过
+- 前端构建成功
+
+### 涉及文件
+- `pages/components/MarkdownEditor.tsx` — 移除 cloneNode+replaceChild cleanup
