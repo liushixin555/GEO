@@ -1,34 +1,31 @@
 import { Request, Response } from 'express';
 import { SystemConfigServiceImpl } from '../service/impl/system-config.service.impl';
 import { success, fail } from '../utils';
+import { logger } from '../utils/logger.util';
+import { ALLOWED_CONFIG_KEYS, SENSITIVE_CONFIG_KEYS } from '../constants/system-config';
 
 const systemConfigService = new SystemConfigServiceImpl();
 
-// H-6: 允许修改的配置项白名单
-const ALLOWED_CONFIG_KEYS = [
-  'yishangshu_username',
-  'yishangshu_password',
-] as const;
-
-// 敏感配置项 — GET 接口返回时需要脱敏
-const SENSITIVE_CONFIG_KEYS = new Set(['yishangshu_password']);
-
 function maskSensitiveValue(key: string, value: string): string {
-  if (SENSITIVE_CONFIG_KEYS.has(key) && value.length > 2) {
-    return `${value.slice(0, 2)}****`;
+  if (SENSITIVE_CONFIG_KEYS.has(key)) {
+    return value.length > 2 ? `${value.slice(0, 2)}****` : '****';
   }
   return value;
+}
+
+function sanitizeConfigItems(items: { config_key: string; config_value: string }[]) {
+  return items.map(item => ({
+    ...item,
+    config_value: maskSensitiveValue(item.config_key, item.config_value),
+  }));
 }
 
 export async function getSystemConfigs(_req: Request, res: Response): Promise<void> {
   try {
     const items = await systemConfigService.getAll();
-    const sanitized = items.map(item => ({
-      ...item,
-      config_value: maskSensitiveValue(item.config_key, item.config_value),
-    }));
-    success(res, sanitized);
-  } catch (_err: unknown) {
+    success(res, sanitizeConfigItems(items));
+  } catch (err: unknown) {
+    logger.error('获取系统配置失败', { error: err instanceof Error ? err.message : String(err) });
     fail(res, 500, '获取系统配置失败');
   }
 }
@@ -53,12 +50,15 @@ export async function updateSystemConfigs(req: Request, res: Response): Promise<
     }
 
     const items = await systemConfigService.batchUpdate({ configs });
-    const sanitized = items.map(item => ({
-      ...item,
-      config_value: maskSensitiveValue(item.config_key, item.config_value),
-    }));
-    success(res, sanitized, '更新系统配置成功');
-  } catch (_err: unknown) {
+
+    logger.info('系统配置更新', {
+      userId: (req as any).user?.userId,
+      keys: configs.map((c: { config_key: string }) => c.config_key),
+    });
+
+    success(res, sanitizeConfigItems(items), '更新系统配置成功');
+  } catch (err: unknown) {
+    logger.error('更新系统配置失败', { error: err instanceof Error ? err.message : String(err) });
     fail(res, 500, '更新系统配置失败');
   }
 }

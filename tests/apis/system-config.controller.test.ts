@@ -192,8 +192,8 @@ describe('System Config Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
-      // 短于等于2位的密码不脱敏
-      expect(response.body.data[0].config_value).toBe('ab');
+      // 短于等于2位的密码也脱敏
+      expect(response.body.data[0].config_value).toBe('****');
     });
 
     it('应正确脱敏长度为3的密码值', async () => {
@@ -720,7 +720,7 @@ describe('System Config Controller', () => {
   // ─── 第3轮补全——maskSensitiveValue 边界 + token 安全 + 混合场景 ───
   describe('第3轮补全——边界与安全场景', () => {
     describe('maskSensitiveValue 边界场景', () => {
-      it('应脱敏长度为1的敏感配置（不脱敏，因为 <=2）', async () => {
+      it('应脱敏长度为1的敏感配置', async () => {
         mockPrismaForGet([
           { id: 1, configKey: 'yishangshu_password', configValue: 'a', createdAt: new Date(), updatedAt: new Date() },
         ]);
@@ -730,7 +730,7 @@ describe('System Config Controller', () => {
           .set('Authorization', `Bearer ${sysadminToken()}`);
 
         expect(response.status).toBe(200);
-        expect(response.body.data[0].config_value).toBe('a');
+        expect(response.body.data[0].config_value).toBe('****');
       });
 
       it('应脱敏长度为4的敏感配置', async () => {
