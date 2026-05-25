@@ -469,18 +469,18 @@ if (insertionLength < 0) {
 
 ## 十二、问题清单汇总
 
-| 编号 | 级别 | 类别 | 描述 | 影响 | 修复位置 |
-|---|---|---|---|---|---|
-| UX-01 | **P1** | 交互 | checkedList 回调忽略 item/index 参数，多行任务列表无法正确处理已勾选项 | 任务列表 toggle 行为异常 | 需修改源码回调逻辑 |
-| UX-02 | **P1** | 交互 | `makeList` 中 `state.command.prefix!` 非空断言，外部调用可能崩溃 | 运行时异常风险 | 改用 `prefix ?? ''` 或添加守卫 |
-| UX-03 | P2 | 交互 | Ctrl+Shift+C 快捷键与浏览器/IDE 冲突 | 意外行为 | 需修改源码更换快捷键 |
-| A-01 | P2 | 无障碍 | unorderedList SVG 缺少 `role="img"`（与 ordered/checked 不一致） | 屏幕阅读器语义缺失 | 需修改源码添加 role |
-| I18N-01 | P2 | 国际化 | 三个命令 aria-label/title 硬编码英文 | 中文用户体验差 | 封装层动态替换 |
-| V-01 | P3 | 视觉 | 图标 12×12 偏小，Carbon 建议最小 16px | 图标视觉比重不足 | 本项目 CSS 已缩放 |
-| V-02 | P3 | 视觉 | FontAwesome 实心风格与 Carbon 线条风格不一致 | 工具栏视觉风格不统一 | 需修改源码替换图标 |
-| A-02 | P3 | 无障碍 | 三个 SVG 均缺少 `aria-hidden="true"` | 屏幕阅读器可能重复播报 | 需修改源码 |
-| R-01 | P3 | 响应式 | 触摸目标不足（36×24px vs 48×48px） | 移动端误触风险 | 工具栏系统性问题 |
-| UX-04 | P3 | 交互 | 提示文案仅描述"添加"，未反映 toggle 行为 | 用户无法预期移除操作 | 需动态判断显示文案 |
+| 编号 | 级别 | 类别 | 描述 | 影响 | 修复位置 | 状态 |
+|---|---|---|---|---|---|---|
+| UX-01 | **P1** | 交互 | checkedList 回调忽略 item/index 参数，多行任务列表无法正确处理已勾选项 | 任务列表 toggle 行为异常 | MarkdownEditor.tsx commandsFilter | ✅ 已修复 |
+| UX-02 | **P1** | 交互 | `makeList` 中 `state.command.prefix!` 非空断言，外部调用可能崩溃 | 运行时异常风险 | MarkdownEditor.tsx commandsFilter 三个列表命令均添加 prefix 守卫 | ✅ 已修复 |
+| UX-03 | P2 | 交互 | Ctrl+Shift+C 快捷键与浏览器/IDE 冲突 | 意外行为 | MarkdownEditor.tsx keydown 拦截 | ✅ 已修复 |
+| A-01 | P2 | 无障碍 | unorderedList SVG 缺少 `role="img"`（与 ordered/checked 不一致） | 屏幕阅读器语义缺失 | MarkdownEditor.tsx annotateToolbar 补充 role="img" 注入 | ✅ 已修复 |
+| I18N-01 | P2 | 国际化 | 三个命令 aria-label/title 硬编码英文 | 中文用户体验差 | MarkdownEditor.tsx commandsFilter buttonProps 覆盖 + TOOLBAR_LABELS | ✅ 已修复 |
+| V-01 | P3 | 视觉 | 图标 12×12 偏小，Carbon 建议最小 16px | 图标视觉比重不足 | markdown-editor.css 已覆盖 16px | ✅ 已有覆盖 |
+| V-02 | P3 | 视觉 | FontAwesome 实心风格与 Carbon 线条风格不一致 | 工具栏视觉风格不统一 | 第三方库限制，需 fork 替换 | ⏭️ 跳过 |
+| A-02 | P3 | 无障碍 | 三个 SVG 均缺少 `aria-hidden="true"` | 屏幕阅读器可能重复播报 | MarkdownEditor.tsx annotateToolbar 已注入 | ✅ 已有覆盖 |
+| R-01 | P3 | 响应式 | 触摸目标不足（36×24px vs 48×48px） | 移动端误触风险 | markdown-editor.css 移动端 44px 覆盖 | ✅ 已有覆盖 |
+| UX-04 | P3 | 交互 | 提示文案仅描述"添加"，未反映 toggle 行为 | 用户无法预期移除操作 | TOOLBAR_LABELS 中文标签已覆盖 | ✅ 已有覆盖 |
 
 ---
 

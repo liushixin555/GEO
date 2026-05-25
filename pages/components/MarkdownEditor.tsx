@@ -308,6 +308,11 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
         if (!svg.getAttribute('aria-hidden')) {
           svg.setAttribute('aria-hidden', 'true');
         }
+        // P2-A-01: 为缺少 role="img" 的 SVG 补充语义角色（如 unordered-list）
+        // 屏幕阅读器需要 role="img" 将 SVG 识别为图像，而非交互内容
+        if (!svg.getAttribute('role')) {
+          svg.setAttribute('role', 'img');
+        }
       });
 
       // REQ-6: 为拖拽条添加无障碍属性
@@ -380,8 +385,9 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
           // UI-P1-01: 拦截 Ctrl+L 防止浏览器选中地址栏导致焦点跳走
           // title3.tsx review: 拦截 Ctrl+1-6 防止浏览器切换标签页（与 heading 命令快捷键冲突）
           // commands-preview.tsx review: 拦截 Ctrl+7-9 防止浏览器切换标签页（与 preview 命令快捷键冲突）
+          // list.tsx review P2-UX-03: 拦截 Ctrl+Shift+C 防止触发浏览器开发者工具元素选取器
           const interceptedNumKeys = new Set(['1', '2', '3', '4', '5', '6', '7', '8', '9']);
-          if (key === 'j' || key === 'l' || (key === 'h' && !e.shiftKey) || (key === 'q' && !e.shiftKey) || interceptedNumKeys.has(key)) {
+          if (key === 'j' || key === 'l' || (key === 'h' && !e.shiftKey) || (key === 'q' && !e.shiftKey) || (key === 'c' && e.shiftKey) || interceptedNumKeys.has(key)) {
           e.preventDefault();
         }
       }
@@ -891,6 +897,123 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
                 originalExecute(state, api);
               } catch (err) {
                 console.error('[MarkdownEditor] quote 命令执行失败:', err);
+              }
+            },
+          };
+        }
+      }
+
+      // P1-UX-01/P1-UX-02/P2-I18N-01/P2-UX-03:
+      // 修复 checked-list 命令——回调忽略 item/index 参数导致任务列表无法正确 toggle 已勾选项 +
+      // prefix! 非空断言防御 + 中文 ARIA + 快捷键改用 ctrlcmd 规范
+      // insertBeforeEachLine 的回调被多次调用（startsWith / removal / insertion），
+      // 回调必须为纯函数：对相同 item 始终返回相同结果
+      if (command.name === 'checked-list') {
+        return {
+          ...command,
+          shortcuts: 'ctrlcmd+shift+c',
+          buttonProps: {
+            'aria-label': '任务列表 (Ctrl+Shift+C)',
+            title: '任务列表 (Ctrl+Shift+C)',
+          },
+          execute: (state: any, api: any) => {
+            try {
+              // P1-UX-02: prefix! 非空断言防御——尊重 ICommand.prefix 的可选性
+              if (!state.command?.prefix) return;
+              const { text, selection } = state;
+              if (!text || typeof text !== 'string') return;
+              if (selection?.start == null || selection.end == null) return;
+              if (selection.start < 0 || selection.end < selection.start || selection.end > text.length) return;
+
+              // P1-UX-01: 修复回调参数忽略——正确检测已有任务前缀（含已勾选 [x] 和未勾选 [ ]）
+              const TASK_PREFIX_RE = /^[-*]\s\[[ xX]\]\s/;
+
+              // 扩展选区到行边界
+              const lineStart = text.lastIndexOf('\n', selection.start - 1) + 1;
+              const lineEnd = text.indexOf('\n', selection.end);
+              const end = lineEnd === -1 ? text.length : lineEnd;
+              const selectedText = text.slice(lineStart, end);
+              const lines = selectedText.split('\n');
+
+              // 判断 toggle 方向：所有非空行都有任务前缀 → 移除，否则 → 添加
+              const nonEmptyLines = lines.filter((l: string) => l.trim().length > 0);
+              const allHavePrefix = nonEmptyLines.length > 0 && nonEmptyLines.every((l: string) => TASK_PREFIX_RE.test(l));
+
+              const modifiedText = allHavePrefix
+                ? lines.map((line: string) => {
+                    const match = line.match(TASK_PREFIX_RE);
+                    return match ? line.slice(match[0].length) : line;
+                  }).join('\n')
+                : lines.map((line: string) => {
+                    if (line.trim().length === 0) return line;
+                    if (TASK_PREFIX_RE.test(line)) return line;
+                    return '- [ ] ' + line;
+                  }).join('\n');
+
+              // 空行分隔：列表前后需要空行以保证 Markdown 渲染正确
+              const needsBreakBefore = lineStart > 0 && text[lineStart - 1] !== '\n' && !allHavePrefix;
+              const needsBreakAfter = end < text.length && text[end] !== '\n' && !allHavePrefix;
+
+              const insertText = (needsBreakBefore ? '\n' : '') + modifiedText + (needsBreakAfter ? '\n' : '');
+
+              api.setSelectionRange({ start: lineStart, end });
+              api.replaceSelection(insertText);
+
+              const newCursorPos = lineStart + (needsBreakBefore ? 1 : 0) + modifiedText.length;
+              api.setSelectionRange({ start: newCursorPos, end: newCursorPos });
+            } catch (err) {
+              console.error('[MarkdownEditor] checked-list 命令执行失败:', err);
+            }
+          },
+        };
+      }
+
+      // P1-UX-02/P2-I18N-01: 覆盖 unordered-list 命令——prefix! 非空断言防御 + 中文 ARIA
+      if (command.name === 'unordered-list') {
+        const originalExecute = command.execute;
+        if (originalExecute) {
+          return {
+            ...command,
+            shortcuts: 'ctrlcmd+shift+u',
+            buttonProps: {
+              'aria-label': '无序列表 (Ctrl+Shift+U)',
+              title: '无序列表 (Ctrl+Shift+U)',
+            },
+            execute: (state: any, api: any) => {
+              try {
+                if (!state.command?.prefix) return;
+                if (!state.text || typeof state.text !== 'string') return;
+                const { start, end } = state.selection ?? {};
+                if (start == null || end == null || start < 0 || end < start || end > state.text.length) return;
+                originalExecute(state, api);
+              } catch (err) {
+                console.error('[MarkdownEditor] unordered-list 命令执行失败:', err);
+              }
+            },
+          };
+        }
+      }
+
+      // P1-UX-02/P2-I18N-01: 覆盖 ordered-list 命令——prefix! 非空断言防御 + 中文 ARIA
+      if (command.name === 'ordered-list') {
+        const originalExecute = command.execute;
+        if (originalExecute) {
+          return {
+            ...command,
+            shortcuts: 'ctrlcmd+shift+o',
+            buttonProps: {
+              'aria-label': '有序列表 (Ctrl+Shift+O)',
+              title: '有序列表 (Ctrl+Shift+O)',
+            },
+            execute: (state: any, api: any) => {
+              try {
+                if (!state.command?.prefix) return;
+                if (!state.text || typeof state.text !== 'string') return;
+                const { start, end } = state.selection ?? {};
+                if (start == null || end == null || start < 0 || end < start || end > state.text.length) return;
+                originalExecute(state, api);
+              } catch (err) {
+                console.error('[MarkdownEditor] ordered-list 命令执行失败:', err);
               }
             },
           };
