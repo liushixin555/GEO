@@ -18,6 +18,10 @@ import {
 const todoService: ITodoService = new TodoServiceImpl();
 const projectService: IProjectService = new ProjectServiceImpl();
 
+// 错误消息常量
+const MSG_INVALID_ID = '无效的待办ID';
+const MSG_NO_ACCESS_ALL = '无权访问全部待办';
+
 // 统一错误处理
 function handleError(res: Response, err: unknown, defaultMsg: string): void {
   if (err instanceof z.ZodError) {
@@ -45,7 +49,7 @@ export async function listTodos(req: Request, res: Response): Promise<void> {
 
     // 全部待办/全部已办仅 sysadmin 可访问
     if ((parsed.tab === 'all_open' || parsed.tab === 'all_closed') && req.user!.role !== 'sysadmin') {
-      fail(res, 403, '无权访问全部待办');
+      fail(res, 403, MSG_NO_ACCESS_ALL);
       return;
     }
 
@@ -69,7 +73,7 @@ export async function listTodos(req: Request, res: Response): Promise<void> {
 export async function getTodo(req: Request, res: Response): Promise<void> {
   try {
     const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id) || id <= 0) { fail(res, 400, '无效的待办ID'); return; }
+    if (isNaN(id) || id <= 0) { fail(res, 400, MSG_INVALID_ID); return; }
 
     const item = await todoService.getById(id, req.user!.userId, req.user!.role, req.user!.companyId ?? null);
     success(res, item);
@@ -103,7 +107,7 @@ export async function createTodo(req: Request, res: Response): Promise<void> {
 export async function updateTodo(req: Request, res: Response): Promise<void> {
   try {
     const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id) || id <= 0) { fail(res, 400, '无效的待办ID'); return; }
+    if (isNaN(id) || id <= 0) { fail(res, 400, MSG_INVALID_ID); return; }
 
     const validated = updateTodoSchema.parse(req.body);
     const request = {
@@ -124,7 +128,7 @@ export async function updateTodo(req: Request, res: Response): Promise<void> {
 export async function closeTodo(req: Request, res: Response): Promise<void> {
   try {
     const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id) || id <= 0) { fail(res, 400, '无效的待办ID'); return; }
+    if (isNaN(id) || id <= 0) { fail(res, 400, MSG_INVALID_ID); return; }
 
     const item = await todoService.close(id, req.user!.userId, req.user!.role);
     success(res, item, '关闭待办成功');
@@ -136,7 +140,7 @@ export async function closeTodo(req: Request, res: Response): Promise<void> {
 export async function reopenTodo(req: Request, res: Response): Promise<void> {
   try {
     const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id) || id <= 0) { fail(res, 400, '无效的待办ID'); return; }
+    if (isNaN(id) || id <= 0) { fail(res, 400, MSG_INVALID_ID); return; }
 
     const item = await todoService.reopen(id, req.user!.userId, req.user!.role);
     success(res, item, '重新打开待办成功');
@@ -148,7 +152,7 @@ export async function reopenTodo(req: Request, res: Response): Promise<void> {
 export async function transferTodo(req: Request, res: Response): Promise<void> {
   try {
     const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id) || id <= 0) { fail(res, 400, '无效的待办ID'); return; }
+    if (isNaN(id) || id <= 0) { fail(res, 400, MSG_INVALID_ID); return; }
 
     const validated = transferTodoSchema.parse(req.body);
     const request = { assignee_id: validated.assignee_id, remark: validated.remark };
@@ -162,7 +166,7 @@ export async function transferTodo(req: Request, res: Response): Promise<void> {
 export async function rejectTodo(req: Request, res: Response): Promise<void> {
   try {
     const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id) || id <= 0) { fail(res, 400, '无效的待办ID'); return; }
+    if (isNaN(id) || id <= 0) { fail(res, 400, MSG_INVALID_ID); return; }
 
     const item = await todoService.reject(id, req.user!.userId, req.user!.role);
     success(res, item, '驳回待办成功');
@@ -174,7 +178,7 @@ export async function rejectTodo(req: Request, res: Response): Promise<void> {
 export async function getTodoLogs(req: Request, res: Response): Promise<void> {
   try {
     const todoId = parseInt(req.params.id as string, 10);
-    if (isNaN(todoId) || todoId <= 0) { fail(res, 400, '无效的待办ID'); return; }
+    if (isNaN(todoId) || todoId <= 0) { fail(res, 400, MSG_INVALID_ID); return; }
 
     const logs = await todoService.getLogs(todoId, req.user!.userId, req.user!.role, req.user!.companyId ?? null);
     success(res, logs);

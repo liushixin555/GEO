@@ -590,3 +590,22 @@ interface AuthenticatedRequest extends Request {
 - 构建：前后端构建成功
 
 *修复完成 — 2026-05-24*
+
+---
+
+## 修复记录（2026-05-25）— Committer 第三轮验证
+
+### P3 修复（代码整洁）
+
+| 编号 | 问题 | 修复方案 |
+|------|------|----------|
+| L-1 | 错误消息魔法字符串 `'无效的待办ID'` 出现 7 次 | 提取为 `MSG_INVALID_ID` / `MSG_NO_ACCESS_ALL` 常量 |
+| L-2 | `req.params.id as string` 冗余审查 | 验证 Express 类型 `req.params.id` 为 `string \| string[]`，`as string` 断言必要，保留不修改 |
+
+### 测试结果
+
+- Todo 相关测试：649 个全部通过
+- 构建：前后端构建成功
+- Lint：无错误
+
+*Committer 第三轮验证完成 — 2026-05-25*
