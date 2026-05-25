@@ -22,7 +22,7 @@ import React, { useCallback, useEffect, forwardRef, useImperativeHandle, useRef,
 import MDEditor from '@uiw/react-md-editor/nohighlight';
 import DOMPurify from 'dompurify';
 import { Empty } from 'antd';
-import { FullscreenOutlined, FontSizeOutlined, QuestionCircleOutlined, LinkOutlined, EditOutlined, SplitCellsOutlined, EyeOutlined } from '@ant-design/icons';
+import { FullscreenOutlined, FontSizeOutlined, QuestionCircleOutlined, LinkOutlined, EditOutlined, SplitCellsOutlined, EyeOutlined, CommentOutlined } from '@ant-design/icons';
 import { safeUrlTransform, SAFE_TAGS, SAFE_INPUT_TYPES } from './MarkdownViewer';
 import '../styles/markdown-editor.css';
 
@@ -630,6 +630,66 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
               }
             } catch (err) {
               console.error('[MarkdownEditor] link 命令执行失败:', err);
+            }
+          },
+        };
+      }
+
+      // P1/P2/P3/P4/P5: comment 命令防御性覆盖
+      //   P1 — prefix! 非空断言：前置 prefix/suffix 空值守卫，消除运行时 undefined 风险
+      //   P2 — 嵌套注释无防护：检测选区是否已在 <!-- ... --> 内，防止产生 <!-- <!-- --> --> 无效注释
+      //   P3 — SVG polygon 冗余节点：替换为 antd CommentOutlined 图标
+      //   P4 — suffix 可选类型使用不一致：与 prefix 统一做非空校验
+      //   P5 — aria-label 英文硬编码：替换为中文 ARIA 标签
+      if (command.name === 'comment') {
+        return {
+          ...command,
+          buttonProps: {
+            'aria-label': '插入/取消注释 (Ctrl+/)',
+            title: '插入/取消注释 (Ctrl+/)',
+          },
+          icon: <CommentOutlined style={{ fontSize: 16 }} />,
+          execute: (state: any, api: any) => {
+            try {
+              // P1/P4: prefix/suffix 防御性检查——尊重 ICommand 接口的可选性
+              const prefix = state.command?.prefix;
+              const suffix = state.command?.suffix;
+              if (!prefix || !suffix) return;
+
+              // 输入边界校验
+              const { text, selection } = state;
+              if (!text || typeof text !== 'string') return;
+              if (selection?.start == null || selection.end == null) return;
+              if (selection.start < 0 || selection.end < selection.start || selection.end > text.length) return;
+
+              const originalExecute = command.execute;
+              if (!originalExecute) return;
+
+              // P2: 嵌套注释防护——检测选区前后是否已有 <!-- ... --> 包裹
+              const PREFIX = '<!-- ';
+              const SUFFIX = ' -->';
+              const selStart = selection.start;
+              const selEnd = selection.end;
+
+              // 检查选区是否完全处于一个已有注释块内
+              const beforeStart = Math.max(0, selStart - PREFIX.length);
+              const beforeText = text.slice(beforeStart, selStart);
+              const afterEnd = Math.min(text.length, selEnd + SUFFIX.length);
+              const afterText = text.slice(selEnd, afterEnd);
+
+              if (beforeText === PREFIX && afterText === SUFFIX) {
+                // 已在注释块内：扩展选区覆盖整个注释标记，然后手动取消注释
+                const expandedStart = selStart - PREFIX.length;
+                const expandedEnd = selEnd + SUFFIX.length;
+                api.setSelectionRange({ start: expandedStart, end: expandedEnd });
+                const innerText = text.slice(selStart, selEnd);
+                api.replaceSelection(innerText);
+                return;
+              }
+
+              originalExecute(state, api);
+            } catch (err) {
+              console.error('[MarkdownEditor] comment 命令执行失败:', err);
             }
           },
         };
