@@ -43,8 +43,23 @@ jest.mock('../../apis/utils/db.util', () => ({
 }));
 
 import app from '../../apis/app';
+import { syncPublishingPlatforms } from '../../apis/controller/publishing-platform.controller';
 
 const agent = request.agent(app).set('User-Agent', 'test-agent/1.0');
+
+function mockRes() {
+  const res: any = {};
+  res.status = jest.fn().mockReturnValue(res);
+  res.json = jest.fn().mockReturnValue(res);
+  return res;
+}
+
+function mockSyncReq() {
+  return {
+    user: { userId: 1, username: 'sysadmin', role: 'sysadmin', companyId: 1 },
+    ip: '::ffff:127.0.0.1',
+  } as any;
+}
 
 function sysadminToken() {
   return jwt.sign(
@@ -1454,6 +1469,464 @@ describe('PublishingPlatform Controller', () => {
 
       expect(response.status).toBe(200);
       expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, 'name', undefined);
+    });
+  });
+
+  // ========== Round 4: syncLock 409 冲突测试（直接调用 controller） ==========
+
+  describe('sync 并发冲突 (409)', () => {
+    it('should return 409 when concurrent sync is attempted while lock is held', async () => {
+      let resolveFirst!: (value: number) => void;
+      mockSyncFromSystemConfig.mockImplementation(
+        () => new Promise<number>(resolve => { resolveFirst = resolve; })
+      );
+
+      // 第一个调用挂起
+      const p1 = syncPublishingPlatforms(mockSyncReq(), mockRes());
+
+      // 让出事件循环，确保第一个调用已获取锁
+      await new Promise(r => setImmediate(r));
+
+      // 第二个调用应收到 409
+      const res2 = mockRes();
+      await syncPublishingPlatforms(mockSyncReq(), res2);
+      expect(res2.status).toHaveBeenCalledWith(409);
+      expect(res2.json).toHaveBeenCalledWith({
+        code: 409,
+        message: '同步操作正在进行中，请稍后重试',
+      });
+
+      // 解除第一个调用
+      resolveFirst(20);
+      await p1;
+    });
+
+    it('should log conflict warning when sync is rejected due to lock', async () => {
+      let resolveFirst!: (value: number) => void;
+      mockSyncFromSystemConfig.mockImplementation(
+        () => new Promise<number>(resolve => { resolveFirst = resolve; })
+      );
+
+      const p1 = syncPublishingPlatforms(mockSyncReq(), mockRes());
+      await new Promise(r => setImmediate(r));
+
+      await syncPublishingPlatforms(mockSyncReq(), mockRes());
+
+      const conflictCall = mockLoggerWarn.mock.calls.find(
+        (c: any[]) => c[0] === 'publishing-platform.sync.conflict'
+      );
+      expect(conflictCall).toBeDefined();
+      expect(conflictCall[1]).toEqual(expect.objectContaining({ username: 'sysadmin' }));
+
+      resolveFirst(1);
+      await p1;
+    });
+
+    it('should log operator role and ip on conflict warning', async () => {
+      let resolveFirst!: (value: number) => void;
+      mockSyncFromSystemConfig.mockImplementation(
+        () => new Promise<number>(resolve => { resolveFirst = resolve; })
+      );
+
+      const p1 = syncPublishingPlatforms(mockSyncReq(), mockRes());
+      await new Promise(r => setImmediate(r));
+
+      await syncPublishingPlatforms(mockSyncReq(), mockRes());
+
+      const conflictCall = mockLoggerWarn.mock.calls.find(
+        (c: any[]) => c[0] === 'publishing-platform.sync.conflict'
+      );
+      expect(conflictCall).toBeDefined();
+      expect(conflictCall[1].role).toBe('sysadmin');
+      expect(conflictCall[1].ip).toBeDefined();
+
+      resolveFirst(1);
+      await p1;
+    });
+
+    it('should allow sync after concurrent conflict resolves', async () => {
+      let resolveFirst!: (value: number) => void;
+      mockSyncFromSystemConfig.mockImplementation(
+        () => new Promise<number>(resolve => { resolveFirst = resolve; })
+      );
+
+      const p1 = syncPublishingPlatforms(mockSyncReq(), mockRes());
+      await new Promise(r => setImmediate(r));
+
+      // 冲突请求
+      const res2 = mockRes();
+      await syncPublishingPlatforms(mockSyncReq(), res2);
+      expect(res2.status).toHaveBeenCalledWith(409);
+
+      // 解除第一个请求
+      resolveFirst(5);
+      await p1;
+
+      // 锁释放后应能正常同步
+      mockSyncFromSystemConfig.mockResolvedValue(8);
+      const res3 = mockRes();
+      await syncPublishingPlatforms(mockSyncReq(), res3);
+      expect(res3.json).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { count: 8 } })
+      );
+    });
+  });
+
+  // ========== Round 4: qp() 函数补全覆盖 ==========
+
+  describe('qp() 数组参数补全覆盖', () => {
+    it('should use first value when taxonomy is an array', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&taxonomy=门户&taxonomy=自媒体')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, undefined, '门户', undefined, undefined);
+    });
+
+    it('should use first value when sortOrder is an array', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&sortOrder=asc&sortOrder=desc')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, undefined, 'asc');
+    });
+
+    it('should handle page as array by defaulting to 1', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      // Express 中重复 query param 会变成数组，typeof array !== 'string' → NaN → default 1
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=2&page=3&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      // page 是数组，typeof !== 'string' → NaN → 默认 1
+      expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, undefined, undefined);
+    });
+
+    it('should handle pageSize as array by defaulting to 10', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=20&pageSize=50')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      // pageSize 是数组，typeof !== 'string' → NaN → 默认 10
+      expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, undefined, undefined);
+    });
+  });
+
+  // ========== Round 4: list 错误日志多样性 ==========
+
+  describe('list 错误日志非Error类型', () => {
+    it('should log String(err) when non-Error thrown from listAll', async () => {
+      mockListAll.mockRejectedValue('unexpected string');
+
+      await agent
+        .get('/api/v1/publishing-platforms')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(mockLoggerError).toHaveBeenCalledWith(
+        'publishing-platform.list.failed',
+        expect.objectContaining({ err: 'unexpected string' })
+      );
+    });
+
+    it('should log String(err) when non-Error thrown from paginated list', async () => {
+      mockList.mockRejectedValue('unexpected string');
+
+      await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(mockLoggerError).toHaveBeenCalledWith(
+        'publishing-platform.list.failed',
+        expect.objectContaining({ err: 'unexpected string' })
+      );
+    });
+
+    it('should log "[object Object]" when plain object thrown from listAll', async () => {
+      mockListAll.mockRejectedValue({ code: 'DB_ERROR' });
+
+      await agent
+        .get('/api/v1/publishing-platforms')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(mockLoggerError).toHaveBeenCalledWith(
+        'publishing-platform.list.failed',
+        expect.objectContaining({ err: '[object Object]' })
+      );
+    });
+
+    it('should log "null" when null thrown from paginated list', async () => {
+      mockList.mockRejectedValue(null);
+
+      await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(mockLoggerError).toHaveBeenCalledWith(
+        'publishing-platform.list.failed',
+        expect.objectContaining({ err: 'null' })
+      );
+    });
+  });
+
+  // ========== Round 4: page/pageSize 边界值补充 ==========
+
+  describe('page/pageSize 边界值补充', () => {
+    it('should handle very large page number', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=999999&pageSize=10')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(999999, 10, undefined, undefined, undefined, undefined);
+    });
+
+    it('should handle pageSize=101 by capping at 100', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=101')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 100, undefined, undefined, undefined, undefined);
+    });
+
+    it('should handle pageSize=200 by capping at 100', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=200')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 100, undefined, undefined, undefined, undefined);
+    });
+
+    it('should handle page=1 and pageSize=100 (max boundary)', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=100')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 100, undefined, undefined, undefined, undefined);
+    });
+  });
+
+  // ========== Round 4: search + taxonomy 组合验证 ==========
+
+  describe('search + taxonomy 组合边界', () => {
+    it('should reject when both search and taxonomy exceed max length', async () => {
+      const longSearch = 'a'.repeat(101);
+      const longTaxonomy = 'b'.repeat(101);
+
+      const response = await agent
+        .get(`/api/v1/publishing-platforms?page=1&pageSize=10&search=${longSearch}&taxonomy=${longTaxonomy}`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      // search 先被验证
+      expect(response.body.message).toContain('搜索关键词不能超过');
+    });
+
+    it('should reject when search exceeds but taxonomy is valid', async () => {
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&search=' + 'a'.repeat(101) + '&taxonomy=test')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('搜索关键词不能超过');
+    });
+
+    it('should reject when taxonomy exceeds but search is valid', async () => {
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&search=test&taxonomy=' + 'a'.repeat(101))
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('分类筛选不能超过');
+    });
+
+    it('should accept when both search and taxonomy are at max length boundary', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+      const search = 'x'.repeat(100);
+      const taxonomy = 'y'.repeat(100);
+
+      const response = await agent
+        .get(`/api/v1/publishing-platforms?page=1&pageSize=10&search=${search}&taxonomy=${taxonomy}`)
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, search, taxonomy, undefined, undefined);
+    });
+  });
+
+  // ========== Round 4: sortBy 排序字段边界 ==========
+
+  describe('sortBy 排序字段边界', () => {
+    it('should reject sortBy with SQL injection pattern', async () => {
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&sortBy=name;DROP%20TABLE')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的排序字段');
+    });
+
+    it('should reject sortBy with whitespace', async () => {
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&sortBy=%20name%20')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的排序字段');
+    });
+
+    it('should reject sortOrder with mixed case', async () => {
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&sortOrder=Asc')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的排序方向');
+    });
+
+    it('should reject sortBy with numeric string', async () => {
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&sortBy=123')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的排序字段');
+    });
+
+    it('should reject sortOrder with numeric string', async () => {
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&sortOrder=123')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的排序方向');
+    });
+
+    it('should pass sortBy with empty string (falsy, bypasses validation)', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms?page=1&pageSize=10&sortBy=')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      // qp('') returns '', which is falsy → skips validation → passes '' to service
+      expect(response.status).toBe(200);
+      expect(mockList).toHaveBeenCalledWith(1, 10, undefined, undefined, '', undefined);
+    });
+  });
+
+  // ========== Round 4: sync lock 在不同异常类型下的释放 ==========
+
+  describe('sync lock 异常类型释放保证', () => {
+    it('should release lock after TypeError', async () => {
+      mockSyncFromSystemConfig.mockRejectedValueOnce(new TypeError('type error'));
+      mockSyncFromSystemConfig.mockResolvedValueOnce(3);
+
+      const res1 = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(res1.status).toBe(500);
+
+      const res2 = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(res2.status).toBe(200);
+      expect(res2.body.data.count).toBe(3);
+    });
+
+    it('should release lock after null thrown', async () => {
+      mockSyncFromSystemConfig.mockRejectedValueOnce(null);
+      mockSyncFromSystemConfig.mockResolvedValueOnce(1);
+
+      const res1 = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(res1.status).toBe(500);
+
+      const res2 = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(res2.status).toBe(200);
+      expect(res2.body.data.count).toBe(1);
+    });
+
+    it('should release lock after undefined thrown', async () => {
+      mockSyncFromSystemConfig.mockRejectedValueOnce(undefined);
+      mockSyncFromSystemConfig.mockResolvedValueOnce(4);
+
+      const res1 = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(res1.status).toBe(500);
+
+      const res2 = await agent
+        .post('/api/v1/publishing-platforms/sync')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+      expect(res2.status).toBe(200);
+      expect(res2.body.data.count).toBe(4);
+    });
+  });
+
+  // ========== Round 4: 全量返回（deprecated）边界 ==========
+
+  describe('全量返回（deprecated）边界', () => {
+    it('should return all platforms for admin without pagination', async () => {
+      mockListAll.mockResolvedValue([mappedPlatform]);
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms')
+        .set('Authorization', `Bearer ${adminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(1);
+      expect(mockListAll).toHaveBeenCalled();
+      expect(mockList).not.toHaveBeenCalled();
+    });
+
+    it('should return success response code for listAll', async () => {
+      mockListAll.mockResolvedValue([]);
+
+      const response = await agent
+        .get('/api/v1/publishing-platforms')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.code).toBe(0);
+      expect(response.body.message).toBe('操作成功');
+    });
+
+    it('should not call listAll when any query param is present', async () => {
+      mockList.mockResolvedValue({ list: [], total: 0 });
+
+      await agent
+        .get('/api/v1/publishing-platforms?search=')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      // empty search after trim is '', which is falsy, so both search and taxonomy are falsy
+      // and no page/pageSize → goes to listAll path
+      expect(mockListAll).toHaveBeenCalled();
+      expect(mockList).not.toHaveBeenCalled();
     });
   });
 });
