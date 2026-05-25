@@ -24,7 +24,7 @@ tests/apis/  + tests/pages/  测试文件
 - `apis/controller/auth.controller.ts` — 认证端点：登录、登出、验证、保存选择、获取公司/项目、获取上下文、获取公司用户
 - `apis/controller/company.controller.ts` — 公司 CRUD（仅 sysadmin，仅公司管理页面使用）
 - `apis/controller/project.controller.ts` — 项目 CRUD（sysadmin + admin，admin 按运营者身份鉴权）
-- `apis/controller/skills.controller.ts` — 技能 CRUD（sysadmin + admin，admin 只能改删自己创建的）
+- `apis/controller/skills.controller.ts` — 技能 CRUD + zip 上传（sysadmin + admin，admin 只能改删自己创建的；文件操作委托 SkillsFileService，架构评审 R2 通过 7.8/10）
 - `apis/controller/user.controller.ts` — 用户 CRUD（仅 sysadmin），使用 `createUserService()` 工厂模式 + Options 模式（UserListOptions）
 - `apis/controller/article.controller.ts` — 文章 CRUD + 审核 + 正文编辑 + 版本历史（sysadmin + admin）
 - `apis/controller/upload.controller.ts` — 图片上传（multer，sysadmin + admin）
