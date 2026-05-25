@@ -498,3 +498,25 @@ export async function updatePublishingSchedule(req: Request, res: Response): Pro
 - 错误响应差异可被用于信息枚举（M-5）
 
 **建议立即修复 C-1 漏洞**，其他 HIGH 级别问题应在下一个迭代中处理。
+
+---
+
+## 八、修复验证结果（2026-05-25）
+
+**验证状态**: ✅ 全部已修复
+
+| 编号 | 问题 | 修复位置 | 验证结果 |
+|------|------|----------|----------|
+| C-1 | 水平越权 | service 114-117 行 `ForbiddenError` | ✅ 293 测试通过 |
+| H-1 | catch(err: any) | controller 35/57 行 `catch(err: unknown)` + `AppError` 窄化 | ✅ |
+| H-2 | parseInt radix | controller 全部 `parseInt(x, 10)` | ✅ |
+| H-3 | req.user! | controller 11/47 行 `if (!req.user)` 防御检查 | ✅ |
+| M-1 | page/pageSize 范围 | controller 14-15 行 `Math.max/min` 限制 | ✅ |
+| M-2 | projectId NaN | controller 21-22 行 `isNaN` 检查 | ✅ |
+| M-3 | 日期格式 | Zod schema `publishing-schedule.schema.ts` + `Date.parse` 校验 | ✅ |
+| M-4 | status 白名单 | controller 19 行 `PUBLISH_STATUSES` 过滤 | ✅ |
+| M-5 | 错误响应差异 | service 先验权限(403)再检查状态(400/404) | ✅ |
+| L-1 | 审计日志 | controller 39/61 行 `console.error` 前缀日志 | ✅ |
+| L-2 | query 类型安全 | `parseInt(x, 10)` + NaN 兜底 | ✅ |
+
+**构建验证**: `pnpm build:api` ✅ | `pnpm lint` ✅ | 293 测试全部通过 ✅
