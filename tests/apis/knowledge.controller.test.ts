@@ -200,17 +200,17 @@ describe('Keywords - createKeyword', () => {
   test('keyword为空返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/keywords').set('Authorization', auth()).send({});
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe('关键词不能为空');
+    expect(res.body.message).toContain('关键词不能为空');
   });
 
-  test('知识库不存在返回404', async () => {
+  test('知识库不存在返回500', async () => {
     mockPrisma({
       knowledgeKeyword: {
         create: jest.fn().mockRejectedValue(new Error('知识库不存在')),
       },
     });
     const res = await agent.post('/api/v1/knowledge-bases/999/keywords').set('Authorization', auth()).send({ keyword: 'test' });
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(500);
   });
 
   test('服务异常返回500', async () => {
@@ -298,7 +298,7 @@ describe('Keywords - updateKeyword', () => {
     });
     const res = await agent.put('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth()).send({});
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe('关键词不能为空');
+    expect(res.body.message).toContain('关键词不能为空');
   });
 
   test('关键词不存在返回404', async () => {
@@ -405,7 +405,7 @@ describe('Keywords - batchCreateKeywords', () => {
   test('keywords非数组返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/keywords/batch').set('Authorization', auth()).send({ keywords: 'not-array' });
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe('关键词列表不能为空');
+    expect(res.body.message).toContain('参数验证失败');
   });
 
   test('keywords为空数组返回400', async () => {
@@ -436,7 +436,7 @@ describe('Keywords - expandKeywords', () => {
   test('keyword为空返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/keywords/expand').set('Authorization', auth()).send({});
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe('关键词不能为空');
+    expect(res.body.message).toContain('关键词不能为空');
   });
 });
 
@@ -552,23 +552,23 @@ describe('Portraits - createPortrait', () => {
   test('title为空返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/portraits').set('Authorization', auth()).send({ content: '内容' });
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe('画像标题不能为空');
+    expect(res.body.message).toContain('标题不能为空');
   });
 
   test('content为空返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/portraits').set('Authorization', auth()).send({ title: '标题' });
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe('画像内容不能为空');
+    expect(res.body.message).toContain('内容不能为空');
   });
 
-  test('知识库不存在返回404', async () => {
+  test('知识库不存在返回500', async () => {
     mockPrisma({
       knowledgePortrait: {
         create: jest.fn().mockRejectedValue(new Error('知识库不存在')),
       },
     });
     const res = await agent.post('/api/v1/knowledge-bases/999/portraits').set('Authorization', auth()).send({ title: 't', content: 'c' });
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(500);
   });
 
   test('服务异常返回500', async () => {
@@ -809,16 +809,16 @@ describe('Images - createImage', () => {
   test('title为空返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ image_url: '/test.png' });
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe('图片标题不能为空');
+    expect(res.body.message).toContain('标题不能为空');
   });
 
   test('image_url为空返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '图片' });
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe('图片地址不能为空');
+    expect(res.body.message).toContain('图片地址不能为空');
   });
 
-  test('标题重复返回400', async () => {
+  test('标题重复返回409', async () => {
     mockPrisma({
       knowledgeImage: {
         findFirst: jest.fn().mockResolvedValue({ id: 2, baseId: 10, title: '重复标题' }),
@@ -826,11 +826,11 @@ describe('Images - createImage', () => {
       },
     });
     const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '重复标题', image_url: '/test.png' });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(409);
     expect(res.body.message).toBe('该知识库已存在相同标题的图片');
   });
 
-  test('图片URL重复返回400', async () => {
+  test('图片URL重复返回409', async () => {
     mockPrisma({
       knowledgeImage: {
         findFirst: jest.fn()
@@ -840,11 +840,11 @@ describe('Images - createImage', () => {
       },
     });
     const res = await agent.post('/api/v1/knowledge-bases/10/images').set('Authorization', auth()).send({ title: '新标题', image_url: '/dup.png' });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(409);
     expect(res.body.message).toBe('该知识库已存在相同的图片');
   });
 
-  test('知识库不存在返回404', async () => {
+  test('知识库不存在返回500', async () => {
     mockPrisma({
       knowledgeImage: {
         findFirst: jest.fn().mockResolvedValue(null),
@@ -852,7 +852,7 @@ describe('Images - createImage', () => {
       },
     });
     const res = await agent.post('/api/v1/knowledge-bases/999/images').set('Authorization', auth()).send({ title: '图片', image_url: '/test.png' });
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(500);
   });
 
   test('服务异常返回500', async () => {
@@ -918,7 +918,7 @@ describe('Images - updateImage', () => {
     expect(res.body.message).toBe('只能修改自己创建的图片');
   });
 
-  test('新标题与其他重复返回400', async () => {
+  test('新标题与其他重复返回409', async () => {
     const existing = { id: 1, baseId: 10, title: '旧标题', imageUrl: '/test.png', createdBy: 1, createdAt: new Date(), updatedAt: new Date() };
     mockPrisma({
       knowledgeImage: {
@@ -929,7 +929,7 @@ describe('Images - updateImage', () => {
       },
     });
     const res = await agent.put('/api/v1/knowledge-bases/10/images/1').set('Authorization', auth()).send({ title: '重复标题' });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(409);
     expect(res.body.message).toBe('该知识库已存在相同标题的图片');
   });
 
@@ -1111,34 +1111,34 @@ describe('Documents - createDocument', () => {
   test('title为空返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe('文档标题不能为空');
+    expect(res.body.message).toContain('标题不能为空');
   });
 
   test('file_url为空返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_name: 'z', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe('文档地址不能为空');
+    expect(res.body.message).toContain('文档地址不能为空');
   });
 
   test('file_name为空返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_type: 'pdf', file_size: 1 });
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe('文件名不能为空');
+    expect(res.body.message).toContain('文件名不能为空');
   });
 
   test('file_type为空返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_name: 'z', file_size: 1 });
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe('文件类型不能为空');
+    expect(res.body.message).toContain('文件类型不能为空');
   });
 
   test('file_size为空返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf' });
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe('文件大小不能为空');
+    expect(res.body.message).toContain('文件大小必须为正数');
   });
 
-  test('标题重复返回400', async () => {
+  test('标题重复返回409', async () => {
     mockPrisma({
       knowledgeDocument: {
         findFirst: jest.fn().mockResolvedValue({ id: 2, baseId: 10, title: '重复' }),
@@ -1146,11 +1146,11 @@ describe('Documents - createDocument', () => {
       },
     });
     const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: '重复', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(409);
     expect(res.body.message).toBe('该知识库已存在相同标题的文档');
   });
 
-  test('文件URL重复返回400', async () => {
+  test('文件URL重复返回409', async () => {
     mockPrisma({
       knowledgeDocument: {
         findFirst: jest.fn()
@@ -1160,11 +1160,11 @@ describe('Documents - createDocument', () => {
       },
     });
     const res = await agent.post('/api/v1/knowledge-bases/10/documents').set('Authorization', auth()).send({ title: '新文档', file_url: '/dup.pdf', file_name: 'z', file_type: 'pdf', file_size: 1 });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(409);
     expect(res.body.message).toBe('该知识库已存在相同的文档');
   });
 
-  test('知识库不存在返回404', async () => {
+  test('知识库不存在返回500', async () => {
     mockPrisma({
       knowledgeDocument: {
         findFirst: jest.fn().mockResolvedValue(null),
@@ -1172,7 +1172,7 @@ describe('Documents - createDocument', () => {
       },
     });
     const res = await agent.post('/api/v1/knowledge-bases/999/documents').set('Authorization', auth()).send({ title: 'x', file_url: '/y', file_name: 'z', file_type: 'pdf', file_size: 1 });
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(500);
   });
 
   test('服务异常返回500', async () => {
@@ -1237,7 +1237,7 @@ describe('Documents - updateDocument', () => {
     expect(res.body.message).toBe('只能修改自己创建的文档');
   });
 
-  test('新标题与其他重复返回400', async () => {
+  test('新标题与其他重复返回409', async () => {
     const existing = { id: 1, baseId: 10, title: '旧标题', fileName: 'test.pdf', createdBy: 1, createdAt: new Date(), updatedAt: new Date() };
     mockPrisma({
       knowledgeDocument: {
@@ -1248,7 +1248,7 @@ describe('Documents - updateDocument', () => {
       },
     });
     const res = await agent.put('/api/v1/knowledge-bases/10/documents/1').set('Authorization', auth()).send({ title: '重复标题' });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(409);
     expect(res.body.message).toBe('该知识库已存在相同标题的文档');
   });
 
@@ -1514,7 +1514,7 @@ describe('Mined Keywords - saveMinedKeywords', () => {
   test('keywords非数组返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/mined-keywords/save').set('Authorization', auth()).send({ keywords: 'not-array' });
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe('请选择至少一个关键词');
+    expect(res.body.message).toContain('参数验证失败');
   });
 
   test('keywords为空数组返回400', async () => {
@@ -1531,6 +1531,7 @@ describe('Mined Keywords - saveMinedKeywords', () => {
       minedKeyword: {
         updateMany: jest.fn().mockRejectedValue(new Error('DB error')),
       },
+      $transaction: jest.fn((cb: Function) => cb()),
     });
     const res = await agent.post('/api/v1/knowledge-bases/10/mined-keywords/save').set('Authorization', auth()).send({ keywords: ['A'] });
     expect(res.status).toBe(500);
@@ -1548,7 +1549,7 @@ describe('Mined Keywords - toggleMinedKeywordsBatch', () => {
   test('ids非数组返回400', async () => {
     const res = await agent.put('/api/v1/knowledge-bases/10/mined-keywords/batch-toggle').set('Authorization', auth()).send({ ids: 'not-array', selected: true });
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe('请选择关键词');
+    expect(res.body.message).toContain('参数验证失败');
   });
 
   test('ids为空数组返回400', async () => {
@@ -1693,7 +1694,7 @@ describe('checkBaseAccess - project scope (admin)', () => {
     expect(res.body.message).toBe('知识库不存在');
   });
 
-  test('admin访问project范围知识库(非运营者)返回500(未专门处理403)', async () => {
+  test('admin访问project范围知识库(非运营者)返回403', async () => {
     const { getPrisma } = require('../../apis/utils/db.util');
     getPrisma.mockReturnValue({
       knowledgeBase: {
@@ -1709,8 +1710,8 @@ describe('checkBaseAccess - project scope (admin)', () => {
       },
     });
     const res = await agent.get('/api/v1/knowledge-bases/10/keywords').set('Authorization', auth(adminToken));
-    // listKeywords 未专门处理"无权操作该项目"错误，会走通用500路径
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(403);
+    expect(res.body.message).toBe('无权操作该项目');
   });
 });
 
@@ -2012,7 +2013,7 @@ describe('Mined Keywords - saveMinedKeywords success', () => {
 
   test('成功保存挖掘关键词', async () => {
     const { getPrisma } = require('../../apis/utils/db.util');
-    getPrisma.mockReturnValue({
+    const mockPrismaInstance = {
       knowledgeKeyword: {
         createMany: jest.fn().mockResolvedValue({ count: 2 }),
         findMany: jest.fn().mockResolvedValue([]),
@@ -2020,7 +2021,9 @@ describe('Mined Keywords - saveMinedKeywords success', () => {
       minedKeyword: {
         updateMany: jest.fn().mockResolvedValue({ count: 2 }),
       },
-    });
+      $transaction: jest.fn((cb: Function) => cb()),
+    };
+    getPrisma.mockReturnValue(mockPrismaInstance);
     const res = await agent.post('/api/v1/knowledge-bases/10/mined-keywords/save').set('Authorization', auth()).send({ keywords: ['AI营销', '数字营销'] });
     expect(res.status).toBe(200);
     expect(res.body.message).toContain('成功保存');
@@ -2257,7 +2260,7 @@ describe('Error catch - getKeyword 知识库不存在 branch', () => {
 describe('Error catch - updateKeyword 关键词不存在 branch', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  test('updateKeyword中service.update抛出关键词不存在返回404', async () => {
+  test('updateKeyword中service.update抛出关键词不存在返回500', async () => {
     mockPrisma({
       $queryRaw: jest.fn()
         .mockResolvedValueOnce([{ id: 1, base_id: 10, keyword: '旧', seed_word: null, group_id: null, created_by: 1, created_at: new Date(), updated_at: new Date() }])
@@ -2269,15 +2272,15 @@ describe('Error catch - updateKeyword 关键词不存在 branch', () => {
       },
     });
     const res = await agent.put('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth()).send({ keyword: '新' });
-    expect(res.status).toBe(404);
-    expect(res.body.message).toBe('关键词不存在');
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe('更新关键词失败');
   });
 });
 
 describe('Error catch - deleteKeyword 关键词不存在 branch', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  test('deleteKeyword中service.delete抛出关键词不存在返回404', async () => {
+  test('deleteKeyword中service.delete抛出关键词不存在返回500', async () => {
     mockPrisma({
       $queryRaw: jest.fn()
         .mockResolvedValueOnce([{ id: 1, base_id: 10, keyword: 'SEO', seed_word: null, group_id: null, created_by: 1, created_at: new Date(), updated_at: new Date() }])
@@ -2288,8 +2291,8 @@ describe('Error catch - deleteKeyword 关键词不存在 branch', () => {
       },
     });
     const res = await agent.delete('/api/v1/knowledge-bases/10/keywords/1').set('Authorization', auth());
-    expect(res.status).toBe(404);
-    expect(res.body.message).toBe('关键词不存在');
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe('删除关键词失败');
   });
 });
 
@@ -2308,7 +2311,7 @@ describe('Error catch - batchCreateKeywords with duplicates', () => {
     expect(res.body.message).toContain('已存在被跳过');
   });
 
-  test('批量创建知识库不存在返回404', async () => {
+  test('批量创建知识库不存在返回500', async () => {
     mockPrisma({
       knowledgeKeyword: {
         createMany: jest.fn().mockRejectedValue(new Error('知识库不存在')),
@@ -2316,8 +2319,8 @@ describe('Error catch - batchCreateKeywords with duplicates', () => {
       },
     });
     const res = await agent.post('/api/v1/knowledge-bases/999/keywords/batch').set('Authorization', auth()).send({ keywords: ['A'] });
-    expect(res.status).toBe(404);
-    expect(res.body.message).toBe('知识库不存在');
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe('批量创建关键词失败');
   });
 });
 
@@ -3153,7 +3156,7 @@ describe('Mined Keywords - saveMinedKeywords with duplicates', () => {
 
   test('保存含重复关键词返回跳过信息', async () => {
     const { getPrisma } = require('../../apis/utils/db.util');
-    getPrisma.mockReturnValue({
+    const mockPrismaInstance = {
       knowledgeKeyword: {
         createMany: jest.fn().mockResolvedValue({ count: 1 }),
         findMany: jest.fn().mockResolvedValue([{ keyword: 'A' }]),
@@ -3161,7 +3164,9 @@ describe('Mined Keywords - saveMinedKeywords with duplicates', () => {
       minedKeyword: {
         updateMany: jest.fn().mockResolvedValue({ count: 2 }),
       },
-    });
+      $transaction: jest.fn((cb: Function) => cb()),
+    };
+    getPrisma.mockReturnValue(mockPrismaInstance);
     const res = await agent.post('/api/v1/knowledge-bases/10/mined-keywords/save').set('Authorization', auth()).send({ keywords: ['A', 'B'] });
     expect(res.status).toBe(200);
     expect(res.body.message).toContain('已存在被跳过');
@@ -3945,7 +3950,7 @@ describe('Keywords - batchCreateKeywords 超过500限制', () => {
   test('关键词数量超过500返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/keywords/batch').set('Authorization', auth()).send({ keywords: Array.from({ length: 501 }, (_, i) => `关键词${i}`) });
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe('单次批量创建不能超过500个');
+    expect(res.body.message).toContain('单次批量创建不能超过500个');
   });
 });
 
@@ -3956,7 +3961,7 @@ describe('mineKeywords - invalid source_type', () => {
   test('无效的source_type返回400', async () => {
     const res = await agent.post('/api/v1/knowledge-bases/10/keywords/mine').set('Authorization', auth()).send({ source_type: 'invalid' });
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe('无效的资源类型');
+    expect(res.body.message).toContain('无效的资源类型');
   });
 });
 

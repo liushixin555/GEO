@@ -28,6 +28,8 @@ export interface IImageService {
   create(baseId: number, request: CreateImageRequest, userId: number): Promise<KnowledgeImage>;
   update(id: number, request: UpdateImageRequest): Promise<KnowledgeImage>;
   delete(id: number): Promise<void>;
+  checkDuplicate(baseId: number, title: string, imageUrl: string): Promise<void>;
+  checkDuplicateTitle(baseId: number, title: string, excludeId: number): Promise<void>;
 }
 
 export interface IDocumentService {
@@ -37,6 +39,8 @@ export interface IDocumentService {
   create(baseId: number, request: CreateDocumentRequest, userId: number): Promise<KnowledgeDocument>;
   update(id: number, request: UpdateDocumentRequest): Promise<KnowledgeDocument>;
   delete(id: number): Promise<void>;
+  checkDuplicate(baseId: number, title: string, fileUrl: string): Promise<void>;
+  checkDuplicateTitle(baseId: number, title: string, excludeId: number): Promise<void>;
 }
 
 export interface IMinedKeywordService {
@@ -45,4 +49,6 @@ export interface IMinedKeywordService {
   toggleSelectBatch(baseId: number, ids: number[], selected: boolean): Promise<void>;
   deleteByIds(baseId: number, ids: number[]): Promise<void>;
   clearAll(baseId: number): Promise<void>;
+  aggregateContent(baseId: number, sourceType: string): Promise<string>;
+  saveAndRemove(baseId: number, keywords: string[], userId: number, keywordService: IKeywordService): Promise<{ created: number; duplicates: number }>;
 }

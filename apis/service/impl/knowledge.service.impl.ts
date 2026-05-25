@@ -3,6 +3,7 @@ import { KnowledgeKeyword, KeywordExpandedWord, KnowledgePortrait, KnowledgeImag
 import { mapKeyword, mapPortrait, mapKnowledgeImage, mapKnowledgeDocument, mapMinedKeyword } from '../../map';
 import { IKeywordService, IPortraitService, IImageService, IDocumentService, IMinedKeywordService } from '../knowledge.service';
 import { KnowledgeBaseServiceImpl } from './knowledge-base.service.impl';
+import { NotFoundError, ConflictError } from '../../errors';
 
 function mapRawKeyword(r: any): KnowledgeKeyword {
   return {
@@ -63,7 +64,7 @@ export class KeywordServiceImpl implements IKeywordService {
   async getById(id: number): Promise<KnowledgeKeyword> {
     const prisma = getPrisma();
     const rows: any[] = await prisma.$queryRaw`SELECT * FROM knowledge_keywords WHERE id = ${id} AND deleted_at IS NULL`;
-    if (!rows || rows.length === 0) throw new Error('关键词不存在');
+    if (!rows || rows.length === 0) throw new NotFoundError('关键词');
     const keyword = mapRawKeyword(rows[0]);
     keyword.expanded_words = await this.listExpandedWords(id);
     return keyword;
@@ -110,7 +111,7 @@ export class KeywordServiceImpl implements IKeywordService {
   async update(id: number, request: UpdateKeywordRequest): Promise<KnowledgeKeyword> {
     const prisma = getPrisma();
     const existing = await prisma.knowledgeKeyword.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('关键词不存在');
+    if (!existing) throw new NotFoundError('关键词');
     const updated = await prisma.knowledgeKeyword.update({ where: { id }, data: { keyword: request.keyword } });
     const keyword = mapKeyword(updated);
     if (request.expanded_words !== undefined) {
@@ -124,7 +125,7 @@ export class KeywordServiceImpl implements IKeywordService {
   async delete(id: number): Promise<void> {
     const prisma = getPrisma();
     const existing = await prisma.knowledgeKeyword.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('关键词不存在');
+    if (!existing) throw new NotFoundError('关键词');
     await prisma.knowledgeKeyword.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 
@@ -179,7 +180,7 @@ export class PortraitServiceImpl implements IPortraitService {
   async getById(id: number): Promise<KnowledgePortrait> {
     const prisma = getPrisma();
     const item = await prisma.knowledgePortrait.findFirst({ where: { id, deletedAt: null } });
-    if (!item) throw new Error('画像不存在');
+    if (!item) throw new NotFoundError('画像');
     return mapPortrait(item);
   }
 
@@ -194,7 +195,7 @@ export class PortraitServiceImpl implements IPortraitService {
   async update(id: number, request: UpdatePortraitRequest): Promise<KnowledgePortrait> {
     const prisma = getPrisma();
     const existing = await prisma.knowledgePortrait.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('画像不存在');
+    if (!existing) throw new NotFoundError('画像');
     const data: any = {};
     if (request.title !== undefined) data.title = request.title;
     if (request.content !== undefined) data.content = request.content;
@@ -205,7 +206,7 @@ export class PortraitServiceImpl implements IPortraitService {
   async delete(id: number): Promise<void> {
     const prisma = getPrisma();
     const existing = await prisma.knowledgePortrait.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('画像不存在');
+    if (!existing) throw new NotFoundError('画像');
     await prisma.knowledgePortrait.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 }
@@ -245,7 +246,7 @@ export class ImageServiceImpl implements IImageService {
   async getById(id: number): Promise<KnowledgeImage> {
     const prisma = getPrisma();
     const item = await prisma.knowledgeImage.findFirst({ where: { id, deletedAt: null } });
-    if (!item) throw new Error('图片不存在');
+    if (!item) throw new NotFoundError('图片');
     return mapKnowledgeImage(item);
   }
 
@@ -260,7 +261,7 @@ export class ImageServiceImpl implements IImageService {
   async update(id: number, request: UpdateImageRequest): Promise<KnowledgeImage> {
     const prisma = getPrisma();
     const existing = await prisma.knowledgeImage.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('图片不存在');
+    if (!existing) throw new NotFoundError('图片');
     const data: any = {};
     if (request.title !== undefined) data.title = request.title;
     if (request.description !== undefined) data.description = request.description;
@@ -271,8 +272,22 @@ export class ImageServiceImpl implements IImageService {
   async delete(id: number): Promise<void> {
     const prisma = getPrisma();
     const existing = await prisma.knowledgeImage.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('图片不存在');
+    if (!existing) throw new NotFoundError('图片');
     await prisma.knowledgeImage.update({ where: { id }, data: { deletedAt: new Date() } });
+  }
+
+  async checkDuplicate(baseId: number, title: string, imageUrl: string): Promise<void> {
+    const prisma = getPrisma();
+    const dupTitle = await prisma.knowledgeImage.findFirst({ where: { baseId, title, deletedAt: null } });
+    if (dupTitle) throw new ConflictError('该知识库已存在相同标题的图片');
+    const dupUrl = await prisma.knowledgeImage.findFirst({ where: { baseId, imageUrl, deletedAt: null } });
+    if (dupUrl) throw new ConflictError('该知识库已存在相同的图片');
+  }
+
+  async checkDuplicateTitle(baseId: number, title: string, excludeId: number): Promise<void> {
+    const prisma = getPrisma();
+    const dup = await prisma.knowledgeImage.findFirst({ where: { baseId, title, id: { not: excludeId }, deletedAt: null } });
+    if (dup) throw new ConflictError('该知识库已存在相同标题的图片');
   }
 }
 
@@ -317,7 +332,7 @@ export class DocumentServiceImpl implements IDocumentService {
   async getById(id: number): Promise<KnowledgeDocument> {
     const prisma = getPrisma();
     const item = await prisma.knowledgeDocument.findFirst({ where: { id, deletedAt: null } });
-    if (!item) throw new Error('文档不存在');
+    if (!item) throw new NotFoundError('文档');
     return mapKnowledgeDocument(item);
   }
 
@@ -341,7 +356,7 @@ export class DocumentServiceImpl implements IDocumentService {
   async update(id: number, request: UpdateDocumentRequest): Promise<KnowledgeDocument> {
     const prisma = getPrisma();
     const existing = await prisma.knowledgeDocument.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('文档不存在');
+    if (!existing) throw new NotFoundError('文档');
     const data: any = {};
     if (request.title !== undefined) data.title = request.title;
     if (request.description !== undefined) data.description = request.description;
@@ -352,8 +367,22 @@ export class DocumentServiceImpl implements IDocumentService {
   async delete(id: number): Promise<void> {
     const prisma = getPrisma();
     const existing = await prisma.knowledgeDocument.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new Error('文档不存在');
+    if (!existing) throw new NotFoundError('文档');
     await prisma.knowledgeDocument.update({ where: { id }, data: { deletedAt: new Date() } });
+  }
+
+  async checkDuplicate(baseId: number, title: string, fileUrl: string): Promise<void> {
+    const prisma = getPrisma();
+    const dupTitle = await prisma.knowledgeDocument.findFirst({ where: { baseId, title, deletedAt: null } });
+    if (dupTitle) throw new ConflictError('该知识库已存在相同标题的文档');
+    const dupUrl = await prisma.knowledgeDocument.findFirst({ where: { baseId, fileUrl, deletedAt: null } });
+    if (dupUrl) throw new ConflictError('该知识库已存在相同的文档');
+  }
+
+  async checkDuplicateTitle(baseId: number, title: string, excludeId: number): Promise<void> {
+    const prisma = getPrisma();
+    const dup = await prisma.knowledgeDocument.findFirst({ where: { baseId, title, id: { not: excludeId }, deletedAt: null } });
+    if (dup) throw new ConflictError('该知识库已存在相同标题的文档');
   }
 }
 
@@ -404,5 +433,42 @@ export class MinedKeywordServiceImpl implements IMinedKeywordService {
   async clearAll(baseId: number): Promise<void> {
     const prisma = getPrisma();
     await prisma.minedKeyword.updateMany({ where: { baseId, deletedAt: null }, data: { deletedAt: new Date() } });
+  }
+
+  async aggregateContent(baseId: number, sourceType: string): Promise<string> {
+    const prisma = getPrisma();
+    const contentParts: string[] = [];
+
+    if (sourceType === 'all' || sourceType === 'document') {
+      const docs = await prisma.knowledgeDocument.findMany({ where: { baseId, deletedAt: null } });
+      contentParts.push(...docs.map((d: any) => `[文档] 标题: ${d.title}${d.description ? ', 描述: ' + d.description : ''}`));
+    }
+    if (sourceType === 'all' || sourceType === 'portrait') {
+      const pts = await prisma.knowledgePortrait.findMany({ where: { baseId, deletedAt: null } });
+      contentParts.push(...pts.map((p: any) => `[画像] 标题: ${p.title}${p.content ? ', 内容: ' + p.content : ''}`));
+    }
+    if (sourceType === 'all' || sourceType === 'image') {
+      const imgs = await prisma.knowledgeImage.findMany({ where: { baseId, deletedAt: null } });
+      contentParts.push(...imgs.map((i: any) => `[图片] 标题: ${i.title}${i.description ? ', 描述: ' + i.description : ''}`));
+    }
+
+    return contentParts.join('\n').substring(0, 8000);
+  }
+
+  async saveAndRemove(
+    baseId: number,
+    keywords: string[],
+    userId: number,
+    keywordService: IKeywordService,
+  ): Promise<{ created: number; duplicates: number }> {
+    const prisma = getPrisma();
+    return prisma.$transaction(async () => {
+      const result = await keywordService.batchCreate(baseId, keywords, userId, '关键词挖掘');
+      await prisma.minedKeyword.updateMany({
+        where: { baseId, keyword: { in: keywords }, deletedAt: null },
+        data: { deletedAt: new Date() },
+      });
+      return result;
+    });
   }
 }

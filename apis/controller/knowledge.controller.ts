@@ -5,27 +5,76 @@ import { ProjectServiceImpl } from '../service/impl/project.service.impl';
 import { LlmServiceImpl } from '../service/impl/llm.service.impl';
 import { success, fail, paginate, created } from '../utils';
 import { getPrisma } from '../utils';
+import { AppError, NotFoundError, BusinessError, ForbiddenError, ConflictError } from '../errors';
 
-const keywordService = new KeywordServiceImpl();
-const portraitService = new PortraitServiceImpl();
-const imageService = new ImageServiceImpl();
-const documentService = new DocumentServiceImpl();
-const knowledgeBaseService = new KnowledgeBaseServiceImpl();
-const projectService = new ProjectServiceImpl();
-const llmService = new LlmServiceImpl();
-const minedKeywordService = new MinedKeywordServiceImpl();
+// --- Lazy-initialized service container (M-1: enables test mocking) ---
+
+function createServices() {
+  return {
+    keywordService: new KeywordServiceImpl(),
+    portraitService: new PortraitServiceImpl(),
+    imageService: new ImageServiceImpl(),
+    documentService: new DocumentServiceImpl(),
+    knowledgeBaseService: new KnowledgeBaseServiceImpl(),
+    projectService: new ProjectServiceImpl(),
+    llmService: new LlmServiceImpl(),
+    minedKeywordService: new MinedKeywordServiceImpl(),
+  };
+}
+
+type Services = ReturnType<typeof createServices>;
+let _services: Services | null = null;
+function getServices(): Services {
+  if (!_services) _services = createServices();
+  return _services;
+}
+
+/** Reset services (used by tests) */
+export function _resetServices(): void { _services = null; }
+
+// --- Shared helpers ---
+
+function parseId(value: string | string[] | undefined, label: string): number | null {
+  if (value === undefined || Array.isArray(value)) return null;
+  const id = parseInt(value, 10);
+  if (isNaN(id) || id <= 0) return null;
+  return id;
+}
+
+function getScopeLabel(base: { project_name?: string | null; company_name?: string | null }): string {
+  if (base.project_name) return base.project_name;
+  if (base.company_name) return base.company_name;
+  return '平台';
+}
+
+function handleControllerError(err: unknown, res: Response, fallbackMsg: string): void {
+  if (err instanceof AppError) {
+    fail(res, err.statusCode, err.message);
+  } else {
+    fail(res, 500, fallbackMsg);
+  }
+}
+
+function checkOwnership(existing: { created_by: number | null }, userId: number, role: string, action: string, entityName: string): void {
+  if (role === 'sysadmin') return;
+  if (existing.created_by !== null && existing.created_by === userId) return;
+  throw new ForbiddenError(`只能${action}自己创建的${entityName}`);
+}
 
 async function checkProjectOperator(projectId: number, userId: number, role: string): Promise<void> {
   if (role === 'sysadmin') return;
+  const { projectService } = getServices();
   const project = await projectService.getById(projectId, userId, role);
   if (!project.operator_ids.includes(userId)) {
-    throw new Error('无权操作该项目');
+    throw new ForbiddenError('无权操作该项目');
   }
 }
 
 async function checkBaseAccess(baseId: number, userId: number, role: string): Promise<void> {
+  if (role === 'view') throw new ForbiddenError('权限不足');
   if (role === 'sysadmin') return;
 
+  const { knowledgeBaseService } = getServices();
   const base = await knowledgeBaseService.getById(baseId);
 
   if (base.scope === 'platform') return;
@@ -37,13 +86,13 @@ async function checkBaseAccess(baseId: number, userId: number, role: string): Pr
       select: { companyId: true },
     });
     if (!user || user.companyId !== base.company_id) {
-      throw new Error('知识库不存在');
+      throw new NotFoundError('知识库');
     }
     return;
   }
 
   if (base.scope === 'project') {
-    if (!base.project_id) throw new Error('知识库不存在');
+    if (!base.project_id) throw new NotFoundError('知识库');
     await checkProjectOperator(base.project_id, userId, role);
     return;
   }
@@ -53,8 +102,8 @@ async function checkBaseAccess(baseId: number, userId: number, role: string): Pr
 
 export async function listKeywords(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
@@ -63,41 +112,39 @@ export async function listKeywords(req: Request, res: Response): Promise<void> {
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
+    const { keywordService } = getServices();
     const { list, total } = await keywordService.list(baseId, page, pageSize, search);
     paginate(res, list, total, page, pageSize);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '知识库不存在') {
-      fail(res, 404, err.message);
-    } else {
-      fail(res, 500, '获取关键词列表失败');
-    }
+    handleControllerError(err, res, '获取关键词列表失败');
   }
 }
 
 export async function getKeyword(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的关键词ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    const id = parseId(req.params.id, '关键词ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
+    if (id === null) { fail(res, 400, '无效的关键词ID'); return; }
 
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
+    const { keywordService } = getServices();
     const item = await keywordService.getById(id);
 
     if (item.base_id !== baseId) { fail(res, 404, '关键词不存在'); return; }
 
     success(res, item);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '关键词不存在') { fail(res, 404, err.message); } else if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '获取关键词详情失败'); }
+    handleControllerError(err, res, '获取关键词详情失败');
   }
 }
 
 export async function createKeyword(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
 
     const { keyword } = req.body;
     if (!keyword) { fail(res, 400, '关键词不能为空'); return; }
@@ -105,29 +152,30 @@ export async function createKeyword(req: Request, res: Response): Promise<void> 
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
+    const { keywordService } = getServices();
     const item = await keywordService.create(baseId, req.body, userId);
     created(res, item, '创建关键词成功');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '创建关键词失败'); }
+    handleControllerError(err, res, '创建关键词失败');
   }
 }
 
 export async function updateKeyword(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的关键词ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    const id = parseId(req.params.id, '关键词ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
+    if (id === null) { fail(res, 400, '无效的关键词ID'); return; }
 
     const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
+
+    const { keywordService } = getServices();
     const existing = await keywordService.getById(id);
 
-    if (existing.base_id !== baseId) { fail(res, 404, '关键词不存在'); return; }
+    if (existing.base_id !== baseId) throw new NotFoundError('关键词');
 
-    if (role !== 'sysadmin' && existing.created_by !== userId) {
-      fail(res, 403, '只能修改自己创建的关键词');
-      return;
-    }
+    checkOwnership(existing, userId, role, '修改', '关键词');
 
     const { keyword } = req.body;
     if (!keyword) { fail(res, 400, '关键词不能为空'); return; }
@@ -135,63 +183,62 @@ export async function updateKeyword(req: Request, res: Response): Promise<void> 
     const item = await keywordService.update(id, req.body);
     success(res, item, '更新关键词成功');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '关键词不存在') { fail(res, 404, err.message); } else { fail(res, 500, '更新关键词失败'); }
+    handleControllerError(err, res, '更新关键词失败');
   }
 }
 
 export async function deleteKeyword(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的关键词ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    const id = parseId(req.params.id, '关键词ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
+    if (id === null) { fail(res, 400, '无效的关键词ID'); return; }
 
     const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
+
+    const { keywordService } = getServices();
     const existing = await keywordService.getById(id);
 
-    if (existing.base_id !== baseId) { fail(res, 404, '关键词不存在'); return; }
+    if (existing.base_id !== baseId) throw new NotFoundError('关键词');
 
-    if (role !== 'sysadmin' && existing.created_by !== userId) {
-      fail(res, 403, '只能删除自己创建的关键词');
-      return;
-    }
+    checkOwnership(existing, userId, role, '删除', '关键词');
 
     await keywordService.delete(id);
     success(res, null, '删除关键词成功');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '关键词不存在') { fail(res, 404, err.message); } else { fail(res, 500, '删除关键词失败'); }
+    handleControllerError(err, res, '删除关键词失败');
   }
 }
 
 export async function batchCreateKeywords(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
 
     const { keywords, seed_word } = req.body;
     if (!Array.isArray(keywords) || keywords.length === 0) {
-      fail(res, 400, '关键词列表不能为空');
-      return;
+      throw new BusinessError('关键词列表不能为空');
     }
     if (keywords.length > 500) {
-      fail(res, 400, '单次批量创建不能超过500个');
-      return;
+      throw new BusinessError('单次批量创建不能超过500个');
     }
 
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
+    const { keywordService } = getServices();
     const result = await keywordService.batchCreate(baseId, keywords, userId, seed_word);
     success(res, result, `成功创建 ${result.created} 个关键词${result.duplicates > 0 ? `，${result.duplicates} 个已存在被跳过` : ''}`);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '批量创建关键词失败'); }
+    handleControllerError(err, res, '批量创建关键词失败');
   }
 }
 
 export async function expandKeywords(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
 
     const { keyword } = req.body;
     if (!keyword) { fail(res, 400, '关键词不能为空'); return; }
@@ -199,10 +246,11 @@ export async function expandKeywords(req: Request, res: Response): Promise<void>
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
+    const { llmService } = getServices();
     const keywords = await llmService.expandKeywords(keyword);
     success(res, keywords);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '智能扩词失败'); }
+    handleControllerError(err, res, '智能扩词失败');
   }
 }
 
@@ -210,8 +258,8 @@ export async function expandKeywords(req: Request, res: Response): Promise<void>
 
 export async function listPortraits(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
@@ -220,37 +268,39 @@ export async function listPortraits(req: Request, res: Response): Promise<void> 
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
+    const { portraitService } = getServices();
     const { list, total } = await portraitService.list(baseId, page, pageSize, search);
     paginate(res, list, total, page, pageSize);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '获取画像列表失败'); }
+    handleControllerError(err, res, '获取画像列表失败');
   }
 }
 
 export async function getPortrait(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的画像ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    const id = parseId(req.params.id, '画像ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
+    if (id === null) { fail(res, 400, '无效的画像ID'); return; }
 
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
+    const { portraitService } = getServices();
     const item = await portraitService.getById(id);
 
     if (item.base_id !== baseId) { fail(res, 404, '画像不存在'); return; }
 
     success(res, item);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '画像不存在') { fail(res, 404, err.message); } else if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '获取画像详情失败'); }
+    handleControllerError(err, res, '获取画像详情失败');
   }
 }
 
 export async function createPortrait(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
 
     const { title, content } = req.body;
     if (!title) { fail(res, 400, '画像标题不能为空'); return; }
@@ -259,58 +309,59 @@ export async function createPortrait(req: Request, res: Response): Promise<void>
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
+    const { portraitService } = getServices();
     const item = await portraitService.create(baseId, req.body, userId);
     created(res, item, '创建画像成功');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '创建画像失败'); }
+    handleControllerError(err, res, '创建画像失败');
   }
 }
 
 export async function updatePortrait(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的画像ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    const id = parseId(req.params.id, '画像ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
+    if (id === null) { fail(res, 400, '无效的画像ID'); return; }
 
     const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
+
+    const { portraitService } = getServices();
     const existing = await portraitService.getById(id);
 
-    if (existing.base_id !== baseId) { fail(res, 404, '画像不存在'); return; }
+    if (existing.base_id !== baseId) throw new NotFoundError('画像');
 
-    if (role !== 'sysadmin' && existing.created_by !== userId) {
-      fail(res, 403, '只能修改自己创建的画像');
-      return;
-    }
+    checkOwnership(existing, userId, role, '修改', '画像');
 
     const item = await portraitService.update(id, req.body);
     success(res, item, '更新画像成功');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '画像不存在') { fail(res, 404, err.message); } else { fail(res, 500, '更新画像失败'); }
+    handleControllerError(err, res, '更新画像失败');
   }
 }
 
 export async function deletePortrait(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的画像ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    const id = parseId(req.params.id, '画像ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
+    if (id === null) { fail(res, 400, '无效的画像ID'); return; }
 
     const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
+
+    const { portraitService } = getServices();
     const existing = await portraitService.getById(id);
 
-    if (existing.base_id !== baseId) { fail(res, 404, '画像不存在'); return; }
+    if (existing.base_id !== baseId) throw new NotFoundError('画像');
 
-    if (role !== 'sysadmin' && existing.created_by !== userId) {
-      fail(res, 403, '只能删除自己创建的画像');
-      return;
-    }
+    checkOwnership(existing, userId, role, '删除', '画像');
 
     await portraitService.delete(id);
     success(res, null, '删除画像成功');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '画像不存在') { fail(res, 404, err.message); } else { fail(res, 500, '删除画像失败'); }
+    handleControllerError(err, res, '删除画像失败');
   }
 }
 
@@ -318,8 +369,8 @@ export async function deletePortrait(req: Request, res: Response): Promise<void>
 
 export async function listImages(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
@@ -328,37 +379,39 @@ export async function listImages(req: Request, res: Response): Promise<void> {
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
+    const { imageService } = getServices();
     const { list, total } = await imageService.list(baseId, page, pageSize, search);
     paginate(res, list, total, page, pageSize);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '获取图片列表失败'); }
+    handleControllerError(err, res, '获取图片列表失败');
   }
 }
 
 export async function getImage(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的图片ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    const id = parseId(req.params.id, '图片ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
+    if (id === null) { fail(res, 400, '无效的图片ID'); return; }
 
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
+    const { imageService } = getServices();
     const item = await imageService.getById(id);
 
     if (item.base_id !== baseId) { fail(res, 404, '图片不存在'); return; }
 
     success(res, item);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '图片不存在') { fail(res, 404, err.message); } else if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '获取图片详情失败'); }
+    handleControllerError(err, res, '获取图片详情失败');
   }
 }
 
 export async function createImage(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
 
     const { title, image_url } = req.body;
     if (!title) { fail(res, 400, '图片标题不能为空'); return; }
@@ -367,74 +420,66 @@ export async function createImage(req: Request, res: Response): Promise<void> {
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
-    // 检查标题重复
-    const prisma = getPrisma();
-    const dupTitle = await prisma.knowledgeImage.findFirst({ where: { baseId, title, deletedAt: null } });
-    if (dupTitle) { fail(res, 400, '该知识库已存在相同标题的图片'); return; }
-    // 检查图片URL重复
-    const dupUrl = await prisma.knowledgeImage.findFirst({ where: { baseId, imageUrl: image_url, deletedAt: null } });
-    if (dupUrl) { fail(res, 400, '该知识库已存在相同的图片'); return; }
+    const { imageService } = getServices();
+    await imageService.checkDuplicate(baseId, title, image_url);
 
     const item = await imageService.create(baseId, req.body, userId);
     created(res, item, '创建图片成功');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '创建图片失败'); }
+    handleControllerError(err, res, '创建图片失败');
   }
 }
 
 export async function updateImage(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的图片ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    const id = parseId(req.params.id, '图片ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
+    if (id === null) { fail(res, 400, '无效的图片ID'); return; }
 
     const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
+
+    const { imageService } = getServices();
     const existing = await imageService.getById(id);
 
-    if (existing.base_id !== baseId) { fail(res, 404, '图片不存在'); return; }
+    if (existing.base_id !== baseId) throw new NotFoundError('图片');
 
-    if (role !== 'sysadmin' && existing.created_by !== userId) {
-      fail(res, 403, '只能修改自己创建的图片');
-      return;
-    }
+    checkOwnership(existing, userId, role, '修改', '图片');
 
-    // 检查标题重复（排除自身）
     const newTitle = req.body.title;
     if (newTitle && newTitle !== existing.title) {
-      const prisma = getPrisma();
-      const dup = await prisma.knowledgeImage.findFirst({ where: { baseId, title: newTitle, id: { not: id }, deletedAt: null } });
-      if (dup) { fail(res, 400, '该知识库已存在相同标题的图片'); return; }
+      await imageService.checkDuplicateTitle(baseId, newTitle, id);
     }
 
     const item = await imageService.update(id, req.body);
     success(res, item, '更新图片成功');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '图片不存在') { fail(res, 404, err.message); } else { fail(res, 500, '更新图片失败'); }
+    handleControllerError(err, res, '更新图片失败');
   }
 }
 
 export async function deleteImage(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的图片ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    const id = parseId(req.params.id, '图片ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
+    if (id === null) { fail(res, 400, '无效的图片ID'); return; }
 
     const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
+
+    const { imageService } = getServices();
     const existing = await imageService.getById(id);
 
-    if (existing.base_id !== baseId) { fail(res, 404, '图片不存在'); return; }
+    if (existing.base_id !== baseId) throw new NotFoundError('图片');
 
-    if (role !== 'sysadmin' && existing.created_by !== userId) {
-      fail(res, 403, '只能删除自己创建的图片');
-      return;
-    }
+    checkOwnership(existing, userId, role, '删除', '图片');
 
     await imageService.delete(id);
     success(res, null, '删除图片成功');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '图片不存在') { fail(res, 404, err.message); } else { fail(res, 500, '删除图片失败'); }
+    handleControllerError(err, res, '删除图片失败');
   }
 }
 
@@ -442,8 +487,8 @@ export async function deleteImage(req: Request, res: Response): Promise<void> {
 
 export async function listDocuments(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
@@ -452,37 +497,39 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
+    const { documentService } = getServices();
     const { list, total } = await documentService.list(baseId, page, pageSize, search);
     paginate(res, list, total, page, pageSize);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '获取文档列表失败'); }
+    handleControllerError(err, res, '获取文档列表失败');
   }
 }
 
 export async function getDocument(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的文档ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    const id = parseId(req.params.id, '文档ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
+    if (id === null) { fail(res, 400, '无效的文档ID'); return; }
 
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
+    const { documentService } = getServices();
     const item = await documentService.getById(id);
 
     if (item.base_id !== baseId) { fail(res, 404, '文档不存在'); return; }
 
     success(res, item);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '文档不存在') { fail(res, 404, err.message); } else if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '获取文档详情失败'); }
+    handleControllerError(err, res, '获取文档详情失败');
   }
 }
 
 export async function createDocument(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
 
     const { title, file_url, file_name, file_type, file_size } = req.body;
     if (!title) { fail(res, 400, '文档标题不能为空'); return; }
@@ -495,74 +542,66 @@ export async function createDocument(req: Request, res: Response): Promise<void>
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
-    // 检查标题重复
-    const prisma = getPrisma();
-    const dupTitle = await prisma.knowledgeDocument.findFirst({ where: { baseId, title, deletedAt: null } });
-    if (dupTitle) { fail(res, 400, '该知识库已存在相同标题的文档'); return; }
-    // 检查文件URL重复
-    const dupUrl = await prisma.knowledgeDocument.findFirst({ where: { baseId, fileUrl: file_url, deletedAt: null } });
-    if (dupUrl) { fail(res, 400, '该知识库已存在相同的文档'); return; }
+    const { documentService } = getServices();
+    await documentService.checkDuplicate(baseId, title, file_url);
 
     const item = await documentService.create(baseId, req.body, userId);
     created(res, item, '创建文档成功');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '创建文档失败'); }
+    handleControllerError(err, res, '创建文档失败');
   }
 }
 
 export async function updateDocument(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的文档ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    const id = parseId(req.params.id, '文档ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
+    if (id === null) { fail(res, 400, '无效的文档ID'); return; }
 
     const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
+
+    const { documentService } = getServices();
     const existing = await documentService.getById(id);
 
-    if (existing.base_id !== baseId) { fail(res, 404, '文档不存在'); return; }
+    if (existing.base_id !== baseId) throw new NotFoundError('文档');
 
-    if (role !== 'sysadmin' && existing.created_by !== userId) {
-      fail(res, 403, '只能修改自己创建的文档');
-      return;
-    }
+    checkOwnership(existing, userId, role, '修改', '文档');
 
-    // 检查标题重复（排除自身）
     const newTitle = req.body.title;
     if (newTitle && newTitle !== existing.title) {
-      const prisma = getPrisma();
-      const dup = await prisma.knowledgeDocument.findFirst({ where: { baseId, title: newTitle, id: { not: id }, deletedAt: null } });
-      if (dup) { fail(res, 400, '该知识库已存在相同标题的文档'); return; }
+      await documentService.checkDuplicateTitle(baseId, newTitle, id);
     }
 
     const item = await documentService.update(id, req.body);
     success(res, item, '更新文档成功');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '文档不存在') { fail(res, 404, err.message); } else { fail(res, 500, '更新文档失败'); }
+    handleControllerError(err, res, '更新文档失败');
   }
 }
 
 export async function deleteDocument(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
-    if (isNaN(id)) { fail(res, 400, '无效的文档ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    const id = parseId(req.params.id, '文档ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
+    if (id === null) { fail(res, 400, '无效的文档ID'); return; }
 
     const { userId, role } = req.user!;
+    await checkBaseAccess(baseId, userId, role);
+
+    const { documentService } = getServices();
     const existing = await documentService.getById(id);
 
-    if (existing.base_id !== baseId) { fail(res, 404, '文档不存在'); return; }
+    if (existing.base_id !== baseId) throw new NotFoundError('文档');
 
-    if (role !== 'sysadmin' && existing.created_by !== userId) {
-      fail(res, 403, '只能删除自己创建的文档');
-      return;
-    }
+    checkOwnership(existing, userId, role, '删除', '文档');
 
     await documentService.delete(id);
     success(res, null, '删除文档成功');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '文档不存在') { fail(res, 404, err.message); } else { fail(res, 500, '删除文档失败'); }
+    handleControllerError(err, res, '删除文档失败');
   }
 }
 
@@ -570,8 +609,8 @@ export async function deleteDocument(req: Request, res: Response): Promise<void>
 
 export async function listProjectKeywords(req: Request, res: Response): Promise<void> {
   try {
-    const projectId = parseInt(req.params.projectId as string, 10);
-    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
+    const projectId = parseId(req.params.projectId, '项目ID');
+    if (projectId === null) { fail(res, 400, '无效的项目ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
@@ -580,17 +619,18 @@ export async function listProjectKeywords(req: Request, res: Response): Promise<
     const { userId, role } = req.user!;
     await checkProjectOperator(projectId, userId, role);
 
+    const { keywordService } = getServices();
     const { list, total } = await keywordService.listByProject(projectId, page, pageSize, search);
     paginate(res, list, total, page, pageSize);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '无权操作该项目') { fail(res, 403, err.message); } else { fail(res, 500, '获取关键词列表失败'); }
+    handleControllerError(err, res, '获取关键词列表失败');
   }
 }
 
 export async function listProjectPortraits(req: Request, res: Response): Promise<void> {
   try {
-    const projectId = parseInt(req.params.projectId as string, 10);
-    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
+    const projectId = parseId(req.params.projectId, '项目ID');
+    if (projectId === null) { fail(res, 400, '无效的项目ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
@@ -599,17 +639,18 @@ export async function listProjectPortraits(req: Request, res: Response): Promise
     const { userId, role } = req.user!;
     await checkProjectOperator(projectId, userId, role);
 
+    const { portraitService } = getServices();
     const { list, total } = await portraitService.listByProject(projectId, page, pageSize, search);
     paginate(res, list, total, page, pageSize);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '无权操作该项目') { fail(res, 403, err.message); } else { fail(res, 500, '获取画像列表失败'); }
+    handleControllerError(err, res, '获取画像列表失败');
   }
 }
 
 export async function listProjectImages(req: Request, res: Response): Promise<void> {
   try {
-    const projectId = parseInt(req.params.projectId as string, 10);
-    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
+    const projectId = parseId(req.params.projectId, '项目ID');
+    if (projectId === null) { fail(res, 400, '无效的项目ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
@@ -618,17 +659,18 @@ export async function listProjectImages(req: Request, res: Response): Promise<vo
     const { userId, role } = req.user!;
     await checkProjectOperator(projectId, userId, role);
 
+    const { imageService } = getServices();
     const { list, total } = await imageService.listByProject(projectId, page, pageSize, search);
     paginate(res, list, total, page, pageSize);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '无权操作该项目') { fail(res, 403, err.message); } else { fail(res, 500, '获取图片列表失败'); }
+    handleControllerError(err, res, '获取图片列表失败');
   }
 }
 
 export async function listProjectDocuments(req: Request, res: Response): Promise<void> {
   try {
-    const projectId = parseInt(req.params.projectId as string, 10);
-    if (isNaN(projectId)) { fail(res, 400, '无效的项目ID'); return; }
+    const projectId = parseId(req.params.projectId, '项目ID');
+    if (projectId === null) { fail(res, 400, '无效的项目ID'); return; }
 
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = Math.max(1, Math.min(parseInt(req.query.pageSize as string) || 10, 100));
@@ -637,10 +679,11 @@ export async function listProjectDocuments(req: Request, res: Response): Promise
     const { userId, role } = req.user!;
     await checkProjectOperator(projectId, userId, role);
 
+    const { documentService } = getServices();
     const { list, total } = await documentService.listByProject(projectId, page, pageSize, search);
     paginate(res, list, total, page, pageSize);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '无权操作该项目') { fail(res, 403, err.message); } else { fail(res, 500, '获取文档列表失败'); }
+    handleControllerError(err, res, '获取文档列表失败');
   }
 }
 
@@ -654,21 +697,20 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
     const search = req.query.search as string | undefined;
 
     const { userId, role } = req.user!;
+    const { knowledgeBaseService } = getServices();
 
-    // Get all accessible knowledge bases
     const { list: bases } = await knowledgeBaseService.list(1, 10000, undefined, undefined, undefined, userId, role);
     const baseIds = bases.map(b => b.id);
     const baseMap = new Map(bases.map(b => [b.id, b]));
 
     if (baseIds.length === 0) {
-      res.json({ code: 0, data: { stats: { keyword: 0, portrait: 0, image: 0, document: 0, total: 0 }, list: [], total: 0 } });
+      res.json({ code: 0, data: { stats: { keyword: 0, portrait: 0, image: 0, document: 0, total: 0 }, list: [], total: 0, page, pageSize } });
       return;
     }
 
     const prisma = getPrisma();
-    const baseFilter = { baseId: { in: baseIds } };
+    const baseFilter = { baseId: { in: baseIds }, deletedAt: null };
 
-    // Count by type
     const [keywordCount, portraitCount, imageCount, documentCount] = await Promise.all([
       prisma.knowledgeKeyword.count({ where: baseFilter }),
       prisma.knowledgePortrait.count({ where: baseFilter }),
@@ -676,7 +718,6 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
       prisma.knowledgeDocument.count({ where: baseFilter }),
     ]);
 
-    // Build merged items list
     const items: Array<{
       id: string;
       name: string;
@@ -692,14 +733,7 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
       updatedAt: Date;
     }> = [];
 
-    // Collect all creator IDs for batch lookup
     const creatorIds = new Set<number>();
-
-    const getScopeLabel = (base: typeof bases[0]) => {
-      if (base.project_name) return base.project_name;
-      if (base.company_name) return base.company_name;
-      return '平台';
-    };
 
     if (!category || category === 'keyword') {
       const kwWhere: any = { ...baseFilter };
@@ -709,18 +743,10 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
         if (k.createdBy) creatorIds.add(k.createdBy);
         const base = baseMap.get(k.baseId);
         items.push({
-          id: `keyword-${k.id}`,
-          name: k.keyword,
-          category: '关键词',
-          categoryKey: 'keyword',
-          baseId: k.baseId,
-          baseName: base?.name || '-',
-          scope: base?.scope || 'platform',
-          companyName: base?.company_name || '-',
-          projectName: base ? getScopeLabel(base) : '-',
-          creatorName: '',
-          creatorId: k.createdBy,
-          updatedAt: k.updatedAt,
+          id: `keyword-${k.id}`, name: k.keyword, category: '关键词', categoryKey: 'keyword',
+          baseId: k.baseId, baseName: base?.name || '-', scope: base?.scope || 'platform',
+          companyName: base?.company_name || '-', projectName: base ? getScopeLabel(base) : '-',
+          creatorName: '', creatorId: k.createdBy, updatedAt: k.updatedAt,
         });
       }
     }
@@ -733,18 +759,10 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
         if (p.createdBy) creatorIds.add(p.createdBy);
         const base = baseMap.get(p.baseId);
         items.push({
-          id: `portrait-${p.id}`,
-          name: p.title,
-          category: '画像',
-          categoryKey: 'portrait',
-          baseId: p.baseId,
-          baseName: base?.name || '-',
-          scope: base?.scope || 'platform',
-          companyName: base?.company_name || '-',
-          projectName: base ? getScopeLabel(base) : '-',
-          creatorName: '',
-          creatorId: p.createdBy,
-          updatedAt: p.updatedAt,
+          id: `portrait-${p.id}`, name: p.title, category: '画像', categoryKey: 'portrait',
+          baseId: p.baseId, baseName: base?.name || '-', scope: base?.scope || 'platform',
+          companyName: base?.company_name || '-', projectName: base ? getScopeLabel(base) : '-',
+          creatorName: '', creatorId: p.createdBy, updatedAt: p.updatedAt,
         });
       }
     }
@@ -757,18 +775,10 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
         if (i.createdBy) creatorIds.add(i.createdBy);
         const base = baseMap.get(i.baseId);
         items.push({
-          id: `image-${i.id}`,
-          name: i.title,
-          category: '图片',
-          categoryKey: 'image',
-          baseId: i.baseId,
-          baseName: base?.name || '-',
-          scope: base?.scope || 'platform',
-          companyName: base?.company_name || '-',
-          projectName: base ? getScopeLabel(base) : '-',
-          creatorName: '',
-          creatorId: i.createdBy,
-          updatedAt: i.updatedAt,
+          id: `image-${i.id}`, name: i.title, category: '图片', categoryKey: 'image',
+          baseId: i.baseId, baseName: base?.name || '-', scope: base?.scope || 'platform',
+          companyName: base?.company_name || '-', projectName: base ? getScopeLabel(base) : '-',
+          creatorName: '', creatorId: i.createdBy, updatedAt: i.updatedAt,
         });
       }
     }
@@ -786,23 +796,14 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
         if (d.createdBy) creatorIds.add(d.createdBy);
         const base = baseMap.get(d.baseId);
         items.push({
-          id: `document-${d.id}`,
-          name: d.title,
-          category: '文档',
-          categoryKey: 'document',
-          baseId: d.baseId,
-          baseName: base?.name || '-',
-          scope: base?.scope || 'platform',
-          companyName: base?.company_name || '-',
-          projectName: base ? getScopeLabel(base) : '-',
-          creatorName: '',
-          creatorId: d.createdBy,
-          updatedAt: d.updatedAt,
+          id: `document-${d.id}`, name: d.title, category: '文档', categoryKey: 'document',
+          baseId: d.baseId, baseName: base?.name || '-', scope: base?.scope || 'platform',
+          companyName: base?.company_name || '-', projectName: base ? getScopeLabel(base) : '-',
+          creatorName: '', creatorId: d.createdBy, updatedAt: d.updatedAt,
         });
       }
     }
 
-    // Batch lookup creator names
     if (creatorIds.size > 0) {
       const creators = await prisma.user.findMany({
         where: { id: { in: Array.from(creatorIds) } },
@@ -810,11 +811,7 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
       });
       const creatorMap = new Map(creators.map((c: any) => [c.id, c.cnName || '']));
       for (const item of items) {
-        if (item.creatorId) {
-          item.creatorName = creatorMap.get(item.creatorId) || '-';
-        } else {
-          item.creatorName = '-';
-        }
+        item.creatorName = item.creatorId ? (creatorMap.get(item.creatorId) || '-') : '-';
       }
     } else {
       for (const item of items) {
@@ -822,7 +819,6 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
       }
     }
 
-    // Sort by updatedAt desc
     items.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
     const total = items.length;
@@ -834,10 +830,12 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
         stats: { keyword: keywordCount, portrait: portraitCount, image: imageCount, document: documentCount, total: keywordCount + portraitCount + imageCount + documentCount },
         list: pagedItems,
         total,
+        page,
+        pageSize,
       },
     });
   } catch (err: unknown) {
-    fail(res, 500, '获取知识清单失败');
+    handleControllerError(err, res, '获取知识清单失败');
   }
 }
 
@@ -845,109 +843,92 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
 
 export async function listMinedKeywords(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
+    const { minedKeywordService } = getServices();
     const items = await minedKeywordService.listByBase(baseId);
     success(res, items);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '获取挖掘关键词失败'); }
+    handleControllerError(err, res, '获取挖掘关键词失败');
   }
 }
 
 export async function mineKeywords(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
+
     const VALID_SOURCE_TYPES = ['all', 'document', 'portrait', 'image'] as const;
     const sourceType: string = req.body.source_type || 'all';
     if (!VALID_SOURCE_TYPES.includes(sourceType as any)) {
-      fail(res, 400, '无效的资源类型');
-      return;
+      throw new BusinessError('无效的资源类型');
     }
 
-    const prisma = getPrisma();
-    const contentParts: string[] = [];
+    const { minedKeywordService, llmService } = getServices();
+    const content = await minedKeywordService.aggregateContent(baseId, sourceType);
 
-    if (sourceType === 'all' || sourceType === 'document') {
-      const docs = await prisma.knowledgeDocument.findMany({ where: { baseId, deletedAt: null } });
-      contentParts.push(...docs.map((d: any) => `[文档] 标题: ${d.title}${d.description ? ', 描述: ' + d.description : ''}`));
-    }
-    if (sourceType === 'all' || sourceType === 'portrait') {
-      const pts = await prisma.knowledgePortrait.findMany({ where: { baseId, deletedAt: null } });
-      contentParts.push(...pts.map((p: any) => `[画像] 标题: ${p.title}${p.content ? ', 内容: ' + p.content : ''}`));
-    }
-    if (sourceType === 'all' || sourceType === 'image') {
-      const imgs = await prisma.knowledgeImage.findMany({ where: { baseId, deletedAt: null } });
-      contentParts.push(...imgs.map((i: any) => `[图片] 标题: ${i.title}${i.description ? ', 描述: ' + i.description : ''}`));
-    }
+    if (content.length === 0) { fail(res, 400, '知识库中暂无内容可供挖掘'); return; }
 
-    if (contentParts.length === 0) { fail(res, 400, '知识库中暂无内容可供挖掘'); return; }
-
-    const content = contentParts.join('\n').substring(0, 8000);
     const keywords = await llmService.mineKeywordsFromContent(content);
     const result = await minedKeywordService.addMinedKeywords(baseId, keywords, userId);
     const allMined = await minedKeywordService.listByBase(baseId);
 
     success(res, { mined: result.added, duplicates: result.duplicates, total: allMined.length, list: allMined });
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '关键词挖掘失败'); }
+    handleControllerError(err, res, '关键词挖掘失败');
   }
 }
 
 export async function saveMinedKeywords(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
     const { keywords } = req.body;
     if (!Array.isArray(keywords) || keywords.length === 0) { fail(res, 400, '请选择至少一个关键词'); return; }
 
-    const result = await keywordService.batchCreate(baseId, keywords, userId, '关键词挖掘');
-
-    // Delete saved keywords from mined list
-    const prisma = getPrisma();
-    await prisma.minedKeyword.updateMany({
-      where: { baseId, keyword: { in: keywords }, deletedAt: null },
-      data: { deletedAt: new Date() },
-    });
+    const { keywordService, minedKeywordService } = getServices();
+    const result = await minedKeywordService.saveAndRemove(baseId, keywords, userId, keywordService);
 
     success(res, result, `成功保存 ${result.created} 个关键词${result.duplicates > 0 ? `，${result.duplicates} 个已存在被跳过` : ''}`);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '保存关键词失败'); }
+    handleControllerError(err, res, '保存关键词失败');
   }
 }
 
 export async function toggleMinedKeywordsBatch(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
     const { ids, selected } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) { fail(res, 400, '请选择关键词'); return; }
     if (typeof selected !== 'boolean') { fail(res, 400, 'selected必须为布尔值'); return; }
+    const { minedKeywordService } = getServices();
     await minedKeywordService.toggleSelectBatch(baseId, ids, selected);
     const items = await minedKeywordService.listByBase(baseId);
     success(res, items);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '操作失败'); }
+    handleControllerError(err, res, '操作失败');
   }
 }
 
 export async function deleteMinedKeywords(req: Request, res: Response): Promise<void> {
   try {
-    const baseId = parseInt(req.params.baseId as string, 10);
-    if (isNaN(baseId)) { fail(res, 400, '无效的知识库ID'); return; }
+    const baseId = parseId(req.params.baseId, '知识库ID');
+    if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
+    const { minedKeywordService } = getServices();
     await minedKeywordService.clearAll(baseId);
     success(res, null, '已清空挖掘关键词');
   } catch (err: unknown) {
-    if (err instanceof Error && err.message === '知识库不存在') { fail(res, 404, err.message); } else { fail(res, 500, '清空失败'); }
+    handleControllerError(err, res, '清空失败');
   }
 }
