@@ -30,6 +30,14 @@ function getUpload(): ReturnType<typeof multer> {
   return upload;
 }
 
+/** Extract the last meaningful line from a Prisma/driver error, stripping internal code paths */
+function extractSafeReason(message: string): string {
+  if (!message) return '';
+  const lines = message.split('\n').map(l => l.trim()).filter(Boolean);
+  // Return the last non-empty line (typically the actual error reason)
+  return lines[lines.length - 1] || '';
+}
+
 function handleSkillError(res: Response, err: unknown, contextMsg: string): void {
   if (err instanceof NotFoundError) {
     fail(res, 404, err.message);
@@ -40,7 +48,9 @@ function handleSkillError(res: Response, err: unknown, contextMsg: string): void
   } else {
     const reason = err instanceof Error ? err.message : String(err);
     logger.error('skill.error', { context: contextMsg, error: reason, stack: err instanceof Error ? err.stack : undefined });
-    fail(res, 500, `${contextMsg}：${reason}`);
+    // Extract only the last meaningful line to avoid exposing internal code paths
+    const safeReason = extractSafeReason(reason);
+    fail(res, 500, safeReason ? `${contextMsg}：${safeReason}` : contextMsg);
   }
 }
 
