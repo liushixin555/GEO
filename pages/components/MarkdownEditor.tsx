@@ -18,7 +18,7 @@
  *   4. DOM 引用隔离 — ref 不暴露给外部
  *   5. Carbon Design System 样式对齐
  */
-import React, { useCallback, useEffect, forwardRef, useImperativeHandle, useRef, memo } from 'react';
+import React, { useCallback, useEffect, forwardRef, useImperativeHandle, useRef, useState, memo } from 'react';
 import MDEditor from '@uiw/react-md-editor/nohighlight';
 import DOMPurify from 'dompurify';
 import { Empty } from 'antd';
@@ -36,6 +36,8 @@ const URL_PROPERTIES = new Set([
 
 export type EditorPreviewMode = 'live' | 'edit' | 'preview';
 
+export type EditorSize = 'small' | 'middle' | 'large';
+
 export interface MarkdownEditorProps {
   /** 编辑器内容（受控模式） */
   value?: string;
@@ -43,8 +45,10 @@ export interface MarkdownEditorProps {
   onChange?: (value: string) => void;
   /** 预览模式，默认 'edit' */
   preview?: EditorPreviewMode;
-  /** 编辑器高度（px），默认 400 */
+  /** 编辑器高度（px），默认 400；设置 size 后此值被覆盖 */
   height?: number;
+  /** 编辑器尺寸，映射到高度：small=200 / middle=400 / large=600，与 antd Form size 对齐 */
+  size?: EditorSize;
   /** 是否只读 */
   readOnly?: boolean;
   /** 是否可见，默认 true */
@@ -71,6 +75,13 @@ export interface MarkdownEditorRef {
 }
 
 const MAX_CONTENT_LENGTH = 2_097_152; // 2MB 内容上限
+
+// A-01: size 到高度的映射，与 antd Form 组件的 size prop 保持一致
+const SIZE_HEIGHT_MAP: Record<EditorSize, number> = {
+  small: 200,
+  middle: 400,
+  large: 600,
+};
 
 // ARCH-H2: help 命令配置常量——集中管理 URL / 窗口特性，便于企业级定制
 const HELP_URL = 'https://www.markdownguide.org/basic-syntax/';
@@ -110,7 +121,8 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
   value = '',
   onChange,
   preview = 'edit',
-  height = 400,
+  height: heightProp,
+  size,
   readOnly = false,
   visible = true,
   className,
@@ -119,10 +131,15 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
   placeholder,
   autoFocus = false,
 }, ref) => {
+  // A-01: size prop 优先，否则使用 height prop（默认 400）
+  const height = size ? SIZE_HEIGHT_MAP[size] : (heightProp ?? 400);
   const editorRef = useRef<HTMLDivElement | null>(null);
   // 激活模式高亮：追踪当前 preview prop，供 annotateToolbar 读取
   const previewRef = useRef(preview);
   previewRef.current = preview;
+
+  // UX-03: 全屏模式 Escape 退出提示状态
+  const [showFullscreenHint, setShowFullscreenHint] = useState(false);
 
   // REQ-2: 组件卸载时清理 DOM 引用和事件监听器
   // 上游 Editor.factory.tsx:154-163 使用 useMemo 注册 mouseover/mouseleave 但无清理
@@ -188,6 +205,8 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
           if (title.toLowerCase().includes(key.toLowerCase())) {
             btn.setAttribute('aria-label', label);
             btn.setAttribute('title', label);
+            // UX-01: CSS tooltip 数据属性，配合 CSS 伪元素实现快速显示的悬停提示
+            btn.setAttribute('data-tooltip', label);
             matched = true;
             break;
           }
@@ -197,6 +216,8 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
           if (!existingLabel) {
             btn.setAttribute('aria-label', title);
           }
+          // UX-01: 未匹配标准标签时，仍添加 data-tooltip 以统一 tooltip 行为
+          btn.setAttribute('data-tooltip', title);
         }
       });
 
@@ -286,6 +307,25 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
 
     container.addEventListener('keydown', preventBrowserShortcut, true);
     return () => container.removeEventListener('keydown', preventBrowserShortcut, true);
+  }, []);
+
+  // UX-03: 全屏模式 Escape 退出提示——监听 .w-md-editor-fullscreen 类变化
+  useEffect(() => {
+    const container = editorRef.current;
+    if (!container) return;
+
+    const checkFullscreen = () => {
+      const isFullscreen = container.querySelector('.w-md-editor-fullscreen') != null;
+      if (isFullscreen) {
+        setShowFullscreenHint(true);
+        setTimeout(() => setShowFullscreenHint(false), 2000);
+      }
+    };
+
+    const observer = new MutationObserver(checkFullscreen);
+    observer.observe(container, { attributes: true, subtree: true, attributeFilter: ['class'] });
+
+    return () => observer.disconnect();
   }, []);
 
   const handleChange = useCallback(
@@ -946,6 +986,16 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
             rehypeRewrite: previewRehypeRewrite,
           }}
         />
+        {/* UX-03: 全屏模式 Escape 退出提示 */}
+        {showFullscreenHint && (
+          <div
+            className="markdown-editor-fullscreen-hint"
+            role="status"
+            aria-live="polite"
+          >
+            按 Escape 退出全屏
+          </div>
+        )}
       </div>
     </MarkdownEditorErrorBoundary>
   );

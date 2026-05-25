@@ -4,6 +4,12 @@
    覆盖 @uiw/react-md-editor 的编辑器样式
    ======================================== */
 
+/* CSS-01: 全局通配圆角覆盖 — Carbon {rounded.none} 0px 安全网
+   确保所有子元素默认无圆角，特定元素（如行内代码、图片）在下方单独覆盖 */
+.markdown-editor-wrapper * {
+  border-radius: 0 !important;
+}
+
 /* 编辑器容器 — Carbon 基线 */
 .markdown-editor-wrapper .w-md-editor {
   border: 1px solid var(--color-hairline) !important;
@@ -259,6 +265,35 @@
   outline-offset: -2px !important;
 }
 
+/* UX-01: 工具栏按钮 CSS tooltip — 替代原生 title 属性的快速显示悬停提示 */
+.markdown-editor-wrapper .w-md-editor-toolbar button[data-tooltip] {
+  position: relative;
+}
+
+.markdown-editor-wrapper .w-md-editor-toolbar button[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--color-inverse-canvas, #161616);
+  color: var(--color-inverse-ink, #fff);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 4px 8px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 150ms ease;
+  z-index: 1100;
+  border-radius: 2px !important;
+}
+
+.markdown-editor-wrapper .w-md-editor-toolbar button[data-tooltip]:hover::before,
+.markdown-editor-wrapper .w-md-editor-toolbar button[data-tooltip]:focus-visible::before {
+  opacity: 1;
+}
+
 /* 工具栏移动端横向滚动（R-01） */
 .markdown-editor-wrapper .w-md-editor-toolbar {
   overflow-x: auto !important;
@@ -287,8 +322,8 @@
   margin: 1px auto 0 !important;
 }
 
-/* textarea 焦点样式（A-03） */
-.markdown-editor-wrapper .w-md-editor-text-input:focus {
+/* textarea 焦点样式（A-03）— 仅键盘导航显示焦点环，Carbon :focus-visible 规范 */
+.markdown-editor-wrapper .w-md-editor-text-input:focus-visible {
   outline: 2px solid var(--color-primary) !important;
   outline-offset: -2px !important;
 }
@@ -374,4 +409,28 @@
     min-height: 48px !important;
     padding: 8px 16px !important;
   }
+}
+
+/* UX-03: 全屏模式 Escape 退出提示 — 类似 YouTube 全屏提示，2秒自动消失 */
+.markdown-editor-fullscreen-hint {
+  position: absolute;
+  top: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--color-inverse-canvas, #161616);
+  color: var(--color-inverse-ink, #fff);
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 6px 16px;
+  z-index: 1100;
+  pointer-events: none;
+  animation: md-fullscreen-hint-fade 2s ease-out forwards;
+  border-radius: 2px !important;
+}
+
+@keyframes md-fullscreen-hint-fade {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
 }

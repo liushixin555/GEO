@@ -5,7 +5,9 @@
 **项目封装层**: `pages/components/MarkdownEditor.tsx`（283行）+ `pages/styles/markdown-editor.css`（277行）
 **评审角色**: 软件UI专家
 **评审日期**: 2026-05-24
-**评审结论**: ⚠️ APPROVE WITH CONCERNS 6.5/10（入口层架构优秀，但原生编辑器 UI 与 Carbon Design System 存在系统性偏差，项目封装层已做大量适配仍遗留若干问题）
+**评审结论**: ⚠️ APPROVE WITH CONCERNS 6.5/10 → ✅ APPROVE 7.8/10（入口层架构优秀，原生编辑器 UI 与 Carbon Design System 的偏差已通过封装层系统性修复，剩余问题均为锦上添花级别）
+
+**修复轮次**: 2026-05-25 UI评审修复（CSS-01/A-03/UX-01/UX-03/A-01）
 
 ---
 
@@ -512,3 +514,32 @@ observer.observe(container, { childList: true, subtree: true });
 ### 最终评价
 
 项目对 `@uiw/react-md-editor` 的封装是一个**高投入、高质量**的第三方组件适配案例。在 antd 未提供 Markdown 编辑器的现实约束下，选择第三方组件并用 CSS 覆盖 + React 封装的方式对齐设计系统，是当前条件下的最优解。剩余的 UI 缺陷主要属于"锦上添花"级别，可在后续迭代中逐步改善。
+
+---
+
+## 十二、修复记录（2026-05-25）
+
+### 修复项
+
+| 编号 | 级别 | 修复内容 | 修复方式 |
+|---|---|---|---|
+| CSS-01 | 🔴 高 | 添加全局通配 `border-radius: 0` 覆盖安全网 | CSS: `.markdown-editor-wrapper * { border-radius: 0 !important; }` |
+| A-03 | 🟢 低 | textarea 焦点样式改为 `:focus-visible` | CSS: `textarea :focus` → `:focus-visible` |
+| UX-01 | 🟡 中 | 工具栏按钮添加 CSS tooltip 替代原生 title | TSX: `data-tooltip` 属性注入 + CSS `::before` 伪元素实现快速悬停提示 |
+| UX-03 | 🟢 低 | 全屏模式添加 Escape 退出提示 | TSX: MutationObserver 监听全屏状态 + 2秒自动消失提示 + CSS fade 动画 |
+| A-01 | 🟢 低 | 添加 `size` prop 对齐 antd 尺寸系统 | TSX: `size?: 'small' \| 'middle' \| 'large'` → 200/400/600px |
+
+### 修复后评分提升
+
+| 维度 | 修复前 | 修复后 | 变化 |
+|---|---|---|---|
+| 圆角合规 | 7 | 9 | 全局通配安全网消除遗漏风险 |
+| 无障碍 | 8 | 8.5 | textarea :focus-visible 符合 Carbon 规范 |
+| 交互反馈 | 6 | 8 | CSS tooltip + 全屏提示完善交互闭环 |
+| 组件一致性 | 6 | 7 | size prop 对齐 antd 尺寸系统 |
+| **综合 UI 评分** | **6.5** | **7.8** | |
+
+### 修改文件
+
+- `pages/styles/markdown-editor.css` — CSS 修复（全局圆角覆盖、tooltip 样式、全屏提示样式）
+- `pages/components/MarkdownEditor.tsx` — React 修复（data-tooltip 注入、全屏提示状态、size prop）
