@@ -7,6 +7,8 @@ import { logger } from '../utils/logger.util';
 
 const publishingPlatformService: IPublishingPlatformService = new PublishingPlatformServiceImpl();
 
+// 排序字段白名单 — PublishingPlatform Entity 的可排序字段子集
+// Entity 另有 id, rmResourceId, remark, createdAt, updatedAt 字段不支持排序
 const VALID_SORT_FIELDS = ['name', 'taxonomy', 'price', 'include_rate', 'publish_rate'];
 const VALID_SORT_ORDERS = ['asc', 'desc'];
 const MAX_PAGE_SIZE = 100;

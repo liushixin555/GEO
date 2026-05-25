@@ -415,3 +415,19 @@ export function parsePagination(
 3. Swagger 注解缺失影响 API 文档的完整性
 
 **整体评分: 8.0/10** — 在项目所有 Controller 中属于架构质量较高的一档，修复 H-1 后可达 8.5/10。
+
+---
+
+## 九、修复状态跟踪（2026-05-25 更新）
+
+| 问题 | 优先级 | 状态 | 修复说明 |
+|------|--------|------|---------|
+| H-1: `(req as any).user` | P1 | **已修复** | 改为直接使用 `req.user?.userId`，利用 Express Request 扩展类型 |
+| H-2: 字符串匹配错误分派 | P1 | **已修复** | 引入 `BusinessError` 类型化异常，Controller 使用 `instanceof` 分派 |
+| M-1: `taxonomy` 未校验 | P2 | **已修复** | 添加长度校验（不超过 `MAX_SEARCH_LENGTH`） |
+| M-3: `VALID_SORT_FIELDS` 缺注释 | P3 | **已修复** | 添加注释说明与 Entity 字段的对应关系 |
+| L-1: 缺少 Swagger 注解 | P2 | **跳过** | 项目使用 AST 自动生成 swagger-spec.json，无需手动注解 |
+| L-2: 分页参数跨 Controller 重复 | P2 | **延后** | 跨模块重构，单独规划 |
+| M-2: 函数职责过多 | P3 | **延后** | v2.0 移除 @deprecated 分支时一并重构 |
+
+**修复后评级: 8.5/10 ACCEPT**
