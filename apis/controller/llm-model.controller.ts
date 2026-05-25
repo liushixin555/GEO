@@ -2,15 +2,30 @@ import { Request, Response } from 'express';
 import { createLlmModelService } from '../service';
 import { AppError } from '../errors';
 import { success, fail, created } from '../utils';
+import { logger } from '../utils/logger.util';
 
 const llmModelService = createLlmModelService();
 
-function handleError(res: Response, err: unknown, defaultMsg: string): void {
+function handleError(res: Response, err: unknown, defaultMsg: string, context?: Record<string, unknown>): void {
   if (err instanceof AppError) {
     fail(res, err.statusCode, err.message);
   } else {
+    const message = err instanceof Error ? err.message : '未知错误';
+    logger.error(defaultMsg, { ...context, error: message });
     fail(res, 500, defaultMsg);
   }
+}
+
+// === 审计日志 ===
+
+function auditLog(req: Request, action: string, details?: Record<string, unknown>): void {
+  logger.info(`[AUDIT] ${action}`, {
+    userId: (req as any).user?.userId ?? 0,
+    username: (req as any).user?.username ?? 'unknown',
+    resourceType: 'llm-model',
+    ip: req.ip ?? 'unknown',
+    ...details,
+  });
 }
 
 // === 工具函数 ===
@@ -97,14 +112,13 @@ export async function getLlmModel(req: Request, res: Response): Promise<void> {
     const item = await llmModelService.getById(id);
     success(res, item);
   } catch (err: unknown) {
-    handleError(res, err, '获取LLM模型详情失败');
+    handleError(res, err, '获取LLM模型详情失败', { id: req.params.id });
   }
 }
 
 export async function createLlmModel(req: Request, res: Response): Promise<void> {
+  const { provider, base_url, api_key, model_name } = req.body;
   try {
-    const { provider, base_url, api_key, model_name } = req.body;
-
     const errors = [
       validateRequiredString(provider, '供应商', MAX_FIELD_LENGTH.provider),
       validateRequiredString(base_url, 'Base URL', MAX_FIELD_LENGTH.base_url),
@@ -118,15 +132,17 @@ export async function createLlmModel(req: Request, res: Response): Promise<void>
     if (!urlResult.safe) { fail(res, 400, urlResult.error!); return; }
 
     const item = await llmModelService.create({ provider, base_url, api_key, model_name });
+    auditLog(req, 'create_llm_model', { id: item.id, provider, model_name });
     created(res, item, '创建LLM模型成功');
   } catch (err: unknown) {
-    handleError(res, err, '创建LLM模型失败');
+    handleError(res, err, '创建LLM模型失败', { provider, model_name });
   }
 }
 
 export async function updateLlmModel(req: Request, res: Response): Promise<void> {
+  const rawId = req.params.id as string;
   try {
-    const id = parseId(req.params.id as string);
+    const id = parseId(rawId);
     if (!id) { fail(res, 400, '无效的模型ID'); return; }
 
     const { provider, base_url, api_key, model_name, status } = req.body;
@@ -158,20 +174,26 @@ export async function updateLlmModel(req: Request, res: Response): Promise<void>
     }
 
     const item = await llmModelService.update(id, { provider, base_url, api_key, model_name, status });
+    const updatedFields = Object.keys(req.body).filter(k =>
+      ['provider', 'base_url', 'api_key', 'model_name', 'status'].includes(k)
+    );
+    auditLog(req, 'update_llm_model', { id, updatedFields });
     success(res, item, '更新LLM模型成功');
   } catch (err: unknown) {
-    handleError(res, err, '更新LLM模型失败');
+    handleError(res, err, '更新LLM模型失败', { id: rawId });
   }
 }
 
 export async function deleteLlmModel(req: Request, res: Response): Promise<void> {
+  const rawId = req.params.id as string;
   try {
-    const id = parseId(req.params.id as string);
+    const id = parseId(rawId);
     if (!id) { fail(res, 400, '无效的模型ID'); return; }
 
     await llmModelService.delete(id);
+    auditLog(req, 'delete_llm_model', { id });
     success(res, null, '删除LLM模型成功');
   } catch (err: unknown) {
-    handleError(res, err, '删除LLM模型失败');
+    handleError(res, err, '删除LLM模型失败', { id: rawId });
   }
 }

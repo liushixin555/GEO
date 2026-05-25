@@ -1,5 +1,7 @@
 # apis/controller/llm-model.controller.ts — 代码安全专家评审报告
 
+> **修复状态**: ✅ 已修复（2026-05-25）— S-H3、S-M2、S-M3、S-C3 全部完成
+
 **评审日期**: 2026-05-24
 **评审角色**: 代码安全专家（OWASP Top 10 · 注入攻击 · 身份认证 · 敏感数据泄露 · 访问控制 · 输入验证 · 安全配置）
 **文件路径**: `apis/controller/llm-model.controller.ts`

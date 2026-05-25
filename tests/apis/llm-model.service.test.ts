@@ -3,6 +3,13 @@
  */
 process.env.JWT_SECRET = 'test-secret';
 process.env.JWT_EXPIRES_IN = '2h';
+process.env.API_KEY_ENCRYPTION_KEY = 'test-encryption-key-for-testing';
+
+jest.mock('../../apis/utils/encryption.util', () => ({
+  encryptApiKey: jest.fn((v: string) => v),
+  decryptApiKey: jest.fn((v: string) => v),
+  isEncrypted: jest.fn((v: string) => false),
+}));
 
 jest.mock('../../apis/utils/db.util', () => ({
   getPrisma: jest.fn(),
@@ -39,6 +46,9 @@ function createMockPrisma() {
       findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+    },
+    article: {
+      count: jest.fn().mockResolvedValue(0),
     },
   };
 }
@@ -489,7 +499,7 @@ describe('LlmModelServiceImpl', () => {
 
       expect(mockPrisma.llmModel.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { deletedAt: expect.any(Date) },
+        data: expect.objectContaining({ deletedAt: expect.any(Date), apiKey: '[DELETED]' }),
       });
     });
 
@@ -804,7 +814,7 @@ describe('LlmModelServiceImpl', () => {
       expect(mockPrisma.llmModel.findFirst).toHaveBeenCalledWith({ where: { id: 42 } });
       expect(mockPrisma.llmModel.update).toHaveBeenCalledWith({
         where: { id: 42 },
-        data: { deletedAt: expect.any(Date) },
+        data: expect.objectContaining({ deletedAt: expect.any(Date), apiKey: '[DELETED]' }),
       });
     });
   });
@@ -1601,7 +1611,7 @@ describe('LlmModelServiceImpl', () => {
       expect(mockPrisma.llmModel.findFirst).toHaveBeenCalledWith({ where: { id: bigId } });
       expect(mockPrisma.llmModel.update).toHaveBeenCalledWith({
         where: { id: bigId },
-        data: { deletedAt: expect.any(Date) },
+        data: expect.objectContaining({ deletedAt: expect.any(Date), apiKey: '[DELETED]' }),
       });
     });
   });

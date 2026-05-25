@@ -2,7 +2,8 @@ import { getPrisma } from '../../utils';
 import { LlmModel, CreateLlmModelRequest, UpdateLlmModelRequest } from '../../entity';
 import { mapLlmModel } from '../../map';
 import { ILlmModelService } from '../llm-model.service';
-import { NotFoundError } from '../../errors';
+import { NotFoundError, ConflictError } from '../../errors';
+import { encryptApiKey } from '../../utils/encryption.util';
 
 export class LlmModelServiceImpl implements ILlmModelService {
   async list(): Promise<LlmModel[]> {
@@ -34,7 +35,7 @@ export class LlmModelServiceImpl implements ILlmModelService {
       data: {
         provider: request.provider,
         baseUrl: request.base_url,
-        apiKey: request.api_key,
+        apiKey: encryptApiKey(request.api_key),
         modelName: request.model_name,
       },
     });
@@ -49,7 +50,7 @@ export class LlmModelServiceImpl implements ILlmModelService {
     const data: any = {};
     if (request.provider !== undefined) data.provider = request.provider;
     if (request.base_url !== undefined) data.baseUrl = request.base_url;
-    if (request.api_key !== undefined) data.apiKey = request.api_key;
+    if (request.api_key !== undefined) data.apiKey = encryptApiKey(request.api_key);
     if (request.model_name !== undefined) data.modelName = request.model_name;
     if (request.status !== undefined) data.status = request.status;
 
@@ -61,6 +62,20 @@ export class LlmModelServiceImpl implements ILlmModelService {
     const prisma = getPrisma();
     const existing = await prisma.llmModel.findFirst({ where: { id } });
     if (!existing) throw new NotFoundError('LLM模型');
-    await prisma.llmModel.update({ where: { id }, data: { deletedAt: new Date() } });
+
+    const articlesUsingModel = await prisma.article.count({
+      where: { llmModelId: id },
+    });
+    if (articlesUsingModel > 0) {
+      throw new ConflictError(`该模型正被 ${articlesUsingModel} 篇文章引用，无法删除`);
+    }
+
+    await prisma.llmModel.update({
+      where: { id },
+      data: {
+        deletedAt: new Date(),
+        apiKey: '[DELETED]',
+      },
+    });
   }
 }

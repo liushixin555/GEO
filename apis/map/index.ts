@@ -1,5 +1,6 @@
 import { Company, User, Skills, LlmModel, SystemConfig, Project, Article, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, KnowledgeBase, MinedKeyword, Todo, TodoLog } from '../entity';
 import { Company as PrismaCompany } from '@prisma/client';
+import { isEncrypted } from '../utils/encryption.util';
 
 export function mapCompany(prismaCompany: PrismaCompany): Company {
   return {
@@ -48,7 +49,11 @@ export function mapLlmModel(prismaLlmModel: any): LlmModel {
     id: prismaLlmModel.id,
     provider: prismaLlmModel.provider,
     base_url: prismaLlmModel.baseUrl,
-    api_key: prismaLlmModel.apiKey ? `${prismaLlmModel.apiKey.slice(0, 4)}****${prismaLlmModel.apiKey.slice(-4)}` : '',
+    api_key: prismaLlmModel.apiKey
+      ? isEncrypted(prismaLlmModel.apiKey)
+        ? '****'
+        : `${prismaLlmModel.apiKey.slice(0, 4)}****${prismaLlmModel.apiKey.slice(-4)}`
+      : '',
     model_name: prismaLlmModel.modelName,
     status: prismaLlmModel.status,
     created_at: prismaLlmModel.createdAt,

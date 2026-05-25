@@ -1,6 +1,11 @@
 import axios from 'axios';
 import { getPrisma } from '../../utils';
 import { ILlmService, ArticleGenerationParams } from '../llm.service';
+import { decryptApiKey, isEncrypted } from '../../utils/encryption.util';
+
+function resolveApiKey(raw: string): string {
+  return isEncrypted(raw) ? decryptApiKey(raw) : raw;
+}
 
 export class LlmServiceImpl implements ILlmService {
   async expandKeywords(keyword: string): Promise<string[]> {
@@ -25,7 +30,7 @@ export class LlmServiceImpl implements ILlmService {
         temperature: 0,
       }, {
         headers: {
-          'Authorization': `Bearer ${model.apiKey}`,
+          'Authorization': `Bearer ${resolveApiKey(model.apiKey)}`,
           'Content-Type': 'application/json',
         },
         timeout: 300000,
@@ -68,7 +73,7 @@ ${content}`;
         temperature: 0,
       }, {
         headers: {
-          'Authorization': `Bearer ${model.apiKey}`,
+          'Authorization': `Bearer ${resolveApiKey(model.apiKey)}`,
           'Content-Type': 'application/json',
         },
         timeout: 300000,
@@ -137,7 +142,7 @@ ${params.skills || '无特殊要求'}
         temperature: 0.7,
       }, {
         headers: {
-          'Authorization': `Bearer ${model.apiKey}`,
+          'Authorization': `Bearer ${resolveApiKey(model.apiKey)}`,
           'Content-Type': 'application/json',
         },
         timeout: 300000,

@@ -9,6 +9,13 @@ process.env.JWT_EXPIRES_IN = '2h';
 process.env.SWAGGER_ENABLED = 'false';
 process.env.RATE_LIMIT_WINDOW_MS = '60000';
 process.env.RATE_LIMIT_MAX = '200';
+process.env.API_KEY_ENCRYPTION_KEY = 'test-encryption-key-for-testing';
+
+jest.mock('../../apis/utils/encryption.util', () => ({
+  encryptApiKey: jest.fn((v: string) => v),
+  decryptApiKey: jest.fn((v: string) => v),
+  isEncrypted: jest.fn((v: string) => false),
+}));
 
 jest.mock('../../apis/utils/db.util', () => ({
   getPrisma: jest.fn(),
@@ -74,7 +81,7 @@ describe('LLM Model Controller', () => {
       const mockFindMany = jest.fn().mockResolvedValue([
         { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() },
       ]);
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models')
@@ -89,7 +96,7 @@ describe('LLM Model Controller', () => {
     it('should return empty list when no models', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindMany = jest.fn().mockResolvedValue([]);
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models')
@@ -102,7 +109,7 @@ describe('LLM Model Controller', () => {
     it('should return 500 on database error', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindMany = jest.fn().mockRejectedValue(new Error('DB error'));
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models')
@@ -115,7 +122,7 @@ describe('LLM Model Controller', () => {
     it('should return default error message when err.message is empty', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindMany = jest.fn().mockRejectedValue(new Error(''));
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models')
@@ -128,7 +135,7 @@ describe('LLM Model Controller', () => {
     it('should return default error message when error has no message property', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindMany = jest.fn().mockRejectedValue({ code: 'UNKNOWN' });
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models')
@@ -144,7 +151,7 @@ describe('LLM Model Controller', () => {
         { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test1', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() },
         { id: 2, provider: 'Anthropic', baseUrl: 'https://api.anthropic.com', apiKey: 'sk-test2', modelName: 'claude-3', status: false, createdAt: new Date(), updatedAt: new Date() },
       ]);
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models')
@@ -160,7 +167,7 @@ describe('LLM Model Controller', () => {
         { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() },
         { id: 2, provider: 'Anthropic', baseUrl: 'https://api.anthropic.com', apiKey: 'sk-test', modelName: 'claude-3', status: false, createdAt: new Date(), updatedAt: new Date() },
       ]);
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models')
@@ -191,7 +198,7 @@ describe('LLM Model Controller', () => {
       const mockFindMany = jest.fn().mockResolvedValue([
         { id: 1, provider: 'OpenAI', modelName: 'gpt-4o' },
       ]);
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models/enabled')
@@ -210,7 +217,7 @@ describe('LLM Model Controller', () => {
     it('should return enabled models for admin', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindMany = jest.fn().mockResolvedValue([]);
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models/enabled')
@@ -222,7 +229,7 @@ describe('LLM Model Controller', () => {
     it('should return 500 on database error', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindMany = jest.fn().mockRejectedValue(new Error('DB error'));
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models/enabled')
@@ -235,7 +242,7 @@ describe('LLM Model Controller', () => {
     it('should return default error message when err.message is empty', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindMany = jest.fn().mockRejectedValue(new Error(''));
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models/enabled')
@@ -248,7 +255,7 @@ describe('LLM Model Controller', () => {
     it('should return default error message when error has no message property', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindMany = jest.fn().mockRejectedValue({ code: 'UNKNOWN' });
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models/enabled')
@@ -264,7 +271,7 @@ describe('LLM Model Controller', () => {
         { id: 1, provider: 'OpenAI', modelName: 'gpt-4o' },
         { id: 2, provider: 'Anthropic', modelName: 'claude-3' },
       ]);
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models/enabled')
@@ -278,7 +285,7 @@ describe('LLM Model Controller', () => {
     it('should return empty list when no enabled models', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindMany = jest.fn().mockResolvedValue([]);
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models/enabled')
@@ -293,7 +300,7 @@ describe('LLM Model Controller', () => {
       const mockFindMany = jest.fn().mockResolvedValue([
         { id: 1, provider: 'OpenAI', modelName: 'gpt-4o' },
       ]);
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       await agent
         .get('/api/v1/llm-models/enabled')
@@ -351,7 +358,7 @@ describe('LLM Model Controller', () => {
       const mockFindFirst = jest.fn().mockResolvedValue({
         id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models/1')
@@ -366,7 +373,7 @@ describe('LLM Model Controller', () => {
     it('should return 404 for non-existent model', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockResolvedValue(null);
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models/999')
@@ -379,7 +386,7 @@ describe('LLM Model Controller', () => {
     it('should return 500 on database error', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockRejectedValue(new Error('DB error'));
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models/1')
@@ -392,7 +399,7 @@ describe('LLM Model Controller', () => {
     it('should return default error message when err.message is empty', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockRejectedValue(new Error(''));
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models/1')
@@ -405,7 +412,7 @@ describe('LLM Model Controller', () => {
     it('should return default error message when error has no message property', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockRejectedValue({ code: 'UNKNOWN' });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models/1')
@@ -547,7 +554,7 @@ describe('LLM Model Controller', () => {
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .post('/api/v1/llm-models')
@@ -563,7 +570,7 @@ describe('LLM Model Controller', () => {
     it('should return 500 on database error during create', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockCreate = jest.fn().mockRejectedValue(new Error('DB error'));
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .post('/api/v1/llm-models')
@@ -577,7 +584,7 @@ describe('LLM Model Controller', () => {
     it('should return default error message when err.message is empty during create', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockCreate = jest.fn().mockRejectedValue(new Error(''));
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .post('/api/v1/llm-models')
@@ -591,7 +598,7 @@ describe('LLM Model Controller', () => {
     it('should return default error message when error has no message property during create', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockCreate = jest.fn().mockRejectedValue({ code: 'UNKNOWN' });
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .post('/api/v1/llm-models')
@@ -636,7 +643,7 @@ describe('LLM Model Controller', () => {
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, provider: 'Anthropic', baseUrl: 'https://api.anthropic.com', apiKey: 'sk-ant', modelName: 'claude-3', status: true, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const body = { provider: 'Anthropic', base_url: 'https://api.anthropic.com', api_key: 'sk-ant', model_name: 'claude-3' };
       const response = await agent
@@ -684,7 +691,7 @@ describe('LLM Model Controller', () => {
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, provider: 'CustomAI', baseUrl: 'http://llm.example.com/v1', apiKey: 'local-key', modelName: 'custom-model', status: true, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .post('/api/v1/llm-models')
@@ -740,7 +747,7 @@ describe('LLM Model Controller', () => {
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, provider: '国产模型', baseUrl: 'https://api.example.com', apiKey: 'sk-test', modelName: '通义千问-Max', status: true, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .post('/api/v1/llm-models')
@@ -1020,7 +1027,7 @@ describe('LLM Model Controller', () => {
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .post('/api/v1/llm-models')
@@ -1101,7 +1108,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, provider: 'Anthropic' });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .put('/api/v1/llm-models/1')
@@ -1115,7 +1122,7 @@ describe('LLM Model Controller', () => {
     it('should return 404 for non-existent model', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockResolvedValue(null);
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .put('/api/v1/llm-models/999')
@@ -1131,7 +1138,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, status: false });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .put('/api/v1/llm-models/1')
@@ -1147,7 +1154,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, provider: 'Anthropic', modelName: 'claude-3' });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .put('/api/v1/llm-models/1')
@@ -1160,7 +1167,7 @@ describe('LLM Model Controller', () => {
     it('should return 500 on generic database error (not "LLM模型不存在")', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockRejectedValue(new Error('Connection timeout'));
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .put('/api/v1/llm-models/1')
@@ -1174,7 +1181,7 @@ describe('LLM Model Controller', () => {
     it('should return default error message when err.message is empty during update', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockRejectedValue(new Error(''));
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .put('/api/v1/llm-models/1')
@@ -1188,7 +1195,7 @@ describe('LLM Model Controller', () => {
     it('should return default error message when error has no message property during update', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockRejectedValue({ code: 'UNKNOWN' });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .put('/api/v1/llm-models/1')
@@ -1204,7 +1211,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, provider: 'Anthropic' });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .put('/api/v1/llm-models/1')
@@ -1260,7 +1267,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, provider: 'Anthropic', baseUrl: 'https://api.anthropic.com', apiKey: 'sk-ant', modelName: 'claude-3', status: false });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .put('/api/v1/llm-models/1')
@@ -1460,7 +1467,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: false, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, status: true });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .put('/api/v1/llm-models/1')
@@ -1597,7 +1604,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, baseUrl: 'https://api.anthropic.com' });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .put('/api/v1/llm-models/1')
@@ -1650,7 +1657,7 @@ describe('LLM Model Controller', () => {
     it('should return 404 for non-existent model', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockResolvedValue(null);
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .delete('/api/v1/llm-models/999')
@@ -1665,7 +1672,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .delete('/api/v1/llm-models/1')
@@ -1680,7 +1687,7 @@ describe('LLM Model Controller', () => {
     it('should return 500 on generic database error (not "LLM模型不存在")', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockRejectedValue(new Error('Connection timeout'));
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .delete('/api/v1/llm-models/1')
@@ -1693,7 +1700,7 @@ describe('LLM Model Controller', () => {
     it('should return default error message when err.message is empty during delete', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockRejectedValue(new Error(''));
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .delete('/api/v1/llm-models/1')
@@ -1706,7 +1713,7 @@ describe('LLM Model Controller', () => {
     it('should return default error message when error has no message property during delete', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindFirst = jest.fn().mockRejectedValue({ code: 'UNKNOWN' });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .delete('/api/v1/llm-models/1')
@@ -1757,7 +1764,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .delete('/api/v1/llm-models/1')
@@ -1886,7 +1893,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: false, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, status: true });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '1' }, body: { status: true } };
 
@@ -1907,7 +1914,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, status: false });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '1' }, body: { status: false } };
 
@@ -2055,7 +2062,7 @@ describe('LLM Model Controller', () => {
       const mockFindFirst = jest.fn().mockResolvedValue({
         id: 999999, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models/999999')
@@ -2091,7 +2098,7 @@ describe('LLM Model Controller', () => {
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, provider: 'CustomAI', baseUrl: 'https://api.example.com:8443/v1', apiKey: 'sk-test', modelName: 'custom', status: true, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .post('/api/v1/llm-models')
@@ -2117,7 +2124,7 @@ describe('LLM Model Controller', () => {
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, provider: 'Test', baseUrl: 'http://172.15.0.1/v1', apiKey: 'sk-test', modelName: 'test', status: true, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .post('/api/v1/llm-models')
@@ -2133,7 +2140,7 @@ describe('LLM Model Controller', () => {
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, provider: 'Test', baseUrl: 'http://172.32.0.1/v1', apiKey: 'sk-test', modelName: 'test', status: true, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .post('/api/v1/llm-models')
@@ -2151,7 +2158,7 @@ describe('LLM Model Controller', () => {
       const mockFindMany = jest.fn().mockResolvedValue([
         { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() },
       ]);
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models')
@@ -2190,7 +2197,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'Test', baseUrl: 'http://old.example.com/v1', apiKey: 'sk-test', modelName: 'test', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, baseUrl: 'http://new.example.com/v1' });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .put('/api/v1/llm-models/1')
@@ -2205,7 +2212,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-old', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, apiKey: 'sk-new-key' });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .put('/api/v1/llm-models/1')
@@ -2232,7 +2239,7 @@ describe('LLM Model Controller', () => {
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, provider: 'A'.repeat(100), baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .post('/api/v1/llm-models')
@@ -2247,7 +2254,7 @@ describe('LLM Model Controller', () => {
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, provider: 'Test', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'x'.repeat(200), status: true, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .post('/api/v1/llm-models')
@@ -2361,7 +2368,7 @@ describe('LLM Model Controller', () => {
       const mockFindFirst = jest.fn().mockResolvedValue({
         id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: ' 1 ' } };
 
@@ -2472,7 +2479,7 @@ describe('LLM Model Controller', () => {
       const { AppError } = require('../../apis/errors');
 
       const mockCreate = jest.fn().mockRejectedValue(new AppError(409, '模型已存在'));
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { body: { provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' } };
       await createLlmModel(mockReq as any, mockRes as any);
@@ -2487,7 +2494,7 @@ describe('LLM Model Controller', () => {
       const { AppError } = require('../../apis/errors');
 
       const mockFindMany = jest.fn().mockRejectedValue(new AppError(503, '服务不可用'));
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       await listLlmModels({} as any, mockRes as any);
 
@@ -2501,7 +2508,7 @@ describe('LLM Model Controller', () => {
       const { AppError } = require('../../apis/errors');
 
       const mockFindMany = jest.fn().mockRejectedValue(new AppError(503, '服务不可用'));
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       await listEnabledLlmModels({} as any, mockRes as any);
 
@@ -2515,7 +2522,7 @@ describe('LLM Model Controller', () => {
       const { AppError } = require('../../apis/errors');
 
       const mockFindFirst = jest.fn().mockRejectedValue(new AppError(403, '禁止访问'));
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '1' } };
       await getLlmModel(mockReq as any, mockRes as any);
@@ -2530,7 +2537,7 @@ describe('LLM Model Controller', () => {
       const { AppError } = require('../../apis/errors');
 
       const mockFindFirst = jest.fn().mockRejectedValue(new AppError(409, '冲突'));
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '1' }, body: { provider: 'Test' } };
       await updateLlmModel(mockReq as any, mockRes as any);
@@ -2545,7 +2552,7 @@ describe('LLM Model Controller', () => {
       const { AppError } = require('../../apis/errors');
 
       const mockFindFirst = jest.fn().mockRejectedValue(new AppError(403, '禁止删除'));
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '1' } };
       await deleteLlmModel(mockReq as any, mockRes as any);
@@ -2590,7 +2597,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, baseUrl: 'https://new-api.example.com/v1' });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '1' }, body: { base_url: 'https://new-api.example.com/v1' } };
       await updateLlmModel(mockReq as any, mockRes as any);
@@ -2605,7 +2612,7 @@ describe('LLM Model Controller', () => {
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, provider: 'Test', baseUrl: 'https://api.example.com', apiKey: 'sk-test', modelName: '<script>alert(1)</script>', status: true, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .post('/api/v1/llm-models')
@@ -2621,7 +2628,7 @@ describe('LLM Model Controller', () => {
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, provider: 'Test & Co. <v2.0>', baseUrl: 'https://api.example.com', apiKey: 'sk-test', modelName: 'test-model', status: true, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .post('/api/v1/llm-models')
@@ -2651,7 +2658,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, provider: 'Anthropic', status: false });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '1' }, body: { provider: 'Anthropic', status: false } };
       await updateLlmModel(mockReq as any, mockRes as any);
@@ -2665,7 +2672,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, modelName: 'gpt-4o-mini', baseUrl: 'https://api.openai.com/v2' });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '1' }, body: { model_name: 'gpt-4o-mini', base_url: 'https://api.openai.com/v2' } };
       await updateLlmModel(mockReq as any, mockRes as any);
@@ -2679,7 +2686,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-old', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, provider: 'NewProvider', apiKey: 'sk-new' });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '1' }, body: { api_key: 'sk-new', provider: 'NewProvider' } };
       await updateLlmModel(mockReq as any, mockRes as any);
@@ -2739,7 +2746,7 @@ describe('LLM Model Controller', () => {
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, provider: 'Test', baseUrl: 'https://api.example.com', apiKey: 'x'.repeat(512), modelName: 'test', status: true, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .post('/api/v1/llm-models')
@@ -2765,7 +2772,7 @@ describe('LLM Model Controller', () => {
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, provider: 'Test', baseUrl: longPath, apiKey: 'sk-test', modelName: 'test', status: true, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .post('/api/v1/llm-models')
@@ -2783,7 +2790,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .delete('/api/v1/llm-models/1')
@@ -2792,7 +2799,7 @@ describe('LLM Model Controller', () => {
       expect(response.status).toBe(200);
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ deletedAt: expect.any(Date) }),
+          data: expect.objectContaining({ deletedAt: expect.any(Date), apiKey: '[DELETED]' }),
         })
       );
     });
@@ -2806,7 +2813,7 @@ describe('LLM Model Controller', () => {
         { id: 1, provider: 'OpenAI', modelName: 'gpt-4o' },
         { id: 2, provider: 'Anthropic', modelName: 'claude-3' },
       ]);
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       await agent
         .get('/api/v1/llm-models/enabled')
@@ -2825,7 +2832,7 @@ describe('LLM Model Controller', () => {
     it('should order by id ascending', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindMany = jest.fn().mockResolvedValue([]);
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       await agent
         .get('/api/v1/llm-models')
@@ -2948,7 +2955,7 @@ describe('LLM Model Controller', () => {
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, provider: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v2', apiKey: 'sk-test', modelName: 'deepseek-chat', status: true, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { body: { provider: 'DeepSeek', base_url: 'https://api.deepseek.com/v2', api_key: 'sk-test', model_name: 'deepseek-chat' } };
       await createLlmModel(mockReq as any, mockRes as any);
@@ -2972,7 +2979,7 @@ describe('LLM Model Controller', () => {
       const mockFindFirst = jest.fn().mockResolvedValue({
         id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test-key', modelName: 'gpt-4o', status: true, createdAt: now, updatedAt: now,
       });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .get('/api/v1/llm-models/1')
@@ -2998,7 +3005,7 @@ describe('LLM Model Controller', () => {
       const mockCreate = jest.fn().mockResolvedValue({
         id: 5, provider: 'Anthropic', baseUrl: 'https://api.anthropic.com', apiKey: 'sk-ant-123', modelName: 'claude-3-opus', status: true, createdAt: now, updatedAt: now,
       });
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const response = await agent
         .post('/api/v1/llm-models')
@@ -3034,7 +3041,7 @@ describe('LLM Model Controller', () => {
       const mockFindMany = jest.fn().mockResolvedValue([
         { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() },
       ]);
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       await listLlmModels({} as any, mockRes as any);
 
@@ -3048,7 +3055,7 @@ describe('LLM Model Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
 
       const mockFindMany = jest.fn().mockRejectedValue(new Error('DB error'));
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       await listLlmModels({} as any, mockRes as any);
 
@@ -3065,7 +3072,7 @@ describe('LLM Model Controller', () => {
       const mockFindMany = jest.fn().mockResolvedValue([
         { id: 1, provider: 'OpenAI', modelName: 'gpt-4o' },
       ]);
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       await listEnabledLlmModels({} as any, mockRes as any);
 
@@ -3079,7 +3086,7 @@ describe('LLM Model Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
 
       const mockFindMany = jest.fn().mockRejectedValue(new Error('DB error'));
-      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany } });
+      getPrisma.mockReturnValue({ llmModel: { findMany: mockFindMany }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       await listEnabledLlmModels({} as any, mockRes as any);
 
@@ -3109,7 +3116,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '1' } };
 
@@ -3125,7 +3132,7 @@ describe('LLM Model Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
 
       const mockFindFirst = jest.fn().mockResolvedValue(null);
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '999' } };
 
@@ -3142,7 +3149,7 @@ describe('LLM Model Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
 
       const mockFindFirst = jest.fn().mockRejectedValue(new Error('Connection lost'));
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '1' } };
 
@@ -3172,7 +3179,7 @@ describe('LLM Model Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
 
       const mockFindFirst = jest.fn().mockResolvedValue(null);
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '999' } };
 
@@ -3189,7 +3196,7 @@ describe('LLM Model Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
 
       const mockFindFirst = jest.fn().mockRejectedValue(new Error('Timeout'));
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '1' } };
 
@@ -3221,7 +3228,7 @@ describe('LLM Model Controller', () => {
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { body: { provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' } };
 
@@ -3296,7 +3303,7 @@ describe('LLM Model Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
 
       const mockCreate = jest.fn().mockRejectedValue(new Error('DB down'));
-      getPrisma.mockReturnValue({ llmModel: { create: mockCreate } });
+      getPrisma.mockReturnValue({ llmModel: { create: mockCreate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { body: { provider: 'OpenAI', base_url: 'https://api.openai.com/v1', api_key: 'sk-test', model_name: 'gpt-4o' } };
 
@@ -3328,7 +3335,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, baseUrl: 'https://api.anthropic.com' });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '1' }, body: { base_url: 'https://api.anthropic.com' } };
 
@@ -3380,7 +3387,7 @@ describe('LLM Model Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
 
       const mockFindFirst = jest.fn().mockResolvedValue(null);
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '999' }, body: { provider: 'Test' } };
 
@@ -3397,7 +3404,7 @@ describe('LLM Model Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
 
       const mockFindFirst = jest.fn().mockRejectedValue(new Error('Connection lost'));
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '1' }, body: { provider: 'Test' } };
 
@@ -3416,7 +3423,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-old', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, apiKey: 'sk-new' });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '1' }, body: { api_key: 'sk-new' } };
 
@@ -3434,7 +3441,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, modelName: 'gpt-4o-mini' });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '1' }, body: { model_name: 'gpt-4o-mini' } };
 
@@ -3465,7 +3472,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, status: false });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       // Only status is provided, all optional string fields are absent (undefined after destructuring)
       const mockReq = { params: { id: '1' }, body: { status: false } };
@@ -3485,7 +3492,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, status: false });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '1' }, body: { status: false, provider: undefined } };
 
@@ -3521,6 +3528,7 @@ describe('LLM Model Controller', () => {
           findFirst: jest.fn().mockResolvedValue(null),
           delete: jest.fn().mockRejectedValue(new NotFoundError('LLM模型不存在')),
         },
+        article: { count: jest.fn().mockResolvedValue(0) },
       });
 
       const mockReq = { params: { id: '1' } };
@@ -3543,6 +3551,7 @@ describe('LLM Model Controller', () => {
         llmModel: {
           findFirst: jest.fn().mockRejectedValue(new NotFoundError('LLM模型')),
         },
+        article: { count: jest.fn().mockResolvedValue(0) },
       });
 
       const mockReq = { params: { id: '1' } };
@@ -3606,7 +3615,7 @@ describe('LLM Model Controller', () => {
 
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: ' 1 ' } };
       await getLlmModel(mockReq as any, mockRes as any);
@@ -3658,7 +3667,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: true, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, baseUrl: 'http:///path' });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       // new URL('http:///path') is valid, hostname is empty string — not in BLOCKED_HOSTNAMES
       const mockReq = { params: { id: '1' }, body: { base_url: 'http:///path' } };
@@ -3779,7 +3788,7 @@ describe('LLM Model Controller', () => {
       const existing = { id: 1, provider: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-test', modelName: 'gpt-4o', status: false, createdAt: new Date(), updatedAt: new Date() };
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue({ ...existing, status: true });
-      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate } });
+      getPrisma.mockReturnValue({ llmModel: { findFirst: mockFindFirst, update: mockUpdate }, article: { count: jest.fn().mockResolvedValue(0) } });
 
       const mockReq = { params: { id: '1' }, body: { status: true } };
       await updateLlmModel(mockReq as any, mockRes as any);
@@ -3810,6 +3819,7 @@ describe('LLM Model Controller', () => {
 
       getPrisma.mockReturnValue({
         llmModel: { findMany: jest.fn().mockRejectedValue(new BusinessError('维护中')) },
+        article: { count: jest.fn().mockResolvedValue(0) },
       });
 
       await listLlmModels({} as any, mockRes as any);
@@ -3828,6 +3838,7 @@ describe('LLM Model Controller', () => {
 
       getPrisma.mockReturnValue({
         llmModel: { findMany: jest.fn().mockRejectedValue(new BusinessError('服务不可用')) },
+        article: { count: jest.fn().mockResolvedValue(0) },
       });
 
       await listEnabledLlmModels({} as any, mockRes as any);
