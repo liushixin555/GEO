@@ -1244,11 +1244,13 @@ describe('Todo Controller', () => {
 
     it('should return keywords for a project', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
+      const mockProjectFindFirst = jest.fn().mockResolvedValue({ id: 1, companyId: null });
       const mockKbFindMany = jest.fn().mockResolvedValue([{ id: 10 }]);
       const mockKwFindMany = jest.fn().mockResolvedValue([
         { id: 1, keyword: '关键词A' },
       ]);
       getPrisma.mockReturnValue({
+        project: { findFirst: mockProjectFindFirst },
         knowledgeBase: { findMany: mockKbFindMany },
         knowledgeKeyword: { findMany: mockKwFindMany },
       });
@@ -1264,8 +1266,10 @@ describe('Todo Controller', () => {
 
     it('should return empty when no knowledge bases', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
+      const mockProjectFindFirst = jest.fn().mockResolvedValue({ id: 1, companyId: null });
       const mockKbFindMany = jest.fn().mockResolvedValue([]);
       getPrisma.mockReturnValue({
+        project: { findFirst: mockProjectFindFirst },
         knowledgeBase: { findMany: mockKbFindMany },
       });
 
@@ -2291,12 +2295,14 @@ describe('Todo Controller', () => {
     // Line 383: keyword deletedAt filter for non-restore action
     it('getObjectOptions: keyword without action uses deletedAt null filter (line 383)', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
+      const mockProjectFindFirst = jest.fn().mockResolvedValue({ id: 1, companyId: null });
       const mockKbFindMany = jest.fn().mockResolvedValue([{ id: 10 }]);
       const mockKwFindMany = jest.fn().mockResolvedValue([
         { id: 1, keyword: '关键词X' },
         { id: 2, keyword: '关键词Y' },
       ]);
       getPrisma.mockReturnValue({
+        project: { findFirst: mockProjectFindFirst },
         knowledgeBase: { findMany: mockKbFindMany },
         knowledgeKeyword: { findMany: mockKwFindMany },
       });
@@ -2347,11 +2353,13 @@ describe('Todo Controller', () => {
     // Line 383: keyword restore action uses deletedAt { not: null }
     it('getObjectOptions: keyword with restore action uses deletedAt not-null filter (line 383 true branch)', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
+      const mockProjectFindFirst = jest.fn().mockResolvedValue({ id: 1, companyId: null });
       const mockKbFindMany = jest.fn().mockResolvedValue([{ id: 10 }]);
       const mockKwFindMany = jest.fn().mockResolvedValue([
         { id: 5, keyword: '已删除关键词' },
       ]);
       getPrisma.mockReturnValue({
+        project: { findFirst: mockProjectFindFirst },
         knowledgeBase: { findMany: mockKbFindMany },
         knowledgeKeyword: { findMany: mockKwFindMany },
       });
@@ -2788,11 +2796,13 @@ describe('Todo Controller', () => {
     describe('GET /api/todos/object-options — 边界', () => {
       it('应返回关键字选项（不带 action 参数）', async () => {
         const { getPrisma } = require('../../apis/utils/db.util');
+        const mockProjectFindFirst = jest.fn().mockResolvedValue({ id: 1, companyId: null });
         const mockKbFindMany = jest.fn().mockResolvedValue([{ id: 10 }]);
         const mockKwFindMany = jest.fn().mockResolvedValue([
           { id: 1, keyword: 'SEO优化' },
         ]);
         getPrisma.mockReturnValue({
+          project: { findFirst: mockProjectFindFirst },
           article: { findMany: jest.fn() },
           knowledgeBase: { findMany: mockKbFindMany },
           knowledgeKeyword: { findMany: mockKwFindMany },

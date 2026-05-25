@@ -3,6 +3,7 @@ import { Todo, TodoLog, CreateTodoRequest, UpdateTodoRequest, TransferTodoReques
 import { mapTodo, mapTodoLog } from '../../map';
 import { ITodoService } from '../todo.service';
 import { NotFoundError, BusinessError, ForbiddenError } from '../../errors';
+import { KnowledgeBaseServiceImpl } from './knowledge-base.service.impl';
 
 export class TodoServiceImpl implements ITodoService {
   async list(params: {
@@ -372,11 +373,8 @@ export class TodoServiceImpl implements ITodoService {
     }
 
     if (objectType === 'keyword') {
-      const kbs = await prisma.knowledgeBase.findMany({
-        where: { projectId, deletedAt: null },
-        select: { id: true },
-      });
-      const baseIds = kbs.map(kb => kb.id);
+      const kbService = new KnowledgeBaseServiceImpl();
+      const baseIds = await kbService.getAccessibleBaseIds(projectId);
       if (baseIds.length === 0) return [];
 
       const kwWhere: any = { baseId: { in: baseIds } };

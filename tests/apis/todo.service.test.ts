@@ -1203,6 +1203,7 @@ describe('TodoServiceImpl', () => {
     });
 
     it('objectType=keyword 应返回关键词选项', async () => {
+      const mockProjectFindFirst = jest.fn().mockResolvedValue({ id: 10, companyId: null });
       const mockKbFindMany = jest.fn().mockResolvedValue([
         { id: 1 },
         { id: 2 },
@@ -1213,6 +1214,7 @@ describe('TodoServiceImpl', () => {
       ]);
 
       mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockProjectFindFirst },
         knowledgeBase: { findMany: mockKbFindMany },
         knowledgeKeyword: { findMany: mockKwFindMany },
       } as any);
@@ -1226,19 +1228,17 @@ describe('TodoServiceImpl', () => {
         { id: 10, name: '关键词A' },
         { id: 11, name: '关键词B' },
       ]);
-      expect(mockKbFindMany).toHaveBeenCalledWith({
-        where: { projectId: 10, deletedAt: null },
-        select: { id: true },
-      });
     });
 
     it('objectType=keyword 且 action=restore 应查询已删除关键词', async () => {
+      const mockProjectFindFirst = jest.fn().mockResolvedValue({ id: 10, companyId: null });
       const mockKbFindMany = jest.fn().mockResolvedValue([{ id: 1 }]);
       const mockKwFindMany = jest.fn().mockResolvedValue([
         { id: 20, keyword: '已删除关键词' },
       ]);
 
       mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockProjectFindFirst },
         knowledgeBase: { findMany: mockKbFindMany },
         knowledgeKeyword: { findMany: mockKwFindMany },
       } as any);
@@ -1255,9 +1255,11 @@ describe('TodoServiceImpl', () => {
     });
 
     it('objectType=keyword 无知识库时应返回空数组', async () => {
+      const mockProjectFindFirst = jest.fn().mockResolvedValue({ id: 10, companyId: null });
       const mockKbFindMany = jest.fn().mockResolvedValue([]);
 
       mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockProjectFindFirst },
         knowledgeBase: { findMany: mockKbFindMany },
       } as any);
 
@@ -2168,9 +2170,11 @@ describe('TodoServiceImpl', () => {
     });
 
     it('keyword 应按 id 降序排列', async () => {
+      const mockProjectFindFirst = jest.fn().mockResolvedValue({ id: 10, companyId: null });
       const mockKbFindMany = jest.fn().mockResolvedValue([{ id: 1 }]);
       const mockKwFindMany = jest.fn().mockResolvedValue([]);
       mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockProjectFindFirst },
         knowledgeBase: { findMany: mockKbFindMany },
         knowledgeKeyword: { findMany: mockKwFindMany },
       } as any);
@@ -2183,9 +2187,11 @@ describe('TodoServiceImpl', () => {
     });
 
     it('keyword 应只选择 id 和 keyword', async () => {
+      const mockProjectFindFirst = jest.fn().mockResolvedValue({ id: 10, companyId: null });
       const mockKbFindMany = jest.fn().mockResolvedValue([{ id: 1 }]);
       const mockKwFindMany = jest.fn().mockResolvedValue([]);
       mockedGetPrisma.mockReturnValue({
+        project: { findFirst: mockProjectFindFirst },
         knowledgeBase: { findMany: mockKbFindMany },
         knowledgeKeyword: { findMany: mockKwFindMany },
       } as any);
