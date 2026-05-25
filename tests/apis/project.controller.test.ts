@@ -10,6 +10,12 @@ process.env.SWAGGER_ENABLED = 'false';
 process.env.RATE_LIMIT_WINDOW_MS = '60000';
 process.env.RATE_LIMIT_MAX = '1000';
 
+const mockLoggerError = jest.fn();
+
+jest.mock('../../apis/utils/logger.util', () => ({
+  logger: { info: jest.fn(), warn: jest.fn(), error: mockLoggerError, debug: jest.fn() },
+}));
+
 jest.mock('../../apis/utils/db.util', () => ({
   getPrisma: jest.fn(),
   closePrisma: jest.fn(),
@@ -4098,6 +4104,128 @@ describe('Project Controller', () => {
       expect(whereClause).toHaveProperty('status', true);
       expect(whereClause).toHaveProperty('operators');
       expect(whereClause).toHaveProperty('OR');
+    });
+  });
+
+  // ---------- L-2: Logger error logging ----------
+  describe('Logger - unexpected error logging', () => {
+    it('should log error on listProjects unexpected failure', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        project: {
+          findMany: jest.fn().mockRejectedValue(new Error('DB连接失败')),
+          count: jest.fn().mockRejectedValue(new Error('DB连接失败')),
+        },
+      });
+
+      const response = await agent
+        .get('/api/v1/projects')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(mockLoggerError).toHaveBeenCalledWith(
+        '[ProjectController] 未预期错误',
+        expect.objectContaining({ error: 'DB连接失败', context: '获取项目列表失败' })
+      );
+    });
+
+    it('should log error on getProject unexpected failure', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        project: {
+          findFirst: jest.fn().mockRejectedValue(new Error('查询超时')),
+        },
+      });
+
+      const response = await agent
+        .get('/api/v1/projects/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(mockLoggerError).toHaveBeenCalledWith(
+        '[ProjectController] 未预期错误',
+        expect.objectContaining({ error: '查询超时', context: '获取项目详情失败' })
+      );
+    });
+
+    it('should log error on createProject unexpected failure', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        project: {
+          create: jest.fn().mockRejectedValue(new Error('写入失败')),
+        },
+        user: { findMany: jest.fn().mockResolvedValue([]) },
+      });
+
+      const response = await agent
+        .post('/api/v1/projects')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ short_name: 'P1', full_name: 'Project 1', company_id: 1 });
+
+      expect(response.status).toBe(500);
+      expect(mockLoggerError).toHaveBeenCalledWith(
+        '[ProjectController] 未预期错误',
+        expect.objectContaining({ error: '写入失败', context: '创建项目失败' })
+      );
+    });
+
+    it('should log error on updateProject unexpected failure', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        project: {
+          findFirst: jest.fn().mockRejectedValue(new Error('更新超时')),
+        },
+      });
+
+      const response = await agent
+        .put('/api/v1/projects/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ short_name: 'P1-updated' });
+
+      expect(response.status).toBe(500);
+      expect(mockLoggerError).toHaveBeenCalledWith(
+        '[ProjectController] 未预期错误',
+        expect.objectContaining({ error: '更新超时', context: '更新项目失败' })
+      );
+    });
+
+    it('should log error on deleteProject unexpected failure', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        project: {
+          findFirst: jest.fn().mockRejectedValue(new Error('删除超时')),
+        },
+      });
+
+      const response = await agent
+        .delete('/api/v1/projects/1')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(mockLoggerError).toHaveBeenCalledWith(
+        '[ProjectController] 未预期错误',
+        expect.objectContaining({ error: '删除超时', context: '删除项目失败' })
+      );
+    });
+
+    it('should log non-Error thrown value on list failure', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      getPrisma.mockReturnValue({
+        project: {
+          findMany: jest.fn().mockRejectedValue('unexpected string'),
+          count: jest.fn().mockRejectedValue('unexpected string'),
+        },
+      });
+
+      const response = await agent
+        .get('/api/v1/projects')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(mockLoggerError).toHaveBeenCalledWith(
+        '[ProjectController] 未预期错误',
+        expect.objectContaining({ error: 'unexpected string', context: '获取项目列表失败' })
+      );
     });
   });
 });

@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
-import { IProjectService } from '../service/project.service';
-import { ProjectServiceImpl } from '../service/impl/project.service.impl';
+import { createProjectService, IProjectService } from '../service';
 import { success, fail, paginate, created } from '../utils';
 import { AppError } from '../errors';
+import { logger } from '../utils/logger.util';
 
-const projectService: IProjectService = new ProjectServiceImpl();
+const projectService: IProjectService = createProjectService();
 
 function getErrorMessage(err: unknown, defaultMessage: string): string {
   return err instanceof Error ? (err.message || defaultMessage) : defaultMessage;
@@ -15,6 +15,7 @@ function handleServiceError(res: Response, err: unknown, defaultMessage: string)
   if (err instanceof AppError) {
     fail(res, err.statusCode, err.message);
   } else {
+    logger.error('[ProjectController] 未预期错误', { error: err instanceof Error ? err.message : String(err), context: defaultMessage });
     fail(res, 500, getErrorMessage(err, defaultMessage));
   }
 }
