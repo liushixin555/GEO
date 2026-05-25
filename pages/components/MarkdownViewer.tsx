@@ -50,7 +50,7 @@ function useSystemColorMode(): 'light' | 'dark' {
 
 const ALLOWED_URL_PROTOCOLS = ['http://', 'https://', 'mailto:', 'tel:', '/', '#', './', '../'];
 const ALLOWED_URL_PARSED_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:']);
-const SAFE_INPUT_TYPES = new Set(['checkbox']);
+export const SAFE_INPUT_TYPES = new Set(['checkbox']);
 
 const EVENT_ATTRS = [
   'onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur',

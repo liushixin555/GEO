@@ -23,8 +23,16 @@ import MDEditor from '@uiw/react-md-editor/nohighlight';
 import DOMPurify from 'dompurify';
 import { Empty } from 'antd';
 import { FullscreenOutlined, FontSizeOutlined, QuestionCircleOutlined, LinkOutlined, EditOutlined, SplitCellsOutlined, EyeOutlined } from '@ant-design/icons';
-import { safeUrlTransform, SAFE_TAGS } from './MarkdownViewer';
+import { safeUrlTransform, SAFE_TAGS, SAFE_INPUT_TYPES } from './MarkdownViewer';
 import '../styles/markdown-editor.css';
+
+// rehypeRewrite 属性清理常量（与 MarkdownViewer 保持一致）
+const DANGEROUS_ATTR_RE = /^on/i;
+const DANGEROUS_URL_RE = /^(javascript|data|vbscript):/i;
+const URL_PROPERTIES = new Set([
+  'href', 'src', 'action', 'formaction', 'xlink:href',
+  'poster', 'background', 'dynsrc', 'lowsrc',
+]);
 
 export type EditorPreviewMode = 'live' | 'edit' | 'preview';
 
@@ -785,6 +793,45 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
     [],
   );
 
+  // S3/S4 修复增强：预览区标签白名单 + input 类型检查 + URL 属性危险协议检查
+  const previewAllowElement = useCallback(
+    (element: { tagName: string; properties?: Record<string, unknown> }) => {
+      const tag = element.tagName.toLowerCase();
+      if (!SAFE_TAGS.has(tag)) return false;
+      if (tag === 'input') {
+        const type = element.properties?.type;
+        return typeof type === 'string' && SAFE_INPUT_TYPES.has(type);
+      }
+      if (element.properties) {
+        for (const [key, val] of Object.entries(element.properties)) {
+          if (URL_PROPERTIES.has(key) && typeof val === 'string' && DANGEROUS_URL_RE.test(val)) {
+            return false;
+          }
+        }
+      }
+      return true;
+    },
+    [],
+  );
+
+  // S4 修复：预览区 rehypeRewrite 属性清理（清理 on* 事件属性 + 危险 URL）
+  const previewRehypeRewrite = useCallback(
+    (node: any, _index: number | undefined, _parent: any) => {
+      if (node.type !== 'element') return;
+      const props = node.properties;
+      if (props && typeof props === 'object') {
+        for (const key of Object.keys(props)) {
+          if (DANGEROUS_ATTR_RE.test(key)) {
+            delete props[key];
+          } else if (key !== 'data-code' && typeof props[key] === 'string' && URL_PROPERTIES.has(key) && DANGEROUS_URL_RE.test(props[key])) {
+            delete props[key];
+          }
+        }
+      }
+    },
+    [],
+  );
+
   // OPT-5: 点击事件隔离，防止编辑器内部点击冒泡到 antd Form 等父组件
   const handleContainerClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -816,8 +863,8 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
           commandsFilter={commandsFilter}
           previewOptions={{
             urlTransform: safeUrlTransform,
-            allowElement: (element: { tagName: string }) =>
-              SAFE_TAGS.has(element.tagName.toLowerCase()),
+            allowElement: previewAllowElement,
+            rehypeRewrite: previewRehypeRewrite,
           }}
         />
       </div>
