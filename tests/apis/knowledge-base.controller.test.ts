@@ -2538,4 +2538,827 @@ describe('KnowledgeBase Controller', () => {
       await expect(service.getAccessibleBaseIds(999)).rejects.toThrow('项目不存在');
     });
   });
+
+  // =========================================================
+  // Service 层边界补全 — mapKnowledgeBase null 回退 + projectId/companyId 边界
+  // =========================================================
+  describe('Service 层边界补全', () => {
+    function mockRes() {
+      const res: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      return res;
+    }
+
+    const mockUser = { userId: 1, username: 'sysadmin', role: 'sysadmin' };
+
+    // --- mapKnowledgeBase: _count 为 null/undefined 时回退到 0（lines 32-36）---
+    test('list: mapKnowledgeBase 处理 _count 为 null 的回退（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const itemWithoutCount = {
+        ...mockKB,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: null,
+      };
+      const mockFindMany = jest.fn().mockResolvedValue([itemWithoutCount]);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const req = { query: { page: '1', pageSize: '10' }, user: { userId: 1, role: 'sysadmin' } } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await listKnowledgeBases(req, res);
+      expect(res.json).toHaveBeenCalled();
+      const result = res.json.mock.calls[0][0];
+      expect(result.data.list[0].keyword_count).toBe(0);
+      expect(result.data.list[0].portrait_count).toBe(0);
+      expect(result.data.list[0].image_count).toBe(0);
+      expect(result.data.list[0].document_count).toBe(0);
+    });
+
+    test('list: mapKnowledgeBase 处理 _count 字段缺失的回退（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const itemNoCount = {
+        id: 1,
+        name: '无计数知识库',
+        description: null,
+        scope: 'platform',
+        companyId: null,
+        company: null,
+        projectId: null,
+        project: null,
+        status: true,
+        createdBy: 1,
+        creator: { cnName: '管理员' },
+        createdAt: new Date('2026-01-01'),
+        updatedAt: new Date('2026-01-01'),
+      };
+      const mockFindMany = jest.fn().mockResolvedValue([itemNoCount]);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const req = { query: { page: '1', pageSize: '10' }, user: { userId: 1, role: 'sysadmin' } } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await listKnowledgeBases(req, res);
+      expect(res.json).toHaveBeenCalled();
+      const result = res.json.mock.calls[0][0];
+      expect(result.data.list[0].keyword_count).toBe(0);
+      expect(result.data.list[0].portrait_count).toBe(0);
+      expect(result.data.list[0].image_count).toBe(0);
+      expect(result.data.list[0].document_count).toBe(0);
+    });
+
+    test('list: mapKnowledgeBase 处理 creator 为 null 的回退（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const itemNoCreator = {
+        ...mockKB,
+        company: null,
+        project: null,
+        creator: null,
+        _count: { keywords: 1, portraits: 2, images: 3, documents: 4 },
+      };
+      const mockFindMany = jest.fn().mockResolvedValue([itemNoCreator]);
+      const mockCount = jest.fn().mockResolvedValue(1);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const req = { query: { page: '1', pageSize: '10' }, user: { userId: 1, role: 'sysadmin' } } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await listKnowledgeBases(req, res);
+      const result = res.json.mock.calls[0][0];
+      expect(result.data.list[0].creator_name).toBeNull();
+      expect(result.data.list[0].keyword_count).toBe(1);
+      expect(result.data.list[0].portrait_count).toBe(2);
+    });
+
+    // --- getById: project scope 知识库 projectId 为 null（line 125）---
+    test('get: project 知识库 projectId 为 null 返回 404（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockKBFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'project',
+        projectId: null,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockKBFindFirst },
+      });
+
+      const req = { params: { id: '1' }, user: { userId: 2, role: 'admin' } } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await getKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '知识库不存在' })
+      );
+    });
+
+    // --- create: platform scope 的 companyId/projectId 被清除（line 168-169）---
+    test('create: platform scope 清除 company_id 和 project_id（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'platform',
+        companyId: null,
+        projectId: null,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const req = {
+        body: { name: '平台知识库', scope: 'platform', company_id: 99, project_id: 88 },
+        user: { userId: 1, username: 'sysadmin', role: 'sysadmin' },
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(201);
+      const createData = mockCreate.mock.calls[0][0].data;
+      expect(createData.companyId).toBeNull();
+      expect(createData.projectId).toBeNull();
+    });
+
+    // --- create: company scope 的 projectId 被清除（line 169 null）---
+    test('create: company scope 时 project_id 被忽略（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'company',
+        companyId: 2,
+        projectId: null,
+        company: { shortName: '测试公司' },
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const req = {
+        body: { name: '公司知识库', scope: 'company', company_id: 2, project_id: 10 },
+        user: { userId: 1, username: 'sysadmin', role: 'sysadmin' },
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(201);
+      const createData = mockCreate.mock.calls[0][0].data;
+      expect(createData.companyId).toBe(2);
+      expect(createData.projectId).toBeNull();
+    });
+
+    // --- update: 无 scope 变更时，company_id/project_id 直接赋值（lines 239-240）---
+    test('update: 无 scope 变更，直接设置 company_id 和 project_id（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'project',
+        createdBy: 1,
+        companyId: 5,
+        projectId: 10,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'project',
+        companyId: 6,
+        projectId: 20,
+        company: { shortName: '新公司' },
+        project: { shortName: '新项目' },
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const req = {
+        params: { id: '1' },
+        body: { company_id: 6, project_id: 20 },
+        user: { userId: 1, username: 'sysadmin', role: 'sysadmin' },
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await updateKnowledgeBase(req, res);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
+      const updateData = mockUpdate.mock.calls[0][0].data;
+      expect(updateData.companyId).toBe(6);
+      expect(updateData.projectId).toBe(20);
+    });
+
+    test('update: 无 scope 变更，仅设置 project_id（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'project',
+        createdBy: 1,
+        companyId: 5,
+        projectId: 10,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'project',
+        companyId: 5,
+        projectId: 30,
+        company: { shortName: '测试公司' },
+        project: { shortName: '新项目' },
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const req = {
+        params: { id: '1' },
+        body: { project_id: 30 },
+        user: { userId: 1, username: 'sysadmin', role: 'sysadmin' },
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await updateKnowledgeBase(req, res);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
+      const updateData = mockUpdate.mock.calls[0][0].data;
+      expect(updateData.projectId).toBe(30);
+      expect(updateData.companyId).toBeUndefined();
+    });
+
+    // --- list: sysadmin 角色不做权限过滤 ---
+    test('list: sysadmin 角色不做权限过滤（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const req = { query: { page: '1', pageSize: '10' }, user: { userId: 1, role: 'sysadmin' } } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await listKnowledgeBases(req, res);
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where.AND).toBeUndefined();
+    });
+
+    // --- list: 带 search + scope + status 组合查询 ---
+    test('list: 多参数组合查询（search + scope + status）（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const req = { query: { page: '1', pageSize: '10', search: '测试', scope: 'company', status: 'true' }, user: { userId: 1, role: 'sysadmin' } } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await listKnowledgeBases(req, res);
+      const where = mockFindMany.mock.calls[0][0].where;
+      expect(where.scope).toBe('company');
+      expect(where.status).toBe(true);
+      expect(where.OR).toBeDefined();
+    });
+
+    // --- getById: sysadmin 可获取任何 scope 的知识库 ---
+    test('get: sysadmin 获取 project 知识库无权限检查（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'project',
+        projectId: 99,
+        company: null,
+        project: { shortName: '任意项目' },
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst },
+      });
+
+      const req = { params: { id: '1' }, user: { userId: 1, role: 'sysadmin' } } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await getKnowledgeBase(req, res);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
+    });
+
+    // --- create: description 为 undefined 时传入 null ---
+    test('create: description 为 undefined 时转为 null（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        description: null,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const req = {
+        body: { name: '无描述', scope: 'platform' },
+        user: { userId: 1, username: 'sysadmin', role: 'sysadmin' },
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(201);
+      const createData = mockCreate.mock.calls[0][0].data;
+      expect(createData.description).toBeNull();
+    });
+
+    // --- update: name 为空字符串（非纯空格）返回 400（直接函数）---
+    test('updateKnowledgeBase: name 为空字符串返回 400（直接函数）', async () => {
+      const req = {
+        params: { id: '1' },
+        body: { name: '' },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await updateKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '知识库名称不能为空' })
+      );
+    });
+
+    // --- update: name 为非字符串类型返回 400（直接函数）---
+    test('updateKnowledgeBase: name 为非字符串类型返回 400（直接函数）', async () => {
+      const req = {
+        params: { id: '1' },
+        body: { name: 12345 },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await updateKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    // --- validateInteger: undefined 返回 undefined ---
+    test('validateInteger: undefined 值返回 undefined', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const req = {
+        body: { name: '测试', scope: 'platform' },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(201);
+      const createData = mockCreate.mock.calls[0][0].data;
+      expect(createData.companyId).toBeNull();
+      expect(createData.projectId).toBeNull();
+    });
+
+    // --- validateInteger: null 返回 undefined ---
+    test('validateInteger: null 值返回 undefined', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const req = {
+        body: { name: '测试', scope: 'platform', company_id: null, project_id: null },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(201);
+      const createData = mockCreate.mock.calls[0][0].data;
+      expect(createData.companyId).toBeNull();
+      expect(createData.projectId).toBeNull();
+    });
+
+    // --- create: name 为非字符串（数字）返回 400（直接函数）---
+    test('createKnowledgeBase: name 为数字返回 400（直接函数）', async () => {
+      const req = {
+        body: { name: 42, scope: 'platform' },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '知识库名称不能为空' })
+      );
+    });
+
+    // --- update: status 为 number 类型被忽略（直接函数）---
+    test('updateKnowledgeBase: status 为 number 类型被忽略（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        createdBy: 1,
+        companyId: null,
+        projectId: null,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const req = {
+        params: { id: '1' },
+        body: { status: 1 },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await updateKnowledgeBase(req, res);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
+      const updateData = mockUpdate.mock.calls[0][0].data;
+      expect(updateData.status).toBeUndefined();
+    });
+
+    // --- update: description 为 null 时正确清除描述（直接函数）---
+    test('updateKnowledgeBase: description=null 清除描述（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        description: '旧描述',
+        createdBy: 1,
+        companyId: null,
+        projectId: null,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        description: null,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const req = {
+        params: { id: '1' },
+        body: { description: null },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await updateKnowledgeBase(req, res);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
+      const updateData = mockUpdate.mock.calls[0][0].data;
+      // description=null means "clear the description" in the update request
+      expect(updateData.description).toBeNull();
+    });
+
+    // --- update: scope 未变时仅传 name（直接函数）---
+    test('updateKnowledgeBase: 仅更新 name（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        createdBy: 1,
+        companyId: null,
+        projectId: null,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        name: '新名称',
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const req = {
+        params: { id: '1' },
+        body: { name: '新名称' },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await updateKnowledgeBase(req, res);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
+      const updateData = mockUpdate.mock.calls[0][0].data;
+      expect(updateData.name).toBe('新名称');
+      expect(updateData.scope).toBeUndefined();
+      expect(updateData.companyId).toBeUndefined();
+      expect(updateData.projectId).toBeUndefined();
+    });
+
+    // --- AppError 统一处理：NotFoundError（非 list 的 404 路径）---
+    test('createKnowledgeBase: service 抛出 NotFoundError 返回 404（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockRejectedValue(new NotFoundError('公司'));
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const req = {
+        body: { name: '测试', scope: 'platform' },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '公司不存在' })
+      );
+    });
+
+    // --- AppError 统一处理：ForbiddenError ---
+    test('deleteKnowledgeBase: service 抛出 ForbiddenError 返回 403（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockRejectedValue(new ForbiddenError('权限不足'));
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: jest.fn() },
+      });
+
+      const req = {
+        params: { id: '1' },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await deleteKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    // --- create: name 为空字符串（直接函数）---
+    test('createKnowledgeBase: name 为空字符串返回 400（直接函数）', async () => {
+      const req = {
+        body: { name: '', scope: 'platform' },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '知识库名称不能为空' })
+      );
+    });
+
+    // --- list: page 为非数字字符串默认为 1 ---
+    test('list: page 为非数字字符串默认为 1（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const req = { query: { page: 'abc', pageSize: '10' }, user: { userId: 1, role: 'sysadmin' } } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await listKnowledgeBases(req, res);
+      const result = res.json.mock.calls[0][0];
+      expect(result.data.page).toBe(1);
+    });
+
+    // --- list: pageSize 为非数字字符串默认为 10 ---
+    test('list: pageSize 为非数字字符串默认为 10（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findMany: mockFindMany, count: mockCount },
+      });
+
+      const req = { query: { page: '1', pageSize: 'xyz' }, user: { userId: 1, role: 'sysadmin' } } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await listKnowledgeBases(req, res);
+      const result = res.json.mock.calls[0][0];
+      expect(result.data.pageSize).toBe(10);
+    });
+
+    // --- update: company_id 为负数被 validateInteger 拒绝（直接函数）---
+    test('updateKnowledgeBase: company_id 为负数被 validateInteger 拒绝返回 400（直接函数）', async () => {
+      const req = {
+        params: { id: '1' },
+        body: { company_id: -1 },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await updateKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'company_id 必须为正整数' })
+      );
+    });
+
+    // --- update: project_id 为浮点数被 validateInteger 拒绝（直接函数）---
+    test('updateKnowledgeBase: project_id 为浮点数被 validateInteger 拒绝返回 400（直接函数）', async () => {
+      const req = {
+        params: { id: '1' },
+        body: { project_id: 3.14 },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await updateKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'project_id 必须为正整数' })
+      );
+    });
+
+    // --- delete: service 抛出 BusinessError 返回 400（直接函数）---
+    test('deleteKnowledgeBase: service 抛出 BusinessError 返回 400（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockRejectedValue(new BusinessError('业务错误'));
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: jest.fn() },
+      });
+
+      const req = {
+        params: { id: '1' },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await deleteKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '业务错误' })
+      );
+    });
+
+    // --- delete: 无 message Error 返回 500（直接函数）---
+    test('deleteKnowledgeBase: 无 message Error 返回 500（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockRejectedValue(new Error());
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: jest.fn() },
+      });
+
+      const req = {
+        params: { id: '1' },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await deleteKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '删除知识库失败' })
+      );
+    });
+
+    // --- create: service 抛出 ForbiddenError 返回 403（直接函数）---
+    test('createKnowledgeBase: service 抛出 ForbiddenError 返回 403（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockCreate = jest.fn().mockRejectedValue(new ForbiddenError('权限不足'));
+      getPrisma.mockReturnValue({
+        knowledgeBase: { create: mockCreate },
+      });
+
+      const req = {
+        body: { name: '测试', scope: 'platform' },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    // --- update: service 抛出 BusinessError 返回 400（直接函数）---
+    test('updateKnowledgeBase: service 抛出 BusinessError 返回 400（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockRejectedValue(new BusinessError('业务校验失败'));
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: jest.fn() },
+      });
+
+      const req = {
+        params: { id: '1' },
+        body: { name: '测试' },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await updateKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    // --- update: service 抛出 ForbiddenError 返回 403（直接函数）---
+    test('updateKnowledgeBase: service 抛出 ForbiddenError 返回 403（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockRejectedValue(new ForbiddenError('只能修改自己创建的知识库'));
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: jest.fn() },
+      });
+
+      const req = {
+        params: { id: '1' },
+        body: { name: '测试' },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await updateKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    // --- update: scope 无变化时清除 description（直接函数）---
+    test('updateKnowledgeBase: description 为空字符串时转为 null（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        createdBy: 1,
+        companyId: null,
+        projectId: null,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        description: null,
+        company: null,
+        project: null,
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const req = {
+        params: { id: '1' },
+        body: { description: '' },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await updateKnowledgeBase(req, res);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
+      const updateData = mockUpdate.mock.calls[0][0].data;
+      // description='' → falsy → null (service line 216: `request.description || null`)
+      expect(updateData.description).toBeNull();
+    });
+
+    // --- update: project_id 正整数值被正确传递（直接函数）---
+    test('updateKnowledgeBase: project_id 为正整数正确传递（直接函数）', async () => {
+      const { getPrisma } = require('../../apis/utils/db.util');
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'project',
+        createdBy: 1,
+        companyId: 5,
+        projectId: 10,
+      });
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockKB,
+        scope: 'project',
+        projectId: 20,
+        company: { shortName: '公司' },
+        project: { shortName: '新项目' },
+        creator: { cnName: '管理员' },
+        _count: { keywords: 0, portraits: 0, images: 0, documents: 0 },
+      });
+      getPrisma.mockReturnValue({
+        knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const req = {
+        params: { id: '1' },
+        body: { project_id: 20 },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await updateKnowledgeBase(req, res);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 0 }));
+      const updateData = mockUpdate.mock.calls[0][0].data;
+      expect(updateData.projectId).toBe(20);
+    });
+
+    // --- list: 验证 validateInteger project_id 为0 ---
+    test('createKnowledgeBase: project_id 为0被 validateInteger 拒绝返回 400（直接函数）', async () => {
+      const req = {
+        body: { name: '测试', scope: 'platform', project_id: 0 },
+        user: mockUser,
+      } as any;
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
+      await createKnowledgeBase(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'project_id 必须为正整数' })
+      );
+    });
+  });
 });
