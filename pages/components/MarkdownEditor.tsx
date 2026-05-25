@@ -20,7 +20,7 @@
  *   5. Carbon Design System 样式对齐
  *   6. Reducer 白名单 — 运行时拒绝未知键注入（patch 修复）
  */
-import React, { useCallback, useEffect, forwardRef, useImperativeHandle, useRef, useState, memo } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, forwardRef, useImperativeHandle, useRef, useState, memo } from 'react';
 import MDEditor from '@uiw/react-md-editor/nohighlight';
 import DOMPurify from 'dompurify';
 import { Empty } from 'antd';
@@ -140,28 +140,51 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
   const previewRef = useRef(preview);
   previewRef.current = preview;
 
-  // 自适应高度：测量 textarea 的 scrollHeight 动态调整编辑器高度
+  // 自适应高度：实时测量并扩展编辑器高度，确保内容不出现滚动条
   const [autoHeight, setAutoHeight] = useState(minHeight);
-  useEffect(() => {
+  const autoHeightRef = useRef(minHeight);
+
+  const syncEditorHeight = useCallback(() => {
     const container = editorRef.current;
     if (!container) return;
     const textarea = container.querySelector('textarea');
     if (!textarea) return;
     // 临时收缩 textarea 以获取真实内容高度
-    // 直接读取 scrollHeight 在 textarea 被父容器约束时会返回 CSS 高度而非内容高度，
-    // 先将高度设为 0 可强制 scrollHeight 返回实际内容所需最小高度
     const savedHeight = textarea.style.height;
-    textarea.style.height = '0px';
+    textarea.style.height = '0';
     const contentHeight = textarea.scrollHeight;
     textarea.style.height = savedHeight;
-    // toolbar + 拖拽条 + textarea 内容区域
     const toolbar = container.querySelector('.w-md-editor-toolbar') as HTMLElement | null;
     const toolbarH = toolbar ? toolbar.offsetHeight : 38;
     const dragBar = container.querySelector('.w-md-editor-drag') as HTMLElement | null;
     const dragH = dragBar ? dragBar.offsetHeight : 6;
-    const needed = contentHeight + toolbarH + dragH + 16; // 16px 安全边距
-    setAutoHeight(Math.max(minHeight, needed));
-  }, [value, minHeight, preview]);
+    const needed = Math.max(minHeight, contentHeight + toolbarH + dragH + 16);
+    // 直接 DOM 操作——零延迟，浏览器在 paint 前完成高度调整
+    const mdEditor = container.querySelector('.w-md-editor') as HTMLElement | null;
+    if (mdEditor) {
+      mdEditor.style.height = `${needed}px`;
+    }
+    // 同步 React 状态（供 MDEditor height prop 使用）
+    if (autoHeightRef.current !== needed) {
+      autoHeightRef.current = needed;
+      setAutoHeight(needed);
+    }
+  }, [minHeight]);
+
+  // useLayoutEffect: 在浏览器 paint 前同步调整高度，用户不会看到滚动条闪烁
+  useLayoutEffect(() => {
+    syncEditorHeight();
+  }, [value, minHeight, preview, syncEditorHeight]);
+
+  // 原生 input 事件监听：用户每次按键立即触发高度调整，不等待 React 渲染
+  useEffect(() => {
+    const container = editorRef.current;
+    if (!container) return;
+    const textarea = container.querySelector('textarea');
+    if (!textarea) return;
+    textarea.addEventListener('input', syncEditorHeight);
+    return () => textarea.removeEventListener('input', syncEditorHeight);
+  }, [syncEditorHeight]);
 
   // UX-03: 全屏模式 Escape 退出提示状态
   const [showFullscreenHint, setShowFullscreenHint] = useState(false);
