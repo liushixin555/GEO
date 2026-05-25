@@ -4204,6 +4204,7 @@
                 "properties": {
                   "configs": {
                     "minItems": 1,
+                    "maxItems": 50,
                     "type": "array",
                     "items": {
                       "type": "object",
@@ -4216,7 +4217,8 @@
                           ]
                         },
                         "config_value": {
-                          "type": "string"
+                          "type": "string",
+                          "maxLength": 10000
                         }
                       },
                       "required": [
