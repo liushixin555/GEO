@@ -2831,4 +2831,1179 @@ describe('skills.entity', () => {
       expect(updated.id).toBe(original.id);
     });
   });
+
+  // ============================================================
+  // 安全注入防护（第二轮新增）
+  // ============================================================
+  describe('security injection protection', () => {
+    const createSkill = (overrides: Partial<Skills> = {}): Skills => ({
+      id: 1, name: '测试技能', description: '正常描述', skill_dir: '/skills/test',
+      created_by: 1, creator_name: '管理员',
+      created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      ...overrides,
+    });
+
+    it('should store XSS script tag in name without execution', () => {
+      const skill = createSkill({ name: '<script>alert("xss")</script>' });
+      expect(skill.name).toBe('<script>alert("xss")</script>');
+      expect(skill.name).not.toContain('alert executed');
+    });
+
+    it('should store XSS script tag in description without execution', () => {
+      const skill = createSkill({ description: '<img src=x onerror=alert(1)>' });
+      expect(skill.description).toBe('<img src=x onerror=alert(1)>');
+      expect(typeof skill.description).toBe('string');
+    });
+
+    it('should store SQL injection pattern in name without execution', () => {
+      const skill = createSkill({ name: "'; DROP TABLE skills; --" });
+      expect(skill.name).toBe("'; DROP TABLE skills; --");
+    });
+
+    it('should store SQL injection pattern in skill_dir without execution', () => {
+      const skill = createSkill({ skill_dir: "/skills/../../etc/passwd" });
+      expect(skill.skill_dir).toBe("/skills/../../etc/passwd");
+    });
+
+    it('should store HTML entity attack in name', () => {
+      const skill = createSkill({ name: '&lt;script&gt;alert(1)&lt;/script&gt;' });
+      expect(skill.name).toBe('&lt;script&gt;alert(1)&lt;/script&gt;');
+    });
+
+    it('should store prototype pollution attempt in name', () => {
+      const skill = createSkill({ name: '__proto__' });
+      expect(skill.name).toBe('__proto__');
+      expect((skill as any).__proto__).not.toBe('polluted');
+    });
+
+    it('should store prototype pollution attempt in description', () => {
+      const skill = createSkill({ description: '{"__proto__":{"admin":true}}' });
+      expect(skill.description).toBe('{"__proto__":{"admin":true}}');
+    });
+
+    it('should store null byte in name', () => {
+      const skill = createSkill({ name: 'skill\x00name' });
+      expect(skill.name).toBe('skill\x00name');
+      expect(skill.name.length).toBe(10);
+    });
+
+    it('should store CRLF injection in skill_dir', () => {
+      const skill = createSkill({ skill_dir: '/skills/test\r\nX-Injected: true' });
+      expect(skill.skill_dir).toContain('\r\n');
+    });
+
+    it('should store format string attack in creator_name', () => {
+      const skill = createSkill({ creator_name: '%s%s%s%s%s%s%s%s%s%s' });
+      expect(skill.creator_name).toBe('%s%s%s%s%s%s%s%s%s%s');
+    });
+
+    it('should store unicode RTL override in name', () => {
+      const rtlOverride = '‮';
+      const skill = createSkill({ name: rtlOverride + 'skill' });
+      expect(skill.name).toContain(rtlOverride);
+    });
+
+    it('should store very long name as data without truncation', () => {
+      const longName = 'A'.repeat(100000);
+      const skill = createSkill({ name: longName });
+      expect(skill.name).toBe(longName);
+      expect(skill.name.length).toBe(100000);
+    });
+
+    it('should store XML injection in description', () => {
+      const skill = createSkill({ description: '<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>' });
+      expect(skill.description).toContain('xxe');
+    });
+
+    it('should store LDAP injection in creator_name', () => {
+      const skill = createSkill({ creator_name: 'admin)(&))' });
+      expect(skill.creator_name).toBe('admin)(&))');
+    });
+
+    it('should store path traversal in skill_dir', () => {
+      const skill = createSkill({ skill_dir: '../../../etc/shadow' });
+      expect(skill.skill_dir).toBe('../../../etc/shadow');
+    });
+
+    it('should safely serialize malicious data through JSON', () => {
+      const skill = createSkill({ name: '<script>alert(1)</script>', description: '"; DROP TABLE --' });
+      const json = JSON.stringify(skill);
+      const parsed = JSON.parse(json);
+      expect(parsed.name).toBe('<script>alert(1)</script>');
+      expect(parsed.description).toBe('"; DROP TABLE --');
+    });
+  });
+
+  // ============================================================
+  // JSON reviver 边界场景（第二轮新增）
+  // ============================================================
+  describe('JSON reviver edge cases', () => {
+    const dateReviver = (key: string, value: unknown): unknown => {
+      if (key === 'created_at' || key === 'updated_at') return new Date(value as string);
+      return value;
+    };
+
+    it('should revive Dates from JSON with reviver', () => {
+      const skill: Skills = {
+        id: 1, name: 'SEO', description: '搜索', skill_dir: '/seo',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date('2024-06-15T08:30:00.000Z'),
+        updated_at: new Date('2024-06-20T14:00:00.000Z'),
+      };
+      const revived = JSON.parse(JSON.stringify(skill), dateReviver);
+      expect(revived.created_at).toBeInstanceOf(Date);
+      expect(revived.updated_at).toBeInstanceOf(Date);
+      expect(revived.created_at.toISOString()).toBe('2024-06-15T08:30:00.000Z');
+    });
+
+    it('should not revive non-date fields with date reviver', () => {
+      const skill: Skills = {
+        id: 1, name: '2024-06-15T00:00:00Z', description: '2024-01-01',
+        skill_dir: '/test', created_by: 1, creator_name: '2024',
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const revived = JSON.parse(JSON.stringify(skill), dateReviver);
+      expect(typeof revived.name).toBe('string');
+      expect(typeof revived.description).toBe('string');
+      expect(typeof revived.creator_name).toBe('string');
+      expect(revived.name).toBe('2024-06-15T00:00:00Z');
+    });
+
+    it('should handle null fields correctly in JSON reviver', () => {
+      const skill: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const revived = JSON.parse(JSON.stringify(skill), dateReviver);
+      expect(revived.description).toBeNull();
+      expect(revived.created_by).toBeNull();
+      expect(revived.creator_name).toBeNull();
+    });
+
+    it('should handle epoch date in JSON reviver', () => {
+      const skill: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(0), updated_at: new Date(0),
+      };
+      const revived = JSON.parse(JSON.stringify(skill), dateReviver);
+      expect(revived.created_at.getTime()).toBe(0);
+      expect(revived.updated_at.getTime()).toBe(0);
+    });
+
+    it('should handle far future date in JSON reviver', () => {
+      const skill: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date('2099-12-31T23:59:59.999Z'),
+        updated_at: new Date('2099-12-31T23:59:59.999Z'),
+      };
+      const revived = JSON.parse(JSON.stringify(skill), dateReviver);
+      expect(revived.created_at.getUTCFullYear()).toBe(2099);
+    });
+
+    it('should handle Chinese characters in JSON reviver', () => {
+      const skill: Skills = {
+        id: 1, name: '薄云商机倍增服务', description: '技能描述——测试',
+        skill_dir: '/skills/中文', created_by: 1, creator_name: '管理员',
+        created_at: new Date('2024-06-01'), updated_at: new Date('2024-06-01'),
+      };
+      const revived = JSON.parse(JSON.stringify(skill), dateReviver);
+      expect(revived.name).toBe('薄云商机倍增服务');
+      expect(revived.description).toBe('技能描述——测试');
+      expect(revived.skill_dir).toBe('/skills/中文');
+    });
+
+    it('should handle emoji in JSON reviver', () => {
+      const skill: Skills = {
+        id: 1, name: '🚀 技能 🎯', description: '📝 描述',
+        skill_dir: '/skills/emoji', created_by: 1, creator_name: '👤 用户',
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const revived = JSON.parse(JSON.stringify(skill), dateReviver);
+      expect(revived.name).toBe('🚀 技能 🎯');
+      expect(revived.description).toBe('📝 描述');
+      expect(revived.creator_name).toBe('👤 用户');
+    });
+
+    it('should handle array of skills in JSON reviver', () => {
+      const skills: Skills[] = [
+        { id: 1, name: 'SEO', description: null, skill_dir: '/seo', created_by: null, creator_name: null, created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01') },
+        { id: 2, name: 'AI', description: '生成', skill_dir: '/ai', created_by: 1, creator_name: '管理员', created_at: new Date('2024-06-01'), updated_at: new Date('2024-06-01') },
+      ];
+      const revived: Skills[] = JSON.parse(JSON.stringify(skills), (key, value) => {
+        if (key === 'created_at' || key === 'updated_at') return new Date(value);
+        return value;
+      });
+      expect(revived).toHaveLength(2);
+      expect(revived[0].created_at).toBeInstanceOf(Date);
+      expect(revived[1].created_at).toBeInstanceOf(Date);
+    });
+
+    it('should handle CreateSkillsRequest JSON without date reviver', () => {
+      const req: CreateSkillsRequest = {
+        name: '测试技能', description: '描述',
+        skill_dir: '/test', created_by: 1,
+      };
+      const json = JSON.stringify(req);
+      const parsed = JSON.parse(json);
+      expect(parsed.name).toBe('测试技能');
+      expect(parsed.description).toBe('描述');
+      expect(parsed.created_by).toBe(1);
+    });
+
+    it('should handle UpdateSkillsRequest JSON with empty body', () => {
+      const req: UpdateSkillsRequest = {};
+      const json = JSON.stringify(req);
+      const parsed = JSON.parse(json);
+      expect(Object.keys(parsed)).toHaveLength(0);
+    });
+
+    it('should handle UpdateSkillsRequest JSON with partial fields', () => {
+      const req: UpdateSkillsRequest = { name: '新名称' };
+      const parsed = JSON.parse(JSON.stringify(req));
+      expect(parsed.name).toBe('新名称');
+      expect(parsed).not.toHaveProperty('description');
+      expect(parsed).not.toHaveProperty('skill_dir');
+    });
+
+    it('should handle special number values in JSON', () => {
+      const skill: Skills = {
+        id: Number.MAX_SAFE_INTEGER, name: 'A', description: null, skill_dir: '/test',
+        created_by: 0, creator_name: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const parsed = JSON.parse(JSON.stringify(skill));
+      expect(parsed.id).toBe(Number.MAX_SAFE_INTEGER);
+      expect(parsed.created_by).toBe(0);
+    });
+
+    it('should handle undefined optional fields in CreateSkillsRequest JSON', () => {
+      const req: CreateSkillsRequest = { name: '测试', skill_dir: '/test' };
+      const parsed = JSON.parse(JSON.stringify(req));
+      expect(parsed).not.toHaveProperty('description');
+      expect(parsed).not.toHaveProperty('created_by');
+    });
+
+    it('should handle null created_by in CreateSkillsRequest JSON', () => {
+      const req: CreateSkillsRequest = { name: '测试', skill_dir: '/test', created_by: null };
+      const parsed = JSON.parse(JSON.stringify(req));
+      expect(parsed.created_by).toBeNull();
+    });
+
+    it('should preserve Date millisecond precision through JSON', () => {
+      const skill: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date('2024-06-15T08:30:00.123Z'),
+        updated_at: new Date('2024-06-15T08:30:00.456Z'),
+      };
+      const parsed = JSON.parse(JSON.stringify(skill));
+      expect(parsed.created_at).toBe('2024-06-15T08:30:00.123Z');
+      expect(parsed.updated_at).toBe('2024-06-15T08:30:00.456Z');
+    });
+
+    it('should handle reviver with ISO date string containing timezone offset', () => {
+      const skill: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date('2024-06-15T16:30:00+08:00'),
+        updated_at: new Date('2024-06-15T16:30:00+08:00'),
+      };
+      const revived = JSON.parse(JSON.stringify(skill), dateReviver);
+      expect(revived.created_at).toBeInstanceOf(Date);
+      expect(revived.created_at.getUTCHours()).toBe(8);
+    });
+  });
+
+  // ============================================================
+  // 业务场景（第二轮新增）
+  // ============================================================
+  describe('business scenarios', () => {
+    it('should create SEO skill with realistic data', () => {
+      const skill: Skills = {
+        id: 1,
+        name: 'SEO优化',
+        description: '搜索引擎优化技能，用于提升文章在搜索引擎中的排名',
+        skill_dir: '/skills/seo-optimization',
+        created_by: 1,
+        creator_name: '系统管理员',
+        created_at: new Date('2024-01-15T09:00:00+08:00'),
+        updated_at: new Date('2024-01-15T09:00:00+08:00'),
+      };
+      expect(skill.name).toBe('SEO优化');
+      expect(skill.description).toContain('搜索引擎');
+      expect(skill.created_by).toBe(1);
+    });
+
+    it('should create AI content generation skill', () => {
+      const skill: Skills = {
+        id: 2,
+        name: 'AI内容生成',
+        description: '基于大语言模型的智能内容生成技能',
+        skill_dir: '/skills/ai-content-gen',
+        created_by: 2,
+        creator_name: '张三',
+        created_at: new Date('2024-03-01T10:00:00+08:00'),
+        updated_at: new Date('2024-03-01T10:00:00+08:00'),
+      };
+      expect(skill.name).toBe('AI内容生成');
+      expect(skill.skill_dir).toContain('ai-content');
+    });
+
+    it('should create system skill with null creator', () => {
+      const skill: Skills = {
+        id: 0,
+        name: '系统默认技能',
+        description: null,
+        skill_dir: '/skills/system-default',
+        created_by: null,
+        creator_name: null,
+        created_at: new Date('2024-01-01T00:00:00Z'),
+        updated_at: new Date('2024-01-01T00:00:00Z'),
+      };
+      expect(skill.created_by).toBeNull();
+      expect(skill.creator_name).toBeNull();
+      expect(skill.description).toBeNull();
+    });
+
+    it('should support skill creation workflow', () => {
+      const req: CreateSkillsRequest = {
+        name: '新技能',
+        description: '新创建的技能描述',
+        skill_dir: '/skills/new-skill',
+        created_by: 1,
+      };
+      const skill: Skills = {
+        id: 100,
+        name: req.name,
+        description: req.description ?? null,
+        skill_dir: req.skill_dir,
+        created_by: req.created_by ?? null,
+        creator_name: '管理员',
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(skill.id).toBe(100);
+      expect(skill.name).toBe(req.name);
+      expect(skill.description).toBe(req.description);
+    });
+
+    it('should support skill update workflow', () => {
+      const original: Skills = {
+        id: 1, name: '旧名称', description: '旧描述',
+        skill_dir: '/skills/old', created_by: 1, creator_name: '管理员',
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const updateReq: UpdateSkillsRequest = {
+        name: '新名称',
+        description: '新描述',
+      };
+      const updated: Skills = {
+        ...original,
+        ...updateReq,
+        updated_at: new Date(),
+      };
+      expect(updated.name).toBe('新名称');
+      expect(updated.description).toBe('新描述');
+      expect(updated.id).toBe(1);
+      expect(updated.skill_dir).toBe('/skills/old');
+      expect(updated.created_by).toBe(1);
+    });
+
+    it('should support skill listing and filtering', () => {
+      const skills: Skills[] = [
+        { id: 1, name: 'SEO优化', description: '搜索引擎', skill_dir: '/seo', created_by: 1, creator_name: '管理员', created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01') },
+        { id: 2, name: 'AI内容生成', description: 'AI生成', skill_dir: '/ai', created_by: 2, creator_name: '张三', created_at: new Date('2024-03-01'), updated_at: new Date('2024-03-01') },
+        { id: 3, name: '自动发布', description: null, skill_dir: '/publish', created_by: null, creator_name: null, created_at: new Date('2024-06-01'), updated_at: new Date('2024-06-01') },
+      ];
+      const withDesc = skills.filter(s => s.description !== null);
+      expect(withDesc).toHaveLength(2);
+      const byAdmin = skills.filter(s => s.creator_name === '管理员');
+      expect(byAdmin).toHaveLength(1);
+      const sorted = [...skills].sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+      expect(sorted[0].name).toBe('自动发布');
+    });
+
+    it('should support skill pagination', () => {
+      const skills: Skills[] = Array.from({ length: 25 }, (_, i) => ({
+        id: i + 1, name: `技能${i + 1}`, description: null, skill_dir: `/skills/s${i + 1}`,
+        created_by: null, creator_name: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      }));
+      const page = 2;
+      const pageSize = 10;
+      const start = (page - 1) * pageSize;
+      const paginated = skills.slice(start, start + pageSize);
+      expect(paginated).toHaveLength(10);
+      expect(paginated[0].name).toBe('技能11');
+      expect(paginated[9].name).toBe('技能20');
+    });
+
+    it('should support skill search by name', () => {
+      const skills: Skills[] = [
+        { id: 1, name: 'SEO优化', description: null, skill_dir: '/seo', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() },
+        { id: 2, name: 'AI内容生成', description: null, skill_dir: '/ai', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() },
+        { id: 3, name: 'AI发布', description: null, skill_dir: '/pub', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() },
+      ];
+      const results = skills.filter(s => s.name.toLowerCase().includes('ai'));
+      expect(results).toHaveLength(2);
+    });
+
+    it('should support CreateSkillsRequest for system skill', () => {
+      const req: CreateSkillsRequest = {
+        name: '系统技能',
+        skill_dir: '/skills/system',
+        created_by: null,
+      };
+      const skill: Skills = {
+        id: 1,
+        name: req.name,
+        description: req.description ?? null,
+        skill_dir: req.skill_dir,
+        created_by: req.created_by ?? null,
+        creator_name: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      expect(skill.created_by).toBeNull();
+      expect(skill.creator_name).toBeNull();
+      expect(skill.description).toBeNull();
+    });
+
+    it('should support batch skill creation from requests', () => {
+      const requests: CreateSkillsRequest[] = [
+        { name: 'SEO', skill_dir: '/seo', description: '搜索优化' },
+        { name: 'AI', skill_dir: '/ai', description: 'AI生成' },
+        { name: '发布', skill_dir: '/publish' },
+      ];
+      const skills: Skills[] = requests.map((req, i) => ({
+        id: i + 1,
+        name: req.name,
+        description: req.description ?? null,
+        skill_dir: req.skill_dir,
+        created_by: req.created_by ?? null,
+        creator_name: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      }));
+      expect(skills).toHaveLength(3);
+      expect(skills[2].description).toBeNull();
+    });
+
+    it('should support partial update preserving unchanged fields', () => {
+      const original: Skills = {
+        id: 1, name: 'SEO', description: '搜索', skill_dir: '/seo',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const update: UpdateSkillsRequest = { description: '更新描述' };
+      const updated: Skills = {
+        ...original,
+        ...update,
+        updated_at: new Date(),
+      };
+      expect(updated.description).toBe('更新描述');
+      expect(updated.name).toBe('SEO');
+      expect(updated.skill_dir).toBe('/seo');
+      expect(updated.created_by).toBe(1);
+    });
+
+    it('should support skill deduplication by skill_dir', () => {
+      const skills: Skills[] = [
+        { id: 1, name: 'SEO', description: null, skill_dir: '/seo', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() },
+        { id: 2, name: 'AI', description: null, skill_dir: '/ai', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() },
+        { id: 3, name: 'SEO v2', description: null, skill_dir: '/seo', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() },
+      ];
+      const uniqueDirs = new Set(skills.map(s => s.skill_dir));
+      expect(uniqueDirs.size).toBe(2);
+    });
+
+    it('should support empty description update to clear description', () => {
+      const original: Skills = {
+        id: 1, name: 'SEO', description: '有描述', skill_dir: '/seo',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const update: UpdateSkillsRequest = { description: null };
+      const updated: Skills = { ...original, ...update, updated_at: new Date() };
+      expect(updated.description).toBeNull();
+      expect(updated.name).toBe('SEO');
+    });
+
+    it('should support skill statistics aggregation', () => {
+      const skills: Skills[] = [
+        { id: 1, name: 'SEO', description: '搜索', skill_dir: '/seo', created_by: 1, creator_name: '管理员', created_at: new Date('2024-01-01'), updated_at: new Date('2024-06-01') },
+        { id: 2, name: 'AI', description: null, skill_dir: '/ai', created_by: 2, creator_name: '张三', created_at: new Date('2024-03-01'), updated_at: new Date('2024-06-01') },
+        { id: 3, name: '发布', description: '自动', skill_dir: '/pub', created_by: 1, creator_name: '管理员', created_at: new Date('2024-06-01'), updated_at: new Date('2024-06-01') },
+      ];
+      const stats = {
+        total: skills.length,
+        withDescription: skills.filter(s => s.description !== null).length,
+        withoutDescription: skills.filter(s => s.description === null).length,
+        uniqueCreators: new Set(skills.filter(s => s.creator_name !== null).map(s => s.creator_name)).size,
+      };
+      expect(stats.total).toBe(3);
+      expect(stats.withDescription).toBe(2);
+      expect(stats.withoutDescription).toBe(1);
+      expect(stats.uniqueCreators).toBe(2);
+    });
+
+    it('should support skill created within date range', () => {
+      const skills: Skills[] = [
+        { id: 1, name: 'Old', description: null, skill_dir: '/old', created_by: null, creator_name: null, created_at: new Date('2024-01-15'), updated_at: new Date('2024-01-15') },
+        { id: 2, name: 'Mid', description: null, skill_dir: '/mid', created_by: null, creator_name: null, created_at: new Date('2024-03-15'), updated_at: new Date('2024-03-15') },
+        { id: 3, name: 'New', description: null, skill_dir: '/new', created_by: null, creator_name: null, created_at: new Date('2024-06-15'), updated_at: new Date('2024-06-15') },
+      ];
+      const start = new Date('2024-03-01');
+      const end = new Date('2024-06-30');
+      const inRange = skills.filter(s => s.created_at >= start && s.created_at <= end);
+      expect(inRange).toHaveLength(2);
+      expect(inRange.map(s => s.name)).toEqual(['Mid', 'New']);
+    });
+
+    it('should support renaming skill via UpdateSkillsRequest', () => {
+      const original: Skills = {
+        id: 1, name: '旧技能名', description: '描述', skill_dir: '/skills/old-name',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const updateReq: UpdateSkillsRequest = { name: '新技能名' };
+      const updated: Skills = { ...original, ...updateReq, updated_at: new Date() };
+      expect(updated.name).toBe('新技能名');
+      expect(updated.skill_dir).toBe('/skills/old-name');
+    });
+
+    it('should support clearing description via UpdateSkillsRequest', () => {
+      const original: Skills = {
+        id: 1, name: '技能', description: '有描述', skill_dir: '/test',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const updateReq: UpdateSkillsRequest = { description: null };
+      const updated: Skills = { ...original, ...updateReq, updated_at: new Date() };
+      expect(updated.description).toBeNull();
+    });
+  });
+
+  // ============================================================
+  // NaN / Infinity 边界值（第二轮新增）
+  // ============================================================
+  describe('NaN and Infinity boundary values', () => {
+    it('should allow NaN as id value', () => {
+      const skill: Skills = {
+        id: NaN, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(skill.id).toBeNaN();
+      expect(Number.isNaN(skill.id)).toBe(true);
+    });
+
+    it('should allow Infinity as id value', () => {
+      const skill: Skills = {
+        id: Infinity, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(skill.id).toBe(Infinity);
+      expect(Number.isFinite(skill.id)).toBe(false);
+    });
+
+    it('should allow -Infinity as id value', () => {
+      const skill: Skills = {
+        id: -Infinity, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(skill.id).toBe(-Infinity);
+    });
+
+    it('should allow NaN as created_by value', () => {
+      const skill: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: NaN, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(skill.created_by).toBeNaN();
+    });
+
+    it('should allow Infinity as created_by value', () => {
+      const skill: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: Infinity, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(skill.created_by).toBe(Infinity);
+    });
+
+    it('should handle NaN id through JSON serialization', () => {
+      const skill: Skills = {
+        id: NaN, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const json = JSON.stringify(skill);
+      const parsed = JSON.parse(json);
+      expect(parsed.id).toBeNull(); // JSON.stringify(NaN) -> "null"
+    });
+
+    it('should handle Infinity id through JSON serialization', () => {
+      const skill: Skills = {
+        id: Infinity, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const json = JSON.stringify(skill);
+      const parsed = JSON.parse(json);
+      expect(parsed.id).toBeNull(); // JSON.stringify(Infinity) -> "null"
+    });
+
+    it('should handle NaN created_by through JSON serialization', () => {
+      const skill: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: NaN, creator_name: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const json = JSON.stringify(skill);
+      const parsed = JSON.parse(json);
+      expect(parsed.created_by).toBeNull();
+    });
+
+    it('should handle Number.EPSILON as id', () => {
+      const skill: Skills = {
+        id: Number.EPSILON, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(skill.id).toBe(Number.EPSILON);
+      expect(skill.id).toBeGreaterThan(0);
+      expect(skill.id).toBeLessThan(1);
+    });
+
+    it('should handle Number.MIN_VALUE as created_by', () => {
+      const skill: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: Number.MIN_VALUE, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(skill.created_by).toBe(Number.MIN_VALUE);
+      expect(skill.created_by).toBeGreaterThan(0);
+    });
+
+    it('should handle negative zero as id', () => {
+      const skill: Skills = {
+        id: -0, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(Object.is(skill.id, -0)).toBe(true);
+      expect(skill.id).toBeCloseTo(0);
+    });
+
+    it('should handle NaN in CreateSkillsRequest created_by', () => {
+      const req: CreateSkillsRequest = {
+        name: '测试', skill_dir: '/test', created_by: NaN,
+      };
+      expect(req.created_by).toBeNaN();
+    });
+
+    it('should handle Infinity in CreateSkillsRequest created_by', () => {
+      const req: CreateSkillsRequest = {
+        name: '测试', skill_dir: '/test', created_by: Infinity,
+      };
+      expect(req.created_by).toBe(Infinity);
+    });
+
+    it('should sort skills with NaN id to end', () => {
+      const skills: Skills[] = [
+        { id: NaN, name: 'NaN', description: null, skill_dir: '/nan', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() },
+        { id: 2, name: 'Two', description: null, skill_dir: '/two', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() },
+        { id: 1, name: 'One', description: null, skill_dir: '/one', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() },
+      ];
+      const sorted = [...skills].sort((a, b) => {
+        if (Number.isNaN(a.id)) return 1;
+        if (Number.isNaN(b.id)) return -1;
+        return a.id - b.id;
+      });
+      expect(sorted[0].name).toBe('One');
+      expect(sorted[1].name).toBe('Two');
+      expect(sorted[2].name).toBe('NaN');
+    });
+  });
+
+  // ============================================================
+  // 类型守卫（第二轮新增）
+  // ============================================================
+  describe('type guards', () => {
+    const isSkills = (obj: unknown): obj is Skills => {
+      if (typeof obj !== 'object' || obj === null) return false;
+      const o = obj as Record<string, unknown>;
+      return typeof o.id === 'number' &&
+        typeof o.name === 'string' &&
+        (o.description === null || typeof o.description === 'string') &&
+        typeof o.skill_dir === 'string' &&
+        (o.created_by === null || typeof o.created_by === 'number') &&
+        (o.creator_name === null || typeof o.creator_name === 'string') &&
+        o.created_at instanceof Date &&
+        o.updated_at instanceof Date;
+    };
+
+    it('should validate a valid Skills object', () => {
+      const skill: Skills = {
+        id: 1, name: 'SEO', description: '搜索', skill_dir: '/seo',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(isSkills(skill)).toBe(true);
+    });
+
+    it('should validate Skills with null fields', () => {
+      const skill: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(isSkills(skill)).toBe(true);
+    });
+
+    it('should reject null as Skills', () => {
+      expect(isSkills(null)).toBe(false);
+    });
+
+    it('should reject undefined as Skills', () => {
+      expect(isSkills(undefined)).toBe(false);
+    });
+
+    it('should reject string as Skills', () => {
+      expect(isSkills('not a skill')).toBe(false);
+    });
+
+    it('should reject number as Skills', () => {
+      expect(isSkills(42)).toBe(false);
+    });
+
+    it('should reject object missing id field', () => {
+      expect(isSkills({
+        name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      })).toBe(false);
+    });
+
+    it('should reject object with string id', () => {
+      expect(isSkills({
+        id: '1', name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      })).toBe(false);
+    });
+
+    it('should reject object with missing name', () => {
+      expect(isSkills({
+        id: 1, description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      })).toBe(false);
+    });
+
+    it('should reject object with non-Date created_at', () => {
+      expect(isSkills({
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: '2024-01-01', updated_at: new Date(),
+      })).toBe(false);
+    });
+
+    it('should reject object with non-Date updated_at', () => {
+      expect(isSkills({
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: '2024-01-01',
+      })).toBe(false);
+    });
+
+    it('should reject object with number description (not null or string)', () => {
+      expect(isSkills({
+        id: 1, name: 'A', description: 123, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      })).toBe(false);
+    });
+
+    it('should reject object with string created_by (not null or number)', () => {
+      expect(isSkills({
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: '1', creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      })).toBe(false);
+    });
+
+    it('should reject object with number creator_name (not null or string)', () => {
+      expect(isSkills({
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: 42,
+        created_at: new Date(), updated_at: new Date(),
+      })).toBe(false);
+    });
+
+    it('should use type guard for narrowing in conditional', () => {
+      const input: unknown = {
+        id: 1, name: 'SEO', description: null, skill_dir: '/seo',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date(), updated_at: new Date(),
+      };
+      if (isSkills(input)) {
+        expect(input.name).toBe('SEO');
+        expect(input.id).toBe(1);
+      } else {
+        throw new Error('Should have been recognized as Skills');
+      }
+    });
+
+    it('should validate empty array of skills', () => {
+      const arr: unknown[] = [];
+      const valid = arr.every(isSkills);
+      expect(valid).toBe(true);
+    });
+
+    it('should validate mixed array of skills', () => {
+      const arr: unknown[] = [
+        { id: 1, name: 'SEO', description: null, skill_dir: '/seo', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() },
+        'not a skill',
+        { id: 2, name: 'AI', description: null, skill_dir: '/ai', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() },
+      ];
+      const valid = arr.filter(isSkills);
+      expect(valid).toHaveLength(2);
+    });
+
+    it('should validate CreateSkillsRequest type guard', () => {
+      const isCreateReq = (obj: unknown): obj is CreateSkillsRequest => {
+        if (typeof obj !== 'object' || obj === null) return false;
+        const o = obj as Record<string, unknown>;
+        return typeof o.name === 'string' && typeof o.skill_dir === 'string';
+      };
+      const valid: unknown = { name: '测试', skill_dir: '/test' };
+      const invalid: unknown = { name: 123 };
+      expect(isCreateReq(valid)).toBe(true);
+      expect(isCreateReq(invalid)).toBe(false);
+    });
+
+    it('should validate UpdateSkillsRequest type guard', () => {
+      const isUpdateReq = (obj: unknown): obj is UpdateSkillsRequest => {
+        if (typeof obj !== 'object' || obj === null) return false;
+        const o = obj as Record<string, unknown>;
+        if (o.name !== undefined && typeof o.name !== 'string') return false;
+        if (o.description !== undefined && typeof o.description !== 'string') return false;
+        if (o.skill_dir !== undefined && typeof o.skill_dir !== 'string') return false;
+        return true;
+      };
+      expect(isUpdateReq({})).toBe(true);
+      expect(isUpdateReq({ name: 'A' })).toBe(true);
+      expect(isUpdateReq({ name: 123 })).toBe(false);
+    });
+  });
+
+  // ============================================================
+  // 深冻结与浅冻结（第二轮新增）
+  // ============================================================
+  describe('deep freeze and shallow freeze', () => {
+    it('should freeze top-level properties but not nested Date objects', () => {
+      const skill: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      Object.freeze(skill);
+      expect(Object.isFrozen(skill)).toBe(true);
+      // Date is a separate object, not frozen by top-level freeze
+      expect(Object.isFrozen(skill.created_at)).toBe(false);
+    });
+
+    it('should reject modification of frozen skill id', () => {
+      const skill: Skills = Object.freeze({
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (skill as any).id = 999; }).toThrow();
+    });
+
+    it('should reject modification of frozen skill name', () => {
+      const skill: Skills = Object.freeze({
+        id: 1, name: '原始', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (skill as any).name = '修改'; }).toThrow();
+      expect(skill.name).toBe('原始');
+    });
+
+    it('should reject modification of frozen skill description', () => {
+      const skill: Skills = Object.freeze({
+        id: 1, name: 'A', description: '描述', skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (skill as any).description = '修改'; }).toThrow();
+      expect(skill.description).toBe('描述');
+    });
+
+    it('should reject modification of frozen skill_dir', () => {
+      const skill: Skills = Object.freeze({
+        id: 1, name: 'A', description: null, skill_dir: '/original',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (skill as any).skill_dir = '/modified'; }).toThrow();
+      expect(skill.skill_dir).toBe('/original');
+    });
+
+    it('should reject modification of frozen created_by', () => {
+      const skill: Skills = Object.freeze({
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (skill as any).created_by = 999; }).toThrow();
+      expect(skill.created_by).toBe(1);
+    });
+
+    it('should reject modification of frozen creator_name', () => {
+      const skill: Skills = Object.freeze({
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (skill as any).creator_name = 'hacked'; }).toThrow();
+      expect(skill.creator_name).toBe('管理员');
+    });
+
+    it('should reject adding new properties to frozen skill', () => {
+      const skill: Skills = Object.freeze({
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { (skill as any).extra = 'new'; }).toThrow();
+    });
+
+    it('should reject deleting properties from frozen skill', () => {
+      const skill: Skills = Object.freeze({
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      });
+      expect(() => { delete (skill as any).name; }).toThrow();
+      expect(skill.name).toBe('A');
+    });
+
+    it('should allow Date mutation on frozen skill (shallow freeze)', () => {
+      const skill: Skills = Object.freeze({
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      });
+      // Shallow freeze doesn't freeze nested objects
+      skill.created_at.setFullYear(2099);
+      expect(skill.created_at.getFullYear()).toBe(2099);
+    });
+
+    it('should deep freeze skill including Date objects', () => {
+      const skill: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      Object.freeze(skill);
+      Object.freeze(skill.created_at);
+      Object.freeze(skill.updated_at);
+      expect(Object.isFrozen(skill)).toBe(true);
+      expect(Object.isFrozen(skill.created_at)).toBe(true);
+      expect(Object.isFrozen(skill.updated_at)).toBe(true);
+    });
+
+    it('should seal skill preventing add/delete but allowing value changes', () => {
+      const skill: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      Object.seal(skill);
+      expect(Object.isSealed(skill)).toBe(true);
+      // Sealed objects allow value changes
+      skill.name = 'B';
+      expect(skill.name).toBe('B');
+      // But cannot add or delete
+      expect(() => { delete (skill as any).name; }).toThrow();
+      expect(() => { (skill as any).extra = 'new'; }).toThrow();
+    });
+
+    it('should preventExtensions allowing modification but not addition', () => {
+      const skill: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      Object.preventExtensions(skill);
+      expect(Object.isExtensible(skill)).toBe(false);
+      skill.name = 'B';
+      expect(skill.name).toBe('B');
+      expect(() => { (skill as any).extra = 'new'; }).toThrow();
+    });
+
+    it('should freeze array of skills', () => {
+      const skills: Skills[] = [
+        { id: 1, name: 'A', description: null, skill_dir: '/a', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() },
+        { id: 2, name: 'B', description: null, skill_dir: '/b', created_by: null, creator_name: null, created_at: new Date(), updated_at: new Date() },
+      ];
+      Object.freeze(skills);
+      expect(Object.isFrozen(skills)).toBe(true);
+      expect(() => { skills.push({} as Skills); }).toThrow();
+      expect(skills).toHaveLength(2);
+    });
+  });
+
+  // ============================================================
+  // 生命周期完整性（第二轮新增）
+  // ============================================================
+  describe('lifecycle integrity', () => {
+    it('should support full create-read-update-delete lifecycle', () => {
+      // CREATE
+      const createReq: CreateSkillsRequest = {
+        name: '新技能', description: '创建描述', skill_dir: '/skills/new', created_by: 1,
+      };
+      const created: Skills = {
+        id: 1,
+        name: createReq.name,
+        description: createReq.description ?? null,
+        skill_dir: createReq.skill_dir,
+        created_by: createReq.created_by ?? null,
+        creator_name: '管理员',
+        created_at: new Date('2024-01-01'),
+        updated_at: new Date('2024-01-01'),
+      };
+      expect(created.name).toBe('新技能');
+
+      // READ
+      const found = created;
+      expect(found.id).toBe(1);
+      expect(found.description).toBe('创建描述');
+
+      // UPDATE 1: rename
+      const updated1: Skills = { ...created, name: '更新技能', updated_at: new Date('2024-03-01') };
+      expect(updated1.name).toBe('更新技能');
+      expect(updated1.description).toBe('创建描述');
+      expect(created.name).toBe('新技能');
+
+      // UPDATE 2: change description to null
+      const updated2: Skills = { ...updated1, description: null, updated_at: new Date('2024-06-01') };
+      expect(updated2.description).toBeNull();
+      expect(updated2.name).toBe('更新技能');
+
+      // UPDATE 3: change skill_dir
+      const updated3: Skills = { ...updated2, skill_dir: '/skills/renamed', updated_at: new Date('2024-09-01') };
+      expect(updated3.skill_dir).toBe('/skills/renamed');
+
+      // DELETE simulation
+      const deleted: Skills = { ...updated3, description: null, created_by: null, creator_name: null, updated_at: new Date('2024-12-01') };
+      expect(deleted.description).toBeNull();
+      expect(deleted.created_by).toBeNull();
+      expect(deleted.id).toBe(1);
+    });
+
+    it('should maintain created_at throughout lifecycle', () => {
+      const originalDate = new Date('2024-01-15T10:30:00Z');
+      let skill: Skills = {
+        id: 1, name: 'V1', description: '初始', skill_dir: '/v1',
+        created_by: 1, creator_name: '管理员',
+        created_at: originalDate, updated_at: originalDate,
+      };
+      skill = { ...skill, name: 'V2', updated_at: new Date('2024-03-01') };
+      skill = { ...skill, description: '更新', updated_at: new Date('2024-06-01') };
+      skill = { ...skill, skill_dir: '/v3', updated_at: new Date('2024-09-01') };
+      expect(skill.created_at).toBe(originalDate);
+      expect(skill.created_at.getTime()).toBe(originalDate.getTime());
+    });
+
+    it('should maintain id throughout lifecycle', () => {
+      let skill: Skills = {
+        id: 42, name: 'A', description: null, skill_dir: '/a',
+        created_by: null, creator_name: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      for (let i = 0; i < 20; i++) {
+        skill = { ...skill, name: `V${i}`, updated_at: new Date() };
+        expect(skill.id).toBe(42);
+      }
+    });
+
+    it('should support description lifecycle: null -> string -> string -> null', () => {
+      let skill: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      expect(skill.description).toBeNull();
+
+      skill = { ...skill, description: '第一次描述', updated_at: new Date('2024-02-01') };
+      expect(skill.description).toBe('第一次描述');
+
+      skill = { ...skill, description: '第二次描述', updated_at: new Date('2024-04-01') };
+      expect(skill.description).toBe('第二次描述');
+
+      skill = { ...skill, description: null, updated_at: new Date('2024-06-01') };
+      expect(skill.description).toBeNull();
+    });
+
+    it('should support created_by lifecycle: null -> number -> null', () => {
+      let skill: Skills = {
+        id: 1, name: 'A', description: null, skill_dir: '/test',
+        created_by: null, creator_name: null,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      expect(skill.created_by).toBeNull();
+
+      skill = { ...skill, created_by: 1, creator_name: '管理员', updated_at: new Date('2024-03-01') };
+      expect(skill.created_by).toBe(1);
+      expect(skill.creator_name).toBe('管理员');
+
+      skill = { ...skill, created_by: null, creator_name: null, updated_at: new Date('2024-06-01') };
+      expect(skill.created_by).toBeNull();
+      expect(skill.creator_name).toBeNull();
+    });
+
+    it('should support skill_dir rename preserving other fields', () => {
+      const original: Skills = {
+        id: 1, name: 'SEO', description: '搜索', skill_dir: '/skills/old-seo',
+        created_by: 1, creator_name: '管理员',
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const updateReq: UpdateSkillsRequest = { skill_dir: '/skills/new-seo' };
+      const updated: Skills = { ...original, ...updateReq, updated_at: new Date('2024-06-01') };
+      expect(updated.skill_dir).toBe('/skills/new-seo');
+      expect(updated.name).toBe('SEO');
+      expect(updated.description).toBe('搜索');
+      expect(updated.created_by).toBe(1);
+    });
+
+    it('should support bulk status tracking', () => {
+      const skills: Skills[] = [
+        { id: 1, name: 'SEO', description: '活跃', skill_dir: '/seo', created_by: 1, creator_name: '管理员', created_at: new Date('2024-01-01'), updated_at: new Date('2024-06-01') },
+        { id: 2, name: 'AI', description: null, skill_dir: '/ai', created_by: null, creator_name: null, created_at: new Date('2024-03-01'), updated_at: new Date('2024-03-01') },
+        { id: 3, name: '发布', description: '活跃', skill_dir: '/pub', created_by: 2, creator_name: '张三', created_at: new Date('2024-02-01'), updated_at: new Date('2024-06-01') },
+      ];
+      const summary = {
+        total: skills.length,
+        withDescription: skills.filter(s => s.description !== null).length,
+        withCreator: skills.filter(s => s.created_by !== null).length,
+        recentlyUpdated: skills.filter(s => s.updated_at > new Date('2024-05-01')).length,
+      };
+      expect(summary.total).toBe(3);
+      expect(summary.withDescription).toBe(2);
+      expect(summary.withCreator).toBe(2);
+      expect(summary.recentlyUpdated).toBe(2);
+    });
+  });
 });
