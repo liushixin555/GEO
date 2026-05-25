@@ -189,11 +189,4 @@
 | 2026-05-25 | tasks/review/strikeThrough.tsx.architecture.md | @uiw/react-md-editor strikeThrough.tsx 软件架构专家评审——✅APPROVE WITH COMMENTS 7.5分（H×1 inline命令95%同构bold/italic/code无工厂抽象 + M×2 ICommand无分类维度/prefix!非空断言系统性问题 + L×2 SVG同层部署/变量命名 + INFO×2 架构最简洁inline实例/3步线性数据流最清晰） |
 | 2026-05-25 | tasks/tdd/llm-model.controller.test.round3.md | llm-model.controller TDD 第3轮补全——264用例（+43），Stmts 99.21% Branch 97.43% Funcs 100% Lines 100%（覆盖null字段/AppError处理/SSRF直接调用/多字段更新/parseId边界/软删除验证） |
 | 2026-05-25 | tasks/tdd/app.test.md | app.ts TDD 第六次验证——261用例全通过，100%四维覆盖率确认无回归 |
-| 2026-05-25 | tasks/tdd/publishing-platform.controller.test.round2.md | publishing-platform.controller TDD 第2轮——100用例 Stmts/Branch/Funcs/Lines 100%（+45新增：Token异常/审计日志/异常类型/响应结构/特殊字符/排序组合/验证顺序） |
-| 2026-05-25 | tasks/review/table.tsx.architecture.md | @uiw/react-md-editor table.tsx 软件架构专家评审——⚠️APPROVE WITH COMMENTS 5.0分（H×2 inline管道错配块级模板/execute圈复杂度3无抽象 + M×2 ICommand无分类维度/4处prefix!密度最高 + L×2 模板硬编码/SVG同层 + INFO×2 无快捷键/Add分支补丁） |
-| 2026-05-25 | tasks/review/table.tsx.security.md | @uiw/react-md-editor table.tsx 代码安全专家评审——✅APPROVE 8.0/10（H×0 MEDIUM×1 非空断言CWE-476 + LOW×4 selectWord语义错位/选区边界/DoS/SVG无障碍，XSS/注入/信息泄露面为零） |
-| 2026-05-25 | tasks/tdd/publishing-schedule.controller.test.round2.md | publishing-schedule.controller TDD 第二轮验证——86用例全通过，Stmts/Branch/Funcs/Lines 100%（四维全覆盖确认无回归） |
-| 2026-05-25 | tasks/review/table.tsx.ui.md | @uiw/react-md-editor table.tsx UI专家评审——⚠️有条件通过 3.0/10（P1×1 无表格尺寸选择器，P2×2 无快捷键+toggle缺陷，P3×3 SVG尺寸+无障碍+i18n，封装层需antd Button/Tooltip/Popover包装） |
-| 2026-05-25 | tasks/review/table.tsx.committer.md | @uiw/react-md-editor table.tsx Committer审核专家评审——✅通过 7.4/10（插入功能正确可用+安全8.0+零集成阻塞，toggle移除准死代码不阻塞但需文档说明，4项封装层待办P1中文ARIA+文档提示） |
-| 2026-05-25 | tasks/tdd/skills.controller.test.round2.md | skills.controller TDD 第二轮——72用例全通过，491合并总测试（controller 100%/service 100%/skill-md 100%/file-service 98.94%） |
-| 2026-05-25 | tasks/review/title.tsx.ui.md | @uiw/react-md-editor title.tsx UI专家评审——⚠️有条件通过 4.3/10（P1×3 SVG 12px/520×520尺寸违规+文字条图标语义错位+非Carbon图标，P2×4 aria-label继承不匹配+弃用注释自相矛盾+currentColor无fallback+空行视觉异常，P3×3 SVG路径膨胀+suffix默认值+命名混乱） |
+| 2026-05-25 | progress_tasks/2026-05-25-common-tsx-architecture-fix.md | common.tsx 架构评审修复——A-03 PipelineConfig OCP接口+A-05 export type显式导出+A-07管线顺序注释，9文件patch更新，251组件测试全通过 |

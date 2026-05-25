@@ -1,11 +1,21 @@
 diff --git a/esm/Props.d.ts b/esm/Props.d.ts
-index b550d96681a92638d83e7cf98b7cfe32eab1f17d..c190aad887345c9bddd50e35a8322287753efdb2 100644
+index b550d96681a92638d83e7cf98b7cfe32eab1f17d..c3091f2f67cd5ac3719a76fd0c206b99bd3f1b3f 100644
 --- a/esm/Props.d.ts
 +++ b/esm/Props.d.ts
-@@ -1,27 +1,60 @@
+@@ -1,27 +1,75 @@
  import { type Options } from 'react-markdown';
  import { type RehypeRewriteOptions } from 'rehype-rewrite';
  import { type PluggableList } from 'unified';
++/**
++ * 管线配置接口（A-03 OCP 修复）。
++ * 允许在默认管线的头部/尾部插入自定义插件，无需修改源码。
++ */
++export interface PipelineConfig {
++    /** 在默认管线之前插入（reservedMeta 之前） */
++    prepend?: PluggableList;
++    /** 在默认管线之后追加（rehypePrism 之后 / nohighlight 最后默认插件之后） */
++    append?: PluggableList;
++}
 +/**
 + * ⚠️ 安全说明（SEC-MD-04）：本接口继承 react-markdown Options，
 + * 暴露 allowElement/rehypePlugins/remarkPlugins/urlTransform 等危险属性。
@@ -56,6 +66,11 @@ index b550d96681a92638d83e7cf98b7cfe32eab1f17d..c190aad887345c9bddd50e35a8322287
 +     * 仅在完全信任输入源时使用。请勿用于渲染用户提交的 Markdown 内容。
 +     */
      rehypeRewrite?: RehypeRewriteOptions['rewrite'];
++    /**
++     * 管线配置（A-03 OCP 修复）。
++     * 允许在默认插件管线的头部/尾部插入自定义插件，无需修改源码。
++     */
++    pipeline?: PipelineConfig;
  }
 +/**
 + * ⚠️ 安全说明（SEC-MD-06）：继承全部 Props 属性，
@@ -66,7 +81,7 @@ index b550d96681a92638d83e7cf98b7cfe32eab1f17d..c190aad887345c9bddd50e35a8322287
      mdp: React.RefObject<HTMLDivElement>;
  }
 diff --git a/esm/common.js b/esm/common.js
-index 3201d502895df2997b9227a3d94cd4e48e747018..987998b3da8206fcd0809e8ae3fbdf3722b808aa 100644
+index 3201d502895df2997b9227a3d94cd4e48e747018..e1071af7eec4edb36bde609c3c58db6ff6fe5e76 100644
 --- a/esm/common.js
 +++ b/esm/common.js
 @@ -1,5 +1,5 @@
@@ -76,7 +91,7 @@ index 3201d502895df2997b9227a3d94cd4e48e747018..987998b3da8206fcd0809e8ae3fbdf37
  import rehypePrism from 'rehype-prism-plus/common';
  import rehypeRewrite from 'rehype-rewrite';
  import rehypeAttrs from 'rehype-attr';
-@@ -10,17 +10,29 @@ import { retrieveMeta } from "./plugins/retrieveMeta.js";
+@@ -10,17 +10,40 @@ import { retrieveMeta } from "./plugins/retrieveMeta.js";
  import { rehypeRewriteHandle, defaultRehypePlugins } from "./rehypePlugins.js";
  import { jsx as _jsx } from "react/jsx-runtime";
  export * from "./Props.js";
@@ -96,17 +111,27 @@ index 3201d502895df2997b9227a3d94cd4e48e747018..987998b3da8206fcd0809e8ae3fbdf37
 +    return rehypeRewriteHandle((_props$disableCopy = props.disableCopy) != null ? _props$disableCopy : false, props.rehypeRewrite);
 +  }, [props.disableCopy, props.rehypeRewrite]);
 +  // Q-01: 稳定插件数组
-+  // 顺序：reservedMeta → raw → retrieveMeta → defaults → rewrite → attrs → user → prism
++  // A-07 管线顺序（严格，不可随意调整）：
++  //   1. pipeline.prepend    — 用户自定义前缀插件（A-03 OCP）
++  //   2. reservedMeta        — 保留元数据
++  //   3. rehypeRaw           — HTML 解析
++  //   4. retrieveMeta        — 恢复元数据
++  //   5. defaultRehypePlugins — slug/headings/ignore
++  //   6. rehypeRewrite       — AST 重写（代码复制按钮）
++  //   7. rehypeAttrs         — 属性转换
++  //   8. props.rehypePlugins — 用户自定义插件
++  //   9. rehypePrism         — 代码语法高亮
++  //  10. pipeline.append     — 用户自定义后缀插件（A-03 OCP）
 +  // 注意(Q-04)：preview.tsx 在 skipHtml=false 时也会 push raw，可能导致双重 rehype-raw
 +  var rehypePlugins = _useMemo(function () {
-+    return [reservedMeta, rehypeRaw, retrieveMeta, ...defaultRehypePlugins, [rehypeRewrite, {
++    return [...(props.pipeline?.prepend ?? []), reservedMeta, rehypeRaw, retrieveMeta, ...defaultRehypePlugins, [rehypeRewrite, {
 +      rewrite: rewriteFn
 +    }], [rehypeAttrs, {
 +      properties: 'attr'
 +    }], ...(props.rehypePlugins ?? []), [rehypePrism, {
 +      ignoreMissing: true
-+    }]];
-+  }, [rewriteFn, props.rehypePlugins]);
++    }], ...(props.pipeline?.append ?? [])];
++  }, [rewriteFn, props.rehypePlugins, props.pipeline]);
    return /*#__PURE__*/_jsx(MarkdownPreview, _extends({}, props, {
      rehypePlugins: rehypePlugins,
      ref: ref
@@ -114,8 +139,10 @@ index 3201d502895df2997b9227a3d94cd4e48e747018..987998b3da8206fcd0809e8ae3fbdf37
  });
 +MarkdownPreviewHighlighted.displayName = 'MarkdownPreviewHighlighted';
 +export default MarkdownPreviewHighlighted;
++
+\ No newline at end of file
 diff --git a/esm/nohighlight.js b/esm/nohighlight.js
-index 5399bb6cf2400875b0ed371665314d702152d46f..c3cfa820962ee86c6931dddecb6d2ab94dacb9fe 100644
+index 5399bb6cf2400875b0ed371665314d702152d46f..9fbc80bc9cc2fd3f3dd56fcaae72c4920712fe3f 100644
 --- a/esm/nohighlight.js
 +++ b/esm/nohighlight.js
 @@ -1,5 +1,5 @@
@@ -125,7 +152,7 @@ index 5399bb6cf2400875b0ed371665314d702152d46f..c3cfa820962ee86c6931dddecb6d2ab9
  import MarkdownPreview from "./preview.js";
  import rehypeRewrite from 'rehype-rewrite';
  import rehypeAttrs from 'rehype-attr';
-@@ -8,15 +8,26 @@ import { retrieveMeta } from "./plugins/retrieveMeta.js";
+@@ -8,15 +8,35 @@ import { retrieveMeta } from "./plugins/retrieveMeta.js";
  import { rehypeRewriteHandle, defaultRehypePlugins } from "./rehypePlugins.js";
  import { jsx as _jsx } from "react/jsx-runtime";
  export * from "./Props.js";
@@ -143,14 +170,22 @@ index 5399bb6cf2400875b0ed371665314d702152d46f..c3cfa820962ee86c6931dddecb6d2ab9
 +    return rehypeRewriteHandle((_props$disableCopy = props.disableCopy) != null ? _props$disableCopy : false, props.rehypeRewrite);
 +  }, [props.disableCopy, props.rehypeRewrite]);
 +  // Q-01: 稳定插件数组
-+  // 顺序：reservedMeta → retrieveMeta → defaults → rewrite → attrs → user
++  // A-07 管线顺序（严格，不可随意调整）：
++  //   1. pipeline.prepend    — 用户自定义前缀插件（A-03 OCP）
++  //   2. reservedMeta        — 保留元数据
++  //   3. retrieveMeta        — 恢复元数据
++  //   4. defaultRehypePlugins — slug/headings/ignore
++  //   5. rehypeRewrite       — AST 重写（代码复制按钮）
++  //   6. rehypeAttrs         — 属性转换
++  //   7. props.rehypePlugins — 用户自定义插件
++  //   8. pipeline.append     — 用户自定义后缀插件（A-03 OCP）
 +  var rehypePlugins = _useMemo(function () {
-+    return [reservedMeta, retrieveMeta, ...defaultRehypePlugins, [rehypeRewrite, {
++    return [...(props.pipeline?.prepend ?? []), reservedMeta, retrieveMeta, ...defaultRehypePlugins, [rehypeRewrite, {
 +      rewrite: rewriteFn
 +    }], [rehypeAttrs, {
 +      properties: 'attr'
-+    }], ...(props.rehypePlugins ?? [])];
-+  }, [rewriteFn, props.rehypePlugins]);
++    }], ...(props.rehypePlugins ?? []), ...(props.pipeline?.append ?? [])];
++  }, [rewriteFn, props.rehypePlugins, props.pipeline]);
    return /*#__PURE__*/_jsx(MarkdownPreview, _extends({}, props, {
      rehypePlugins: rehypePlugins,
      ref: ref
@@ -158,8 +193,10 @@ index 5399bb6cf2400875b0ed371665314d702152d46f..c3cfa820962ee86c6931dddecb6d2ab9
  });
 +NoHighlightMarkdown.displayName = 'NoHighlightMarkdown';
 +export default NoHighlightMarkdown;
++
+\ No newline at end of file
 diff --git a/esm/rehypePlugins.js b/esm/rehypePlugins.js
-index 2796334dfb1c5fe796d15170c1067a411b3e8a71..bc3dea021709b7059d13af683f7c59a33f8f88b9 100644
+index 2796334dfb1c5fe796d15170c1067a411b3e8a71..5595459d0c6d5cb36767b29ebdcd33123f933009 100644
 --- a/esm/rehypePlugins.js
 +++ b/esm/rehypePlugins.js
 @@ -5,20 +5,41 @@ import rehypeIgnore from 'rehype-ignore';
@@ -213,13 +250,23 @@ index 2796334dfb1c5fe796d15170c1067a411b3e8a71..bc3dea021709b7059d13af683f7c59a3
  export var defaultRehypePlugins = [slug, headings, rehypeIgnore];
 \ No newline at end of file
 diff --git a/lib/Props.d.ts b/lib/Props.d.ts
-index b550d96681a92638d83e7cf98b7cfe32eab1f17d..c190aad887345c9bddd50e35a8322287753efdb2 100644
+index b550d96681a92638d83e7cf98b7cfe32eab1f17d..c3091f2f67cd5ac3719a76fd0c206b99bd3f1b3f 100644
 --- a/lib/Props.d.ts
 +++ b/lib/Props.d.ts
-@@ -1,27 +1,60 @@
+@@ -1,27 +1,75 @@
  import { type Options } from 'react-markdown';
  import { type RehypeRewriteOptions } from 'rehype-rewrite';
  import { type PluggableList } from 'unified';
++/**
++ * 管线配置接口（A-03 OCP 修复）。
++ * 允许在默认管线的头部/尾部插入自定义插件，无需修改源码。
++ */
++export interface PipelineConfig {
++    /** 在默认管线之前插入（reservedMeta 之前） */
++    prepend?: PluggableList;
++    /** 在默认管线之后追加（rehypePrism 之后 / nohighlight 最后默认插件之后） */
++    append?: PluggableList;
++}
 +/**
 + * ⚠️ 安全说明（SEC-MD-04）：本接口继承 react-markdown Options，
 + * 暴露 allowElement/rehypePlugins/remarkPlugins/urlTransform 等危险属性。
@@ -270,6 +317,11 @@ index b550d96681a92638d83e7cf98b7cfe32eab1f17d..c190aad887345c9bddd50e35a8322287
 +     * 仅在完全信任输入源时使用。请勿用于渲染用户提交的 Markdown 内容。
 +     */
      rehypeRewrite?: RehypeRewriteOptions['rewrite'];
++    /**
++     * 管线配置（A-03 OCP 修复）。
++     * 允许在默认插件管线的头部/尾部插入自定义插件，无需修改源码。
++     */
++    pipeline?: PipelineConfig;
  }
 +/**
 + * ⚠️ 安全说明（SEC-MD-06）：继承全部 Props 属性，
@@ -280,10 +332,10 @@ index b550d96681a92638d83e7cf98b7cfe32eab1f17d..c190aad887345c9bddd50e35a8322287
      mdp: React.RefObject<HTMLDivElement>;
  }
 diff --git a/lib/common.js b/lib/common.js
-index b91190866e253f1de99867574b6751bb133ca22c..10de34d6ab73f575d5c3a4636af853e8adc3e6d4 100644
+index b91190866e253f1de99867574b6751bb133ca22c..a72a65a082b657584f57a3e6ed93d18410927f0e 100644
 --- a/lib/common.js
 +++ b/lib/common.js
-@@ -30,17 +30,27 @@ Object.keys(_Props).forEach(function (key) {
+@@ -30,17 +30,39 @@ Object.keys(_Props).forEach(function (key) {
      }
    });
  });
@@ -303,15 +355,26 @@ index b91190866e253f1de99867574b6751bb133ca22c..10de34d6ab73f575d5c3a4636af853e8
 +    return (0, _rehypePlugins.rehypeRewriteHandle)((_props$disableCopy = props.disableCopy) !== null && _props$disableCopy !== void 0 ? _props$disableCopy : false, props.rehypeRewrite);
 +  }, [props.disableCopy, props.rehypeRewrite]);
 +  // Q-01: 稳定插件数组
++  // A-07 管线顺序（严格，不可随意调整）：
++  //   1. pipeline.prepend    — 用户自定义前缀插件（A-03 OCP）
++  //   2. reservedMeta        — 保留元数据
++  //   3. rehypeRaw           — HTML 解析
++  //   4. retrieveMeta        — 恢复元数据
++  //   5. defaultRehypePlugins — slug/headings/ignore
++  //   6. rehypeRewrite       — AST 重写（代码复制按钮）
++  //   7. rehypeAttrs         — 属性转换
++  //   8. props.rehypePlugins — 用户自定义插件
++  //   9. rehypePrism         — 代码语法高亮
++  //  10. pipeline.append     — 用户自定义后缀插件（A-03 OCP）
 +  var rehypePlugins = _react["default"].useMemo(function () {
-+    return [_reservedMeta.reservedMeta, _rehypeRaw["default"], _retrieveMeta.retrieveMeta].concat((0, _toConsumableArray2["default"])(_rehypePlugins.defaultRehypePlugins), [[_rehypeRewrite["default"], {
++    return (0, _toConsumableArray2["default"])(props.pipeline?.prepend ?? []).concat([_reservedMeta.reservedMeta, _rehypeRaw["default"], _retrieveMeta.retrieveMeta], (0, _toConsumableArray2["default"])(_rehypePlugins.defaultRehypePlugins), [[_rehypeRewrite["default"], {
 +      rewrite: rewriteFn
 +    }], [_rehypeAttr["default"], {
 +      properties: 'attr'
 +    }]], (0, _toConsumableArray2["default"])(props.rehypePlugins ?? []), [[_common["default"], {
 +      ignoreMissing: true
-+    }]]);
-+  }, [rewriteFn, props.rehypePlugins]);
++    }]], (0, _toConsumableArray2["default"])(props.pipeline?.append ?? []));
++  }, [rewriteFn, props.rehypePlugins, props.pipeline]);
    return /*#__PURE__*/(0, _jsxRuntime.jsx)(_preview["default"], (0, _objectSpread2["default"])((0, _objectSpread2["default"])({}, props), {}, {
      rehypePlugins: rehypePlugins,
      ref: ref
@@ -319,11 +382,13 @@ index b91190866e253f1de99867574b6751bb133ca22c..10de34d6ab73f575d5c3a4636af853e8
  });
 +MarkdownPreviewHighlighted.displayName = 'MarkdownPreviewHighlighted';
 +var _default = exports["default"] = MarkdownPreviewHighlighted;
++
+\ No newline at end of file
 diff --git a/lib/nohighlight.js b/lib/nohighlight.js
-index 2900c920802ded27cee370e75522673cbcbaa4dc..35adb87ffe9bae42a7385687c921ef30990b2e90 100644
+index 2900c920802ded27cee370e75522673cbcbaa4dc..4c794ecaf833a66aeb0252ecf856a00c44b66a4a 100644
 --- a/lib/nohighlight.js
 +++ b/lib/nohighlight.js
-@@ -28,15 +28,25 @@ Object.keys(_Props).forEach(function (key) {
+@@ -28,15 +28,35 @@ Object.keys(_Props).forEach(function (key) {
      }
    });
  });
@@ -341,13 +406,22 @@ index 2900c920802ded27cee370e75522673cbcbaa4dc..35adb87ffe9bae42a7385687c921ef30
 +    return (0, _rehypePlugins.rehypeRewriteHandle)((_props$disableCopy = props.disableCopy) !== null && _props$disableCopy !== void 0 ? _props$disableCopy : false, props.rehypeRewrite);
 +  }, [props.disableCopy, props.rehypeRewrite]);
 +  // Q-01: 稳定插件数组
++  // A-07 管线顺序（严格，不可随意调整）：
++  //   1. pipeline.prepend    — 用户自定义前缀插件（A-03 OCP）
++  //   2. reservedMeta        — 保留元数据
++  //   3. retrieveMeta        — 恢复元数据
++  //   4. defaultRehypePlugins — slug/headings/ignore
++  //   5. rehypeRewrite       — AST 重写（代码复制按钮）
++  //   6. rehypeAttrs         — 属性转换
++  //   7. props.rehypePlugins — 用户自定义插件
++  //   8. pipeline.append     — 用户自定义后缀插件（A-03 OCP）
 +  var rehypePlugins = _react["default"].useMemo(function () {
-+    return [_reservedMeta.reservedMeta, _retrieveMeta.retrieveMeta].concat((0, _toConsumableArray2["default"])(_rehypePlugins.defaultRehypePlugins), [[_rehypeRewrite["default"], {
++    return (0, _toConsumableArray2["default"])(props.pipeline?.prepend ?? []).concat([_reservedMeta.reservedMeta, _retrieveMeta.retrieveMeta], (0, _toConsumableArray2["default"])(_rehypePlugins.defaultRehypePlugins), [[_rehypeRewrite["default"], {
 +      rewrite: rewriteFn
 +    }], [_rehypeAttr["default"], {
 +      properties: 'attr'
-+    }]], (0, _toConsumableArray2["default"])(props.rehypePlugins ?? []));
-+  }, [rewriteFn, props.rehypePlugins]);
++    }]], (0, _toConsumableArray2["default"])(props.rehypePlugins ?? []), (0, _toConsumableArray2["default"])(props.pipeline?.append ?? []));
++  }, [rewriteFn, props.rehypePlugins, props.pipeline]);
    return /*#__PURE__*/(0, _jsxRuntime.jsx)(_preview["default"], (0, _objectSpread2["default"])((0, _objectSpread2["default"])({}, props), {}, {
      rehypePlugins: rehypePlugins,
      ref: ref
@@ -355,8 +429,10 @@ index 2900c920802ded27cee370e75522673cbcbaa4dc..35adb87ffe9bae42a7385687c921ef30
  });
 +NoHighlightMarkdown.displayName = 'NoHighlightMarkdown';
 +var _default = exports["default"] = NoHighlightMarkdown;
++
+\ No newline at end of file
 diff --git a/lib/rehypePlugins.js b/lib/rehypePlugins.js
-index e853c646805ac8647734f818366e1e7e64db3257..a8367fdb8fbae655bbde0dcd9a32b0e882c147bf 100644
+index e853c646805ac8647734f818366e1e7e64db3257..7c21b2383474764d381284e277645ac7d2112d26 100644
 --- a/lib/rehypePlugins.js
 +++ b/lib/rehypePlugins.js
 @@ -12,22 +12,43 @@ var _rehypeIgnore = _interopRequireDefault(require("rehype-ignore"));
@@ -412,13 +488,24 @@ index e853c646805ac8647734f818366e1e7e64db3257..a8367fdb8fbae655bbde0dcd9a32b0e8
  var defaultRehypePlugins = exports.defaultRehypePlugins = [_rehypeSlug["default"], _rehypeAutolinkHeadings["default"], _rehypeIgnore["default"]];
 \ No newline at end of file
 diff --git a/src/Props.tsx b/src/Props.tsx
-index ac09f1f3800701698c5cabbdfa8401ec8e0d03f0..43ceefef6df9ba1bfbb15c0ead663502a19ceaf9 100644
+index ac09f1f3800701698c5cabbdfa8401ec8e0d03f0..9b07d1c6134d7b227a6e81ba45267162ebab9b1d 100644
 --- a/src/Props.tsx
 +++ b/src/Props.tsx
-@@ -2,28 +2,82 @@ import { type Options } from 'react-markdown';
+@@ -2,28 +2,98 @@ import { type Options } from 'react-markdown';
  import { type RehypeRewriteOptions } from 'rehype-rewrite';
  import { type PluggableList } from 'unified';
  
++/**
++ * 管线配置接口（A-03 OCP 修复）。
++ * 允许在默认管线的头部/尾部插入自定义插件，无需修改源码。
++ */
++export interface PipelineConfig {
++  /** 在默认管线之前插入（reservedMeta 之前） */
++  prepend?: PluggableList;
++  /** 在默认管线之后追加（rehypePrism 之后 / nohighlight 最后默认插件之后） */
++  append?: PluggableList;
++}
++
 +/**
 + * MarkdownPreview 组件属性。
 + *
@@ -487,6 +574,11 @@ index ac09f1f3800701698c5cabbdfa8401ec8e0d03f0..43ceefef6df9ba1bfbb15c0ead663502
 +   * 仅在完全信任输入源时使用。请勿用于渲染用户提交的 Markdown 内容。
 +   */
    rehypeRewrite?: RehypeRewriteOptions['rewrite'];
++  /**
++   * 管线配置（A-03 OCP 修复）。
++   * 允许在默认插件管线的头部/尾部插入自定义插件，无需修改源码。
++   */
++  pipeline?: PipelineConfig;
  }
  
 +/**
@@ -501,7 +593,7 @@ index ac09f1f3800701698c5cabbdfa8401ec8e0d03f0..43ceefef6df9ba1bfbb15c0ead663502
    mdp: React.RefObject<HTMLDivElement>;
  }
 diff --git a/src/common.tsx b/src/common.tsx
-index ae82392eaecd9a3d2130a7ba9648eeab82c74d39..88bcb48c4f966e7f034207d7dd64ac28b8b890f8 100644
+index ae82392eaecd9a3d2130a7ba9648eeab82c74d39..027d1a2643deaa00c7538b2ffa6733d322543702 100644
 --- a/src/common.tsx
 +++ b/src/common.tsx
 @@ -1,4 +1,4 @@
@@ -510,9 +602,15 @@ index ae82392eaecd9a3d2130a7ba9648eeab82c74d39..88bcb48c4f966e7f034207d7dd64ac28
  import rehypePrism from 'rehype-prism-plus/common';
  import type { PluggableList } from 'unified';
  import rehypeRewrite from 'rehype-rewrite';
-@@ -12,16 +12,30 @@ import type { MarkdownPreviewProps, MarkdownPreviewRef } from './Props';
+@@ -8,20 +8,45 @@ import MarkdownPreview from './preview';
+ import { reservedMeta } from './plugins/reservedMeta';
+ import { retrieveMeta } from './plugins/retrieveMeta';
+ import { rehypeRewriteHandle, defaultRehypePlugins } from './rehypePlugins';
+-import type { MarkdownPreviewProps, MarkdownPreviewRef } from './Props';
++import type { MarkdownPreviewProps, MarkdownPreviewRef, PipelineConfig } from './Props';
  
- export * from './Props';
+-export * from './Props';
++export type { MarkdownPreviewProps, MarkdownPreviewRef, PipelineConfig } from './Props';
  
 -export default React.forwardRef<MarkdownPreviewRef, MarkdownPreviewProps>((props, ref) => {
 -  const rehypePlugins: PluggableList = [
@@ -525,10 +623,20 @@ index ae82392eaecd9a3d2130a7ba9648eeab82c74d39..88bcb48c4f966e7f034207d7dd64ac28
 +  );
 +
 +  // Q-01: 稳定插件数组，仅在依赖变化时重建
-+  // 插件顺序（严格，不可随意调整）：
-+  //   reservedMeta → raw(HTML解析) → retrieveMeta → defaults(slug/headings/ignore) → rewrite → attrs → user → prism(代码高亮)
++  // A-07 管线顺序（严格，不可随意调整）：
++  //   1. pipeline.prepend    — 用户自定义前缀插件（A-03 OCP）
++  //   2. reservedMeta        — 保留元数据
++  //   3. rehypeRaw           — HTML 解析
++  //   4. retrieveMeta        — 恢复元数据
++  //   5. defaultRehypePlugins — slug/headings/ignore
++  //   6. rehypeRewrite       — AST 重写（代码复制按钮）
++  //   7. rehypeAttrs         — 属性转换
++  //   8. props.rehypePlugins — 用户自定义插件
++  //   9. rehypePrism         — 代码语法高亮
++  //  10. pipeline.append     — 用户自定义后缀插件（A-03 OCP）
 +  // 注意：preview.tsx 在 skipHtml=false 时也会 push raw，可能导致双重 rehype-raw 执行（Q-04）
 +  const rehypePlugins: PluggableList = useMemo(() => [
++    ...(props.pipeline?.prepend ?? []),
      reservedMeta,
      rehypeRaw,
      retrieveMeta,
@@ -540,14 +648,15 @@ index ae82392eaecd9a3d2130a7ba9648eeab82c74d39..88bcb48c4f966e7f034207d7dd64ac28
 +    ...(props.rehypePlugins ?? []),
      [rehypePrism, { ignoreMissing: true }],
 -  ];
-+  ], [rewriteFn, props.rehypePlugins]);
++    ...(props.pipeline?.append ?? []),
++  ], [rewriteFn, props.rehypePlugins, props.pipeline]);
 +
    return <MarkdownPreview {...props} rehypePlugins={rehypePlugins} ref={ref} />;
  });
 +MarkdownPreviewHighlighted.displayName = 'MarkdownPreviewHighlighted';
 +export default MarkdownPreviewHighlighted;
 diff --git a/src/nohighlight.tsx b/src/nohighlight.tsx
-index d3f895c767d4c04442a953e60afa3fc371a1aaca..72af245c01209de1e2ae3dde086bbcfa7ae85215 100644
+index d3f895c767d4c04442a953e60afa3fc371a1aaca..5a272d3fa7e2a30814d5e6f4a303a872be44cd81 100644
 --- a/src/nohighlight.tsx
 +++ b/src/nohighlight.tsx
 @@ -1,4 +1,4 @@
@@ -556,9 +665,15 @@ index d3f895c767d4c04442a953e60afa3fc371a1aaca..72af245c01209de1e2ae3dde086bbcfa
  import MarkdownPreview from './preview';
  import { type PluggableList } from 'unified';
  import rehypeRewrite from 'rehype-rewrite';
-@@ -10,14 +10,26 @@ import type { MarkdownPreviewProps, MarkdownPreviewRef } from './Props';
+@@ -6,18 +6,40 @@ import rehypeAttrs from 'rehype-attr';
+ import { reservedMeta } from './plugins/reservedMeta';
+ import { retrieveMeta } from './plugins/retrieveMeta';
+ import { rehypeRewriteHandle, defaultRehypePlugins } from './rehypePlugins';
+-import type { MarkdownPreviewProps, MarkdownPreviewRef } from './Props';
++import type { MarkdownPreviewProps, MarkdownPreviewRef, PipelineConfig } from './Props';
  
- export * from './Props';
+-export * from './Props';
++export type { MarkdownPreviewProps, MarkdownPreviewRef, PipelineConfig } from './Props';
  
 -export default React.forwardRef<MarkdownPreviewRef, MarkdownPreviewProps>((props, ref) => {
 -  const rehypePlugins: PluggableList = [
@@ -571,8 +686,17 @@ index d3f895c767d4c04442a953e60afa3fc371a1aaca..72af245c01209de1e2ae3dde086bbcfa
 +  );
 +
 +  // Q-01: 稳定插件数组，仅在依赖变化时重建
-+  // 插件顺序（严格）：reservedMeta → retrieveMeta → defaults(slug/headings/ignore) → rewrite → attrs → user
++  // A-07 管线顺序（严格，不可随意调整）：
++  //   1. pipeline.prepend    — 用户自定义前缀插件（A-03 OCP）
++  //   2. reservedMeta        — 保留元数据
++  //   3. retrieveMeta        — 恢复元数据
++  //   4. defaultRehypePlugins — slug/headings/ignore
++  //   5. rehypeRewrite       — AST 重写（代码复制按钮）
++  //   6. rehypeAttrs         — 属性转换
++  //   7. props.rehypePlugins — 用户自定义插件
++  //   8. pipeline.append     — 用户自定义后缀插件（A-03 OCP）
 +  const rehypePlugins: PluggableList = useMemo(() => [
++    ...(props.pipeline?.prepend ?? []),
      reservedMeta,
      retrieveMeta,
      ...defaultRehypePlugins,
@@ -582,14 +706,15 @@ index d3f895c767d4c04442a953e60afa3fc371a1aaca..72af245c01209de1e2ae3dde086bbcfa
 -    ...(props.rehypePlugins || []),
 -  ];
 +    ...(props.rehypePlugins ?? []),
-+  ], [rewriteFn, props.rehypePlugins]);
++    ...(props.pipeline?.append ?? []),
++  ], [rewriteFn, props.rehypePlugins, props.pipeline]);
 +
    return <MarkdownPreview {...props} rehypePlugins={rehypePlugins} ref={ref} />;
  });
 +NoHighlightMarkdown.displayName = 'NoHighlightMarkdown';
 +export default NoHighlightMarkdown;
 diff --git a/src/rehypePlugins.tsx b/src/rehypePlugins.tsx
-index 680ce6aa2702fee9bcd0ab6b24b62756d4f59f87..fb7cbe2f2d563a365022f214bf14e6e659ee13bb 100644
+index 680ce6aa2702fee9bcd0ab6b24b62756d4f59f87..fab230583c65126e9bcf01898da629cc6b2ce328 100644
 --- a/src/rehypePlugins.tsx
 +++ b/src/rehypePlugins.tsx
 @@ -7,21 +7,48 @@ import type { Root, Element, RootContent } from 'hast';
