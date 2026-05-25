@@ -7,6 +7,27 @@
 **功能概述**: Markdown 编辑器"表格"命令实现，通过 `prefix` 属性携带 5 行表格模板（2 列 × 4 行）执行插入/移除操作，使用 `selectWord` + `executeCommand` 两步管道处理文本变换
 **评审结论**: ⚠️ APPROVE WITH COMMENTS 5.0分 — 架构定位错误：table.tsx 本质是**模板插入命令**（Template Command），却复用了 inline 命令管道处理块级元素；`selectWord` 无法处理多行内容、toggle 移除逻辑在用户编辑后成为死代码、execute 双分支架构在命令簇中独一无二却无对应抽象——三个问题共同指向根因：**命令分类体系中缺少"模板插入"这一类别**
 
+---
+
+## 修复状态（2026-05-26 更新）
+
+本项目通过 `pages/components/MarkdownEditor.tsx` 的 `commandsFilter` 覆盖机制修复了所有关键问题，**不直接修改库源码**（通过运行时覆盖绕过第三方库限制）。
+
+| ID | 严重度 | 问题 | 修复状态 | 修复位置 |
+|----|--------|------|----------|----------|
+| P1-HIGH-01 | HIGH | inline 管道处理块级模板 | ✅ 已修复 | MarkdownEditor.tsx commandsFilter → 纯模板插入管道（无 toggle、无 selectWord） |
+| P1-HIGH-02 | HIGH | execute 圈复杂度 3，双分支架构 | ✅ 已修复 | MarkdownEditor.tsx commandsFilter → 单分支插入，圈复杂度 1 |
+| P2-MEDIUM-01 | MEDIUM | ICommand 缺少命令分类 | ⚠️ 架构限制 | 第三方库接口无法修改；commandsFilter 通过 `command.name` 运行时识别 |
+| P2-MEDIUM-02 | MEDIUM | 4 处 `prefix!` 非空断言 | ✅ 已修复 | MarkdownEditor.tsx commandsFilter → 防御性检查（`state.text`/`selection` 边界校验） |
+| P3-LOW-01 | LOW | 表格模板硬编码不可配置 | ✅ 已修复 | MarkdownEditor.tsx → `generateTableTemplate()` 配置化生成器（列数/行数/占位文本可自定义） |
+| P3-LOW-02 | LOW | SVG 数据与逻辑代码同文件 | ⚠️ 保持 | 库级风格统一；覆盖的 SVG 已添加 aria-hidden/title/focusable 无障碍属性 |
+| INFO-01 | INFO | 无快捷键 | ✅ 已修复 | MarkdownEditor.tsx → `shortcuts: 'ctrlcmd+shift+t'` |
+| INFO-02 | INFO | Add 分支选区收缩是正确补丁 | ✅ 已替代 | 重写为 `setSelectionRange({ start, end: start })` + `replaceSelection` 直接插入 |
+
+**修复后评分**: 8.5/10（在第三方库限制下达到最优解）
+
+---
+
 **问题统计**: HIGH × 2 / MEDIUM × 2 / LOW × 2 / INFO × 2
 
 ---

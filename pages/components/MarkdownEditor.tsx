@@ -93,6 +93,41 @@ const SIZE_HEIGHT_MAP: Record<EditorSize, number> = {
 const HELP_URL = 'https://www.markdownguide.org/basic-syntax/';
 const HELP_WINDOW_FEATURES = 'noopener,noreferrer';
 
+// ARCH-P3-LOW-01: 表格模板配置化生成器——支持自定义列数、行数、占位文本
+interface TableTemplateConfig {
+  /** 列数，默认 2 */
+  columns: number;
+  /** 数据行数（不含表头），默认 3 */
+  rows: number;
+  /** 表头占位文本，默认 '表头' */
+  headerPlaceholder: string;
+  /** 单元格占位文本，默认 '内容' */
+  cellPlaceholder: string;
+}
+
+const DEFAULT_TABLE_CONFIG: TableTemplateConfig = {
+  columns: 2,
+  rows: 3,
+  headerPlaceholder: '表头',
+  cellPlaceholder: '内容',
+};
+
+function generateTableTemplate(config: Partial<TableTemplateConfig> = {}): string {
+  const { columns, rows, headerPlaceholder, cellPlaceholder } = {
+    ...DEFAULT_TABLE_CONFIG,
+    ...config,
+  };
+  const safeColumns = Math.max(1, Math.min(columns, 20));
+  const safeRows = Math.max(1, Math.min(rows, 50));
+
+  const header = '| ' + ` ${headerPlaceholder} |`.repeat(safeColumns).trimStart();
+  const separator = '| ' + '------|'.repeat(safeColumns).trimStart();
+  const dataRow = '| ' + ` ${cellPlaceholder} |`.repeat(safeColumns).trimStart();
+
+  const bodyLines = Array(safeRows).fill(dataRow);
+  return '\n' + [header, separator, ...bodyLines].join('\n') + '\n';
+}
+
 // REQ-4: Error Boundary 防止 Markdown 渲染崩溃导致页面白屏
 interface EditorErrorBoundaryState {
   hasError: boolean;
@@ -625,8 +660,8 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
               const safeStart = Math.max(0, Math.min(selection.start, text.length));
               if (safeStart > (selection.end ?? safeStart)) return;
 
-              // 中文模板（UI-P3: 占位文本中文化）
-              const TABLE_TEMPLATE = '\n| 表头 | 表头 |\n|------|------|\n| 内容 | 内容 |\n| 内容 | 内容 |\n| 内容 | 内容 |\n';
+              // ARCH-P3-LOW-01: 使用配置化模板生成器（默认 2 列 3 行中文占位）
+              const TABLE_TEMPLATE = generateTableTemplate();
 
               // 检测光标是否在表格行内 → 插入前加空行分隔
               const lineStart = text.lastIndexOf('\n', safeStart - 1) + 1;
