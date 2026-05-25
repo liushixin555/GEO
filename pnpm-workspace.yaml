@@ -10,3 +10,5 @@ onlyBuiltDependencies:
   - '@scarf/scarf'
   - esbuild
   - prisma
+patchedDependencies:
+  '@uiw/react-md-editor@4.1.0': patches/@uiw__react-md-editor@4.1.0.patch

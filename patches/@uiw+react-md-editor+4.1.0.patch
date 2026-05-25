@@ -84,6 +84,76 @@ index 18a2a64..324f28b 100644
 +  defaultTabEnable: true
  });
 \ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/esm/commands/preview.js b/node_modules/@uiw/react-md-editor/esm/commands/preview.js
+index 114d987..2b16b6a 100644
+--- a/node_modules/@uiw/react-md-editor/esm/commands/preview.js
++++ b/node_modules/@uiw/react-md-editor/esm/commands/preview.js
+@@ -13,6 +13,8 @@ export var codePreview = {
+     width: "12",
+     height: "12",
+     viewBox: "0 0 520 520",
++    role: "img",
++    "aria-hidden": "true",
+     children: [/*#__PURE__*/_jsx("polygon", {
+       fill: "currentColor",
+       points: "0 71.293 0 122 38.023 123 38.023 398 0 397 0 449.707 91.023 450.413 91.023 72.293"
+@@ -21,9 +23,9 @@ export var codePreview = {
+       points: "148.023 72.293 520 71.293 520 122 200.023 124 200.023 397 520 396 520 449.707 148.023 450.413"
+     })]
+   }),
+-  execute: (state, api, dispatch, executeCommandState, shortcuts) => {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
++  execute: (_state, api, dispatch, _executeCommandState, shortcuts) => {
++    api.textArea?.focus();
++    if (shortcuts && dispatch && _executeCommandState) {
+       dispatch({
+         preview: 'preview'
+       });
+@@ -43,6 +45,8 @@ export var codeEdit = {
+     width: "12",
+     height: "12",
+     viewBox: "0 0 520 520",
++    role: "img",
++    "aria-hidden": "true",
+     children: [/*#__PURE__*/_jsx("polygon", {
+       fill: "currentColor",
+       points: "0 71.293 0 122 319 122 319 397 0 397 0 449.707 372 449.413 372 71.293"
+@@ -51,9 +55,9 @@ export var codeEdit = {
+       points: "429 71.293 520 71.293 520 122 481 123 481 396 520 396 520 449.707 429 449.413"
+     })]
+   }),
+-  execute: (state, api, dispatch, executeCommandState, shortcuts) => {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
++  execute: (_state, api, dispatch, _executeCommandState, shortcuts) => {
++    api.textArea?.focus();
++    if (shortcuts && dispatch && _executeCommandState) {
+       dispatch({
+         preview: 'edit'
+       });
+@@ -73,6 +77,8 @@ export var codeLive = {
+     width: "12",
+     height: "12",
+     viewBox: "0 0 520 520",
++    role: "img",
++    "aria-hidden": "true",
+     children: [/*#__PURE__*/_jsx("polygon", {
+       fill: "currentColor",
+       points: "0 71.293 0 122 179 122 179 397 0 397 0 449.707 232 449.413 232 71.293"
+@@ -81,9 +87,9 @@ export var codeLive = {
+       points: "289 71.293 520 71.293 520 122 341 123 341 396 520 396 520 449.707 289 449.413"
+     })]
+   }),
+-  execute: (state, api, dispatch, executeCommandState, shortcuts) => {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
++  execute: (_state, api, dispatch, _executeCommandState, shortcuts) => {
++    api.textArea?.focus();
++    if (shortcuts && dispatch && _executeCommandState) {
+       dispatch({
+         preview: 'live'
+       });
 diff --git a/node_modules/@uiw/react-md-editor/lib/Context.d.ts b/node_modules/@uiw/react-md-editor/lib/Context.d.ts
 index ede0897..7efd760 100644
 --- a/node_modules/@uiw/react-md-editor/lib/Context.d.ts
@@ -125,7 +195,7 @@ index ede0897..7efd760 100644
 +export declare function reducer(state: ContextStore, action: ContextStore): ContextStore;
  export declare const EditorContext: React.Context<ContextStore>;
 diff --git a/node_modules/@uiw/react-md-editor/lib/Context.js b/node_modules/@uiw/react-md-editor/lib/Context.js
-index 375c783..3ebaa5a 100644
+index 375c783..eb9c3b8 100644
 --- a/node_modules/@uiw/react-md-editor/lib/Context.js
 +++ b/node_modules/@uiw/react-md-editor/lib/Context.js
 @@ -8,9 +8,39 @@ exports.EditorContext = void 0;
@@ -170,6 +240,77 @@ index 375c783..3ebaa5a 100644
 +  tabSize: 2,
 +  defaultTabEnable: true
  });
+\ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/lib/commands/preview.js b/node_modules/@uiw/react-md-editor/lib/commands/preview.js
+index 4e3e225..b7072d4 100644
+--- a/node_modules/@uiw/react-md-editor/lib/commands/preview.js
++++ b/node_modules/@uiw/react-md-editor/lib/commands/preview.js
+@@ -20,6 +20,8 @@ var codePreview = exports.codePreview = {
+     width: "12",
+     height: "12",
+     viewBox: "0 0 520 520",
++    role: "img",
++    "aria-hidden": "true",
+     children: [/*#__PURE__*/(0, _jsxRuntime.jsx)("polygon", {
+       fill: "currentColor",
+       points: "0 71.293 0 122 38.023 123 38.023 398 0 397 0 449.707 91.023 450.413 91.023 72.293"
+@@ -28,9 +30,9 @@ var codePreview = exports.codePreview = {
+       points: "148.023 72.293 520 71.293 520 122 200.023 124 200.023 397 520 396 520 449.707 148.023 450.413"
+     })]
+   }),
+-  execute: function execute(state, api, dispatch, executeCommandState, shortcuts) {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
++  execute: function execute(_state, api, dispatch, _executeCommandState, shortcuts) {
++    api.textArea && api.textArea.focus();
++    if (shortcuts && dispatch && _executeCommandState) {
+       dispatch({
+         preview: 'preview'
+       });
+@@ -50,6 +52,8 @@ var codeEdit = exports.codeEdit = {
+     width: "12",
+     height: "12",
+     viewBox: "0 0 520 520",
++    role: "img",
++    "aria-hidden": "true",
+     children: [/*#__PURE__*/(0, _jsxRuntime.jsx)("polygon", {
+       fill: "currentColor",
+       points: "0 71.293 0 122 319 122 319 397 0 397 0 449.707 372 449.413 372 71.293"
+@@ -58,9 +62,9 @@ var codeEdit = exports.codeEdit = {
+       points: "429 71.293 520 71.293 520 122 481 123 481 396 520 396 520 449.707 429 449.413"
+     })]
+   }),
+-  execute: function execute(state, api, dispatch, executeCommandState, shortcuts) {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
++  execute: function execute(_state, api, dispatch, _executeCommandState, shortcuts) {
++    api.textArea && api.textArea.focus();
++    if (shortcuts && dispatch && _executeCommandState) {
+       dispatch({
+         preview: 'edit'
+       });
+@@ -80,6 +84,8 @@ var codeLive = exports.codeLive = {
+     width: "12",
+     height: "12",
+     viewBox: "0 0 520 520",
++    role: "img",
++    "aria-hidden": "true",
+     children: [/*#__PURE__*/(0, _jsxRuntime.jsx)("polygon", {
+       fill: "currentColor",
+       points: "0 71.293 0 122 179 122 179 397 0 397 0 449.707 232 449.413 232 71.293"
+@@ -88,9 +94,9 @@ var codeLive = exports.codeLive = {
+       points: "289 71.293 520 71.293 520 122 341 123 341 396 520 396 520 449.707 289 449.413"
+     })]
+   }),
+-  execute: function execute(state, api, dispatch, executeCommandState, shortcuts) {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
++  execute: function execute(_state, api, dispatch, _executeCommandState, shortcuts) {
++    api.textArea && api.textArea.focus();
++    if (shortcuts && dispatch && _executeCommandState) {
+       dispatch({
+         preview: 'live'
+       });
 diff --git a/node_modules/@uiw/react-md-editor/src/Context.tsx b/node_modules/@uiw/react-md-editor/src/Context.tsx
 index 97ca08f..ab905aa 100644
 --- a/node_modules/@uiw/react-md-editor/src/Context.tsx
@@ -283,6 +424,94 @@ index b9ca7f4..f6b71e2 100644
 +
    return data;
  };
+diff --git a/node_modules/@uiw/react-md-editor/src/commands/preview.tsx b/node_modules/@uiw/react-md-editor/src/commands/preview.tsx
+index f163172..2dc44b2 100644
+--- a/node_modules/@uiw/react-md-editor/src/commands/preview.tsx
++++ b/node_modules/@uiw/react-md-editor/src/commands/preview.tsx
+@@ -9,7 +9,7 @@ export const codePreview: ICommand = {
+   shortcuts: 'ctrlcmd+9',
+   buttonProps: { 'aria-label': 'Preview code (ctrl + 9)', title: 'Preview code (ctrl + 9)' },
+   icon: (
+-    <svg width="12" height="12" viewBox="0 0 520 520">
++    <svg width="12" height="12" viewBox="0 0 520 520" role="img" aria-hidden="true">
+       <polygon
+         fill="currentColor"
+         points="0 71.293 0 122 38.023 123 38.023 398 0 397 0 449.707 91.023 450.413 91.023 72.293"
+@@ -21,14 +21,14 @@ export const codePreview: ICommand = {
+     </svg>
+   ),
+   execute: (
+-    state: TextState,
++    _state: TextState,
+     api: TextAreaTextApi,
+     dispatch?: React.Dispatch<ContextStore>,
+-    executeCommandState?: ExecuteCommandState,
++    _executeCommandState?: ExecuteCommandState,
+     shortcuts?: string[],
+   ) => {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
++    api.textArea?.focus();
++    if (shortcuts && dispatch && _executeCommandState) {
+       dispatch({ preview: 'preview' });
+     }
+   },
+@@ -41,7 +41,7 @@ export const codeEdit: ICommand = {
+   shortcuts: 'ctrlcmd+7',
+   buttonProps: { 'aria-label': 'Edit code (ctrl + 7)', title: 'Edit code (ctrl + 7)' },
+   icon: (
+-    <svg width="12" height="12" viewBox="0 0 520 520">
++    <svg width="12" height="12" viewBox="0 0 520 520" role="img" aria-hidden="true">
+       <polygon fill="currentColor" points="0 71.293 0 122 319 122 319 397 0 397 0 449.707 372 449.413 372 71.293" />
+       <polygon
+         fill="currentColor"
+@@ -50,14 +50,14 @@ export const codeEdit: ICommand = {
+     </svg>
+   ),
+   execute: (
+-    state: TextState,
++    _state: TextState,
+     api: TextAreaTextApi,
+     dispatch?: React.Dispatch<ContextStore>,
+-    executeCommandState?: ExecuteCommandState,
++    _executeCommandState?: ExecuteCommandState,
+     shortcuts?: string[],
+   ) => {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
++    api.textArea?.focus();
++    if (shortcuts && dispatch && _executeCommandState) {
+       dispatch({ preview: 'edit' });
+     }
+   },
+@@ -70,7 +70,7 @@ export const codeLive: ICommand = {
+   shortcuts: 'ctrlcmd+8',
+   buttonProps: { 'aria-label': 'Live code (ctrl + 8)', title: 'Live code (ctrl + 8)' },
+   icon: (
+-    <svg width="12" height="12" viewBox="0 0 520 520">
++    <svg width="12" height="12" viewBox="0 0 520 520" role="img" aria-hidden="true">
+       <polygon fill="currentColor" points="0 71.293 0 122 179 122 179 397 0 397 0 449.707 232 449.413 232 71.293" />
+       <polygon
+         fill="currentColor"
+@@ -79,14 +79,14 @@ export const codeLive: ICommand = {
+     </svg>
+   ),
+   execute: (
+-    state: TextState,
++    _state: TextState,
+     api: TextAreaTextApi,
+     dispatch?: React.Dispatch<ContextStore>,
+-    executeCommandState?: ExecuteCommandState,
++    _executeCommandState?: ExecuteCommandState,
+     shortcuts?: string[],
+   ) => {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
++    api.textArea?.focus();
++    if (shortcuts && dispatch && _executeCommandState) {
+       dispatch({ preview: 'live' });
+     }
+   },
 diff --git a/node_modules/@uiw/react-md-editor/src/commands/table.tsx b/node_modules/@uiw/react-md-editor/src/commands/table.tsx
 index a0cc770..d46d53d 100644
 --- a/node_modules/@uiw/react-md-editor/src/commands/table.tsx
