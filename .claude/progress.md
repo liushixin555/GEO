@@ -191,3 +191,4 @@
 | 2026-05-25 | tasks/tdd/app.test.md | app.ts TDD 第六次验证——261用例全通过，100%四维覆盖率确认无回归 |
 | 2026-05-25 | progress_tasks/2026-05-25-common-tsx-architecture-fix.md | common.tsx 架构评审修复——A-03 PipelineConfig OCP接口+A-05 export type显式导出+A-07管线顺序注释，9文件patch更新，251组件测试全通过 |
 | 2026-05-25 | tasks/review/project.controller.ts.md | project.controller.ts 软件架构专家评审——8.0/10（旧版5.7→新版8.0，旧版CRITICAL×2+HIGH×4全修复，H-1 Zod schema长度不一致+M×3+L×3） |
+| 2026-05-25 | tasks/review/title2.tsx.architecture.md | title2.tsx 软件架构专家评审——7.9/10 APPROVE（经典Command Pattern，A-02 ICommand胖接口+A-03 headingExecute具体依赖+A-01模板化DRY权衡） |
