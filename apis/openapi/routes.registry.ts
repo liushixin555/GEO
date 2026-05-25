@@ -8,6 +8,7 @@ import { createArticleSchema, updateArticleSchema, reviewArticleSchema, updateCo
 import { createLlmModelSchema, updateLlmModelSchema } from '../schema/llm-model.schema';
 import { updateSystemConfigsSchema } from '../schema/system-config.schema';
 import { updatePublishingScheduleSchema } from '../schema/publishing-schedule.schema';
+import { listPublishingPlatformsSchema } from '../schema/publishing-platform.schema';
 import {
   listTodosSchema,
   createTodoSchema,
@@ -81,7 +82,7 @@ export const routes: RouteDescriptor[] = [
 
   // ── 发布平台 ────────────────────────────────────────────────
   { method: 'post',   path: '/api/v1/publishing-platforms/sync', summary: '同步发布平台', description: '从资源管理系统同步发布平台数据', tags: ['发布平台'], response: voidR },
-  { method: 'get',    path: '/api/v1/publishing-platforms', summary: '发布平台列表', tags: ['发布平台'], response: list('PublishingPlatform') },
+  { method: 'get',    path: '/api/v1/publishing-platforms', summary: '发布平台列表', description: '支持分页、搜索、分类筛选和排序，无参数时返回全量数据（已废弃，建议使用分页）', tags: ['发布平台'], validate: { schema: listPublishingPlatformsSchema, source: 'query' }, response: list('PublishingPlatform') },
 
   // ── 发布计划 ────────────────────────────────────────────────
   { method: 'get',    path: '/api/v1/publishing-schedule', summary: '发布计划列表', description: '查询文章发布排期列表，admin 仅可见所属公司项目文章，view 仅可见授权项目文章', tags: ['发布计划'], response: list('Article') },

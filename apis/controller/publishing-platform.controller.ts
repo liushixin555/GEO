@@ -3,6 +3,7 @@ import type { IPublishingPlatformService } from '../service/publishing-platform.
 import { PublishingPlatformServiceImpl } from '../service/impl/publishing-platform.service.impl';
 import { BusinessError } from '../errors';
 import { success, fail, paginate } from '../utils';
+import { parsePagination } from '../utils/pagination.util';
 import { logger } from '../utils/logger.util';
 
 const publishingPlatformService: IPublishingPlatformService = new PublishingPlatformServiceImpl();
@@ -11,7 +12,6 @@ const publishingPlatformService: IPublishingPlatformService = new PublishingPlat
 // Entity 另有 id, rmResourceId, remark, createdAt, updatedAt 字段不支持排序
 const VALID_SORT_FIELDS = ['name', 'taxonomy', 'price', 'include_rate', 'publish_rate'];
 const VALID_SORT_ORDERS = ['asc', 'desc'];
-const MAX_PAGE_SIZE = 100;
 const MAX_SEARCH_LENGTH = 100;
 
 let syncLock = false;
@@ -61,10 +61,7 @@ export async function listPublishingPlatforms(req: Request, res: Response): Prom
       return;
     }
 
-    const rawPage = typeof req.query.page === 'string' ? parseInt(req.query.page, 10) : NaN;
-    const rawPageSize = typeof req.query.pageSize === 'string' ? parseInt(req.query.pageSize, 10) : NaN;
-    const page = Number.isNaN(rawPage) || rawPage < 1 ? 1 : rawPage;
-    const pageSize = Number.isNaN(rawPageSize) || rawPageSize < 1 ? 10 : Math.min(rawPageSize, MAX_PAGE_SIZE);
+    const { page, pageSize } = parsePagination(req.query.page, req.query.pageSize);
 
     if (search && search.length > MAX_SEARCH_LENGTH) {
       fail(res, 400, `搜索关键词不能超过${MAX_SEARCH_LENGTH}个字符`);
