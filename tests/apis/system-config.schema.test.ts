@@ -372,6 +372,40 @@ describe('updateSystemConfigsSchema', () => {
       });
       expect(result.success).toBe(false);
     });
+
+    it('应拒绝 config_value 超过10000字符', () => {
+      const result = updateSystemConfigsSchema.safeParse({
+        configs: [{ config_key: 'yishangshu_username', config_value: 'a'.repeat(10001) }],
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0].message).toContain('10000');
+      }
+    });
+
+    it('应拒绝 configs 数组超过50条', () => {
+      const configs = Array.from({ length: 51 }, (_, i) => ({
+        config_key: i % 2 === 0 ? 'yishangshu_username' as const : 'yishangshu_password' as const,
+        config_value: `val_${i}`,
+      }));
+      const result = updateSystemConfigsSchema.safeParse({ configs });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0].message).toContain('50');
+      }
+    });
+
+    it('应接受恰好50条配置', () => {
+      const configs = Array.from({ length: 50 }, (_, i) => ({
+        config_key: i % 2 === 0 ? 'yishangshu_username' as const : 'yishangshu_password' as const,
+        config_value: `val_${i}`,
+      }));
+      const result = updateSystemConfigsSchema.safeParse({ configs });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.configs).toHaveLength(50);
+      }
+    });
   });
 
   // ─── 解析数据结构验证 ──────────────────────────────────

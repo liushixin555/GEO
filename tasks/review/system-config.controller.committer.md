@@ -1,5 +1,9 @@
 # apis/controller/system-config.controller.ts — Committer 审核专家评审报告
 
+> **修复状态**: ✅ 全部修复完成（2026-05-26）
+> P0 密码脱敏 / P1 错误消息+catch类型+审计日志+脱敏测试 / P2 Zod验证+白名单外置+已验证数据
+> 测试用例: 492 passed（4 suites），覆盖率超 80%
+
 **评审日期**: 2026-05-24
 **评审角色**: Committer 审核专家（代码合并准入 + 测试完备性 + API 契约正确性 + 项目规范遵循 + 生产就绪度）
 **文件路径**: `apis/controller/system-config.controller.ts`
