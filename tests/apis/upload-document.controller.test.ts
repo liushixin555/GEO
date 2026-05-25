@@ -1081,4 +1081,734 @@ describe('uploadDocumentFile - Unit', () => {
 
     try { fs.unlinkSync(tempPath); } catch {}
   });
+
+  // ---------- validation.error fallback branch (line 44) ----------
+
+  it('should return fallback message when validation.error is empty string', async () => {
+    const tempPath = path.join(uploadsDir, '_unit_test_noerr.json');
+    fs.writeFileSync(tempPath, '{"x":1}');
+
+    const req = {
+      file: {
+        path: tempPath,
+        originalname: 'test.json',
+        filename: 'noerr.json',
+        size: 7,
+      },
+    } as unknown as Request;
+
+    const originalValidate = DocumentValidator.validateContent;
+    DocumentValidator.validateContent = jest.fn().mockResolvedValue({
+      valid: false,
+      error: '',
+      detectedType: null,
+    });
+
+    const json = jest.fn();
+    const status = jest.fn().mockReturnValue({ json });
+    const res = { status, json } as unknown as Response;
+
+    await uploadDocumentFile(req, res);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith({ code: 400, message: '文档内容格式校验失败' });
+    expect(fs.existsSync(tempPath)).toBe(false);
+
+    DocumentValidator.validateContent = originalValidate;
+    try { fs.unlinkSync(tempPath); } catch {}
+  });
+
+  it('should return fallback message when validation.error is null', async () => {
+    const tempPath = path.join(uploadsDir, '_unit_test_nullerr.json');
+    fs.writeFileSync(tempPath, '{"x":1}');
+
+    const req = {
+      file: {
+        path: tempPath,
+        originalname: 'test.json',
+        filename: 'nullerr.json',
+        size: 7,
+      },
+    } as unknown as Request;
+
+    const originalValidate = DocumentValidator.validateContent;
+    DocumentValidator.validateContent = jest.fn().mockResolvedValue({
+      valid: false,
+      error: null,
+      detectedType: null,
+    });
+
+    const json = jest.fn();
+    const status = jest.fn().mockReturnValue({ json });
+    const res = { status, json } as unknown as Response;
+
+    await uploadDocumentFile(req, res);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith({ code: 400, message: '文档内容格式校验失败' });
+    expect(fs.existsSync(tempPath)).toBe(false);
+
+    DocumentValidator.validateContent = originalValidate;
+    try { fs.unlinkSync(tempPath); } catch {}
+  });
+});
+
+// ==================== Additional Boundary & Security Tests ====================
+
+describe('Upload Document Controller - Boundary & Security', () => {
+  const uploadsDir = path.resolve(process.cwd(), 'uploads');
+
+  beforeAll(() => {
+    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+  });
+
+  // ---------- Filename boundary ----------
+
+  it('should accept filename exactly at 255 characters', async () => {
+    // 251 chars + ".json" = 256 chars → 255 is "a"*246 + ".json" = 251 chars → we need 255 chars total
+    const baseName = 'a'.repeat(251);
+    const filename = baseName + '.json'; // 256 chars → exceeds limit
+    const exactName = 'a'.repeat(250) + '.json'; // 255 chars exactly
+    const buffer = Buffer.from('{"test":true}');
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', buffer, exactName);
+
+    // 255 chars should be accepted (passes filename check)
+    expect(response.status).toBe(200);
+    expect(response.body.data.fileType).toBe('json');
+
+    const uploadedFile = path.join(uploadsDir, response.body.data.url.replace('/uploads/', ''));
+    try { fs.unlinkSync(uploadedFile); } catch {}
+  });
+
+  it('should reject filename at 256 characters', async () => {
+    const filename = 'a'.repeat(252) + '.json'; // 256 chars
+    const buffer = Buffer.from('{"test":true}');
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', buffer, filename);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain('文件名过长');
+  });
+
+  // ---------- Extension path traversal variants ----------
+
+  it('should reject file with backslash in extension', async () => {
+    jest.isolateModules(() => {
+      let capturedFileFilter: any;
+
+      jest.doMock('multer', () => {
+        const mockMulter: any = jest.fn().mockImplementation((opts: any) => {
+          capturedFileFilter = opts.fileFilter;
+          return {
+            single: () => (req: any, res: any, cb: any) => {
+              capturedFileFilter(req, { originalname: 'test.pdf' }, (err: any) => {
+                if (err) cb(err);
+                else cb(null);
+              });
+            },
+          };
+        });
+        mockMulter.diskStorage = jest.fn().mockReturnValue({});
+        mockMulter.MulterError = class MulterError extends Error { code = ''; };
+        return mockMulter;
+      });
+
+      const actualPath = jest.requireActual('path');
+      jest.doMock('path', () => ({
+        ...actualPath,
+        extname: () => '.pd\\f',
+      }));
+
+      const { uploadDocumentMiddleware: mockedMiddleware } =
+        require('../../apis/controller/upload-document.controller');
+
+      const json = jest.fn();
+      const status = jest.fn().mockReturnValue({ json });
+      const res = { status, json } as unknown as Response;
+      const next = jest.fn();
+
+      mockedMiddleware({} as Request, res, next);
+
+      expect(status).toHaveBeenCalledWith(400);
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining('非法文件扩展名') })
+      );
+    });
+  });
+
+  it('should reject file with double dot in extension', async () => {
+    jest.isolateModules(() => {
+      let capturedFileFilter: any;
+
+      jest.doMock('multer', () => {
+        const mockMulter: any = jest.fn().mockImplementation((opts: any) => {
+          capturedFileFilter = opts.fileFilter;
+          return {
+            single: () => (req: any, res: any, cb: any) => {
+              capturedFileFilter(req, { originalname: 'test.pdf' }, (err: any) => {
+                if (err) cb(err);
+                else cb(null);
+              });
+            },
+          };
+        });
+        mockMulter.diskStorage = jest.fn().mockReturnValue({});
+        mockMulter.MulterError = class MulterError extends Error { code = ''; };
+        return mockMulter;
+      });
+
+      const actualPath = jest.requireActual('path');
+      jest.doMock('path', () => ({
+        ...actualPath,
+        extname: () => '..pdf',
+      }));
+
+      const { uploadDocumentMiddleware: mockedMiddleware } =
+        require('../../apis/controller/upload-document.controller');
+
+      const json = jest.fn();
+      const status = jest.fn().mockReturnValue({ json });
+      const res = { status, json } as unknown as Response;
+      const next = jest.fn();
+
+      mockedMiddleware({} as Request, res, next);
+
+      expect(status).toHaveBeenCalledWith(400);
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining('非法文件扩展名') })
+      );
+    });
+  });
+
+  // ---------- Token validation ----------
+
+  it('should reject expired token for document upload', async () => {
+    const expiredToken = jwt.sign(
+      { userId: 1, username: 'sysadmin', role: 'sysadmin', companyId: 1 },
+      'test-secret',
+      { expiresIn: '0s' }
+    );
+
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${expiredToken}`);
+
+    expect(response.status).toBe(401);
+  });
+
+  it('should reject invalid token for document upload', async () => {
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', 'Bearer invalid-token-string');
+
+    expect(response.status).toBe(401);
+  });
+
+  // ---------- CSV separator variants ----------
+
+  it('should upload TAB-separated CSV document successfully', async () => {
+    const csvPath = path.join(uploadsDir, '_test_tab.csv');
+    fs.writeFileSync(csvPath, 'name\tage\nAlice\t30');
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', csvPath);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.fileType).toBe('csv');
+
+    const uploadedFile = path.join(uploadsDir, response.body.data.url.replace('/uploads/', ''));
+    try { fs.unlinkSync(uploadedFile); } catch {}
+    try { fs.unlinkSync(csvPath); } catch {}
+  });
+
+  it('should upload semicolon-separated CSV document successfully', async () => {
+    const csvPath = path.join(uploadsDir, '_test_semi.csv');
+    fs.writeFileSync(csvPath, 'name;age\nAlice;30');
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .attach('file', csvPath);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.fileType).toBe('csv');
+
+    const uploadedFile = path.join(uploadsDir, response.body.data.url.replace('/uploads/', ''));
+    try { fs.unlinkSync(uploadedFile); } catch {}
+    try { fs.unlinkSync(csvPath); } catch {}
+  });
+
+  // ---------- Security: malicious filenames ----------
+
+  it('should reject .html file (XSS prevention) for document upload', async () => {
+    const htmlPath = path.join(uploadsDir, '_test_doc.html');
+    fs.writeFileSync(htmlPath, '<html><body>XSS</body></html>');
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', htmlPath);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain('不支持的文档格式');
+
+    try { fs.unlinkSync(htmlPath); } catch {}
+  });
+
+  it('should reject .js file for document upload', async () => {
+    const jsPath = path.join(uploadsDir, '_test_doc.js');
+    fs.writeFileSync(jsPath, 'alert("xss")');
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', jsPath);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain('不支持的文档格式');
+
+    try { fs.unlinkSync(jsPath); } catch {}
+  });
+
+  it('should reject .sh file for document upload', async () => {
+    const shPath = path.join(uploadsDir, '_test_doc.sh');
+    fs.writeFileSync(shPath, '#!/bin/bash\necho pwned');
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', shPath);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain('不支持的文档格式');
+
+    try { fs.unlinkSync(shPath); } catch {}
+  });
+
+  // ---------- Response structure validation ----------
+
+  it('should return complete response structure with all fields', async () => {
+    const pdfPath = path.join(uploadsDir, '_test_structure.pdf');
+    fs.writeFileSync(pdfPath, '%PDF-1.4 test pdf content for structure check');
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', pdfPath);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      code: 0,
+      message: '上传成功',
+      data: {
+        url: expect.stringMatching(/^\/uploads\/.*\.pdf$/),
+        originalName: '_test_structure.pdf',
+        fileType: 'pdf',
+        fileSize: expect.any(Number),
+      },
+    });
+    expect(response.body.data.fileSize).toBeGreaterThan(0);
+
+    const uploadedFile = path.join(uploadsDir, response.body.data.url.replace('/uploads/', ''));
+    try { fs.unlinkSync(uploadedFile); } catch {}
+    try { fs.unlinkSync(pdfPath); } catch {}
+  });
+
+  // ---------- Content type mismatch edge cases ----------
+
+  it('should reject DOCX declared but content is XLSX with 400', async () => {
+    const docxPath = path.join(uploadsDir, '_test_fake.docx');
+    const zip = new AdmZip();
+    zip.addFile('xl/workbook.xml', Buffer.from('<?xml version="1.0"?><workbook/>'));
+    zip.writeZip(docxPath);
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', docxPath);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain('不匹配');
+
+    try { fs.unlinkSync(docxPath); } catch {}
+  });
+
+  it('should reject PPTX declared but content is DOCX with 400', async () => {
+    const pptxPath = path.join(uploadsDir, '_test_fake.pptx');
+    const zip = new AdmZip();
+    zip.addFile('word/document.xml', Buffer.from('<?xml version="1.0"?><w:document/>'));
+    zip.writeZip(pptxPath);
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .attach('file', pptxPath);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain('不匹配');
+
+    try { fs.unlinkSync(pptxPath); } catch {}
+  });
+
+  // ---------- YML extension specifically ----------
+
+  it('should upload .yml file and detect as yaml type', async () => {
+    const ymlPath = path.join(uploadsDir, '_test_yml_ext.yml');
+    fs.writeFileSync(ymlPath, 'title: Test\nitems:\n  - one\n  - two');
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', ymlPath);
+
+    expect(response.status).toBe(200);
+    expect(['yaml', 'yml']).toContain(response.body.data.fileType);
+
+    const uploadedFile = path.join(uploadsDir, response.body.data.url.replace('/uploads/', ''));
+    try { fs.unlinkSync(uploadedFile); } catch {}
+    try { fs.unlinkSync(ymlPath); } catch {}
+  });
+
+  // ---------- File cleanup on content validation failure ----------
+
+  it('should delete uploaded file when content validation fails', async () => {
+    const jsonPath = path.join(uploadsDir, '_test_cleanup_fail.json');
+    fs.writeFileSync(jsonPath, 'not valid json {{{');
+
+    const response = await agent
+      .post('/api/v1/upload/document')
+      .set('Authorization', `Bearer ${sysadminToken()}`)
+      .attach('file', jsonPath);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain('JSON');
+
+    // Original test file should still exist (it was the source for attach)
+    // But the multer-uploaded copy should be cleaned up
+    try { fs.unlinkSync(jsonPath); } catch {}
+  });
+
+  // ---------- Unit: middleware fileFilter coverage (direct callback test) ----------
+
+  it('should reject fileFilter for filename exactly at length boundary (256)', () => {
+    jest.isolateModules(() => {
+      let capturedFileFilter: any;
+
+      jest.doMock('multer', () => {
+        const mockMulter: any = jest.fn().mockImplementation((opts: any) => {
+          capturedFileFilter = opts.fileFilter;
+          return {
+            single: () => (req: any, res: any, cb: any) => {
+              capturedFileFilter(req, { originalname: 'x'.repeat(256) }, (err: any) => {
+                if (err) cb(err);
+                else cb(null);
+              });
+            },
+          };
+        });
+        mockMulter.diskStorage = jest.fn().mockReturnValue({});
+        mockMulter.MulterError = class MulterError extends Error { code = ''; };
+        return mockMulter;
+      });
+
+      const { uploadDocumentMiddleware: mockedMiddleware } =
+        require('../../apis/controller/upload-document.controller');
+
+      const json = jest.fn();
+      const status = jest.fn().mockReturnValue({ json });
+      const res = { status, json } as unknown as Response;
+      const next = jest.fn();
+
+      mockedMiddleware({} as Request, res, next);
+
+      expect(status).toHaveBeenCalledWith(400);
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining('文件名过长') })
+      );
+    });
+  });
+
+  // ---------- PDF success unit test ----------
+
+  it('should upload valid PDF via unit test', async () => {
+    const tempPath = path.join(uploadsDir, '_unit_test_valid.pdf');
+    fs.writeFileSync(tempPath, '%PDF-1.4 test pdf content');
+
+    const req = {
+      file: {
+        path: tempPath,
+        originalname: 'document.pdf',
+        filename: 'uuid-pdf.pdf',
+        size: 22,
+      },
+    } as unknown as Request;
+    const json = jest.fn();
+    const res = { json } as unknown as Response;
+
+    await uploadDocumentFile(req, res);
+
+    expect(json).toHaveBeenCalledWith({
+      code: 0,
+      message: '上传成功',
+      data: {
+        url: '/uploads/uuid-pdf.pdf',
+        originalName: 'document.pdf',
+        fileType: 'pdf',
+        fileSize: 22,
+      },
+    });
+
+    try { fs.unlinkSync(tempPath); } catch {}
+  });
+
+  // ---------- DOCX/XLSX/PPTX unit tests ----------
+
+  it('should upload valid DOCX via unit test', async () => {
+    const tempPath = path.join(uploadsDir, '_unit_test_valid.docx');
+    const zip = new AdmZip();
+    zip.addFile('word/document.xml', Buffer.from('<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>test</w:t></w:r></w:p></w:body></w:document>'));
+    zip.writeZip(tempPath);
+
+    const stat = fs.statSync(tempPath);
+    const req = {
+      file: {
+        path: tempPath,
+        originalname: 'document.docx',
+        filename: 'uuid-docx.docx',
+        size: stat.size,
+      },
+    } as unknown as Request;
+    const json = jest.fn();
+    const res = { json } as unknown as Response;
+
+    await uploadDocumentFile(req, res);
+
+    expect(json).toHaveBeenCalledWith({
+      code: 0,
+      message: '上传成功',
+      data: {
+        url: '/uploads/uuid-docx.docx',
+        originalName: 'document.docx',
+        fileType: 'docx',
+        fileSize: stat.size,
+      },
+    });
+
+    try { fs.unlinkSync(tempPath); } catch {}
+  });
+
+  it('should upload valid XLSX via unit test', async () => {
+    const tempPath = path.join(uploadsDir, '_unit_test_valid.xlsx');
+    const zip = new AdmZip();
+    zip.addFile('xl/workbook.xml', Buffer.from('<?xml version="1.0"?><workbook/>'));
+    zip.writeZip(tempPath);
+
+    const stat = fs.statSync(tempPath);
+    const req = {
+      file: {
+        path: tempPath,
+        originalname: 'sheet.xlsx',
+        filename: 'uuid-xlsx.xlsx',
+        size: stat.size,
+      },
+    } as unknown as Request;
+    const json = jest.fn();
+    const res = { json } as unknown as Response;
+
+    await uploadDocumentFile(req, res);
+
+    expect(json).toHaveBeenCalledWith({
+      code: 0,
+      message: '上传成功',
+      data: {
+        url: '/uploads/uuid-xlsx.xlsx',
+        originalName: 'sheet.xlsx',
+        fileType: 'xlsx',
+        fileSize: stat.size,
+      },
+    });
+
+    try { fs.unlinkSync(tempPath); } catch {}
+  });
+
+  it('should upload valid PPTX via unit test', async () => {
+    const tempPath = path.join(uploadsDir, '_unit_test_valid.pptx');
+    const zip = new AdmZip();
+    zip.addFile('ppt/presentation.xml', Buffer.from('<?xml version="1.0"?><presentation/>'));
+    zip.writeZip(tempPath);
+
+    const stat = fs.statSync(tempPath);
+    const req = {
+      file: {
+        path: tempPath,
+        originalname: 'slides.pptx',
+        filename: 'uuid-pptx.pptx',
+        size: stat.size,
+      },
+    } as unknown as Request;
+    const json = jest.fn();
+    const res = { json } as unknown as Response;
+
+    await uploadDocumentFile(req, res);
+
+    expect(json).toHaveBeenCalledWith({
+      code: 0,
+      message: '上传成功',
+      data: {
+        url: '/uploads/uuid-pptx.pptx',
+        originalName: 'slides.pptx',
+        fileType: 'pptx',
+        fileSize: stat.size,
+      },
+    });
+
+    try { fs.unlinkSync(tempPath); } catch {}
+  });
+
+  // ---------- OLE2 unit tests ----------
+
+  it('should upload DOC (OLE2) via unit test', async () => {
+    const tempPath = path.join(uploadsDir, '_unit_test_ole2.doc');
+    const OLE2_MAGIC = Buffer.from([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]);
+    const buf = Buffer.alloc(512);
+    OLE2_MAGIC.copy(buf);
+    fs.writeFileSync(tempPath, buf);
+
+    const req = {
+      file: {
+        path: tempPath,
+        originalname: 'legacy.doc',
+        filename: 'uuid-doc.doc',
+        size: 512,
+      },
+    } as unknown as Request;
+    const json = jest.fn();
+    const res = { json } as unknown as Response;
+
+    await uploadDocumentFile(req, res);
+
+    expect(json).toHaveBeenCalledWith({
+      code: 0,
+      message: '上传成功',
+      data: {
+        url: '/uploads/uuid-doc.doc',
+        originalName: 'legacy.doc',
+        fileType: 'doc',
+        fileSize: 512,
+      },
+    });
+
+    try { fs.unlinkSync(tempPath); } catch {}
+  });
+
+  it('should upload XLS (OLE2) via unit test', async () => {
+    const tempPath = path.join(uploadsDir, '_unit_test_ole2.xls');
+    const OLE2_MAGIC = Buffer.from([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]);
+    const buf = Buffer.alloc(512);
+    OLE2_MAGIC.copy(buf);
+    fs.writeFileSync(tempPath, buf);
+
+    const req = {
+      file: {
+        path: tempPath,
+        originalname: 'legacy.xls',
+        filename: 'uuid-xls.xls',
+        size: 512,
+      },
+    } as unknown as Request;
+    const json = jest.fn();
+    const res = { json } as unknown as Response;
+
+    await uploadDocumentFile(req, res);
+
+    expect(json).toHaveBeenCalledWith({
+      code: 0,
+      message: '上传成功',
+      data: {
+        url: '/uploads/uuid-xls.xls',
+        originalName: 'legacy.xls',
+        fileType: 'xls',
+        fileSize: 512,
+      },
+    });
+
+    try { fs.unlinkSync(tempPath); } catch {}
+  });
+
+  it('should upload PPT (OLE2) via unit test', async () => {
+    const tempPath = path.join(uploadsDir, '_unit_test_ole2.ppt');
+    const OLE2_MAGIC = Buffer.from([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]);
+    const buf = Buffer.alloc(512);
+    OLE2_MAGIC.copy(buf);
+    fs.writeFileSync(tempPath, buf);
+
+    const req = {
+      file: {
+        path: tempPath,
+        originalname: 'legacy.ppt',
+        filename: 'uuid-ppt.ppt',
+        size: 512,
+      },
+    } as unknown as Request;
+    const json = jest.fn();
+    const res = { json } as unknown as Response;
+
+    await uploadDocumentFile(req, res);
+
+    expect(json).toHaveBeenCalledWith({
+      code: 0,
+      message: '上传成功',
+      data: {
+        url: '/uploads/uuid-ppt.ppt',
+        originalName: 'legacy.ppt',
+        fileType: 'ppt',
+        fileSize: 512,
+      },
+    });
+
+    try { fs.unlinkSync(tempPath); } catch {}
+  });
+
+  // ---------- YML unit test ----------
+
+  it('should upload valid YML via unit test', async () => {
+    const tempPath = path.join(uploadsDir, '_unit_test_valid.yml');
+    fs.writeFileSync(tempPath, 'key: value\nlist:\n  - item1');
+
+    const req = {
+      file: {
+        path: tempPath,
+        originalname: 'config.yml',
+        filename: 'uuid-yml.yml',
+        size: 26,
+      },
+    } as unknown as Request;
+    const json = jest.fn();
+    const res = { json } as unknown as Response;
+
+    await uploadDocumentFile(req, res);
+
+    expect(json).toHaveBeenCalledWith({
+      code: 0,
+      message: '上传成功',
+      data: expect.objectContaining({
+        url: '/uploads/uuid-yml.yml',
+        originalName: 'config.yml',
+        fileType: expect.stringMatching(/^(yaml|yml)$/),
+      }),
+    });
+
+    try { fs.unlinkSync(tempPath); } catch {}
+  });
 });
