@@ -1242,7 +1242,14 @@ describe('ArticleServiceImpl', () => {
       const publishedArticle = { ...baseArticle, status: 'published' };
       mockArticleFindFirst.mockResolvedValue(publishedArticle);
 
-      await expect(service.delete(10, 1, creatorAuth)).rejects.toThrow('已发布的文章不能删除');
+      await expect(service.delete(10, 1, creatorAuth)).rejects.toThrow('发布中或已发布的文章不能删除');
+    });
+
+    it('publishing状态的文章不能删除', async () => {
+      const publishingArticle = { ...baseArticle, status: 'publishing' };
+      mockArticleFindFirst.mockResolvedValue(publishingArticle);
+
+      await expect(service.delete(10, 1, creatorAuth)).rejects.toThrow('发布中或已发布的文章不能删除');
     });
 
     it('非创建者非sysadmin应拒绝删除', async () => {

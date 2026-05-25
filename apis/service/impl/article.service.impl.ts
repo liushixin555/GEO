@@ -255,9 +255,9 @@ export class ArticleServiceImpl implements IArticleService {
       this.checkProjectOwnership(existing, projectId);
       this.checkCreatorOrAdmin(existing, auth, '只能删除自己创建的文章');
 
-      // Business rule: published articles cannot be deleted
-      if (existing.status === 'published') {
-        throw new BusinessError('已发布的文章不能删除');
+      // Business rule: published and publishing articles cannot be deleted
+      if (existing.status === 'published' || existing.status === 'publishing') {
+        throw new BusinessError('发布中或已发布的文章不能删除');
       }
 
       await tx.article.update({ where: { id }, data: { deletedAt: new Date() } });

@@ -622,7 +622,7 @@ describe('Article Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('已发布的文章不能删除');
+      expect(response.body.message).toBe('发布中或已发布的文章不能删除');
     });
 
     it('should delete non-published article (generating) as sysadmin', async () => {
@@ -669,12 +669,11 @@ describe('Article Controller', () => {
       expect(response.status).toBe(200);
     });
 
-    it('should delete non-published article (publishing) as sysadmin', async () => {
+    it('should return 400 when deleting publishing article', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       getPrisma.mockReturnValue({
         article: {
           findFirst: jest.fn().mockResolvedValue({ ...existingDraft, status: 'publishing' }),
-          update: jest.fn().mockResolvedValue({ ...existingDraft, status: 'publishing', deletedAt: new Date() }),
         },
       });
 
@@ -682,7 +681,8 @@ describe('Article Controller', () => {
         .delete(`${BASE}/1`)
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('发布中或已发布的文章不能删除');
     });
 
     it('should delete non-published article (publish_failed) as creator admin', async () => {
@@ -3253,7 +3253,7 @@ describe('Article Controller', () => {
         .delete(`${BASE}/1`)
         .set('Authorization', `Bearer ${adminToken(2, 2)}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('已发布的文章不能删除');
+      expect(response.body.message).toBe('发布中或已发布的文章不能删除');
     });
 
     it('should delete manual_writing article as sysadmin', async () => {

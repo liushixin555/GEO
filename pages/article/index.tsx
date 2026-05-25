@@ -77,7 +77,7 @@ const ArticlePage: React.FC = () => {
   };
 
   const canDelete = (item: ArticleItem) => {
-    if (item.status === 'published') return false;
+    if (item.status === 'published' || item.status === 'publishing') return false;
     return user.role === 'sysadmin' || item.created_by === user.id;
   };
 
