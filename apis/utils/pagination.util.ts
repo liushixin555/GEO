@@ -7,7 +7,6 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 10;
 const MAX_PAGE_SIZE = 100;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function parsePagination(rawPage: any, rawPageSize: any): PaginationParams {
   const page = typeof rawPage === 'string'
     ? parseInt(rawPage, 10)

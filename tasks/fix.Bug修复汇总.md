@@ -1191,3 +1191,27 @@ components: {
 ### 涉及文件
 - `tests/apis/project.controller.test.ts` — 并发测试修复
 - `tasks/review/project.controller.ts.committer.md` — 修复项验证记录
+
+---
+
+## fix046. app.ts 评审验证+ESLint/Jest修复
+
+### 问题
+1. `apis/utils/pagination.util.ts` 中 `eslint-disable` 注释多余（ESLint 规则未启用）
+2. `@scalar/express-api-reference` ESM 包在 Jest CommonJS 环境下无法加载，导致 4 个测试文件失败
+
+### 修复
+1. 移除 `pagination.util.ts` 多余的 `eslint-disable-next-line` 注释
+2. 创建 `tests/apis/__mocks__/scalar.ts` 全局 mock
+3. 在 `jest.config.ts` 的 api 项目中添加 `moduleNameMapper` 映射
+
+### 验证
+- `pnpm lint` 零警告零错误
+- `pnpm build` 通过
+- 261 个 app 测试全部通过
+
+### 涉及文件
+- `apis/utils/pagination.util.ts` — 移除多余 eslint-disable
+- `jest.config.ts` — 添加 scalar moduleNameMapper
+- `tests/apis/__mocks__/scalar.ts` — 新增 scalar mock
+- `tasks/review/app.ts.md` — 第四轮验证记录

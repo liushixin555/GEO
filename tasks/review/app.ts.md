@@ -410,3 +410,39 @@ apis/
 ---
 
 *软件质量专家评审完成（第三轮 — 修复后复审） — 2026-05-24*
+
+---
+
+## 第四轮验证（2026-05-25）— 全面复审确认
+
+### 当前状态
+
+`apis/app.ts` 已从 259 行（平铺路由）重构为 162 行（模块化路由），所有评审项均已修复。
+
+### 修复验证清单
+
+| 评审编号 | 修复项 | 状态 | 验证 |
+|----------|--------|------|------|
+| RQ-01 | 路由拆分为 Router 模块 | ✅ 已修复 | 14 个独立路由文件，`apis/routes/*.routes.ts` |
+| RQ-02 | Router 级中间件消除重复 | ✅ 已修复 | 每个 route 文件使用 `router.use(authMiddleware, roleMiddleware(...))` |
+| RQ-03 | API 版本化 `/api/v1/` | ✅ 已修复 | `app.use('/api/v1/xxx', routes)` |
+| RQ-04 | Zod 请求验证中间件 | ✅ 已修复 | `apis/middleware/validate.ts` + 全路由覆盖 |
+| RQ-05 | 角色常量化 | ✅ 已修复 | 所有路由文件引用 `ROLES` from `constants/roles` |
+| RQ-06 | 路由分组逻辑 | ✅ 已修复 | knowledge/project-knowledge 路由独立 |
+| RQ-07 | 日志格式统一为 JSON | ✅ 已修复 | 审计日志 + 错误日志均使用 `JSON.stringify` |
+| SEC-2.05 | 错误上下文含 timestamp | ✅ 已修复 | `timestamp: new Date().toISOString()` |
+| SEC-2.06 | 审计日志中间件 | ✅ 已修复 | `res.on('finish')` + JSON 结构化 |
+
+### 额外修复（2026-05-25）
+
+| 修复项 | 说明 |
+|--------|------|
+| ESLint 警告清理 | 移除 `pagination.util.ts` 多余 `eslint-disable` 注释 |
+| Jest ESM 兼容 | 添加 `@scalar/express-api-reference` 全局 mock，解决 4 个测试文件 ESM 加载失败 |
+
+### 验证结果
+
+- 构建：`pnpm build` 通过
+- Lint：`pnpm lint` 零警告零错误
+- App 测试：261 个用例全部通过
+- TypeScript 类型检查通过
