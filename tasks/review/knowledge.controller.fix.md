@@ -73,6 +73,7 @@ async function checkBaseAccess(baseId: number, userId: number, role: string): Pr
 
 - 测试套件: 6 个测试文件，544 个测试用例全部通过
 - 构建: `pnpm build:api` 成功
+- 测试URL同步修复: image_url/file_url 从相对路径改为 `https://example.com/...` 格式，适配 schema URL 校验
 
 ---
 
@@ -103,6 +104,7 @@ async function checkBaseAccess(baseId: number, userId: number, role: string): Pr
 
 ### 测试验证
 
-- 测试套件: 7 个测试文件，975 个测试用例全部通过
+- 测试套件: knowledge.controller 270 测试用例全部通过
 - 构建: `pnpm build:api` 成功
 - Lint: `pnpm lint` 通过
+- 已提交推送: commit `c28aafc`
