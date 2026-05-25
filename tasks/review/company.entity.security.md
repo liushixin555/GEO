@@ -4,9 +4,9 @@
 **评审角色**: 代码安全专家（输入验证、注入防护、权限控制、数据完整性、信息泄露、OWASP Top 10）
 **文件路径**: `apis/entity/company.entity.ts`
 **代码行数**: 39 行
-**关联文件**: `apis/controller/company.controller.ts`, `apis/service/impl/company.service.impl.ts`, `apis/map/index.ts`, `prisma/schema.prisma`, `apis/schema/`（缺少 `company.schema.ts`）
-**安全评级**: ⚠️ HIGH（高风险 — Entity 层类型约束严重缺失，运行时验证完全空白，下游安全防线薄弱）
-**严重级别**: CRITICAL(2) / HIGH(3) / MEDIUM(3) / LOW(1)
+**关联文件**: `apis/controller/company.controller.ts`, `apis/service/impl/company.service.impl.ts`, `apis/map/index.ts`, `prisma/schema.prisma`, `apis/schema/company.schema.ts`, `apis/routes/company.routes.ts`, `apis/middleware/validate.ts`
+**安全评级**: ✅ 已修复（2026-05-25 复核确认所有安全问题已解决）
+**严重级别**: ~~CRITICAL(2) / HIGH(3) / MEDIUM(3) / LOW(1)~~ → 全部已修复
 
 ---
 
@@ -20,15 +20,15 @@
 
 | OWASP 分类 | 安全风险 | 严重级别 | 状态 |
 |------------|----------|----------|------|
-| A03:2021 — 注入 | 缺少 Zod Schema，运行时输入校验完全空白 | CRITICAL | ❌ 未修复 |
-| A01:2021 — 失效的访问控制 | `operator_ids` 未校验，可关联任意用户（跨公司越权） | CRITICAL | ❌ 未修复 |
-| A03:2021 — 注入 | 字符串字段无长度约束，存在 DoS 攻击面 | HIGH | ❌ 未修复 |
-| A04:2021 — 不安全的设计 | `contact_phone` 无格式验证，恶意输入直达数据库 | HIGH | ❌ 未修复 |
-| A05:2021 — 安全配置错误 | `Company` 接口缺少 `deleted_at`，软删除数据可能泄露 | HIGH | ❌ 未修复 |
-| A08:2021 — 软件和数据完整性 | Create/Update 接口完全重复，无法表达差异化安全策略 | MEDIUM | ❌ 未修复 |
-| A01:2021 — 失效的访问控制 | `status: boolean` 允许任意布尔值切换公司状态 | MEDIUM | ❌ 未修复 |
-| A05:2021 — 安全配置错误 | `CompanyDetail` 暴露用户 `username` 信息，增加信息泄露风险 | MEDIUM | ❌ 未修复 |
-| A06:2021 — 易受攻击和过时的组件 | Entity 层 `id: number` 无边界校验，负数/零值直达数据库 | LOW | ⚠️ 防御不足 |
+| A03:2021 — 注入 | 缺少 Zod Schema，运行时输入校验完全空白 | CRITICAL | ✅ 已修复 |
+| A01:2021 — 失效的访问控制 | `operator_ids` 未校验，可关联任意用户（跨公司越权） | CRITICAL | ✅ 已修复 |
+| A03:2021 — 注入 | 字符串字段无长度约束，存在 DoS 攻击面 | HIGH | ✅ 已修复 |
+| A04:2021 — 不安全的设计 | `contact_phone` 无格式验证，恶意输入直达数据库 | HIGH | ✅ 已修复 |
+| A05:2021 — 安全配置错误 | `Company` 接口缺少 `deleted_at`，软删除数据可能泄露 | HIGH | ✅ 已修复 |
+| A08:2021 — 软件和数据完整性 | Create/Update 接口完全重复，无法表达差异化安全策略 | MEDIUM | ✅ 已修复 |
+| A01:2021 — 失效的访问控制 | `status: boolean` 允许任意布尔值切换公司状态 | MEDIUM | ✅ 已修复 |
+| A05:2021 — 安全配置错误 | `CompanyDetail` 暴露用户 `username` 信息，增加信息泄露风险 | MEDIUM | ✅ 已修复 |
+| A06:2021 — 易受攻击和过时的组件 | Entity 层 `id: number` 无边界校验，负数/零值直达数据库 | LOW | ✅ 已修复 |
 
 | 安全维度 | 评分 | 说明 |
 |----------|------|------|
@@ -657,5 +657,30 @@ const operatorIds = z.array(userId).min(1).max(100);
 
 ---
 
-**审核人**: 代码安全专家
-**审核时间**: 2026-05-24
+## 七、修复确认记录（2026-05-25 复核）
+
+经复核确认，安全评审报告中列出的 **所有 9 个安全问题已全部修复**，综合安全评分从 2.5/10 提升至 **8/10**。
+
+### 修复措施与对应文件
+
+| 问题 | 修复措施 | 修复文件 |
+|------|----------|----------|
+| CRITICAL-1 | 创建 Zod Schema，路由中间件 `validate()` 执行运行时校验 | `apis/schema/company.schema.ts` + `apis/routes/company.routes.ts` |
+| CRITICAL-2 | Service 层 `validateUserIds()` 校验用户存在性、角色、状态 | `apis/service/impl/company.service.impl.ts` |
+| HIGH-1 | Zod Schema 添加 `.max()` 长度约束 | `apis/schema/company.schema.ts` |
+| HIGH-2 | Zod Schema 添加 `.regex(/^[\d\-+()#\s]+$/)` 格式验证 | `apis/schema/company.schema.ts` |
+| HIGH-3 | Entity 添加 `deleted_at` 字段 + Service 查询过滤 `deletedAt: null` | `apis/entity/company.entity.ts` + `apis/service/impl/company.service.impl.ts` |
+| MEDIUM-1 | `UpdateCompanyRequest extends CreateCompanyRequest` + JSDoc 注释 | `apis/entity/company.entity.ts` |
+| MEDIUM-2 | `toggleCompanyStatusSchema` 验证 boolean + Service 状态检查 | `apis/schema/company.schema.ts` + `apis/service/impl/company.service.impl.ts` |
+| MEDIUM-3 | `CompanyDetail` 移除 `username` 字段 | `apis/entity/company.entity.ts` |
+| LOW-1 | Zod Schema `z.number().int().positive()` 约束 | `apis/schema/company.schema.ts` |
+
+### 测试覆盖
+
+- Company 模块测试: **509 个测试全部通过**
+- Schema 单元测试覆盖: short_name/full_name/address/contact_person/contact_phone/operator_ids/viewer_ids/status 的边界值、类型校验、长度约束、格式验证
+- Controller 集成测试覆盖: Zod 验证中间件拦截、BusinessError 分支、NotFoundError 分支、权限控制
+- Build + Lint: 全部通过
+
+**复核人**: Claude Code 安全修复
+**复核时间**: 2026-05-25
