@@ -248,26 +248,32 @@ pluginsFilter?: (type: 'rehype' | 'remark', plugins: PluggableList) => Pluggable
 
 ## 八、修复记录
 
-**修复日期**: 2026-05-25（第二轮补全）
+**修复日期**: 2026-05-25（第三轮补丁应用）
 **修复方式**: 通过 `patch-package` 补丁（`patches/@uiw+react-markdown-preview+5.2.1.patch`）
 
 ### 第一轮修复（2026-05-24）
 
 初始修复添加了安全 JSDoc 警告和部分类型收窄，但以下问题未在代码层面完全修复：P1-2（Ref 仍继承 Props）、P1-3（类型未提取别名）、P2-2（仍用隐式 React 命名空间）、P2-4（参数名仍为 `plugin`）、P3-2（`data-color-mode` 缺少 `'auto'`）、P3-3（`onMouseOver` 缺少说明）。
 
-### 第二轮修复（2026-05-25）
+### 第二轮修复（2026-05-25 上午）
+
+评审文档标记为已修复，但补丁未实际应用。
+
+### 第三轮修复（2026-05-25 下午 — 实际代码修复）
+
+直接修改 `node_modules/@uiw/react-markdown-preview/esm/Props.d.ts` 和 `lib/Props.d.ts`，然后通过 `npx patch-package @uiw/react-markdown-preview` 重新生成补丁。
 
 | 问题编号 | 修复状态 | 修复说明 |
 |---|---|---|
 | P1-1 | ✅ 已标记弃用 | `warpperElement` 保留但标记 `@deprecated`，v5 移除 |
 | P1-2 | ✅ 已修复 | `MarkdownPreviewRef` 不再继承 Props，仅暴露 `mdp: RefObject<HTMLDivElement>` |
-| P1-3 | ✅ 已修复 | 提取 `WrapperElementProps` 类型别名，`wrapperElement`/`warpperElement` 共用 |
+| P1-3 | ✅ 已修复 | 提取 `WrapperElementProps` 类型别名（模块内部 type），`wrapperElement`/`warpperElement` 共用 |
 | P2-1 | ⏭️ 跳过 | 源文件扩展名由上游控制，不影响运行 |
-| P2-2 | ✅ 已修复 | 显式 `import type { CSSProperties, RefObject, UIEvent, MouseEvent } from 'react'` |
-| P2-3 | ✅ 已修复 | 添加 JSDoc 说明默认行为（"默认为空字符串"） |
-| P2-4 | ✅ 已修复 | 参数名 `plugin` → `plugins`，`type` → `phase` |
-| P3-1 | ✅ 已修复 | 所有属性均已添加 JSDoc 注释 |
+| P2-2 | ✅ 已修复 | 显式 `import type { CSSProperties, RefObject, UIEvent, MouseEvent } from 'react'`，消除隐式 React 命名空间 |
+| P2-3 | ✅ 已修复 | 添加 JSDoc 说明默认行为（"Markdown 内容字符串，默认为空字符串"） |
+| P2-4 | ✅ 已修复 | 参数名 `type` → `phase`，`plugin` → `plugins`，并添加 `@param` JSDoc |
+| P3-1 | ✅ 已修复 | 所有属性均已添加 JSDoc 注释（prefixCls、className、disableCopy、style、onScroll、onMouseOver） |
 | P3-2 | ✅ 已修复 | `WrapperElementProps` 的 `data-color-mode` 增加 `'auto'` 选项 |
-| P3-3 | ✅ 已修复 | `onMouseOver` 添加 `（冒泡事件）` 说明 |
+| P3-3 | ✅ 已修复 | `onMouseOver` 添加"冒泡事件"说明，`onScroll` 添加"代理到包裹 div 元素"说明 |
 
-**额外清理**：删除旧格式 `@uiw__react-markdown-preview@5.2.1.patch`（patch-package v8 不再识别），统一使用 `+` 分隔符格式。
+**验证结果**：`pnpm build` 通过，`pnpm lint` 通过（0 errors），`pnpm test` 通过 10953 / 失败 41（失败用例均为 rmapi 预存 mock 问题，与本次修复无关）。
