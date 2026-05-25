@@ -418,13 +418,10 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
       if (command.name?.startsWith('heading') && /^heading[1-6]$/.test(command.name)) {
         const level = command.name.replace('heading', '');
         const levelNum = Number(level);
-        const prefixMap: Record<string, string> = {
-          '1': '# ', '2': '## ', '3': '### ', '4': '#### ', '5': '##### ', '6': '###### ',
-        };
         const originalExecute = command.execute;
         return {
           ...command,
-          icon: <span role="img" aria-hidden="true" style={{ fontSize: Math.max(12, 20 - levelNum * 2), fontWeight: 500, fontFamily: "'IBM Plex Sans', sans-serif" }}>H{level}</span>,
+          icon: <span aria-hidden="true" style={{ fontSize: Math.max(12, 20 - levelNum * 2), fontWeight: 500, fontFamily: "'IBM Plex Sans', sans-serif" }}>H{level}</span>,
           buttonProps: {
             'aria-label': `${level}级标题 (Ctrl+${level})`,
             title: `${level}级标题 (Ctrl+${level})`,

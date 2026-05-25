@@ -907,7 +907,6 @@ components: {
 
 ---
 
-<<<<<<< HEAD
 ## fix030. issue.tsx 评审封装层问题修复（#语义碰撞防护 + prefix非空断言 + 错误边界 + SVG无障碍）
 
 ### 问题
@@ -1014,3 +1013,27 @@ components: {
 - `node_modules/.../react-md-editor/src/commands/strikeThrough.tsx` — 源码修复
 - `node_modules/.../react-md-editor/esm/commands/strikeThrough.js` — ESM 编译输出同步
 - `node_modules/.../react-md-editor/lib/commands/strikeThrough.js` — CJS 编译输出同步
+
+---
+
+## fix033. title2.tsx Committer 评审遗留问题修复（死代码 + 无障碍矛盾 + 测试补全）
+
+### 问题
+根据 `tasks/review/title2.tsx.committer.md` Committer 审核报告（APPROVE），heading1~6 命令覆盖代码存在死代码和无障碍属性矛盾，且缺少测试覆盖。
+
+### 修复
+
+**死代码 `prefixMap` 变量**：
+- 移除未使用的 `prefixMap` 变量（heading1~6 execute 中直接使用 `state.command.prefix`）
+
+**`role="img"` + `aria-hidden="true"` 矛盾**：
+- 装饰性图标 span 移除冗余的 `role="img"`，仅保留 `aria-hidden="true"`
+- 父按钮已有 `aria-label`，图标无需 role
+
+**测试补全**：
+- 新增 14 个 heading1~6 命令测试用例（6级中文 ARIA + 6级图标替换 + prefix 防御 + 错误边界 + 边界条件）
+
+### 涉及文件
+- `pages/components/MarkdownEditor.tsx` — 移除死代码 + 修复无障碍矛盾
+- `tests/pages/components/MarkdownEditor.test.tsx` — 14 个新增 heading 测试
+- `tasks/fix.title2命令评审修复.md`（新建）— 修复文档

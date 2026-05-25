@@ -1892,4 +1892,197 @@ describe('MarkdownEditor', () => {
       expect(result.icon.props.style.fontSize).toBe(16);
     });
   });
+
+  describe('commandsFilter — heading1~6 command override', () => {
+    const createHeadingCommand = (level: number) => ({
+      name: `heading${level}`,
+      keyCommand: `heading${level}`,
+      shortcuts: `ctrlcmd+${level}`,
+      prefix: `${'#'.repeat(level)} `,
+      suffix: '',
+      buttonProps: { 'aria-label': `Heading ${level}`, title: `Heading ${level}` },
+      execute: jest.fn(),
+    });
+
+    const createMockApi = () => ({
+      setSelectionRange: jest.fn(),
+      replaceSelection: jest.fn(),
+    });
+
+    // 中文 ARIA 标签
+    it.each([
+      { level: 1 },
+      { level: 2 },
+      { level: 3 },
+      { level: 4 },
+      { level: 5 },
+      { level: 6 },
+    ])('should use Chinese ARIA labels for heading$level', ({ level }) => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createHeadingCommand(level), false);
+      expect(result.buttonProps['aria-label']).toBe(`${level}级标题 (Ctrl+${level})`);
+      expect(result.buttonProps.title).toBe(`${level}级标题 (Ctrl+${level})`);
+    });
+
+    // 图标替换为 HN span
+    it.each([
+      { level: 1, expectedFontSize: 18 },
+      { level: 2, expectedFontSize: 16 },
+      { level: 3, expectedFontSize: 14 },
+      { level: 4, expectedFontSize: 12 },
+      { level: 5, expectedFontSize: 12 },
+      { level: 6, expectedFontSize: 12 },
+    ])('should replace icon with H$level span (fontSize=$expectedFontSize)', ({ level, expectedFontSize }) => {
+      render(<MarkdownEditor value="" />);
+      const result = commandsFilterFn!(createHeadingCommand(level), false);
+      expect(result.icon).toBeTruthy();
+      expect(React.isValidElement(result.icon)).toBe(true);
+      // span with text H{level} — JSX 编译为数组 ["H", "N"]
+      expect(result.icon.type).toBe('span');
+      const children = result.icon.props.children;
+      expect(children).toEqual(['H', `${level}`]);
+      expect(result.icon.props.style.fontSize).toBe(expectedFontSize);
+      // aria-hidden="true" — 图标装饰性，不播报给屏幕阅读器
+      expect(result.icon.props['aria-hidden']).toBe('true');
+      // 不应有 role="img"（与 aria-hidden 矛盾）
+      expect(result.icon.props.role).toBeUndefined();
+    });
+
+    // prefix! 防御：prefix 缺失时跳过执行
+    it.each([
+      { level: 1 },
+      { level: 2 },
+      { level: 3 },
+    ])('should skip heading$level execution when prefix is missing (P2-01)', ({ level }) => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createHeadingCommand(level);
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: 'Hello', selection: { start: 0, end: 5 }, command: { prefix: undefined } },
+        api,
+      );
+
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    // text 非字符串时跳过
+    it('should skip execution when text is not a string', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createHeadingCommand(2);
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: undefined as any, selection: { start: 0, end: 0 }, command: { prefix: '## ' } },
+        api,
+      );
+
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    // 选区越界时跳过
+    it('should skip execution when selection is out of bounds', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createHeadingCommand(2);
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: 'Hi', selection: { start: 0, end: 100 }, command: { prefix: '## ' } },
+        api,
+      );
+
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    // start < 0 时跳过
+    it('should skip execution when start is negative', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createHeadingCommand(2);
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: 'Hello', selection: { start: -1, end: 3 }, command: { prefix: '## ' } },
+        api,
+      );
+
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    // start > end 时跳过
+    it('should skip execution when start > end', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createHeadingCommand(2);
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+
+      result.execute(
+        { text: 'Hello', selection: { start: 4, end: 2 }, command: { prefix: '## ' } },
+        api,
+      );
+
+      expect(cmd.execute).not.toHaveBeenCalled();
+    });
+
+    // 正常执行
+    it('should call original execute for valid state', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = createHeadingCommand(2);
+      const result = commandsFilterFn!(cmd, false);
+      const api = createMockApi();
+      const state = {
+        text: 'Hello world',
+        selection: { start: 0, end: 5 },
+        command: { prefix: '## ' },
+      };
+
+      result.execute(state, api);
+
+      expect(cmd.execute).toHaveBeenCalledWith(state, api);
+    });
+
+    // 错误边界
+    it('should handle execution error gracefully', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = {
+        ...createHeadingCommand(2),
+        execute: jest.fn(() => { throw new Error('headingExecute crash'); }),
+      };
+      const result = commandsFilterFn!(cmd, false);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const api = createMockApi();
+
+      expect(() => {
+        result.execute(
+          { text: 'Hello', selection: { start: 0, end: 5 }, command: { prefix: '## ' } },
+          api,
+        );
+      }).not.toThrow();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[MarkdownEditor] 命令 "heading2" 执行失败:',
+        expect.any(Error),
+      );
+      consoleSpy.mockRestore();
+    });
+
+    // 不匹配的命令应透传
+    it('should not affect non-heading commands', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = { name: 'heading7', keyCommand: 'heading7' };
+      const result = commandsFilterFn!(cmd, false);
+      expect(result).toBe(cmd);
+    });
+
+    // 不匹配 heading0 或其他无效级别
+    it('should not match heading0 or invalid levels', () => {
+      render(<MarkdownEditor value="" />);
+      const cmd = { name: 'heading0', keyCommand: 'heading0' };
+      const result = commandsFilterFn!(cmd, false);
+      expect(result).toBe(cmd);
+    });
+  });
 });
