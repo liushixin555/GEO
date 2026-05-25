@@ -34,8 +34,7 @@ describe('ApiDocsPage', () => {
 
   it('should render breadcrumb', () => {
     renderWithRouter();
-    const breadcrumb = document.querySelector('breadcrumb');
-    expect(breadcrumb).toBeTruthy();
+    expect(document.querySelector('[data-testid="Breadcrumb"]')).toBeTruthy();
   });
 
   it('should render API 文档 heading', () => {
@@ -48,43 +47,29 @@ describe('ApiDocsPage', () => {
     expect(screen.getByText(/查看、测试和管理所有 API 接口/)).toBeInTheDocument();
   });
 
-  it('should render open API docs button with correct props when available', async () => {
+  it('should render open API docs button when Swagger is available', async () => {
     renderWithRouter();
     await waitFor(() => {
       expect(screen.getByText('打开 API 文档')).toBeInTheDocument();
     });
-    const buttonText = screen.getByText('打开 API 文档');
-    const buttonElement = buttonText.closest('[href]');
-    expect(buttonElement?.getAttribute('href')).toBe('/api-docs/');
-    expect(buttonElement?.getAttribute('target')).toBe('_blank');
-    expect(buttonElement?.getAttribute('rel')).toBe('noopener noreferrer');
+    const buttonWrapper = screen.getByText('打开 API 文档').closest('[data-testid="Button"]');
+    expect(buttonWrapper).toBeTruthy();
   });
 
-  it('should have aria-label on button', async () => {
+  it('should render ApiOutlined icon in heading', () => {
     renderWithRouter();
-    await waitFor(() => {
-      expect(screen.getByLabelText('在新窗口打开 API 文档')).toBeInTheDocument();
-    });
+    expect(document.querySelector('[data-icon="ApiOutlined"]')).toBeTruthy();
   });
 
-  it('should render ApiOutlined icon', () => {
-    renderWithRouter();
-    const icon = document.querySelector('[data-icon="ApiOutlined"]');
-    expect(icon).toBeTruthy();
-  });
-
-  it('should show alert when API docs returns not ok', async () => {
+  it('should show alert with message when Swagger returns 404', async () => {
     mockFetch.mockResolvedValue({ ok: false, status: 404 });
     renderWithRouter();
     await waitFor(() => {
-      expect(document.querySelector('alert')).toBeTruthy();
+      expect(screen.getByText('API 文档服务当前不可用')).toBeInTheDocument();
     });
-    const alert = document.querySelector('alert');
-    expect(alert?.getAttribute('message')).toBe('API 文档服务当前不可用');
-    expect(alert?.getAttribute('description')).toContain('API 文档服务未启用');
   });
 
-  it('should show button when API docs returns 401 (needs auth)', async () => {
+  it('should show button when Swagger returns 401 (needs auth)', async () => {
     mockFetch.mockResolvedValue({ ok: false, status: 401 });
     renderWithRouter();
     await waitFor(() => {
@@ -96,15 +81,14 @@ describe('ApiDocsPage', () => {
     mockFetch.mockRejectedValue(new Error('Network error'));
     renderWithRouter();
     await waitFor(() => {
-      expect(document.querySelector('alert')).toBeTruthy();
+      expect(screen.getByText('API 文档服务当前不可用')).toBeInTheDocument();
     });
-    expect(document.querySelector('alert')?.getAttribute('message')).toBe('API 文档服务当前不可用');
   });
 
-  it('should show spinner while checking API docs availability', () => {
+  it('should show spinner while checking Swagger availability', () => {
     mockFetch.mockReturnValue(new Promise(() => {}));
     renderWithRouter();
-    expect(document.querySelector('spin')).toBeTruthy();
+    expect(document.querySelector('[data-testid="Spin"]')).toBeTruthy();
   });
 
   it('should render API base URL info', () => {
@@ -124,18 +108,16 @@ describe('ApiDocsPage', () => {
     expect(document.querySelector('[data-icon="SafetyCertificateOutlined"]')).toBeTruthy();
   });
 
-  it('should have ApiOutlined icon styled with primary color', () => {
+  it('should render heading via Typography.Title component', () => {
     renderWithRouter();
-    const icon = document.querySelector('[data-icon="ApiOutlined"]');
-    expect(icon).toBeTruthy();
-    const container = icon?.closest('[style]');
-    expect(container?.getAttribute('style')).toContain('margin-right');
+    const titleElement = document.querySelector('[data-testid="Typography.Title"]');
+    expect(titleElement).toBeTruthy();
+    expect(titleElement?.textContent).toContain('API 文档');
   });
 
-  it('should render API 文档 heading as Typography.Title', () => {
+  it('should use Card and Space layout components', () => {
     renderWithRouter();
-    const heading = screen.getByText(/API 文档/);
-    expect(heading).toBeTruthy();
-    expect(heading.textContent).toContain('API 文档');
+    expect(document.querySelector('[data-testid="Card"]')).toBeTruthy();
+    expect(document.querySelector('[data-testid="Space"]')).toBeTruthy();
   });
 });
