@@ -355,26 +355,28 @@ describe('PublishingSchedule Controller', () => {
       expect(mockUpdateSchedule).toHaveBeenCalledWith(1, '2025-06-01T10:00:00.000Z', null, 2, 'admin');
     });
 
-    // Schema rejects null scheduled_publish_at, verify schema-level rejection
-    it('should return 400 when scheduled_publish_at is null (schema validation)', async () => {
+    // scheduled_publish_at 为 null 时应通过验证（asap 类型不需要排期时间）
+    it('should accept scheduled_publish_at as null', async () => {
+      mockUpdateSchedule.mockResolvedValue({ ...mockScheduleItem, scheduled_publish_at: null });
+
       const response = await agent
         .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ scheduled_publish_at: null });
 
-      expect(response.status).toBe(400);
-      expect(response.body.message).toContain('scheduled_publish_at');
+      expect(response.status).toBe(200);
     });
 
-    // Schema requires scheduled_publish_at, empty body rejected
-    it('should return 400 when body is empty (schema validation)', async () => {
+    // 空 body 应通过验证（字段均可选）
+    it('should accept empty body', async () => {
+      mockUpdateSchedule.mockResolvedValue(mockScheduleItem);
+
       const response = await agent
         .put('/api/v1/publishing-schedule/1')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({});
 
-      expect(response.status).toBe(400);
-      expect(response.body.message).toContain('scheduled_publish_at');
+      expect(response.status).toBe(200);
     });
 
     it('should return 404 when article does not exist', async () => {
