@@ -1,0 +1,100 @@
+diff --git a/node_modules/@uiw/react-md-editor/esm/Context.d.ts b/node_modules/@uiw/react-md-editor/esm/Context.d.ts
+index ede0897..7efd760 100644
+--- a/node_modules/@uiw/react-md-editor/esm/Context.d.ts
++++ b/node_modules/@uiw/react-md-editor/esm/Context.d.ts
+@@ -24,31 +24,11 @@ export interface ContextStore {
+     scrollTopPreview?: number;
+     tabSize?: number;
+     defaultTabEnable?: boolean;
+-    [key: string]: any;
+ }
+-export type ExecuteCommandState = Pick<ContextStore, 'fullscreen' | 'preview' | 'highlightEnable'>;
+-export declare function reducer(state: ContextStore, action: ContextStore): {
+-    [x: string]: any;
+-    components?: MDEditorProps["components"];
+-    commands?: ICommand<string>[];
+-    extraCommands?: ICommand<string>[];
+-    markdown?: string;
+-    preview?: PreviewType;
+-    height?: React.CSSProperties["height"];
++export interface ExecuteCommandState {
+     fullscreen?: boolean;
++    preview?: PreviewType;
+     highlightEnable?: boolean;
+-    autoFocus?: boolean;
+-    autoFocusEnd?: boolean;
+-    textarea?: HTMLTextAreaElement;
+-    commandOrchestrator?: TextAreaCommandOrchestrator;
+-    textareaWarp?: HTMLDivElement;
+-    textareaPre?: HTMLPreElement;
+-    container?: HTMLDivElement | null;
+-    dispatch?: React.Dispatch<ContextStore>;
+-    barPopup?: Record<string, boolean>;
+-    scrollTop?: number;
+-    scrollTopPreview?: number;
+-    tabSize?: number;
+-    defaultTabEnable?: boolean;
+-};
++}
++export declare function reducer(state: ContextStore, action: ContextStore): ContextStore;
+ export declare const EditorContext: React.Context<ContextStore>;
+diff --git a/node_modules/@uiw/react-md-editor/lib/Context.d.ts b/node_modules/@uiw/react-md-editor/lib/Context.d.ts
+index ede0897..7efd760 100644
+--- a/node_modules/@uiw/react-md-editor/lib/Context.d.ts
++++ b/node_modules/@uiw/react-md-editor/lib/Context.d.ts
+@@ -24,31 +24,11 @@ export interface ContextStore {
+     scrollTopPreview?: number;
+     tabSize?: number;
+     defaultTabEnable?: boolean;
+-    [key: string]: any;
+ }
+-export type ExecuteCommandState = Pick<ContextStore, 'fullscreen' | 'preview' | 'highlightEnable'>;
+-export declare function reducer(state: ContextStore, action: ContextStore): {
+-    [x: string]: any;
+-    components?: MDEditorProps["components"];
+-    commands?: ICommand<string>[];
+-    extraCommands?: ICommand<string>[];
+-    markdown?: string;
+-    preview?: PreviewType;
+-    height?: React.CSSProperties["height"];
++export interface ExecuteCommandState {
+     fullscreen?: boolean;
++    preview?: PreviewType;
+     highlightEnable?: boolean;
+-    autoFocus?: boolean;
+-    autoFocusEnd?: boolean;
+-    textarea?: HTMLTextAreaElement;
+-    commandOrchestrator?: TextAreaCommandOrchestrator;
+-    textareaWarp?: HTMLDivElement;
+-    textareaPre?: HTMLPreElement;
+-    container?: HTMLDivElement | null;
+-    dispatch?: React.Dispatch<ContextStore>;
+-    barPopup?: Record<string, boolean>;
+-    scrollTop?: number;
+-    scrollTopPreview?: number;
+-    tabSize?: number;
+-    defaultTabEnable?: boolean;
+-};
++}
++export declare function reducer(state: ContextStore, action: ContextStore): ContextStore;
+ export declare const EditorContext: React.Context<ContextStore>;
+diff --git a/node_modules/@uiw/react-md-editor/src/Context.tsx b/node_modules/@uiw/react-md-editor/src/Context.tsx
+index 97ca08f..b4dbee7 100644
+--- a/node_modules/@uiw/react-md-editor/src/Context.tsx
++++ b/node_modules/@uiw/react-md-editor/src/Context.tsx
+@@ -26,10 +26,13 @@ export interface ContextStore {
+   scrollTopPreview?: number;
+   tabSize?: number;
+   defaultTabEnable?: boolean;
+-  [key: string]: any;
+ }
+ 
+-export type ExecuteCommandState = Pick<ContextStore, 'fullscreen' | 'preview' | 'highlightEnable'>;
++export interface ExecuteCommandState {
++  fullscreen?: boolean;
++  preview?: PreviewType;
++  highlightEnable?: boolean;
++}
+ 
+ export function reducer(state: ContextStore, action: ContextStore) {
+   return { ...state, ...action };

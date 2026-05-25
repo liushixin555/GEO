@@ -422,3 +422,36 @@ export type ExecuteCommandState = Pick<ContextStore, 'fullscreen' | 'preview' | 
 ---
 
 *本报告仅评审 `Context.tsx` 文件本身的架构设计，不涉及消费端的实现质量问题。*
+
+---
+
+## 四、修复记录（2026-05-25）
+
+### 已修复（patch-package 补丁）
+
+| 编号 | 修复内容 | 补丁文件 |
+|---|---|---|
+| **P0-1** | 移除 `[key: string]: any` 索引签名 | `patches/@uiw+react-md-editor+4.1.0.patch` |
+| **P2-2** | `ExecuteCommandState` 从 `Pick<ContextStore, ...>` 改为显式接口定义 | 同上 |
+| reducer 返回类型 | 移除 `[x: string]: any`，改为返回 `ContextStore` | 同上 |
+
+**修改文件**（3 个源 + 2 个编译产物）：
+- `src/Context.tsx` — 移除索引签名 + ExecuteCommandState 显式定义
+- `esm/Context.d.ts` — 同步类型修复 + reducer 返回类型简化
+- `lib/Context.d.ts` — 同步类型修复 + reducer 返回类型简化
+
+### 已由封装层缓解（无需 patch，破坏性过大）
+
+| 编号 | 问题 | 缓解方式 |
+|---|---|---|
+| **P0-2** | Reducer 无 Action 区分 | MarkdownEditor.tsx 通过 commandsFilter 封装所有命令 |
+| **P0-3** | DOM 引用混入 Context | MarkdownEditor.tsx 隔离 DOM 引用，useEffect 清理 |
+| **P1-1** | dispatch 混入状态接口 | MarkdownEditor.tsx 不暴露 ContextStore 给外部 |
+| **P1-2** | 全 optional 无默认值 | MarkdownEditor.tsx 提供完整 Props 默认值 |
+| **P2-1** | 单一巨型 Context | MarkdownEditor.tsx 通过 memo + useCallback 减少 re-render |
+
+### 验证结果
+
+- `pnpm build` ✅ 通过
+- `pnpm lint` ✅ 通过
+- MarkdownEditor 129 测试 ✅ 全部通过

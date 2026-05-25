@@ -5,9 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  '@uiw/react-markdown-preview@5.2.1':
-    hash: f602fe29ab7ed3d8d7dda3ca5da596f7101fad6f5e31ebf6ead69f1f93bddd25
-    path: patches/@uiw__react-markdown-preview@5.2.1.patch
+  '@uiw/react-markdown-preview@5.2.1': f32654e724845ff1550a294b4428f4a91d435be79a51ecaa41a75cd65db5eaf4
 
 importers:
 
@@ -30,7 +28,7 @@ importers:
         version: 0.9.19
       '@uiw/react-markdown-preview':
         specifier: ~5.2.1
-        version: 5.2.1(patch_hash=f602fe29ab7ed3d8d7dda3ca5da596f7101fad6f5e31ebf6ead69f1f93bddd25)(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 5.2.1(patch_hash=f32654e724845ff1550a294b4428f4a91d435be79a51ecaa41a75cd65db5eaf4)(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@uiw/react-md-editor':
         specifier: ^4.1.0
         version: 4.1.0(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -5706,7 +5704,7 @@ snapshots:
 
   '@uiw/copy-to-clipboard@1.0.20': {}
 
-  '@uiw/react-markdown-preview@5.2.1(patch_hash=f602fe29ab7ed3d8d7dda3ca5da596f7101fad6f5e31ebf6ead69f1f93bddd25)(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@uiw/react-markdown-preview@5.2.1(patch_hash=f32654e724845ff1550a294b4428f4a91d435be79a51ecaa41a75cd65db5eaf4)(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@babel/runtime': 7.29.2
       '@uiw/copy-to-clipboard': 1.0.20
@@ -5730,7 +5728,7 @@ snapshots:
   '@uiw/react-md-editor@4.1.0(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@babel/runtime': 7.29.2
-      '@uiw/react-markdown-preview': 5.2.1(patch_hash=f602fe29ab7ed3d8d7dda3ca5da596f7101fad6f5e31ebf6ead69f1f93bddd25)(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@uiw/react-markdown-preview': 5.2.1(patch_hash=f32654e724845ff1550a294b4428f4a91d435be79a51ecaa41a75cd65db5eaf4)(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       rehype: 13.0.2
