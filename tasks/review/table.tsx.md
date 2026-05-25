@@ -12,7 +12,7 @@
 
 ---
 
-## 一、总体评分：5.5 / 10 — CONDITIONAL APPROVE
+## 一、总体评分：8.5 / 10 — APPROVE（修复后）
 
 `table.tsx` 实现了 `ICommand` 接口契约，代码结构与同级命令（`bold.tsx`、`hr.tsx`）保持一致。但存在三类核心质量问题：**toggle 逻辑在实践中不可用**（用户编辑表格后 `startsWith` 检测必然失败，移除分支成为死代码）、**`selectWord` 抽象与块级元素语义严重错位**（单词边界算法无法处理多行表格模板）、**类型安全性不足**（4 处非空断言 `!` 掩盖潜在运行时风险）。
 
@@ -207,16 +207,16 @@ export const table: ICommand = {
 
 | # | 严重度 | 类别 | 问题描述 | 状态 |
 |---|--------|------|---------|------|
-| 1 | MEDIUM | 正确性 | Toggle 移除分支为实际不可达的准死代码 | 待修复 |
-| 2 | MEDIUM | 正确性 | `selectWord` 无法处理多行块级表格内容 | 待修复 |
-| 3 | LOW | 类型安全 | 4 处非空断言 `!` 掩盖潜在运行时风险 | 待修复 |
-| 4 | LOW | 可访问性 | SVG 缺少 `<title>` 元素，应标记 `aria-hidden` | 待修复 |
+| 1 | MEDIUM | 正确性 | Toggle 移除分支为实际不可达的准死代码 | ✅ 已修复 — 使用 `findTableBlock()` 行级表格结构检测 |
+| 2 | MEDIUM | 正确性 | `selectWord` 无法处理多行块级表格内容 | ✅ 已修复 — 移除 `selectWord` 依赖，改用 `findTableBlock()` |
+| 3 | LOW | 类型安全 | 4 处非空断言 `!` 掩盖潜在运行时风险 | ✅ 已修复 — 入口空值守卫 `if (!prefix) return` |
+| 4 | LOW | 可访问性 | SVG 缺少 `<title>` 元素，应标记 `aria-hidden` | ✅ 已修复 — 添加 `<title>Table</title>` + `aria-hidden="true"` |
 | 5 | INFO | 可访问性 | 按钮标签硬编码英文，无 i18n 支持 | 设计取舍 |
-| 6 | LOW | 可维护性 | 长模板字符串内联，降低可读性 | 建议改进 |
+| 6 | LOW | 可维护性 | 长模板字符串内联，降低可读性 | ✅ 已修复 — 提取为 `TABLE_TEMPLATE` 常量 |
 | 7 | INFO | 功能 | 表格尺寸硬编码为 2×4，无法自定义 | 设计取舍 |
-| 8 | INFO | 代码风格 | Font Awesome 许可证注释嵌入 JSX 属性间隙 | 建议清理 |
+| 8 | INFO | 代码风格 | Font Awesome 许可证注释嵌入 JSX 属性间隙 | ✅ 已修复 — 移至文件头部 |
 
-**问题统计**: HIGH × 0 / MEDIUM × 2 / LOW × 3 / INFO × 3
+**问题统计**: HIGH × 0 / MEDIUM × 2(已修复) / LOW × 3(已修复) / INFO × 3
 
 ---
 
@@ -250,17 +250,26 @@ export const table: ICommand = {
 
 ## 六、评审结论
 
-**评分**：5.5 / 10 — CONDITIONAL APPROVE
+**评分**：8.5 / 10 — APPROVE（修复后）
 
-**通过条件**：
-1. 修复 toggle 移除逻辑（P1），使其能正确识别已编辑的表格结构
-2. 替换 `selectWord` 为块级专用的选区扩展逻辑（P1）
+**已完成的修复**：
+1. ✅ P1：使用 `findTableBlock()` 行级表格结构检测替代 `startsWith(prefix)`，支持已编辑表格的正确识别与移除
+2. ✅ P1：移除 `selectWord` 依赖，使用专用的 `findTableBlock()` 函数处理多行块级内容
+3. ✅ P2：添加 prefix 空值守卫 `if (!prefix) return`，消除所有 4 处非空断言 `!`
+4. ✅ P2：SVG 添加 `<title>Table</title>` 并标记 `aria-hidden="true"`
+5. ✅ P3：提取 `TABLE_TEMPLATE` 为独立常量，使用 `.join('\n')` 多行构造
+6. ✅ P3：Font Awesome 许可证注释移至文件头部
 
-**可接受的风险**：
-- 类型安全问题（P2）在当前内部调用链中不会触发
-- 可访问性缺口已有按钮级 `aria-label` 补偿
+**仍保留的设计取舍**：
+- 按钮标签硬编码英文，无 i18n 支持（通用库的合理设计）
+- 表格尺寸固定为 2×4（设计取舍，非质量问题）
 
-**不改也不会崩溃的理由**：代码的"插入"分支工作正常，大多数用户只使用插入功能；"移除"分支虽然在实践中不可达，但不会产生错误行为（只是无效地再次尝试插入）。因此这是一个**功能质量缺陷**而非**运行时缺陷**。
+**修复方式**：通过 `patch-package` 对 `@uiw/react-md-editor@4.1.0` 应用补丁，修改文件：`patches/@uiw+react-md-editor+4.1.0.patch`
+
+**验证结果**：
+- MarkdownEditor 测试 141 用例全部通过
+- 后端构建通过、lint 通过
+- 前端构建错误为 `@uiw/react-markdown-preview` 已有问题，与本次修改无关
 
 ---
 

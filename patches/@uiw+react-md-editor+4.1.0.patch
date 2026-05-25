@@ -156,6 +156,167 @@ index b9ca7f4..f6b71e2 100644
 +
    return data;
  };
+diff --git a/node_modules/@uiw/react-md-editor/src/commands/table.tsx b/node_modules/@uiw/react-md-editor/src/commands/table.tsx
+index a0cc770..d46d53d 100644
+--- a/node_modules/@uiw/react-md-editor/src/commands/table.tsx
++++ b/node_modules/@uiw/react-md-editor/src/commands/table.tsx
+@@ -1,52 +1,124 @@
++// Font Awesome Free 6.4.2 by @fontawesome - https://fontawesome.com
+ import React from 'react';
+ import { ICommand, ExecuteState, TextAreaTextApi } from './';
+-import { selectWord, executeCommand } from '../utils/markdownUtils';
++
++const TABLE_TEMPLATE = [
++  '',
++  '| Header | Header |',
++  '|--------|--------|',
++  '| Cell | Cell |',
++  '| Cell | Cell |',
++  '| Cell | Cell |',
++  '',
++].join('\n');
++
++/**
++ * Checks if a line is a Markdown table row (starts with '|')
++ */
++function isTableRow(line: string): boolean {
++  return line.trim().startsWith('|');
++}
++
++/**
++ * Checks if a line is a Markdown table separator (e.g. |---|---|)
++ */
++function isTableSeparator(line: string): boolean {
++  return /^\|[\s]*-{3,}[\s]*(\|[\s]*-{3,}[\s]*)*\|?$/.test(line.trim());
++}
++
++/**
++ * Finds the full table block range containing the given cursor position.
++ * Returns null if the cursor is not inside a valid Markdown table.
++ */
++function findTableBlock(text: string, position: number): { start: number; end: number } | null {
++  const lines = text.split('\n');
++  let charPos = 0;
++  let cursorLine = 0;
++
++  // Find which line the cursor is on
++  for (let i = 0; i < lines.length; i++) {
++    const lineEnd = charPos + lines[i].length;
++    if (position <= lineEnd) {
++      cursorLine = i;
++      break;
++    }
++    charPos = lineEnd + 1;
++    if (i === lines.length - 1) cursorLine = i;
++  }
++
++  // Check if cursor line is a table row or separator
++  if (!isTableRow(lines[cursorLine]) && !isTableSeparator(lines[cursorLine])) {
++    return null;
++  }
++
++  // Expand upward to find table start
++  let startLine = cursorLine;
++  while (startLine > 0 && (isTableRow(lines[startLine - 1]) || isTableSeparator(lines[startLine - 1]))) {
++    startLine--;
++  }
++
++  // Expand downward to find table end
++  let endLine = cursorLine;
++  while (endLine < lines.length - 1 && (isTableRow(lines[endLine + 1]) || isTableSeparator(lines[endLine + 1]))) {
++    endLine++;
++  }
++
++  // Validate: block must contain a separator line to be a real table
++  let hasSeparator = false;
++  for (let i = startLine; i <= endLine; i++) {
++    if (isTableSeparator(lines[i])) {
++      hasSeparator = true;
++      break;
++    }
++  }
++  if (!hasSeparator) return null;
++
++  // Convert line indices to character positions
++  let start = 0;
++  for (let i = 0; i < startLine; i++) {
++    start += lines[i].length + 1;
++  }
++
++  let end = start;
++  for (let i = startLine; i <= endLine; i++) {
++    end += lines[i].length + 1;
++  }
++  end = Math.min(end, text.length);
++
++  return { start, end };
++}
+ 
+ export const table: ICommand = {
+   name: 'table',
+   keyCommand: 'table',
+-  prefix: '\n| Header | Header |\n|--------|--------|\n| Cell | Cell |\n| Cell | Cell |\n| Cell | Cell |\n\n',
++  prefix: TABLE_TEMPLATE,
+   suffix: '',
+   buttonProps: { 'aria-label': 'Add table', title: 'Add table' },
+   icon: (
+-    <svg role="img" width="12" height="12" viewBox="0 0 512 512">
++    <svg role="img" width="12" height="12" viewBox="0 0 512 512" aria-hidden="true">
++      <title>Table</title>
+       <path
+         fill="currentColor"
+         d="M64 256V160H224v96H64zm0 64H224v96H64V320zm224 96V320H448v96H288zM448 256H288V160H448v96zM64 32C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V96c0-35.3-28.7-64-64-64H64z"
+-        //Font Awesome Free 6.4.2 by @fontawesome - https://fontawesome.com
+       />
+     </svg>
+   ),
+   execute: (state: ExecuteState, api: TextAreaTextApi) => {
+-    const newSelectionRange = selectWord({
+-      text: state.text,
+-      selection: state.selection,
+-      prefix: state.command.prefix!,
+-      suffix: state.command.suffix,
+-    });
+-    let state1 = api.setSelectionRange(newSelectionRange);
+-    if (
+-      state1.selectedText.length >= state.command.prefix!.length + state.command.suffix!.length &&
+-      state1.selectedText.startsWith(state.command.prefix!)
+-    ) {
+-      // Remove
+-      executeCommand({
+-        api,
+-        selectedText: state1.selectedText,
+-        selection: state.selection,
+-        prefix: state.command.prefix!,
+-        suffix: state.command.suffix,
+-      });
++    // P2: Null guard — abort if prefix is undefined
++    const prefix = state.command.prefix;
++    if (!prefix) return;
++
++    // P1: Use line-level table structure detection instead of startsWith(prefix)
++    const tableBlock = findTableBlock(state.text, state.selection.start);
++
++    if (tableBlock) {
++      // Remove: select the full table block and delete it
++      api.setSelectionRange(tableBlock);
++      api.replaceSelection('');
+     } else {
+-      // Add
+-      state1 = api.setSelectionRange({ start: state.selection.start, end: state.selection.start });
+-      executeCommand({
+-        api,
+-        selectedText: state1.selectedText,
+-        selection: state.selection,
+-        prefix: state.command.prefix!,
+-        suffix: state.command.suffix,
+-      });
++      // Insert: place template at cursor position
++      api.setSelectionRange({ start: state.selection.start, end: state.selection.start });
++      api.replaceSelection(prefix);
+     }
+   },
+ };
 diff --git a/node_modules/@uiw/react-md-editor/src/commands/title3.tsx b/node_modules/@uiw/react-md-editor/src/commands/title3.tsx
 index bde067d..fa3bfb8 100644
 --- a/node_modules/@uiw/react-md-editor/src/commands/title3.tsx
