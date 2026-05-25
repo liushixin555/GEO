@@ -792,4 +792,431 @@ describe('errors', () => {
       expect(result).toEqual({ status: 409, body: '用户名已被占用' });
     });
   });
+
+  // ============================================================
+  // 安全注入测试（16项）
+  // ============================================================
+  describe('安全注入', () => {
+    it('message 含 HTML 标签不应被转义', () => {
+      const err = new BusinessError('<script>alert("xss")</script>');
+      expect(err.message).toBe('<script>alert("xss")</script>');
+    });
+
+    it('message 含 SQL 注入字符串应原样保留', () => {
+      const err = new BusinessError("'; DROP TABLE users; --");
+      expect(err.message).toBe("'; DROP TABLE users; --");
+    });
+
+    it('message 含 null 字节应保留', () => {
+      const err = new BusinessError('error\x00injected');
+      expect(err.message).toBe('error\x00injected');
+    });
+
+    it('message 含换行符应保留', () => {
+      const err = new BusinessError('line1\nline2\r\nline3');
+      expect(err.message).toBe('line1\nline2\r\nline3');
+    });
+
+    it('message 含 Unicode 特殊字符应保留', () => {
+      const err = new BusinessError('‮ \uD800');
+      expect(err.message).toBe('‮ \uD800');
+    });
+
+    it('message 含超长字符串不应截断', () => {
+      const longMsg = 'A'.repeat(10000);
+      const err = new BusinessError(longMsg);
+      expect(err.message).toBe(longMsg);
+      expect(err.message.length).toBe(10000);
+    });
+
+    it('NotFoundError entity 含 HTML 注入应原样保留', () => {
+      const err = new NotFoundError('<img onerror=alert(1) src=x>');
+      expect(err.message).toBe('<img onerror=alert(1) src=x>不存在');
+    });
+
+    it('ConflictError message 含模板语法应原样保留', () => {
+      const err = new ConflictError('${process.env.JWT_SECRET}');
+      expect(err.message).toBe('${process.env.JWT_SECRET}');
+    });
+
+    it('UnauthorizedError 自定义 message 含注入应原样保留', () => {
+      const err = new UnauthorizedError('"); DROP TABLE sessions; --');
+      expect(err.message).toBe('"); DROP TABLE sessions; --');
+    });
+
+    it('ForbiddenError 自定义 message 含路径遍历应原样保留', () => {
+      const err = new ForbiddenError('../../../etc/passwd');
+      expect(err.message).toBe('../../../etc/passwd');
+    });
+
+    it('prototype pollution 不应影响类层次', () => {
+      const original = AppError.prototype.constructor;
+      try {
+        (AppError.prototype as any).polluted = true;
+        const err = new NotFoundError('test');
+        expect(err).toBeInstanceOf(NotFoundError);
+        expect(err).toBeInstanceOf(AppError);
+        expect(err.statusCode).toBe(404);
+      } finally {
+        delete (AppError.prototype as any).polluted;
+      }
+    });
+
+    it('修改实例 __proto__ 不应影响类原型', () => {
+      const err = new BusinessError('test');
+      (err as any).__proto__ = null;
+      // 原型链被破坏但不应影响其他实例
+      const err2 = new BusinessError('test2');
+      expect(err2).toBeInstanceOf(BusinessError);
+      expect(err2).toBeInstanceOf(AppError);
+    });
+
+    it('toString/valueOf 注入不应影响 statusCode', () => {
+      const err = new NotFoundError({
+        toString: () => 'evil',
+      } as unknown as string);
+      expect(err.statusCode).toBe(404);
+      expect(typeof err.message).toBe('string');
+    });
+
+    it('AppError statusCode 传入非数字应正常赋值', () => {
+      const err = new AppError('NaN' as unknown as number, 'test');
+      expect(err.statusCode).toBe('NaN');
+    });
+
+    it('AppError message 传入非字符串应正常赋值', () => {
+      const err = new AppError(500, 12345 as unknown as string);
+      expect(err.message).toBe('12345');
+    });
+
+    it('构造函数 new.target 始终指向直接调用者', () => {
+      const err = new NotFoundError('test');
+      expect(err.constructor).toBe(NotFoundError);
+      expect(Object.getPrototypeOf(err)).toBe(NotFoundError.prototype);
+    });
+  });
+
+  // ============================================================
+  // NaN / Infinity 边界测试（8项）
+  // ============================================================
+  describe('NaN / Infinity 边界', () => {
+    it('AppError statusCode 为 NaN 应原样存储', () => {
+      const err = new AppError(NaN, 'test');
+      expect(err.statusCode).toBeNaN();
+    });
+
+    it('AppError statusCode 为 Infinity 应原样存储', () => {
+      const err = new AppError(Infinity, 'test');
+      expect(err.statusCode).toBe(Infinity);
+    });
+
+    it('AppError statusCode 为 -Infinity 应原样存储', () => {
+      const err = new AppError(-Infinity, 'test');
+      expect(err.statusCode).toBe(-Infinity);
+    });
+
+    it('AppError statusCode 为 0 应正常存储', () => {
+      const err = new AppError(0, 'test');
+      expect(err.statusCode).toBe(0);
+    });
+
+    it('AppError statusCode 为负数应正常存储', () => {
+      const err = new AppError(-1, 'test');
+      expect(err.statusCode).toBe(-1);
+    });
+
+    it('AppError statusCode 为浮点数应正常存储', () => {
+      const err = new AppError(404.5, 'test');
+      expect(err.statusCode).toBe(404.5);
+    });
+
+    it('AppError statusCode 为极大整数应正常存储', () => {
+      const err = new AppError(Number.MAX_SAFE_INTEGER, 'test');
+      expect(err.statusCode).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('AppError statusCode 为极小负整数应正常存储', () => {
+      const err = new AppError(Number.MIN_SAFE_INTEGER, 'test');
+      expect(err.statusCode).toBe(Number.MIN_SAFE_INTEGER);
+    });
+  });
+
+  // ============================================================
+  // 类型守卫测试（10项）
+  // ============================================================
+  describe('类型守卫', () => {
+    function isAppError(e: unknown): e is AppError {
+      return e instanceof AppError;
+    }
+
+    it('AppError 实例通过类型守卫应返回 true', () => {
+      expect(isAppError(new AppError(500, 'test'))).toBe(true);
+    });
+
+    it('NotFoundError 实例通过类型守卫应返回 true', () => {
+      expect(isAppError(new NotFoundError('test'))).toBe(true);
+    });
+
+    it('BusinessError 实例通过类型守卫应返回 true', () => {
+      expect(isAppError(new BusinessError('test'))).toBe(true);
+    });
+
+    it('普通 Error 通过类型守卫应返回 false', () => {
+      expect(isAppError(new Error('test'))).toBe(false);
+    });
+
+    it('null 通过类型守卫应返回 false', () => {
+      expect(isAppError(null)).toBe(false);
+    });
+
+    it('undefined 通过类型守卫应返回 false', () => {
+      expect(isAppError(undefined)).toBe(false);
+    });
+
+    it('字符串通过类型守卫应返回 false', () => {
+      expect(isAppError('error')).toBe(false);
+    });
+
+    it('数字通过类型守卫应返回 false', () => {
+      expect(isAppError(404)).toBe(false);
+    });
+
+    it('普通对象通过类型守卫应返回 false', () => {
+      expect(isAppError({ statusCode: 500, message: 'test' })).toBe(false);
+    });
+
+    it('类型守卫应正确窄化类型', () => {
+      const unknown: unknown = new NotFoundError('用户');
+      if (isAppError(unknown)) {
+        expect(unknown.statusCode).toBe(404);
+        expect(unknown.message).toBe('用户不存在');
+      } else {
+        fail('应为 AppError 实例');
+      }
+    });
+  });
+
+  // ============================================================
+  // 深冻结测试（7项）
+  // ============================================================
+  describe('深冻结', () => {
+    it('Object.freeze 后 AppError 属性不可写', () => {
+      const err = Object.freeze(new AppError(500, 'test'));
+      expect(() => { (err as any).statusCode = 200; }).toThrow(TypeError);
+      expect(err.statusCode).toBe(500);
+    });
+
+    it('Object.freeze 后 NotFoundError 属性不可写', () => {
+      const err = Object.freeze(new NotFoundError('test'));
+      expect(() => { (err as any).name = 'Modified'; }).toThrow(TypeError);
+      expect(err.name).toBe('NotFoundError');
+    });
+
+    it('Object.freeze 后 BusinessError 属性不可删除', () => {
+      const err = Object.freeze(new BusinessError('test'));
+      expect(() => { delete (err as any).statusCode; }).toThrow(TypeError);
+      expect(err.statusCode).toBe(400);
+    });
+
+    it('Object.freeze 后 UnauthorizedError 不允许添加新属性', () => {
+      const err = Object.freeze(new UnauthorizedError());
+      expect(() => { (err as any).extra = 'malicious'; }).toThrow(TypeError);
+      expect((err as any).extra).toBeUndefined();
+    });
+
+    it('Object.freeze 后 ForbiddenError 不允许修改 message', () => {
+      const err = Object.freeze(new ForbiddenError());
+      expect(() => { (err as any).message = 'hacked'; }).toThrow(TypeError);
+      expect(err.message).toBe('权限不足');
+    });
+
+    it('Object.freeze 后 ConflictError 属性描述符 configurable 应为 false', () => {
+      const err = Object.freeze(new ConflictError('test'));
+      const desc = Object.getOwnPropertyDescriptor(err, 'statusCode');
+      expect(desc?.configurable).toBe(false);
+      expect(desc?.writable).toBe(false);
+    });
+
+    it('Object.isFrozen 应返回 true', () => {
+      const err = Object.freeze(new NotFoundError('test'));
+      expect(Object.isFrozen(err)).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // 生命周期 / 原型链完整性测试（7项）
+  // ============================================================
+  describe('生命周期 / 原型链完整性', () => {
+    it('AppError.prototype 的原型应为 Error.prototype', () => {
+      expect(Object.getPrototypeOf(AppError.prototype)).toBe(Error.prototype);
+    });
+
+    it('NotFoundError 三层原型链完整', () => {
+      const err = new NotFoundError('test');
+      expect(Object.getPrototypeOf(err)).toBe(NotFoundError.prototype);
+      expect(Object.getPrototypeOf(NotFoundError.prototype)).toBe(AppError.prototype);
+      expect(Object.getPrototypeOf(AppError.prototype)).toBe(Error.prototype);
+      expect(Object.getPrototypeOf(Error.prototype)).toBe(Object.prototype);
+    });
+
+    it('BusinessError constructor 应指向自身', () => {
+      const err = new BusinessError('test');
+      expect(err.constructor).toBe(BusinessError);
+      expect(NotFoundError.prototype.constructor).toBe(NotFoundError);
+    });
+
+    it('UnauthorizedError 原型链上不应有其他子类的方法', () => {
+      const err = new UnauthorizedError();
+      expect((err as any).entity).toBeUndefined();
+      expect(typeof err.message).toBe('string');
+    });
+
+    it('多次创建实例不应共享状态', () => {
+      const err1 = new AppError(400, 'first');
+      const err2 = new AppError(500, 'second');
+      (err1 as any).custom = 'shared?';
+      expect((err2 as any).custom).toBeUndefined();
+    });
+
+    it('子类实例的 hasOwnProperty 应正确反映自身属性', () => {
+      const err = new NotFoundError('test');
+      expect(Object.prototype.hasOwnProperty.call(err, 'statusCode')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(err, 'message')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(err, 'name')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(err, 'stack')).toBe(true);
+    });
+
+    it('所有子类原型应共享 AppError.prototype 作为父原型', () => {
+      const subclasses = [NotFoundError, BusinessError, UnauthorizedError, ForbiddenError, ConflictError];
+      for (const Sub of subclasses) {
+        expect(Object.getPrototypeOf(Sub.prototype)).toBe(AppError.prototype);
+      }
+    });
+  });
+
+  // ============================================================
+  // 业务场景测试（12项）
+  // ============================================================
+  describe('业务场景', () => {
+    it('Express 错误处理中间件应能统一捕获 AppError', () => {
+      function expressErrorHandler(err: Error): { status: number; msg: string } {
+        if (err instanceof AppError) {
+          return { status: err.statusCode, msg: err.message };
+        }
+        return { status: 500, msg: 'Internal Server Error' };
+      }
+
+      const result = expressErrorHandler(new NotFoundError('公司'));
+      expect(result).toEqual({ status: 404, msg: '公司不存在' });
+    });
+
+    it('Express 错误处理中间件应将非 AppError 视为 500', () => {
+      function expressErrorHandler(err: Error): { status: number; msg: string } {
+        if (err instanceof AppError) {
+          return { status: err.statusCode, msg: err.message };
+        }
+        return { status: 500, msg: 'Internal Server Error' };
+      }
+
+      const result = expressErrorHandler(new Error('unexpected'));
+      expect(result).toEqual({ status: 500, msg: 'Internal Server Error' });
+    });
+
+    it('未登录用户访问受保护资源应抛出 UnauthorizedError', () => {
+      function requireAuth(token: string | null) {
+        if (!token) throw new UnauthorizedError();
+      }
+      expect(() => requireAuth(null)).toThrow(UnauthorizedError);
+      expect(() => requireAuth(null)).toThrow('未授权，请先登录');
+    });
+
+    it('无权限用户操作应抛出 ForbiddenError', () => {
+      function requireRole(role: string) {
+        if (role !== 'admin') throw new ForbiddenError();
+      }
+      expect(() => requireRole('view')).toThrow(ForbiddenError);
+    });
+
+    it('查询不存在的实体应抛出 NotFoundError', () => {
+      function findUser(id: number) {
+        if (id <= 0) throw new NotFoundError('用户');
+        return { id, name: 'test' };
+      }
+      expect(() => findUser(-1)).toThrow(NotFoundError);
+      expect(() => findUser(-1)).toThrow('用户不存在');
+    });
+
+    it('创建重复资源应抛出 ConflictError', () => {
+      const existing = new Set(['admin']);
+      function createUser(username: string) {
+        if (existing.has(username)) throw new ConflictError('用户名已存在');
+      }
+      expect(() => createUser('admin')).toThrow(ConflictError);
+    });
+
+    it('业务校验失败应抛出 BusinessError', () => {
+      function validateAge(age: number) {
+        if (age < 18) throw new BusinessError('年龄必须大于等于18岁');
+      }
+      expect(() => validateAge(17)).toThrow(BusinessError);
+    });
+
+    it('async 函数中抛出 AppError 应可被 catch 捕获', async () => {
+      async function fetchData() {
+        throw new NotFoundError('数据');
+      }
+      try {
+        await fetchData();
+        fail('不应到达此处');
+      } catch (e) {
+        expect(e).toBeInstanceOf(NotFoundError);
+        expect((e as AppError).statusCode).toBe(404);
+      }
+    });
+
+    it('Promise.reject 包裹 AppError 应可被 catch 捕获', async () => {
+      await expect(
+        Promise.reject(new ConflictError('版本冲突')),
+      ).rejects.toBeInstanceOf(ConflictError);
+    });
+
+    it('嵌套 try-catch 应正确传递错误', () => {
+      function inner() {
+        throw new NotFoundError('内部资源');
+      }
+      function outer() {
+        try {
+          inner();
+        } catch (e) {
+          if (e instanceof NotFoundError) {
+            throw new BusinessError(`外部处理失败: ${e.message}`);
+          }
+          throw e;
+        }
+      }
+      expect(outer).toThrow(BusinessError);
+      expect(outer).toThrow('外部处理失败: 内部资源不存在');
+    });
+
+    it('错误映射表应能根据 statusCode 查找错误类型', () => {
+      const errorMap = new Map<number, typeof AppError>([
+        [404, NotFoundError],
+        [400, BusinessError],
+        [401, UnauthorizedError],
+        [403, ForbiddenError],
+        [409, ConflictError],
+      ]);
+      expect(errorMap.get(404)).toBe(NotFoundError);
+      expect(errorMap.get(409)).toBe(ConflictError);
+    });
+
+    it('错误应可正确传递给客户端响应', () => {
+      interface ApiResponse { status: number; body: { error: string } }
+      function sendError(err: AppError): ApiResponse {
+        return { status: err.statusCode, body: { error: err.message } };
+      }
+      const res = sendError(new UnauthorizedError('Token 无效'));
+      expect(res).toEqual({ status: 401, body: { error: 'Token 无效' } });
+    });
+  });
 });

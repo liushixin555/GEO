@@ -7,8 +7,8 @@
 - `tests/apis/errors.test.ts`
 
 ## 测试结果
-- **总用例数**: 97
-- **通过**: 97
+- **总用例数**: 157
+- **通过**: 157
 - **失败**: 0
 - **覆盖率**: 100%（Statements / Branch / Functions / Lines）
 
@@ -140,6 +140,96 @@ JSON 序列化深拷贝应保留 statusCode，修改拷贝不影响原始对象�
 ### 16. 函数参数传递（5 用例）
 五种错误类型作为函数参数传递后正确返回 status + body。
 
+### 17. 安全注入（16 用例）— 第二轮新增
+| 用例 | 说明 |
+|------|------|
+| message 含 HTML 标签不应被转义 | XSS 防护 |
+| message 含 SQL 注入字符串应原样保留 | SQL 注入 |
+| message 含 null 字节应保留 | 空字节注入 |
+| message 含换行符应保留 | CRLF 注入 |
+| message 含 Unicode 特殊字符应保留 | Unicode 攻击 |
+| message 含超长字符串不应截断 | 缓冲区溢出 |
+| NotFoundError entity 含 HTML 注入应原样保留 | XSS via entity |
+| ConflictError message 含模板语法应原样保留 | 模板注入 |
+| UnauthorizedError 自定义 message 含注入应原样保留 | SQL via auth |
+| ForbiddenError 自定义 message 含路径遍历应原样保留 | 路径遍历 |
+| prototype pollution 不应影响类层次 | 原型链污染 |
+| 修改实例 __proto__ 不应影响类原型 | 原型篡改 |
+| toString/valueOf 注入不应影响 statusCode | 对象注入 |
+| AppError statusCode 传入非数字应正常赋值 | 类型混淆 |
+| AppError message 传入非字符串应正常赋值 | 类型混淆 |
+| 构造函数 new.target 始终指向直接调用者 | new.target 完整性 |
+
+### 18. NaN / Infinity 边界（8 用例）— 第二轮新增
+| 用例 | 说明 |
+|------|------|
+| statusCode 为 NaN 应原样存储 | NaN 边界 |
+| statusCode 为 Infinity 应原样存储 | 正无穷 |
+| statusCode 为 -Infinity 应原样存储 | 负无穷 |
+| statusCode 为 0 应正常存储 | 零值边界 |
+| statusCode 为负数应正常存储 | 负数边界 |
+| statusCode 为浮点数应正常存储 | 浮点数 |
+| statusCode 为极大整数应正常存储 | MAX_SAFE_INTEGER |
+| statusCode 为极小负整数应正常存储 | MIN_SAFE_INTEGER |
+
+### 19. 类型守卫（10 用例）— 第二轮新增
+| 用例 | 说明 |
+|------|------|
+| AppError 实例通过类型守卫应返回 true | instanceof |
+| NotFoundError 实例通过类型守卫应返回 true | 子类兼容 |
+| BusinessError 实例通过类型守卫应返回 true | 子类兼容 |
+| 普通 Error 通过类型守卫应返回 false | 非 AppError |
+| null 通过类型守卫应返回 false | null 安全 |
+| undefined 通过类型守卫应返回 false | undefined 安全 |
+| 字符串通过类型守卫应返回 false | 类型拒绝 |
+| 数字通过类型守卫应返回 false | 类型拒绝 |
+| 普通对象通过类型守卫应返回 false | 伪造对象 |
+| 类型守卫应正确窄化类型 | TypeScript 窄化 |
+
+### 20. 深冻结（7 用例）— 第二轮新增
+| 用例 | 说明 |
+|------|------|
+| Object.freeze 后 AppError 属性不可写 | 冻结完整性 |
+| Object.freeze 后 NotFoundError 属性不可写 | 冻结完整性 |
+| Object.freeze 后 BusinessError 属性不可删除 | 删除防护 |
+| Object.freeze 后 UnauthorizedError 不允许添加新属性 | 扩展防护 |
+| Object.freeze 后 ForbiddenError 不允许修改 message | 修改防护 |
+| Object.freeze 后 ConflictError configurable 为 false | 描述符验证 |
+| Object.isFrozen 应返回 true | 冻结检测 |
+
+### 21. 生命周期 / 原型链完整性（7 用例）— 第二轮新增
+| 用例 | 说明 |
+|------|------|
+| AppError.prototype 的原型应为 Error.prototype | 原型层级 |
+| NotFoundError 三层原型链完整 | 全链验证 |
+| BusinessError constructor 应指向自身 | 构造函数反射 |
+| UnauthorizedError 原型链上不应有其他子类的方法 | 隔离性 |
+| 多次创建实例不应共享状态 | 实例隔离 |
+| 子类实例的 hasOwnProperty 应正确反映自身属性 | 属性归属 |
+| 所有子类原型应共享 AppError.prototype 作为父原型 | 继承一致性 |
+
+### 22. 业务场景（12 用例）— 第二轮新增
+| 用例 | 说明 |
+|------|------|
+| Express 错误处理中间件应能统一捕获 AppError | 全局异常处理 |
+| Express 错误处理中间件应将非 AppError 视为 500 | 降级处理 |
+| 未登录用户访问受保护资源应抛出 UnauthorizedError | 认证场景 |
+| 无权限用户操作应抛出 ForbiddenError | 授权场景 |
+| 查询不存在的实体应抛出 NotFoundError | 查询场景 |
+| 创建重复资源应抛出 ConflictError | 唯一性约束 |
+| 业务校验失败应抛出 BusinessError | 校验场景 |
+| async 函数中抛出 AppError 应可被 catch 捕获 | 异步场景 |
+| Promise.reject 包裹 AppError 应可被 catch 捕获 | Promise 场景 |
+| 嵌套 try-catch 应正确传递错误 | 错误转换 |
+| 错误映射表应能根据 statusCode 查找错误类型 | 反向映射 |
+| 错误应可正确传递给客户端响应 | API 响应 |
+
+## 第二轮补全统计
+- **新增用例**: 60（安全注入16 + NaN边界8 + 类型守卫10 + 深冻结7 + 生命周期7 + 业务场景12）
+- **总用例**: 97 + 60 = 157
+- **覆盖率**: 100% Stmts / 100% Branch / 100% Funcs / 100% Lines
+
 ## 踩坑记录
 1. **Error.message 不可枚举** — `JSON.stringify(new Error('x'))` 不会包含 `message` 字段，这是 JavaScript 原生行为，测试需区别对待
 2. **hasOwnProperty 短路问题** — `err.hasOwnProperty('name') || err.name` 中前者返回 `true` 导致断言失败，需拆分为两个独立 expect
+3. **toString/valueOf 注入测试** — 传入带 toString 的对象给 NotFoundError 时，模板字符串会调用 toString()，验证 message 结果符合 JS 运行时行为
