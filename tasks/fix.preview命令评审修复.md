@@ -81,6 +81,28 @@ buttonProps: { 'aria-label': '预览模式 (Ctrl+9)' }
 - 构建：通过
 - Lint：通过
 
+## UI 评审验证（2026-05-25）
+
+对照 `tasks/review/commands-preview.tsx.ui.md`（3.2/10 分，P1×2 / P2×3 / P3×4）逐项验证：
+
+| 编号 | 问题 | 修复状态 | 封装层实现 |
+|------|------|----------|------------|
+| UI-P1-01 | 模式切换应使用 Segmented/Radio.Group | ✅ 替代方案 | commandsFilter + antd 图标 + CSS data-mode-active 选中态 |
+| UI-P1-02 | 方括号 SVG 辨识度极低 | ✅ 已修复 | EditOutlined/SplitCellsOutlined/EyeOutlined (fontSize: 16) |
+| UI-P2-01 | SVG 缺 role/aria-hidden | ✅ 已修复 | annotateToolbar 为所有 SVG 注入 aria-hidden="true" |
+| UI-P2-02 | 英文硬编码标签 | ✅ 已修复 | 中文 buttonProps 覆盖 |
+| UI-P2-03 | execute 双路径不一致 | ✅ 已修复 | 统一 execute：api.textArea?.focus() + dispatch({ preview: mode }) |
+| UI-P3-01 | SVG 12px 非标尺寸 | ✅ 已修复 | 替换为 antd 图标，fontSize: 16（Carbon 标准） |
+| UI-P3-02 | 选中态无视觉区分 | ✅ 已修复 | CSS `data-mode-active` + 2px 底部蓝色下划线（Carbon product-tab） |
+| UI-P3-03 | Ctrl+7/8/9 快捷键冲突 | ✅ 已修复 | preventBrowserShortcut 拦截 Ctrl+1-9 |
+| UI-P3-04 | 导出名 code 前缀语义 | N/A | 第三方库命名，封装层已完全覆盖 UI 表现 |
+
+验证结果：
+- Build: ✅ 通过
+- Lint: ✅ 通过
+- MarkdownEditor Tests: ✅ 167/167 通过
+- Auth Tests: ✅ 294/294 通过
+
 ## 验收标准
 
 - [x] 模式切换按钮使用 antd 图标（EditOutlined/SplitCellsOutlined/EyeOutlined）
