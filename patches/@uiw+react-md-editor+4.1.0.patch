@@ -98,6 +98,64 @@ index 97ca08f..b4dbee7 100644
  
  export function reducer(state: ContextStore, action: ContextStore) {
    return { ...state, ...action };
+diff --git a/node_modules/@uiw/react-md-editor/src/commands/group.tsx b/node_modules/@uiw/react-md-editor/src/commands/group.tsx
+index b9ca7f4..f6b71e2 100644
+--- a/node_modules/@uiw/react-md-editor/src/commands/group.tsx
++++ b/node_modules/@uiw/react-md-editor/src/commands/group.tsx
+@@ -1,13 +1,23 @@
+ import React from 'react';
+ import { type ICommand, type ICommandChildCommands, type ICommandChildHandle } from './';
+ 
+-export type GroupOptions = Omit<ICommand<string>, 'children'> & {
++export type GroupOptions = Omit<ICommand<string>, 'children' | 'execute' | 'icon'> & {
+   children?: ICommandChildHandle['children'];
+ };
+ 
+ export const group = (arr: ICommandChildCommands['children'], options?: GroupOptions): ICommand<string> => {
+-  let data = {
+-    children: arr as any,
++  // SEC-G-03: Input validation — reject non-array, non-null values
++  if (arr != null && !Array.isArray(arr)) {
++    throw new TypeError('group(): arr must be an array or null/undefined');
++  }
++
++  // SEC-G-01: Validate and filter children instead of using 'as any'
++  const validatedChildren: Array<ICommand<string>> = Array.isArray(arr)
++    ? arr.filter((item): item is ICommand<string> => item != null && typeof item === 'object')
++    : [];
++
++  // SEC-G-04: Spread options first, then override protected properties (children, execute, icon)
++  let data: ICommand<string> = {
+     icon: (
+       <svg width="12" height="12" viewBox="0 0 520 520">
+         <path
+@@ -18,13 +28,20 @@ export const group = (arr: ICommandChildCommands['children'], options?: GroupOpt
+     ),
+     execute: () => {},
+     ...options,
++    children: validatedChildren,
+     keyCommand: 'group',
+   };
+-  if (Array.isArray(data.children)) {
+-    data.children = data.children.map(({ ...item }: ICommand) => {
+-      item.parent = data;
+-      return { ...item };
+-    });
+-  }
++
++  // SEC-G-02: Lightweight parent marker to avoid circular reference
++  // SEC-G-05: Single spread for clean shallow clone
++  const parentMarker = { keyCommand: 'group', groupName: data.groupName } as ICommand<any>;
++  data = {
++    ...data,
++    children: validatedChildren.map((item: ICommand<string>) => ({
++      ...item,
++      parent: parentMarker,
++    })),
++  };
++
+   return data;
+ };
 diff --git a/node_modules/@uiw/react-md-editor/src/commands/title3.tsx b/node_modules/@uiw/react-md-editor/src/commands/title3.tsx
 index bde067d..fa3bfb8 100644
 --- a/node_modules/@uiw/react-md-editor/src/commands/title3.tsx
