@@ -3158,4 +3158,780 @@ describe('knowledge.entity', () => {
       expect(merged.id).toBe(1);
     });
   });
+
+  // ============================================================
+  // 安全注入测试
+  // ============================================================
+  describe('安全注入测试', () => {
+    const baseKeyword: KnowledgeKeyword = {
+      id: 1, base_id: 1, keyword: '测试', seed_word: null,
+      group_id: null, created_by: null,
+      created_at: new Date(), updated_at: new Date(),
+    };
+
+    it('should store keyword with script tags as plain text', () => {
+      const xss = '<script>alert("xss")</script>';
+      const kw: KnowledgeKeyword = { ...baseKeyword, keyword: xss };
+      expect(kw.keyword).toBe(xss);
+      expect(kw.keyword).toContain('<script>');
+    });
+
+    it('should store keyword with SQL injection pattern as plain text', () => {
+      const sql = "'; DROP TABLE knowledge_keywords; --";
+      const kw: KnowledgeKeyword = { ...baseKeyword, keyword: sql };
+      expect(kw.keyword).toBe(sql);
+      expect(kw.keyword).toContain('DROP TABLE');
+    });
+
+    it('should store seed_word with HTML entities as plain text', () => {
+      const html = '&lt;script&gt;&amp;&lt;/script&gt;';
+      const kw: KnowledgeKeyword = { ...baseKeyword, seed_word: html };
+      expect(kw.seed_word).toBe(html);
+    });
+
+    it('should store expanded word with path traversal pattern as plain text', () => {
+      const traversal = '../../../etc/passwd';
+      const ew: KeywordExpandedWord = {
+        id: 1, keyword_id: 1, word: traversal, selected: false,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(ew.word).toBe(traversal);
+    });
+
+    it('should store image_url with javascript: protocol as plain string', () => {
+      const xssUrl = 'javascript:alert(1)';
+      const img: KnowledgeImage = {
+        id: 1, base_id: 1, title: '图片', description: null,
+        image_url: xssUrl, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(img.image_url).toBe(xssUrl);
+    });
+
+    it('should store image_url with data: URI as plain string', () => {
+      const dataUri = 'data:text/html,<h1>test</h1>';
+      const img: KnowledgeImage = {
+        id: 1, base_id: 1, title: '图片', description: null,
+        image_url: dataUri, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(img.image_url).toBe(dataUri);
+    });
+
+    it('should store content with prototype pollution pattern as plain text', () => {
+      const pollution = '{"__proto__":{"admin":true}}';
+      const portrait: KnowledgePortrait = {
+        id: 1, base_id: 1, title: '画像', content: pollution,
+        created_by: null, created_at: new Date(), updated_at: new Date(),
+      };
+      expect(portrait.content).toBe(pollution);
+    });
+
+    it('should store keyword with null bytes safely', () => {
+      const nullKeyword = 'keyword\x00injection';
+      const kw: KnowledgeKeyword = { ...baseKeyword, keyword: nullKeyword };
+      expect(kw.keyword).toContain('\x00');
+    });
+
+    it('should store portrait title with null bytes safely', () => {
+      const nullTitle = 'title\x00attack';
+      const portrait: KnowledgePortrait = {
+        id: 1, base_id: 1, title: nullTitle, content: null,
+        created_by: null, created_at: new Date(), updated_at: new Date(),
+      };
+      expect(portrait.title).toContain('\x00');
+    });
+
+    it('should store document file_url with query string injection as plain text', () => {
+      const injection = '/files/doc.pdf?redirect=http://evil.com';
+      const doc: KnowledgeDocument = {
+        id: 1, base_id: 1, title: '文档', description: null,
+        file_url: injection, file_name: 'doc.pdf', file_type: 'pdf',
+        file_size: 1024, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(doc.file_url).toBe(injection);
+    });
+
+    it('should store document description with CRLF injection as plain text', () => {
+      const crlf = 'desc\r\nSet-Cookie: evil=true';
+      const doc: KnowledgeDocument = {
+        id: 1, base_id: 1, title: '文档', description: crlf,
+        file_url: '/f.pdf', file_name: 'f.pdf', file_type: 'pdf',
+        file_size: 100, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(doc.description).toBe(crlf);
+    });
+
+    it('should handle very large unicode in expanded word safely', () => {
+      const bigUnicode = '￿'.repeat(1000);
+      const ew: KeywordExpandedWord = {
+        id: 1, keyword_id: 1, word: bigUnicode, selected: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(ew.word.length).toBe(1000);
+    });
+
+    it('should handle very large unicode in portrait content safely', () => {
+      const bigUnicode = '￿'.repeat(1000);
+      const portrait: KnowledgePortrait = {
+        id: 1, base_id: 1, title: '画像', content: bigUnicode,
+        created_by: null, created_at: new Date(), updated_at: new Date(),
+      };
+      expect(portrait.content!.length).toBe(1000);
+    });
+
+    it('should store MinedKeyword with XSS pattern as plain text', () => {
+      const xss = '<img src=x onerror=alert(1)>';
+      const mk: MinedKeyword = {
+        id: 1, base_id: 1, keyword: xss, selected: false,
+        created_by: null, created_at: new Date(),
+      };
+      expect(mk.keyword).toBe(xss);
+      expect(mk.keyword).toContain('onerror');
+    });
+
+    it('should not pollute prototype when parsing JSON with __proto__', () => {
+      const json = '{"__proto__":{"polluted":true},"keyword":"test"}';
+      const parsed = JSON.parse(json);
+      const req: CreateKeywordRequest = { keyword: parsed.keyword };
+      expect(req.keyword).toBe('test');
+      expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    });
+
+    it('should safely handle constructor injection in JSON', () => {
+      const json = '{"constructor":{"prototype":{"injected":true}}}';
+      const parsed = JSON.parse(json);
+      expect(parsed.keyword).toBeUndefined();
+      expect(({} as Record<string, unknown>).injected).toBeUndefined();
+    });
+  });
+
+  // ============================================================
+  // 高级 JSON 序列化/反序列化
+  // ============================================================
+  describe('高级 JSON 序列化/反序列化', () => {
+    it('should serialize KnowledgeKeyword Date fields as ISO strings', () => {
+      const kw: KnowledgeKeyword = {
+        id: 1, base_id: 1, keyword: '测试', seed_word: null,
+        group_id: null, created_by: null,
+        created_at: new Date('2026-05-24T08:00:00Z'),
+        updated_at: new Date('2026-05-24T09:00:00Z'),
+      };
+      const json = JSON.stringify(kw);
+      const parsed = JSON.parse(json);
+      expect(typeof parsed.created_at).toBe('string');
+      expect(typeof parsed.updated_at).toBe('string');
+      expect(parsed.created_at).toBe('2026-05-24T08:00:00.000Z');
+      expect(parsed.updated_at).toBe('2026-05-24T09:00:00.000Z');
+    });
+
+    it('should deserialize KnowledgeKeyword with Date reviver', () => {
+      const kw: KnowledgeKeyword = {
+        id: 1, base_id: 1, keyword: '测试', seed_word: '种子',
+        group_id: 1, created_by: 1,
+        created_at: new Date('2026-05-24T08:00:00Z'),
+        updated_at: new Date('2026-05-24T09:00:00Z'),
+      };
+      const json = JSON.stringify(kw);
+      const parsed = JSON.parse(json);
+      const restored: KnowledgeKeyword = {
+        ...parsed,
+        created_at: new Date(parsed.created_at),
+        updated_at: new Date(parsed.updated_at),
+      };
+      expect(restored.created_at).toBeInstanceOf(Date);
+      expect(restored.updated_at).toBeInstanceOf(Date);
+      expect(restored.id).toBe(kw.id);
+      expect(restored.keyword).toBe(kw.keyword);
+      expect(restored.seed_word).toBe('种子');
+    });
+
+    it('should serialize KnowledgeKeyword with expanded_words correctly', () => {
+      const kw: KnowledgeKeyword = {
+        id: 1, base_id: 1, keyword: '测试', seed_word: null,
+        group_id: null, created_by: null,
+        created_at: new Date('2026-05-24T08:00:00Z'),
+        updated_at: new Date('2026-05-24T09:00:00Z'),
+        expanded_words: [
+          { id: 1, keyword_id: 1, word: '扩展1', selected: true,
+            created_at: new Date('2026-05-24T10:00:00Z'),
+            updated_at: new Date('2026-05-24T10:00:00Z') },
+        ],
+      };
+      const json = JSON.stringify(kw);
+      const parsed = JSON.parse(json);
+      expect(parsed.expanded_words).toHaveLength(1);
+      expect(parsed.expanded_words[0].word).toBe('扩展1');
+      expect(typeof parsed.expanded_words[0].created_at).toBe('string');
+    });
+
+    it('should deserialize expanded_words with Date reviver', () => {
+      const kw: KnowledgeKeyword = {
+        id: 1, base_id: 1, keyword: '测试', seed_word: null,
+        group_id: null, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+        expanded_words: [
+          { id: 1, keyword_id: 1, word: '扩展1', selected: true,
+            created_at: new Date('2026-05-24T10:00:00Z'),
+            updated_at: new Date('2026-05-24T10:00:00Z') },
+        ],
+      };
+      const json = JSON.stringify(kw);
+      const parsed = JSON.parse(json);
+      const restored: KnowledgeKeyword = {
+        ...parsed,
+        created_at: new Date(parsed.created_at),
+        updated_at: new Date(parsed.updated_at),
+        expanded_words: parsed.expanded_words?.map((ew: Record<string, unknown>) => ({
+          ...ew,
+          created_at: new Date(ew.created_at as string),
+          updated_at: new Date(ew.updated_at as string),
+        })),
+      };
+      expect(restored.expanded_words![0].created_at).toBeInstanceOf(Date);
+      expect(restored.expanded_words![0].updated_at).toBeInstanceOf(Date);
+    });
+
+    it('should serialize null fields as null in KnowledgeKeyword JSON', () => {
+      const kw: KnowledgeKeyword = {
+        id: 1, base_id: 1, keyword: '测试', seed_word: null,
+        group_id: null, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const json = JSON.stringify(kw);
+      const parsed = JSON.parse(json);
+      expect(parsed.seed_word).toBeNull();
+      expect(parsed.group_id).toBeNull();
+      expect(parsed.created_by).toBeNull();
+      expect(parsed.expanded_words).toBeUndefined();
+    });
+
+    it('should preserve numeric fields through JSON roundtrip for KnowledgeDocument', () => {
+      const doc: KnowledgeDocument = {
+        id: 42, base_id: 7, title: '文档', description: null,
+        file_url: '/f.pdf', file_name: 'f.pdf', file_type: 'pdf',
+        file_size: 1048576, created_by: 3,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const json = JSON.stringify(doc);
+      const parsed = JSON.parse(json);
+      expect(parsed.id).toBe(42);
+      expect(parsed.base_id).toBe(7);
+      expect(parsed.file_size).toBe(1048576);
+      expect(parsed.created_by).toBe(3);
+    });
+
+    it('should serialize KnowledgePortrait with null content as null', () => {
+      const portrait: KnowledgePortrait = {
+        id: 1, base_id: 1, title: '画像', content: null,
+        created_by: null, created_at: new Date(), updated_at: new Date(),
+      };
+      const json = JSON.stringify(portrait);
+      const parsed = JSON.parse(json);
+      expect(parsed.content).toBeNull();
+      expect(parsed.created_by).toBeNull();
+    });
+
+    it('should serialize KnowledgeImage with null description as null', () => {
+      const img: KnowledgeImage = {
+        id: 1, base_id: 1, title: '图片', description: null,
+        image_url: '/img.png', created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const json = JSON.stringify(img);
+      const parsed = JSON.parse(json);
+      expect(parsed.description).toBeNull();
+      expect(parsed.created_by).toBeNull();
+    });
+
+    it('should serialize MinedKeyword with Date field correctly', () => {
+      const mk: MinedKeyword = {
+        id: 1, base_id: 1, keyword: '挖掘词', selected: true,
+        created_by: 1, created_at: new Date('2026-05-24T12:00:00Z'),
+      };
+      const json = JSON.stringify(mk);
+      const parsed = JSON.parse(json);
+      expect(parsed.created_at).toBe('2026-05-24T12:00:00.000Z');
+      expect(parsed.selected).toBe(true);
+    });
+
+    it('should serialize MinedKeyword with null created_by as null', () => {
+      const mk: MinedKeyword = {
+        id: 1, base_id: 1, keyword: '挖掘词', selected: false,
+        created_by: null, created_at: new Date(),
+      };
+      const json = JSON.stringify(mk);
+      const parsed = JSON.parse(json);
+      expect(parsed.created_by).toBeNull();
+    });
+
+    it('should handle JSON reviver for all entity Date fields', () => {
+      const dateReviver = (_key: string, value: unknown): unknown => {
+        if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+          return new Date(value);
+        }
+        return value;
+      };
+      const kw: KnowledgeKeyword = {
+        id: 1, base_id: 1, keyword: '测试', seed_word: null,
+        group_id: null, created_by: null,
+        created_at: new Date('2026-05-24T08:00:00Z'),
+        updated_at: new Date('2026-05-24T09:00:00Z'),
+      };
+      const json = JSON.stringify(kw);
+      const restored = JSON.parse(json, dateReviver) as KnowledgeKeyword;
+      expect(restored.created_at).toBeInstanceOf(Date);
+      expect(restored.updated_at).toBeInstanceOf(Date);
+    });
+
+    it('should use JSON reviver with expanded_words nested Date fields', () => {
+      const dateReviver = (_key: string, value: unknown): unknown => {
+        if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+          return new Date(value);
+        }
+        return value;
+      };
+      const kw: KnowledgeKeyword = {
+        id: 1, base_id: 1, keyword: '测试', seed_word: null,
+        group_id: null, created_by: null,
+        created_at: new Date('2026-05-24T08:00:00Z'),
+        updated_at: new Date('2026-05-24T09:00:00Z'),
+        expanded_words: [
+          { id: 1, keyword_id: 1, word: '扩展', selected: true,
+            created_at: new Date('2026-05-24T10:00:00Z'),
+            updated_at: new Date('2026-05-24T11:00:00Z') },
+        ],
+      };
+      const json = JSON.stringify(kw);
+      const restored = JSON.parse(json, dateReviver) as KnowledgeKeyword;
+      expect(restored.expanded_words![0].created_at).toBeInstanceOf(Date);
+      expect(restored.expanded_words![0].updated_at).toBeInstanceOf(Date);
+    });
+
+    it('should handle JSON reviver for KnowledgeDocument Date fields', () => {
+      const dateReviver = (_key: string, value: unknown): unknown => {
+        if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+          return new Date(value);
+        }
+        return value;
+      };
+      const doc: KnowledgeDocument = {
+        id: 1, base_id: 1, title: '文档', description: null,
+        file_url: '/f.pdf', file_name: 'f.pdf', file_type: 'pdf',
+        file_size: 100, created_by: null,
+        created_at: new Date('2026-05-24T08:00:00Z'),
+        updated_at: new Date('2026-05-24T09:00:00Z'),
+      };
+      const json = JSON.stringify(doc);
+      const restored = JSON.parse(json, dateReviver) as KnowledgeDocument;
+      expect(restored.created_at).toBeInstanceOf(Date);
+      expect(restored.updated_at).toBeInstanceOf(Date);
+    });
+
+    it('should preserve boolean fields through JSON roundtrip', () => {
+      const ew: KeywordExpandedWord = {
+        id: 1, keyword_id: 1, word: '词', selected: true,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const json = JSON.stringify(ew);
+      const parsed = JSON.parse(json);
+      expect(parsed.selected).toBe(true);
+      expect(typeof parsed.selected).toBe('boolean');
+    });
+
+    it('should handle JSON.stringify for CreateDocumentRequest', () => {
+      const req: CreateDocumentRequest = {
+        title: '文档', description: '描述',
+        file_url: '/f.pdf', file_name: 'f.pdf',
+        file_type: 'pdf', file_size: 1024,
+      };
+      const json = JSON.stringify(req);
+      const parsed = JSON.parse(json);
+      expect(parsed.title).toBe('文档');
+      expect(parsed.file_size).toBe(1024);
+    });
+  });
+
+  // ============================================================
+  // 实际使用场景
+  // ============================================================
+  describe('实际使用场景', () => {
+    it('should create KnowledgeKeyword from CreateKeywordRequest with defaults', () => {
+      const req: CreateKeywordRequest = {
+        keyword: 'AI优化',
+        expanded_words: [
+          { word: '人工智能优化', selected: true },
+          { word: 'AI搜索优化', selected: false },
+        ],
+      };
+      const kw: KnowledgeKeyword = {
+        id: 1, base_id: 10,
+        keyword: req.keyword,
+        seed_word: null, group_id: null, created_by: 1,
+        created_at: new Date(), updated_at: new Date(),
+        expanded_words: req.expanded_words?.map((ew, i) => ({
+          id: i + 1, keyword_id: 1, word: ew.word, selected: ew.selected,
+          created_at: new Date(), updated_at: new Date(),
+        })),
+      };
+      expect(kw.keyword).toBe('AI优化');
+      expect(kw.expanded_words).toHaveLength(2);
+      expect(kw.expanded_words![0].word).toBe('人工智能优化');
+      expect(kw.expanded_words![0].selected).toBe(true);
+    });
+
+    it('should apply UpdateKeywordRequest to existing KnowledgeKeyword', () => {
+      const original: KnowledgeKeyword = {
+        id: 1, base_id: 1, keyword: '旧关键词', seed_word: '旧种子',
+        group_id: 1, created_by: 1,
+        created_at: new Date('2026-05-20T00:00:00Z'),
+        updated_at: new Date('2026-05-20T00:00:00Z'),
+      };
+      const update: UpdateKeywordRequest = {
+        keyword: '新关键词',
+        expanded_words: [{ word: '更新词', selected: true }],
+      };
+      const result: KnowledgeKeyword = {
+        ...original,
+        keyword: update.keyword,
+        updated_at: new Date(),
+      };
+      expect(result.keyword).toBe('新关键词');
+      expect(result.seed_word).toBe('旧种子');
+      expect(result.id).toBe(1);
+      expect(result.base_id).toBe(1);
+    });
+
+    it('should create KnowledgePortrait from CreatePortraitRequest', () => {
+      const req: CreatePortraitRequest = {
+        title: '用户画像',
+        content: '技术型用户群体',
+      };
+      const portrait: KnowledgePortrait = {
+        id: 1, base_id: 10,
+        title: req.title,
+        content: req.content ?? null,
+        created_by: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(portrait.title).toBe('用户画像');
+      expect(portrait.content).toBe('技术型用户群体');
+    });
+
+    it('should apply UpdatePortraitRequest partial update', () => {
+      const original: KnowledgePortrait = {
+        id: 1, base_id: 1, title: '旧画像', content: '旧内容',
+        created_by: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const update: UpdatePortraitRequest = { content: '新内容' };
+      const result: KnowledgePortrait = {
+        ...original, ...update, updated_at: new Date(),
+      };
+      expect(result.content).toBe('新内容');
+      expect(result.title).toBe('旧画像');
+    });
+
+    it('should create KnowledgeImage from CreateImageRequest', () => {
+      const req: CreateImageRequest = {
+        title: '产品图',
+        description: '主图展示',
+        image_url: '/uploads/product.png',
+      };
+      const img: KnowledgeImage = {
+        id: 1, base_id: 10,
+        title: req.title,
+        description: req.description ?? null,
+        image_url: req.image_url,
+        created_by: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(img.title).toBe('产品图');
+      expect(img.image_url).toBe('/uploads/product.png');
+    });
+
+    it('should apply UpdateImageRequest partial update', () => {
+      const original: KnowledgeImage = {
+        id: 1, base_id: 1, title: '旧图', description: '旧描述',
+        image_url: '/old.png', created_by: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const update: UpdateImageRequest = { title: '新图' };
+      const result: KnowledgeImage = {
+        ...original, ...update, updated_at: new Date(),
+      };
+      expect(result.title).toBe('新图');
+      expect(result.description).toBe('旧描述');
+      expect(result.image_url).toBe('/old.png');
+    });
+
+    it('should create KnowledgeDocument from CreateDocumentRequest', () => {
+      const req: CreateDocumentRequest = {
+        title: '技术文档',
+        description: 'API说明',
+        file_url: '/files/api-docs.pdf',
+        file_name: 'api-docs.pdf',
+        file_type: 'pdf',
+        file_size: 2048000,
+      };
+      const doc: KnowledgeDocument = {
+        id: 1, base_id: 10,
+        title: req.title,
+        description: req.description ?? null,
+        file_url: req.file_url,
+        file_name: req.file_name,
+        file_type: req.file_type,
+        file_size: req.file_size,
+        created_by: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(doc.title).toBe('技术文档');
+      expect(doc.file_size).toBe(2048000);
+      expect(doc.file_type).toBe('pdf');
+    });
+
+    it('should apply UpdateDocumentRequest partial update', () => {
+      const original: KnowledgeDocument = {
+        id: 1, base_id: 1, title: '旧文档', description: '旧描述',
+        file_url: '/old.pdf', file_name: 'old.pdf', file_type: 'pdf',
+        file_size: 1000, created_by: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const update: UpdateDocumentRequest = { title: '新文档', description: '新描述' };
+      const result: KnowledgeDocument = {
+        ...original, ...update, updated_at: new Date(),
+      };
+      expect(result.title).toBe('新文档');
+      expect(result.description).toBe('新描述');
+      expect(result.file_url).toBe('/old.pdf');
+      expect(result.file_size).toBe(1000);
+    });
+
+    it('should handle full keyword lifecycle: create → expand → update → verify', () => {
+      // 1. 创建关键词
+      const createReq: CreateKeywordRequest = { keyword: 'SEO' };
+      const created: KnowledgeKeyword = {
+        id: 1, base_id: 1, keyword: createReq.keyword,
+        seed_word: null, group_id: null, created_by: 1,
+        created_at: new Date('2026-05-24T08:00:00Z'),
+        updated_at: new Date('2026-05-24T08:00:00Z'),
+      };
+      expect(created.keyword).toBe('SEO');
+      expect(created.expanded_words).toBeUndefined();
+
+      // 2. 添加扩展词
+      const withExpanded: KnowledgeKeyword = {
+        ...created,
+        expanded_words: [
+          { id: 1, keyword_id: 1, word: '搜索引擎优化', selected: true,
+            created_at: new Date(), updated_at: new Date() },
+          { id: 2, keyword_id: 1, word: '网站排名', selected: false,
+            created_at: new Date(), updated_at: new Date() },
+        ],
+        updated_at: new Date('2026-05-24T09:00:00Z'),
+      };
+      expect(withExpanded.expanded_words).toHaveLength(2);
+      expect(withExpanded.base_id).toBe(1);
+
+      // 3. 更新关键词
+      const updateReq: UpdateKeywordRequest = { keyword: 'SEO优化' };
+      const updated: KnowledgeKeyword = {
+        ...withExpanded,
+        keyword: updateReq.keyword,
+        updated_at: new Date('2026-05-24T10:00:00Z'),
+      };
+      expect(updated.keyword).toBe('SEO优化');
+      expect(updated.expanded_words).toHaveLength(2);
+      expect(updated.seed_word).toBeNull();
+    });
+
+    it('should handle document upload scenario', () => {
+      const uploadReq: CreateDocumentRequest = {
+        title: '市场报告',
+        file_url: '/uploads/report-2026-q2.docx',
+        file_name: 'report-2026-q2.docx',
+        file_type: 'docx',
+        file_size: 5242880,
+        description: '2026年Q2市场分析报告',
+      };
+      const doc: KnowledgeDocument = {
+        id: 1, base_id: 5,
+        title: uploadReq.title,
+        description: uploadReq.description ?? null,
+        file_url: uploadReq.file_url,
+        file_name: uploadReq.file_name,
+        file_type: uploadReq.file_type,
+        file_size: uploadReq.file_size,
+        created_by: 2,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(doc.file_name).toBe('report-2026-q2.docx');
+      expect(doc.file_size).toBe(5242880);
+
+      // 更新文档描述
+      const updateReq: UpdateDocumentRequest = { description: '已更新Q2市场报告' };
+      const updated: KnowledgeDocument = {
+        ...doc, ...updateReq, updated_at: new Date(),
+      };
+      expect(updated.description).toBe('已更新Q2市场报告');
+      expect(updated.file_name).toBe('report-2026-q2.docx');
+    });
+
+    it('should filter mined keywords by selected status', () => {
+      const mined: MinedKeyword[] = [
+        { id: 1, base_id: 1, keyword: 'AI', selected: true,
+          created_by: null, created_at: new Date() },
+        { id: 2, base_id: 1, keyword: 'ML', selected: false,
+          created_by: null, created_at: new Date() },
+        { id: 3, base_id: 1, keyword: 'DL', selected: true,
+          created_by: 1, created_at: new Date() },
+      ];
+      const selected = mined.filter(m => m.selected);
+      const unselected = mined.filter(m => !m.selected);
+      expect(selected).toHaveLength(2);
+      expect(unselected).toHaveLength(1);
+      expect(selected.every(m => m.selected)).toBe(true);
+    });
+
+    it('should convert MinedKeyword selection to KnowledgeKeyword', () => {
+      const mined: MinedKeyword = {
+        id: 1, base_id: 5, keyword: '数据挖掘', selected: true,
+        created_by: 1, created_at: new Date(),
+      };
+      const kw: KnowledgeKeyword = {
+        id: 10, base_id: mined.base_id,
+        keyword: mined.keyword,
+        seed_word: null, group_id: null,
+        created_by: mined.created_by,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(kw.base_id).toBe(mined.base_id);
+      expect(kw.keyword).toBe(mined.keyword);
+      expect(kw.created_by).toBe(1);
+    });
+
+    it('should handle portrait creation without content', () => {
+      const req: CreatePortraitRequest = { title: '仅标题画像' };
+      const portrait: KnowledgePortrait = {
+        id: 1, base_id: 1,
+        title: req.title,
+        content: req.content ?? null,
+        created_by: 1,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(portrait.content).toBeNull();
+      expect(portrait.title).toBe('仅标题画像');
+    });
+
+    it('should handle keyword grouping by group_id', () => {
+      const keywords: KnowledgeKeyword[] = [
+        { id: 1, base_id: 1, keyword: 'A', seed_word: null, group_id: 1,
+          created_by: null, created_at: new Date(), updated_at: new Date() },
+        { id: 2, base_id: 1, keyword: 'B', seed_word: null, group_id: 1,
+          created_by: null, created_at: new Date(), updated_at: new Date() },
+        { id: 3, base_id: 1, keyword: 'C', seed_word: null, group_id: 2,
+          created_by: null, created_at: new Date(), updated_at: new Date() },
+        { id: 4, base_id: 1, keyword: 'D', seed_word: null, group_id: null,
+          created_by: null, created_at: new Date(), updated_at: new Date() },
+      ];
+      const grouped = keywords.reduce<Record<number, KnowledgeKeyword[]>>((acc, kw) => {
+        const gid = kw.group_id ?? 0;
+        if (!acc[gid]) acc[gid] = [];
+        acc[gid].push(kw);
+        return acc;
+      }, {});
+      expect(grouped[1]).toHaveLength(2);
+      expect(grouped[2]).toHaveLength(1);
+      expect(grouped[0]).toHaveLength(1);
+    });
+
+    it('should handle expanded words selection toggle scenario', () => {
+      const words: KeywordExpandedWord[] = [
+        { id: 1, keyword_id: 1, word: '词1', selected: true,
+          created_at: new Date(), updated_at: new Date() },
+        { id: 2, keyword_id: 1, word: '词2', selected: false,
+          created_at: new Date(), updated_at: new Date() },
+      ];
+      // 全选
+      const allSelected = words.map(w => ({ ...w, selected: true }));
+      expect(allSelected.every(w => w.selected)).toBe(true);
+      // 全取消
+      const noneSelected = words.map(w => ({ ...w, selected: false }));
+      expect(noneSelected.every(w => !w.selected)).toBe(true);
+      // 反选
+      const toggled = words.map(w => ({ ...w, selected: !w.selected }));
+      expect(toggled[0].selected).toBe(false);
+      expect(toggled[1].selected).toBe(true);
+    });
+
+    it('should handle multiple entity types coexisting under same base_id', () => {
+      const baseId = 42;
+      const keyword: KnowledgeKeyword = {
+        id: 1, base_id: baseId, keyword: 'K', seed_word: null,
+        group_id: null, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const portrait: KnowledgePortrait = {
+        id: 1, base_id: baseId, title: 'P', content: null,
+        created_by: null, created_at: new Date(), updated_at: new Date(),
+      };
+      const image: KnowledgeImage = {
+        id: 1, base_id: baseId, title: 'I', description: null,
+        image_url: '/img.png', created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const doc: KnowledgeDocument = {
+        id: 1, base_id: baseId, title: 'D', description: null,
+        file_url: '/f.pdf', file_name: 'f.pdf', file_type: 'pdf',
+        file_size: 100, created_by: null,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const mined: MinedKeyword = {
+        id: 1, base_id: baseId, keyword: 'M', selected: true,
+        created_by: null, created_at: new Date(),
+      };
+      const allEntities = [keyword, portrait, image, doc, mined];
+      expect(allEntities.every(e => e.base_id === baseId)).toBe(true);
+      expect(allEntities).toHaveLength(5);
+    });
+
+    it('should handle empty update requests preserving all original fields', () => {
+      const original: KnowledgeKeyword = {
+        id: 1, base_id: 1, keyword: '原始', seed_word: '种子',
+        group_id: 1, created_by: 1,
+        created_at: new Date('2026-05-24T00:00:00Z'),
+        updated_at: new Date('2026-05-24T00:00:00Z'),
+      };
+      const emptyUpdate: UpdateKeywordRequest = {};
+      const result: KnowledgeKeyword = {
+        ...original, ...emptyUpdate, updated_at: new Date(),
+      };
+      expect(result.keyword).toBe('原始');
+      expect(result.seed_word).toBe('种子');
+      expect(result.id).toBe(1);
+    });
+
+    it('should handle batch keyword creation from mined keywords', () => {
+      const mined: MinedKeyword[] = [
+        { id: 1, base_id: 5, keyword: '关键词A', selected: true,
+          created_by: null, created_at: new Date() },
+        { id: 2, base_id: 5, keyword: '关键词B', selected: true,
+          created_by: 1, created_at: new Date() },
+        { id: 3, base_id: 5, keyword: '关键词C', selected: false,
+          created_by: null, created_at: new Date() },
+      ];
+      const keywords: KnowledgeKeyword[] = mined
+        .filter(m => m.selected)
+        .map((m, i) => ({
+          id: i + 100, base_id: m.base_id, keyword: m.keyword,
+          seed_word: null, group_id: null, created_by: m.created_by,
+          created_at: new Date(), updated_at: new Date(),
+        }));
+      expect(keywords).toHaveLength(2);
+      expect(keywords[0].keyword).toBe('关键词A');
+      expect(keywords[1].keyword).toBe('关键词B');
+    });
+  });
 });
