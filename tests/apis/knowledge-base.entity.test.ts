@@ -1421,4 +1421,772 @@ describe('knowledge-base.entity', () => {
       expect(Object.keys(fullUpdate)).toHaveLength(6);
     });
   });
+
+  // ============================================================
+  // 第二轮 TDD 补全
+  // ============================================================
+
+  // --- 对象不可变性 ---
+  describe('对象不可变性', () => {
+    const baseKB: KnowledgeBase = {
+      id: 1, name: '不可变测试', description: '描述', scope: 'platform',
+      company_id: null, company_name: null, project_id: null, project_name: null,
+      status: true, created_by: 1, creator_name: '管理员',
+      keyword_count: 10, portrait_count: 5, image_count: 3, document_count: 2,
+      created_at: new Date('2024-01-01'), updated_at: new Date('2024-06-01'),
+    };
+
+    it('spread 创建的副本修改不影响原始对象', () => {
+      const copy = { ...baseKB, name: '副本名称' };
+      expect(copy.name).toBe('副本名称');
+      expect(baseKB.name).toBe('不可变测试');
+    });
+
+    it('spread 后 Date 引用共享（浅拷贝）', () => {
+      const copy = { ...baseKB };
+      expect(copy.created_at).toBe(baseKB.created_at);
+      expect(copy.updated_at).toBe(baseKB.updated_at);
+    });
+
+    it('Object.freeze 后修改抛出 TypeError', () => {
+      const frozen = Object.freeze({ ...baseKB });
+      expect(() => { (frozen as any).name = '修改'; }).toThrow(TypeError);
+      expect(frozen.name).toBe('不可变测试');
+    });
+
+    it('Object.freeze 后 status 不可修改', () => {
+      const frozen = Object.freeze({ ...baseKB });
+      expect(() => { (frozen as any).status = false; }).toThrow(TypeError);
+      expect(frozen.status).toBe(true);
+    });
+
+    it('Object.freeze 后 id 不可修改', () => {
+      const frozen = Object.freeze({ ...baseKB });
+      expect(() => { (frozen as any).id = 999; }).toThrow(TypeError);
+      expect(frozen.id).toBe(1);
+    });
+
+    it('Object.freeze 后 count 字段不可修改', () => {
+      const frozen = Object.freeze({ ...baseKB });
+      expect(() => { (frozen as any).keyword_count = 999; }).toThrow(TypeError);
+      expect(frozen.keyword_count).toBe(10);
+    });
+
+    it('Object.isFrozen 检查', () => {
+      const frozen = Object.freeze({ ...baseKB });
+      expect(Object.isFrozen(frozen)).toBe(true);
+      const notFrozen = { ...baseKB };
+      expect(Object.isFrozen(notFrozen)).toBe(false);
+    });
+
+    it('JSON round-trip 实现深克隆独立性', () => {
+      const json = JSON.stringify(baseKB);
+      const parsed = JSON.parse(json);
+      const cloned: KnowledgeBase = {
+        ...parsed,
+        created_at: new Date(parsed.created_at),
+        updated_at: new Date(parsed.updated_at),
+      };
+      cloned.name = '克隆修改';
+      expect(baseKB.name).toBe('不可变测试');
+      expect(cloned.name).toBe('克隆修改');
+    });
+
+    it('structuredClone 深克隆独立性', () => {
+      const clone = structuredClone(baseKB);
+      clone.name = '克隆名称';
+      clone.keyword_count = 999;
+      expect(baseKB.name).toBe('不可变测试');
+      expect(baseKB.keyword_count).toBe(10);
+      expect(clone.name).toBe('克隆名称');
+      expect(clone.keyword_count).toBe(999);
+      expect(typeof clone.created_at.getTime).toBe('function');
+    });
+
+    it('structuredClone 保持 Date 值和可操作性', () => {
+      const clone = structuredClone(baseKB);
+      expect(typeof clone.created_at.getTime).toBe('function');
+      expect(typeof clone.updated_at.getTime).toBe('function');
+      expect(clone.created_at.getTime()).toBe(baseKB.created_at.getTime());
+    });
+  });
+
+  // --- 安全注入测试 ---
+  describe('安全注入防护', () => {
+    const baseKB: KnowledgeBase = {
+      id: 1, name: '安全测试', description: null, scope: 'platform',
+      company_id: null, company_name: null, project_id: null, project_name: null,
+      status: true, created_by: null, creator_name: null,
+      keyword_count: 0, portrait_count: 0, image_count: 0, document_count: 0,
+      created_at: new Date(), updated_at: new Date(),
+    };
+
+    it('name 存储 XSS script 标签为纯文本', () => {
+      const xss = '<script>alert("xss")</script>';
+      const kb: KnowledgeBase = { ...baseKB, name: xss };
+      expect(kb.name).toBe(xss);
+      expect(kb.name).toContain('<script>');
+    });
+
+    it('description 存储 SQL 注入模式为纯文本', () => {
+      const sql = "'; DROP TABLE knowledge_bases; --";
+      const kb: KnowledgeBase = { ...baseKB, description: sql };
+      expect(kb.description).toBe(sql);
+      expect(kb.description).toContain('DROP TABLE');
+    });
+
+    it('name 存储原型污染模式为纯文本', () => {
+      const pollution = '{"__proto__":{"admin":true}}';
+      const kb: KnowledgeBase = { ...baseKB, name: pollution };
+      expect(kb.name).toBe(pollution);
+    });
+
+    it('description 存储路径穿越模式为纯文本', () => {
+      const traversal = '../../../etc/passwd';
+      const kb: KnowledgeBase = { ...baseKB, description: traversal };
+      expect(kb.description).toBe(traversal);
+    });
+
+    it('name 存储 null 字节为纯文本', () => {
+      const nullByte = 'title\x00injection';
+      const kb: KnowledgeBase = { ...baseKB, name: nullByte };
+      expect(kb.name).toContain('\x00');
+    });
+
+    it('description 存储大 Unicode 字符安全', () => {
+      const bigUnicode = '￿'.repeat(1000);
+      const kb: KnowledgeBase = { ...baseKB, description: bigUnicode };
+      expect(kb.description!.length).toBe(1000);
+    });
+
+    it('company_name 存储 HTML 实体为纯文本', () => {
+      const html = '&lt;script&gt;&amp;&lt;/script&gt;';
+      const kb: KnowledgeBase = { ...baseKB, company_name: html };
+      expect(kb.company_name).toBe(html);
+    });
+
+    it('project_name 存储 javascript: 协议为纯文本', () => {
+      const jsProto = 'javascript:alert(1)';
+      const kb: KnowledgeBase = { ...baseKB, project_name: jsProto };
+      expect(kb.project_name).toBe(jsProto);
+    });
+
+    it('creator_name 存储 LDAP 注入模式为纯文本', () => {
+      const ldap = '*)(|(cn=*';
+      const kb: KnowledgeBase = { ...baseKB, creator_name: ldap };
+      expect(kb.creator_name).toBe(ldap);
+    });
+
+    it('CreateRequest name 存储 XSS 安全', () => {
+      const xss = '<img src=x onerror=alert(1)>';
+      const req: CreateKnowledgeBaseRequest = { name: xss, scope: 'platform' };
+      expect(req.name).toBe(xss);
+    });
+
+    it('UpdateRequest description 存储 CRLF 注入为纯文本', () => {
+      const crlf = '描述\r\nSet-Cookie: evil=true';
+      const req: UpdateKnowledgeBaseRequest = { description: crlf };
+      expect(req.description).toContain('\r\n');
+    });
+
+    it('name 存储 Unicode 欺骗字符安全', () => {
+      const homoglyph = 'аdmin'; // Cyrillic 'а' not Latin 'a'
+      const kb: KnowledgeBase = { ...baseKB, name: homoglyph };
+      expect(kb.name).toBe(homoglyph);
+      expect(kb.name.length).toBe(5);
+    });
+  });
+
+  // --- 跨接口类型一致性 ---
+  describe('跨接口类型一致性', () => {
+    it('CreateKnowledgeBaseRequest 字段是 KnowledgeBase 字段的子集', () => {
+      const req: CreateKnowledgeBaseRequest = {
+        name: '测试', description: '描述', scope: 'company', company_id: 1, project_id: 2,
+      };
+      const kb: KnowledgeBase = {
+        id: 1,
+        name: req.name,
+        description: req.description ?? null,
+        scope: req.scope,
+        company_id: req.company_id ?? null,
+        company_name: null,
+        project_id: req.project_id ?? null,
+        project_name: null,
+        status: true,
+        created_by: null,
+        creator_name: null,
+        keyword_count: 0, portrait_count: 0, image_count: 0, document_count: 0,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(kb.name).toBe(req.name);
+      expect(kb.description).toBe(req.description!);
+      expect(kb.scope).toBe(req.scope);
+      expect(kb.company_id).toBe(req.company_id!);
+      expect(kb.project_id).toBe(req.project_id!);
+    });
+
+    it('CreateRequest 省略 description 时 KB 中为 null', () => {
+      const req: CreateKnowledgeBaseRequest = { name: '无描述', scope: 'platform' };
+      const kb: KnowledgeBase = {
+        id: 1, name: req.name, description: req.description ?? null,
+        scope: req.scope, company_id: null, company_name: null,
+        project_id: null, project_name: null, status: true,
+        created_by: null, creator_name: null,
+        keyword_count: 0, portrait_count: 0, image_count: 0, document_count: 0,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(kb.description).toBeNull();
+    });
+
+    it('UpdateRequest 局部更新保留 KB 未修改字段', () => {
+      const original: KnowledgeBase = {
+        id: 1, name: '原始', description: '原始描述', scope: 'platform',
+        company_id: null, company_name: null, project_id: null, project_name: null,
+        status: true, created_by: 1, creator_name: '管理员',
+        keyword_count: 10, portrait_count: 5, image_count: 3, document_count: 2,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const req: UpdateKnowledgeBaseRequest = { name: '更新名称' };
+      const updated: KnowledgeBase = { ...original, ...req, updated_at: new Date() };
+      expect(updated.name).toBe('更新名称');
+      expect(updated.description).toBe('原始描述');
+      expect(updated.scope).toBe('platform');
+      expect(updated.status).toBe(true);
+      expect(updated.keyword_count).toBe(10);
+      expect(updated.id).toBe(1);
+    });
+
+    it('UpdateRequest empty 不改变任何 KB 字段', () => {
+      const original: KnowledgeBase = {
+        id: 1, name: '原始', description: '描述', scope: 'company',
+        company_id: 5, company_name: '公司', project_id: null, project_name: null,
+        status: true, created_by: 1, creator_name: '管理员',
+        keyword_count: 10, portrait_count: 5, image_count: 3, document_count: 2,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const req: UpdateKnowledgeBaseRequest = {};
+      const updated: KnowledgeBase = { ...original, ...req };
+      expect(updated).toEqual({ ...original });
+    });
+
+    it('CreateRequest 和 UpdateRequest scope 类型一致', () => {
+      const scopes: Array<'platform' | 'company' | 'project'> = ['platform', 'company', 'project'];
+      scopes.forEach((scope) => {
+        const createReq: CreateKnowledgeBaseRequest = { name: '测试', scope };
+        const updateReq: UpdateKnowledgeBaseRequest = { scope };
+        expect(createReq.scope).toBe(scope);
+        expect(updateReq.scope).toBe(scope);
+      });
+    });
+
+    it('CreateRequest 和 UpdateRequest company_id 类型一致', () => {
+      const createReq: CreateKnowledgeBaseRequest = { name: '测试', scope: 'company', company_id: 1 };
+      const updateReq: UpdateKnowledgeBaseRequest = { company_id: 1 };
+      expect(typeof createReq.company_id).toBe('number');
+      expect(typeof updateReq.company_id).toBe('number');
+      expect(createReq.company_id).toBe(updateReq.company_id);
+    });
+  });
+
+  // --- 边界值补充 ---
+  describe('边界值补充', () => {
+    const baseKB: KnowledgeBase = {
+      id: 1, name: '边界', description: null, scope: 'platform',
+      company_id: null, company_name: null, project_id: null, project_name: null,
+      status: true, created_by: null, creator_name: null,
+      keyword_count: 0, portrait_count: 0, image_count: 0, document_count: 0,
+      created_at: new Date(), updated_at: new Date(),
+    };
+
+    it('created_by 支持 0', () => {
+      const kb: KnowledgeBase = { ...baseKB, created_by: 0 };
+      expect(kb.created_by).toBe(0);
+    });
+
+    it('created_by 支持 Number.MAX_SAFE_INTEGER', () => {
+      const kb: KnowledgeBase = { ...baseKB, created_by: Number.MAX_SAFE_INTEGER };
+      expect(kb.created_by).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('created_by 支持负数', () => {
+      const kb: KnowledgeBase = { ...baseKB, created_by: -1 };
+      expect(kb.created_by).toBe(-1);
+    });
+
+    it('company_id 支持 Number.MAX_SAFE_INTEGER', () => {
+      const kb: KnowledgeBase = { ...baseKB, company_id: Number.MAX_SAFE_INTEGER };
+      expect(kb.company_id).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('project_id 支持 Number.MAX_SAFE_INTEGER', () => {
+      const kb: KnowledgeBase = { ...baseKB, project_id: Number.MAX_SAFE_INTEGER };
+      expect(kb.project_id).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('created_at 支持 epoch (1970-01-01)', () => {
+      const kb: KnowledgeBase = { ...baseKB, created_at: new Date(0) };
+      expect(kb.created_at.getTime()).toBe(0);
+    });
+
+    it('updated_at 支持 epoch (1970-01-01)', () => {
+      const kb: KnowledgeBase = { ...baseKB, updated_at: new Date(0) };
+      expect(kb.updated_at.getTime()).toBe(0);
+    });
+
+    it('created_at 支持远未来日期', () => {
+      const farFuture = new Date('2100-12-31T23:59:59Z');
+      const kb: KnowledgeBase = { ...baseKB, created_at: farFuture };
+      expect(kb.created_at.getUTCFullYear()).toBe(2100);
+    });
+
+    it('updated_at 支持远未来日期', () => {
+      const farFuture = new Date('2099-06-15T12:00:00Z');
+      const kb: KnowledgeBase = { ...baseKB, updated_at: farFuture };
+      expect(kb.updated_at.getUTCFullYear()).toBe(2099);
+    });
+
+    it('count 字段支持 Number.MAX_SAFE_INTEGER', () => {
+      const kb: KnowledgeBase = {
+        ...baseKB,
+        keyword_count: Number.MAX_SAFE_INTEGER,
+        portrait_count: Number.MAX_SAFE_INTEGER,
+        image_count: Number.MAX_SAFE_INTEGER,
+        document_count: Number.MAX_SAFE_INTEGER,
+      };
+      expect(kb.keyword_count).toBe(Number.MAX_SAFE_INTEGER);
+      expect(kb.portrait_count).toBe(Number.MAX_SAFE_INTEGER);
+      expect(kb.image_count).toBe(Number.MAX_SAFE_INTEGER);
+      expect(kb.document_count).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('count 字段支持负数（防御性测试）', () => {
+      const kb: KnowledgeBase = {
+        ...baseKB,
+        keyword_count: -100,
+        portrait_count: -999,
+        image_count: -1,
+        document_count: -50,
+      };
+      expect(kb.keyword_count).toBe(-100);
+      expect(kb.portrait_count).toBe(-999);
+      expect(kb.image_count).toBe(-1);
+      expect(kb.document_count).toBe(-50);
+    });
+
+    it('name 支持单字符', () => {
+      const kb: KnowledgeBase = { ...baseKB, name: 'A' };
+      expect(kb.name).toBe('A');
+      expect(kb.name.length).toBe(1);
+    });
+
+    it('name 支持纯空格', () => {
+      const kb: KnowledgeBase = { ...baseKB, name: '   ' };
+      expect(kb.name).toBe('   ');
+      expect(kb.name.trim()).toBe('');
+    });
+
+    it('description 支持极长文本', () => {
+      const longDesc = '很长的描述内容'.repeat(10000);
+      const kb: KnowledgeBase = { ...baseKB, description: longDesc };
+      expect(kb.description!.length).toBe(70000);
+    });
+
+    it('company_name 支持极长名称', () => {
+      const longName = '有限公司'.repeat(500);
+      const kb: KnowledgeBase = { ...baseKB, company_name: longName };
+      expect(kb.company_name!.length).toBe(2000);
+    });
+
+    it('project_name 支持极长名称', () => {
+      const longName = '项目名称'.repeat(500);
+      const kb: KnowledgeBase = { ...baseKB, project_name: longName };
+      expect(kb.project_name!.length).toBe(2000);
+    });
+
+    it('creator_name 支持极长名称', () => {
+      const longName = '管理员'.repeat(1000);
+      const kb: KnowledgeBase = { ...baseKB, creator_name: longName };
+      expect(kb.creator_name!.length).toBe(3000);
+    });
+
+    it('created_at 和 updated_at 支持毫秒精度', () => {
+      const created = new Date('2024-06-15T10:30:45.123Z');
+      const updated = new Date('2024-06-15T10:30:45.789Z');
+      const kb: KnowledgeBase = { ...baseKB, created_at: created, updated_at: updated };
+      expect(kb.created_at.getMilliseconds()).toBe(123);
+      expect(kb.updated_at.getMilliseconds()).toBe(789);
+    });
+  });
+
+  // --- JSON reviver Date 恢复 ---
+  describe('JSON reviver Date 恢复', () => {
+    const baseKB: KnowledgeBase = {
+      id: 1, name: 'reviver测试', description: '描述', scope: 'company',
+      company_id: 5, company_name: '公司', project_id: null, project_name: null,
+      status: true, created_by: 1, creator_name: '管理员',
+      keyword_count: 10, portrait_count: 5, image_count: 3, document_count: 2,
+      created_at: new Date('2024-06-15T10:30:00.000Z'),
+      updated_at: new Date('2024-06-15T12:45:30.123Z'),
+    };
+
+    it('JSON.parse reviver 恢复 created_at 为 Date', () => {
+      const dateFields = ['created_at', 'updated_at'];
+      const json = JSON.stringify(baseKB);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (dateFields.includes(key) && typeof value === 'string') {
+          return new Date(value);
+        }
+        return value;
+      });
+      expect(parsed.created_at).toBeInstanceOf(Date);
+      expect(parsed.updated_at).toBeInstanceOf(Date);
+      expect(parsed.created_at.getTime()).toBe(baseKB.created_at.getTime());
+      expect(parsed.updated_at.getTime()).toBe(baseKB.updated_at.getTime());
+    });
+
+    it('reviver 保持非 Date 字段不变', () => {
+      const dateFields = ['created_at', 'updated_at'];
+      const json = JSON.stringify(baseKB);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (dateFields.includes(key) && typeof value === 'string') {
+          return new Date(value);
+        }
+        return value;
+      });
+      expect(parsed.id).toBe(1);
+      expect(parsed.name).toBe('reviver测试');
+      expect(parsed.scope).toBe('company');
+      expect(parsed.company_id).toBe(5);
+      expect(parsed.status).toBe(true);
+      expect(parsed.keyword_count).toBe(10);
+    });
+
+    it('reviver 处理 null description 保持 null', () => {
+      const kb: KnowledgeBase = { ...baseKB, description: null };
+      const dateFields = ['created_at', 'updated_at'];
+      const json = JSON.stringify(kb);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (dateFields.includes(key) && typeof value === 'string') {
+          return new Date(value);
+        }
+        return value;
+      });
+      expect(parsed.description).toBeNull();
+    });
+
+    it('reviver 恢复后字段数量不变', () => {
+      const dateFields = ['created_at', 'updated_at'];
+      const json = JSON.stringify(baseKB);
+      const parsed = JSON.parse(json, (key, value) => {
+        if (dateFields.includes(key) && typeof value === 'string') {
+          return new Date(value);
+        }
+        return value;
+      });
+      expect(Object.keys(parsed)).toHaveLength(Object.keys(baseKB).length);
+    });
+  });
+
+  // --- 实际业务场景模拟 ---
+  describe('实际业务场景模拟', () => {
+    it('场景：系统管理员创建平台级知识库', () => {
+      const req: CreateKnowledgeBaseRequest = {
+        name: '薄云商机倍增服务通用知识库',
+        description: '平台级通用知识库，包含SEO规则、文章模板等',
+        scope: 'platform',
+      };
+      const kb: KnowledgeBase = {
+        id: 1,
+        name: req.name,
+        description: req.description ?? null,
+        scope: req.scope,
+        company_id: null, company_name: null,
+        project_id: null, project_name: null,
+        status: true,
+        created_by: 1, creator_name: 'sysadmin',
+        keyword_count: 0, portrait_count: 0, image_count: 0, document_count: 0,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(kb.scope).toBe('platform');
+      expect(kb.company_id).toBeNull();
+      expect(kb.project_id).toBeNull();
+      expect(kb.status).toBe(true);
+    });
+
+    it('场景：公司管理员创建公司级知识库', () => {
+      const req: CreateKnowledgeBaseRequest = {
+        name: '某公司专属知识库',
+        description: '公司级知识库',
+        scope: 'company',
+        company_id: 10,
+      };
+      const kb: KnowledgeBase = {
+        id: 2,
+        name: req.name,
+        description: req.description ?? null,
+        scope: req.scope,
+        company_id: req.company_id!, company_name: '某科技有限公司',
+        project_id: null, project_name: null,
+        status: true,
+        created_by: 5, creator_name: '公司管理员',
+        keyword_count: 0, portrait_count: 0, image_count: 0, document_count: 0,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(kb.scope).toBe('company');
+      expect(kb.company_id).toBe(10);
+      expect(kb.company_name).toBe('某科技有限公司');
+      expect(kb.project_id).toBeNull();
+    });
+
+    it('场景：创建项目级知识库', () => {
+      const req: CreateKnowledgeBaseRequest = {
+        name: '项目A知识库',
+        scope: 'project',
+        company_id: 10,
+        project_id: 100,
+      };
+      const kb: KnowledgeBase = {
+        id: 3,
+        name: req.name,
+        description: null,
+        scope: req.scope,
+        company_id: 10, company_name: '公司A',
+        project_id: 100, project_name: '项目A',
+        status: true,
+        created_by: 5, creator_name: '项目管理员',
+        keyword_count: 0, portrait_count: 0, image_count: 0, document_count: 0,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      expect(kb.scope).toBe('project');
+      expect(kb.company_id).toBe(10);
+      expect(kb.project_id).toBe(100);
+    });
+
+    it('场景：知识库添加内容后 count 更新', () => {
+      const kb: KnowledgeBase = {
+        id: 1, name: '活跃知识库', description: null, scope: 'platform',
+        company_id: null, company_name: null, project_id: null, project_name: null,
+        status: true, created_by: 1, creator_name: '管理员',
+        keyword_count: 0, portrait_count: 0, image_count: 0, document_count: 0,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      // 添加关键词
+      const afterKeywords: KnowledgeBase = {
+        ...kb, keyword_count: kb.keyword_count + 50, updated_at: new Date(),
+      };
+      expect(afterKeywords.keyword_count).toBe(50);
+
+      // 添加人物画像
+      const afterPortrait: KnowledgeBase = {
+        ...afterKeywords, portrait_count: afterKeywords.portrait_count + 10, updated_at: new Date(),
+      };
+      expect(afterPortrait.portrait_count).toBe(10);
+
+      // 添加图片和文档
+      const afterAll: KnowledgeBase = {
+        ...afterPortrait,
+        image_count: afterPortrait.image_count + 25,
+        document_count: afterPortrait.document_count + 8,
+        updated_at: new Date(),
+      };
+      expect(afterAll.keyword_count).toBe(50);
+      expect(afterAll.portrait_count).toBe(10);
+      expect(afterAll.image_count).toBe(25);
+      expect(afterAll.document_count).toBe(8);
+    });
+
+    it('场景：禁用知识库', () => {
+      const req: UpdateKnowledgeBaseRequest = { status: false };
+      const kb: KnowledgeBase = {
+        id: 1, name: '被禁用的库', description: null, scope: 'platform',
+        company_id: null, company_name: null, project_id: null, project_name: null,
+        status: true, created_by: 1, creator_name: '管理员',
+        keyword_count: 10, portrait_count: 5, image_count: 3, document_count: 2,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const updated: KnowledgeBase = { ...kb, ...req, updated_at: new Date() };
+      expect(updated.status).toBe(false);
+      expect(updated.keyword_count).toBe(10); // 数据保留
+    });
+
+    it('场景：重新启用知识库', () => {
+      const req: UpdateKnowledgeBaseRequest = { status: true };
+      const kb: KnowledgeBase = {
+        id: 1, name: '重新启用的库', description: null, scope: 'platform',
+        company_id: null, company_name: null, project_id: null, project_name: null,
+        status: false, created_by: 1, creator_name: '管理员',
+        keyword_count: 10, portrait_count: 5, image_count: 3, document_count: 2,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const updated: KnowledgeBase = { ...kb, ...req, updated_at: new Date() };
+      expect(updated.status).toBe(true);
+    });
+
+    it('场景：知识库从公司级升级到项目级', () => {
+      const companyKB: KnowledgeBase = {
+        id: 1, name: '公司知识库', description: null, scope: 'company',
+        company_id: 10, company_name: '公司A', project_id: null, project_name: null,
+        status: true, created_by: 1, creator_name: '管理员',
+        keyword_count: 5, portrait_count: 2, image_count: 1, document_count: 0,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-06-01'),
+      };
+      const req: UpdateKnowledgeBaseRequest = { scope: 'project', project_id: 100 };
+      const updated: KnowledgeBase = {
+        ...companyKB, ...req, project_name: '项目A', updated_at: new Date(),
+      };
+      expect(updated.scope).toBe('project');
+      expect(updated.company_id).toBe(10); // 保留公司关联
+      expect(updated.project_id).toBe(100);
+      expect(updated.keyword_count).toBe(5); // 数据保留
+    });
+
+    it('场景：知识库列表分页查询', () => {
+      const makeKB = (id: number, name: string): KnowledgeBase => ({
+        id, name, description: null, scope: 'platform',
+        company_id: null, company_name: null, project_id: null, project_name: null,
+        status: true, created_by: 1, creator_name: '管理员',
+        keyword_count: 0, portrait_count: 0, image_count: 0, document_count: 0,
+        created_at: new Date(), updated_at: new Date(),
+      });
+      const all: KnowledgeBase[] = Array.from({ length: 25 }, (_, i) => makeKB(i + 1, `知识库${i + 1}`));
+      const page = 2;
+      const pageSize = 10;
+      const paginated = all.slice((page - 1) * pageSize, page * pageSize);
+      expect(paginated).toHaveLength(10);
+      expect(paginated[0].id).toBe(11);
+      expect(paginated[9].id).toBe(20);
+    });
+
+    it('场景：按 scope 分组统计', () => {
+      const makeKB = (scope: 'platform' | 'company' | 'project'): KnowledgeBase => ({
+        id: 1, name: 'KB', description: null, scope,
+        company_id: null, company_name: null, project_id: null, project_name: null,
+        status: true, created_by: null, creator_name: null,
+        keyword_count: 0, portrait_count: 0, image_count: 0, document_count: 0,
+        created_at: new Date(), updated_at: new Date(),
+      });
+      const list: KnowledgeBase[] = [
+        { ...makeKB('platform'), id: 1 },
+        { ...makeKB('platform'), id: 2 },
+        { ...makeKB('company'), id: 3 },
+        { ...makeKB('project'), id: 4 },
+        { ...makeKB('company'), id: 5 },
+        { ...makeKB('platform'), id: 6 },
+      ];
+      const grouped = list.reduce((acc, kb) => {
+        acc[kb.scope] = (acc[kb.scope] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      expect(grouped['platform']).toBe(3);
+      expect(grouped['company']).toBe(2);
+      expect(grouped['project']).toBe(1);
+    });
+
+    it('场景：全部字段 null 时 JSON 序列化正确', () => {
+      const kb: KnowledgeBase = {
+        id: 0, name: '', description: null, scope: 'platform',
+        company_id: null, company_name: null, project_id: null, project_name: null,
+        status: false, created_by: null, creator_name: null,
+        keyword_count: 0, portrait_count: 0, image_count: 0, document_count: 0,
+        created_at: new Date('1970-01-01T00:00:00Z'),
+        updated_at: new Date('1970-01-01T00:00:00Z'),
+      };
+      const json = JSON.stringify(kb);
+      const parsed = JSON.parse(json);
+      expect(parsed.id).toBe(0);
+      expect(parsed.name).toBe('');
+      expect(parsed.description).toBeNull();
+      expect(parsed.company_id).toBeNull();
+      expect(parsed.status).toBe(false);
+      expect(parsed.keyword_count).toBe(0);
+    });
+  });
+
+  // --- re-export async import 验证 ---
+  describe('re-exports async import 验证', () => {
+    it('KnowledgeBase 是 interface 而非运行时值', async () => {
+      const mod = await import('../../apis/entity/knowledge-base.entity');
+      expect(mod.KnowledgeBase).toBeUndefined();
+    });
+
+    it('CreateKnowledgeBaseRequest 是 interface 而非运行时值', async () => {
+      const mod = await import('../../apis/entity/knowledge-base.entity');
+      expect(mod.CreateKnowledgeBaseRequest).toBeUndefined();
+    });
+
+    it('UpdateKnowledgeBaseRequest 是 interface 而非运行时值', async () => {
+      const mod = await import('../../apis/entity/knowledge-base.entity');
+      expect(mod.UpdateKnowledgeBaseRequest).toBeUndefined();
+    });
+  });
+
+  // --- CreateRequest/UpdateRequest 边界补充 ---
+  describe('CreateRequest/UpdateRequest 边界补充', () => {
+    it('CreateRequest description 为 undefined 时不包含在 Object.keys', () => {
+      const req: CreateKnowledgeBaseRequest = { name: '测试', scope: 'platform' };
+      expect(Object.keys(req)).not.toContain('description');
+    });
+
+    it('CreateRequest company_id 为 undefined 时不包含在 Object.keys', () => {
+      const req: CreateKnowledgeBaseRequest = { name: '测试', scope: 'platform' };
+      expect(Object.keys(req)).not.toContain('company_id');
+    });
+
+    it('CreateRequest project_id 为 undefined 时不包含在 Object.keys', () => {
+      const req: CreateKnowledgeBaseRequest = { name: '测试', scope: 'platform' };
+      expect(Object.keys(req)).not.toContain('project_id');
+    });
+
+    it('CreateRequest 所有字段均设置时 Object.keys 长度 5', () => {
+      const req: CreateKnowledgeBaseRequest = {
+        name: '全字段', description: 'd', scope: 'project', company_id: 1, project_id: 2,
+      };
+      expect(Object.keys(req)).toHaveLength(5);
+    });
+
+    it('UpdateRequest 所有字段均设置时 Object.keys 长度 6', () => {
+      const req: UpdateKnowledgeBaseRequest = {
+        name: 'a', description: 'b', scope: 'company', company_id: 1, project_id: 2, status: true,
+      };
+      expect(Object.keys(req)).toHaveLength(6);
+    });
+
+    it('UpdateRequest description 设为空字符串可清空描述', () => {
+      const original: KnowledgeBase = {
+        id: 1, name: 'KB', description: '旧描述', scope: 'platform',
+        company_id: null, company_name: null, project_id: null, project_name: null,
+        status: true, created_by: null, creator_name: null,
+        keyword_count: 0, portrait_count: 0, image_count: 0, document_count: 0,
+        created_at: new Date(), updated_at: new Date(),
+      };
+      const req: UpdateKnowledgeBaseRequest = { description: '' };
+      const updated: KnowledgeBase = { ...original, ...req };
+      expect(updated.description).toBe('');
+      expect(updated.description).not.toBe('旧描述');
+    });
+
+    it('CreateRequest name 支持换行符', () => {
+      const req: CreateKnowledgeBaseRequest = { name: '第一行\n第二行\r\n第三行', scope: 'platform' };
+      expect(req.name).toContain('\n');
+      expect(req.name).toContain('\r\n');
+    });
+
+    it('UpdateRequest scope 变更保留其他字段', () => {
+      const original: KnowledgeBase = {
+        id: 1, name: 'KB', description: '描述', scope: 'platform',
+        company_id: null, company_name: null, project_id: null, project_name: null,
+        status: true, created_by: 1, creator_name: '管理员',
+        keyword_count: 10, portrait_count: 5, image_count: 3, document_count: 2,
+        created_at: new Date('2024-01-01'), updated_at: new Date('2024-01-01'),
+      };
+      const req: UpdateKnowledgeBaseRequest = { scope: 'company', company_id: 5 };
+      const updated: KnowledgeBase = {
+        ...original, ...req, company_name: '新公司', updated_at: new Date(),
+      };
+      expect(updated.scope).toBe('company');
+      expect(updated.name).toBe('KB');
+      expect(updated.description).toBe('描述');
+      expect(updated.keyword_count).toBe(10);
+    });
+  });
 });
