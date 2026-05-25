@@ -4,12 +4,16 @@
  * ⚠️ 禁止改为标准入口（@uiw/react-md-editor）——标准版包含 rehype-raw XSS 风险
  *    始终使用 @uiw/react-md-editor/nohighlight 变体（ESLint 规则强制）
  *
- * Context.tsx 安全缺陷及修复状态（via patches/@uiw+react-md-editor+4.1.0.patch）：
- *   - SEC-CTX-01 ✅ [key: string]: any 索引签名已移除
+ * Context.tsx / Editor.factory.tsx 安全缺陷及修复状态（via patches/@uiw+react-md-editor+4.1.0.patch）：
+ *   - SEC-CTX-01 ✅ [key: string]: any 索引签名已移除（src/Context.tsx）
  *   - SEC-CTX-02 ⚠️ DOM 引用混入 Context——结构性限制，库内部依赖；本封装层隔离不暴露
  *   - SEC-CTX-03 ⚠️ dispatch 混入 state——结构性限制，库内部依赖；本封装层隔离不暴露
- *   - SEC-CTX-04 ✅ Reducer 白名单过滤——运行时只合并已知键，拒绝任意属性注入
+ *   - SEC-CTX-04 ✅ Reducer 白名单过滤——运行时只合并已知键，拒绝任意属性注入（esm/lib/src）
  *   - SEC-CTX-05 ✅ Context 默认值补全——preview/fullscreen/highlightEnable 等完整初始化
+ *   - SEC-EF-03 ✅ useMemo 副作用全部替换为 useEffect——消除 React 18 并发模式状态不一致风险
+ *   - SEC-EF-04 ✅ setGroupPopFalse 不可变实现——不再原地突变 state.barPopup
+ *   - SEC-EF-05 ✅ 事件监听器改用 useEffect + cleanup——消除 mouseover/mouseleave 内存泄漏
+ *   - SEC-EF-10 ✅ 初始化 useEffect 不再展开 stale state——仅 dispatch 最小必要字段
  *   - 零主题支持（无 Carbon 集成出口）
  *
  * 防护措施：
