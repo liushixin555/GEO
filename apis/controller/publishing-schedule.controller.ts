@@ -1,10 +1,8 @@
 import { Request, Response } from 'express';
-import { PublishingScheduleServiceImpl } from '../service/impl/publishing-schedule.service.impl';
+import { createArticleService } from '../service';
 import { success, fail, paginate } from '../utils';
 import { AppError } from '../errors';
 import { PUBLISH_STATUSES } from '../constants/publish-statuses';
-
-const publishingScheduleService = new PublishingScheduleServiceImpl();
 
 export async function listPublishingSchedule(req: Request, res: Response): Promise<void> {
   try {
@@ -21,7 +19,8 @@ export async function listPublishingSchedule(req: Request, res: Response): Promi
     const rawProjectId = parseInt(req.query.projectId as string, 10);
     const projectId = !isNaN(rawProjectId) ? rawProjectId : undefined;
 
-    const { list, total } = await publishingScheduleService.list({
+    const articleService = createArticleService();
+    const { list, total } = await articleService.listPublishingSchedule({
       page,
       pageSize,
       search,
@@ -52,7 +51,8 @@ export async function updatePublishingSchedule(req: Request, res: Response): Pro
 
     const { scheduled_publish_at, schedule_type } = req.body;
 
-    const item = await publishingScheduleService.updateSchedule(id, scheduled_publish_at ?? null, schedule_type ?? null, userId, role);
+    const articleService = createArticleService();
+    const item = await articleService.updateSchedule(id, scheduled_publish_at ?? null, schedule_type ?? null, userId, role);
     success(res, item, '更新发布计划成功');
   } catch (err: unknown) {
     if (err instanceof AppError) {
@@ -60,6 +60,27 @@ export async function updatePublishingSchedule(req: Request, res: Response): Pro
     } else {
       console.error('[PublishingScheduleController] updatePublishingSchedule failed:', err);
       fail(res, 500, '更新发布计划失败');
+    }
+  }
+}
+
+export async function rejectPublishingSchedule(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.user) { fail(res, 401, '未授权访问'); return; }
+    const { userId, role } = req.user;
+
+    const id = parseInt(req.params.id as string, 10);
+    if (isNaN(id)) { fail(res, 400, '无效的ID'); return; }
+
+    const articleService = createArticleService();
+    const item = await articleService.rejectPublish(id, { userId, role });
+    success(res, item, '驳回成功');
+  } catch (err: unknown) {
+    if (err instanceof AppError) {
+      fail(res, err.statusCode, err.message);
+    } else {
+      console.error('[PublishingScheduleController] rejectPublishingSchedule failed:', err);
+      fail(res, 500, '驳回操作失败');
     }
   }
 }

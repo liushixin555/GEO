@@ -10,7 +10,7 @@ jest.mock('../../apis/utils/db.util', () => ({
 }));
 
 import { getPrisma } from '../../apis/utils/db.util';
-import { PublishingScheduleServiceImpl } from '../../apis/service/impl/publishing-schedule.service.impl';
+import { ArticleServiceImpl } from '../../apis/service/impl/article.service.impl';
 import { NotFoundError, BusinessError, ForbiddenError } from '../../apis/errors';
 
 const mockedGetPrisma = getPrisma as jest.MockedFunction<typeof getPrisma>;
@@ -69,11 +69,11 @@ function makeUpdatedArticle(overrides: Record<string, any> = {}) {
 //  Tests
 // ══════════════════════════════════════════
 
-describe('PublishingScheduleServiceImpl', () => {
-  let service: PublishingScheduleServiceImpl;
+describe('ArticleServiceImpl', () => {
+  let service: ArticleServiceImpl;
 
   beforeEach(() => {
-    service = new PublishingScheduleServiceImpl();
+    service = new ArticleServiceImpl();
     jest.clearAllMocks();
   });
 
@@ -89,13 +89,13 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      const result = await service.list({ page: 1, pageSize: 10 });
+      const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       expect(result.list).toHaveLength(2);
       expect(result.total).toBe(2);
       expect(mockFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { status: { in: ['publishing', 'published', 'publish_failed'] } },
+          where: { status: { in: ['publishing', 'published', 'publish_failed'] }, deletedAt: null },
           orderBy: { id: 'desc' },
           skip: 0,
           take: 10,
@@ -110,7 +110,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({ page: 2, pageSize: 5 });
+      await service.listPublishingSchedule({ page: 2, pageSize: 5 });
 
       expect(mockFindMany).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 5, take: 5 }),
@@ -124,7 +124,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({ page: 3, pageSize: 20 });
+      await service.listPublishingSchedule({ page: 3, pageSize: 20 });
 
       expect(mockFindMany).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 40, take: 20 }),
@@ -138,7 +138,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({ page: 1, pageSize: 10, search: '测试' });
+      await service.listPublishingSchedule({ page: 1, pageSize: 10, search: '测试' });
 
       expect(mockFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -159,7 +159,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({ page: 1, pageSize: 10, status: 'published' });
+      await service.listPublishingSchedule({ page: 1, pageSize: 10, status: 'published' });
 
       expect(mockFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -175,7 +175,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({ page: 1, pageSize: 10, projectId: 5 });
+      await service.listPublishingSchedule({ page: 1, pageSize: 10, projectId: 5 });
 
       expect(mockFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -191,7 +191,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({ page: 1, pageSize: 10, userId: 42, role: 'admin' });
+      await service.listPublishingSchedule({ page: 1, pageSize: 10, userId: 42, role: 'admin' });
 
       expect(mockFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -213,7 +213,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({ page: 1, pageSize: 10, userId: 99, role: 'view' });
+      await service.listPublishingSchedule({ page: 1, pageSize: 10, userId: 99, role: 'view' });
 
       expect(mockFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -235,7 +235,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({ page: 1, pageSize: 10, userId: 1, role: 'sysadmin' });
+      await service.listPublishingSchedule({ page: 1, pageSize: 10, userId: 1, role: 'sysadmin' });
 
       const where = mockFindMany.mock.calls[0][0].where;
       expect(where).not.toHaveProperty('project');
@@ -248,7 +248,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({ page: 1, pageSize: 10, role: 'admin' });
+      await service.listPublishingSchedule({ page: 1, pageSize: 10, role: 'admin' });
 
       const where = mockFindMany.mock.calls[0][0].where;
       expect(where).not.toHaveProperty('project');
@@ -261,7 +261,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({
+      await service.listPublishingSchedule({
         page: 1,
         pageSize: 10,
         search: 'SEO',
@@ -282,7 +282,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({ page: 1, pageSize: 10 });
+      await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       const where = mockFindMany.mock.calls[0][0].where;
       expect(where).not.toHaveProperty('OR');
@@ -295,7 +295,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({ page: 1, pageSize: 10 });
+      await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       const where = mockFindMany.mock.calls[0][0].where;
       expect(where).not.toHaveProperty('projectId');
@@ -327,7 +327,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      const result = await service.list({ page: 1, pageSize: 10 });
+      const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       expect(result.list[0]).toEqual({
         id: 5,
@@ -356,7 +356,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      const result = await service.list({ page: 1, pageSize: 10 });
+      const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       expect(result.list[0].scheduled_publish_at).toBeNull();
     });
@@ -369,7 +369,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      const result = await service.list({ page: 1, pageSize: 10 });
+      const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       expect(result.list[0].created_by).toBeNull();
     });
@@ -385,7 +385,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      const result = await service.list({ page: 1, pageSize: 10 });
+      const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       expect(result.list[0].project_name).toBe('');
       expect(result.list[0].company_name).toBe('');
@@ -402,7 +402,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      const result = await service.list({ page: 1, pageSize: 10 });
+      const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       expect(result.list[0].project_name).toBe('项目A');
       expect(result.list[0].company_name).toBe('');
@@ -415,7 +415,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      const result = await service.list({ page: 1, pageSize: 10 });
+      const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       expect(result.list).toHaveLength(0);
       expect(result.total).toBe(0);
@@ -428,7 +428,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({ page: 1, pageSize: 10 });
+      await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       expect(mockFindMany).toHaveBeenCalledTimes(1);
       expect(mockCount).toHaveBeenCalledTimes(1);
@@ -441,7 +441,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({ page: 1, pageSize: 10, search: '测试' });
+      await service.listPublishingSchedule({ page: 1, pageSize: 10, search: '测试' });
 
       const findWhere = mockFindMany.mock.calls[0][0].where;
       const countArg = mockCount.mock.calls[0][0];
@@ -456,7 +456,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({ page: 1, pageSize: 10 });
+      await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       expect(mockFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -479,7 +479,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({
+      await service.listPublishingSchedule({
         page: 1,
         pageSize: 10,
         search: 'SEO',
@@ -507,7 +507,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({ page: 1, pageSize: 10, search: '' });
+      await service.listPublishingSchedule({ page: 1, pageSize: 10, search: '' });
 
       const where = mockFindMany.mock.calls[0][0].where;
       expect(where).not.toHaveProperty('OR');
@@ -520,7 +520,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({ page: 1, pageSize: 10, status: '' });
+      await service.listPublishingSchedule({ page: 1, pageSize: 10, status: '' });
 
       const where = mockFindMany.mock.calls[0][0].where;
       expect(where.status).toEqual({ in: ['publishing', 'published', 'publish_failed'] });
@@ -533,7 +533,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({ page: 1, pageSize: 10, projectId: 0 });
+      await service.listPublishingSchedule({ page: 1, pageSize: 10, projectId: 0 });
 
       const where = mockFindMany.mock.calls[0][0].where;
       expect(where).not.toHaveProperty('projectId');
@@ -546,7 +546,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      await service.list({
+      await service.listPublishingSchedule({
         page: 1,
         pageSize: 10,
         search: '测试',
@@ -577,7 +577,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      const result = await service.list({ page: 1, pageSize: 10 });
+      const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       expect(result.list).toHaveLength(3);
       expect(result.list[0].status).toBe('publishing');
@@ -593,7 +593,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      const result = await service.list({ page: 1, pageSize: 10 });
+      const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       expect(result.list[0].schedule_type).toBe('manual');
     });
@@ -606,7 +606,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      const result = await service.list({ page: 1, pageSize: 10 });
+      const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       expect(result.list[0].keywords).toBeNull();
     });
@@ -619,7 +619,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      const result = await service.list({ page: 1, pageSize: 10 });
+      const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       expect(result.list[0].article_type).toBeNull();
     });
@@ -632,7 +632,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      const result = await service.list({ page: 1, pageSize: 10 });
+      const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       expect(result.list[0].platforms).toBeNull();
     });
@@ -645,7 +645,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      const result = await service.list({ page: 1, pageSize: 10 });
+      const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       expect(result.list[0].created_by_name).toBe('');
     });
@@ -658,7 +658,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      const result = await service.list({ page: 1, pageSize: 10 });
+      const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       expect(result.list[0].created_by_name).toBe('');
     });
@@ -684,7 +684,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      const result = await service.list({ page: 1, pageSize: 10 });
+      const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       const item = result.list[0];
       expect(item.keywords).toBe('SEO,SEM');
@@ -708,7 +708,7 @@ describe('PublishingScheduleServiceImpl', () => {
         article: { findMany: mockFindMany, count: mockCount },
       } as any);
 
-      const result = await service.list({ page: 1, pageSize: 10 });
+      const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
       expect(result.list[0].project_name).toBe('');
       expect(result.list[0].company_name).toBe('公司A');
@@ -733,7 +733,7 @@ describe('PublishingScheduleServiceImpl', () => {
       const result = await service.updateSchedule(1, '2025-08-01T10:00:00Z', null, 1, 'sysadmin');
 
       expect(mockFindFirst).toHaveBeenCalledWith({
-        where: { id: 1 },
+        where: { id: 1, deletedAt: null },
         include: {
           project: {
             include: {
@@ -1353,9 +1353,9 @@ describe('PublishingScheduleServiceImpl', () => {
   describe('第3轮：接口契约合规性验证', () => {
     // ── 接口方法签名验证 ──
     describe('接口方法签名', () => {
-      it('should implement IPublishingScheduleService interface (list method)', () => {
-        expect(typeof service.list).toBe('function');
-        expect(service.list.length).toBe(1); // single params arg
+      it('should implement IPublishingScheduleService interface (listPublishingSchedule method)', () => {
+        expect(typeof service.listPublishingSchedule).toBe('function');
+        expect(service.listPublishingSchedule.length).toBe(1); // single params arg
       });
 
       it('should implement IPublishingScheduleService interface (updateSchedule method)', () => {
@@ -1370,7 +1370,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        const result = service.list({ page: 1, pageSize: 10 });
+        const result = service.listPublishingSchedule({ page: 1, pageSize: 10 });
         expect(result).toBeInstanceOf(Promise);
         await result;
       });
@@ -1394,7 +1394,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        const result = await service.list({ page: 1, pageSize: 10 });
+        const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
         expect(result).toEqual({ list: [], total: 0 });
       });
 
@@ -1405,7 +1405,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        const result = await service.list({
+        const result = await service.listPublishingSchedule({
           page: 1,
           pageSize: 10,
           search: 'test',
@@ -1439,7 +1439,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        const result = await service.list({ page: 1, pageSize: 10 });
+        const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
         expect(Array.isArray(result.list)).toBe(true);
         expect(typeof result.total).toBe('number');
       });
@@ -1472,7 +1472,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        await expect(service.list({ page: 1, pageSize: 10 }))
+        await expect(service.listPublishingSchedule({ page: 1, pageSize: 10 }))
           .rejects.toThrow('Connection refused');
       });
 
@@ -1483,7 +1483,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        await expect(service.list({ page: 1, pageSize: 10 }))
+        await expect(service.listPublishingSchedule({ page: 1, pageSize: 10 }))
           .rejects.toThrow('Count timeout');
       });
 
@@ -1531,7 +1531,7 @@ describe('PublishingScheduleServiceImpl', () => {
         } as any);
 
         try {
-          await service.list({ page: 1, pageSize: 10 });
+          await service.listPublishingSchedule({ page: 1, pageSize: 10 });
           fail('Should have thrown');
         } catch (error) {
           expect(error).toBeInstanceOf(Error);
@@ -1551,7 +1551,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        const result = await service.list({ page: 99999, pageSize: 10 });
+        const result = await service.listPublishingSchedule({ page: 99999, pageSize: 10 });
         expect(mockFindMany).toHaveBeenCalledWith(
           expect.objectContaining({ skip: 999980, take: 10 }),
         );
@@ -1566,7 +1566,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        const result = await service.list({ page: 1, pageSize: 1 });
+        const result = await service.listPublishingSchedule({ page: 1, pageSize: 1 });
         expect(mockFindMany).toHaveBeenCalledWith(
           expect.objectContaining({ skip: 0, take: 1 }),
         );
@@ -1580,7 +1580,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        await service.list({ page: 1, pageSize: 10, search: "'; DROP TABLE articles;--" });
+        await service.listPublishingSchedule({ page: 1, pageSize: 10, search: "'; DROP TABLE articles;--" });
 
         expect(mockFindMany).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1601,7 +1601,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        await service.list({ page: 1, pageSize: 10, search: '薄云商机倍增服务🎉' });
+        await service.listPublishingSchedule({ page: 1, pageSize: 10, search: '薄云商机倍增服务🎉' });
 
         expect(mockFindMany).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1623,7 +1623,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        await service.list({ page: 1, pageSize: 10, search: longSearch });
+        await service.listPublishingSchedule({ page: 1, pageSize: 10, search: longSearch });
 
         expect(mockFindMany).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1646,7 +1646,7 @@ describe('PublishingScheduleServiceImpl', () => {
         await expect(service.updateSchedule(-1, null, null, 1, 'sysadmin'))
           .rejects.toThrow(NotFoundError);
         expect(mockFindFirst).toHaveBeenCalledWith(
-          expect.objectContaining({ where: { id: -1 } }),
+          expect.objectContaining({ where: { id: -1, deletedAt: null } }),
         );
       });
 
@@ -1659,7 +1659,7 @@ describe('PublishingScheduleServiceImpl', () => {
         await expect(service.updateSchedule(0, null, null, 1, 'sysadmin'))
           .rejects.toThrow(NotFoundError);
         expect(mockFindFirst).toHaveBeenCalledWith(
-          expect.objectContaining({ where: { id: 0 } }),
+          expect.objectContaining({ where: { id: 0, deletedAt: null } }),
         );
       });
 
@@ -1673,7 +1673,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        const result = await service.list({ page: 1, pageSize: 100 });
+        const result = await service.listPublishingSchedule({ page: 1, pageSize: 100 });
         expect(result.list).toHaveLength(100);
         expect(result.total).toBe(100);
         expect(result.list[0].id).toBe(1);
@@ -1826,7 +1826,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        const result = await service.list({ page: 1, pageSize: 10 });
+        const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
         const item = result.list[0];
         const expectedKeys = [
           'id', 'title', 'keywords', 'article_type', 'platforms', 'status',
@@ -1851,7 +1851,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        const result = await service.list({ page: 1, pageSize: 10 });
+        const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
         const item = result.list[0];
 
         expect(typeof item.id).toBe('number');
@@ -1886,7 +1886,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        const result = await service.list({ page: 1, pageSize: 10 });
+        const result = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
         const item = result.list[0];
 
         expect(item.keywords).toBeNull();
@@ -1940,17 +1940,17 @@ describe('PublishingScheduleServiceImpl', () => {
     // ── 实例独立性 ──
     describe('实例独立性', () => {
       it('should produce independent service instances', () => {
-        const service1 = new PublishingScheduleServiceImpl();
-        const service2 = new PublishingScheduleServiceImpl();
+        const service1 = new ArticleServiceImpl();
+        const service2 = new ArticleServiceImpl();
 
         expect(service1).not.toBe(service2);
-        expect(service1).toBeInstanceOf(PublishingScheduleServiceImpl);
-        expect(service2).toBeInstanceOf(PublishingScheduleServiceImpl);
+        expect(service1).toBeInstanceOf(ArticleServiceImpl);
+        expect(service2).toBeInstanceOf(ArticleServiceImpl);
       });
 
       it('should not share state between instances', async () => {
-        const service1 = new PublishingScheduleServiceImpl();
-        const service2 = new PublishingScheduleServiceImpl();
+        const service1 = new ArticleServiceImpl();
+        const service2 = new ArticleServiceImpl();
 
         const mockFindMany1 = jest.fn().mockResolvedValue([makeArticle({ id: 1 })]);
         const mockCount1 = jest.fn().mockResolvedValue(1);
@@ -2005,7 +2005,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        const listResult = await service.list({ page: 1, pageSize: 10 });
+        const listResult = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
         const listItem = listResult.list[0];
 
         // updateSchedule 映射
@@ -2051,7 +2051,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        const listResult = await service.list({ page: 1, pageSize: 10 });
+        const listResult = await service.listPublishingSchedule({ page: 1, pageSize: 10 });
         const listItem = listResult.list[0];
 
         // updateSchedule 映射
@@ -2091,7 +2091,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        await service.list({ page: 1, pageSize: 10 });
+        await service.listPublishingSchedule({ page: 1, pageSize: 10 });
 
         expect(mockFindMany).toHaveBeenCalledWith(
           expect.objectContaining({ orderBy: { id: 'desc' } }),
@@ -2105,7 +2105,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        await service.list({ page: 1, pageSize: 10, search: 'test' });
+        await service.listPublishingSchedule({ page: 1, pageSize: 10, search: 'test' });
 
         expect(mockFindMany).toHaveBeenCalledWith(
           expect.objectContaining({ orderBy: { id: 'desc' } }),
@@ -2119,7 +2119,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        await service.list({ page: 1, pageSize: 10, userId: 1, role: 'admin' });
+        await service.listPublishingSchedule({ page: 1, pageSize: 10, userId: 1, role: 'admin' });
 
         expect(mockFindMany).toHaveBeenCalledWith(
           expect.objectContaining({ orderBy: { id: 'desc' } }),
@@ -2133,7 +2133,7 @@ describe('PublishingScheduleServiceImpl', () => {
           article: { findMany: mockFindMany, count: mockCount },
         } as any);
 
-        await service.list({ page: 5, pageSize: 20 });
+        await service.listPublishingSchedule({ page: 5, pageSize: 20 });
 
         expect(mockFindMany).toHaveBeenCalledWith(
           expect.objectContaining({ orderBy: { id: 'desc' } }),

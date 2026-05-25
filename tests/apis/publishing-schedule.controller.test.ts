@@ -14,11 +14,13 @@ process.env.RATE_LIMIT_MAX = '100';
 // Mock the service implementation before importing app
 const mockList = jest.fn();
 const mockUpdateSchedule = jest.fn();
+const mockRejectPublish = jest.fn();
 
-jest.mock('../../apis/service/impl/publishing-schedule.service.impl', () => ({
-  PublishingScheduleServiceImpl: jest.fn().mockImplementation(() => ({
-    list: mockList,
+jest.mock('../../apis/service/impl/article.service.impl', () => ({
+  ArticleServiceImpl: jest.fn().mockImplementation(() => ({
+    listPublishingSchedule: mockList,
     updateSchedule: mockUpdateSchedule,
+    rejectPublish: mockRejectPublish,
   })),
 }));
 
@@ -28,7 +30,7 @@ jest.mock('../../apis/utils/db.util', () => ({
 }));
 
 import app from '../../apis/app';
-import { listPublishingSchedule, updatePublishingSchedule } from '../../apis/controller/publishing-schedule.controller';
+import { listPublishingSchedule, updatePublishingSchedule, rejectPublishingSchedule } from '../../apis/controller/publishing-schedule.controller';
 
 const agent = request.agent(app).set('User-Agent', 'test-agent/1.0');
 
@@ -1855,6 +1857,191 @@ describe('PublishingSchedule Controller', () => {
       await updatePublishingSchedule(req, res);
 
       expect(consoleSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  // ========== PUT /api/publishing-schedule/:id/reject (rejectPublishingSchedule) ==========
+  describe('PUT /api/publishing-schedule/:id/reject', () => {
+    const mockRejectedArticle = {
+      id: 1,
+      project_id: 10,
+      title: '测试文章',
+      status: 'draft',
+      created_by: 2,
+      created_at: new Date('2025-01-01'),
+      updated_at: new Date('2025-01-02'),
+    };
+
+    it('should return 401 without token', async () => {
+      const response = await agent.put('/api/v1/publishing-schedule/1/reject');
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 403 for view role', async () => {
+      const response = await agent
+        .put('/api/v1/publishing-schedule/1/reject')
+        .set('Authorization', `Bearer ${viewToken()}`);
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should reject successfully for sysadmin (non-creator)', async () => {
+      mockRejectPublish.mockResolvedValue(mockRejectedArticle);
+
+      const response = await agent
+        .put('/api/v1/publishing-schedule/1/reject')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.code).toBe(0);
+      expect(response.body.message).toBe('驳回成功');
+      expect(mockRejectPublish).toHaveBeenCalledWith(1, { userId: 1, role: 'sysadmin' });
+    });
+
+    it('should reject successfully for admin (non-creator)', async () => {
+      mockRejectPublish.mockResolvedValue({ ...mockRejectedArticle, status: 'manual_writing' });
+
+      const response = await agent
+        .put('/api/v1/publishing-schedule/1/reject')
+        .set('Authorization', `Bearer ${adminToken()}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.code).toBe(0);
+      expect(mockRejectPublish).toHaveBeenCalledWith(1, { userId: 2, role: 'admin' });
+    });
+
+    it('should return 400 when id is not a number', async () => {
+      const response = await agent
+        .put('/api/v1/publishing-schedule/abc/reject')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('无效的ID');
+    });
+
+    it('should return 404 when article does not exist', async () => {
+      mockRejectPublish.mockRejectedValue(new NotFoundError('文章'));
+
+      const response = await agent
+        .put('/api/v1/publishing-schedule/999/reject')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(404);
+      expect(response.body.message).toBe('文章不存在');
+    });
+
+    it('should return 400 when article status is not publishing', async () => {
+      mockRejectPublish.mockRejectedValue(new BusinessError('当前文章状态不支持驳回操作'));
+
+      const response = await agent
+        .put('/api/v1/publishing-schedule/1/reject')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('当前文章状态不支持驳回操作');
+    });
+
+    it('should return 403 when creator tries to reject own article', async () => {
+      mockRejectPublish.mockRejectedValue(new ForbiddenError('不能驳回自己创建的文章'));
+
+      const response = await agent
+        .put('/api/v1/publishing-schedule/1/reject')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('不能驳回自己创建的文章');
+    });
+
+    it('should return 500 with fixed message for generic service errors', async () => {
+      mockRejectPublish.mockRejectedValue(new Error('内部服务错误'));
+
+      const response = await agent
+        .put('/api/v1/publishing-schedule/1/reject')
+        .set('Authorization', `Bearer ${sysadminToken()}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe('驳回操作失败');
+    });
+
+    // Unit tests bypassing middleware
+    describe('rejectPublishingSchedule - unit tests', () => {
+      it('should return 401 when req.user is missing', async () => {
+        const req = { params: { id: '1' } } as any;
+        const res = createMockRes();
+
+        await rejectPublishingSchedule(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(res.json).toHaveBeenCalledWith(
+          expect.objectContaining({ message: '未授权访问' })
+        );
+      });
+
+      it('should return 400 when id is NaN', async () => {
+        const req = {
+          user: { userId: 1, role: 'sysadmin' },
+          params: { id: 'abc' },
+        } as any;
+        const res = createMockRes();
+
+        await rejectPublishingSchedule(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith(
+          expect.objectContaining({ message: '无效的ID' })
+        );
+      });
+
+      it('should return 500 when non-Error value is thrown', async () => {
+        mockRejectPublish.mockImplementation(() => { throw 'string error'; });
+
+        const req = {
+          user: { userId: 1, role: 'sysadmin' },
+          params: { id: '1' },
+        } as any;
+        const res = createMockRes();
+
+        await rejectPublishingSchedule(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith(
+          expect.objectContaining({ message: '驳回操作失败' })
+        );
+      });
+
+      it('should return 404 for NotFoundError', async () => {
+        mockRejectPublish.mockRejectedValue(new NotFoundError('文章'));
+
+        const req = {
+          user: { userId: 1, role: 'sysadmin' },
+          params: { id: '999' },
+        } as any;
+        const res = createMockRes();
+
+        await rejectPublishingSchedule(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(404);
+        expect(res.json).toHaveBeenCalledWith(
+          expect.objectContaining({ message: '文章不存在' })
+        );
+      });
+
+      it('should return 403 for ForbiddenError', async () => {
+        mockRejectPublish.mockRejectedValue(new ForbiddenError('不能驳回自己创建的文章'));
+
+        const req = {
+          user: { userId: 2, role: 'admin' },
+          params: { id: '1' },
+        } as any;
+        const res = createMockRes();
+
+        await rejectPublishingSchedule(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(403);
+        expect(res.json).toHaveBeenCalledWith(
+          expect.objectContaining({ message: '不能驳回自己创建的文章' })
+        );
+      });
     });
   });
 });

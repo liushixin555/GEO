@@ -1,4 +1,5 @@
 import { Article, ArticleVersion, CreateArticleRequest, UpdateArticleRequest } from '../entity';
+import type { PublishingScheduleListParams, PublishingScheduleItem, PublishingScheduleUpdateResult } from '../entity/publishing-schedule.entity';
 
 /** 认证上下文 — 统一传递用户身份信息 */
 export interface AuthContext {
@@ -17,6 +18,11 @@ export interface IArticleService {
   regenerate(projectId: number, id: number, auth: AuthContext): Promise<Article>;
   submitForReview(projectId: number, id: number, auth: AuthContext): Promise<Article>;
   listVersions(articleId: number): Promise<ArticleVersion[]>;
+
+  // Publishing schedule (merged from PublishingScheduleService)
+  listPublishingSchedule(params: PublishingScheduleListParams): Promise<{ list: PublishingScheduleItem[]; total: number }>;
+  updateSchedule(id: number, scheduledPublishAt: string | null, scheduleType: string | null, userId: number, role: string): Promise<PublishingScheduleUpdateResult>;
+  rejectPublish(id: number, auth: AuthContext): Promise<Article>;
 
   // Business rule queries
   isSettingsEditable(status: string): boolean;

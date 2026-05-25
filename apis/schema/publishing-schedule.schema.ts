@@ -7,3 +7,7 @@ export const updatePublishingScheduleSchema = z.object({
   ).nullable().optional(),
   schedule_type: z.enum(['asap', 'scheduled', 'after'], { message: '排期类型必须是 asap/scheduled/after' }).nullable().optional(),
 }).strict();
+
+export const rejectPublishingScheduleSchema = z.object({
+  reason: z.string().max(500).optional(),
+}).strict().optional();

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Row, Col, Input, Select, Tag, Typography, Spin, Pagination, Button, Modal, DatePicker, Breadcrumb, App, Card, Descriptions, Radio } from 'antd';
+import { Row, Col, Input, Select, Tag, Typography, Spin, Pagination, Button, Modal, DatePicker, Breadcrumb, App, Card, Descriptions, Radio, Tooltip, Popconfirm } from 'antd';
+import { EditOutlined, RollbackOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import apiClient from '../lib/apiClient';
 import { formatDateTime } from '../utils/date';
@@ -76,6 +77,9 @@ const PublishingSchedulePage: React.FC = () => {
   const [editDate, setEditDate] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
 
+  // Reject loading state
+  const [rejectingId, setRejectingId] = useState<number | null>(null);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -100,15 +104,11 @@ const PublishingSchedulePage: React.FC = () => {
       const res = await apiClient.get('/publishing-schedule', {
         params: { page: 1, pageSize: 1, status: 'publishing' },
       });
-      // pendingCount = publishing articles without scheduled_publish_at
-      // We get total publishing count, but need to know how many have no schedule
-      // Fetch all publishing to count those without schedule
       const totalPublishing = res.data.data.total;
       if (totalPublishing === 0) {
         setPendingCount(0);
         return;
       }
-      // Fetch all publishing articles (up to a reasonable limit) to count unscheduled
       const allRes = await apiClient.get('/publishing-schedule', {
         params: { page: 1, pageSize: 200, status: 'publishing' },
       });
@@ -163,6 +163,21 @@ const PublishingSchedulePage: React.FC = () => {
     }
   };
 
+  const handleReject = async (id: number) => {
+    setRejectingId(id);
+    try {
+      await apiClient.put(`/publishing-schedule/${id}/reject`);
+      message.success('已驳回');
+      fetchData();
+      fetchPendingCount();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '驳回失败';
+      message.error(msg);
+    } finally {
+      setRejectingId(null);
+    }
+  };
+
   const user = getSafeUser();
 
   return (
@@ -213,6 +228,7 @@ const PublishingSchedulePage: React.FC = () => {
           {data.map((item) => {
             const statusCfg = getDerivedStatus(item);
             const canEditThis = (user.role === 'sysadmin' || item.created_by === user.id) && item.status === 'publishing';
+            const canRejectThis = user.role === 'sysadmin' || (item.created_by !== null && item.created_by !== user.id);
             return (
               <Card key={item.id} size="small" title={item.title} extra={<Tag color={statusCfg.color}>{statusCfg.label}</Tag>}>
                 <Descriptions column={2} size="small" colon={false}>
@@ -225,14 +241,33 @@ const PublishingSchedulePage: React.FC = () => {
                 </Descriptions>
                 {item.status === 'publishing' && (
                   <div className="publishing-card-footer">
-                    <Button
-                      type="primary"
-                      size="small"
-                      disabled={!canEditThis}
-                      onClick={() => handleEditClick(item)}
-                    >
-                      编辑计划
-                    </Button>
+                    <Tooltip title="编辑计划">
+                      <Button
+                        type="primary"
+                        size="small"
+                        disabled={!canEditThis}
+                        icon={<EditOutlined />}
+                        onClick={() => handleEditClick(item)}
+                      />
+                    </Tooltip>
+                    {canRejectThis && (
+                      <Popconfirm
+                        title="确认驳回"
+                        description="驳回后文章将退回修改状态，确定继续？"
+                        onConfirm={() => handleReject(item.id)}
+                        okText="确定"
+                        cancelText="取消"
+                      >
+                        <Tooltip title="驳回">
+                          <Button
+                            danger
+                            size="small"
+                            loading={rejectingId === item.id}
+                            icon={<RollbackOutlined />}
+                          />
+                        </Tooltip>
+                      </Popconfirm>
+                    )}
                   </div>
                 )}
               </Card>
@@ -265,6 +300,7 @@ const PublishingSchedulePage: React.FC = () => {
               {data.map((item) => {
                 const statusCfg = getDerivedStatus(item);
                 const canEditThis = (user.role === 'sysadmin' || item.created_by === user.id) && item.status === 'publishing';
+                const canRejectThis = (user.role === 'sysadmin' || (item.created_by !== null && item.created_by !== user.id)) && item.status === 'publishing';
                 return (
                   <tr key={item.id}>
                     <td className="col-title" title={item.title}>{item.title}</td>
@@ -277,14 +313,36 @@ const PublishingSchedulePage: React.FC = () => {
                     <td className="col-status"><Tag color={statusCfg.color}>{statusCfg.label}</Tag></td>
                     <td className="col-action">
                       {item.status === 'publishing' && (
-                        <Button
-                          type="link"
-                          size="small"
-                          disabled={!canEditThis}
-                          onClick={() => handleEditClick(item)}
-                        >
-                          编辑计划
-                        </Button>
+                        <>
+                          <Tooltip title="编辑计划">
+                            <Button
+                              type="link"
+                              size="small"
+                              disabled={!canEditThis}
+                              icon={<EditOutlined />}
+                              onClick={() => handleEditClick(item)}
+                            />
+                          </Tooltip>
+                          {canRejectThis && (
+                            <Popconfirm
+                              title="确认驳回"
+                              description="驳回后文章将退回修改状态，确定继续？"
+                              onConfirm={() => handleReject(item.id)}
+                              okText="确定"
+                              cancelText="取消"
+                            >
+                              <Tooltip title="驳回">
+                                <Button
+                                  type="link"
+                                  danger
+                                  size="small"
+                                  loading={rejectingId === item.id}
+                                  icon={<RollbackOutlined />}
+                                />
+                              </Tooltip>
+                            </Popconfirm>
+                          )}
+                        </>
                       )}
                     </td>
                   </tr>

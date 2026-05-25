@@ -1,9 +1,11 @@
 import { getPrisma } from '../../utils';
 import { Article, ArticleStatus, ArticleVersion, CreateArticleRequest, UpdateArticleRequest } from '../../entity';
+import type { PublishingScheduleItem, PublishingScheduleUpdateResult } from '../../entity/publishing-schedule.entity';
 import { mapArticle, mapArticleVersion } from '../../map';
 import { IArticleService, AuthContext } from '../article.service';
 import { Prisma } from '@prisma/client';
 import { NotFoundError, BusinessError, ForbiddenError } from '../../errors';
+import { PUBLISH_STATUSES } from '../../constants/publish-statuses';
 import { validateAndSanitizeMarkdown } from '../../utils/sanitize-markdown.util';
 
 export class ArticleServiceImpl implements IArticleService {
@@ -14,7 +16,7 @@ export class ArticleServiceImpl implements IArticleService {
     'generating': ['pending_review', 'generate_failed'],
     'generate_failed': ['generating'],
     'pending_review': ['publishing', 'manual_writing', 'draft', 'generating'],
-    'publishing': ['published', 'publish_failed'],
+    'publishing': ['published', 'publish_failed', 'manual_writing', 'draft'],
     'publish_failed': ['publishing'],
   };
 
@@ -349,5 +351,182 @@ export class ArticleServiceImpl implements IArticleService {
       orderBy: { version: 'desc' },
     });
     return versions.map(mapArticleVersion);
+  }
+
+  // --- Publishing schedule methods (merged from PublishingScheduleService) ---
+
+  async listPublishingSchedule(params: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    status?: string;
+    projectId?: number;
+    userId?: number;
+    role?: string;
+  }): Promise<{ list: PublishingScheduleItem[]; total: number }> {
+    const prisma = getPrisma();
+    const { page, pageSize, search, status, projectId, userId, role } = params;
+
+    const where: any = {
+      status: { in: PUBLISH_STATUSES },
+      deletedAt: null,
+    };
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { keywords: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (projectId) {
+      where.projectId = projectId;
+    }
+
+    // Permission filter
+    if (role === 'admin' && userId) {
+      where.project = {
+        operators: { some: { userId } },
+        company: { status: true },
+        status: true,
+      };
+    } else if (role === 'view' && userId) {
+      where.project = {
+        viewers: { some: { userId } },
+        company: { status: true },
+        status: true,
+      };
+    }
+
+    const [items, total] = await Promise.all([
+      prisma.article.findMany({
+        where,
+        include: {
+          project: {
+            include: {
+              company: { select: { shortName: true } },
+            },
+          },
+          creator: { select: { id: true, cnName: true } },
+        },
+        orderBy: { id: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.article.count({ where }),
+    ]);
+
+    const list: PublishingScheduleItem[] = items.map((item: any) => ({
+      id: item.id,
+      title: item.title,
+      keywords: item.keywords,
+      article_type: item.articleType,
+      platforms: item.platforms,
+      status: item.status,
+      scheduled_publish_at: item.scheduledPublishAt ?? null,
+      schedule_type: item.scheduleType ?? null,
+      project_id: item.projectId,
+      project_name: item.project?.shortName || '',
+      company_name: item.project?.company?.shortName || '',
+      created_by: item.createdBy ?? null,
+      created_by_name: item.creator?.cnName || '',
+      created_at: item.createdAt,
+      updated_at: item.updatedAt,
+    }));
+
+    return { list, total };
+  }
+
+  async updateSchedule(id: number, scheduledPublishAt: string | null, scheduleType: string | null, userId: number, role: string): Promise<PublishingScheduleUpdateResult> {
+    const prisma = getPrisma();
+
+    const existing = await prisma.article.findFirst({
+      where: { id, deletedAt: null },
+      include: {
+        project: {
+          include: {
+            operators: true,
+          },
+        },
+      },
+    });
+    if (!existing) throw new NotFoundError('文章');
+
+    if (existing.status !== 'publishing') {
+      throw new BusinessError('当前文章状态不可编辑发布计划');
+    }
+
+    // Permission check — admin can only update articles in their own projects
+    if (role !== 'sysadmin') {
+      const hasAccess = existing.project?.operators?.some(op => op.userId === userId);
+      if (!hasAccess) throw new ForbiddenError('无权操作此文章');
+    }
+
+    const data: any = {
+      scheduledPublishAt: scheduledPublishAt ? new Date(scheduledPublishAt) : null,
+      scheduleType: scheduleType ?? null,
+    };
+
+    const updated = await prisma.article.update({
+      where: { id },
+      data,
+      include: {
+        project: {
+          include: {
+            company: { select: { shortName: true } },
+          },
+        },
+      },
+    });
+
+    return {
+      id: updated.id,
+      title: updated.title,
+      keywords: updated.keywords,
+      article_type: updated.articleType,
+      platforms: updated.platforms as string[] | null,
+      status: updated.status,
+      scheduled_publish_at: updated.scheduledPublishAt ?? null,
+      schedule_type: updated.scheduleType ?? null,
+      project_id: updated.projectId,
+      project_name: updated.project?.shortName || '',
+      company_name: updated.project?.company?.shortName || '',
+      created_at: updated.createdAt,
+      updated_at: updated.updatedAt,
+    };
+  }
+
+  async rejectPublish(id: number, auth: AuthContext): Promise<Article> {
+    return await getPrisma().$transaction(async (tx: Prisma.TransactionClient) => {
+      const existing = await this.findArticleOrThrow(id, tx);
+
+      // Status check: only publishing articles can be rejected
+      if (existing.status !== 'publishing') {
+        throw new BusinessError('当前文章状态不支持驳回操作');
+      }
+
+      // Permission: creator cannot reject own article, only sysadmin or non-creator admin
+      if (existing.createdBy === auth.userId) {
+        throw new ForbiddenError('不能驳回自己创建的文章');
+      }
+
+      // Determine reject target status based on writeMode
+      const rejectStatus = existing.writeMode === 'manual' ? 'manual_writing' : 'draft';
+
+      // Defense-in-depth: validate transition against state machine
+      if (!this.isValidStatusTransition(existing.status, rejectStatus)) {
+        throw new BusinessError('非法的状态转换');
+      }
+
+      const updated = await tx.article.update({
+        where: { id },
+        data: { status: rejectStatus },
+      });
+      return mapArticle(updated);
+    });
   }
 }
