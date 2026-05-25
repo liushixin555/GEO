@@ -24,7 +24,7 @@
     "db:generate": "npx prisma generate",
     "start": "node dist/apis/server.js",
     "swagger:gen": "pnpm exec prisma generate && npx ts-node apis/scripts/generate-swagger.ts",
-    "postinstall": "patch-package && pnpm exec prisma generate"
+    "postinstall": "patch-package || true && pnpm exec prisma generate"
   },
   "dependencies": {
     "@ant-design/icons": "^6.2.3",
