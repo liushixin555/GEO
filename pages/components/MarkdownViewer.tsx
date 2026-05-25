@@ -323,6 +323,20 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
     }
   }, [content]);
 
+  // UI-P1-03: 复制按钮键盘支持 — Enter/Space 触发 click()
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'Enter' || e.key === ' ') && (e.target as HTMLElement).closest('.copied')) {
+        e.preventDefault();
+        (e.target as HTMLElement).click();
+      }
+    };
+    container.addEventListener('keydown', handleKeyDown);
+    return () => container.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 48 }}>

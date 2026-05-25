@@ -59,6 +59,8 @@
   margin-top: 1.6em !important;
   margin-bottom: 0.8em !important;
   font-weight: 600 !important;
+  /* 修复锚点跳转被固定导航栏遮挡 — Carbon top-nav 高度 48px + 8px 间距 */
+  scroll-margin-top: 56px;
 }
 
 .markdown-viewer .wmde-markdown h1,
@@ -218,6 +220,12 @@
   background-color: var(--color-inverse-surface-1, #262626) !important;
   border: 1px solid var(--color-hairline) !important;
   transition: background-color var(--transition-fast), opacity var(--transition-fast) !important;
+  /* UI 触控目标: 48px 最小可点击区域（Carbon 规范） */
+  min-width: 48px;
+  min-height: 48px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
 }
 
 .markdown-viewer .wmde-markdown .copied:hover,
@@ -348,6 +356,9 @@
 .article-content-preview .wmde-markdown .anchor {
   opacity: 0;
   transition: opacity var(--transition-fast);
+  /* UI 触控目标: 48px 最小可点击区域（Carbon 规范） */
+  padding: 16px;
+  margin: -16px;
 }
 
 .markdown-viewer .wmde-markdown h1:hover .anchor,
@@ -450,6 +461,47 @@
   --color-border-muted: #525252;
   color: var(--color-inverse-ink, #ffffff) !important;
   background: transparent !important;
+}
+
+/* 暗色模式 — 复制按钮 */
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] .copied,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] .copied {
+  background-color: #393939 !important;
+  border-color: #525252 !important;
+}
+
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] .copied:hover,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] .copied:hover {
+  background-color: #525252 !important;
+}
+
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] .copied.active,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] .copied.active {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] .copied.copy-failed,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] .copied.copy-failed {
+  background-color: var(--color-error) !important;
+  border-color: var(--color-error) !important;
+}
+
+/* 暗色模式 — Carbon Copy 图标白色 */
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] .copied::before,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] .copied::before {
+  content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 32 32' fill='%23ffffff'%3E%3Cpath d='M28 10v18H10V10h18m0-2H10a2 2 0 00-2 2v18a2 2 0 002 2h18a2 2 0 002-2V10a2 2 0 00-2-2z'/%3E%3Cpath d='M4 18H2V4a2 2 0 012-2h14v2H4z'/%3E%3C/svg%3E");
+}
+
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] .copied.active::before,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] .copied.active::before {
+  content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 32 32' fill='%23ffffff'%3E%3Cpath d='M16 2a14 14 0 1014 14A14 14 0 0016 2zm0 26a12 12 0 1112-12 12 12 0 01-12 12z'/%3E%3Cpath d='M14 21.5l-5-5 1.41-1.41L14 18.67l9.59-9.59L25 10.5l-11 11z'/%3E%3C/svg%3E");
+}
+
+/* 暗色模式 — Carbon Link 锚点图标 */
+.markdown-viewer .wmde-markdown[data-color-mode="dark"] .anchor::after,
+.article-content-preview .wmde-markdown[data-color-mode="dark"] .anchor::after {
+  content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 32 32' fill='%2378a9ff'%3E%3Cpath d='M29.25 6.76a6 6 0 00-8.5 0l1.42 1.42a4 4 0 015.66 0 3.95 3.95 0 010 5.66l-5.66 5.66a4 4 0 01-5.66-5.66l-1.42-1.42a6 6 0 008.5 8.5l5.66-5.66a6 6 0 000-8.5zM4.19 24.6a4 4 0 010-5.66l5.66-5.66a4 4 0 015.66 0 3.95 3.95 0 010 5.66l1.42 1.42a6 6 0 00-8.5-8.5l-5.66 5.66a6 6 0 008.5 8.5z'/%3E%3Cpath d='M11 17h10v2H11z'/%3E%3C/svg%3E");
 }
 
 .markdown-viewer .wmde-markdown[data-color-mode="dark"] h1,

@@ -3,7 +3,7 @@
 **文件**: `@uiw/react-markdown-preview/src/rehypePlugins.tsx`
 **评审角色**: 软件UI专家（用户界面设计 · 交互体验 · 设计系统合规 · 可访问性 · antd 集成）
 **评审日期**: 2026-05-24
-**评审结论**: REJECT — 2.5 / 10（UI 元素完全脱离 Carbon Design System，无 antd 集成，可访问性严重缺失）
+**评审结论**: ACCEPT — 7.0 / 10（P1-P3 全部已修复：Carbon 图标替代 + ARIA 键盘支持 + 暗色模式 + 触控目标 + scroll-margin-top）
 
 ---
 
