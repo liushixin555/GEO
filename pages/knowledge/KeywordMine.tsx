@@ -4,6 +4,7 @@ import { Row, Col, Card, Typography, Spin, Popconfirm, App, Breadcrumb, Button, 
 import { ArrowLeftOutlined, SearchOutlined, DeleteOutlined, SwapOutlined, CheckSquareOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import apiClient from '../lib/apiClient';
+import { getApiErrorMessage } from '../utils/error';
 
 interface MinedKeywordItem {
   id: number;
@@ -59,8 +60,8 @@ const KeywordMine: React.FC = () => {
       message.success(`新挖掘出 ${data.mined} 个关键词${data.duplicates > 0 ? `，${data.duplicates} 个已存在` : ''}`);
       setMinedKeywords(data.list);
       setSelectedRowKeys(data.list.filter((k: MinedKeywordItem) => k.selected).map((k: MinedKeywordItem) => k.id));
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '挖掘失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '挖掘失败'));
     } finally { setMining(false); }
   };
 
@@ -77,8 +78,8 @@ const KeywordMine: React.FC = () => {
       );
       message.success(res.data.message || `成功保存 ${selected.length} 个关键词`);
       navigate(`/knowledge/${baseId}`);
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '保存失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '保存失败'));
     } finally { setSaving(false); }
   };
 
@@ -104,8 +105,8 @@ const KeywordMine: React.FC = () => {
       message.success('已清空');
       setMinedKeywords([]);
       setSelectedRowKeys([]);
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '清空失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '清空失败'));
     }
   };
 
@@ -116,8 +117,8 @@ const KeywordMine: React.FC = () => {
       });
       setMinedKeywords(prev => prev.filter(k => k.id !== id));
       setSelectedRowKeys(prev => prev.filter(kid => kid !== id));
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '删除失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '删除失败'));
     }
   };
 

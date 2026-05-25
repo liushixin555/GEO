@@ -3,6 +3,7 @@ import { Row, Col, Card, Input, Select, Switch, Tag, Spin, Pagination, Breadcrum
 import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import apiClient from '../lib/apiClient';
+import { getApiErrorMessage } from '../utils/error';
 import ProjectForm from './ProjectForm';
 
 interface ProjectItem {
@@ -79,8 +80,8 @@ const ProjectPage: React.FC = () => {
       });
       message.success(item.status ? '项目已禁用' : '项目已启用');
       fetchData();
-    } catch {
-      message.error('操作失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '操作失败'));
     }
   };
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Collapse, Row, Col, Card, Button, Form, Input, Typography, Spin, Alert, Switch, Popconfirm, App, Breadcrumb } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import apiClient from '../lib/apiClient';
+import { getApiErrorMessage } from '../utils/error';
 import LlmModelForm from './LlmModelForm';
 
 interface LlmModelItem {
@@ -104,7 +105,7 @@ const SystemAdminPage: React.FC = () => {
       await saveConfigs(values, 'yishangshu');
       message.success('保存成功');
     } catch (err: any) {
-      message.error(err.response?.data?.message || '保存失败');
+      message.error(getApiErrorMessage(err, '保存失败'));
     } finally {
       setYishangshuSaving(false);
     }
@@ -116,7 +117,7 @@ const SystemAdminPage: React.FC = () => {
       await saveConfigs(values, 'ruanmeng');
       message.success('保存成功');
     } catch (err: any) {
-      message.error(err.response?.data?.message || '保存失败');
+      message.error(getApiErrorMessage(err, '保存失败'));
     } finally {
       setRuanmengSaving(false);
     }
@@ -137,8 +138,8 @@ const SystemAdminPage: React.FC = () => {
     try {
       const res = await apiClient.post('/publishing-platforms/sync');
       message.success(res.data.message || '同步成功');
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '同步失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '同步失败'));
     } finally {
       setPlatformSyncing(false);
     }

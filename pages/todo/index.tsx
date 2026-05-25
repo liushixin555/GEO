@@ -15,6 +15,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import apiClient from '../lib/apiClient';
+import { getApiErrorMessage } from '../utils/error';
 import { formatDate } from '../utils/date';
 import { getSafeUser } from '../utils/auth';
 import TodoForm from './TodoForm';
@@ -145,8 +146,8 @@ const TodoPage: React.FC = () => {
       await apiClient.post(`/todos/${id}/close`);
       message.success('待办已关闭');
       fetchData();
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '操作失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '操作失败'));
     }
   };
 
@@ -155,8 +156,8 @@ const TodoPage: React.FC = () => {
       await apiClient.post(`/todos/${id}/reopen`);
       message.success('待办已重新打开');
       fetchData();
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '操作失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '操作失败'));
     }
   };
 
@@ -165,8 +166,8 @@ const TodoPage: React.FC = () => {
       await apiClient.post(`/todos/${id}/reject`);
       message.success('待办已驳回');
       fetchData();
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '操作失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '操作失败'));
     }
   };
 
@@ -197,8 +198,8 @@ const TodoPage: React.FC = () => {
       message.success('转交成功');
       setTransferVisible(false);
       fetchData();
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '转交失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '转交失败'));
     }
   };
 

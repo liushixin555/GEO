@@ -4,6 +4,7 @@ import { Form, Input, Button, Alert, Typography, Spin, Upload, Image, App, Bread
 import { ArrowLeftOutlined, InboxOutlined } from '@ant-design/icons';
 import apiClient from '../lib/apiClient';
 import { getSafeUser } from '../utils/auth';
+import { getApiErrorMessage } from '../utils/error';
 
 const ImageDetail: React.FC = () => {
   const { baseId: baseIdStr, id } = useParams<{ baseId: string; id: string }>();
@@ -32,8 +33,8 @@ const ImageDetail: React.FC = () => {
       setData(res.data.data);
       setImageUrl(res.data.data.image_url);
       form.setFieldsValue({ title: res.data.data.title, description: res.data.data.description || '' });
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '加载失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '加载失败'));
     } finally { setLoading(false); }
   }, [id, baseId, isNew]);
 
@@ -74,8 +75,7 @@ const ImageDetail: React.FC = () => {
       const fileName = file.name.replace(/\.[^.]+$/, '');
       form.setFieldValue('title', form.getFieldValue('title') || fileName);
     } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : '上传失败';
-      message.error(errorMsg);
+      message.error(getApiErrorMessage(err, '上传失败'));
     } finally { setUploading(false); }
     return false;
   };

@@ -4,6 +4,7 @@ import { Form, Input, Button, Alert, Typography, Spin, App, Breadcrumb } from 'a
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import apiClient from '../lib/apiClient';
 import { getSafeUser } from '../utils/auth';
+import { getApiErrorMessage } from '../utils/error';
 
 const PortraitDetail: React.FC = () => {
   const { baseId: baseIdStr, id } = useParams<{ baseId: string; id: string }>();
@@ -29,8 +30,8 @@ const PortraitDetail: React.FC = () => {
       const res = await apiClient.get(`/knowledge-bases/${baseId}/portraits/${id}`);
       setData(res.data.data);
       form.setFieldsValue({ title: res.data.data.title, content: res.data.data.content || '' });
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '加载失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '加载失败'));
     } finally { setLoading(false); }
   }, [id, baseId, isNew]);
 

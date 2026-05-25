@@ -4,6 +4,7 @@ import { Form, Input, Button, Alert, Typography, Spin, App, Breadcrumb, Table, P
 import { ArrowLeftOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import apiClient from '../lib/apiClient';
 import { getSafeUser } from '../utils/auth';
+import { getApiErrorMessage } from '../utils/error';
 
 const EXPAND_PAGE_SIZE = 10;
 
@@ -45,8 +46,8 @@ const KeywordDetail: React.FC = () => {
       if (kwData.expanded_words && kwData.expanded_words.length > 0) {
         setExpandedWords(kwData.expanded_words.map((w: any) => ({ word: w.word, selected: w.selected })));
       }
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '加载失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '加载失败'));
     } finally { setLoading(false); }
   }, [id, baseId, isNew]);
 
@@ -92,8 +93,8 @@ const KeywordDetail: React.FC = () => {
         const appended = newKeywords.filter(k => !existing.has(k)).map(k => ({ word: k, selected: false }));
         return [...prev, ...appended];
       });
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '智能扩词失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '智能扩词失败'));
     } finally { setExpanding(false); }
   };
 

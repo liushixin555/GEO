@@ -4,6 +4,7 @@ import { Form, Input, Button, Alert, Typography, Spin, Upload, App, Breadcrumb, 
 import { ArrowLeftOutlined, InboxOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FilePptOutlined, FileMarkdownOutlined, FileTextOutlined, FileOutlined, DownloadOutlined } from '@ant-design/icons';
 import apiClient from '../lib/apiClient';
 import { getSafeUser } from '../utils/auth';
+import { getApiErrorMessage } from '../utils/error';
 
 const FILE_TYPE_ICONS: Record<string, React.ReactNode> = {
   pdf: <FilePdfOutlined style={{ fontSize: 32, color: '#da1e28' }} />,
@@ -70,8 +71,8 @@ const DocumentDetail: React.FC = () => {
       setFileType(res.data.data.file_type);
       setFileSize(res.data.data.file_size);
       form.setFieldsValue({ title: res.data.data.title, description: res.data.data.description || '' });
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '加载失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '加载失败'));
     } finally { setLoading(false); }
   }, [id, baseId, isNew]);
 
@@ -113,8 +114,8 @@ const DocumentDetail: React.FC = () => {
       // 自动填充标题为文件名（去掉扩展名）
       const nameWithoutExt = file.name.replace(/\.[^.]+$/, '');
       form.setFieldValue('title', form.getFieldValue('title') || nameWithoutExt);
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '上传失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '上传失败'));
     } finally { setUploading(false); }
     return false;
   };

@@ -5,6 +5,7 @@ import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ArrowLeftOutli
 import type { ColumnsType } from 'antd/es/table';
 import apiClient from '../lib/apiClient';
 import { getSafeUser } from '../utils/auth';
+import { getApiErrorMessage } from '../utils/error';
 import { formatDate } from '../utils/date';
 
 const scopeLabels: Record<string, { text: string; color: string }> = {
@@ -209,7 +210,7 @@ const KnowledgeBaseDetail: React.FC = () => {
       await apiClient.delete(`/knowledge-bases/${baseId}/keywords/${item.id}`);
       message.success('删除成功');
       fetchKeywords();
-    } catch (err: any) { message.error(err.response?.data?.message || '删除失败'); }
+    } catch (err: unknown) { message.error(getApiErrorMessage(err, '删除失败')); }
   };
 
   const handleManualSave = async () => {
@@ -228,8 +229,8 @@ const KnowledgeBaseDetail: React.FC = () => {
       setManualInputVisible(false);
       setManualInput('');
       fetchKeywords();
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '保存失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '保存失败'));
     } finally { setManualSaving(false); }
   };
 
@@ -238,7 +239,7 @@ const KnowledgeBaseDetail: React.FC = () => {
       await apiClient.delete(`/knowledge-bases/${baseId}/portraits/${item.id}`);
       message.success('删除成功');
       fetchPortraits();
-    } catch (err: any) { message.error(err.response?.data?.message || '删除失败'); }
+    } catch (err: unknown) { message.error(getApiErrorMessage(err, '删除失败')); }
   };
 
   const handleDeleteImage = async (item: ImageItem) => {
@@ -246,7 +247,7 @@ const KnowledgeBaseDetail: React.FC = () => {
       await apiClient.delete(`/knowledge-bases/${baseId}/images/${item.id}`);
       message.success('删除成功');
       fetchImages();
-    } catch (err: any) { message.error(err.response?.data?.message || '删除失败'); }
+    } catch (err: unknown) { message.error(getApiErrorMessage(err, '删除失败')); }
   };
 
   const handleDeleteDocument = async (item: DocumentItem) => {
@@ -254,7 +255,7 @@ const KnowledgeBaseDetail: React.FC = () => {
       await apiClient.delete(`/knowledge-bases/${baseId}/documents/${item.id}`);
       message.success('删除成功');
       fetchDocuments();
-    } catch (err: any) { message.error(err.response?.data?.message || '删除失败'); }
+    } catch (err: unknown) { message.error(getApiErrorMessage(err, '删除失败')); }
   };
 
   // ==================== Table column definitions ====================

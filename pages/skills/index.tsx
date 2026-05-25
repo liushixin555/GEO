@@ -5,6 +5,7 @@ import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
 import apiClient from '../lib/apiClient';
 import { getSafeUser } from '../utils/auth';
+import { getApiErrorMessage } from '../utils/error';
 import { formatDate, formatDateTime } from '../utils/date';
 
 interface SkillsItem {
@@ -56,8 +57,8 @@ const SkillPage: React.FC = () => {
       await apiClient.delete(`/skills/${item.id}`);
       message.success('删除成功');
       fetchData();
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '删除失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '删除失败'));
     }
   };
 
@@ -72,8 +73,8 @@ const SkillPage: React.FC = () => {
       message.success('技能上传成功');
       setShowUpload(false);
       fetchData();
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '上传失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '上传失败'));
     } finally {
       setUploading(false);
     }

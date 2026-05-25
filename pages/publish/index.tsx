@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import apiClient from '../lib/apiClient';
 import { formatDateTime } from '../utils/date';
 import { getSafeUser } from '../utils/auth';
+import { getApiErrorMessage } from '../utils/error';
 
 const { Title } = Typography;
 
@@ -156,8 +157,7 @@ const PublishingSchedulePage: React.FC = () => {
       fetchData();
       fetchPendingCount();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '更新失败';
-      message.error(msg);
+      message.error(getApiErrorMessage(err, '更新失败'));
     } finally {
       setEditSaving(false);
     }
@@ -171,8 +171,7 @@ const PublishingSchedulePage: React.FC = () => {
       fetchData();
       fetchPendingCount();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '驳回失败';
-      message.error(msg);
+      message.error(getApiErrorMessage(err, '驳回失败'));
     } finally {
       setRejectingId(null);
     }

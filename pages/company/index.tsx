@@ -4,6 +4,7 @@ import { Row, Col, Card, Button, Spin, Alert, Breadcrumb, Switch, Tag, App, Tabl
 import { PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import apiClient from '../lib/apiClient';
+import { getApiErrorMessage } from '../utils/error';
 
 interface Company {
   id: number;
@@ -45,8 +46,8 @@ const CompanyPage: React.FC = () => {
       await apiClient.put(`/companies/${id}/status`, { status });
       message.success(status ? '公司已启用' : '公司已禁用');
       fetchCompanies();
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '操作失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '操作失败'));
     } finally {
       setTogglingId(null);
     }

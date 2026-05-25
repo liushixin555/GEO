@@ -7,6 +7,7 @@ import apiClient from '../lib/apiClient';
 import { getSafeUser } from '../utils/auth';
 import { useAppContext } from '../context/AppContext';
 import { formatDate } from '../utils/date';
+import { getApiErrorMessage } from '../utils/error';
 
 interface ArticleItem {
   id: number;
@@ -70,9 +71,8 @@ const ArticlePage: React.FC = () => {
       await apiClient.delete(`/projects/${projectId}/articles/${item.id}`);
       message.success('删除成功');
       fetchData();
-    } catch (err: any) {
-      console.error('[Article] 删除失败:', err.response?.status, err.response?.data);
-      message.error('删除失败');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '删除失败'));
     }
   };
 
