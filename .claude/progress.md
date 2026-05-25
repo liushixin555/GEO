@@ -210,3 +210,4 @@
 | 2026-05-25 | progress_tasks/2026-05-25-nohighlight-architecture-fix.md | nohighlight.tsx 架构评审修复——A2 纯函数提取+A3 幽灵 prop 消除+A7 共享常量，三入口（nohighlight/common/index）全同步，patch 重新生成，build+lint 通过 |
 | 2026-05-25 | tasks/review/publishing-schedule.controller.committer.md | publishing-schedule.controller.ts Committer审核专家评审（R2）——✅通过 9.2/10（R1的CRITICAL×1+H×3+M×5共9个问题全部修复，86测试全通过，可安全合并） |
 | 2026-05-25 | tasks/review/skills.controller.md | skills.controller.ts 软件质量专家评审（R2）——✅通过 7.8/10（R1的CRITICAL×2+H×4+M×4共10个问题全部修复，代码229→167行-27%，MEDIUM×2+LOW×2新发现） |
+| 2026-05-25 | tasks/review/skills.controller.ts.md | skills.controller.ts 代码安全专家评审——✅A- 85/100（上版16个安全问题全部修复，仅剩3个MINOR+4个OBS，建议作为文件上传类controller安全参考实现） |
