@@ -79,7 +79,8 @@ export async function listSkills(req: Request, res: Response): Promise<void> {
   try {
     const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
     const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize as string, 10) || 10));
-    const search = req.query.search as string | undefined;
+    const rawSearch = req.query.search as string | undefined;
+    const search = rawSearch && rawSearch.length > 100 ? rawSearch.slice(0, 100) : rawSearch;
 
     const { list, total } = await skillsService.list(page, pageSize, search);
     paginate(res, list, total, page, pageSize);

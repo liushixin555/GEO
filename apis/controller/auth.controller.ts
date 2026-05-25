@@ -4,6 +4,7 @@ import { IAuthService } from '../service/auth.service';
 import { LoginSelectionError, PermissionDeniedError } from '../entity';
 import { success, fail } from '../utils';
 import { revokeToken, parseExpiryToMs } from '../utils/token-blacklist.util';
+import { isAccountLocked, recordLoginFailure, recordLoginSuccess } from '../utils/account-lockout.util';
 import config from '../config';
 import { logger } from '../utils/logger.util';
 
@@ -14,14 +15,25 @@ const BEARER_PREFIX = 'Bearer ';
 export async function login(req: Request, res: Response): Promise<void> {
   // Zod loginSchema 已验证 username/password 为非空字符串且长度合规
   const { username, password } = req.body;
+
+  // M-1: 按用户名的暴力破解防护
+  if (isAccountLocked(username)) {
+    logger.warn('auth.login.locked', { username, ip: req.ip });
+    fail(res, 429, '登录尝试次数过多，请稍后重试');
+    return;
+  }
+
   try {
     const result = await authService.login({ username, password });
+    recordLoginSuccess(username);
     logger.info('auth.login.success', { userId: result.user.id, username, ip: req.ip });
     success(res, result, '登录成功');
   } catch (err: unknown) {
+    recordLoginFailure(username);
+    // M-6: 统一返回 401 防止用户名枚举
     if (err instanceof LoginSelectionError) {
       logger.warn('auth.login.no_access', { username, reason: err.message, ip: req.ip });
-      fail(res, 403, err.message);
+      fail(res, 401, '用户名或密码错误');
       return;
     }
     logger.warn('auth.login.failed', { username, ip: req.ip });

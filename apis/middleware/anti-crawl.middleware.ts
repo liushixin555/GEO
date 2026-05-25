@@ -55,10 +55,31 @@ export function antiCrawlMiddleware(req: Request, res: Response, next: NextFunct
   }
 
   // Check User-Agent
-  const ua = req.headers['user-agent'];
+  const ua = req.headers['user-agent'] as string | undefined;
   if (!ua || ua.length < 10) {
     res.status(403).json({ code: 403, message: '访问被拒绝' });
     return;
+  }
+
+  // M-5: Block known automation/bot User-Agent patterns
+  const BOT_UA_PATTERNS = [
+    /\bcurl\/\d/i,
+    /\bwget\/\d/i,
+    /\bpython-requests\/\d/i,
+    /\bpython-urllib\d/i,
+    /\bgo-http-client/i,
+    /\bscrapy\/\d/i,
+    /\bmechanize/i,
+    /\bphantomjs\/\d/i,
+    /\bselenium/i,
+    /\bpuppeteer/i,
+    /\bheadlesschrome/i,
+  ];
+  for (const pattern of BOT_UA_PATTERNS) {
+    if (pattern.test(ua)) {
+      res.status(403).json({ code: 403, message: '访问被拒绝' });
+      return;
+    }
   }
 
   next();

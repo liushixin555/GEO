@@ -18,6 +18,7 @@ jest.mock('../../apis/utils/db.util', () => ({
 }));
 
 import { clearBlacklist } from '../../apis/utils/token-blacklist.util';
+import { _resetForTesting as resetAccountLockout } from '../../apis/utils/account-lockout.util';
 import app from '../../apis/app';
 
 const agent = request.agent(app).set('User-Agent', 'test-agent/1.0');
@@ -87,6 +88,7 @@ describe('Auth Controller', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     clearBlacklist();
+    resetAccountLockout();
   });
 
   afterAll(() => {
@@ -208,7 +210,7 @@ describe('Auth Controller', () => {
       expect(response.body.message).toBe('用户名或密码错误');
     });
 
-    it('should return 403 when no accessible companies (LoginSelectionError)', async () => {
+    it('should return 401 when no accessible companies (LoginSelectionError) — M-6 uniform error', async () => {
       const prisma = mockPrisma();
       const user = {
         id: 5, username: 'newuser', passwordHash: hashedPassword,
@@ -223,11 +225,12 @@ describe('Auth Controller', () => {
       const response = await agent
         .post(LOGIN)
         .send({ username: 'newuser', password: 'pass123' });
-      expect(response.status).toBe(403);
-      expect(response.body.message).toBe('没有权限访问任何公司');
+      // M-6: LoginSelectionError 统一返回 401，防止用户名枚举
+      expect(response.status).toBe(401);
+      expect(response.body.message).toBe('用户名或密码错误');
     });
 
-    it('should return 403 when view role has no accessible projects', async () => {
+    it('should return 401 when view role has no accessible projects — M-6 uniform error', async () => {
       const prisma = mockPrisma();
       const user = {
         id: 5, username: 'viewer', passwordHash: hashedPassword,
@@ -242,8 +245,9 @@ describe('Auth Controller', () => {
       const response = await agent
         .post(LOGIN)
         .send({ username: 'viewer', password: 'pass123' });
-      expect(response.status).toBe(403);
-      expect(response.body.message).toBe('没有权限访问任何项目');
+      // M-6: LoginSelectionError 统一返回 401，防止用户名枚举
+      expect(response.status).toBe(401);
+      expect(response.body.message).toBe('用户名或密码错误');
     });
 
     it('should login successfully as sysadmin', async () => {
@@ -2650,7 +2654,7 @@ describe('Auth Controller', () => {
       await expect(login(req, res)).rejects.toThrow();
     });
 
-    it('login should handle LoginSelectionError with custom message (direct)', async () => {
+    it('login should handle LoginSelectionError with uniform 401 (direct) — M-6', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const { LoginSelectionError } = require('../../apis/entity');
       getPrisma.mockReturnValue({
@@ -2660,8 +2664,9 @@ describe('Auth Controller', () => {
       const req = { body: { username: 'admin', password: 'pass' }, ip: '127.0.0.1' };
       const res = mockRes();
       await login(req, res);
-      expect(res.statusCode).toBe(403);
-      expect(res.body.message).toBe('自定义错误');
+      // M-6: LoginSelectionError 统一返回 401，防止用户名枚举
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe('用户名或密码错误');
     });
 
     it('saveSelection should handle PermissionDeniedError with custom message (direct)', async () => {
