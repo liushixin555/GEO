@@ -140,43 +140,64 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
   const previewRef = useRef(preview);
   previewRef.current = preview;
 
-  // 自适应高度：实时测量并扩展编辑器高度，确保内容不出现滚动条
+  // 自适应高度：用隐藏测量 div 计算真实内容高度，实时扩展编辑器
   const [autoHeight, setAutoHeight] = useState(minHeight);
-  const autoHeightRef = useRef(minHeight);
+  const measureRef = useRef<HTMLDivElement | null>(null);
+
+  // 获取/创建与 textarea 同样排版参数的隐藏测量 div
+  const getMeasureDiv = useCallback(() => {
+    if (!measureRef.current) {
+      const div = document.createElement('div');
+      div.style.position = 'absolute';
+      div.style.visibility = 'hidden';
+      div.style.pointerEvents = 'none';
+      div.style.whiteSpace = 'pre-wrap';
+      div.style.wordWrap = 'break-word';
+      div.style.overflowWrap = 'break-word';
+      div.style.fontFamily = "'IBM Plex Mono', 'IBM Plex Sans', monospace";
+      div.style.fontSize = '14px';
+      div.style.lineHeight = '1.6';
+      div.style.letterSpacing = '0.16px';
+      div.style.padding = '12px 16px';
+      div.style.boxSizing = 'border-box';
+      div.style.tabSize = '2';
+      div.style.border = 'none';
+      div.style.margin = '0';
+      document.body.appendChild(div);
+      measureRef.current = div;
+    }
+    return measureRef.current;
+  }, []);
 
   const syncEditorHeight = useCallback(() => {
     const container = editorRef.current;
     if (!container) return;
     const textarea = container.querySelector('textarea');
     if (!textarea) return;
-    // 临时收缩 textarea 以获取真实内容高度
-    const savedHeight = textarea.style.height;
-    textarea.style.height = '0';
-    const contentHeight = textarea.scrollHeight;
-    textarea.style.height = savedHeight;
+
+    const measureDiv = getMeasureDiv();
+    // 同步 textarea 宽度，确保换行计算一致
+    const textareaWidth = textarea.clientWidth || textarea.offsetWidth || 600;
+    measureDiv.style.width = `${textareaWidth}px`;
+    // 写入内容（末尾加换行给光标留空间）
+    measureDiv.textContent = (value || '') + '\n';
+
+    const contentHeight = measureDiv.offsetHeight;
     const toolbar = container.querySelector('.w-md-editor-toolbar') as HTMLElement | null;
     const toolbarH = toolbar ? toolbar.offsetHeight : 38;
     const dragBar = container.querySelector('.w-md-editor-drag') as HTMLElement | null;
     const dragH = dragBar ? dragBar.offsetHeight : 6;
     const needed = Math.max(minHeight, contentHeight + toolbarH + dragH + 16);
-    // 直接 DOM 操作——零延迟，浏览器在 paint 前完成高度调整
-    const mdEditor = container.querySelector('.w-md-editor') as HTMLElement | null;
-    if (mdEditor) {
-      mdEditor.style.height = `${needed}px`;
-    }
-    // 同步 React 状态（供 MDEditor height prop 使用）
-    if (autoHeightRef.current !== needed) {
-      autoHeightRef.current = needed;
-      setAutoHeight(needed);
-    }
-  }, [minHeight]);
 
-  // useLayoutEffect: 在浏览器 paint 前同步调整高度，用户不会看到滚动条闪烁
+    setAutoHeight(needed);
+  }, [minHeight, value, getMeasureDiv]);
+
+  // useLayoutEffect: 浏览器 paint 前同步调整高度
   useLayoutEffect(() => {
     syncEditorHeight();
-  }, [value, minHeight, preview, syncEditorHeight]);
+  }, [syncEditorHeight]);
 
-  // 原生 input 事件监听：用户每次按键立即触发高度调整，不等待 React 渲染
+  // 原生 input 事件：用户每次按键立即触发，不等待 React 渲染
   useEffect(() => {
     const container = editorRef.current;
     if (!container) return;
@@ -185,6 +206,16 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
     textarea.addEventListener('input', syncEditorHeight);
     return () => textarea.removeEventListener('input', syncEditorHeight);
   }, [syncEditorHeight]);
+
+  // 组件卸载时清理测量 div
+  useEffect(() => {
+    return () => {
+      if (measureRef.current) {
+        measureRef.current.remove();
+        measureRef.current = null;
+      }
+    };
+  }, []);
 
   // UX-03: 全屏模式 Escape 退出提示状态
   const [showFullscreenHint, setShowFullscreenHint] = useState(false);
