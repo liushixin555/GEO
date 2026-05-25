@@ -147,10 +147,19 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
     if (!container) return;
     const textarea = container.querySelector('textarea');
     if (!textarea) return;
-    // toolbar 高度 + textarea 内容高度 + 内边距
+    // 临时收缩 textarea 以获取真实内容高度
+    // 直接读取 scrollHeight 在 textarea 被父容器约束时会返回 CSS 高度而非内容高度，
+    // 先将高度设为 0 可强制 scrollHeight 返回实际内容所需最小高度
+    const savedHeight = textarea.style.height;
+    textarea.style.height = '0px';
+    const contentHeight = textarea.scrollHeight;
+    textarea.style.height = savedHeight;
+    // toolbar + 拖拽条 + textarea 内容区域
     const toolbar = container.querySelector('.w-md-editor-toolbar') as HTMLElement | null;
     const toolbarH = toolbar ? toolbar.offsetHeight : 38;
-    const needed = textarea.scrollHeight + toolbarH + 8; // 8px 安全边距
+    const dragBar = container.querySelector('.w-md-editor-drag') as HTMLElement | null;
+    const dragH = dragBar ? dragBar.offsetHeight : 6;
+    const needed = contentHeight + toolbarH + dragH + 16; // 16px 安全边距
     setAutoHeight(Math.max(minHeight, needed));
   }, [value, minHeight, preview]);
 
