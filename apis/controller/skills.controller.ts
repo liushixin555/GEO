@@ -5,6 +5,7 @@ import { SkillsServiceImpl } from '../service/impl/skills.service.impl';
 import { SkillsFileServiceImpl } from '../service/skills-file.service';
 import { success, fail, paginate, created } from '../utils';
 import { NotFoundError, ConflictError, BusinessError } from '../entity';
+import { logger } from '../utils/logger.util';
 
 const skillsService = new SkillsServiceImpl();
 const skillsFileService = new SkillsFileServiceImpl();
@@ -44,8 +45,18 @@ function handleSkillError(res: Response, err: unknown, contextMsg: string): void
 export function uploadSkillMiddleware(req: Request, res: Response, next: () => void): void {
   getUpload().single('file')(req, res, (err: unknown) => {
     if (err) {
-      const msg = err instanceof Error ? err.message : '上传失败';
-      fail(res, 400, msg);
+      if (err instanceof Error && 'code' in err) {
+        const multerErr = err as Error & { code: string };
+        if (multerErr.code === 'LIMIT_FILE_SIZE') {
+          fail(res, 400, '文件大小超过 50MB 限制');
+        } else if (multerErr.code === 'LIMIT_UNEXPECTED_FILE') {
+          fail(res, 400, '请使用 file 字段上传');
+        } else {
+          fail(res, 400, multerErr.message);
+        }
+      } else {
+        fail(res, 400, err instanceof Error ? err.message : '上传失败');
+      }
       return;
     }
     next();
@@ -54,8 +65,8 @@ export function uploadSkillMiddleware(req: Request, res: Response, next: () => v
 
 export async function listSkills(req: Request, res: Response): Promise<void> {
   try {
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize as string) || 10));
+    const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize as string, 10) || 10));
     const search = req.query.search as string | undefined;
 
     const { list, total } = await skillsService.list(page, pageSize, search);
@@ -82,6 +93,7 @@ export async function createSkills(req: Request, res: Response): Promise<void> {
   let extractedSkillDir: string | null = null;
   try {
     if (!req.file) { fail(res, 400, '请选择技能 zip 包'); return; }
+    // Defensive: authMiddleware guarantees req.user exists
     if (!req.user) { fail(res, 401, '未登录'); return; }
 
     // Delegate file operations to SkillsFileService
@@ -97,6 +109,7 @@ export async function createSkills(req: Request, res: Response): Promise<void> {
     });
 
     created(res, item, '技能创建成功');
+    logger.info('skill.created', { skillId: item.id, name: item.name, userId: req.user!.userId });
   } catch (err: unknown) {
     // Rollback: clean up extracted directory on failure
     if (extractedSkillDir && fs.existsSync(extractedSkillDir)) {
@@ -125,8 +138,15 @@ export async function updateSkills(req: Request, res: Response): Promise<void> {
 
     // Field whitelist — only name and description are updatable
     const { name, description } = req.body;
+    if (name !== undefined && (typeof name !== 'string' || name.trim().length === 0 || name.length > 200)) {
+      fail(res, 400, '技能名称无效'); return;
+    }
+    if (description !== undefined && (typeof description !== 'string' || description.length > 2000)) {
+      fail(res, 400, '技能描述无效'); return;
+    }
     const item = await skillsService.update(id, { name, description });
     success(res, item, '更新技能成功');
+    logger.info('skill.updated', { skillId: id, userId: req.user?.userId });
   } catch (err: unknown) {
     handleSkillError(res, err, '更新技能失败');
   }
@@ -160,6 +180,7 @@ export async function deleteSkills(req: Request, res: Response): Promise<void> {
     }
 
     success(res, null, '删除技能成功');
+    logger.info('skill.deleted', { skillId: id, userId: req.user?.userId });
   } catch (err: unknown) {
     handleSkillError(res, err, '删除技能失败');
   }

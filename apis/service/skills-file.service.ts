@@ -91,47 +91,55 @@ export class SkillsFileServiceImpl implements ISkillsFileService {
     }
 
     // Extract entries one by one (Zip Slip safe + Zip Bomb protection)
-    let totalExtractedSize = 0;
-    for (const entry of zipEntries) {
-      if (entry.isDirectory) {
-        const dirPath = path.join(skillsDir, entry.entryName);
-        const resolvedDir = path.resolve(dirPath);
-        if (resolvedDir.startsWith(resolvedSkillsDir + path.sep) || resolvedDir === resolvedSkillsDir) {
-          fs.mkdirSync(dirPath, { recursive: true });
+    try {
+      let totalExtractedSize = 0;
+      for (const entry of zipEntries) {
+        if (entry.isDirectory) {
+          const dirPath = path.join(skillsDir, entry.entryName);
+          const resolvedDir = path.resolve(dirPath);
+          if (resolvedDir.startsWith(resolvedSkillsDir + path.sep) || resolvedDir === resolvedSkillsDir) {
+            fs.mkdirSync(dirPath, { recursive: true });
+          }
+          continue;
         }
-        continue;
+        const targetPath = path.join(skillsDir, entry.entryName);
+        const resolved = path.resolve(targetPath);
+        if (!resolved.startsWith(resolvedSkillsDir + path.sep)) {
+          throw new BusinessError('zip 包包含非法路径');
+        }
+        const data = entry.getData();
+        totalExtractedSize += data.length;
+        if (totalExtractedSize > MAX_TOTAL_EXTRACTED_SIZE) {
+          throw new BusinessError('zip 包解压后总大小超过限制');
+        }
+        fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+        fs.writeFileSync(targetPath, data);
       }
-      const targetPath = path.join(skillsDir, entry.entryName);
-      const resolved = path.resolve(targetPath);
-      if (!resolved.startsWith(resolvedSkillsDir + path.sep)) {
-        throw new BusinessError('zip 包包含非法路径');
-      }
-      const data = entry.getData();
-      totalExtractedSize += data.length;
-      if (totalExtractedSize > MAX_TOTAL_EXTRACTED_SIZE) {
-        throw new BusinessError('zip 包解压后总大小超过限制');
-      }
-      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-      fs.writeFileSync(targetPath, data);
-    }
 
-    // Verify SKILL.md exists after extraction
-    const extractedSkillMd = path.join(skillDir, 'SKILL.md');
-    if (!fs.existsSync(extractedSkillMd)) {
-      // Flat zip: SKILL.md extracted to skills/SKILL.md, need to move into skillDir
-      const altPath = path.join(skillsDir, 'SKILL.md');
-      if (fs.existsSync(altPath)) {
-        fs.mkdirSync(skillDir, { recursive: true });
-        const flatFiles = fs.readdirSync(skillsDir);
-        for (const file of flatFiles) {
-          if (file === topDir) continue;
-          const src = path.join(skillsDir, file);
-          const stat = fs.statSync(src);
-          if (stat.isDirectory()) continue;
-          const dest = path.join(skillDir, file);
-          fs.renameSync(src, dest);
+      // Verify SKILL.md exists after extraction
+      const extractedSkillMd = path.join(skillDir, 'SKILL.md');
+      if (!fs.existsSync(extractedSkillMd)) {
+        // Flat zip: SKILL.md extracted to skills/SKILL.md, need to move into skillDir
+        const altPath = path.join(skillsDir, 'SKILL.md');
+        if (fs.existsSync(altPath)) {
+          fs.mkdirSync(skillDir, { recursive: true });
+          const flatFiles = fs.readdirSync(skillsDir);
+          for (const file of flatFiles) {
+            if (file === topDir) continue;
+            const src = path.join(skillsDir, file);
+            const stat = fs.statSync(src);
+            if (stat.isDirectory()) continue;
+            const dest = path.join(skillDir, file);
+            fs.renameSync(src, dest);
+          }
         }
       }
+    } catch (err) {
+      // Rollback partial extraction
+      if (fs.existsSync(skillDir)) {
+        fs.rmSync(skillDir, { recursive: true, force: true });
+      }
+      throw err;
     }
 
     return { topDir, name, description, skillDir };
@@ -160,6 +168,10 @@ export class SkillsFileServiceImpl implements ISkillsFileService {
     }
 
     if (fs.existsSync(skillDir)) {
+      const stat = fs.lstatSync(skillDir);
+      if (stat.isSymbolicLink()) {
+        throw new BusinessError('非法的技能目录');
+      }
       fs.rmSync(skillDir, { recursive: true, force: true });
     }
   }
