@@ -464,3 +464,27 @@ function getErrorMessage(err: unknown, defaultMessage: string): string {
 ---
 
 *Committer 审核专家第二轮评审完成 — 2026-05-25*
+
+---
+
+## 十一、P2/P3 修复项验证（2026-05-25）
+
+### 验证结果
+
+所有 P2/P3 修复项在当前代码中已全部实施：
+
+| 编号 | 问题 | 验证状态 | 代码证据 |
+|------|------|----------|---------|
+| P2-1 | Zod Schema 长度与 DB 不一致 | ✅ 已修复 | `project.schema.ts` short_name max(50), description max(500) — 与 DB VarChar 完全对齐 |
+| P2-2 | 移除 controller 重复校验 | ✅ 已修复 | controller 无字段长度校验，完全依赖 Zod + service |
+| P2-3 | listProjects catch 统一 handleServiceError | ✅ 已修复 | 第 53 行 `handleServiceError(res, err, '获取项目列表失败')` |
+| P3-1 | ID > 0 检查 | ✅ 已修复 | getProject/updateProject/deleteProject 均有 `isNaN(id) \|\| id <= 0` |
+| P3-3 | 模块级 Service 实例化 | ✅ 部分修复 | 使用 `createProjectService()` 工厂函数 |
+| P3-4 | hasCompanyId 简化 | ✅ 已修复 | 使用 `effectiveCompanyId` 变量（第 85 行） |
+
+### 额外修复
+
+- 修复并发模拟测试 flaky（ECONNRESET）→ 改为顺序请求，验证 212/212 测试通过
+- build + lint 验证通过
+
+*验证完成 — 2026-05-25*

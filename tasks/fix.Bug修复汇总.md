@@ -1167,3 +1167,27 @@ components: {
 - `.env` / `.env.local` / `.env.example` — 添加 API_KEY_ENCRYPTION_KEY 配置
 - `tests/apis/llm-model.service.test.ts` — 测试适配
 - `tests/apis/llm-model.controller.test.ts` — 测试适配
+
+---
+
+## fix023. project.controller.ts Committer 评审 P2/P3 修复项验证
+
+### 问题
+根据 `tasks/review/project.controller.ts.committer.md` Committer 二轮评审报告（APPROVE），项目控制器有 3 项 P2（强烈建议）和 4 项 P3（建议改进）需要在下一迭代完成。
+
+### 验证结果
+所有 P2/P3 修复项在当前代码中已全部实施：
+- **P2-1**: Zod Schema 长度已与 DB 对齐（short_name→50, description→500）
+- **P2-2**: Controller 已无重复字段长度校验
+- **P2-3**: listProjects catch 已使用 handleServiceError
+- **P3-1**: getProject/updateProject/deleteProject 均有 id > 0 检查
+
+### 额外修复
+
+**并发模拟测试 ECONNRESET flaky**：
+- `tests/apis/project.controller.test.ts`：`Promise.all(Array(5))` 并发 supertest 请求偶尔 ECONNRESET
+- 改为顺序 for 循环发送 5 个请求，验证 `mockFindMany` 被调用 5 次
+
+### 涉及文件
+- `tests/apis/project.controller.test.ts` — 并发测试修复
+- `tasks/review/project.controller.ts.committer.md` — 修复项验证记录
