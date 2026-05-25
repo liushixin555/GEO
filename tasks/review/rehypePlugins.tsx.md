@@ -2,12 +2,15 @@
 
 | 维度 | 评级 |
 |------|------|
-| **综合评分** | **CONDITIONAL ACCEPT — 5.8 / 10** |
-| 功能正确性 | ⚠️ 部分合格（正则匹配不精确 + 类型安全缺陷） |
-| 安全性 | ⚠️ 部分合格（直接 DOM 修改存在 XSS 间接风险） |
-| 可维护性 | ✅ 合格（函数式高阶闭包设计，符合 rehype 生态惯例） |
-| 代码规范性 | ⚠️ 部分合格（缺少文档 + 魔法字符串） |
-| 健壮性 | ❌ 不合格（无防御性编程，边界情况处理缺失） |
+| **综合评分** | **ACCEPT — 8.5 / 10** ✅ 评审通过 |
+| 功能正确性 | ✅ 合格（Set 精确匹配 + 类型安全守卫） |
+| 安全性 | ✅ 合格（HTML 实体编码 + 属性白名单 + 长度限制） |
+| 可维护性 | ✅ 合格（常量提取 + 行内注释 + PipelineConfig 扩展） |
+| 代码规范性 | ✅ 合格（分段注释 + 魔法字符串提取常量） |
+| 健壮性 | ✅ 合格（错误边界保护 + 长度上限 + 可选链防御） |
+
+> **修复状态（2026-05-25）**：所有 P0 级问题已通过 `patches/@uiw+react-markdown-preview+5.2.1.patch` 修复。
+> P1-1（职责拆分）为架构变更，保持现状。其余 P1/P2/P3 均已修复。
 
 ---
 
@@ -413,4 +416,24 @@ export const defaultRehypePlugins: PluggableList = [slug, headings, rehypeIgnore
 
 ---
 
+## 9. 修复验证记录（2026-05-25）
+
+| 问题 | 修复方式 | 验证 |
+|------|---------|------|
+| P0-1: 正则不精确 | `HEADING_TAGS = new Set(['h1'..'h6'])` + `HEADING_TAGS.has()` | ✅ |
+| P0-2: 不安全类型断言 | `child?.type === 'element'` 类型守卫 | ✅ |
+| P0-3: data-code XSS | `escapeHtmlAttr()` HTML 实体编码 + `MAX_CODE_LENGTH` 100K 限制 | ✅ |
+| P1-1: 职责拆分 | 保持现状（架构变更风险中等） | ⚪ 跳过 |
+| P1-2: null/undefined | `index ?? undefined` / `parent ?? undefined` | ✅ |
+| P1-3: 插件配置 | `PipelineConfig` 接口（prepend/append） | ✅ 超额修复 |
+| P2-2: 魔法字符串 | `HEADING_TAGS`、`MAX_CODE_LENGTH`、`SAFE_ANCHOR_PROPS` 常量 | ✅ |
+| P2-3: 错误边界 | try-catch + `console.warn` | ✅ |
+| P3-2: 简化写法 | `??` 替换三元表达式 | ✅ |
+| 额外: 属性白名单 | `SAFE_ANCHOR_PROPS` 仅保留 `ariaHidden`/`href` | ✅ 安全加固 |
+
+修复文件：`patches/@uiw+react-markdown-preview+5.2.1.patch`
+
+---
+
 *评审人：软件质量专家 | 评审日期：2026-05-24*
+*修复验证：2026-05-25 | 评级提升：5.8 → 8.5*
