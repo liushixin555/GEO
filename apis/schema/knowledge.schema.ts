@@ -21,7 +21,8 @@ const imageUrl = z.string({ error: '图片地址不能为空' })
 const description = z.string()
   .max(2000, '描述不能超过2000个字符')
   .optional()
-  .nullable();
+  .nullable()
+  .transform(v => v ?? undefined);
 
 const fileUrl = z.string({ error: '文档地址不能为空' })
   .min(1, '文档地址不能为空')
@@ -35,9 +36,9 @@ const fileType = z.string({ error: '文件类型不能为空' })
   .min(1, '文件类型不能为空')
   .max(50, '文件类型不能超过50个字符');
 
-const fileSize = z.number({ error: '文件大小必须为正数' })
-  .positive('文件大小必须为正数')
-  .finite('文件大小必须为有限数');
+const fileSize = z.number({ error: '文件大小不能为空' })
+  .positive('文件大小必须为正整数')
+  .finite('文件大小必须为正整数');
 
 const sourceType = z.enum(['all', 'document', 'portrait', 'image'], {
   error: '无效的资源类型，应为 all/document/portrait/image',
@@ -52,7 +53,7 @@ export const updateKeywordSchema = z.object({
 });
 
 export const batchCreateKeywordsSchema = z.object({
-  keywords: z.array(z.string().min(1).max(200))
+  keywords: z.array(z.string().min(1).max(200), { error: '关键词列表不能为空' })
     .min(1, '关键词列表不能为空')
     .max(500, '单次批量创建不能超过500个'),
   seed_word: z.string().max(200).optional(),
@@ -104,13 +105,13 @@ export const mineKeywordsSchema = z.object({
 });
 
 export const saveMinedKeywordsSchema = z.object({
-  keywords: z.array(z.string().min(1).max(200))
+  keywords: z.array(z.string().min(1).max(200), { error: '请选择至少一个关键词' })
     .min(1, '请选择至少一个关键词')
     .max(500, '单次保存不能超过500个'),
 });
 
 export const toggleMinedKeywordsBatchSchema = z.object({
-  ids: z.array(z.number().int().positive())
+  ids: z.array(z.number().int().positive(), { error: '请选择关键词' })
     .min(1, '请选择关键词')
     .max(500, '单次操作不能超过500个'),
   selected: z.boolean({ error: 'selected必须为布尔值' }),

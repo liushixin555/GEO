@@ -1,11 +1,18 @@
 import { Request, Response } from 'express';
+import { z } from 'zod';
 import { KeywordServiceImpl, PortraitServiceImpl, ImageServiceImpl, DocumentServiceImpl, MinedKeywordServiceImpl } from '../service/impl/knowledge.service.impl';
 import { KnowledgeBaseServiceImpl } from '../service/impl/knowledge-base.service.impl';
 import { ProjectServiceImpl } from '../service/impl/project.service.impl';
 import { LlmServiceImpl } from '../service/impl/llm.service.impl';
-import { success, fail, paginate, created } from '../utils';
-import { getPrisma } from '../utils';
+import { success, fail, paginate, created, getPrisma } from '../utils';
 import { AppError, NotFoundError, BusinessError, ForbiddenError, ConflictError } from '../errors';
+import { logger } from '../utils/logger.util';
+import {
+  createKeywordSchema, updateKeywordSchema, batchCreateKeywordsSchema, expandKeywordsSchema,
+  createPortraitSchema, updatePortraitSchema, createImageSchema, updateImageSchema,
+  createDocumentSchema, updateDocumentSchema, mineKeywordsSchema, saveMinedKeywordsSchema,
+  toggleMinedKeywordsBatchSchema,
+} from '../schema/knowledge.schema';
 
 // --- Lazy-initialized service container (M-1: enables test mocking) ---
 
@@ -48,9 +55,12 @@ function getScopeLabel(base: { project_name?: string | null; company_name?: stri
 }
 
 function handleControllerError(err: unknown, res: Response, fallbackMsg: string): void {
-  if (err instanceof AppError) {
+  if (err instanceof z.ZodError) {
+    fail(res, 400, err.issues.map((e: z.ZodIssue) => e.message).join('; '));
+  } else if (err instanceof AppError) {
     fail(res, err.statusCode, err.message);
   } else {
+    logger.error('[KnowledgeController] 未预期错误', { error: err instanceof Error ? err.message : String(err) });
     fail(res, 500, fallbackMsg);
   }
 }
@@ -69,6 +79,16 @@ async function checkProjectOperator(projectId: number, userId: number, role: str
     throw new ForbiddenError('无权操作该项目');
   }
 }
+
+/** SEC-H-04: 净化用户输入再传入 LLM，防止 Prompt Injection */
+function sanitizeForLlm(input: string): string {
+  return input
+    .replace(/[\r\n]/g, ' ')
+    .substring(0, 200);
+}
+
+/** SEC-H-02: listInventory 每类最多加载数量，防止内存溢出 */
+const MAX_INVENTORY_ITEMS_PER_CATEGORY = 1000;
 
 async function checkBaseAccess(baseId: number, userId: number, role: string): Promise<void> {
   if (role === 'view') throw new ForbiddenError('权限不足');
@@ -146,14 +166,13 @@ export async function createKeyword(req: Request, res: Response): Promise<void> 
     const baseId = parseId(req.params.baseId, '知识库ID');
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
 
-    const { keyword } = req.body;
-    if (!keyword) { fail(res, 400, '关键词不能为空'); return; }
+    const validated = createKeywordSchema.parse(req.body);
 
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
     const { keywordService } = getServices();
-    const item = await keywordService.create(baseId, req.body, userId);
+    const item = await keywordService.create(baseId, validated, userId);
     created(res, item, '创建关键词成功');
   } catch (err: unknown) {
     handleControllerError(err, res, '创建关键词失败');
@@ -177,10 +196,9 @@ export async function updateKeyword(req: Request, res: Response): Promise<void> 
 
     checkOwnership(existing, userId, role, '修改', '关键词');
 
-    const { keyword } = req.body;
-    if (!keyword) { fail(res, 400, '关键词不能为空'); return; }
+    const validated = updateKeywordSchema.parse(req.body);
 
-    const item = await keywordService.update(id, req.body);
+    const item = await keywordService.update(id, validated);
     success(res, item, '更新关键词成功');
   } catch (err: unknown) {
     handleControllerError(err, res, '更新关键词失败');
@@ -216,13 +234,7 @@ export async function batchCreateKeywords(req: Request, res: Response): Promise<
     const baseId = parseId(req.params.baseId, '知识库ID');
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
 
-    const { keywords, seed_word } = req.body;
-    if (!Array.isArray(keywords) || keywords.length === 0) {
-      throw new BusinessError('关键词列表不能为空');
-    }
-    if (keywords.length > 500) {
-      throw new BusinessError('单次批量创建不能超过500个');
-    }
+    const { keywords, seed_word } = batchCreateKeywordsSchema.parse(req.body);
 
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
@@ -240,14 +252,14 @@ export async function expandKeywords(req: Request, res: Response): Promise<void>
     const baseId = parseId(req.params.baseId, '知识库ID');
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
 
-    const { keyword } = req.body;
-    if (!keyword) { fail(res, 400, '关键词不能为空'); return; }
+    const { keyword } = expandKeywordsSchema.parse(req.body);
 
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
     const { llmService } = getServices();
-    const keywords = await llmService.expandKeywords(keyword);
+    const sanitizedKeyword = sanitizeForLlm(keyword);
+    const keywords = await llmService.expandKeywords(sanitizedKeyword);
     success(res, keywords);
   } catch (err: unknown) {
     handleControllerError(err, res, '智能扩词失败');
@@ -302,15 +314,13 @@ export async function createPortrait(req: Request, res: Response): Promise<void>
     const baseId = parseId(req.params.baseId, '知识库ID');
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
 
-    const { title, content } = req.body;
-    if (!title) { fail(res, 400, '画像标题不能为空'); return; }
-    if (!content) { fail(res, 400, '画像内容不能为空'); return; }
+    const validated = createPortraitSchema.parse(req.body);
 
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
     const { portraitService } = getServices();
-    const item = await portraitService.create(baseId, req.body, userId);
+    const item = await portraitService.create(baseId, validated, userId);
     created(res, item, '创建画像成功');
   } catch (err: unknown) {
     handleControllerError(err, res, '创建画像失败');
@@ -413,17 +423,15 @@ export async function createImage(req: Request, res: Response): Promise<void> {
     const baseId = parseId(req.params.baseId, '知识库ID');
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
 
-    const { title, image_url } = req.body;
-    if (!title) { fail(res, 400, '图片标题不能为空'); return; }
-    if (!image_url) { fail(res, 400, '图片地址不能为空'); return; }
+    const validated = createImageSchema.parse(req.body);
 
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
     const { imageService } = getServices();
-    await imageService.checkDuplicate(baseId, title, image_url);
+    await imageService.checkDuplicate(baseId, validated.title, validated.image_url);
 
-    const item = await imageService.create(baseId, req.body, userId);
+    const item = await imageService.create(baseId, validated, userId);
     created(res, item, '创建图片成功');
   } catch (err: unknown) {
     handleControllerError(err, res, '创建图片失败');
@@ -531,21 +539,15 @@ export async function createDocument(req: Request, res: Response): Promise<void>
     const baseId = parseId(req.params.baseId, '知识库ID');
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
 
-    const { title, file_url, file_name, file_type, file_size } = req.body;
-    if (!title) { fail(res, 400, '文档标题不能为空'); return; }
-    if (!file_url) { fail(res, 400, '文档地址不能为空'); return; }
-    if (!file_name) { fail(res, 400, '文件名不能为空'); return; }
-    if (!file_type) { fail(res, 400, '文件类型不能为空'); return; }
-    if (!file_size) { fail(res, 400, '文件大小不能为空'); return; }
-    if (typeof file_size !== 'number' || file_size <= 0 || !Number.isFinite(file_size)) { fail(res, 400, '文件大小必须为正整数'); return; }
+    const validated = createDocumentSchema.parse(req.body);
 
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
     const { documentService } = getServices();
-    await documentService.checkDuplicate(baseId, title, file_url);
+    await documentService.checkDuplicate(baseId, validated.title, validated.file_url);
 
-    const item = await documentService.create(baseId, req.body, userId);
+    const item = await documentService.create(baseId, validated, userId);
     created(res, item, '创建文档成功');
   } catch (err: unknown) {
     handleControllerError(err, res, '创建文档失败');
@@ -738,7 +740,7 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
     if (!category || category === 'keyword') {
       const kwWhere: any = { ...baseFilter };
       if (search) kwWhere.keyword = { contains: search, mode: 'insensitive' };
-      const keywords = await prisma.knowledgeKeyword.findMany({ where: kwWhere, orderBy: { updatedAt: 'desc' } });
+      const keywords = await prisma.knowledgeKeyword.findMany({ where: kwWhere, orderBy: { updatedAt: 'desc' }, take: MAX_INVENTORY_ITEMS_PER_CATEGORY });
       for (const k of keywords) {
         if (k.createdBy) creatorIds.add(k.createdBy);
         const base = baseMap.get(k.baseId);
@@ -754,7 +756,7 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
     if (!category || category === 'portrait') {
       const ptWhere: any = { ...baseFilter };
       if (search) ptWhere.title = { contains: search, mode: 'insensitive' };
-      const portraits = await prisma.knowledgePortrait.findMany({ where: ptWhere, orderBy: { updatedAt: 'desc' } });
+      const portraits = await prisma.knowledgePortrait.findMany({ where: ptWhere, orderBy: { updatedAt: 'desc' }, take: MAX_INVENTORY_ITEMS_PER_CATEGORY });
       for (const p of portraits) {
         if (p.createdBy) creatorIds.add(p.createdBy);
         const base = baseMap.get(p.baseId);
@@ -770,7 +772,7 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
     if (!category || category === 'image') {
       const imgWhere: any = { ...baseFilter };
       if (search) imgWhere.title = { contains: search, mode: 'insensitive' };
-      const images = await prisma.knowledgeImage.findMany({ where: imgWhere, orderBy: { updatedAt: 'desc' } });
+      const images = await prisma.knowledgeImage.findMany({ where: imgWhere, orderBy: { updatedAt: 'desc' }, take: MAX_INVENTORY_ITEMS_PER_CATEGORY });
       for (const i of images) {
         if (i.createdBy) creatorIds.add(i.createdBy);
         const base = baseMap.get(i.baseId);
@@ -791,7 +793,7 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
           { fileName: { contains: search, mode: 'insensitive' } },
         ];
       }
-      const documents = await prisma.knowledgeDocument.findMany({ where: docWhere, orderBy: { updatedAt: 'desc' } });
+      const documents = await prisma.knowledgeDocument.findMany({ where: docWhere, orderBy: { updatedAt: 'desc' }, take: MAX_INVENTORY_ITEMS_PER_CATEGORY });
       for (const d of documents) {
         if (d.createdBy) creatorIds.add(d.createdBy);
         const base = baseMap.get(d.baseId);
@@ -862,11 +864,7 @@ export async function mineKeywords(req: Request, res: Response): Promise<void> {
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
 
-    const VALID_SOURCE_TYPES = ['all', 'document', 'portrait', 'image'] as const;
-    const sourceType: string = req.body.source_type || 'all';
-    if (!VALID_SOURCE_TYPES.includes(sourceType as any)) {
-      throw new BusinessError('无效的资源类型');
-    }
+    const { source_type: sourceType } = mineKeywordsSchema.parse(req.body);
 
     const { minedKeywordService, llmService } = getServices();
     const content = await minedKeywordService.aggregateContent(baseId, sourceType);
@@ -889,8 +887,7 @@ export async function saveMinedKeywords(req: Request, res: Response): Promise<vo
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
-    const { keywords } = req.body;
-    if (!Array.isArray(keywords) || keywords.length === 0) { fail(res, 400, '请选择至少一个关键词'); return; }
+    const { keywords } = saveMinedKeywordsSchema.parse(req.body);
 
     const { keywordService, minedKeywordService } = getServices();
     const result = await minedKeywordService.saveAndRemove(baseId, keywords, userId, keywordService);
@@ -907,9 +904,7 @@ export async function toggleMinedKeywordsBatch(req: Request, res: Response): Pro
     if (baseId === null) { fail(res, 400, '无效的知识库ID'); return; }
     const { userId, role } = req.user!;
     await checkBaseAccess(baseId, userId, role);
-    const { ids, selected } = req.body;
-    if (!Array.isArray(ids) || ids.length === 0) { fail(res, 400, '请选择关键词'); return; }
-    if (typeof selected !== 'boolean') { fail(res, 400, 'selected必须为布尔值'); return; }
+    const { ids, selected } = toggleMinedKeywordsBatchSchema.parse(req.body);
     const { minedKeywordService } = getServices();
     await minedKeywordService.toggleSelectBatch(baseId, ids, selected);
     const items = await minedKeywordService.listByBase(baseId);
