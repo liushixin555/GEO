@@ -871,6 +871,7 @@ describe('TodoServiceImpl', () => {
       mockedGetPrisma.mockReturnValue({
         todo: { findFirst: mockFindFirst, update: mockUpdate },
         user: { findFirst: mockUserFindFirst },
+        projectOperator: { findFirst: jest.fn().mockResolvedValue({ projectId: 10, userId: 3 }) },
         todoLog: { create: mockLogCreate },
       } as any);
 
@@ -951,6 +952,7 @@ describe('TodoServiceImpl', () => {
       mockedGetPrisma.mockReturnValue({
         todo: { findFirst: mockFindFirst, update: mockUpdate },
         user: { findFirst: mockUserFindFirst },
+        projectOperator: { findFirst: jest.fn().mockResolvedValue({ projectId: 10, userId: 3 }) },
         todoLog: { create: mockLogCreate },
       } as any);
 

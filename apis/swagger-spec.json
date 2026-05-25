@@ -10658,7 +10658,8 @@
                 "P0",
                 "P1",
                 "P2",
-                "P3"
+                "P3",
+                "P4"
               ]
             }
           },
@@ -10798,7 +10799,10 @@
                   },
                   "object_type": {
                     "type": "string",
-                    "minLength": 1
+                    "enum": [
+                      "article",
+                      "keyword"
+                    ]
                   },
                   "object_id": {
                     "nullable": true,
@@ -10809,13 +10813,30 @@
                   },
                   "action": {
                     "type": "string",
-                    "minLength": 1
+                    "enum": [
+                      "add",
+                      "delete",
+                      "update",
+                      "restore"
+                    ]
                   },
                   "source": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                      "manual",
+                      "content_iteration",
+                      "smart_link"
+                    ]
                   },
                   "priority": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                      "P0",
+                      "P1",
+                      "P2",
+                      "P3",
+                      "P4"
+                    ]
                   },
                   "assignee_id": {
                     "type": "integer",
@@ -11324,7 +11345,10 @@
                   },
                   "object_type": {
                     "type": "string",
-                    "minLength": 1
+                    "enum": [
+                      "article",
+                      "keyword"
+                    ]
                   },
                   "object_id": {
                     "nullable": true,
@@ -11335,10 +11359,22 @@
                   },
                   "action": {
                     "type": "string",
-                    "minLength": 1
+                    "enum": [
+                      "add",
+                      "delete",
+                      "update",
+                      "restore"
+                    ]
                   },
                   "priority": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                      "P0",
+                      "P1",
+                      "P2",
+                      "P3",
+                      "P4"
+                    ]
                   },
                   "due_at": {
                     "nullable": true,

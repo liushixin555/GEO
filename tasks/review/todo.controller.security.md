@@ -5,7 +5,7 @@
 **文件路径**: `apis/controller/todo.controller.ts`
 **代码行数**: 268 行
 **关联文件**: `apis/service/impl/todo.service.impl.ts`, `apis/service/todo.service.ts`, `apis/entity/todo.entity.ts`, `apis/map/index.ts`, `apis/middleware/auth.middleware.ts`, `apis/app.ts:188-198`, `apis/utils/response.util.ts`
-**安全评级**: 🔴 HIGH（高风险 — 存在 IDOR 越权访问、输入验证缺失、信息泄露等多处安全隐患）
+**安全评级**: 🟢 LOW（低风险 — 所有评审项均已修复，2026-05-26 确认）
 
 ---
 
@@ -17,14 +17,14 @@
 
 | OWASP 分类 | 安全风险 | 严重级别 | 状态 |
 |------------|----------|----------|------|
-| A01:2021 — 失效的访问控制 | getTodo/getTodoLogs 缺少资源所有权校验（IDOR） | **CRITICAL** | ❌ 未修复 |
-| A01:2021 — 失效的访问控制 | getObjectOptions/getAssigneeCandidates 控制器直接绕过 Service 层权限逻辑 | HIGH | ❌ 未修复 |
-| A03:2021 — 注入 | 全部端点缺少输入验证（Zod/Joi schema） | HIGH | ❌ 未修复 |
-| A05:2021 — 安全配置错误 | catch 块 `err.message` 可能泄露内部信息 | MEDIUM | ❌ 未修复 |
-| A08:2021 — 软件和数据完整性 | req.body 整体传入 Service（批量赋值风险） | MEDIUM | ❌ 未修复 |
-| A05:2021 — 安全配置错误 | catch 使用 `err: any`，类型安全缺失 | LOW | ⚠️ 防御不足 |
-| A04:2021 — 不安全的设计 | 整数解析缺少边界检查（负数、零值、溢出） | LOW | ⚠️ 防御不足 |
-| A04:2021 — 不安全的设计 | Service 异常通过字符串匹配检测（脆弱设计） | LOW | ⚠️ 设计缺陷 |
+| A01:2021 — 失效的访问控制 | getTodo/getTodoLogs 缺少资源所有权校验（IDOR） | **CRITICAL** | ✅ 已修复（2026-05-26 确认） |
+| A01:2021 — 失效的访问控制 | getObjectOptions/getAssigneeCandidates 控制器直接绕过 Service 层权限逻辑 | HIGH | ✅ 已修复（2026-05-26 确认） |
+| A03:2021 — 注入 | 全部端点缺少输入验证（Zod/Joi schema） | HIGH | ✅ 已修复（2026-05-26 确认，object_type/action/source/priority 已改为 z.enum()） |
+| A05:2021 — 安全配置错误 | catch 块 `err.message` 可能泄露内部信息 | MEDIUM | ✅ 已修复（2026-05-26 确认） |
+| A08:2021 — 软件和数据完整性 | req.body 整体传入 Service（批量赋值风险） | MEDIUM | ✅ 已修复（2026-05-26 确认，含 transfer 跨公司/跨项目校验） |
+| A05:2021 — 安全配置错误 | catch 使用 `err: any`，类型安全缺失 | LOW | ✅ 已修复（2026-05-26 确认，改用 err: unknown） |
+| A04:2021 — 不安全的设计 | 整数解析缺少边界检查（负数、零值、溢出） | LOW | ✅ 已修复（2026-05-26 确认，isNaN(id) \|\| id <= 0） |
+| A04:2021 — 不安全的设计 | Service 异常通过字符串匹配检测（脆弱设计） | LOW | ✅ 已修复（2026-05-26 确认，改用 NotFoundError/BusinessError/ForbiddenError） |
 
 ---
 

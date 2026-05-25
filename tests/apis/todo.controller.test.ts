@@ -50,9 +50,9 @@ const mockTodoFull = {
   company: { id: 1, shortName: '测试公司' },
   projectId: 1,
   project: { id: 1, shortName: '测试项目' },
-  objectType: '文章',
+  objectType: 'article',
   objectId: 10,
-  action: '审核文章内容',
+  action: 'update',
   source: 'manual',
   priority: 'P2',
   assigneeId: 1,
@@ -420,8 +420,8 @@ describe('Todo Controller', () => {
     const createPayload = {
       title: '新建待办任务',
       company_id: 1,
-      object_type: '文章',
-      action: '检查文章质量',
+      object_type: 'article',
+      action: 'update',
       assignee_id: 2,
       priority: 'P1',
     };
@@ -516,8 +516,8 @@ describe('Todo Controller', () => {
       const payload = {
         title: '新建待办任务',
         company_id: 1,
-        object_type: '文章',
-        action: '检查文章质量',
+        object_type: 'article',
+        action: 'update',
         assignee_id: 2,
       };
 
@@ -940,6 +940,7 @@ describe('Todo Controller', () => {
           update: mockUpdate,
         },
         user: { findFirst: jest.fn().mockResolvedValue(targetUser) },
+        projectOperator: { findFirst: jest.fn().mockResolvedValue({ projectId: 1, userId: 2 }) },
         todoLog: { create: mockLogCreate },
       });
 
@@ -1544,7 +1545,7 @@ describe('Todo Controller', () => {
     it('should return 400 when title is missing', async () => {
       const response = await agent
         .post('/api/v1/todos')
-        .send({ company_id: 1, object_type: '文章', action: '审核', assignee_id: 2 })
+        .send({ company_id: 1, object_type: 'article', action: 'update', assignee_id: 2 })
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
     });
@@ -1552,7 +1553,7 @@ describe('Todo Controller', () => {
     it('should return 400 when title is empty string', async () => {
       const response = await agent
         .post('/api/v1/todos')
-        .send({ title: '', company_id: 1, object_type: '文章', action: '审核', assignee_id: 2 })
+        .send({ title: '', company_id: 1, object_type: 'article', action: 'update', assignee_id: 2 })
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
     });
@@ -1560,7 +1561,7 @@ describe('Todo Controller', () => {
     it('should return 400 when title exceeds 200 chars', async () => {
       const response = await agent
         .post('/api/v1/todos')
-        .send({ title: 'A'.repeat(201), company_id: 1, object_type: '文章', action: '审核', assignee_id: 2 })
+        .send({ title: 'A'.repeat(201), company_id: 1, object_type: 'article', action: 'update', assignee_id: 2 })
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
     });
@@ -1568,7 +1569,7 @@ describe('Todo Controller', () => {
     it('should return 400 when company_id is missing', async () => {
       const response = await agent
         .post('/api/v1/todos')
-        .send({ title: 'test', object_type: '文章', action: '审核', assignee_id: 2 })
+        .send({ title: 'test', object_type: 'article', action: 'update', assignee_id: 2 })
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
     });
@@ -1576,7 +1577,7 @@ describe('Todo Controller', () => {
     it('should return 400 when object_type is missing', async () => {
       const response = await agent
         .post('/api/v1/todos')
-        .send({ title: 'test', company_id: 1, action: '审核', assignee_id: 2 })
+        .send({ title: 'test', company_id: 1, action: 'update', assignee_id: 2 })
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
     });
@@ -1584,7 +1585,7 @@ describe('Todo Controller', () => {
     it('should return 400 when action is missing', async () => {
       const response = await agent
         .post('/api/v1/todos')
-        .send({ title: 'test', company_id: 1, object_type: '文章', assignee_id: 2 })
+        .send({ title: 'test', company_id: 1, object_type: 'article', assignee_id: 2 })
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
     });
@@ -1592,7 +1593,7 @@ describe('Todo Controller', () => {
     it('should return 400 when assignee_id is missing', async () => {
       const response = await agent
         .post('/api/v1/todos')
-        .send({ title: 'test', company_id: 1, object_type: '文章', action: '审核' })
+        .send({ title: 'test', company_id: 1, object_type: 'article', action: 'update' })
         .set('Authorization', `Bearer ${sysadminToken()}`);
       expect(response.status).toBe(400);
     });
@@ -1655,7 +1656,7 @@ describe('Todo Controller', () => {
     it('should deny view role access to createTodo', async () => {
       const response = await agent
         .post('/api/v1/todos')
-        .send({ title: 't', company_id: 1, object_type: 'x', action: 'a', assignee_id: 1 })
+        .send({ title: 't', company_id: 1, object_type: 'article', action: 'update', assignee_id: 1 })
         .set('Authorization', `Bearer ${viewToken()}`);
       expect(response.status).toBe(403);
     });
@@ -1907,6 +1908,7 @@ describe('Todo Controller', () => {
           update: mockUpdate,
         },
         user: { findFirst: jest.fn().mockResolvedValue(targetUser) },
+        projectOperator: { findFirst: jest.fn().mockResolvedValue({ projectId: 1, userId: 3 }) },
         todoLog: { create: mockLogCreate },
       });
 
@@ -2521,8 +2523,8 @@ describe('Todo Controller', () => {
             project_id: 10,
             object_type: 'article',
             object_id: 100,
-            action: '发布文章',
-            source: 'system',
+            action: 'update',
+            source: 'manual',
             priority: 'P0',
             assignee_id: 2,
             due_at: '2026-12-31T23:59:59.000Z',
@@ -2535,7 +2537,7 @@ describe('Todo Controller', () => {
             data: expect.objectContaining({
               projectId: 10,
               objectId: 100,
-              source: 'system',
+              source: 'manual',
               priority: 'P0',
               dueAt: expect.any(Date),
             }),
@@ -2558,8 +2560,8 @@ describe('Todo Controller', () => {
             title: '无项目待办',
             company_id: 1,
             project_id: null,
-            object_type: 'general',
-            action: '检查',
+            object_type: 'keyword',
+            action: 'update',
             assignee_id: 2,
           })
           .set('Authorization', `Bearer ${sysadminToken()}`);
@@ -2579,7 +2581,7 @@ describe('Todo Controller', () => {
             title: '测试',
             company_id: 0,
             object_type: 'article',
-            action: 'review',
+            action: 'update',
             assignee_id: 1,
           })
           .set('Authorization', `Bearer ${sysadminToken()}`);
@@ -2593,7 +2595,7 @@ describe('Todo Controller', () => {
             title: '测试',
             company_id: 1,
             object_type: 'article',
-            action: 'review',
+            action: 'update',
             assignee_id: -1,
           })
           .set('Authorization', `Bearer ${sysadminToken()}`);
@@ -2611,6 +2613,7 @@ describe('Todo Controller', () => {
         getPrisma.mockReturnValue({
           todo: { findFirst: jest.fn().mockResolvedValue(mockTodoFull), update: mockUpdate },
           user: { findFirst: jest.fn().mockResolvedValue(targetUser) },
+          projectOperator: { findFirst: jest.fn().mockResolvedValue({ projectId: 1, userId: 3 }) },
           todoLog: { create: mockLogCreate },
         });
 
@@ -2647,6 +2650,7 @@ describe('Todo Controller', () => {
         getPrisma.mockReturnValue({
           todo: { findFirst: jest.fn().mockResolvedValue(mockTodoFull), update: mockUpdate },
           user: { findFirst: jest.fn().mockResolvedValue(targetUser) },
+          projectOperator: { findFirst: jest.fn().mockResolvedValue({ projectId: 1, userId: 2 }) },
           todoLog: { create: mockLogCreate },
         });
 
@@ -2860,7 +2864,7 @@ describe('Todo Controller', () => {
             title: '<script>alert("xss")</script>',
             company_id: 1,
             object_type: 'article',
-            action: 'review',
+            action: 'update',
             assignee_id: 2,
           })
           .set('Authorization', `Bearer ${sysadminToken()}`);
@@ -2896,6 +2900,7 @@ describe('Todo Controller', () => {
         getPrisma.mockReturnValue({
           todo: { findFirst: jest.fn().mockResolvedValue(mockTodoFull), update: mockUpdate },
           user: { findFirst: jest.fn().mockResolvedValue(targetUser) },
+          projectOperator: { findFirst: jest.fn().mockResolvedValue({ projectId: 1, userId: 3 }) },
           todoLog: { create: mockLogCreate },
         });
 
@@ -2929,15 +2934,7 @@ describe('Todo Controller', () => {
         );
       });
 
-      it('create: 应安全处理 action 中的 HTML 标签', async () => {
-        const { getPrisma } = require('../../apis/utils/db.util');
-        const mockCreate = jest.fn().mockResolvedValue(mockTodoFull);
-        const mockLogCreate = jest.fn().mockResolvedValue({});
-        getPrisma.mockReturnValue({
-          todo: { create: mockCreate },
-          todoLog: { create: mockLogCreate },
-        });
-
+      it('create: 应拒绝 action 中的非法枚举值（Zod enum 防注入）', async () => {
         const response = await agent
           .post('/api/v1/todos')
           .send({
@@ -2949,7 +2946,7 @@ describe('Todo Controller', () => {
           })
           .set('Authorization', `Bearer ${sysadminToken()}`);
 
-        expect(response.status).toBe(201);
+        expect(response.status).toBe(400);
       });
     });
 
@@ -3014,7 +3011,7 @@ describe('Todo Controller', () => {
             title: 'admin创建',
             company_id: 1,
             object_type: 'article',
-            action: 'review',
+            action: 'update',
             assignee_id: 2,
           })
           .set('Authorization', `Bearer ${adminToken()}`);
@@ -3141,7 +3138,7 @@ describe('Todo Controller', () => {
             title: 'test',
             company_id: 1,
             object_type: 'article',
-            action: 'review',
+            action: 'update',
             assignee_id: 2,
           })
           .set('Authorization', `Bearer ${sysadminToken()}`);
@@ -3422,7 +3419,7 @@ describe('Todo Controller', () => {
             title: 'test',
             company_id: 1,
             object_type: 'article',
-            action: 'review',
+            action: 'update',
             assignee_id: 2,
           })
           .set('Authorization', `Bearer ${sysadminToken()}`);

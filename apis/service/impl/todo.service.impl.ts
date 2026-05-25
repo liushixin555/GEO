@@ -256,6 +256,16 @@ export class TodoServiceImpl implements ITodoService {
     const targetUser = await prisma.user.findFirst({ where: { id: request.assignee_id, deletedAt: null } });
     if (!targetUser) throw new BusinessError('目标用户不存在');
 
+    // 防止跨项目/公司转交：目标用户必须是待办项目的操作员或系统管理员
+    if (targetUser.role !== 'sysadmin' && existing.projectId) {
+      const isOperator = await prisma.projectOperator.findFirst({
+        where: { projectId: existing.projectId, userId: targetUser.id },
+      });
+      if (!isOperator) {
+        throw new BusinessError('目标用户不是该项目的操作员');
+      }
+    }
+
     const updated = await prisma.todo.update({
       where: { id },
       data: { assigneeId: request.assignee_id },

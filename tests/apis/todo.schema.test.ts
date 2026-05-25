@@ -17,8 +17,8 @@ const validCreateTodo = {
   project_id: 10,
   object_type: 'article',
   object_id: 100,
-  action: 'review',
-  source: 'system',
+  action: 'update',
+  source: 'manual',
   priority: 'P1',
   assignee_id: 5,
   due_at: '2026-06-01T00:00:00Z',
@@ -160,7 +160,7 @@ describe('listTodosSchema', () => {
 
   // === priority ===
   describe('priority', () => {
-    const validPriorities = ['P0', 'P1', 'P2', 'P3'] as const;
+    const validPriorities = ['P0', 'P1', 'P2', 'P3', 'P4'] as const;
 
     it('应接受 undefined（可选字段）', () => {
       const result = listTodosSchema.parse({});
@@ -172,7 +172,7 @@ describe('listTodosSchema', () => {
     });
 
     it('应拒绝无效的优先级', () => {
-      const result = listTodosSchema.safeParse({ priority: 'P4' });
+      const result = listTodosSchema.safeParse({ priority: 'P5' });
       expect(result.success).toBe(false);
     });
 
@@ -409,8 +409,8 @@ describe('createTodoSchema', () => {
       expect(createTodoSchema.parse(validCreateTodo).object_type).toBe('article');
     });
 
-    it('应接受1个字符', () => {
-      expect(createTodoSchema.parse({ ...validCreateTodo, object_type: 'A' }).object_type).toBe('A');
+    it('应接受 keyword', () => {
+      expect(createTodoSchema.parse({ ...validCreateTodo, object_type: 'keyword' }).object_type).toBe('keyword');
     });
 
     it('应拒绝空字符串', () => {
@@ -470,7 +470,7 @@ describe('createTodoSchema', () => {
   // === action ===
   describe('action', () => {
     it('应接受有效字符串', () => {
-      expect(createTodoSchema.parse(validCreateTodo).action).toBe('review');
+      expect(createTodoSchema.parse(validCreateTodo).action).toBe('update');
     });
 
     it('应拒绝空字符串', () => {
@@ -498,7 +498,7 @@ describe('createTodoSchema', () => {
   // === source（optional） ===
   describe('source', () => {
     it('应接受有效字符串', () => {
-      expect(createTodoSchema.parse(validCreateTodo).source).toBe('system');
+      expect(createTodoSchema.parse(validCreateTodo).source).toBe('manual');
     });
 
     it('应接受 undefined（可选字段）', () => {
@@ -618,7 +618,7 @@ describe('createTodoSchema', () => {
         title: '测试任务',
         company_id: 1,
         object_type: 'article',
-        action: 'review',
+        action: 'update',
         assignee_id: 1,
       };
       const result = createTodoSchema.safeParse(minimal);
@@ -739,7 +739,7 @@ describe('updateTodoSchema', () => {
   // === action（optional） ===
   describe('action', () => {
     it('应接受有效字符串', () => {
-      expect(updateTodoSchema.parse({ action: 'approve' }).action).toBe('approve');
+      expect(updateTodoSchema.parse({ action: 'update' }).action).toBe('update');
     });
 
     it('应拒绝空字符串', () => {
@@ -808,7 +808,7 @@ describe('updateTodoSchema', () => {
         title: '更新标题',
         object_type: 'keyword',
         object_id: 200,
-        action: 'publish',
+        action: 'update',
         priority: 'P2',
         due_at: '2026-08-01T00:00:00Z',
       });
