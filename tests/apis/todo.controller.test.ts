@@ -2424,4 +2424,408 @@ describe('Todo Controller', () => {
       expect(result[1].id).toBe(5);
     });
   });
+
+  // ══════════════════════════════════════════════════════════════
+  // 第三轮 TDD — 控制器边界场景 + 健壮性测试
+  // ══════════════════════════════════════════════════════════════
+  describe('TDD第3轮 — 控制器边界场景与健壮性', () => {
+    // ── list 分页边界 ──
+    describe('GET /api/todos — 分页边界', () => {
+      it('应接受 pageSize=1（最小值）', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockResolvedValue(0);
+        getPrisma.mockReturnValue({ todo: { findMany: mockFindMany, count: mockCount } });
+
+        const response = await agent
+          .get('/api/v1/todos?pageSize=1')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(mockFindMany).toHaveBeenCalledWith(
+          expect.objectContaining({ take: 1 }),
+        );
+      });
+
+      it('应接受 pageSize=100（最大值）', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockResolvedValue(0);
+        getPrisma.mockReturnValue({ todo: { findMany: mockFindMany, count: mockCount } });
+
+        const response = await agent
+          .get('/api/v1/todos?pageSize=100')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(mockFindMany).toHaveBeenCalledWith(
+          expect.objectContaining({ take: 100 }),
+        );
+      });
+
+      it('应拒绝 pageSize=0', async () => {
+        const response = await agent
+          .get('/api/v1/todos?pageSize=0')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+        expect(response.status).toBe(400);
+      });
+
+      it('应拒绝 pageSize=101', async () => {
+        const response = await agent
+          .get('/api/v1/todos?pageSize=101')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+        expect(response.status).toBe(400);
+      });
+
+      it('应同时使用 priority + search 过滤', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockFindMany = jest.fn().mockResolvedValue([]);
+        const mockCount = jest.fn().mockResolvedValue(0);
+        getPrisma.mockReturnValue({ todo: { findMany: mockFindMany, count: mockCount } });
+
+        const response = await agent
+          .get('/api/v1/todos?priority=P0&search=审核')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        const where = mockFindMany.mock.calls[0][0].where;
+        expect(where.priority).toBe('P0');
+        expect(where.title).toEqual({ contains: '审核', mode: 'insensitive' });
+      });
+    });
+
+    // ── create 边界 ──
+    describe('POST /api/todos — 创建边界', () => {
+      it('应创建带 project_id 和 object_id 的完整待办', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockCreate = jest.fn().mockResolvedValue(mockTodoFull);
+        const mockLogCreate = jest.fn().mockResolvedValue({});
+        getPrisma.mockReturnValue({
+          todo: { create: mockCreate },
+          todoLog: { create: mockLogCreate },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos')
+          .send({
+            title: '完整待办',
+            company_id: 1,
+            project_id: 10,
+            object_type: 'article',
+            object_id: 100,
+            action: '发布文章',
+            source: 'system',
+            priority: 'P0',
+            assignee_id: 2,
+            due_at: '2026-12-31T23:59:59.000Z',
+          })
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(201);
+        expect(mockCreate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              projectId: 10,
+              objectId: 100,
+              source: 'system',
+              priority: 'P0',
+              dueAt: expect.any(Date),
+            }),
+          }),
+        );
+      });
+
+      it('应创建带 project_id=null 的待办', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockCreate = jest.fn().mockResolvedValue(mockTodoFull);
+        const mockLogCreate = jest.fn().mockResolvedValue({});
+        getPrisma.mockReturnValue({
+          todo: { create: mockCreate },
+          todoLog: { create: mockLogCreate },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos')
+          .send({
+            title: '无项目待办',
+            company_id: 1,
+            project_id: null,
+            object_type: 'general',
+            action: '检查',
+            assignee_id: 2,
+          })
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(201);
+        expect(mockCreate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ projectId: null }),
+          }),
+        );
+      });
+
+      it('应拒绝 company_id=0', async () => {
+        const response = await agent
+          .post('/api/v1/todos')
+          .send({
+            title: '测试',
+            company_id: 0,
+            object_type: 'article',
+            action: 'review',
+            assignee_id: 1,
+          })
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+        expect(response.status).toBe(400);
+      });
+
+      it('应拒绝 assignee_id 为负数', async () => {
+        const response = await agent
+          .post('/api/v1/todos')
+          .send({
+            title: '测试',
+            company_id: 1,
+            object_type: 'article',
+            action: 'review',
+            assignee_id: -1,
+          })
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+        expect(response.status).toBe(400);
+      });
+    });
+
+    // ── transfer 边界 ──
+    describe('POST /api/todos/:id/transfer — 转交边界', () => {
+      it('应接受带 remark 的转交请求', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockUpdate = jest.fn().mockResolvedValue({ ...mockTodoFull, assigneeId: 3 });
+        const mockLogCreate = jest.fn().mockResolvedValue({});
+        const targetUser = { id: 3, cnName: '新负责人' };
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(mockTodoFull), update: mockUpdate },
+          user: { findFirst: jest.fn().mockResolvedValue(targetUser) },
+          todoLog: { create: mockLogCreate },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos/1/transfer')
+          .send({ assignee_id: 3, remark: '紧急转交处理' })
+          .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body.message).toBe('转交待办成功');
+      });
+
+      it('应拒绝 assignee_id=0 的转交', async () => {
+        const response = await agent
+          .post('/api/v1/todos/1/transfer')
+          .send({ assignee_id: 0 })
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+        expect(response.status).toBe(400);
+      });
+
+      it('应拒绝 remark 超过 500 字符的转交', async () => {
+        const response = await agent
+          .post('/api/v1/todos/1/transfer')
+          .send({ assignee_id: 2, remark: 'x'.repeat(501) })
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+        expect(response.status).toBe(400);
+      });
+
+      it('应接受 remark=500 字符的转交（最大值）', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockUpdate = jest.fn().mockResolvedValue({ ...mockTodoFull, assigneeId: 2 });
+        const mockLogCreate = jest.fn().mockResolvedValue({});
+        const targetUser = { id: 2, cnName: '负责人' };
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(mockTodoFull), update: mockUpdate },
+          user: { findFirst: jest.fn().mockResolvedValue(targetUser) },
+          todoLog: { create: mockLogCreate },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos/1/transfer')
+          .send({ assignee_id: 2, remark: 'x'.repeat(500) })
+          .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
+
+        expect(response.status).toBe(200);
+      });
+    });
+
+    // ── update 边界 ──
+    describe('PUT /api/todos/:id — 更新边界', () => {
+      it('应接受仅更新 due_at 为 null（清空截止时间）', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockUpdate = jest.fn().mockResolvedValue(mockTodoFull);
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(mockTodoFull), update: mockUpdate },
+        });
+
+        const response = await agent
+          .put('/api/v1/todos/1')
+          .send({ due_at: null })
+          .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
+
+        expect(response.status).toBe(200);
+        expect(mockUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ dueAt: null }),
+          }),
+        );
+      });
+
+      it('应接受仅更新 priority', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockUpdate = jest.fn().mockResolvedValue(mockTodoFull);
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(mockTodoFull), update: mockUpdate },
+        });
+
+        const response = await agent
+          .put('/api/v1/todos/1')
+          .send({ priority: 'P0' })
+          .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
+
+        expect(response.status).toBe(200);
+        expect(mockUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ priority: 'P0' }),
+          }),
+        );
+      });
+
+      it('应接受空 body（无字段更新）', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockUpdate = jest.fn().mockResolvedValue(mockTodoFull);
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(mockTodoFull), update: mockUpdate },
+        });
+
+        const response = await agent
+          .put('/api/v1/todos/1')
+          .send({})
+          .set('Authorization', `Bearer ${sysadminToken(1, 1)}`);
+
+        expect(response.status).toBe(200);
+      });
+    });
+
+    // ── logs 边界 ──
+    describe('GET /api/todos/:id/logs — 日志边界', () => {
+      it('应返回多条日志记录', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const logs = [
+          { ...mockTodoLog, id: 1, action: 'submit' },
+          { ...mockTodoLog, id: 2, action: 'close' },
+          { ...mockTodoLog, id: 3, action: 'reopen' },
+        ];
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(mockTodoFull) },
+          todoLog: { findMany: jest.fn().mockResolvedValue(logs) },
+        });
+
+        const response = await agent
+          .get('/api/v1/todos/1/logs')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body.data).toHaveLength(3);
+      });
+    });
+
+    // ── reject 边界 ──
+    describe('POST /api/todos/:id/reject — 驳回边界', () => {
+      it('应拒绝 draft 状态的待办', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const draftTodo = { ...mockTodoFull, status: 'draft' };
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockResolvedValue(draftTodo) },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos/1/reject')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe('只有处理中的待办可以驳回');
+      });
+
+      it('应返回 500 当驳回过程数据库出错', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        getPrisma.mockReturnValue({
+          todo: { findFirst: jest.fn().mockRejectedValue(new Error('Connection lost')) },
+        });
+
+        const response = await agent
+          .post('/api/v1/todos/1/reject')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(500);
+        expect(response.body.message).toBe('驳回待办失败');
+      });
+    });
+
+    // ── assignee-candidates 边界 ──
+    describe('GET /api/todos/assignee-candidates — 边界', () => {
+      it('应接受 projectId 为字符串数字', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockProject = { id: 1, operators: [] };
+        const mockUsers = [{ id: 1, username: 'sysadmin', cnName: '管理员', role: 'sysadmin' }];
+        getPrisma.mockReturnValue({
+          project: { findUnique: jest.fn().mockResolvedValue(mockProject) },
+          user: { findMany: jest.fn().mockResolvedValue(mockUsers) },
+        });
+
+        const response = await agent
+          .get('/api/v1/todos/assignee-candidates?projectId=1')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body.data).toHaveLength(1);
+      });
+    });
+
+    // ── object-options 边界 ──
+    describe('GET /api/todos/object-options — 边界', () => {
+      it('应返回关键字选项（不带 action 参数）', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockKbFindMany = jest.fn().mockResolvedValue([{ id: 10 }]);
+        const mockKwFindMany = jest.fn().mockResolvedValue([
+          { id: 1, keyword: 'SEO优化' },
+        ]);
+        getPrisma.mockReturnValue({
+          article: { findMany: jest.fn() },
+          knowledgeBase: { findMany: mockKbFindMany },
+          knowledgeKeyword: { findMany: mockKwFindMany },
+        });
+
+        const response = await agent
+          .get('/api/v1/todos/object-options?projectId=1&objectType=keyword')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body.data).toHaveLength(1);
+        expect(response.body.data[0]).toEqual({ id: 1, name: 'SEO优化' });
+      });
+    });
+
+    // ── 分页响应结构验证 ──
+    describe('GET /api/todos — 分页响应结构', () => {
+      it('应返回完整的分页结构（list, total, page, pageSize）', async () => {
+        const { getPrisma } = require('../../apis/utils/db.util');
+        const mockFindMany = jest.fn().mockResolvedValue([mockTodoFull]);
+        const mockCount = jest.fn().mockResolvedValue(15);
+        getPrisma.mockReturnValue({ todo: { findMany: mockFindMany, count: mockCount } });
+
+        const response = await agent
+          .get('/api/v1/todos?page=2&pageSize=5')
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body.data.list).toHaveLength(1);
+        expect(response.body.data.total).toBe(15);
+        expect(response.body.data.page).toBe(2);
+        expect(response.body.data.pageSize).toBe(5);
+      });
+    });
+  });
 });
