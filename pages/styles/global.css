@@ -1169,3 +1169,39 @@ a:hover {
     display: block;
   }
 }
+
+/* ========================================
+   Keyword Detail Page
+   ======================================== */
+
+.keyword-detail-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.keyword-detail-form {
+  margin-bottom: var(--spacing-md);
+}
+
+.keyword-detail-input {
+  width: 280px;
+}
+
+.keyword-detail-table-section {
+  margin-bottom: var(--spacing-md);
+}
+
+.keyword-detail-table-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+}
+
+.keyword-detail-selected-count {
+  font-size: 14px;
+  color: var(--color-ink-muted);
+  margin-left: var(--spacing-xs);
+}
