@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, memo } from 'react';
-import { Typography, Button, Card, Space, Alert, Skeleton } from 'antd';
+import { Typography, Button, Card, Space, Alert, Skeleton, Breadcrumb } from 'antd';
 import { LinkOutlined, ApiOutlined, SafetyCertificateOutlined, GlobalOutlined } from '@ant-design/icons';
 
 const SWAGGER_UI_PATH = '/api-docs/' as const;
@@ -37,25 +37,34 @@ const ApiDocsPage = memo(function ApiDocsPage() {
 
   return (
     <div className="page-container">
-      <Card bordered style={{ maxWidth: 600, width: '100%' }}>
-        <Space orientation="vertical" size="large" style={{ width: '100%' }} aria-live="polite">
-          <Typography.Title level={3} style={{ margin: 0, fontWeight: 400 }}>
-            <ApiOutlined style={{ marginRight: 8, color: 'var(--color-primary)' }} />
-            API 文档
-          </Typography.Title>
+      <div className="page-breadcrumb">
+        <Breadcrumb items={[{ title: 'API 文档' }]} />
+      </div>
+      <Card bordered className="api-docs-card">
+        <Space orientation="vertical" size="large" className="api-docs-content" aria-live="polite">
+          <Space size={8} align="center">
+            <ApiOutlined className="api-docs-title-icon" />
+            <Typography.Title level={3} style={{ margin: 0, fontWeight: 400 }}>
+              API 文档
+            </Typography.Title>
+          </Space>
           <Typography.Text type="secondary">
             查看、测试和管理所有 API 接口。
             支持在线调试、参数说明和响应示例查看。
           </Typography.Text>
           <Space orientation="vertical" size={4}>
-            <Typography.Text type="secondary">
-              <GlobalOutlined style={{ marginRight: 4 }} />
-              基础路径：<Typography.Text code>/api</Typography.Text>
-            </Typography.Text>
-            <Typography.Text type="secondary">
-              <SafetyCertificateOutlined style={{ marginRight: 4 }} />
-              认证方式：JWT Bearer Token
-            </Typography.Text>
+            <Space size={4}>
+              <GlobalOutlined />
+              <Typography.Text type="secondary">
+                基础路径：<Typography.Text code>/api</Typography.Text>
+              </Typography.Text>
+            </Space>
+            <Space size={4}>
+              <SafetyCertificateOutlined />
+              <Typography.Text type="secondary">
+                认证方式：JWT Bearer Token
+              </Typography.Text>
+            </Space>
           </Space>
           {apiDocsAvailable === null && (
             <Skeleton active paragraph={{ rows: 2 }} />
