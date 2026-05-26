@@ -1248,3 +1248,69 @@ a:hover {
   color: var(--color-ink-muted);
   margin-left: var(--spacing-xs);
 }
+
+/* Article Image Manager */
+.article-img-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+.article-img-thumb {
+  width: 80px;
+  height: 80px;
+  overflow: hidden;
+  border-radius: var(--rounded-none);
+}
+.article-img-selectable {
+  position: relative;
+  cursor: pointer;
+  border: 1px solid var(--color-hairline);
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+.article-img-selectable:hover {
+  border-color: var(--color-primary);
+  background: var(--color-surface-1);
+}
+.article-img-selectable-selected {
+  border-bottom: 2px solid var(--color-primary);
+}
+.article-img-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--color-overlay-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.article-img-selected-item {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  overflow: hidden;
+  border: 1px solid var(--color-hairline);
+  border-bottom: 2px solid var(--color-primary);
+  border-radius: var(--rounded-none);
+}
+.article-img-delete-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: var(--color-overlay-medium);
+  transition: background var(--transition-fast);
+}
+.article-img-delete-btn:hover {
+  background: var(--color-error);
+}
+.article-img-upload-icon {
+  font-size: 24px;
+}
+.article-img-divider {
+  margin: var(--spacing-sm) 0;
+}

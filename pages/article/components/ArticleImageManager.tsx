@@ -1,9 +1,10 @@
-import React, { useState, useCallback } from 'react';
-import { Upload, Image, Segmented, Input, Spin, App } from 'antd';
-import { InboxOutlined, LinkOutlined, DeleteOutlined, CheckOutlined } from '@ant-design/icons';
+import React, { useState, useCallback, useRef } from 'react';
+import { Upload, Image, Segmented, Input, Empty, Skeleton, Divider, Popconfirm, Tooltip, App } from 'antd';
+import { InboxOutlined, PlusOutlined, DeleteOutlined, CheckOutlined } from '@ant-design/icons';
 import apiClient from '../../lib/apiClient';
-import { getApiErrorMessage } from '../../utils/error';
 import type { KbImage } from '../types';
+
+const MAX_IMAGES = 20;
 
 interface ArticleImageManagerProps {
   imageList: string[];
@@ -20,6 +21,33 @@ const ArticleImageManager: React.FC<ArticleImageManagerProps> = ({
   const [urlInput, setUrlInput] = useState('');
   const [uploading, setUploading] = useState(false);
   const { message } = App.useApp();
+  const imageListRef = useRef(imageList);
+  imageListRef.current = imageList;
+
+  const addImage = useCallback((url: string) => {
+    if (imageListRef.current.length >= MAX_IMAGES) {
+      message.warning(`最多添加 ${MAX_IMAGES} 张图片`);
+      return;
+    }
+    imageListChange([...imageListRef.current, url]);
+  }, [imageListChange, message]);
+
+  const removeImage = useCallback((index: number) => {
+    imageListChange(imageListRef.current.filter((_, i) => i !== index));
+  }, [imageListChange]);
+
+  const toggleKbImage = useCallback((imageUrl: string) => {
+    const current = imageListRef.current;
+    if (current.includes(imageUrl)) {
+      imageListChange(current.filter((u) => u !== imageUrl));
+    } else {
+      if (current.length >= MAX_IMAGES) {
+        message.warning(`最多添加 ${MAX_IMAGES} 张图片`);
+        return;
+      }
+      imageListChange([...current, imageUrl]);
+    }
+  }, [imageListChange, message]);
 
   const handleUpload = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -30,6 +58,10 @@ const ArticleImageManager: React.FC<ArticleImageManagerProps> = ({
       message.error('图片大小不能超过 10MB');
       return false;
     }
+    if (imageListRef.current.length >= MAX_IMAGES) {
+      message.warning(`最多添加 ${MAX_IMAGES} 张图片`);
+      return false;
+    }
     setUploading(true);
     try {
       const formData = new FormData();
@@ -37,14 +69,14 @@ const ArticleImageManager: React.FC<ArticleImageManagerProps> = ({
       const res = await apiClient.post('/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      imageListChange([...imageList, res.data.data.url]);
-    } catch (err: unknown) {
-      message.error(getApiErrorMessage(err, '上传失败'));
+      addImage(res.data.data.url);
+    } catch {
+      message.error('上传失败');
     } finally {
       setUploading(false);
     }
     return false;
-  }, [imageList, imageListChange, message]);
+  }, [addImage, message]);
 
   const handleAddUrl = useCallback(() => {
     const url = urlInput.trim();
@@ -59,19 +91,22 @@ const ArticleImageManager: React.FC<ArticleImageManagerProps> = ({
       message.error('请输入有效的图片 URL');
       return;
     }
-    if (imageList.includes(url)) { message.warning('该URL已存在'); return; }
-    imageListChange([...imageList, url]);
+    if (imageListRef.current.includes(url)) {
+      message.warning('该URL已存在');
+      return;
+    }
+    addImage(url);
     setUrlInput('');
-  }, [urlInput, imageList, imageListChange, message]);
+  }, [urlInput, addImage, message]);
 
   if (!editable) {
     return imageList.length === 0 ? (
-      <span style={{ color: 'var(--color-ink-subtle)' }}>暂无插图</span>
+      <Empty description="暂无插图" image={Empty.PRESENTED_IMAGE_SIMPLE} />
     ) : (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      <div className="article-img-grid">
         {imageList.map((url, idx) => (
-          <div key={idx} style={{ width: 80, height: 80, borderRadius: 0, overflow: 'hidden' }}>
-            <Image src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview />
+          <div key={url} className="article-img-thumb">
+            <Image src={url} alt={`插图 ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview />
           </div>
         ))}
       </div>
@@ -80,64 +115,46 @@ const ArticleImageManager: React.FC<ArticleImageManagerProps> = ({
 
   return (
     <>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-        <Segmented
-          size="small"
-          options={[{ label: '从知识库选择', value: 'kb' }, { label: '上传图片', value: 'upload' }, { label: '输入URL', value: 'url' }]}
-          value={imageMode}
-          onChange={(val) => setImageMode(val as 'upload' | 'url' | 'kb')}
-        />
-      </div>
+      <Segmented
+        options={[{ label: '从知识库选择', value: 'kb' }, { label: '上传图片', value: 'upload' }, { label: '输入URL', value: 'url' }]}
+        value={imageMode}
+        onChange={(val) => setImageMode(val as 'upload' | 'url' | 'kb')}
+      />
       {imageMode === 'kb' && (
         <div style={{ marginTop: 8 }}>
           {kbImages.length === 0 ? (
-            <Spin spinning={kbLoading}>
-              <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--color-ink-subtle)' }}>
-                {kbLoading ? '加载中...' : '知识库暂无图片，请先在知识库中添加'}
+            kbLoading ? (
+              <div className="article-img-grid">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton.Image key={i} active style={{ width: 80, height: 80 }} />
+                ))}
               </div>
-            </Spin>
+            ) : (
+              <Empty description="知识库暂无图片，请先在知识库中添加" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            )
           ) : (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <div className="article-img-grid">
               {kbImages.map((img) => {
                 const selected = imageList.includes(img.image_url);
                 return (
                   <div key={img.id}
+                    className={`article-img-thumb article-img-selectable${selected ? ' article-img-selectable-selected' : ''}`}
                     role="checkbox"
                     aria-checked={selected}
                     aria-label={`选择图片: ${img.title}`}
                     tabIndex={0}
-                    onClick={() => {
-                      if (selected) {
-                        imageListChange(imageList.filter((u) => u !== img.image_url));
-                      } else {
-                        imageListChange([...imageList, img.image_url]);
-                      }
-                    }}
+                    onClick={() => toggleKbImage(img.image_url)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        if (selected) {
-                          imageListChange(imageList.filter((u) => u !== img.image_url));
-                        } else {
-                          imageListChange([...imageList, img.image_url]);
-                        }
+                        toggleKbImage(img.image_url);
                       }
-                    }}
-                    style={{
-                      position: 'relative', width: 80, height: 80,
-                      border: `2px solid ${selected ? 'var(--color-primary)' : 'var(--color-hairline)'}`,
-                      borderRadius: 0, overflow: 'hidden', cursor: 'pointer',
                     }}
                     title={img.title}
                   >
-                    <Image src={img.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} />
+                    <Image src={img.image_url} alt={img.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} />
                     {selected && (
-                      <div style={{
-                        position: 'absolute', inset: 0,
-                        background: 'var(--color-overlay-light, rgba(22,22,22,0.25))',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        pointerEvents: 'none',
-                      }}>
+                      <div className="article-img-overlay">
                         <CheckOutlined style={{ color: 'var(--color-on-primary)', fontSize: 20 }} />
                       </div>
                     )}
@@ -149,36 +166,43 @@ const ArticleImageManager: React.FC<ArticleImageManagerProps> = ({
         </div>
       )}
       {imageMode === 'upload' && (
-        <div style={{ display: 'block', width: '100%' }}>
-          <Upload accept="image/*" showUploadList={false} beforeUpload={(file) => { handleUpload(file); return false; }} disabled={uploading}>
-            <div style={{ border: '1px dashed var(--color-hairline)', borderRadius: 2, padding: '16px 0', textAlign: 'center', cursor: 'pointer', color: 'var(--color-ink-subtle)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <InboxOutlined style={{ fontSize: 24 }} />
-              <span style={{ marginTop: 8 }}>{uploading ? '上传中...' : '点击上传图片'}</span>
-            </div>
-          </Upload>
-        </div>
+        <Upload.Dragger accept="image/*" showUploadList={false} beforeUpload={(file) => { handleUpload(file); return false; }} disabled={uploading} style={{ marginTop: 8 }}>
+          <p className="ant-upload-drag-icon"><InboxOutlined className="article-img-upload-icon" /></p>
+          <p>{uploading ? '上传中...' : '点击或拖拽上传图片'}</p>
+        </Upload.Dragger>
       )}
       {imageMode === 'url' && (
-        <Input.Search placeholder="输入图片URL" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} onSearch={handleAddUrl} enterButton={<LinkOutlined />} />
+        <Input.Search placeholder="输入图片URL" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} onSearch={handleAddUrl} enterButton={<PlusOutlined />} style={{ marginTop: 8 }} />
       )}
       {imageList.length > 0 && (
-        <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {imageList.map((url, idx) => (
-            <div key={idx} style={{ position: 'relative', width: 80, height: 80, borderRadius: 0, overflow: 'hidden', border: '2px solid var(--color-primary)' }}>
-              <Image src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview />
-              <div
-                role="button"
-                aria-label={`删除图片 ${idx + 1}`}
-                tabIndex={0}
-                onClick={() => imageListChange(imageList.filter((_, i) => i !== idx))}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); imageListChange(imageList.filter((_, i) => i !== idx)); } }}
-                style={{ position: 'absolute', top: 0, right: 0, width: 20, height: 20, background: 'var(--color-overlay-medium, rgba(22,22,22,0.5))', borderRadius: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-              >
-                <DeleteOutlined style={{ color: 'var(--color-on-primary)', fontSize: 12 }} />
+        <>
+          <Divider className="article-img-divider" />
+          <div className="article-img-grid">
+            {imageList.map((url, idx) => (
+              <div key={url} className="article-img-selected-item">
+                <Image src={url} alt={`插图 ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview />
+                <Tooltip title="删除">
+                  <div
+                    className="article-img-delete-btn"
+                    role="button"
+                    aria-label={`删除图片 ${idx + 1}`}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        (e.target as HTMLElement).click();
+                      }
+                    }}
+                  >
+                    <Popconfirm title="确定删除此图片？" onConfirm={() => removeImage(idx)} okText="删除" cancelText="取消" okButtonProps={{ danger: true }}>
+                      <DeleteOutlined style={{ color: 'var(--color-on-primary)', fontSize: 12 }} />
+                    </Popconfirm>
+                  </div>
+                </Tooltip>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
     </>
   );
