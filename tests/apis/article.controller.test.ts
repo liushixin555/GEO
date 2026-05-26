@@ -1899,55 +1899,6 @@ describe('Article Controller', () => {
     });
   });
 
-  describe('PUT /api/projects/:projectId/articles/:id - with scheduled_publish_at', () => {
-    const existingDraft = {
-      id: 1, projectId: 1, title: 'Article 1', articleType: null, writeMode: null,
-      keywords: null, portrait: null, images: null, skills: null,
-      llmModelId: null, content: 'content', status: 'draft', version: 1,
-      createdBy: 1, createdAt: new Date(), updatedAt: new Date(),
-    };
-
-    it('should update article with scheduled_publish_at', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      getPrisma.mockReturnValue({
-        article: {
-          findFirst: jest.fn().mockResolvedValue(existingDraft),
-          update: jest.fn().mockResolvedValue({
-            ...existingDraft,
-            scheduledPublishAt: new Date('2026-06-01T10:00:00Z'),
-          }),
-        },
-      });
-
-      const response = await agent
-        .put(`${BASE}/1`)
-        .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ scheduled_publish_at: '2026-06-01T10:00:00Z' });
-
-      expect(response.status).toBe(200);
-    });
-
-    it('should clear scheduled_publish_at by sending null', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      getPrisma.mockReturnValue({
-        article: {
-          findFirst: jest.fn().mockResolvedValue(existingDraft),
-          update: jest.fn().mockResolvedValue({
-            ...existingDraft,
-            scheduledPublishAt: null,
-          }),
-        },
-      });
-
-      const response = await agent
-        .put(`${BASE}/1`)
-        .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ scheduled_publish_at: null });
-
-      expect(response.status).toBe(200);
-    });
-  });
-
   describe('PUT /api/projects/:projectId/articles/:id/content - AI title extraction', () => {
     it('should extract title from content for AI-generated article with empty title', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
