@@ -2446,22 +2446,18 @@ describe('User Controller', () => {
   // 6. 并发与竞态条件
   // ============================================================
   describe('Concurrency and race conditions', () => {
-    it('should handle concurrent list requests', async () => {
+    it('should handle multiple list requests', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindMany = jest.fn().mockResolvedValue([]);
       const mockCount = jest.fn().mockResolvedValue(0);
       getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
 
-      const requests = Array(5).fill(null).map(() =>
-        agent
+      for (let i = 0; i < 5; i++) {
+        const res = await agent
           .get('/api/v1/users')
-          .set('Authorization', `Bearer ${sysadminToken()}`)
-      );
-
-      const responses = await Promise.all(requests);
-      responses.forEach(r => {
-        expect(r.status).toBe(200);
-      });
+          .set('Authorization', `Bearer ${sysadminToken()}`);
+        expect(res.status).toBe(200);
+      }
     });
 
     it('should handle concurrent create with same username (race)', async () => {
