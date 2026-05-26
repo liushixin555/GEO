@@ -131,6 +131,7 @@ export const deleteArticle = withArticleAuth(async (req, res, ctx) => {
 export const reviewArticle = withArticleAuth(async (req, res, ctx) => {
   const { approved } = req.body as z.infer<typeof reviewArticleSchema>;
   const item = await articleService.review(ctx.projectId, ctx.articleId!, approved, ctx);
+  logger.info('article_reviewed', { articleId: ctx.articleId, projectId: ctx.projectId, operatorId: ctx.userId, role: ctx.role, approved });
   success(res, item, approved ? '审核通过' : '审核不通过');
 }, { requireId: true, errorContext: '审核操作失败' });
 

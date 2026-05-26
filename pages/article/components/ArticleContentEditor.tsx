@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Segmented, Button, Popconfirm, Grid, Alert } from 'antd';
-import { EyeOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined, SaveOutlined } from '@ant-design/icons';
+import { Segmented, Button, Popconfirm, Grid } from 'antd';
+import { EyeOutlined, EditOutlined, CheckCircleOutlined, ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import MarkdownEditor from '../../components/MarkdownEditor';
 import MarkdownViewer from '../../components/MarkdownViewer';
 import type { ArticleData } from '../types';
@@ -15,7 +15,6 @@ interface ArticleContentEditorProps {
   onContentChange: (content: string) => void;
   onContentModeChange: (mode: 'preview' | 'edit') => void;
   onSaveContent: () => void;
-  onReview: (approved: boolean) => void;
   onRegenerate: () => void;
   onSubmitForReview: () => void;
 }
@@ -23,7 +22,7 @@ interface ArticleContentEditorProps {
 const ArticleContentEditor: React.FC<ArticleContentEditorProps> = ({
   article, content, contentMode, contentSaving, isContentEditable,
   onContentChange, onContentModeChange, onSaveContent,
-  onReview, onRegenerate, onSubmitForReview,
+  onRegenerate, onSubmitForReview,
 }) => {
   const screens = Grid.useBreakpoint();
   const editorHeight = screens.md ? 600 : 320;
@@ -73,24 +72,6 @@ const ArticleContentEditor: React.FC<ArticleContentEditorProps> = ({
           )}
         </div>
       </div>
-    )}
-    {article?.status === 'pending_review' && (
-      <Alert
-        type="warning"
-        message="该文章待审核"
-        showIcon
-        style={{ marginBottom: 12 }}
-        action={
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Popconfirm title="确认审核通过？" description="通过后文章将完成审核流程" onConfirm={() => onReview(true)} okText="确认" cancelText="取消">
-              <Button type="primary" icon={<CheckCircleOutlined />}>审核通过</Button>
-            </Popconfirm>
-            <Popconfirm title="确认审核不通过？" description="不通过后将退回为草稿" onConfirm={() => onReview(false)} okText="确认" cancelText="取消">
-              <Button danger icon={<CloseCircleOutlined />}>审核不通过</Button>
-            </Popconfirm>
-          </div>
-        }
-      />
     )}
     {contentMode === 'edit' ? (
       <MarkdownEditor

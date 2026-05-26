@@ -11,6 +11,7 @@ import { useDocumentImport } from './hooks/useDocumentImport';
 import { STATUS_CONFIG, type WriteMode, type ArticleFormValues } from './types';
 import ArticleSettingsForm from './components/ArticleSettingsForm';
 import ArticleContentEditor from './components/ArticleContentEditor';
+import ArticleReviewActions from './components/ArticleReviewActions';
 
 const ArticleDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -165,19 +166,24 @@ const ArticleDetail: React.FC = () => {
   );
 
   const contentTab = (
-    <ArticleContentEditor
-      article={detail.article}
-      content={detail.content}
-      contentMode={contentMode}
-      contentSaving={detail.contentSaving}
-      isContentEditable={isContentEditable}
-      onContentChange={detail.setContent}
-      onContentModeChange={setContentMode}
-      onSaveContent={detail.saveContent}
-      onReview={actions.review}
-      onRegenerate={actions.regenerate}
-      onSubmitForReview={actions.submitForReview}
-    />
+    <>
+      <ArticleReviewActions
+        visible={permissions.canReview}
+        onReview={actions.review}
+      />
+      <ArticleContentEditor
+        article={detail.article}
+        content={detail.content}
+        contentMode={contentMode}
+        contentSaving={detail.contentSaving}
+        isContentEditable={isContentEditable}
+        onContentChange={detail.setContent}
+        onContentModeChange={setContentMode}
+        onSaveContent={detail.saveContent}
+        onRegenerate={actions.regenerate}
+        onSubmitForReview={actions.submitForReview}
+      />
+    </>
   );
 
   const collapseItems = [{ key: 'settings', label: '文章设置', children: settingsTab }];
