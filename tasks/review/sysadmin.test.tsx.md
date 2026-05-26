@@ -253,3 +253,36 @@
 `sysadmin.test.tsx` 是一份**完全与当前源码脱节的测试文件**，10 个测试用例无一可执行，无一与当前组件行为匹配。核心问题有四层：(1) CompanyForm 的 import 路径指向已不存在的文件，TypeScript 编译失败；(2) SystemAdminPage 已从旧版"公司管理"页面重构为"LLM 模型管理 + 系统配置"页面，但测试仍描述旧版行为；(3) CompanyForm 已从 `pages/sysadmin/` 迁移至 `pages/company/`，表单字段也从 admin_username/admin_password 变为 operator_ids/viewer_ids 的 Select 多选；(4) Mock 策略在 axios 模块级别，与项目 apiClient 架构（axios.create 实例 + baseURL）完全不匹配。
 
 **综合评分 1.0/10 — REJECT**。建议从零重写，基于当前源码结构分别编写 `sysadmin.test.tsx`（SystemAdminPage + LlmModelForm）和 `company-form.test.tsx`（CompanyForm），采用 mock `apiClient` 模块的策略。
+
+---
+
+## 修复记录（2026-05-26）
+
+**修复提交**: `89f8f49` — `fix: sysadmin.test.tsx 从零重写——修正4项BLOCKING`
+
+### 修复内容
+
+| 评审项 | 修复动作 |
+|--------|---------|
+| C-1: CompanyForm import 路径不存在 | 改为 `import CompanyForm from '../../pages/company/CompanyForm'` |
+| C-2: SystemAdminPage 测试描述旧版行为 | 重写为 LLM 模型管理测试（模型卡片渲染、API Key 脱敏、删除、面板标签） |
+| C-3: CompanyForm 测试字段不匹配 | 重写为 operator_ids/viewer_ids Select 多选 + address + 禁用状态 |
+| C-4: Mock axios 而非 apiClient | 改为 `jest.mock('../../pages/lib/apiClient')` |
+| H-1: 零 LlmModelForm 测试 | 新增 7 个测试（添加/编辑标题、禁用警告、POST/PUT 提交、错误、取消、隐藏保存） |
+| H-5: 路由路径错误 | `/sysadmin/add` → `/company/add`、`/sysadmin/edit/:id` → `/company/edit/:id` |
+| M-1: BrowserRouter 反模式 | 改为 `MemoryRouter + initialEntries` |
+
+### setup.ts 增强
+
+Form mock 从 `<div>` 改为 `<form>` 元素，支持 `fireEvent.submit` 触发 `onFinish` 回调（通过 `STABLE_FORM.validateFields()` 返回值），使表单提交测试可行。
+
+### 修复后测试结果
+
+```
+PASS tests/pages/sysadmin.test.tsx (26 tests)
+  SystemAdminPage: 8 tests ✓
+  LlmModelForm: 7 tests ✓
+  CompanyForm - Add: 5 tests ✓
+  CompanyForm - Edit: 5 tests ✓
+  ArticlePermissions (sysadmin related): 1 test ✓
+```
