@@ -1,4 +1,4 @@
-import { Company, User, Skills, LlmModel, SystemConfig, Project, Article, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, KnowledgeBase, MinedKeyword, Todo, TodoLog } from '../entity';
+import { Company, User, Skills, SkillsDetail, LlmModel, SystemConfig, Project, Article, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, KnowledgeBase, MinedKeyword, Todo, TodoLog } from '../entity';
 import type { PublishingSchedule, PublishingScheduleItem } from '../entity/publishing-schedule.entity';
 import { Company as PrismaCompany, Skills as PrismaSkills } from '@prisma/client';
 import { isEncrypted } from '../utils/encryption.util';
@@ -18,7 +18,7 @@ export function mapCompany(prismaCompany: PrismaCompany): Company {
   };
 }
 
-export function mapSkills(prismaSkills: PrismaSkills & { creator?: { cnName?: string } | null }): Skills {
+export function mapSkills(prismaSkills: PrismaSkills & { creator?: { cnName?: string } | null }): SkillsDetail {
   return {
     id: prismaSkills.id,
     name: prismaSkills.name,
@@ -28,6 +28,7 @@ export function mapSkills(prismaSkills: PrismaSkills & { creator?: { cnName?: st
     creator_name: prismaSkills.creator?.cnName || null,
     created_at: prismaSkills.createdAt,
     updated_at: prismaSkills.updatedAt,
+    deleted_at: prismaSkills.deletedAt ?? null,
   };
 }
 

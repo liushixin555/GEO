@@ -123,8 +123,7 @@ export async function createSkills(req: Request, res: Response): Promise<void> {
       name,
       description,
       skill_dir: topDir,
-      created_by: req.user.userId,
-    });
+    }, req.user.userId);
 
     created(res, item, '技能创建成功');
     logger.info('skill.created', { skillId: item.id, name: item.name, userId: req.user!.userId, reusedSoftDeleted: !!softDeleted });

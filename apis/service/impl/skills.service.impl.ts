@@ -1,12 +1,12 @@
 import { Prisma } from '@prisma/client';
 import { getPrisma } from '../../utils';
-import { Skills, CreateSkillsRequest, UpdateSkillsRequest } from '../../entity';
+import { CreateSkillsRequest, UpdateSkillsRequest, SkillsDetail } from '../../entity';
 import { NotFoundError, ConflictError } from '../../errors';
 import { mapSkills } from '../../map';
 import { ISkillsService } from '../skills.service';
 
 export class SkillsServiceImpl implements ISkillsService {
-  async list(page: number, pageSize: number, search?: string): Promise<{ list: Skills[]; total: number }> {
+  async list(page: number, pageSize: number, search?: string): Promise<{ list: SkillsDetail[]; total: number }> {
     const prisma = getPrisma();
 
     const where: Prisma.SkillsWhereInput = {
@@ -28,7 +28,7 @@ export class SkillsServiceImpl implements ISkillsService {
     return { list: items.map(mapSkills), total };
   }
 
-  async getById(id: number): Promise<Skills> {
+  async getById(id: number): Promise<SkillsDetail> {
     const prisma = getPrisma();
     const item = await prisma.skills.findFirst({
       where: { id, deletedAt: null },
@@ -48,7 +48,7 @@ export class SkillsServiceImpl implements ISkillsService {
     return { id: item.id, skill_dir: item.skillDir };
   }
 
-  async create(request: CreateSkillsRequest): Promise<Skills> {
+  async create(request: CreateSkillsRequest, createdBy: number): Promise<SkillsDetail> {
     const prisma = getPrisma();
 
     // Rule 1: active (non-deleted) skill with same name → reject
@@ -63,7 +63,7 @@ export class SkillsServiceImpl implements ISkillsService {
         data: {
           description: request.description || null,
           skillDir: request.skill_dir,
-          createdBy: request.created_by ?? null,
+          createdBy: createdBy,
           deletedAt: null,
         },
         include: { creator: true },
@@ -77,14 +77,14 @@ export class SkillsServiceImpl implements ISkillsService {
         name: request.name,
         description: request.description || null,
         skillDir: request.skill_dir,
-        createdBy: request.created_by ?? null,
+        createdBy: createdBy,
       },
       include: { creator: true },
     });
     return mapSkills(item);
   }
 
-  async update(id: number, request: UpdateSkillsRequest): Promise<Skills> {
+  async update(id: number, request: UpdateSkillsRequest): Promise<SkillsDetail> {
     const prisma = getPrisma();
 
     const existing = await prisma.skills.findFirst({ where: { id, deletedAt: null } });
