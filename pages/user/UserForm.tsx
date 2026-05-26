@@ -1,14 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Select, Button, Alert } from 'antd';
 import apiClient from '../lib/apiClient';
-
-interface UserItem {
-  id: number;
-  username: string;
-  cn_name: string;
-  role: string;
-  status: boolean;
-}
+import type { UserItem } from '../types/user';
 
 interface UserFormProps {
   item: UserItem | null;
@@ -34,15 +27,15 @@ const UserForm: React.FC<UserFormProps> = ({ item, isSysadmin, onClose, onSaved 
     } else {
       form.setFieldsValue({ role: 'view' });
     }
-  }, [item]);
+  }, [item, form]);
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: { username?: string; cn_name?: string; role: string; password?: string }) => {
     setSaving(true);
     setError('');
     try {
-      const payload: any = {
-        username: values.username?.trim(),
-        cn_name: values.cn_name?.trim(),
+      const payload: Record<string, string> = {
+        username: values.username?.trim() || '',
+        cn_name: values.cn_name?.trim() || '',
         role: values.role,
       };
       if (values.password?.trim()) payload.password = values.password.trim();
@@ -55,8 +48,10 @@ const UserForm: React.FC<UserFormProps> = ({ item, isSysadmin, onClose, onSaved 
       }
       onSaved();
       onClose();
-    } catch (err: any) {
-      setError(err.response?.data?.message || '操作失败');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '操作失败';
+      const serverMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(serverMsg || msg);
     } finally {
       setSaving(false);
     }
