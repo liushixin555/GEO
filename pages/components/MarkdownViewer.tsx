@@ -55,10 +55,34 @@ export const SAFE_INPUT_TYPES = new Set(['checkbox']);
 // === DOMPurify 配置 ===
 
 const EVENT_ATTRS = [
-  'onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur',
-  'onmouseout', 'onkeydown', 'onkeyup', 'onkeypress', 'onchange',
-  'onsubmit', 'onreset', 'ondrag', 'ondrop', 'oncontextmenu',
-  'onwheel', 'onpointerdown', 'onpointerup', 'onpointermove', 'oninput',
+  // 鼠标 / 指针事件
+  'onclick', 'ondblclick', 'onmouseover', 'onmouseout', 'onmouseenter', 'onmouseleave',
+  'onmousedown', 'onmouseup', 'onwheel',
+  'onpointerdown', 'onpointerup', 'onpointermove', 'onpointerenter', 'onpointerleave',
+  'onpointercancel', 'ongotpointercapture', 'onlostpointercapture',
+  // 键盘事件
+  'onkeydown', 'onkeyup', 'onkeypress',
+  // 焦点事件
+  'onfocus', 'onblur', 'onfocusin', 'onfocusout',
+  // 表单事件
+  'oninput', 'onchange', 'onsubmit', 'onreset', 'onselect', 'oninvalid',
+  // 拖拽事件
+  'ondrag', 'ondragstart', 'ondragend', 'ondragenter', 'ondragleave', 'ondragover', 'ondrop',
+  // 资源加载 / 错误
+  'onerror', 'onload', 'onloadstart', 'onloadend', 'onabort',
+  // CSS 动画 / 过渡触发型（无需用户交互即可触发）
+  'onanimationstart', 'onanimationend', 'onanimationiteration',
+  'ontransitionend', 'ontransitionstart', 'ontransitionrun', 'ontransitioncancel',
+  // 剪贴板事件
+  'oncopy', 'oncut', 'onpaste',
+  // 触控事件
+  'ontouchstart', 'ontouchmove', 'ontouchend', 'ontouchcancel',
+  // 滚动 / 大小
+  'onscroll', 'onresize',
+  // 上下文菜单
+  'oncontextmenu',
+  // 拖拽相关
+  'onbeforeinput', 'onautocomplete', 'onautocompleteerror',
 ];
 
 const DANGEROUS_ATTRS = [
