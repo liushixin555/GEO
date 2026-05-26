@@ -393,3 +393,44 @@ URL_PROPERTIES    // 可能包含 URL 的属性名集合（href/src/action/forma
 - [x] 全部 116 个 MarkdownViewer 测试通过
 - [x] 前端构建通过
 - [x] ESLint 无错误
+
+---
+
+## 第九轮评审修复（preview.tsx Committer 审核，2026-05-26）
+
+基于 `tasks/review/preview.tsx.committer.md` Committer 审核专家评审（综合判定：⚠️ 有条件通过 CONDITIONAL APPROVE），验证所有前置条件已实现并补充测试覆盖。
+
+### 前置条件验证
+
+| # | 前置条件 | 状态 |
+|---|----------|------|
+| 1 | 传入安全 `urlTransform` | ✅ safeUrlTransform 白名单协议过滤 |
+| 2 | 传入自定义 `allowElement` | ✅ SAFE_TAGS 显式标签白名单 |
+| 3 | DOMPurify 消毒不可移除 | ✅ "安全关键"注释标注 |
+| 4 | 文档化 preview.tsx 安全风险 | ✅ 文件头部完整安全缺陷 + 防护措施注释 |
+| 5 | React.memo 包裹 | ✅ memo(MarkdownViewerBase) |
+| 6 | nohighlight 入口 | ✅ @uiw/react-markdown-preview/nohighlight |
+| 7 | 版本锁定 | ✅ ~5.2.1 |
+
+### 新增测试用例（6 个）
+
+- `removes style attribute from any element` — #3 修复 rehypeRewrite style 属性清理
+- `scrollToAnchor calls scrollIntoView on matching element` — scrollToAnchor 命令式 API
+- `triggers click on Enter/Space key when target is inside .copied element` — 键盘无障碍
+- `returns empty string for unparseable URL` — safeUrlTransform catch 分支
+- `handles empty and null-like inputs` — safeUrlTransform 空值防御
+
+### 涉及文件
+
+- `tests/pages/components/MarkdownViewer.test.tsx` — 新增 6 个测试（122 个全部通过）
+
+### 验收标准（第九轮）
+
+- [x] preview.tsx Committer 审核 4 项 Blocking 全部已实现
+- [x] preview.tsx Committer 审核 4 项 Non-blocking 全部已实现
+- [x] pnpm patch 已应用（`patches/@uiw__react-markdown-preview@5.2.1.patch`）
+- [x] 新增 6 个测试用例覆盖未覆盖行
+- [x] 全部 122 个 MarkdownViewer 测试通过
+- [x] 覆盖率 97.27% Stmts / 93.5% Branch / 95.83% Funcs / 100% Lines
+- [x] 前端构建通过
+- [x] ESLint 无错误

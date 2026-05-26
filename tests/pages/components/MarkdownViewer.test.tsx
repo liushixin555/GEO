@@ -306,6 +306,31 @@ describe('safeUrlTransform', () => {
   it('allows anchor links', () => {
     expect(safeUrlTransform('#section-1')).toBe('#section-1');
   });
+
+  it('returns empty string for unparseable URL that does not match any protocol', () => {
+    // 构造一个无法被 URL() 解析且不匹配任何允许协议的值
+    // 使用 unicode 特殊字符使 URL 构造器抛出异常
+    const originalURL = globalThis.URL;
+    // 临时替换 URL 构造器使其对特定输入抛出异常
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).URL = function(url: string) {
+      if (url === '%zx') throw new TypeError('Invalid URL');
+      return new originalURL(url, 'https://placeholder.com');
+    };
+    try {
+      expect(safeUrlTransform('%zx')).toBe('');
+    } finally {
+      (globalThis as any).URL = originalURL;
+    }
+  });
+
+  it('handles empty and null-like inputs', () => {
+    expect(safeUrlTransform('')).toBe('');
+    // @ts-expect-error — 测试防御性处理
+    expect(safeUrlTransform(null)).toBe('');
+    // @ts-expect-error — 测试防御性处理
+    expect(safeUrlTransform(undefined)).toBe('');
+  });
 });
 
 describe('MarkdownViewer — UI review fixes', () => {
@@ -362,6 +387,20 @@ describe('MarkdownViewer — UI review fixes', () => {
     expect(typeof ref.current?.scrollToAnchor).toBe('function');
   });
 
+  it('scrollToAnchor calls scrollIntoView on matching element', () => {
+    const ref = React.createRef<MarkdownViewerRef>();
+    const { container } = render(<MarkdownViewer ref={ref} content="test" />);
+    const viewerDiv = container.querySelector('.markdown-viewer') as HTMLElement;
+    const mockElement = document.createElement('div');
+    mockElement.id = 'test-anchor';
+    const scrollIntoViewSpy = jest.fn();
+    mockElement.scrollIntoView = scrollIntoViewSpy;
+    viewerDiv.querySelector = jest.fn().mockReturnValue(mockElement);
+    ref.current?.scrollToAnchor('test-anchor');
+    expect(viewerDiv.querySelector).toHaveBeenCalledWith('#test-anchor');
+    expect(scrollIntoViewSpy).toHaveBeenCalledWith({ behavior: 'smooth' });
+  });
+
   it('calls onScroll when scrolling', () => {
     const onScroll = jest.fn();
     const { container } = render(<MarkdownViewer content="test" onScroll={onScroll} />);
@@ -384,6 +423,34 @@ describe('MarkdownViewer — UI review fixes', () => {
     const viewerDiv = container.querySelector('.markdown-viewer') as HTMLElement;
     fireEvent.keyDown(viewerDiv, { key: 'Enter' });
     expect(onKeyDown).toHaveBeenCalledTimes(1);
+  });
+
+  it('triggers click on Enter key when target is inside .copied element', () => {
+    const { container } = render(<MarkdownViewer content="test" />);
+    const viewerDiv = container.querySelector('.markdown-viewer') as HTMLElement;
+    const copiedDiv = document.createElement('div');
+    copiedDiv.classList.add('copied');
+    const innerSpan = document.createElement('span');
+    const clickSpy = jest.fn();
+    innerSpan.click = clickSpy;
+    copiedDiv.appendChild(innerSpan);
+    viewerDiv.appendChild(copiedDiv);
+    fireEvent.keyDown(innerSpan, { key: 'Enter' });
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('triggers click on Space key when target is inside .copied element', () => {
+    const { container } = render(<MarkdownViewer content="test" />);
+    const viewerDiv = container.querySelector('.markdown-viewer') as HTMLElement;
+    const copiedDiv = document.createElement('div');
+    copiedDiv.classList.add('copied');
+    const innerSpan = document.createElement('span');
+    const clickSpy = jest.fn();
+    innerSpan.click = clickSpy;
+    copiedDiv.appendChild(innerSpan);
+    viewerDiv.appendChild(copiedDiv);
+    fireEvent.keyDown(innerSpan, { key: ' ' });
+    expect(clickSpy).toHaveBeenCalledTimes(1);
   });
 
   it('calls onMouseEnter when mouse enters', () => {
@@ -1087,6 +1154,20 @@ describe('MarkdownViewer — security review combined: DOMPurify + allowElement 
     expect(allowElement({ tagName: 'style' })).toBe(false);
     expect(allowElement({ tagName: 'noscript' })).toBe(false);
     expect(allowElement({ tagName: 'template' })).toBe(false);
+  });
+
+  // #3 修复：rehypeRewrite 清理 style 属性
+  it('removes style attribute from any element', () => {
+    render(<MarkdownViewer content="test" />);
+    const rewrite = mockProps.rehypeRewrite as (node: any, index: number | undefined, parent: any) => void;
+    const node = {
+      type: 'element',
+      tagName: 'div',
+      properties: { style: 'background:url(javascript:alert(1))', className: 'styled-div' } as Record<string, any>,
+    };
+    rewrite(node, 0, null);
+    expect(node.properties.style).toBeUndefined();
+    expect(node.properties.className).toBe('styled-div');
   });
 
   // === UI 评审修复测试 ===

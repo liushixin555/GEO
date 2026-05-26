@@ -50,5 +50,27 @@
 ```bash
 pnpm build        # ✅ 通过
 pnpm lint         # ✅ 通过
-MarkdownViewer 测试 # ✅ 116 个测试全部通过
+MarkdownViewer 测试 # ✅ 122 个测试全部通过（覆盖率 97.27% Stmts / 93.5% Branch / 95.83% Funcs / 100% Lines）
 ```
+
+## 第二轮验证（测试补全）
+
+### 新增测试用例（6 个）
+
+| 测试 | 覆盖目标 |
+|------|---------|
+| `removes style attribute from any element` | #3 修复 rehypeRewrite style 属性清理 |
+| `scrollToAnchor calls scrollIntoView on matching element` | `useImperativeHandle` scrollToAnchor 路径 |
+| `triggers click on Enter key when target is inside .copied element` | UI-P1-03 复制按钮键盘 Enter 支持 |
+| `triggers click on Space key when target is inside .copied element` | UI-P1-03 复制按钮键盘 Space 支持 |
+| `returns empty string for unparseable URL that does not match any protocol` | safeUrlTransform catch 分支 |
+| `handles empty and null-like inputs` | safeUrlTransform 空值防御 |
+
+### 覆盖率变化
+
+| 指标 | 修复前 | 修复后 |
+|------|--------|--------|
+| Stmts | 93.19% | 97.27% |
+| Branch | 88.31% | 93.5% |
+| Funcs | 91.66% | 95.83% |
+| Lines | 96.09% | 100% |
