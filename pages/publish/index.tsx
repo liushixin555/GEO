@@ -121,7 +121,7 @@ const PublishingSchedulePage: React.FC = () => {
   const fetchPublishableArticles = useCallback(async () => {
     setArticleLoading(true);
     try {
-      const params: Record<string, unknown> = { page: 1, pageSize: 200, status: 'approved' };
+      const params: Record<string, unknown> = { page: 1, pageSize: 100, status: 'approved' };
       if (projectId) params.projectId = projectId;
       const res = await apiClient.get('/publishing-schedule/articles', { params });
       const articles: ArticleOption[] = (res.data.data.list || []).map((a: Record<string, unknown>) => ({
