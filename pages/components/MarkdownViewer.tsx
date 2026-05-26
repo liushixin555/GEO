@@ -21,6 +21,15 @@
  *   - skipHtml=true（意图跳过HTML） → 实际传入 skipHtml=false → 会渲染 HTML
  *   - skipHtml=false（意图渲染HTML） → 实际传入 skipHtml=true → 会跳过 HTML
  *   本封装层不传 skipHtml，使用 DOMPurify 消毒后的 safeSource 代替，绕过此陷阱。
+ *
+ * ♿ 可访问性局限性声明：
+ *   本封装层已为容器添加 role/aria-label/aria-live/tabIndex，为代码块和锚点链接注入
+ *   ARIA 属性，但底层 @uiw/react-markdown-preview 仍存在以下局限：
+ *   - Markdown 标题层级仅通过样式区分，无 ARIA heading level 标注
+ *   - 表格结构缺少 scope/headers 属性，屏幕阅读器难以关联表头与单元格
+ *   - GFM task list（- [ ]）checkbox 无关联 label
+ *   - 图片 alt 文本依赖内容作者填写，封装层无法强制要求
+ *   这些局限需等待上游库修复或通过后处理 rehype 插件逐步改善。
  */
 import { useMemo, useCallback, useState, useEffect, Component, forwardRef, useRef, useImperativeHandle, memo } from 'react';
 import MarkdownPreview from '@uiw/react-markdown-preview/nohighlight';

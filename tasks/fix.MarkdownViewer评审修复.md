@@ -434,3 +434,4 @@ URL_PROPERTIES    // 可能包含 URL 的属性名集合（href/src/action/forma
 - [x] 覆盖率 97.27% Stmts / 93.5% Branch / 95.83% Funcs / 100% Lines
 - [x] 前端构建通过
 - [x] ESLint 无错误
+- [x] 在 MarkdownViewer.tsx 文件头部添加 ♿ 可访问性局限性声明（标题无 ARIA level、表格缺 scope、task list checkbox 无 label、图片 alt 依赖作者）

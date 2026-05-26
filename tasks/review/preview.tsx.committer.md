@@ -251,7 +251,7 @@ by_geo 项目 Markdown 渲染链路：
 - [x] 导入 `nohighlight` 入口减少 Bundle 体积 ✅ 已使用 @uiw/react-markdown-preview/nohighlight
 - [x] 版本锁定到 minor 版本（`~5.x.x`）✅ 已锁定 @uiw/react-markdown-preview@~5.2.1
 - [ ] 关注 `@uiw/react-markdown-preview` v5 版本更新，评估是否修复 S1/S2/S3
-- [ ] 在项目的可访问性声明中标注 Markdown 预览组件的局限性
+- [x] 在项目的可访问性声明中标注 Markdown 预览组件的局限性 ✅ 已在 MarkdownViewer.tsx 文件头部添加 ♿ 可访问性局限性声明（标题无 ARIA level、表格缺 scope、task list checkbox 无 label、图片 alt 依赖作者）
 
 ---
 
