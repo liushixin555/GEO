@@ -1,12 +1,12 @@
 import { Request, Response } from 'express';
 import { createKnowledgeBaseService } from '../service';
 import { success, fail, paginate, created } from '../utils';
-import { UpdateKnowledgeBaseRequest } from '../entity';
+import { UpdateKnowledgeBaseRequest, KnowledgeScope } from '../entity';
 import { AppError, BusinessError } from '../errors';
 
 const knowledgeBaseService = createKnowledgeBaseService();
 
-const VALID_SCOPES = ['platform', 'company', 'project'] as const;
+const VALID_SCOPES: readonly KnowledgeScope[] = ['platform', 'company', 'project'] as const;
 
 function validateInteger(value: unknown, fieldName: string): number | undefined {
   if (value === undefined || value === null) return undefined;
@@ -24,7 +24,7 @@ export async function listKnowledgeBases(req: Request, res: Response): Promise<v
     const rawSearch = req.query.search as string | undefined;
     const search = rawSearch ? rawSearch.slice(0, 100) : undefined;
     const rawScope = req.query.scope as string | undefined;
-    const scope = rawScope && VALID_SCOPES.includes(rawScope as any) ? rawScope : undefined;
+    const scope = rawScope && VALID_SCOPES.includes(rawScope as KnowledgeScope) ? (rawScope as KnowledgeScope) : undefined;
     const status = req.query.status === undefined ? undefined : req.query.status === 'true';
 
     const user = req.user;
@@ -70,8 +70,8 @@ export async function createKnowledgeBase(req: Request, res: Response): Promise<
     }
     if (name.length > 200) { fail(res, 400, '知识库名称不能超过200个字符'); return; }
     const validDescription = typeof description === 'string' ? description : undefined as string | undefined;
-    if (validDescription !== undefined && validDescription.length > 2000) {
-      fail(res, 400, '描述不能超过2000个字符'); return;
+    if (validDescription !== undefined && validDescription.length > 500) {
+      fail(res, 400, '描述不能超过500个字符'); return;
     }
     if (!scope || !VALID_SCOPES.includes(scope)) {
       fail(res, 400, '知识库范围不合法，应为 platform/company/project');

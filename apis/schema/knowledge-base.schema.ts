@@ -6,7 +6,7 @@ const name = z.string({ error: '知识库名称不能为空' })
   .trim();
 
 const description = z.string()
-  .max(2000, '描述不能超过2000个字符')
+  .max(500, '描述不能超过500个字符')
   .optional()
   .nullable();
 

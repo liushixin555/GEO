@@ -72,6 +72,7 @@ function makeExpectedMapped(overrides: Record<string, any> = {}) {
     document_count: 1,
     created_at: new Date('2025-01-01'),
     updated_at: new Date('2025-06-01'),
+    deleted_at: null,
     ...overrides,
   };
 }
@@ -449,7 +450,7 @@ describe('KnowledgeBaseServiceImpl', () => {
       expect(result.id).toBe(3);
       expect(result.name).toBe('测试知识库');
       expect(mockFindFirst).toHaveBeenCalledWith({
-        where: { id: 3 },
+        where: { id: 3, deletedAt: null },
         include: BASE_INCLUDE,
       });
     });
@@ -782,13 +783,13 @@ describe('KnowledgeBaseServiceImpl', () => {
       );
     });
 
-    it('should set description to null when empty string provided', async () => {
+    it('should preserve empty string description (?? null only coalesces on null/undefined)', async () => {
       const request = {
         name: '空描述知识库',
         description: '',
         scope: 'platform' as const,
       };
-      const created = makePrismaKnowledgeBase({ id: 5, description: null });
+      const created = makePrismaKnowledgeBase({ id: 5, description: '' });
       const mockCreate = jest.fn().mockResolvedValue(created);
       mockedGetPrisma.mockReturnValue({
         knowledgeBase: { create: mockCreate },
@@ -798,7 +799,7 @@ describe('KnowledgeBaseServiceImpl', () => {
 
       expect(mockCreate).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ description: null }),
+          data: expect.objectContaining({ description: '' }),
         }),
       );
     });
@@ -1016,9 +1017,9 @@ describe('KnowledgeBaseServiceImpl', () => {
       });
     });
 
-    it('should update description (set to null when empty)', async () => {
+    it('should update description (preserve empty string)', async () => {
       const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1 });
-      const updated = makePrismaKnowledgeBase({ id: 1, description: null });
+      const updated = makePrismaKnowledgeBase({ id: 1, description: '' });
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue(updated);
       mockedGetPrisma.mockReturnValue({
@@ -1029,7 +1030,7 @@ describe('KnowledgeBaseServiceImpl', () => {
 
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { description: null },
+        data: { description: '' },
         include: BASE_INCLUDE,
       });
     });
@@ -1563,6 +1564,7 @@ describe('KnowledgeBaseServiceImpl', () => {
         document_count: 0,
         created_at: new Date('2025-01-01'),
         updated_at: new Date('2025-06-01'),
+        deleted_at: null,
       });
     });
 
@@ -2093,21 +2095,21 @@ describe('KnowledgeBaseServiceImpl', () => {
       });
     });
 
-    it('should handle update with description explicitly set to null (non-empty string)', async () => {
+    it('should preserve empty string description on update (?? null only coalesces on null/undefined)', async () => {
       const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1 });
-      const updated = makePrismaKnowledgeBase({ id: 1, description: null });
+      const updated = makePrismaKnowledgeBase({ id: 1, description: '' });
       const mockFindFirst = jest.fn().mockResolvedValue(existing);
       const mockUpdate = jest.fn().mockResolvedValue(updated);
       mockedGetPrisma.mockReturnValue({
         knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      // description: '' is falsy → description || null → null
+      // description: '' → description ?? null → '' (?? preserves empty string)
       await service.update(1, { description: '' }, 1, 'admin');
 
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { description: null },
+        data: { description: '' },
         include: BASE_INCLUDE,
       });
     });

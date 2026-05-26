@@ -1,5 +1,5 @@
 import { getPrisma } from '../../utils';
-import { KnowledgeBase, CreateKnowledgeBaseRequest, UpdateKnowledgeBaseRequest } from '../../entity';
+import { KnowledgeBase, KnowledgeBaseDetail, CreateKnowledgeBaseRequest, UpdateKnowledgeBaseRequest } from '../../entity';
 import { IKnowledgeBaseService } from '../knowledge-base.service';
 import { NotFoundError, BusinessError, ForbiddenError } from '../../errors';
 
@@ -17,7 +17,7 @@ const BASE_INCLUDE = {
   },
 };
 
-function mapKnowledgeBase(item: any): KnowledgeBase {
+function mapKnowledgeBase(item: any): KnowledgeBaseDetail {
   return {
     id: item.id,
     name: item.name,
@@ -36,11 +36,12 @@ function mapKnowledgeBase(item: any): KnowledgeBase {
     document_count: item._count?.documents ?? 0,
     created_at: item.createdAt,
     updated_at: item.updatedAt,
+    deleted_at: item.deletedAt ?? null,
   };
 }
 
 export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
-  async list(page: number, pageSize: number, search?: string, scope?: string, status?: boolean, userId?: number, role?: string): Promise<{ list: KnowledgeBase[]; total: number }> {
+  async list(page: number, pageSize: number, search?: string, scope?: string, status?: boolean, userId?: number, role?: string): Promise<{ list: KnowledgeBaseDetail[]; total: number }> {
     const prisma = getPrisma();
 
     const where: any = {};
@@ -103,10 +104,10 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
     return { list: items.map(mapKnowledgeBase), total };
   }
 
-  async getById(id: number, userId?: number, role?: string): Promise<KnowledgeBase> {
+  async getById(id: number, userId?: number, role?: string): Promise<KnowledgeBaseDetail> {
     const prisma = getPrisma();
     const item = await prisma.knowledgeBase.findFirst({
-      where: { id },
+      where: { id, deletedAt: null },
       include: BASE_INCLUDE,
     });
     if (!item) throw new NotFoundError('知识库');
@@ -135,7 +136,7 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
     return mapKnowledgeBase(item);
   }
 
-  async create(request: CreateKnowledgeBaseRequest, userId: number, role?: string): Promise<KnowledgeBase> {
+  async create(request: CreateKnowledgeBaseRequest, userId: number, role?: string): Promise<KnowledgeBaseDetail> {
     const prisma = getPrisma();
 
     // Validate scope-specific fields
@@ -171,7 +172,7 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
     const item = await prisma.knowledgeBase.create({
       data: {
         name: request.name,
-        description: request.description || null,
+        description: request.description ?? null,
         scope: request.scope,
         companyId,
         projectId,
@@ -182,7 +183,7 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
     return mapKnowledgeBase(item);
   }
 
-  async update(id: number, request: UpdateKnowledgeBaseRequest, userId: number, role: string): Promise<KnowledgeBase> {
+  async update(id: number, request: UpdateKnowledgeBaseRequest, userId: number, role: string): Promise<KnowledgeBaseDetail> {
     const prisma = getPrisma();
 
     const existing = await prisma.knowledgeBase.findFirst({ where: { id, deletedAt: null } });
@@ -213,7 +214,7 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
 
     const data: any = {};
     if (request.name !== undefined) data.name = request.name;
-    if (request.description !== undefined) data.description = request.description || null;
+    if (request.description !== undefined) data.description = request.description ?? null;
     if (request.status !== undefined) data.status = request.status;
 
     // Handle scope change
