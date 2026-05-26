@@ -1,5 +1,5 @@
 import { getPrisma } from '../../utils';
-import type { PublishingSchedule, PublishingScheduleItem, PublishingScheduleUpdateResult, CreatePublishingScheduleRequest, UpdatePublishingScheduleRequest, ScheduleType } from '../../entity/publishing-schedule.entity';
+import type { PublishingSchedule, PublishingScheduleItem, PublishingScheduleUpdateResult, CreatePublishingScheduleRequest, UpdatePublishingScheduleRequest, ScheduleType, PublishingScheduleListParams } from '../../entity/publishing-schedule.entity';
 import { mapPublishingSchedule, mapPublishingScheduleItem } from '../../map';
 import { IPublishingScheduleService } from '../publishing-schedule.service';
 import type { AuthContext } from '../../types/auth';
@@ -14,17 +14,10 @@ export class PublishingScheduleServiceImpl implements IPublishingScheduleService
     return item;
   }
 
-  async list(params: {
-    page: number;
-    pageSize: number;
-    search?: string;
-    status?: string;
-    projectId?: number;
-    userId?: number;
-    role?: string;
-  }): Promise<{ list: PublishingScheduleItem[]; total: number }> {
+  async list(params: PublishingScheduleListParams, auth: AuthContext): Promise<{ list: PublishingScheduleItem[]; total: number }> {
     const prisma = getPrisma();
-    const { page, pageSize, search, status, projectId, userId, role } = params;
+    const { page, pageSize, search, status, projectId } = params;
+    const { userId, role } = auth;
 
     const where: any = { deletedAt: null };
 

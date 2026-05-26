@@ -84,6 +84,9 @@ enum ArticleStatus {
   generate_failed
   pending_review
   approved
+  publishing
+  published
+  publish_failed
 }
 
 enum PublishingScheduleStatus {

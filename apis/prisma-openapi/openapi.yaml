@@ -1005,6 +1005,9 @@ components:
         - generate_failed
         - pending_review
         - approved
+        - publishing
+        - published
+        - publish_failed
     PublishingScheduleStatus:
       type: string
       enum:

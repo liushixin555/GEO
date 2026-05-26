@@ -5,7 +5,10 @@ export type ArticleStatus =
   | 'generating'
   | 'generate_failed'
   | 'pending_review'
-  | 'approved';
+  | 'approved'
+  | 'publishing'
+  | 'published'
+  | 'publish_failed';
 
 export interface Article {
   id: number;
@@ -45,6 +48,7 @@ export interface CreateArticleRequest {
   keywords?: string;
   portrait?: string;
   images?: string[] | null;
+  platforms?: string[] | null;
   skills?: number[] | null;
   llm_model_id?: number | null;
   content?: string;
@@ -58,10 +62,12 @@ export interface UpdateArticleRequest {
   keywords?: string;
   portrait?: string;
   images?: string[] | null;
+  platforms?: string[] | null;
   skills?: number[] | null;
   llm_model_id?: number | null;
   content?: string;
   status?: ArticleStatus;
+  scheduled_publish_at?: string | null;
 }
 
 export interface ReviewArticleRequest {

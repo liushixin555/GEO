@@ -49,8 +49,8 @@ export interface PublishingScheduleItem {
   keywords: string | null;
   article_type: string | null;
   platforms: string[] | null;
-  status: PublishingScheduleStatus;
-  schedule_type: ScheduleType | null;
+  status: string;
+  schedule_type: string | null;
   scheduled_publish_at: Date | null;
   project_id: number;
   project_name: string;
@@ -69,9 +69,9 @@ export interface PublishingScheduleUpdateResult {
   keywords: string | null;
   article_type: string | null;
   platforms: string[] | null;
-  status: PublishingScheduleStatus;
-  schedule_type: ScheduleType | null;
+  status: string;
   scheduled_publish_at: Date | null;
+  schedule_type: string | null;
   project_id: number;
   project_name: string;
   company_name: string;
