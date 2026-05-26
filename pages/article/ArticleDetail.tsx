@@ -22,7 +22,7 @@ const ArticleDetail: React.FC = () => {
   const isNew = id === 'new';
   const { message } = App.useApp();
   const [form] = Form.useForm();
-  const [writeMode, setWriteMode] = useState<WriteMode>('ai');
+  const writeMode = (Form.useWatch('write_mode', form) ?? 'ai') as WriteMode;
   const [imageList, setImageList] = useState<string[]>([]);
   const [contentMode, setContentMode] = useState<'preview' | 'edit'>(isNew ? 'edit' : 'preview');
 
@@ -39,9 +39,6 @@ const ArticleDetail: React.FC = () => {
 
   useEffect(() => {
     if (!detail.article) return;
-    if (detail.article.write_mode) {
-      setWriteMode(detail.article.write_mode);
-    }
     if (detail.article.images?.length) {
       setImageList(detail.article.images);
     }
@@ -149,19 +146,19 @@ const ArticleDetail: React.FC = () => {
       editable={isSettingsEditable}
       saving={detail.saving}
       error={detail.error}
-      writeMode={writeMode}
-      writeModeChange={setWriteMode}
-      imageList={imageList}
-      imageListChange={setImageList}
       onErrorClear={() => detail.setError('')}
       onSave={handleSave}
       onImportDocument={docImport.importDocument}
-      kbKeywords={kb.kbKeywords}
-      kbPortraits={kb.kbPortraits}
-      kbImages={kb.kbImages}
-      kbLoading={kb.kbLoading}
-      skillsOptions={kb.skillsOptions}
-      llmModelsOptions={kb.llmModelsOptions}
+      imageList={imageList}
+      imageListChange={setImageList}
+      kb={{
+        keywords: kb.kbKeywords,
+        portraits: kb.kbPortraits,
+        images: kb.kbImages,
+        loading: kb.kbLoading,
+        skillsOptions: kb.skillsOptions,
+        llmModelsOptions: kb.llmModelsOptions,
+      }}
     />
   );
 

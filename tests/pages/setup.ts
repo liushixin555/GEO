@@ -2,13 +2,20 @@ import '@testing-library/jest-dom';
 
 // Stable singletons — must be created ONCE and reused across all mock accesses
 // Exported for test files that need to re-set mock implementations in beforeEach
+const formFieldStore: Record<string, any> = { write_mode: 'ai' };
+
 export const STABLE_FORM = {
-  getFieldValue: jest.fn(),
-  getFieldsValue: jest.fn(() => ({})),
-  setFieldValue: jest.fn(),
-  setFieldsValue: jest.fn(),
-  validateFields: jest.fn(() => Promise.resolve({})),
+  getFieldValue: jest.fn((name?: string) => name ? formFieldStore[name] : { ...formFieldStore }),
+  getFieldsValue: jest.fn(() => ({ ...formFieldStore })),
+  setFieldValue: jest.fn((name: string, value: any) => { formFieldStore[name] = value; }),
+  setFieldsValue: jest.fn((values: Record<string, any>) => { Object.assign(formFieldStore, values); }),
+  validateFields: jest.fn(() => Promise.resolve({ ...formFieldStore })),
   isFieldsTouched: jest.fn(() => false),
+  resetFields: jest.fn((names?: string[]) => {
+    if (names) { names.forEach((n: string) => { formFieldStore[n] = undefined; }); }
+    else { Object.keys(formFieldStore).forEach(k => { formFieldStore[k] = undefined; }); }
+  }),
+  __store: formFieldStore,
 };
 const STABLE_APP = {
   message: { success: jest.fn(), error: jest.fn(), warning: jest.fn() },
@@ -33,11 +40,16 @@ jest.mock('antd', () => {
           )
         );
       }
-      // Segmented: render option labels
+      // Segmented: render option labels as clickable buttons
       if (name === 'Segmented' && Array.isArray(props.options)) {
         return React.createElement('div', { 'data-testid': name },
           ...props.options.map((opt: any) =>
-            React.createElement('span', { key: opt.value || opt.label }, opt.label)
+            React.createElement('button', {
+              key: opt.value || opt.label,
+              'data-testid': `segmented-${opt.value}`,
+              disabled: props.disabled,
+              onClick: () => props.onChange?.(opt.value),
+            }, opt.label)
           )
         );
       }
@@ -52,7 +64,9 @@ jest.mock('antd', () => {
       const textContent = props.message || props.title || props.tip || props.label || null;
       // Forward common HTML attributes for realistic testing (href, target, rel, aria-*, etc.)
       const htmlAttrs: Record<string, any> = { 'data-testid': name };
-      for (const key of ['href', 'target', 'rel', 'aria-label', 'aria-hidden', 'role', 'type', 'disabled', 'className', 'id', 'placeholder', 'value', 'src', 'alt', 'name', 'onClick']) {
+      // Alert always gets role="alert" when it has content
+      if (name === 'Alert' && textContent) htmlAttrs.role = 'alert';
+      for (const key of ['href', 'target', 'rel', 'aria-label', 'aria-hidden', 'role', 'type', 'disabled', 'className', 'id', 'placeholder', 'value', 'src', 'alt', 'name', 'onClick', 'loading', 'mode']) {
         if (props[key] !== undefined) htmlAttrs[key] = props[key];
       }
       if (props.style) htmlAttrs.style = props.style;
@@ -66,12 +80,18 @@ jest.mock('antd', () => {
         if (prop === 'useApp') return () => STABLE_APP;
         if (prop === 'useBreakpoint') return () => STABLE_BREAKPOINTS;
         if (prop === 'useToken') return () => ({ token: { colorBgBase: '#ffffff' } });
+        if (prop === 'useWatch') return (fieldName: string) => formFieldStore[fieldName];
         if (typeof prop === 'string' && prop !== 'displayName' && prop !== 'prototype' && prop !== 'name') {
           if (!cache[prop]) {
             const subName = `${name}.${prop}`;
             const SubComp: any = (props?: any) => {
               if (!props) return React.createElement('div', { 'data-testid': subName });
-              return React.createElement('div', { 'data-testid': subName }, props.children);
+              const text = props.label || props.message || props.title || props.tip || null;
+              const attrs: Record<string, any> = { 'data-testid': subName };
+              for (const k of ['placeholder', 'disabled', 'loading', 'mode', 'value', 'className']) {
+                if (props[k] !== undefined) attrs[k] = props[k];
+              }
+              return React.createElement('div', attrs, text, props.children, props.extra);
             };
             SubComp.displayName = subName;
             cache[prop] = SubComp;
@@ -86,7 +106,7 @@ jest.mock('antd', () => {
     get: (_, name) => {
       if (name === '__esModule') return false;
       if (typeof name !== 'string') return undefined;
-      return createComp(name);
+      return createComp(String(name));
     },
   });
 });

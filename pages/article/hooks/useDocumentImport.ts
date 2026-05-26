@@ -24,7 +24,13 @@ export function useDocumentImport(
       const ext = file.name.toLowerCase().split('.').pop();
 
       if (ext === 'md') {
-        markdown = await file.text();
+        const rawText = await file.text();
+        markdown = rawText
+          .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+          .replace(/<[^>]+>/g, (match) => {
+            if (/^<(br|hr|em|strong|code|pre)\s*\/?>$/i.test(match.trim())) return match;
+            return '';
+          });
       } else if (ext === 'docx' || ext === 'doc') {
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.convertToHtml({ arrayBuffer });
