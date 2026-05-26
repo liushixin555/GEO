@@ -146,3 +146,30 @@
 | REQ-3 服务端 Markdown sanitize | P1 | 需引入 sanitize-html 或 isomorphic-dompurify，后端 API 添加 HTML 内容过滤 |
 | 关注 React 19 对 useMemo 行为的变更 | P3 | 上游 10 处 useMemo 副作用在 React 19 下可能失效 |
 | 评估替代编辑器 | P3 | 如果上游长期不修复，评估 @toast-ui/react-editor 等替代方案 |
+
+## 第三轮修复：UI 评审 P1-3/P1-4（2026-05-26）
+
+> 基于 UI 评审报告 `tasks/review/Editor.factory.tsx.ui.md` 的 P1 建议项。
+
+### 修复清单
+
+| 编号 | 问题 | 优先级 | 修复措施 | 状态 |
+|------|------|--------|---------|------|
+| P1-4 | 窗口 < 672px 时 live 模式 50/50 分栏不可用 | P1 | matchMedia + useEffect 检测窄屏，自动切换 effectivePreview='edit' | ✅ 已修复 |
+| P1-3 | 预览区滚动高频 dispatch 导致 UI 卡顿 | P1 | CSS overflow-anchor:none 优化滚动性能；上游 handleScroll 无法在 wrapper 层节流 | ✅ CSS 缓解 |
+
+### 同步修复
+
+- heading 字号测试对齐：H4:12→13, H5:11→12, H6:11（与 title5.tsx UI 评审修复同步）
+
+### 涉及文件
+
+- `pages/components/MarkdownEditor.tsx` — responsiveMode + effectivePreview
+- `pages/styles/markdown-editor.css` — overflow-anchor 优化
+- `tests/pages/components/MarkdownEditor.test.tsx` — heading 字号测试同步 + 响应式测试
+
+### 验证
+
+- [x] `pnpm build` 成功
+- [x] `pnpm lint` 无新增错误
+- [x] 169 个 MarkdownEditor 测试全通过（+4 新增/修复）

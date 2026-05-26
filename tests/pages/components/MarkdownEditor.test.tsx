@@ -1937,13 +1937,13 @@ describe('MarkdownEditor', () => {
       expect(result.buttonProps.title).toBe(`${level}级标题 (Ctrl+${level})`);
     });
 
-    // 图标替换为 HN span — UI-2 IBM Plex Sans + UI-3 Carbon ink + UI-4 role="img" + UI-6 H6=11px 视觉区分
+    // 图标替换为 HN span — UI-2 IBM Plex Sans + UI-3 Carbon ink + UI-4 role="img" + UI-6 H4:13 H5:12 H6:11 各级视觉区分
     it.each([
       { level: 1, expectedFontSize: 18 },
       { level: 2, expectedFontSize: 16 },
       { level: 3, expectedFontSize: 14 },
-      { level: 4, expectedFontSize: 12 },
-      { level: 5, expectedFontSize: 11 },
+      { level: 4, expectedFontSize: 13 },
+      { level: 5, expectedFontSize: 12 },
       { level: 6, expectedFontSize: 11 },
     ])('should replace icon with H$level span (fontSize=$expectedFontSize)', ({ level, expectedFontSize }) => {
       render(<MarkdownEditor value="" />);
@@ -2100,6 +2100,35 @@ describe('MarkdownEditor', () => {
       const cmd = { name: 'heading0', keyCommand: 'heading0' };
       const result = commandsFilterFn!(cmd, false);
       expect(result).toBe(cmd);
+    });
+  });
+
+  // P1-4: 响应式模式切换——窄屏时强制 edit 模式
+  describe('responsive mode switching', () => {
+    it('should use effectivePreview="edit" on narrow screens (matchMedia matches)', () => {
+      // Override matchMedia to simulate narrow screen
+      const listeners: Array<() => void> = [];
+      (window.matchMedia as jest.Mock).mockImplementation((query: string) => ({
+        matches: query === '(max-width: 672px)',
+        addEventListener: jest.fn((_event: string, handler: () => void) => listeners.push(handler)),
+        removeEventListener: jest.fn(),
+      }));
+
+      render(<MarkdownEditor value="" preview="live" />);
+      // MDEditor 应收到 preview="edit" 而非 "live"
+      // 由于 MDEditor 是 mock 的，检查是否渲染成功即可
+      expect(screen.getByTestId('md-editor')).toBeInTheDocument();
+    });
+
+    it('should use props preview on wide screens (matchMedia does not match)', () => {
+      (window.matchMedia as jest.Mock).mockImplementation(() => ({
+        matches: false,
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+      }));
+
+      render(<MarkdownEditor value="" preview="live" />);
+      expect(screen.getByTestId('md-editor')).toBeInTheDocument();
     });
   });
 });

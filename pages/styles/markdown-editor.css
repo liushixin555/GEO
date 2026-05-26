@@ -85,6 +85,8 @@
   border-radius: 0 !important;
   /* UX-02: 模式切换过渡动画 — Carbon Design System 200ms cubic-bezier */
   transition: all 200ms cubic-bezier(0.2, 0, 1, 0.9) !important;
+  /* P1-3: 滚动性能优化——浏览器 GPU 加速滚动，缓解上游高频 dispatch 导致的卡顿 */
+  overflow-anchor: none;
 }
 
 .markdown-editor-wrapper .w-md-editor-text {

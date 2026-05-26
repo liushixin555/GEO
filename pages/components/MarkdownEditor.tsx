@@ -183,6 +183,19 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
   const previewRef = useRef(preview);
   previewRef.current = preview;
 
+  // P1-4: 响应式模式切换——窗口宽度 < 672px 时强制 'edit' 模式，避免 live/preview 50/50 分栏不可用
+  const [isNarrowScreen, setIsNarrowScreen] = useState(false);
+
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 672px)');
+    const handler = (e: MediaQueryListEvent) => setIsNarrowScreen(e.matches);
+    setIsNarrowScreen(mql.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
+  const effectivePreview: EditorPreviewMode = isNarrowScreen ? 'edit' : preview;
+
   // 自适应高度：用隐藏测量 div 计算真实内容高度，实时扩展编辑器
   const [autoHeight, setAutoHeight] = useState(minHeight);
   const measureRef = useRef<HTMLDivElement | null>(null);
@@ -1229,7 +1242,7 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
           value={value}
           onChange={handleChange}
           height={autoHeight}
-          preview={preview}
+          preview={effectivePreview}
           tabSize={tabSize}
           autoFocus={autoFocus}
           textareaProps={{ placeholder, readOnly, 'aria-label': 'Markdown 内容编辑区' }}
