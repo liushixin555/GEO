@@ -16,6 +16,12 @@ const JWT_PATTERN = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const revokedTokens = new Map<string, number>();
 let cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
+// H-3 缓解：记录服务器启动时间（秒级时间戳），用于拒绝重启前签发的 token
+const serverStartEpoch = Math.floor(Date.now() / 1000);
+export function getServerStartTime(): number {
+  return serverStartEpoch;
+}
+
 function tokenKey(token: string): string {
   return createHash('sha256').update(token).digest('hex').slice(0, 32);
 }
@@ -69,6 +75,8 @@ export function revokeToken(token: string, expiresInMs: number): void {
 }
 
 export function isTokenRevoked(token: string): boolean {
+  // 空 token 返回 false（fail-open）是安全的：上游 auth.middleware 已校验 Bearer 前缀，
+  // 空 token 不会到达此函数；即使到达，后续 jwt.verify 也会拒绝
   if (!token) return false;
   const key = tokenKey(token);
   const expiresAt = revokedTokens.get(key);

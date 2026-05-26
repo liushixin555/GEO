@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import config from '../config';
-import { isTokenRevoked } from '../utils/token-blacklist.util';
+import { isTokenRevoked, getServerStartTime } from '../utils/token-blacklist.util';
 import { Role } from '../constants/roles';
 
 const BEARER_PREFIX = 'Bearer ';
@@ -35,7 +35,14 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
   }
 
   try {
-    const decoded = jwt.verify(token, config.jwt.secret) as AuthPayload;
+    const decoded = jwt.verify(token, config.jwt.secret) as AuthPayload & { iat?: number };
+
+    // H-3 缓解：拒绝重启前签发的 token，防止黑名单因重启丢失后被利用
+    if (decoded.iat != null && decoded.iat < getServerStartTime()) {
+      res.status(401).json({ code: 401, message: '登录已过期，请重新登录' });
+      return;
+    }
+
     req.user = decoded;
     next();
   } catch {

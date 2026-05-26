@@ -8,7 +8,7 @@
 // Ensure test environment so clearBlacklist works
 process.env.NODE_ENV = 'test';
 
-import { revokeToken, isTokenRevoked, clearBlacklist, parseExpiryToMs } from '../../../apis/utils/token-blacklist.util';
+import { revokeToken, isTokenRevoked, clearBlacklist, parseExpiryToMs, getServerStartTime } from '../../../apis/utils/token-blacklist.util';
 
 // Helper: generate a deterministic fake JWT-like string
 function fakeJWT(seed = 'test'): string {
@@ -192,6 +192,22 @@ describe('token-blacklist.util.ts', () => {
         const result = parseExpiryToMs(`1${unit}`);
         expect(result).toBeGreaterThan(0);
       }
+    });
+  });
+
+  // ─── getServerStartTime (H-3 缓解) ─────────────────────────
+  describe('getServerStartTime', () => {
+    it('should return a reasonable epoch timestamp in seconds', () => {
+      const start = getServerStartTime();
+      expect(typeof start).toBe('number');
+      expect(Number.isInteger(start)).toBe(true);
+      // Should be a recent timestamp (after 2020-01-01, before now + 10s)
+      expect(start).toBeGreaterThan(1577836800);
+      expect(start).toBeLessThanOrEqual(Math.floor(Date.now() / 1000) + 10);
+    });
+
+    it('should return the same value on repeated calls', () => {
+      expect(getServerStartTime()).toBe(getServerStartTime());
     });
   });
 });

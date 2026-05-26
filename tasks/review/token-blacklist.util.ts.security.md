@@ -120,7 +120,7 @@ export function parseExpiryToMs(expiresIn: string): number {
 - **影响**: 在JWT 2h有效窗口内，任何重启都会导致撤销失效
 - **当前缓解**: JWT有效期仅2h，风险窗口有限
 - **修复方向**: 持久化到Redis/文件系统，或在重启时使所有已签发token失效（如记录最后重启时间）
-- **短期缓解**: 在`clearBlacklist()`中添加警告日志
+- **短期缓解**: ✅ 已实施——`token-blacklist.util.ts` 导出 `getServerStartTime()`（秒级时间戳），`auth.middleware.ts` 在 JWT 验证后检查 `decoded.iat < getServerStartTime()`，拒绝重启前签发的 token。代价：每次重启所有用户需重新登录（2h 窗口内影响有限）。长期方案仍需 Redis 持久化。
 
 **H-4: revokeToken无JWT签名验证 — 垃圾数据注入**
 - **位置**: L21-25 `revokeToken(token, expiresInMs)`
@@ -204,7 +204,7 @@ function tokenKey(token: string): string {
 - **位置**: L28 `if (!token) return false`
 - **问题**: 空token被视为"未撤销"，这是"fail-open"语义。安全关键系统应采用"fail-closed"——无法判断时拒绝访问
 - **当前缓解**: `auth.middleware.ts:26`已检查Bearer前缀和空token，空token不会到达`isTokenRevoked`
-- **修复**: 改为`if (!token) return false`（保持false但添加注释说明安全性依赖上游校验），或改为`if (!token) throw new Error('token required')`
+- **修复**: ✅ 保持 `return false` 但添加了安全注释说明安全性依赖上游 `auth.middleware` 的 Bearer 前缀校验和后续 `jwt.verify` 的双重保障
 
 ### LOW (3项)
 
@@ -288,17 +288,17 @@ GET /api/v1/auth/verify (或其他需认证路由)
 
 ## 修复优先级与工时估算
 
-| 优先级 | 项 | 工时 |
-|--------|-----|------|
-| P0 | H-2: parseExpiryToMs补充w/y单位+警告日志 | 30min |
-| P1 | H-1: 添加MAX_BLACKLIST_SIZE容量上限 | 30min |
-| P1 | H-4: revokeToken添加JWT格式校验 | 20min |
-| P1 | M-1: 关键操作添加安全日志 | 30min |
-| P2 | H-3: 重启时失效机制（短期：启动时记录时间戳，authMiddleware检查iat） | 1h |
-| P2 | M-2: clearBlacklist生产环境保护 | 10min |
-| P2 | M-3: token hash存储 | 30min |
-| P2 | L-1~L-3: 边界加固+测试 | 1h |
-| **总计** | | **~4h** |
+| 优先级 | 项 | 工时 | 状态 |
+|--------|-----|------|------|
+| P0 | H-2: parseExpiryToMs补充w/y单位+警告日志 | 30min | ✅ 已修复 |
+| P1 | H-1: 添加MAX_BLACKLIST_SIZE容量上限 | 30min | ✅ 已修复 |
+| P1 | H-4: revokeToken添加JWT格式校验 | 20min | ✅ 已修复 |
+| P1 | M-1: 关键操作添加安全日志 | 30min | ✅ 已修复 |
+| P2 | H-3: 重启时失效机制（短期：启动时记录时间戳，authMiddleware检查iat） | 1h | ✅ 已修复（短期缓解） |
+| P2 | M-2: clearBlacklist生产环境保护 | 10min | ✅ 已修复 |
+| P2 | M-3: token hash存储 | 30min | ✅ 已修复 |
+| P2 | L-1~L-3: 边界加固+测试 | 1h | ✅ 已修复 |
+| **总计** | | **~4h** | **全部完成** |
 
 ---
 
@@ -314,4 +314,4 @@ GET /api/v1/auth/verify (或其他需认证路由)
 
 ## 总结
 
-`token-blacklist.util.ts`的token撤销机制在当前默认配置（2h JWT有效期）下功能正确，与auth middleware集成良好。但存在4项HIGH安全风险：(1) Map无容量上限可被DoS攻击利用；(2) `parseExpiryToMs`与config验证单位不一致，在`w`/`y`单位配置下导致被撤销token复活；(3) 进程重启丢失全部撤销记录；(4) `revokeToken`无JWT格式校验（当前被上游缓解但缺乏纵深防御）。此外，模块零安全日志导致安全事件无法追溯。修复H-1/H-2/H-4三项后安全评分可达7.5/10，全面修复后可达9.0/10。
+`token-blacklist.util.ts`的token撤销机制在当前默认配置（2h JWT有效期）下功能正确，与auth middleware集成良好。所有4项HIGH安全风险均已修复：(1) ~~Map无容量上限~~ → 已添加 `MAX_BLACKLIST_SIZE=10000`；(2) ~~`parseExpiryToMs`单位不一致~~ → 已补充 `w`/`y` 单位支持；(3) ~~进程重启丢失撤销记录~~ → 已添加 `getServerStartTime()` + `auth.middleware` iat 检查短期缓解；(4) ~~`revokeToken`无JWT格式校验~~ → 已添加 `JWT_PATTERN` + `MAX_TOKEN_LENGTH` 校验。M-1~M-4、L-1~L-3 也已全部修复。预期安全评分从 6.0 提升至 **8.5/10**（长期需 Redis 持久化替代内存存储可达 9.0/10）。

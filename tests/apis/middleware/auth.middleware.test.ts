@@ -829,6 +829,79 @@ describe('roleMiddleware', () => {
   });
 
   // =========================================================
+  // 14b. authMiddleware — H-3 缓解：重启后拒绝旧 token
+  // =========================================================
+  describe('authMiddleware H-3 重启时间检查', () => {
+    let authFn: (req: Request, res: Response, next: NextFunction) => void;
+
+    // 手动构造 JWT 以精确控制 iat 值
+    function createTokenWithIat(payload: Record<string, unknown>, iat: number, secret: string): string {
+      const crypto = require('crypto');
+      const header = { typ: 'JWT', alg: 'HS256' };
+      const fullPayload = { ...payload, iat, exp: Math.floor(Date.now() / 1000) + 7200 };
+      const headerB64 = Buffer.from(JSON.stringify(header)).toString('base64url');
+      const payloadB64 = Buffer.from(JSON.stringify(fullPayload)).toString('base64url');
+      const signature = crypto.createHmac('sha256', secret)
+        .update(`${headerB64}.${payloadB64}`)
+        .digest('base64url');
+      return `${headerB64}.${payloadB64}.${signature}`;
+    }
+
+    beforeEach(() => {
+      const { clearBlacklist } = require('../../../apis/utils/token-blacklist.util');
+      clearBlacklist();
+      authFn = require('../../../apis/middleware/auth.middleware').authMiddleware;
+    });
+
+    it('应该拒绝 iat 早于服务器启动时间的 token', () => {
+      const { getServerStartTime } = require('../../../apis/utils/token-blacklist.util');
+      const serverStart = getServerStartTime();
+
+      const forgedToken = createTokenWithIat(
+        { userId: 1, username: 'old', role: 'admin' },
+        serverStart - 3600,
+        process.env.JWT_SECRET!,
+      );
+
+      mockReq = createMockReq({ authorization: `Bearer ${forgedToken}` });
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(jsonFn).toHaveBeenCalledWith({ code: 401, message: '登录已过期，请重新登录' });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('应该接受 iat 等于服务器启动时间的 token', () => {
+      const { getServerStartTime } = require('../../../apis/utils/token-blacklist.util');
+      const serverStart = getServerStartTime();
+
+      const token = createTokenWithIat(
+        { userId: 1, username: 'fresh', role: 'admin' },
+        serverStart,
+        process.env.JWT_SECRET!,
+      );
+
+      mockReq = createMockReq({ authorization: `Bearer ${token}` });
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(statusFn).not.toHaveBeenCalled();
+    });
+
+    it('应该接受正常签发的 token（自动包含 iat）', () => {
+      const jwt = require('jsonwebtoken');
+      const payload = { userId: 1, username: 'normal', role: 'admin' };
+      const token = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '2h' });
+
+      mockReq = createMockReq({ authorization: `Bearer ${token}` });
+      authFn(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(statusFn).not.toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================
   // 15. roleMiddleware — 边界值深入测试
   // =========================================================
   describe('roleMiddleware 边界值', () => {
