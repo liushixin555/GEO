@@ -27,6 +27,15 @@ const Layout: React.FC = () => {
     }
   }, [isMobile]);
 
+  useEffect(() => {
+    if (!isMobile || collapsed) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCollapsed(true);
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isMobile, collapsed]);
+
   if (!user) return null;
 
   return (

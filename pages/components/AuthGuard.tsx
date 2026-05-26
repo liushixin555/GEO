@@ -11,7 +11,7 @@ const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="full-page-loading">
+      <div className="full-page-loading" role="status" aria-busy="true" aria-label="正在验证身份">
         <div className="loading-brand">
           <Typography.Title level={3} style={{ fontWeight: 300, marginBottom: 24 }}>薄云商机倍增服务</Typography.Title>
           <Spin size="large" />

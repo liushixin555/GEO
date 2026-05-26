@@ -158,7 +158,7 @@ a:hover {
   color: var(--color-on-primary);
 }
 
-.skip-to-content:focus {
+.skip-to-content:focus-visible {
   position: fixed;
   top: 8px;
   left: 8px;

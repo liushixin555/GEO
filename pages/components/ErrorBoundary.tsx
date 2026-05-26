@@ -21,7 +21,8 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   handleReset = () => {
-    localStorage.clear();
+    const keysToRemove = ['token', 'user', 'selected_company', 'selected_project', 'redirect_after_login'];
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
     window.location.href = '/login';
   };
 
@@ -33,6 +34,8 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
           title="页面出现异常"
           subTitle="请尝试刷新页面，如果问题持续请联系管理员"
           extra={<Button type="primary" onClick={this.handleReset}>返回登录</Button>}
+          role="alert"
+          aria-live="assertive"
         />
       );
     }
