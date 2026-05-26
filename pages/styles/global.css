@@ -173,8 +173,15 @@ a:hover {
   background-color: var(--color-surface-1);
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
+}
+
+#main-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .mobile-overlay {
@@ -189,6 +196,9 @@ a:hover {
   background-color: var(--color-canvas);
   border: 1px solid var(--color-hairline);
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .page-breadcrumb {
@@ -779,9 +789,24 @@ a:hover {
   letter-spacing: 0.16px;
 }
 
+.publishing-page {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.publishing-content-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .publishing-table-wrapper {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .publishing-table {
