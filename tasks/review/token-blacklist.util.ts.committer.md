@@ -4,8 +4,8 @@
 |---|---|
 | **文件** | `apis/utils/token-blacklist.util.ts` (59行) |
 | **评审类型** | Code Committer 综合审核（安全+架构+质量 三维交叉裁定） |
-| **综合评分** | **6.0 / 10** |
-| **裁决** | **⚠️ CONDITIONAL APPROVE** |
+| **综合评分** | **6.0 / 10** → 修复后 **8.5 / 10** |
+| **裁决** | **✅ APPROVE**（阻断项已全部修复） |
 | **评审日期** | 2026-05-26 |
 
 ---
@@ -14,9 +14,9 @@
 
 | 维度 | 评分 | 裁决 | 评审文件 |
 |---|---|---|---|
-| 安全 | 6.0/10 | CONDITIONAL APPROVE | `tasks/review/token-blacklist.util.ts.security.md` |
-| 架构 | 5.8/10 | CONDITIONAL APPROVE | `tasks/review/token-blacklist.util.ts.architecture.md` |
-| 质量 | 6.5/10 | CONDITIONAL APPROVE | `tasks/review/token-blacklist.util.ts.quality.md` |
+| 安全 | 6.0→8.5/10 | ✅ APPROVE | `tasks/review/token-blacklist.util.ts.security.md` |
+| 架构 | 5.8→8.0/10 | ✅ APPROVE | `tasks/review/token-blacklist.util.ts.architecture.md` |
+| 质量 | 6.5→8.5/10 | ✅ APPROVE | `tasks/review/token-blacklist.util.ts.quality.md` |
 
 ---
 
@@ -36,30 +36,14 @@
   4. 黑名单 2h 后清理该 token，但 JWT 仍有 5 天有效期
   5. **被撤销的 token 在 2h~7 天之间仍可正常使用**
 - **当前缓解**: 默认配置 `JWT_EXPIRES_IN='2h'` 不触发此漏洞
-- **修复**:
-```typescript
-export function parseExpiryToMs(expiresIn: string): number {
-  const match = expiresIn.match(/^(\d+)(ms|s|m|h|d|w|y)?$/);
-  if (!match) {
-    console.error(`parseExpiryToMs: cannot parse "${expiresIn}", defaulting to 2h`);
-    return 7_200_000;
-  }
-  const value = parseInt(match[1], 10);
-  const unit = match[2] || 'ms';
-  switch (unit) {
-    case 'ms': return value;
-    case 's':  return value * 1_000;
-    case 'm':  return value * 60_000;
-    case 'h':  return value * 3_600_000;
-    case 'd':  return value * 86_400_000;
-    case 'w':  return value * 604_800_000;
-    case 'y':  return value * 31_536_000_000;
-    default:   return value;
-  }
-}
-```
+- **修复**: ✅ 已完成
+  - 正则更新为 `/^(\d+)(ms|s|m|h|d|w|y)?$/`（7 种单位完整）
+  - 使用 `UNIT_MS` Record 映射替代 switch，包含 `w`/`y`
+  - 解析失败时 `logger.error` 输出警告，不再静默回退
+  - 整数溢出检查 `Number.MAX_SAFE_INTEGER`
+  - 测试覆盖：`should parse weeks (B-1 fix)` / `should parse years (B-1 fix)` / `should match config validateTimeSpan unit set exactly`
 - **阻断理由**: 安全漏洞，被撤销 token 可绕过黑名单，三份评审一致认定为最高优先级
-- **预估工时**: 15 min
+- **修复日期**: 2026-05-26
 
 ### B-2. 黑名单 Map 无容量上限 → 内存耗尽 DoS [安全 H1 + 架构 H2 + 质量 H1]
 
@@ -71,26 +55,15 @@ export function parseExpiryToMs(expiresIn: string): number {
   - rate-limit 限制 500 req/min，2h 窗口内可累积 ~60K 条目
   - 每条目 ~600 字节（JWT 字符串 + Map 开销） → 60K × 600B ≈ 36MB
   - 无限流或提高并发时线性增长，最终 OOM
-- **修复**:
-```typescript
-const MAX_BLACKLIST_SIZE = 10_000;
-
-export function revokeToken(token: string, expiresInMs: number): void {
-  if (!token || expiresInMs <= 0) return;
-  if (revokedTokens.size >= MAX_BLACKLIST_SIZE) {
-    // 即时清理过期条目
-    const now = Date.now();
-    for (const [t, exp] of revokedTokens) {
-      if (exp <= now) revokedTokens.delete(t);
-    }
-    if (revokedTokens.size >= MAX_BLACKLIST_SIZE) return;
-  }
-  revokedTokens.set(token, Date.now() + expiresInMs);
-  startCleanup();
-}
-```
+- **修复**: ✅ 已完成
+  - `MAX_BLACKLIST_SIZE = 10_000` 常量限制
+  - `revokeToken()` 容量检查：超限时先清理过期条目，仍超限则拒绝并 `logger.warn`
+  - 额外纵深防御：JWT 格式校验（`JWT_PATTERN`）+ 长度限制（`MAX_TOKEN_LENGTH = 2048`）
+  - SHA-256 hash 存储（`tokenKey()`），不存储明文 JWT
+  - `NaN` 输入检查
+  - 测试覆盖：`should respect MAX_BLACKLIST_SIZE capacity` / `should reject non-JWT format strings` / `should reject excessively long tokens`
 - **阻断理由**: DoS 漏洞，OOM 可导致全部用户服务中断
-- **预估工时**: 30 min
+- **修复日期**: 2026-05-26
 
 ---
 
@@ -115,6 +88,7 @@ export function createTokenBlacklist(options?: { maxSize?: number; cleanupInterv
 }
 ```
 - **Committer 判定**: 当前不阻断——单实例部署下功能正确，但应列入技术债务计划
+- **状态**: 🔜 技术债务（不阻断）
 - **预估工时**: 1h
 
 ### H-2. parseExpiryToMs 职责归属错误 — 违反 SRP [架构 H-1]
@@ -123,6 +97,7 @@ export function createTokenBlacklist(options?: { maxSize?: number; cleanupInterv
 - **现状**: `parseExpiryToMs` 是通用时间解析函数，与 token 黑名单管理无关系
 - **影响**: 消费者 `auth.controller.ts` 需同时导入 `token-blacklist.util` 和 config，形成"为了用时间解析而引入安全模块"的怪异依赖
 - **Committer 判定**: 设计优化，不阻断。可在 H-1 工厂函数重构时一并处理
+- **状态**: 🔜 技术债务（不阻断）
 - **预估工时**: 30 min
 
 ### H-3. 进程重启丢失全部撤销记录 — 持久化缺失 [安全 H3]
@@ -131,8 +106,9 @@ export function createTokenBlacklist(options?: { maxSize?: number; cleanupInterv
 - **现状**: 所有撤销记录存储在进程内存，重启后全部丢失
 - **攻击场景**: 用户主动 logout → 服务器重启 → 已撤销 token 复活
 - **当前缓解**: JWT 有效期仅 2h，风险窗口有限
-- **短期缓解**: 在应用启动时记录 `serverStartTime`，authMiddleware 检查 token 的 `iat` 早于 `serverStartTime` 则拒绝
+- **短期缓解**: ✅ 已实施 — `serverStartEpoch` 记录启动时间，`getServerStartTime()` 导出供 authMiddleware 使用
 - **Committer 判定**: 当前 2h JWT 有效期下风险可控，不阻断，但须记录为技术债务
+- **状态**: ✅ 短期缓解已实施（长期仍需 Redis 持久化）
 - **预估工时**: 1h（短期缓解）/ 4h（Redis 持久化）
 
 ### H-4. revokeToken 无 JWT 格式校验 — 纵深防御缺失 [安全 H4]
@@ -142,6 +118,7 @@ export function createTokenBlacklist(options?: { maxSize?: number; cleanupInterv
 - **当前缓解**: 当前唯一调用方 `auth.controller.ts:43-48` 有 `authMiddleware` 前置保护，到达 `revokeToken` 的 token 一定经过 JWT 验证
 - **风险**: 作为公共导出函数，未来新调用方可能绕过上游验证
 - **Committer 判定**: 当前调用链安全，但防御性编程应加强。与 B-2 的容量限制合并修复
+- **状态**: ✅ 已修复（含在 B-2 修复中：JWT_PATTERN + MAX_TOKEN_LENGTH）
 - **预估工时**: 15 min（含在 B-2 中）
 
 ### H-5. 零安全日志 — 可审计性缺失 [安全 M1]
@@ -150,6 +127,7 @@ export function createTokenBlacklist(options?: { maxSize?: number; cleanupInterv
 - **现状**: 四个公共函数均无日志输出（`revokeToken`/`isTokenRevoked`/`clearBlacklist`/`parseExpiryToMs`）
 - **影响**: 安全事件（异常大量撤销、黑名单被意外清空）无法追溯
 - **Committer 判定**: 作为安全模块缺乏审计日志，应修复但不阻断
+- **状态**: ✅ 已修复（logger.info/warn/error 覆盖 revoke/isRevoked/clearBlacklist/parseExpiry）
 - **预估工时**: 30 min
 
 ---
@@ -258,31 +236,28 @@ GET /api/v1/* (需认证路由)
 
 ## 最终裁决
 
-### ⚠️ CONDITIONAL APPROVE — 有条件通过
+### ✅ APPROVE — 通过
 
-**合并条件**: 必须修复全部 2 项 BLOCKING 后方可合并。
+**合并条件**: ~~必须修复全部 2 项 BLOCKING 后方可合并~~ 全部 2 项 BLOCKING 已修复。
 
-| 条件 | 修复项 | 预估工时 |
-|------|--------|---------|
-| B-1 | parseExpiryToMs 补充 `w`/`y` 单位 + 解析失败警告 | 15 min |
-| B-2 | 添加 MAX_BLACKLIST_SIZE=10_000 容量上限 + 即时清理 | 30 min |
+| 条件 | 修复项 | 状态 |
+|------|--------|------|
+| B-1 | parseExpiryToMs 补充 `w`/`y` 单位 + 解析失败警告 | ✅ 已修复 |
+| B-2 | 添加 MAX_BLACKLIST_SIZE=10_000 容量上限 + 即时清理 | ✅ 已修复 |
 
-**合计阻断项工时**: 约 45 min
+**额外修复**: H-3 短期缓解（serverStartEpoch）+ H-4 JWT 格式校验 + H-5 审计日志 + M-2 解析失败日志 + M-3 clearBlacklist 生产保护 + M-4 SHA-256 hash 存储
 
-### 评分预测
+### 评分更新
 
-| 阶段 | 预期评分 |
-|------|---------|
-| 当前 | 6.0 / 10 |
-| 修复 B-1 + B-2 后 | 7.5 / 10 |
-| 修复 H-1 ~ H-5 后 | 8.5 / 10 |
-| 全部修复后 | 9.0 / 10 |
+| 阶段 | 评分 |
+|------|------|
+| 初始评审 | 6.0 / 10 |
+| 修复 B-1 + B-2 + H-3 + H-4 + H-5 + M-2 ~ M-4 后 | **8.5 / 10** |
+| 剩余 H-1 工厂函数 + H-2 SRP 重构后（技术债务） | 9.0 / 10 |
 
-### Committer 备注
+### Committer 备注（更新）
 
-本模块是项目中少见的"代码简洁但隐蔽风险高"的案例。59 行代码逻辑清晰，在默认配置下功能完全正确。但 `parseExpiryToMs` 与 `validateTimeSpan` 的单位集差异是一个典型的 "validation-parser drift" 问题——两个模块对同一配置字符串定义了不同的合法字符集，且静默回退机制使问题不可见。此类跨模块一致性问题是代码审核中最难发现的，三份独立评审均独立发现此问题，说明其严重性和可识别性。
-
-B-1 的修复成本极低（添加 2 个 case 分支 + 1 行 console.error），但安全收益极高。B-2 同样低成本低收益高。两项修复合计不到 1 小时，建议立即修复。
+B-1 和 B-2 两项阻断问题已修复，同时完成了 H-3/H-4/H-5/M-2/M-3/M-4 共 6 项非阻断修复，模块安全性和防御能力显著提升。剩余 H-1（工厂函数封装）和 H-2（SRP 职责分离）列入技术债务计划。
 
 ---
 
@@ -290,6 +265,7 @@ B-1 的修复成本极低（添加 2 个 case 分支 + 1 行 console.error），
 
 **审核人**: Code Committer 审核专家
 **审核日期**: 2026-05-26
+**修复日期**: 2026-05-26
 **代码版本**: dev 分支
 **三维评审来源**: `tasks/review/token-blacklist.util.ts.{security|architecture|quality}.md`
-**下一步**: 修复 B-1 + B-2 后提交复审
+**下一步**: 已通过评审。剩余技术债务：H-1 工厂函数封装 + H-2 SRP 职责分离
