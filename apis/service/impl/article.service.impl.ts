@@ -8,16 +8,13 @@ import { NotFoundError, BusinessError, ForbiddenError } from '../../errors';
 import { validateAndSanitizeMarkdown } from '../../utils/sanitize-markdown.util';
 
 export class ArticleServiceImpl implements IArticleService {
-  private static readonly STATUS_TRANSITIONS: Record<ArticleStatus, ArticleStatus[]> = {
+  private static readonly STATUS_TRANSITIONS: Record<string, string[]> = {
     'draft': ['generating', 'manual_writing'],
     'manual_writing': ['pending_review'],
     'generating': ['pending_review', 'generate_failed'],
     'generate_failed': ['generating'],
     'pending_review': ['approved', 'manual_writing', 'draft', 'generating'],
     'approved': [],
-    'publishing': [],
-    'published': [],
-    'publish_failed': [],
   };
 
   private static readonly SETTINGS_EDITABLE_STATUSES: ArticleStatus[] = ['draft'];
@@ -31,7 +28,7 @@ export class ArticleServiceImpl implements IArticleService {
     return ArticleServiceImpl.CONTENT_EDITABLE_STATUSES.includes(status);
   }
 
-  isValidStatusTransition(from: ArticleStatus, to: ArticleStatus): boolean {
+  isValidStatusTransition(from: string, to: string): boolean {
     return ArticleServiceImpl.STATUS_TRANSITIONS[from]?.includes(to) ?? false;
   }
 

@@ -33,8 +33,8 @@ export type ArticleType =
 /** 写作模式，Prisma @db.VarChar(20) */
 export type WriteMode = 'manual' | 'ai';
 
-/** UpdateArticleRequest 中允许客户端设置的状态子集，排除终端/系统状态 */
-export type UpdatableArticleStatus = Exclude<ArticleStatus, 'published' | 'publishing'>;
+/** 文章内容生命周期状态（客户端可设置），发布状态由 PublishingSchedule 管理 */
+export type ContentArticleStatus = 'draft' | 'manual_writing' | 'generating' | 'generate_failed' | 'pending_review' | 'approved';
 
 /** 文章基础实体，映射 Prisma Article model */
 export interface Article {
@@ -134,10 +134,8 @@ export interface UpdateArticleRequest {
   skills?: number[] | null;
   llm_model_id?: number | null;
   content?: string;
-  /** 状态更新，排除终端状态 publishing/published */
-  status?: UpdatableArticleStatus;
-  /** 定时发布时间（ISO 8601 字符串），由 PublishingSchedule 关联管理 */
-  scheduled_publish_at?: string | null;
+  /** 状态更新，仅允许内容生命周期状态 */
+  status?: ContentArticleStatus;
 }
 
 /** 审核文章请求 DTO */

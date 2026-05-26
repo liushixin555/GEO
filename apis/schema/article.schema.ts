@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
-/** 文章状态枚举，与 Entity ARTICLE_STATUSES 一致 */
+/**
+ * 文章内容生命周期状态（不含发布状态）
+ * 发布状态由 PublishingSchedule 独立管理
+ */
 export const articleStatusSchema = z.enum([
   'draft',
   'manual_writing',
@@ -8,9 +11,6 @@ export const articleStatusSchema = z.enum([
   'generate_failed',
   'pending_review',
   'approved',
-  'publishing',
-  'published',
-  'publish_failed',
 ]);
 
 /** 文章类型枚举，与 Entity ArticleType 一致 */
@@ -21,21 +21,12 @@ export const articleTypeSchema = z.enum([
   '行业洞察',
   '对比测评',
   '客户证言',
+  'FAQ问答',
+  '实操指南',
 ]);
 
 /** 写作模式枚举，与 Entity WriteMode 一致 */
 export const writeModeSchema = z.enum(['manual', 'ai']);
-
-/** 可更新的文章状态（排除 published/publishing），与 Entity UpdatableArticleStatus 一致 */
-export const updatableArticleStatusSchema = z.enum([
-  'draft',
-  'manual_writing',
-  'generating',
-  'generate_failed',
-  'pending_review',
-  'approved',
-  'publish_failed',
-]);
 
 export const createArticleSchema = z.object({
   title: z.string().max(500),
@@ -60,8 +51,7 @@ export const updateArticleSchema = z.object({
   skills: z.array(z.number().int().nonnegative()).max(50).nullable().optional(),
   llm_model_id: z.number().int().nonnegative().nullable().optional(),
   content: z.string().max(500_000).optional(),
-  status: updatableArticleStatusSchema.optional(),
-  scheduled_publish_at: z.string().nullable().optional(),
+  status: articleStatusSchema.optional(),
 }).strict();
 
 export const reviewArticleSchema = z.object({

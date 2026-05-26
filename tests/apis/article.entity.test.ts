@@ -8,7 +8,7 @@ import {
   ARTICLE_STATUSES,
   ArticleType,
   WriteMode,
-  UpdatableArticleStatus,
+  ContentArticleStatus,
   ArticleVersion,
   CreateArticleRequest,
   UpdateArticleRequest,
@@ -525,10 +525,10 @@ describe('article.entity', () => {
       expect(req.scheduled_publish_at).toContain('.123');
     });
 
-    it('should support UpdatableArticleStatus values (excluding published/publishing)', () => {
-      const updatableStatuses: UpdatableArticleStatus[] = [
+    it('should support ContentArticleStatus values (content lifecycle only)', () => {
+      const updatableStatuses: ContentArticleStatus[] = [
         'draft', 'manual_writing', 'generating', 'generate_failed',
-        'pending_review', 'approved', 'publish_failed',
+        'pending_review', 'approved',
       ];
       updatableStatuses.forEach(status => {
         const req: UpdateArticleRequest = { status };

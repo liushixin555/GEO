@@ -123,9 +123,15 @@ tests/apis/  + tests/pages/  测试文件
   - 正文版本管理：每次保存自动递增版本号（1.0 → 2.0），历史存入 article_versions
   - admin 需为项目运营者，编辑/删除限创建者或 sysadmin
   - **文章发布解耦改造（2026-05-26）**：Article 不再包含发布相关字段（platforms/scheduleType/scheduledPublishAt），发布功能独立为 PublishingSchedule 模型
-    - `ArticleStatus` 枚举移除 `publishing`/`published`/`publish_failed`，新增 `approved`
-    - 新增 `PublishingSchedule` 模型：article_id(FK), platforms(Json), scheduleType(Enum: immediate/scheduled/manual), scheduledPublishAt(DateTime?), status(Enum: pending/publishing/published/publish_failed), createdBy
-    - 新增 `PublishingScheduleStatus` 枚举：pending, publishing, published, publish_failed
+    - **文章内容生命周期**：`draft → manual_writing/generating → pending_review → approved`，`approved` 是最终态（可发布）
+    - **发布状态由 PublishingSchedule 独立管理**：`pending → publishing → published/publish_failed`，严禁在 article schema/entity API 层出现发布状态
+    - Prisma `ArticleStatus` 枚举仍有 9 个值（数据库兼容），但 API 层（schema/entity DTO）仅暴露 6 个内容状态
+    - `ContentArticleStatus` 替代 `UpdatableArticleStatus`，类型为 6 个内容状态
+    - `articleStatusSchema` 仅 6 个值（draft/manual_writing/generating/generate_failed/pending_review/approved）
+    - `articleTypeSchema` = z.enum 8 个中文类型（榜单排名/方法论讲解/案例分析/行业洞察/对比测评/客户证言/FAQ问答/实操指南）
+    - `write_mode` = z.enum(['manual', 'ai'])
+    - `UpdateArticleRequest` 不再包含 `scheduled_publish_at`（由 PublishingSchedule 管理）
+    - 新增 `PublishingSchedule` 模型：article_id(FK), platforms(Json), scheduleType(Enum), scheduledPublishAt(DateTime?), status(Enum: pending/publishing/published/publish_failed), createdBy
     - `service/index.ts` barrel 导出 19 个工厂函数（含 createPublishingScheduleService）
   - 前端：独立路由页面 `/article/:id`（非Modal），Tab 切换「文章设置」和「正文」
   - 非编辑状态时字段 disabled 只读
@@ -199,11 +205,9 @@ tests/apis/  + tests/pages/  测试文件
 - **依据**: 项目 15 个路由文件均使用直接导入（`import * as ctrl from '../controller/xxx.controller'`），barrel file 零引用、无存在价值
 - **详见**: `tasks/review/controller-index.committer.md`
 
-## 第三方库补丁管理
-- **patch-package**: 持久化 node_modules 中的第三方库类型修复
-- **@uiw/react-markdown-preview@5.2.1 补丁**: 修复 Props.tsx 架构缺陷（Ref 接口 ISP 违反、类型重复、隐式 React 依赖等 6 项）
-  - 补丁文件: `patches/@uiw+react-markdown-preview+5.2.1.patch`
-  - postinstall 自动应用: `patch-package && npx prisma generate`
+## 第三方库管理
+- **patch-package 已移除（2026-05-26）**：删除了 patches/ 目录和 patch-package 依赖，安全防护由 MarkdownViewer/MarkdownEditor 封装层完全覆盖
+- **pnpm 配置**：使用 `shamefully-hoist=true`（.npmrc）解决 Prisma Client 类型解析问题，postinstall 自动创建 `.prisma` 符号链接
 
 ## 第三方库评审记录
 - **@uiw/react-markdown-preview（index.tsx）** — 架构评审 5.4/10（2026-05-24）

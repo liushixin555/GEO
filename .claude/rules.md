@@ -8,6 +8,7 @@
 5. **页面布局高度自适应铁律** — 所有页面容器（`.main-content` → `#main-content` → `.page-container`）必须形成完整的 flex 高度链，每一层都必须设置 `flex: 1; min-height: 0; height: 100%`。严禁只改 `overflow: hidden` 而不设高度导致容器塌缩。修改布局样式前必须先在浏览器实测确认效果，禁止凭推测提交
 6. **页面内严禁出现 y 轴滚动条** — 页面内容必须在视口内完全展示，严禁出现页面级或组件级 y 轴滚动条。如内容超出，应通过分页、折叠等手段控制数据量，不得用 `overflow-y: auto/scroll` 或 antd Table 的 `scroll={{ y }}` 产生滚动条
 7. **技能上传同名规则铁律** — 上传时存在未删除的同名技能则报错失败；存在已删除的同名技能则用新数据刷新记录并将 deletedAt 设为 null；Prisma schema 有 `@@unique([name])` 约束，软删除记录不能直接 create，必须 update 复用
+8. **文章发布解耦铁律** — 文章（Article）和发布（PublishingSchedule）完全解耦。文章只管内容生命周期：`draft → manual_writing/generating → pending_review → approved`，`approved` 是最终态（可发布）。发布状态（`publishing/published/publish_failed`）由 PublishingSchedule 独立管理，严禁在 article.schema/article.entity 的 API 层出现发布状态。`scheduled_publish_at`/`schedule_type`/`platforms` 属于 PublishingSchedule，不属于 Article
 
 ## 记忆规范
 - **所有 `.claude/` 下的文件必须用中文编写** — 包括 MEMORY.md、rules.md、architecture.md、frontend.md、progress.md 等，禁止使用英文内容

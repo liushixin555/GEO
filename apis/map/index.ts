@@ -1,4 +1,4 @@
-import { Company, User, SkillsDetail, LlmModel, SystemConfig, Project, ArticleDetail, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, KnowledgeBase, MinedKeyword, Todo, TodoLog, UserListItem } from '../entity';
+import { Company, User, Skills, SkillsDetail, LlmModel, SystemConfig, Project, Article, ArticleDetail, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, KnowledgeBase, MinedKeyword, Todo, TodoLog, UserListItem } from '../entity';
 import type { PublishingSchedule, PublishingScheduleItem } from '../entity/publishing-schedule.entity';
 import { Prisma, Company as PrismaCompany, User as PrismaUser } from '@prisma/client';
 import { isEncrypted } from '../utils/encryption.util';

@@ -24,5 +24,5 @@ export interface IArticleService {
   // M-1 fix: status parameters use ArticleStatus type
   isSettingsEditable(status: ArticleStatus): boolean;
   isContentEditable(status: ArticleStatus): boolean;
-  isValidStatusTransition(from: ArticleStatus, to: ArticleStatus): boolean;
+  isValidStatusTransition(from: string, to: string): boolean;
 }
