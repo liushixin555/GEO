@@ -884,7 +884,7 @@ describe('PublishingSchedule Controller', () => {
 
       expect(response.status).toBe(200);
       expect(mockArticleList).toHaveBeenCalledWith(
-        0, 1, 20, undefined, 'approved', { userId: 1, role: 'sysadmin' },
+        0, 1, 20, { userId: 1, role: 'sysadmin' }, undefined, 'approved',
       );
     });
 
@@ -897,7 +897,7 @@ describe('PublishingSchedule Controller', () => {
 
       expect(response.status).toBe(200);
       expect(mockArticleList).toHaveBeenCalledWith(
-        0, 1, 20, '测试', 'approved', { userId: 1, role: 'sysadmin' },
+        0, 1, 20, { userId: 1, role: 'sysadmin' }, '测试', 'approved',
       );
     });
 
@@ -910,7 +910,7 @@ describe('PublishingSchedule Controller', () => {
 
       expect(response.status).toBe(200);
       expect(mockArticleList).toHaveBeenCalledWith(
-        5, 1, 20, undefined, 'approved', { userId: 1, role: 'sysadmin' },
+        5, 1, 20, { userId: 1, role: 'sysadmin' }, undefined, 'approved',
       );
     });
 
