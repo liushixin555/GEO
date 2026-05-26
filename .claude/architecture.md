@@ -152,6 +152,12 @@ tests/apis/  + tests/pages/  测试文件
   - 读取逻辑：`getById` 先查主关键词，再 `$queryRaw` 查 `keyword_expanded_words` 并挂载到 `expanded_words` 字段
   - API 请求体：`{ keyword: string, expanded_words?: [{word, selected}] }`
   - API 响应体：`{ ...主键词字段, expanded_words: [{id, keyword_id, word, selected}] }`
+- **资源使用计数与删除保护（2026-05-26）**：关键词/画像/图片被文章引用后禁止删除
+  - Entity 层：`KnowledgeKeyword`/`KnowledgePortrait`/`KnowledgeImage` 增加 `article_count?: number`
+  - Service 层：3 个 count 函数（`countKeywordUsage`/`countPortraitUsage`/`countImageUsage`）
+  - 匹配逻辑：关键词→`keywords LIKE '%text%'`，画像→`portrait = content OR = title`，图片→`images::jsonb @> to_jsonb(url)`（raw SQL）
+  - `list()`/`listByProject()` 填充 `article_count`，`delete()` 前 >0 抛 ConflictError(409)
+  - 前端：表格+卡片显示"使用文章数"列，`article_count > 0` 时禁用删除按钮
 
 ## 配置架构（apis/config/index.ts）
 - **综合评级**: B+（架构评审 8.2/10）— 零业务耦合 + Fail-Fast 启动校验 + 双重不可变保护
