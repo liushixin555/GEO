@@ -17,8 +17,8 @@ export interface Skills {
   deleted_at: Date | null;
 }
 
-/** 技能详情（含关联解析），用于列表/详情 API 返回 */
-export interface SkillsDetail extends Skills {
+/** 技能详情（含关联解析），用于列表/详情 API 返回，不暴露 skill_dir 服务器路径 */
+export interface SkillsDetail extends Omit<Skills, 'skill_dir'> {
   /** 创建者姓名（来自 User 关联） */
   creator_name: string | null;
 }

@@ -1,6 +1,6 @@
-import { Company, User, Skills, SkillsDetail, LlmModel, SystemConfig, Project, Article, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, KnowledgeBase, MinedKeyword, Todo, TodoLog, UserListItem } from '../entity';
+import { Company, User, SkillsDetail, LlmModel, SystemConfig, Project, ArticleDetail, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, KnowledgeBase, MinedKeyword, Todo, TodoLog, UserListItem } from '../entity';
 import type { PublishingSchedule, PublishingScheduleItem } from '../entity/publishing-schedule.entity';
-import { Company as PrismaCompany, Skills as PrismaSkills, User as PrismaUser } from '@prisma/client';
+import { Prisma, Company as PrismaCompany, User as PrismaUser } from '@prisma/client';
 import { isEncrypted } from '../utils/encryption.util';
 import { maskSensitiveValue } from '../constants/system-config';
 
@@ -19,12 +19,13 @@ export function mapCompany(prismaCompany: PrismaCompany): Company {
   };
 }
 
-export function mapSkills(prismaSkills: PrismaSkills & { creator?: { cnName?: string } | null }): SkillsDetail {
+type SkillsWithCreator = Prisma.SkillsGetPayload<{ include: { creator: true } }>;
+
+export function mapSkills(prismaSkills: SkillsWithCreator): SkillsDetail {
   return {
     id: prismaSkills.id,
     name: prismaSkills.name,
     description: prismaSkills.description,
-    skill_dir: prismaSkills.skillDir,
     created_by: prismaSkills.createdBy ?? null,
     creator_name: prismaSkills.creator?.cnName || null,
     created_at: prismaSkills.createdAt,

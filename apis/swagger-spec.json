@@ -5229,11 +5229,21 @@
                   },
                   "article_type": {
                     "type": "string",
-                    "maxLength": 50
+                    "enum": [
+                      "榜单排名",
+                      "方法论讲解",
+                      "案例分析",
+                      "行业洞察",
+                      "对比测评",
+                      "客户证言"
+                    ]
                   },
                   "write_mode": {
                     "type": "string",
-                    "maxLength": 20
+                    "enum": [
+                      "manual",
+                      "ai"
+                    ]
                   },
                   "keywords": {
                     "type": "string",
@@ -5515,11 +5525,21 @@
                   },
                   "article_type": {
                     "type": "string",
-                    "maxLength": 50
+                    "enum": [
+                      "榜单排名",
+                      "方法论讲解",
+                      "案例分析",
+                      "行业洞察",
+                      "对比测评",
+                      "客户证言"
+                    ]
                   },
                   "write_mode": {
                     "type": "string",
-                    "maxLength": 20
+                    "enum": [
+                      "manual",
+                      "ai"
+                    ]
                   },
                   "keywords": {
                     "type": "string",
@@ -5567,8 +5587,6 @@
                       "generate_failed",
                       "pending_review",
                       "approved",
-                      "publishing",
-                      "published",
                       "publish_failed"
                     ]
                   },

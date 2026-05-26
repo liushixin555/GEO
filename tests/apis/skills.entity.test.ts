@@ -62,12 +62,11 @@ describe('skills.entity', () => {
   });
 
   describe('SkillsDetail interface', () => {
-    it('should extend Skills with creator_name', () => {
+    it('should extend Skills with creator_name but without skill_dir', () => {
       const detail: SkillsDetail = {
         id: 1,
         name: 'test-skill',
         description: 'A test skill',
-        skill_dir: 'test-skill',
         created_by: 1,
         created_at: new Date(),
         updated_at: new Date(),
@@ -77,6 +76,7 @@ describe('skills.entity', () => {
       expect(detail.creator_name).toBe('管理员');
       expect(detail.id).toBe(1);
       expect(detail.deleted_at).toBeNull();
+      expect((detail as Record<string, unknown>)['skill_dir']).toBeUndefined();
     });
 
     it('should allow nullable creator_name', () => {
@@ -84,7 +84,6 @@ describe('skills.entity', () => {
         id: 2,
         name: 'orphan-skill',
         description: null,
-        skill_dir: 'orphan',
         created_by: null,
         created_at: new Date(),
         updated_at: new Date(),

@@ -38,6 +38,16 @@ export class SkillsServiceImpl implements ISkillsService {
     return mapSkills(item);
   }
 
+  async getSkillDirById(id: number): Promise<string> {
+    const prisma = getPrisma();
+    const item = await prisma.skills.findFirst({
+      where: { id, deletedAt: null },
+      select: { skillDir: true },
+    });
+    if (!item) throw new NotFoundError('技能');
+    return item.skillDir;
+  }
+
   async findSoftDeletedByName(name: string): Promise<{ id: number; skill_dir: string } | null> {
     const prisma = getPrisma();
     const item = await prisma.skills.findFirst({

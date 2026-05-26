@@ -13,10 +13,34 @@ export const articleStatusSchema = z.enum([
   'publish_failed',
 ]);
 
+/** 文章类型枚举，与 Entity ArticleType 一致 */
+export const articleTypeSchema = z.enum([
+  '榜单排名',
+  '方法论讲解',
+  '案例分析',
+  '行业洞察',
+  '对比测评',
+  '客户证言',
+]);
+
+/** 写作模式枚举，与 Entity WriteMode 一致 */
+export const writeModeSchema = z.enum(['manual', 'ai']);
+
+/** 可更新的文章状态（排除 published/publishing），与 Entity UpdatableArticleStatus 一致 */
+export const updatableArticleStatusSchema = z.enum([
+  'draft',
+  'manual_writing',
+  'generating',
+  'generate_failed',
+  'pending_review',
+  'approved',
+  'publish_failed',
+]);
+
 export const createArticleSchema = z.object({
   title: z.string().max(500),
-  article_type: z.string().max(50).optional(),
-  write_mode: z.string().max(20).optional(),
+  article_type: articleTypeSchema.optional(),
+  write_mode: writeModeSchema.optional(),
   keywords: z.string().max(500).optional(),
   portrait: z.string().max(2000).optional(),
   images: z.array(z.string().max(2000)).max(20).nullable().optional(),
@@ -28,15 +52,15 @@ export const createArticleSchema = z.object({
 
 export const updateArticleSchema = z.object({
   title: z.string().max(500).optional(),
-  article_type: z.string().max(50).optional(),
-  write_mode: z.string().max(20).optional(),
+  article_type: articleTypeSchema.optional(),
+  write_mode: writeModeSchema.optional(),
   keywords: z.string().max(500).optional(),
   portrait: z.string().max(2000).optional(),
   images: z.array(z.string().max(2000)).max(20).nullable().optional(),
   skills: z.array(z.number().int().nonnegative()).max(50).nullable().optional(),
   llm_model_id: z.number().int().nonnegative().nullable().optional(),
   content: z.string().max(500_000).optional(),
-  status: articleStatusSchema.optional(),
+  status: updatableArticleStatusSchema.optional(),
   scheduled_publish_at: z.string().nullable().optional(),
 }).strict();
 

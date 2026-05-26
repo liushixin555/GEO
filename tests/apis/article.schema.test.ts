@@ -66,7 +66,10 @@ describe('articleStatusSchema', () => {
   });
 
   it('应提取正确的枚举选项', () => {
-    expect(articleStatusSchema.options).toEqual(validStatuses);
+    expect(articleStatusSchema.options).toEqual([
+      'draft', 'manual_writing', 'generating', 'generate_failed',
+      'pending_review', 'approved', 'publishing', 'published', 'publish_failed',
+    ]);
   });
 });
 
@@ -106,16 +109,23 @@ describe('createArticleSchema', () => {
   // --- article_type ---
   describe('article_type', () => {
     it('应接受有效 article_type', () => {
-      expect(createArticleSchema.parse({ article_type: 'seo' }).article_type).toBe('seo');
+      expect(createArticleSchema.parse({ article_type: '案例分析' }).article_type).toBe('案例分析');
     });
 
-    it('应接受最长50字符', () => {
-      const article_type = 'a'.repeat(50);
-      expect(createArticleSchema.parse({ article_type }).article_type).toBe(article_type);
+    it('应接受所有枚举值', () => {
+      const types = ['榜单排名', '方法论讲解', '案例分析', '行业洞察', '对比测评', '客户证言'];
+      for (const t of types) {
+        expect(createArticleSchema.parse({ article_type: t }).article_type).toBe(t);
+      }
     });
 
-    it('应拒绝超过50字符', () => {
-      const result = createArticleSchema.safeParse({ article_type: 'a'.repeat(51) });
+    it('应拒绝无效 article_type', () => {
+      const result = createArticleSchema.safeParse({ article_type: 'seo' });
+      expect(result.success).toBe(false);
+    });
+
+    it('应拒绝空字符串', () => {
+      const result = createArticleSchema.safeParse({ article_type: '' });
       expect(result.success).toBe(false);
     });
   });
@@ -123,16 +133,15 @@ describe('createArticleSchema', () => {
   // --- write_mode ---
   describe('write_mode', () => {
     it('应接受有效 write_mode', () => {
-      expect(createArticleSchema.parse({ write_mode: 'auto' }).write_mode).toBe('auto');
+      expect(createArticleSchema.parse({ write_mode: 'manual' }).write_mode).toBe('manual');
     });
 
-    it('应接受最长20字符', () => {
-      const write_mode = 'x'.repeat(20);
-      expect(createArticleSchema.parse({ write_mode }).write_mode).toBe(write_mode);
+    it('应接受 ai write_mode', () => {
+      expect(createArticleSchema.parse({ write_mode: 'ai' }).write_mode).toBe('ai');
     });
 
-    it('应拒绝超过20字符', () => {
-      const result = createArticleSchema.safeParse({ write_mode: 'x'.repeat(21) });
+    it('应拒绝无效 write_mode', () => {
+      const result = createArticleSchema.safeParse({ write_mode: 'auto' });
       expect(result.success).toBe(false);
     });
   });
@@ -312,8 +321,9 @@ describe('createArticleSchema', () => {
       expect(createArticleSchema.parse({ status: 'draft' }).status).toBe('draft');
     });
 
-    it('应接受 generating', () => {
-      expect(createArticleSchema.parse({ status: 'generating' }).status).toBe('generating');
+    it('应接受 generating（不允许在 create）', () => {
+      const result = createArticleSchema.safeParse({ status: 'generating' });
+      expect(result.success).toBe(false);
     });
 
     it('应接受 manual_writing', () => {
@@ -349,8 +359,8 @@ describe('createArticleSchema', () => {
     it('应接受所有字段', () => {
       const data = {
         title: '完整文章',
-        article_type: 'seo',
-        write_mode: 'auto',
+        article_type: '案例分析',
+        write_mode: 'ai',
         keywords: '关键词',
         portrait: '画像',
         images: ['img1.jpg'],
@@ -382,24 +392,32 @@ describe('updateArticleSchema', () => {
       expect(updateArticleSchema.safeParse({ title: 'a'.repeat(501) }).success).toBe(false);
     });
 
-    it('应接受最长50字符 article_type', () => {
-      expect(updateArticleSchema.parse({ article_type: 'a'.repeat(50) }).article_type).toHaveLength(50);
+    it('应接受有效枚举 article_type', () => {
+      expect(updateArticleSchema.parse({ article_type: '案例分析' }).article_type).toBe('案例分析');
     });
 
-    it('应拒绝超过50字符 article_type', () => {
-      expect(updateArticleSchema.safeParse({ article_type: 'a'.repeat(51) }).success).toBe(false);
+    it('应拒绝无效 article_type', () => {
+      expect(updateArticleSchema.safeParse({ article_type: 'invalid' }).success).toBe(false);
     });
   });
 
-  // --- status (update 允许所有6个状态) ---
+  // --- status (update 允许 updatableArticleStatus 中的状态，排除 published/publishing) ---
   describe('status', () => {
-    const allStatuses = [
+    const updatableStatuses = [
       'draft', 'manual_writing', 'generating', 'generate_failed',
-      'pending_review', 'approved',
+      'pending_review', 'approved', 'publish_failed',
     ];
 
-    it.each(allStatuses)('应允许更新状态为 "%s"', (status) => {
+    it.each(updatableStatuses)('应允许更新状态为 "%s"', (status) => {
       expect(updateArticleSchema.parse({ status }).status).toBe(status);
+    });
+
+    it('应拒绝 publishing（不可通过 update 设置）', () => {
+      expect(updateArticleSchema.safeParse({ status: 'publishing' }).success).toBe(false);
+    });
+
+    it('应拒绝 published（不可通过 update 设置）', () => {
+      expect(updateArticleSchema.safeParse({ status: 'published' }).success).toBe(false);
     });
 
     it('应拒绝无效状态', () => {
@@ -477,8 +495,12 @@ describe('reviewArticleSchema', () => {
     expect(reviewArticleSchema.safeParse({ approved: null as unknown as boolean }).success).toBe(false);
   });
 
+  it('应接受 comment 字段', () => {
+    expect(reviewArticleSchema.parse({ approved: true, comment: '不错' }).comment).toBe('不错');
+  });
+
   it('应拒绝未知字段（strict）', () => {
-    expect(reviewArticleSchema.safeParse({ approved: true, comment: '不错' }).success).toBe(false);
+    expect(reviewArticleSchema.safeParse({ approved: true, unknown: 'val' }).success).toBe(false);
   });
 });
 
