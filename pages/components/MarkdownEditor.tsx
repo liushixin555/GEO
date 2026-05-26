@@ -13,6 +13,7 @@
  *   - SEC-EF-03 ✅ useMemo 副作用全部替换为 useEffect——消除 React 18 并发模式状态不一致风险
  *   - SEC-EF-04 ✅ setGroupPopFalse 不可变实现——不再原地突变 state.barPopup
  *   - SEC-EF-05 ✅ 事件监听器改用 useEffect + cleanup——消除 mouseover/mouseleave 内存泄漏
+ *   - SEC-EF-06 ✅ textarea instanceof 检查替代非空断言——消除 undefined 崩溃风险
  *   - SEC-EF-10 ✅ 初始化 useEffect 不再展开 stale state——仅 dispatch 最小必要字段
  *   - 零主题支持（无 Carbon 集成出口）
  *
