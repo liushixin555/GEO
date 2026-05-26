@@ -158,3 +158,14 @@ export function validateSkills(value: unknown): number[] | null {
   if (!value.every((v): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0)) return null;
   return value;
 }
+
+/**
+ * 运行时校验 images 字段，防止数据库中被篡改的 JSON 透传到前端。
+ * Prisma Json → string[] | null 的安全收窄。
+ */
+export function validateImages(value: unknown): string[] | null {
+  if (value === null || value === undefined) return null;
+  if (!Array.isArray(value)) return null;
+  if (!value.every((v): v is string => typeof v === 'string')) return null;
+  return value;
+}

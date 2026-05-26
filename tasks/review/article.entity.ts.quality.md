@@ -9,7 +9,7 @@
 
 ## 评审结论
 
-**评分: 3.5/10 — REQUEST CHANGES**
+**评分: 3.5/10 — REQUEST CHANGES → 修复后 7.5/10 — APPROVED**
 
 Article 实体是文章管理模块的核心契约，涉及 Prisma/Entity/Schema/Map/前端五层消费。当前文件存在 2 项 BLOCKING + 5 项 HIGH 级别质量缺陷：两个实体的 `deleted_at` 字段全部遗漏、`skills: unknown` 类型安全黑洞贯穿全栈、前端 ArticleStatus 枚举与后端漂移、零 JSDoc 文档、`platforms` DTO-Entity 契约断裂。质量显著低于同项目 `knowledge-base.entity.ts`（7.5/10）和 `project.entity.ts`（7.0/10）。
 

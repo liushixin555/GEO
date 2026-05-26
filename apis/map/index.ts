@@ -1,5 +1,6 @@
 import { Company, CompanyListItem, User, Skills, SkillsDetail, LlmModel, SystemConfig, Project, Article, ArticleDetail, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, KnowledgeBase, MinedKeyword, Todo, TodoLog, UserListItem } from '../entity';
-import { validateSkills } from '../entity/article.entity';
+import type { ArticleType, WriteMode, ArticleStatus } from '../entity';
+import { validateSkills, validateImages } from '../entity/article.entity';
 import type { PublishingSchedule, PublishingScheduleItem } from '../entity/publishing-schedule.entity';
 import { Prisma, Company as PrismaCompany, User as PrismaUser } from '@prisma/client';
 import { isEncrypted } from '../utils/encryption.util';
@@ -99,21 +100,44 @@ export function mapProject(prismaProject: any): Project {
   };
 }
 
-export function mapArticle(prismaArticle: any): ArticleDetail {
+/** Prisma Article 查询结果类型（包含可选关联字段，适配 list/getById 等不同 include 场景） */
+type ArticlePrismaInput = {
+  id: number;
+  projectId: number;
+  title: string;
+  articleType: string | null;
+  writeMode: string | null;
+  keywords: string | null;
+  portrait: string | null;
+  images: Prisma.JsonValue | null;
+  skills: Prisma.JsonValue | null;
+  llmModelId: number | null;
+  content: string | null;
+  version: number;
+  status: string;
+  createdBy: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt: Date | null;
+  creator?: { cnName: string | null } | null;
+  _count?: { schedules?: number };
+};
+
+export function mapArticle(prismaArticle: ArticlePrismaInput): ArticleDetail {
   return {
     id: prismaArticle.id,
     project_id: prismaArticle.projectId,
     title: prismaArticle.title,
-    article_type: prismaArticle.articleType ?? null,
-    write_mode: prismaArticle.writeMode ?? null,
+    article_type: (prismaArticle.articleType ?? null) as ArticleType | null,
+    write_mode: (prismaArticle.writeMode ?? null) as WriteMode | null,
     keywords: prismaArticle.keywords,
     portrait: prismaArticle.portrait,
-    images: prismaArticle.images,
+    images: validateImages(prismaArticle.images),
     skills: validateSkills(prismaArticle.skills),
     llm_model_id: prismaArticle.llmModelId ?? null,
     content: prismaArticle.content,
-    version: prismaArticle.version,
-    status: prismaArticle.status,
+    version: Math.floor(prismaArticle.version),
+    status: prismaArticle.status as ArticleStatus,
     created_by: prismaArticle.createdBy ?? null,
     created_at: prismaArticle.createdAt,
     updated_at: prismaArticle.updatedAt,
@@ -123,11 +147,21 @@ export function mapArticle(prismaArticle: any): ArticleDetail {
   };
 }
 
-export function mapArticleVersion(prismaVersion: any): ArticleVersion {
+type ArticleVersionPrismaInput = {
+  id: number;
+  articleId: number;
+  version: number;
+  content: string;
+  createdBy: number | null;
+  createdAt: Date;
+  deletedAt: Date | null;
+};
+
+export function mapArticleVersion(prismaVersion: ArticleVersionPrismaInput): ArticleVersion {
   return {
     id: prismaVersion.id,
     article_id: prismaVersion.articleId,
-    version: prismaVersion.version,
+    version: Math.floor(prismaVersion.version),
     content: prismaVersion.content,
     created_by: prismaVersion.createdBy ?? null,
     created_at: prismaVersion.createdAt,

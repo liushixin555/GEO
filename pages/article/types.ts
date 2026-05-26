@@ -1,13 +1,11 @@
+/** 文章内容生命周期状态（不含发布状态，发布状态由 PublishingSchedule 独立管理） */
 export type ArticleStatus =
   | 'draft'
   | 'manual_writing'
   | 'generating'
   | 'generate_failed'
   | 'pending_review'
-  | 'approved'
-  | 'publishing'
-  | 'published'
-  | 'publish_failed';
+  | 'approved';
 
 export type ArticleType =
   | '榜单排名'
@@ -83,9 +81,6 @@ export const STATUS_CONFIG: Record<ArticleStatus, { label: string; color: string
   generate_failed: { label: '生成失败', color: 'error' },
   pending_review: { label: '待审核', color: 'warning' },
   approved: { label: '已通过', color: 'success' },
-  publishing: { label: '发布中', color: 'processing' },
-  published: { label: '已发布', color: 'success' },
-  publish_failed: { label: '发布失败', color: 'error' },
 };
 
 export const EDITABLE_STATUSES: ArticleStatus[] = ['draft', 'manual_writing', 'generate_failed'];
