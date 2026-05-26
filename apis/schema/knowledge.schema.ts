@@ -118,3 +118,13 @@ export const toggleMinedKeywordsBatchSchema = z.object({
     .max(500, '单次操作不能超过500个'),
   selected: z.boolean({ error: 'selected必须为布尔值' }),
 });
+
+export const projectIdParamSchema = z.object({
+  projectId: z.coerce.number().int().positive('项目ID必须为正整数'),
+});
+
+export const listProjectKnowledgeSchema = z.object({
+  page: z.coerce.number().int().min(1, '页码不能小于1').max(10000, '页码不能超过10000').default(1),
+  pageSize: z.coerce.number().int().min(1, '每页数量不能小于1').max(100, '每页数量不能超过100').default(10),
+  search: z.string().trim().max(200, '搜索关键词不能超过200个字符').optional(),
+});
