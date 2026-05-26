@@ -32,6 +32,12 @@ jest.mock('antd', () => ({
   Empty: ({ description }: { description: string }) => (
     <div data-testid="antd-empty">{description}</div>
   ),
+  Skeleton: ({ active }: { active?: boolean }) => (
+    <div data-testid="antd-skeleton" data-active={String(active)} />
+  ),
+  Alert: ({ message, type }: { message: string; type?: string }) => (
+    <div data-testid="antd-alert" data-type={type}>{message}</div>
+  ),
   Spin: () => <div data-testid="antd-spin" />,
   Typography: {
     Text: ({ children, type }: { children: React.ReactNode; type?: string }) => (
@@ -81,10 +87,10 @@ describe('MarkdownViewer', () => {
     expect(screen.getByText('AI 正在生成文章内容，请稍候...')).toBeInTheDocument();
   });
 
-  it('shows loading spinner when loading is true', () => {
+  it('shows loading skeleton when loading is true', () => {
     render(<MarkdownViewer loading={true} content="some content" />);
 
-    expect(screen.getByTestId('antd-spin')).toBeInTheDocument();
+    expect(screen.getByTestId('antd-skeleton')).toBeInTheDocument();
     expect(screen.queryByTestId('markdown-preview')).not.toBeInTheDocument();
   });
 
@@ -137,7 +143,7 @@ describe('MarkdownViewer', () => {
   it('prioritizes loading state over error and content', () => {
     render(<MarkdownViewer loading={true} error="error" content="content" />);
 
-    expect(screen.getByTestId('antd-spin')).toBeInTheDocument();
+    expect(screen.getByTestId('antd-skeleton')).toBeInTheDocument();
     expect(screen.queryByText('error')).not.toBeInTheDocument();
     expect(screen.queryByTestId('markdown-preview')).not.toBeInTheDocument();
   });

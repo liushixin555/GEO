@@ -22,11 +22,11 @@
  *   - skipHtml=false（意图渲染HTML） → 实际传入 skipHtml=true → 会跳过 HTML
  *   本封装层不传 skipHtml，使用 DOMPurify 消毒后的 safeSource 代替，绕过此陷阱。
  */
-import React, { useMemo, useCallback, useState, useEffect, Component, forwardRef, useRef, useImperativeHandle, memo } from 'react';
+import { useMemo, useCallback, useState, useEffect, Component, forwardRef, useRef, useImperativeHandle, memo } from 'react';
 import MarkdownPreview from '@uiw/react-markdown-preview/nohighlight';
-import { Spin, Typography, Empty, theme } from 'antd';
+import { Skeleton, Alert, Empty, theme } from 'antd';
 import DOMPurify from 'dompurify';
-import type { CSSProperties, ReactNode, UIEvent, MouseEvent, KeyboardEvent } from 'react';
+import type { CSSProperties, ReactNode, UIEvent, MouseEvent, KeyboardEvent, ErrorInfo } from 'react';
 import '../styles/markdown-viewer.css';
 
 const MAX_SOURCE_LENGTH = 1048576; // 1MB 安全长上限
@@ -52,6 +52,8 @@ const ALLOWED_URL_PROTOCOLS = ['http://', 'https://', 'mailto:', 'tel:', '/', '#
 const ALLOWED_URL_PARSED_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:']);
 export const SAFE_INPUT_TYPES = new Set(['checkbox']);
 
+// === DOMPurify 配置 ===
+
 const EVENT_ATTRS = [
   'onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur',
   'onmouseout', 'onkeydown', 'onkeyup', 'onkeypress', 'onchange',
@@ -73,17 +75,21 @@ const FORBID_TAGS_ARR = [
   'noscript', 'template',
 ];
 
+// === rehypeRewrite 清理 ===
+
 // #4 修复增强：危险 URL 协议正则
 const DANGEROUS_URL_RE = /^(javascript|data|vbscript):/i;
 
 // #3/#4 修复增强：事件处理器属性正则
 const DANGEROUS_ATTR_RE = /^on/i;
 
-// #4 修复增强：可能包含 URL 的属性名
+// #4 修复增强：可能包含 URL 的属性名（含 ping 防止点击追踪）
 const URL_PROPERTIES = new Set([
   'href', 'src', 'action', 'formaction', 'xlink:href',
-  'poster', 'background', 'dynsrc', 'lowsrc',
+  'poster', 'background', 'dynsrc', 'lowsrc', 'ping',
 ]);
+
+// === allowElement 过滤 ===
 
 // S3/A-03 修复：显式标签白名单（白名单方式比黑名单更安全）
 export const SAFE_TAGS = new Set([
@@ -99,7 +105,22 @@ export const SAFE_TAGS = new Set([
   'input',
 ]);
 
+// === 类型定义 ===
+
+export interface RehypeElement {
+  type: string;
+  tagName?: string;
+  properties?: Record<string, unknown>;
+  children?: RehypeElement[];
+}
+
+export interface AllowElementParam {
+  tagName: string;
+  properties?: Record<string, unknown>;
+}
+
 export const safeUrlTransform: (url: string) => string = (url) => {
+  if (!url || typeof url !== 'string') return '';
   const trimmed = url.trim();
   // 快速路径：允许相对路径和锚点
   if (ALLOWED_URL_PROTOCOLS.some((p) => trimmed.toLowerCase().startsWith(p))) return url;
@@ -108,8 +129,8 @@ export const safeUrlTransform: (url: string) => string = (url) => {
     const parsed = new URL(trimmed, 'https://placeholder.com');
     if (ALLOWED_URL_PARSED_PROTOCOLS.has(parsed.protocol)) return url;
   } catch {
-    // URL 解析失败（可能是相对路径），安全放行
-    return url;
+    // fail-closed：解析失败 → 拒绝（上层 allowElement + DOMPurify 纵深兜底）
+    return '';
   }
   return '';
 };
@@ -130,6 +151,10 @@ export class MarkdownErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
 
   static getDerivedStateFromError(): ErrorBoundaryState {
     return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('[MarkdownViewer] 渲染异常:', error, info.componentStack);
   }
 
   render() {
@@ -223,14 +248,14 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
       FORBID_ATTR: DANGEROUS_ATTRS,
       FORBID_TAGS: FORBID_TAGS_ARR,
       ALLOW_DATA_ATTR: false,
-      ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|telnet):|[^a-z]|[a+][a-z+.]+(?:\.|%20|\/))+$/i,
+      ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[/.#])/i,
     });
   }, [content]);
 
   // A-01 架构修复：useCallback 稳定引用，防止 MarkdownPreview 不必要管线重建
   // #4 修复增强：标签白名单 + URL 属性危险协议检查
   const allowElement = useCallback(
-    (element: { tagName: string; properties?: Record<string, unknown> }) => {
+    (element: AllowElementParam) => {
       const tag = element.tagName.toLowerCase();
       if (!SAFE_TAGS.has(tag)) return false;
       if (tag === 'input') {
@@ -254,7 +279,7 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
   // B-1: 锚点链接 aria-label + 代码块 role="region" aria-label
   // #3 修复：清理 rehype-attr 注入的危险属性（事件处理器 + 危险 URL）
   const rehypeRewrite = useCallback(
-    (node: any, index: number | undefined, parent: any) => {
+    (node: RehypeElement, _index: number | undefined, parent: RehypeElement | undefined) => {
       if (node.type !== 'element') return;
       const props = node.properties;
 
@@ -263,6 +288,10 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
         for (const key of Object.keys(props)) {
           // 清理事件处理器属性（on*）
           if (DANGEROUS_ATTR_RE.test(key)) {
+            delete props[key];
+          }
+          // 清理 style 属性（防止 CSS 注入/UI 伪装/点击劫持）
+          else if (key === 'style') {
             delete props[key];
           }
           // 清理包含危险 URL 协议的属性（保留 data-code 用于复制按钮）
@@ -292,7 +321,7 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
       }
 
       // B-1: 代码块 — 注入 role="region" + aria-label
-      if (node.tagName === 'pre' && parent?.type === 'element') {
+      if (node.tagName === 'pre' && parent?.type === 'element' && props) {
         if (!props.role) props.role = 'region';
         if (!props['aria-label']) props['aria-label'] = '代码块';
       }
@@ -338,19 +367,15 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
   }, []);
 
   if (loading) {
-    return (
-      <div style={{ textAlign: 'center', padding: 48 }}>
-        <Spin />
-      </div>
-    );
+    return <Skeleton active paragraph={{ rows: 8 }} />;
   }
 
   if (error) {
-    return <Typography.Text type="danger">{error}</Typography.Text>;
+    return <Alert type="error" message={error} showIcon />;
   }
 
   if (!content) {
-    return <Empty description={emptyText} />;
+    return <Empty description={emptyText} image={Empty.PRESENTED_IMAGE_SIMPLE} />;
   }
 
   return (
@@ -381,7 +406,7 @@ const MarkdownViewerBase = forwardRef<MarkdownViewerRef, MarkdownViewerProps>(({
   );
 });
 
-MarkdownViewerBase.displayName = 'MarkdownViewer';
+MarkdownViewerBase.displayName = 'MarkdownViewerBase';
 
 const MarkdownViewer = memo(MarkdownViewerBase);
 MarkdownViewer.displayName = 'MarkdownViewer';
