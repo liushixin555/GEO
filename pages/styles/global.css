@@ -195,6 +195,20 @@ a:hover {
   z-index: 99;
 }
 
+/* 移动端 Drawer 侧边栏样式 */
+.mobile-drawer .ant-drawer-content {
+  background-color: var(--color-canvas);
+}
+
+.mobile-drawer .ant-drawer-body {
+  padding: 0;
+}
+
+/* 移动端 Content 顶部留白，避免展开按钮遮挡内容 */
+.main-content-mobile {
+  padding-top: 56px; /* 8px top + 48px 按钮高度 */
+}
+
 .page-container {
   padding: var(--spacing-lg);
   background-color: var(--color-canvas);

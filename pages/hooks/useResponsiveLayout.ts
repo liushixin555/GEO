@@ -27,16 +27,5 @@ export function useResponsiveLayout() {
     setCollapsed(prev => (isMobile && !prev) ? true : prev);
   }, [isMobile]);
 
-  useEffect(() => {
-    if (!isMobile || collapsed) return;
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && e.target instanceof HTMLElement && !e.target.closest('.ant-modal, .ant-dropdown, .ant-select')) {
-        setCollapsed(true);
-      }
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isMobile, collapsed]);
-
   return { collapsed, setCollapsed, isMobile };
 }
