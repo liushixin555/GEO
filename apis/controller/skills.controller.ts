@@ -108,11 +108,17 @@ export async function createSkills(req: Request, res: Response): Promise<void> {
     // Defensive: authMiddleware guarantees req.user exists
     if (!req.user) { fail(res, 401, '未登录'); return; }
 
-    // Delegate file operations to SkillsFileService
-    const { topDir, name, description, skillDir } = skillsFileService.extractSkillZip(req.file.path);
+    // Step 1: Parse zip metadata (name + description) without extracting files
+    const { name, description } = skillsFileService.parseSkillZipMeta(req.file.path);
+
+    // Step 2: Check DB for soft-deleted skill with same name (to determine overwrite mode)
+    const softDeleted = await skillsService.findSoftDeletedByName(name);
+
+    // Step 3: Extract zip files — allow overwrite if soft-deleted skill directory lingers
+    const { topDir, skillDir } = skillsFileService.extractSkillZip(req.file.path, !!softDeleted);
     extractedSkillDir = skillDir;
 
-    // Create DB record
+    // Step 4: Create or reactivate DB record (service handles active-duplicate check internally)
     const item = await skillsService.create({
       name,
       description,
@@ -121,7 +127,7 @@ export async function createSkills(req: Request, res: Response): Promise<void> {
     });
 
     created(res, item, '技能创建成功');
-    logger.info('skill.created', { skillId: item.id, name: item.name, userId: req.user!.userId });
+    logger.info('skill.created', { skillId: item.id, name: item.name, userId: req.user!.userId, reusedSoftDeleted: !!softDeleted });
   } catch (err: unknown) {
     // Rollback: clean up extracted directory on failure
     if (extractedSkillDir && fs.existsSync(extractedSkillDir)) {

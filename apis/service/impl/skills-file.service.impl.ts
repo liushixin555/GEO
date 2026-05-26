@@ -3,7 +3,7 @@ import fs from 'fs';
 import AdmZip from 'adm-zip';
 import { parseSkillMd } from '../../utils/skill-md.util';
 import { BusinessError } from '../../errors';
-import { ISkillsFileService, SkillZipResult } from '../skills-file.service';
+import { ISkillsFileService, SkillZipResult, SkillMetaResult } from '../skills-file.service';
 
 const MAX_ENTRY_SIZE = 100 * 1024 * 1024; // 100MB per entry
 const MAX_TOTAL_EXTRACTED_SIZE = 500 * 1024 * 1024; // 500MB total extracted
@@ -34,7 +34,32 @@ export class SkillsFileServiceImpl implements ISkillsFileService {
     return this.tmpDir;
   }
 
-  extractSkillZip(zipPath: string): SkillZipResult {
+  parseSkillZipMeta(zipPath: string): SkillMetaResult {
+    // Validate zip magic bytes (PK header: 0x50 0x4B)
+    const fileBuffer = fs.readFileSync(zipPath);
+    if (fileBuffer[0] !== 0x50 || fileBuffer[1] !== 0x4B) {
+      throw new BusinessError('文件不是有效的 zip 格式');
+    }
+
+    const zip = new AdmZip(zipPath);
+    const skillMdEntry = zip.getEntries().find(e => !e.isDirectory && e.entryName.endsWith('SKILL.md'));
+    if (!skillMdEntry) {
+      throw new BusinessError('zip 包中未找到 SKILL.md 文件');
+    }
+
+    const { name, description } = parseSkillMd(skillMdEntry.getData().toString('utf-8'));
+
+    if (name.length > MAX_NAME_LENGTH) {
+      throw new BusinessError(`技能名称长度不能超过 ${MAX_NAME_LENGTH} 个字符`);
+    }
+    if (description.length > MAX_DESC_LENGTH) {
+      throw new BusinessError(`技能描述长度不能超过 ${MAX_DESC_LENGTH} 个字符`);
+    }
+
+    return { name, description };
+  }
+
+  extractSkillZip(zipPath: string, overwriteDir = false): SkillZipResult {
     const skillsDir = this.getSkillsDir();
     const resolvedSkillsDir = path.resolve(skillsDir);
 
@@ -72,7 +97,11 @@ export class SkillsFileServiceImpl implements ISkillsFileService {
     // Target directory
     const skillDir = path.join(skillsDir, topDir);
     if (fs.existsSync(skillDir)) {
-      throw new BusinessError(`技能「${name}」已存在，请先删除同名技能`);
+      if (!overwriteDir) {
+        throw new BusinessError(`技能「${name}」已存在，请先删除同名技能`);
+      }
+      // overwriteDir=true: remove existing directory (for soft-deleted skill reuse)
+      fs.rmSync(skillDir, { recursive: true, force: true });
     }
 
     // Validate zip entries for path traversal (Zip Slip) and size limits

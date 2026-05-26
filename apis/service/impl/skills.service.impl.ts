@@ -38,13 +38,40 @@ export class SkillsServiceImpl implements ISkillsService {
     return mapSkills(item);
   }
 
+  async findSoftDeletedByName(name: string): Promise<{ id: number; skill_dir: string } | null> {
+    const prisma = getPrisma();
+    const item = await prisma.skills.findFirst({
+      where: { name, deletedAt: { not: null } },
+      select: { id: true, skillDir: true },
+    });
+    if (!item) return null;
+    return { id: item.id, skill_dir: item.skillDir };
+  }
+
   async create(request: CreateSkillsRequest): Promise<Skills> {
     const prisma = getPrisma();
 
-    // Check duplicate name (excluding soft-deleted)
-    const existing = await prisma.skills.findFirst({ where: { name: request.name, deletedAt: null } });
-    if (existing) throw new ConflictError(`已存在同名技能「${request.name}」`);
+    // Rule 1: active (non-deleted) skill with same name → reject
+    const activeDuplicate = await prisma.skills.findFirst({ where: { name: request.name, deletedAt: null } });
+    if (activeDuplicate) throw new ConflictError(`已存在同名技能「${request.name}」`);
 
+    // Rule 2: soft-deleted skill with same name → reuse record with new data
+    const softDeleted = await prisma.skills.findFirst({ where: { name: request.name, deletedAt: { not: null } } });
+    if (softDeleted) {
+      const updated = await prisma.skills.update({
+        where: { id: softDeleted.id },
+        data: {
+          description: request.description || null,
+          skillDir: request.skill_dir,
+          createdBy: request.created_by ?? null,
+          deletedAt: null,
+        },
+        include: { creator: true },
+      });
+      return mapSkills(updated);
+    }
+
+    // No existing record → create new
     const item = await prisma.skills.create({
       data: {
         name: request.name,

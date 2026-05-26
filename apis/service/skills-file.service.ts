@@ -5,8 +5,14 @@ export interface SkillZipResult {
   skillDir: string;
 }
 
+export interface SkillMetaResult {
+  name: string;
+  description: string;
+}
+
 export interface ISkillsFileService {
-  extractSkillZip(zipPath: string): SkillZipResult;
+  parseSkillZipMeta(zipPath: string): SkillMetaResult;
+  extractSkillZip(zipPath: string, overwriteDir?: boolean): SkillZipResult;
   validateSkillDirPath(skillDirName: string): void;
   removeSkillDir(skillDirName: string): void;
   getSkillsDir(): string;
