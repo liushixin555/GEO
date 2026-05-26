@@ -175,16 +175,14 @@ describe('Company Controller', () => {
       expect(first).toHaveProperty('id', 1);
       expect(first).toHaveProperty('short_name', 'DEFAULT');
       expect(first).toHaveProperty('full_name', 'Default Company');
-      expect(first).toHaveProperty('address');
-      expect(first.address).toBeNull();
-      expect(first).toHaveProperty('contact_person', 'System');
-      expect(first).toHaveProperty('contact_phone', '0000000000');
+      expect(first).not.toHaveProperty('address');
+      expect(first).not.toHaveProperty('contact_person');
+      expect(first).not.toHaveProperty('contact_phone');
       expect(first).toHaveProperty('status', true);
       expect(first).toHaveProperty('created_at');
       expect(first).toHaveProperty('updated_at');
-      // Second company with non-null address and status false
+      // Second company with status false
       const second = response.body.data[1];
-      expect(second.address).toBe('Beijing');
       expect(second.status).toBe(false);
     });
 
@@ -866,44 +864,128 @@ describe('Company Controller', () => {
       expect(response.body.message).toBe('无效的公司ID');
     });
 
-    it('should return 400 when short_name is missing', async () => {
+    it('should allow partial update without short_name', async () => {
+      const updatedCompany = {
+        id: 2, shortName: 'ACME', fullName: 'FN Updated',
+        address: null, contactPerson: 'A', contactPhone: '123',
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
+        createdById: null, updatedById: 1,
+      };
+      mockPrisma({
+        $transaction: jest.fn().mockImplementation(async (cb: any) => {
+          const mockTx = {
+            company: {
+              findUnique: jest.fn().mockResolvedValue({ id: 2, deletedAt: null }),
+              update: jest.fn().mockResolvedValue(updatedCompany),
+            },
+            user: {
+              findMany: jest.fn().mockResolvedValue([{ id: 1, role: 'admin', status: true }]),
+              updateMany: jest.fn().mockResolvedValue({}),
+            },
+          };
+          return cb(mockTx);
+        }),
+      });
+
       const response = await agent
         .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ full_name: 'FN', contact_person: 'A', contact_phone: '123', operator_ids: [1] });
+        .send({ full_name: 'FN Updated', contact_person: 'A', contact_phone: '123', operator_ids: [1] });
 
-      expect(response.status).toBe(400);
-      expect(response.body.message).toContain('不能为空');
+      expect(response.status).toBe(200);
     });
 
-    it('should return 400 when full_name is missing', async () => {
+    it('should allow partial update without full_name', async () => {
+      const updatedCompany = {
+        id: 2, shortName: 'SN Updated', fullName: 'ACME',
+        address: null, contactPerson: 'A', contactPhone: '123',
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
+        createdById: null, updatedById: 1,
+      };
+      mockPrisma({
+        $transaction: jest.fn().mockImplementation(async (cb: any) => {
+          const mockTx = {
+            company: {
+              findUnique: jest.fn().mockResolvedValue({ id: 2, deletedAt: null }),
+              update: jest.fn().mockResolvedValue(updatedCompany),
+            },
+            user: {
+              findMany: jest.fn().mockResolvedValue([{ id: 1, role: 'admin', status: true }]),
+              updateMany: jest.fn().mockResolvedValue({}),
+            },
+          };
+          return cb(mockTx);
+        }),
+      });
+
       const response = await agent
         .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ short_name: 'SN', contact_person: 'A', contact_phone: '123', operator_ids: [1] });
+        .send({ short_name: 'SN Updated', contact_person: 'A', contact_phone: '123', operator_ids: [1] });
 
-      expect(response.status).toBe(400);
-      expect(response.body.message).toContain('不能为空');
+      expect(response.status).toBe(200);
     });
 
-    it('should return 400 when contact_person is missing', async () => {
+    it('should allow partial update without contact_person', async () => {
+      const updatedCompany = {
+        id: 2, shortName: 'SN', fullName: 'FN',
+        address: null, contactPerson: 'Old', contactPhone: '123',
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
+        createdById: null, updatedById: 1,
+      };
+      mockPrisma({
+        $transaction: jest.fn().mockImplementation(async (cb: any) => {
+          const mockTx = {
+            company: {
+              findUnique: jest.fn().mockResolvedValue({ id: 2, deletedAt: null }),
+              update: jest.fn().mockResolvedValue(updatedCompany),
+            },
+            user: {
+              findMany: jest.fn().mockResolvedValue([{ id: 1, role: 'admin', status: true }]),
+              updateMany: jest.fn().mockResolvedValue({}),
+            },
+          };
+          return cb(mockTx);
+        }),
+      });
+
       const response = await agent
         .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'SN', full_name: 'FN', contact_phone: '123', operator_ids: [1] });
 
-      expect(response.status).toBe(400);
-      expect(response.body.message).toContain('不能为空');
+      expect(response.status).toBe(200);
     });
 
-    it('should return 400 when contact_phone is missing', async () => {
+    it('should allow partial update without contact_phone', async () => {
+      const updatedCompany = {
+        id: 2, shortName: 'SN', fullName: 'FN',
+        address: null, contactPerson: 'A', contactPhone: '000',
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
+        createdById: null, updatedById: 1,
+      };
+      mockPrisma({
+        $transaction: jest.fn().mockImplementation(async (cb: any) => {
+          const mockTx = {
+            company: {
+              findUnique: jest.fn().mockResolvedValue({ id: 2, deletedAt: null }),
+              update: jest.fn().mockResolvedValue(updatedCompany),
+            },
+            user: {
+              findMany: jest.fn().mockResolvedValue([{ id: 1, role: 'admin', status: true }]),
+              updateMany: jest.fn().mockResolvedValue({}),
+            },
+          };
+          return cb(mockTx);
+        }),
+      });
+
       const response = await agent
         .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ short_name: 'SN', full_name: 'FN', contact_person: 'A', operator_ids: [1] });
 
-      expect(response.status).toBe(400);
-      expect(response.body.message).toContain('不能为空');
+      expect(response.status).toBe(200);
     });
 
     it('should return 400 when operator_ids is not an array', async () => {
@@ -917,10 +999,33 @@ describe('Company Controller', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('参数验证失败: 运营者不能为空');
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('参数验证失败');
     });
 
-    it('should return 400 when operator_ids is empty array', async () => {
+    it('should allow operator_ids as empty array (partial update)', async () => {
+      const updatedCompany = {
+        id: 2, shortName: 'SN', fullName: 'FN',
+        address: null, contactPerson: 'A', contactPhone: '123',
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
+        createdById: null, updatedById: 1,
+      };
+      mockPrisma({
+        $transaction: jest.fn().mockImplementation(async (cb: any) => {
+          const mockTx = {
+            company: {
+              findUnique: jest.fn().mockResolvedValue({ id: 2, deletedAt: null }),
+              update: jest.fn().mockResolvedValue(updatedCompany),
+            },
+            user: {
+              findMany: jest.fn().mockResolvedValue([]),
+              updateMany: jest.fn().mockResolvedValue({}),
+            },
+          };
+          return cb(mockTx);
+        }),
+      });
+
       const response = await agent
         .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
@@ -930,11 +1035,32 @@ describe('Company Controller', () => {
           operator_ids: [],
         });
 
-      expect(response.status).toBe(400);
-      expect(response.body.message).toBe('参数验证失败: 运营者不能为空');
+      expect(response.status).toBe(200);
     });
 
-    it('should return 400 when operator_ids is missing', async () => {
+    it('should allow update without operator_ids (partial update)', async () => {
+      const updatedCompany = {
+        id: 2, shortName: 'SN', fullName: 'FN',
+        address: null, contactPerson: 'A', contactPhone: '123',
+        status: true, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
+        createdById: null, updatedById: 1,
+      };
+      mockPrisma({
+        $transaction: jest.fn().mockImplementation(async (cb: any) => {
+          const mockTx = {
+            company: {
+              findUnique: jest.fn().mockResolvedValue({ id: 2, deletedAt: null }),
+              update: jest.fn().mockResolvedValue(updatedCompany),
+            },
+            user: {
+              findMany: jest.fn().mockResolvedValue([]),
+              updateMany: jest.fn().mockResolvedValue({}),
+            },
+          };
+          return cb(mockTx);
+        }),
+      });
+
       const response = await agent
         .put('/api/v1/companies/2')
         .set('Authorization', `Bearer ${sysadminToken()}`)
@@ -943,8 +1069,7 @@ describe('Company Controller', () => {
           contact_person: 'A', contact_phone: '123',
         });
 
-      expect(response.status).toBe(400);
-      expect(response.body.message).toBe('参数验证失败: 运营者不能为空');
+      expect(response.status).toBe(200);
     });
 
     it('should update company successfully', async () => {
@@ -1563,15 +1688,15 @@ describe('Company Controller', () => {
       expect(response.body.data.contact_person).toBe('张三');
     });
 
-    it('should validate body via middleware before controller ID check in updateCompany', async () => {
-      // validate middleware runs before controller, so empty body triggers validation first
+    it('should reject invalid ID even with valid empty body in updateCompany', async () => {
+      // update schema allows empty body (all fields optional), so ID validation triggers
       const response = await agent
         .put('/api/v1/companies/abc')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({});
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toContain('参数验证失败');
+      expect(response.body.message).toBe('无效的公司ID');
     });
 
     it('should validate status via middleware before controller ID check', async () => {

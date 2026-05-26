@@ -1,9 +1,9 @@
-import { Company, CreateCompanyRequest, UpdateCompanyRequest, CompanyDetail } from '../entity';
+import { Company, CompanyListItem, CreateCompanyRequest, UpdateCompanyRequest, CompanyDetail } from '../entity';
 
 export interface ICompanyService {
-  list(): Promise<Company[]>;
+  list(): Promise<CompanyListItem[]>;
   getById(id: number): Promise<CompanyDetail>;
-  create(request: CreateCompanyRequest): Promise<Company>;
-  update(id: number, request: UpdateCompanyRequest): Promise<Company>;
-  toggleStatus(id: number, status: boolean): Promise<Company>;
+  create(request: CreateCompanyRequest, userId: number): Promise<Company>;
+  update(id: number, request: UpdateCompanyRequest, userId: number): Promise<Company>;
+  toggleStatus(id: number, status: boolean, userId: number): Promise<Company>;
 }

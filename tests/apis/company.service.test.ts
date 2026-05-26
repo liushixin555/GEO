@@ -27,6 +27,8 @@ function makePrismaCompany(overrides: Record<string, any> = {}) {
     contactPerson: 'Zhang San',
     contactPhone: '13800138000',
     status: true,
+    createdById: null,
+    updatedById: null,
     createdAt: new Date('2025-01-01'),
     updatedAt: new Date('2025-06-01'),
     deletedAt: null,
@@ -109,13 +111,9 @@ describe('CompanyServiceImpl', () => {
         id: 5,
         short_name: 'TEST',
         full_name: 'Test Co',
-        address: 'Shanghai',
-        contact_person: 'Li',
-        contact_phone: '111',
         status: false,
         created_at: date,
         updated_at: date,
-        deleted_at: null,
       });
     });
   });
@@ -253,7 +251,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      const result = await service.create(request);
+      const result = await service.create(request, 1);
 
       expect(result.id).toBe(3);
       expect(result.short_name).toBe('NEWCO');
@@ -267,6 +265,7 @@ describe('CompanyServiceImpl', () => {
           address: 'Shanghai',
           contactPerson: 'Li Si',
           contactPhone: '13900139000',
+          createdById: 1,
         },
       });
 
@@ -301,7 +300,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      const result = await service.create(request);
+      const result = await service.create(request, 1);
 
       expect(result.short_name).toBe('SOLO');
       // Only operator_ids updateMany, no viewer_ids
@@ -333,7 +332,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      const result = await service.create(request);
+      const result = await service.create(request, 1);
 
       expect(result.short_name).toBe('EMPTY');
       // Only 1 operator updateMany, no viewer updateMany (empty array)
@@ -364,7 +363,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await service.create(request);
+      await service.create(request, 1);
 
       expect(mockTx.company.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ address: null }),
@@ -398,7 +397,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await service.create(request);
+      await service.create(request, 1);
 
       // 2 updateMany calls: 1 for operators (empty array still triggers call) + 1 for viewers
       expect(mockTx.user.updateMany).toHaveBeenCalledTimes(2);
@@ -448,7 +447,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      const result = await service.update(2, request);
+      const result = await service.update(2, request, 1);
 
       expect(result.short_name).toBe('ACME-UPD');
       expect(result.full_name).toBe('ACME Corp Updated');
@@ -482,7 +481,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await service.update(1, request);
+      await service.update(1, request, 1);
 
       // First updateMany: unlink all admin+view users in one call
       expect(mockTx.user.updateMany).toHaveBeenCalledWith({
@@ -517,7 +516,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      const result = await service.update(1, request);
+      const result = await service.update(1, request, 1);
 
       expect(result.short_name).toBe('NOVIEW');
       // updateMany: 1 unlink + 1 link operator = 2 total
@@ -551,13 +550,13 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await service.update(1, request);
+      await service.update(1, request, 1);
 
       // updateMany: 1 unlink + 1 link operator = 2 total (no viewer link since empty array)
       expect(mockTx.user.updateMany).toHaveBeenCalledTimes(2);
     });
 
-    it('should call company.update with correct data including null address', async () => {
+    it('should call company.update with correct data (conditional update)', async () => {
       const request = {
         short_name: 'UPD',
         full_name: 'Updated Co',
@@ -583,16 +582,16 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await service.update(1, request);
+      await service.update(1, request, 1);
 
       expect(mockTx.company.update).toHaveBeenCalledWith({
         where: { id: 1 },
         data: {
           shortName: 'UPD',
           fullName: 'Updated Co',
-          address: null,
           contactPerson: 'B',
           contactPhone: '444',
+          updatedById: 1,
         },
       });
     });
@@ -626,7 +625,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await service.update(1, request);
+      await service.update(1, request, 1);
 
       // updateMany: 1 unlink + 1 link operators + 1 link viewers = 3 total
       expect(mockTx.user.updateMany).toHaveBeenCalledTimes(3);
@@ -652,12 +651,12 @@ describe('CompanyServiceImpl', () => {
         company: { findUnique: mockFindUnique, update: mockUpdate },
       } as any);
 
-      const result = await service.toggleStatus(1, true);
+      const result = await service.toggleStatus(1, true, 1);
 
       expect(result.status).toBe(true);
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { status: true },
+        data: { status: true, updatedById: 1 },
       });
     });
 
@@ -671,12 +670,12 @@ describe('CompanyServiceImpl', () => {
         company: { findUnique: mockFindUnique, update: mockUpdate },
       } as any);
 
-      const result = await service.toggleStatus(2, false);
+      const result = await service.toggleStatus(2, false, 1);
 
       expect(result.status).toBe(false);
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 2 },
-        data: { status: false },
+        data: { status: false, updatedById: 1 },
       });
     });
 
@@ -686,7 +685,7 @@ describe('CompanyServiceImpl', () => {
         company: { findUnique: mockFindUnique },
       } as any);
 
-      await expect(service.toggleStatus(999, true)).rejects.toThrow('公司不存在');
+      await expect(service.toggleStatus(999, true, 1)).rejects.toThrow('公司不存在');
     });
 
     it('should return mapped company after toggle', async () => {
@@ -700,7 +699,7 @@ describe('CompanyServiceImpl', () => {
         company: { findUnique: mockFindUnique, update: mockUpdate },
       } as any);
 
-      const result = await service.toggleStatus(3, false);
+      const result = await service.toggleStatus(3, false, 1);
 
       expect(result.id).toBe(3);
       expect(result.short_name).toBe('MAPPED');
@@ -714,7 +713,7 @@ describe('CompanyServiceImpl', () => {
         company: { findUnique: mockFindUnique, update: mockUpdate },
       } as any);
 
-      await service.toggleStatus(5, false);
+      await service.toggleStatus(5, false, 1);
 
       expect(mockFindUnique).toHaveBeenCalledWith({ where: { id: 5 } });
     });
@@ -749,7 +748,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await service.create(request);
+      await service.create(request, 1);
 
       // Batch updateMany for operators
       expect(mockTx.user.updateMany).toHaveBeenCalledWith({
@@ -780,7 +779,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      const result = await service.create(request);
+      const result = await service.create(request, 1);
 
       expect(result.id).toBe(50);
       // operator_ids is [] but service still calls updateMany with empty array
@@ -813,7 +812,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await service.create(request);
+      await service.create(request, 1);
 
       expect(mockTx.company.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ address: ' Guangzhou' }),
@@ -849,7 +848,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await service.update(10, request);
+      await service.update(10, request, 1);
 
       // Batch updateMany for operators
       expect(mockTx.user.updateMany).toHaveBeenCalledWith({
@@ -890,7 +889,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await service.update(1, request);
+      await service.update(1, request, 1);
 
       expect(mockTx.company.update).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -955,7 +954,7 @@ describe('CompanyServiceImpl', () => {
       expect(result).toHaveProperty('status');
       expect(result).toHaveProperty('created_at');
       expect(result).toHaveProperty('updated_at');
-      expect(result).toHaveProperty('deleted_at');
+      expect(result).not.toHaveProperty('deleted_at');
       // Verify CompanyDetail fields
       expect(result).toHaveProperty('operator_ids');
       expect(result).toHaveProperty('operators');
@@ -1025,7 +1024,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.create(request)).rejects.toThrow('DB connection lost');
+      await expect(service.create(request, 1)).rejects.toThrow('DB connection lost');
     });
 
     it('create: should handle single operator correctly', async () => {
@@ -1052,7 +1051,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      const result = await service.create(request);
+      const result = await service.create(request, 1);
 
       expect(result.id).toBe(20);
       // Batch updateMany for single operator
@@ -1111,7 +1110,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.update(1, request)).rejects.toThrow('Transaction failed');
+      await expect(service.update(1, request, 1)).rejects.toThrow('Transaction failed');
     });
 
     it('update: should handle many operators and viewers', async () => {
@@ -1151,7 +1150,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await service.update(1, request);
+      await service.update(1, request, 1);
 
       // updateMany: 1 unlink + 1 link operators + 1 link viewers = 3 total (batch)
       expect(mockTx.user.updateMany).toHaveBeenCalledTimes(3);
@@ -1167,7 +1166,7 @@ describe('CompanyServiceImpl', () => {
         company: { findUnique: mockFindUnique, update: mockUpdate },
       } as any);
 
-      await expect(service.toggleStatus(1, true)).rejects.toThrow('公司已处于启用状态');
+      await expect(service.toggleStatus(1, true, 1)).rejects.toThrow('公司已处于启用状态');
       expect(mockUpdate).not.toHaveBeenCalled();
     });
 
@@ -1180,7 +1179,7 @@ describe('CompanyServiceImpl', () => {
         company: { findUnique: mockFindUnique, update: mockUpdate },
       } as any);
 
-      await expect(service.toggleStatus(2, false)).rejects.toThrow('公司已处于禁用状态');
+      await expect(service.toggleStatus(2, false, 1)).rejects.toThrow('公司已处于禁用状态');
       expect(mockUpdate).not.toHaveBeenCalled();
     });
 
@@ -1192,7 +1191,7 @@ describe('CompanyServiceImpl', () => {
         company: { findUnique: mockFindUnique, update: mockUpdate },
       } as any);
 
-      await expect(service.toggleStatus(1, false)).rejects.toThrow('Update failed');
+      await expect(service.toggleStatus(1, false, 1)).rejects.toThrow('Update failed');
     });
 
     // --- Concurrency / multiple calls ---
@@ -1243,7 +1242,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.create(request)).rejects.toThrow('用户不存在: 999');
+      await expect(service.create(request, 1)).rejects.toThrow('用户不存在: 999');
     });
 
     it('create: should throw BusinessError when viewer ID does not exist', async () => {
@@ -1267,7 +1266,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.create(request)).rejects.toThrow('用户不存在: 888');
+      await expect(service.create(request, 1)).rejects.toThrow('用户不存在: 888');
     });
 
     it('create: should throw BusinessError listing all missing IDs', async () => {
@@ -1291,7 +1290,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.create(request)).rejects.toThrow('用户不存在: 100, 101, 200');
+      await expect(service.create(request, 1)).rejects.toThrow('用户不存在: 100, 101, 200');
     });
 
     it('update: should throw BusinessError when operator ID does not exist', async () => {
@@ -1317,7 +1316,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.update(1, request)).rejects.toThrow('用户不存在: 777');
+      await expect(service.update(1, request, 1)).rejects.toThrow('用户不存在: 777');
     });
   });
 
@@ -1342,7 +1341,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.create(request)).rejects.toThrow('系统管理员不可被关联到公司');
+      await expect(service.create(request, 1)).rejects.toThrow('系统管理员不可被关联到公司');
     });
 
     it('create: should throw BusinessError when viewer is sysadmin', async () => {
@@ -1369,7 +1368,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.create(request)).rejects.toThrow('系统管理员不可被关联到公司');
+      await expect(service.create(request, 1)).rejects.toThrow('系统管理员不可被关联到公司');
     });
 
     it('update: should throw BusinessError when sysadmin is in operator_ids', async () => {
@@ -1395,7 +1394,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.update(1, request)).rejects.toThrow('系统管理员不可被关联到公司');
+      await expect(service.update(1, request, 1)).rejects.toThrow('系统管理员不可被关联到公司');
     });
   });
 
@@ -1420,7 +1419,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.create(request)).rejects.toThrow('用户已禁用: 5');
+      await expect(service.create(request, 1)).rejects.toThrow('用户已禁用: 5');
     });
 
     it('create: should throw BusinessError when viewer is disabled', async () => {
@@ -1447,7 +1446,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.create(request)).rejects.toThrow('用户已禁用: 6');
+      await expect(service.create(request, 1)).rejects.toThrow('用户已禁用: 6');
     });
 
     it('update: should throw BusinessError when user is disabled', async () => {
@@ -1473,7 +1472,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.update(1, request)).rejects.toThrow('用户已禁用: 3');
+      await expect(service.update(1, request, 1)).rejects.toThrow('用户已禁用: 3');
     });
 
     it('create: should list all disabled user IDs in error message', async () => {
@@ -1499,7 +1498,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.create(request)).rejects.toThrow('用户已禁用: 10, 11');
+      await expect(service.create(request, 1)).rejects.toThrow('用户已禁用: 10, 11');
     });
   });
 
@@ -1525,7 +1524,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await service.create(request);
+      await service.create(request, 1);
 
       // targetIds.length === 0, so validateUserIds returns early without calling findMany
       expect(mockTx.user.findMany).not.toHaveBeenCalled();
@@ -1555,7 +1554,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await service.update(1, request);
+      await service.update(1, request, 1);
 
       expect(mockTx.user.findMany).not.toHaveBeenCalled();
     });
@@ -1599,7 +1598,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.update(1, request)).rejects.toThrow('公司不存在');
+      await expect(service.update(1, request, 1)).rejects.toThrow('公司不存在');
       // Should not call update on a deleted company
       expect(mockTx.company.update).not.toHaveBeenCalled();
     });
@@ -1613,7 +1612,7 @@ describe('CompanyServiceImpl', () => {
         company: { findUnique: mockFindUnique, update: mockUpdate },
       } as any);
 
-      await expect(service.toggleStatus(1, false)).rejects.toThrow('公司不存在');
+      await expect(service.toggleStatus(1, false, 1)).rejects.toThrow('公司不存在');
       expect(mockUpdate).not.toHaveBeenCalled();
     });
   });
@@ -1633,9 +1632,9 @@ describe('CompanyServiceImpl', () => {
     it('should have correct method signatures (param count)', () => {
       expect(service.list.length).toBe(0);
       expect(service.getById.length).toBe(1);
-      expect(service.create.length).toBe(1);
-      expect(service.update.length).toBe(2);
-      expect(service.toggleStatus.length).toBe(2);
+      expect(service.create.length).toBe(2);
+      expect(service.update.length).toBe(3);
+      expect(service.toggleStatus.length).toBe(3);
     });
   });
 
@@ -1666,7 +1665,7 @@ describe('CompanyServiceImpl', () => {
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
       // Missing ID check runs first
-      await expect(service.create(request)).rejects.toThrow('用户不存在: 999');
+      await expect(service.create(request, 1)).rejects.toThrow('用户不存在: 999');
     });
 
     it('should check sysadmin before disabled check', async () => {
@@ -1692,7 +1691,7 @@ describe('CompanyServiceImpl', () => {
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
       // Sysadmin check runs before disabled check
-      await expect(service.create(request)).rejects.toThrow('系统管理员不可被关联到公司');
+      await expect(service.create(request, 1)).rejects.toThrow('系统管理员不可被关联到公司');
     });
 
     it('should pass validation for valid admin and view users', async () => {
@@ -1720,7 +1719,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      const result = await service.create(request);
+      const result = await service.create(request, 1);
       expect(result.id).toBe(5);
     });
   });
@@ -1817,7 +1816,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.update(999, request)).rejects.toThrow('公司不存在');
+      await expect(service.update(999, request, 1)).rejects.toThrow('公司不存在');
     });
 
     it('should not call company.update when company not found', async () => {
@@ -1843,7 +1842,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.update(999, request)).rejects.toThrow('公司不存在');
+      await expect(service.update(999, request, 1)).rejects.toThrow('公司不存在');
       expect(mockTx.company.update).not.toHaveBeenCalled();
     });
 
@@ -1870,7 +1869,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.update(999, request)).rejects.toThrow('公司不存在');
+      await expect(service.update(999, request, 1)).rejects.toThrow('公司不存在');
       expect(mockTx.user.updateMany).not.toHaveBeenCalled();
     });
   });
@@ -1913,7 +1912,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await service.create(request);
+      await service.create(request, 1);
 
       expect(callOrder).toEqual(['validateUserIds', 'create', 'updateMany']);
     });
@@ -1940,7 +1939,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.create(request)).rejects.toThrow('用户不存在: 999');
+      await expect(service.create(request, 1)).rejects.toThrow('用户不存在: 999');
       expect(mockTx.company.create).not.toHaveBeenCalled();
       expect(mockTx.user.updateMany).not.toHaveBeenCalled();
     });
@@ -1977,7 +1976,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await service.create(request);
+      await service.create(request, 1);
 
       expect(mockTx.user.findMany).toHaveBeenCalledWith({
         where: { id: { in: [10, 11, 20, 21] } },
@@ -2012,7 +2011,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await service.update(1, request);
+      await service.update(1, request, 1);
 
       expect(mockTx.user.findMany).toHaveBeenCalledWith({
         where: { id: { in: [5, 6] } },
@@ -2044,7 +2043,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await service.create(request);
+      await service.create(request, 1);
 
       expect(mockTx.user.findMany).toHaveBeenCalledWith({
         where: { id: { in: [1, 2] } },
@@ -2052,7 +2051,7 @@ describe('CompanyServiceImpl', () => {
       });
     });
 
-    it('create: should handle duplicate IDs across operator and viewer', async () => {
+    it('create: should reject duplicate IDs across operator and viewer', async () => {
       const request = {
         short_name: 'DUP',
         full_name: 'Dup Co',
@@ -2076,13 +2075,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await service.create(request);
-
-      // targetIds = [...[1], ...[1]] = [1, 1]
-      expect(mockTx.user.findMany).toHaveBeenCalledWith({
-        where: { id: { in: [1, 1] } },
-        select: { id: true, role: true, status: true },
-      });
+      await expect(service.create(request, 1)).rejects.toThrow('同一用户不能同时出现在运营者和查看者列表中');
     });
   });
 
@@ -2131,7 +2124,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await service.update(1, request);
+      await service.update(1, request, 1);
 
       expect(callOrder).toEqual([
         'findUnique',
@@ -2170,7 +2163,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.update(1, request)).rejects.toThrow('用户不存在: 999');
+      await expect(service.update(1, request, 1)).rejects.toThrow('用户不存在: 999');
 
       // Only the unlink call should have happened (before validateUserIds)
       expect(updateManyCallCount).toBe(1);
@@ -2212,7 +2205,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.update(1, request)).rejects.toThrow('系统管理员不可被关联到公司');
+      await expect(service.update(1, request, 1)).rejects.toThrow('系统管理员不可被关联到公司');
     });
 
     it('update: should throw BusinessError when viewer is disabled', async () => {
@@ -2242,7 +2235,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.update(1, request)).rejects.toThrow('用户已禁用: 5');
+      await expect(service.update(1, request, 1)).rejects.toThrow('用户已禁用: 5');
     });
 
     it('update: should throw BusinessError listing all missing IDs', async () => {
@@ -2269,7 +2262,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.update(1, request)).rejects.toThrow('用户不存在: 100, 200, 201');
+      await expect(service.update(1, request, 1)).rejects.toThrow('用户不存在: 100, 200, 201');
     });
 
     it('update: should list all disabled user IDs in error message', async () => {
@@ -2299,7 +2292,7 @@ describe('CompanyServiceImpl', () => {
       };
       mockedGetPrisma.mockReturnValue(mockPrisma as any);
 
-      await expect(service.update(1, request)).rejects.toThrow('用户已禁用: 10, 20');
+      await expect(service.update(1, request, 1)).rejects.toThrow('用户已禁用: 10, 20');
     });
   });
 
@@ -2325,7 +2318,7 @@ describe('CompanyServiceImpl', () => {
   //  getById — deleted_at 字段
   // ──────────────────────────────────────
   describe('getById — deleted_at', () => {
-    it('should return null deleted_at for active company', async () => {
+    it('should NOT include deleted_at in CompanyDetail', async () => {
       const mockFindUnique = jest.fn().mockResolvedValue(makePrismaCompany({ id: 1, deletedAt: null }));
       const mockFindMany = jest.fn().mockResolvedValue([]);
       mockedGetPrisma.mockReturnValue({
@@ -2335,7 +2328,7 @@ describe('CompanyServiceImpl', () => {
 
       const result = await service.getById(1);
 
-      expect(result.deleted_at).toBeNull();
+      expect(result).not.toHaveProperty('deleted_at');
     });
   });
 });

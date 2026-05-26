@@ -24,11 +24,15 @@ model Company {
   status        Boolean @default(true)
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  createdById   Int?     @map("created_by")
+  updatedById   Int?     @map("updated_by")
   users         User[]
   projects      Project[]
   knowledgeBases KnowledgeBase[]
   selectedByUsers User[] @relation("UserSelectedCompany")
   todos           Todo[]
+  createdBy       User?  @relation("CompanyCreator", fields: [createdById], references: [id])
+  updatedBy       User?  @relation("CompanyUpdater", fields: [updatedById], references: [id])
 
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@map("companies")
@@ -60,6 +64,8 @@ model User {
   createdImages        KnowledgeImage[]      @relation("KnowledgeImageCreator")
   createdDocuments     KnowledgeDocument[]   @relation("KnowledgeDocumentCreator")
   createdKnowledgeBases KnowledgeBase[]      @relation("KnowledgeBaseCreator")
+  createdCompanies     Company[]             @relation("CompanyCreator")
+  updatedCompanies     Company[]             @relation("CompanyUpdater")
   assignedTodos        Todo[]                @relation("TodoAssignee")
   createdTodos         Todo[]                @relation("TodoCreator")
   todoLogOperations    TodoLog[]             @relation("TodoLogOperator")

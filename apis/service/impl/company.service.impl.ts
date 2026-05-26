@@ -1,17 +1,22 @@
 import { getPrisma } from '../../utils';
-import { Company, CreateCompanyRequest, UpdateCompanyRequest, CompanyDetail } from '../../entity';
+import { Company, CompanyListItem, CreateCompanyRequest, UpdateCompanyRequest, CompanyDetail, UserRef } from '../../entity';
 import { mapCompany } from '../../map';
 import { ICompanyService } from '../company.service';
 import { NotFoundError, BusinessError } from '../../errors';
 
+function toListItem(company: Company): CompanyListItem {
+  const { contact_person, contact_phone, address, deleted_at, created_by, updated_by, ...rest } = company;
+  return rest;
+}
+
 export class CompanyServiceImpl implements ICompanyService {
-  async list(): Promise<Company[]> {
+  async list(): Promise<CompanyListItem[]> {
     const prisma = getPrisma();
     const companies = await prisma.company.findMany({
       where: { deletedAt: null },
       orderBy: { id: 'asc' },
     });
-    return companies.map(mapCompany);
+    return companies.map(mapCompany).map(toListItem);
   }
 
   async getById(id: number): Promise<CompanyDetail> {
@@ -26,41 +31,41 @@ export class CompanyServiceImpl implements ICompanyService {
       select: { id: true, role: true, cnName: true },
     });
 
-    const operators = users.filter(u => u.role === 'admin');
-    const viewers = users.filter(u => u.role === 'view');
+    const operators: UserRef[] = users.filter(u => u.role === 'admin').map(u => ({ id: u.id, cn_name: u.cnName }));
+    const viewers: UserRef[] = users.filter(u => u.role === 'view').map(u => ({ id: u.id, cn_name: u.cnName }));
 
+    const { deleted_at, ...companyWithoutDeletedAt } = mapCompany(company);
     return {
-      ...mapCompany(company),
+      ...companyWithoutDeletedAt,
       operator_ids: operators.map(u => u.id),
-      operators: operators.map(u => ({ id: u.id, cn_name: u.cnName })),
+      operators,
       viewer_ids: viewers.map(u => u.id),
-      viewers: viewers.map(u => ({ id: u.id, cn_name: u.cnName })),
+      viewers,
     };
   }
 
-  async create(request: CreateCompanyRequest): Promise<Company> {
+  async create(request: CreateCompanyRequest, userId: number): Promise<Company> {
     const prisma = getPrisma();
     return prisma.$transaction(async (tx) => {
-      // 校验所有 operator/viewer IDs 的合法性
+      this.validateOperatorViewerExclusive(request.operator_ids, request.viewer_ids);
       await this.validateUserIds(tx, request.operator_ids, request.viewer_ids);
 
       const company = await tx.company.create({
         data: {
           shortName: request.short_name,
           fullName: request.full_name,
-          address: request.address || null,
+          address: request.address ?? null,
           contactPerson: request.contact_person,
           contactPhone: request.contact_phone,
+          createdById: userId,
         },
       });
 
-      // 批量设置 operators
       await tx.user.updateMany({
         where: { id: { in: request.operator_ids } },
         data: { companyId: company.id },
       });
 
-      // 批量设置 viewers
       if (request.viewer_ids?.length) {
         await tx.user.updateMany({
           where: { id: { in: request.viewer_ids } },
@@ -72,7 +77,7 @@ export class CompanyServiceImpl implements ICompanyService {
     });
   }
 
-  async update(id: number, request: UpdateCompanyRequest): Promise<Company> {
+  async update(id: number, request: UpdateCompanyRequest, userId: number): Promise<Company> {
     const prisma = getPrisma();
     return prisma.$transaction(async (tx) => {
       const existing = await tx.company.findUnique({ where: { id } });
@@ -80,45 +85,50 @@ export class CompanyServiceImpl implements ICompanyService {
         throw new NotFoundError('公司');
       }
 
+      const data: Record<string, unknown> = { updatedById: userId };
+      if (request.short_name !== undefined) data.shortName = request.short_name;
+      if (request.full_name !== undefined) data.fullName = request.full_name;
+      if (request.address !== undefined) data.address = request.address ?? null;
+      if (request.contact_person !== undefined) data.contactPerson = request.contact_person;
+      if (request.contact_phone !== undefined) data.contactPhone = request.contact_phone;
+
       const company = await tx.company.update({
         where: { id },
-        data: {
-          shortName: request.short_name,
-          fullName: request.full_name,
-          address: request.address || null,
-          contactPerson: request.contact_person,
-          contactPhone: request.contact_phone,
-        },
+        data,
       });
 
-      // 解绑旧的 admin/view 用户
-      await tx.user.updateMany({
-        where: { companyId: id, role: { in: ['admin', 'view'] } },
-        data: { companyId: null },
-      });
-
-      // 校验新的 operator/viewer IDs 合法性
-      await this.validateUserIds(tx, request.operator_ids, request.viewer_ids);
-
-      // 批量绑定新的 operators
-      await tx.user.updateMany({
-        where: { id: { in: request.operator_ids } },
-        data: { companyId: id },
-      });
-
-      // 批量绑定新的 viewers
-      if (request.viewer_ids?.length) {
+      if (request.operator_ids !== undefined || request.viewer_ids !== undefined) {
         await tx.user.updateMany({
-          where: { id: { in: request.viewer_ids } },
-          data: { companyId: id },
+          where: { companyId: id, role: { in: ['admin', 'view'] } },
+          data: { companyId: null },
         });
+
+        const operatorIds = request.operator_ids ?? [];
+        const viewerIds = request.viewer_ids ?? [];
+
+        this.validateOperatorViewerExclusive(operatorIds, viewerIds);
+        await this.validateUserIds(tx, operatorIds, viewerIds.length > 0 ? viewerIds : undefined);
+
+        if (operatorIds.length > 0) {
+          await tx.user.updateMany({
+            where: { id: { in: operatorIds } },
+            data: { companyId: id },
+          });
+        }
+
+        if (viewerIds.length > 0) {
+          await tx.user.updateMany({
+            where: { id: { in: viewerIds } },
+            data: { companyId: id },
+          });
+        }
       }
 
       return mapCompany(company);
     });
   }
 
-  async toggleStatus(id: number, status: boolean): Promise<Company> {
+  async toggleStatus(id: number, status: boolean, userId: number): Promise<Company> {
     const prisma = getPrisma();
     const existing = await prisma.company.findUnique({ where: { id } });
     if (!existing || existing.deletedAt) throw new NotFoundError('公司');
@@ -129,9 +139,19 @@ export class CompanyServiceImpl implements ICompanyService {
 
     const company = await prisma.company.update({
       where: { id },
-      data: { status },
+      data: { status, updatedById: userId },
     });
     return mapCompany(company);
+  }
+
+  /** 校验 operator_ids 与 viewer_ids 无交集 */
+  private validateOperatorViewerExclusive(operatorIds: number[], viewerIds?: number[]): void {
+    if (!viewerIds?.length) return;
+    const opSet = new Set(operatorIds);
+    const overlap = viewerIds.filter(id => opSet.has(id));
+    if (overlap.length > 0) {
+      throw new BusinessError(`同一用户不能同时出现在运营者和查看者列表中: ${overlap.join(', ')}`);
+    }
   }
 
   /** 校验用户 ID 列表的合法性：存在性、角色、状态 */
@@ -149,20 +169,17 @@ export class CompanyServiceImpl implements ICompanyService {
       select: { id: true, role: true, status: true },
     });
 
-    // 检查所有 ID 存在
     const foundIds = new Set(users.map(u => u.id));
     const missingIds = targetIds.filter(id => !foundIds.has(id));
     if (missingIds.length > 0) {
       throw new BusinessError(`用户不存在: ${missingIds.join(', ')}`);
     }
 
-    // 检查无 sysadmin 被关联
     const sysadminIds = users.filter(u => u.role === 'sysadmin').map(u => u.id);
     if (sysadminIds.length > 0) {
       throw new BusinessError('系统管理员不可被关联到公司');
     }
 
-    // 检查用户状态
     const inactiveIds = users.filter(u => !u.status).map(u => u.id);
     if (inactiveIds.length > 0) {
       throw new BusinessError(`用户已禁用: ${inactiveIds.join(', ')}`);

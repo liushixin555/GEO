@@ -144,7 +144,7 @@ describe('createCompanySchema', () => {
     });
   });
 
-  // === address（optional） ===
+  // === address（nullable + optional） ===
   describe('address', () => {
     it('应接受有效地址', () => {
       expect(createCompanySchema.parse(validCompany).address).toBe('北京市朝阳区测试路1号');
@@ -154,6 +154,14 @@ describe('createCompanySchema', () => {
       const { address: _, ...without } = validCompany;
       const result = createCompanySchema.safeParse(without);
       expect(result.success).toBe(true);
+    });
+
+    it('应接受 null（nullable 字段）', () => {
+      const result = createCompanySchema.safeParse({ ...validCompany, address: null });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.address).toBeNull();
+      }
     });
 
     it('应接受最长500个字符的地址', () => {
@@ -180,11 +188,6 @@ describe('createCompanySchema', () => {
 
     it('应拒绝数字类型', () => {
       const result = createCompanySchema.safeParse({ ...validCompany, address: 789 as unknown as string });
-      expect(result.success).toBe(false);
-    });
-
-    it('应拒绝 null', () => {
-      const result = createCompanySchema.safeParse({ ...validCompany, address: null });
       expect(result.success).toBe(false);
     });
 
@@ -345,7 +348,7 @@ describe('createCompanySchema', () => {
     });
 
     it('应接受最多100个运营者ID', () => {
-      const ids = Array.from({ length: 100 }, (_, i) => i + 1);
+      const ids = Array.from({ length: 100 }, (_, i) => i + 101);
       expect(createCompanySchema.parse({ ...validCompany, operator_ids: ids }).operator_ids).toHaveLength(100);
     });
 
@@ -427,7 +430,7 @@ describe('createCompanySchema', () => {
     });
 
     it('应接受最多100个查看者ID', () => {
-      const ids = Array.from({ length: 100 }, (_, i) => i + 1);
+      const ids = Array.from({ length: 100 }, (_, i) => i + 101);
       expect(createCompanySchema.parse({ ...validCompany, viewer_ids: ids }).viewer_ids).toHaveLength(100);
     });
 
@@ -468,6 +471,58 @@ describe('createCompanySchema', () => {
     it('应拒绝非数组', () => {
       const result = createCompanySchema.safeParse({ ...validCompany, viewer_ids: '4,5' as unknown as number[] });
       expect(result.success).toBe(false);
+    });
+  });
+
+  // === operator_ids / viewer_ids 互斥校验 ===
+  describe('operator_ids / viewer_ids 互斥校验', () => {
+    it('应拒绝运营者和查看者存在重叠ID', () => {
+      const result = createCompanySchema.safeParse({
+        ...validCompany,
+        operator_ids: [1, 2],
+        viewer_ids: [2, 3],
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0].message).toBe('同一用户不能同时出现在运营者和查看者列表中');
+        expect(result.error.issues[0].path).toEqual(['viewer_ids']);
+      }
+    });
+
+    it('应接受不重叠的运营者和查看者ID', () => {
+      const result = createCompanySchema.safeParse({
+        ...validCompany,
+        operator_ids: [1, 2],
+        viewer_ids: [3, 4],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('应接受 viewer_ids 为空数组时不论 operator_ids 如何', () => {
+      const result = createCompanySchema.safeParse({
+        ...validCompany,
+        operator_ids: [1, 2, 3],
+        viewer_ids: [],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('应接受 viewer_ids 为 undefined 时不论 operator_ids 如何', () => {
+      const { viewer_ids: _, ...without } = validCompany;
+      const result = createCompanySchema.safeParse(without);
+      expect(result.success).toBe(true);
+    });
+
+    it('应拒绝完全相同的 operator_ids 和 viewer_ids', () => {
+      const result = createCompanySchema.safeParse({
+        ...validCompany,
+        operator_ids: [1, 2, 3],
+        viewer_ids: [1, 2, 3],
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0].message).toBe('同一用户不能同时出现在运营者和查看者列表中');
+      }
     });
   });
 
@@ -512,6 +567,58 @@ describe('createCompanySchema', () => {
 
 // ─── updateCompanySchema ────────────────────────────────────────────
 describe('updateCompanySchema', () => {
+  // === 部分更新：所有字段可选 ===
+  describe('部分更新（所有字段可选）', () => {
+    it('应接受空对象（无任何字段的部分更新）', () => {
+      const result = updateCompanySchema.safeParse({});
+      expect(result.success).toBe(true);
+    });
+
+    it('应接受仅包含 short_name 的更新', () => {
+      const result = updateCompanySchema.safeParse({ short_name: '新公司' });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.short_name).toBe('新公司');
+      }
+    });
+
+    it('应接受仅包含 full_name 的更新', () => {
+      const result = updateCompanySchema.safeParse({ full_name: '新公司全称' });
+      expect(result.success).toBe(true);
+    });
+
+    it('应接受仅包含 address 的更新', () => {
+      const result = updateCompanySchema.safeParse({ address: '新地址' });
+      expect(result.success).toBe(true);
+    });
+
+    it('应接受仅包含 contact_person 的更新', () => {
+      const result = updateCompanySchema.safeParse({ contact_person: '李四' });
+      expect(result.success).toBe(true);
+    });
+
+    it('应接受仅包含 contact_phone 的更新', () => {
+      const result = updateCompanySchema.safeParse({ contact_phone: '13900139000' });
+      expect(result.success).toBe(true);
+    });
+
+    it('应接受仅包含 operator_ids 的部分更新', () => {
+      const result = updateCompanySchema.safeParse({ operator_ids: [1, 2] });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.operator_ids).toEqual([1, 2]);
+      }
+    });
+
+    it('应接受仅包含 viewer_ids 的部分更新', () => {
+      const result = updateCompanySchema.safeParse({ viewer_ids: [3, 4] });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.viewer_ids).toEqual([3, 4]);
+      }
+    });
+  });
+
   // === 继承字段约束 ===
   describe('继承字段约束', () => {
     it('应接受有效简称', () => {
@@ -549,25 +656,69 @@ describe('updateCompanySchema', () => {
     });
   });
 
-  // === operator_ids ===
+  // === address（nullable + optional） ===
+  describe('address', () => {
+    it('应接受 null（nullable 字段）', () => {
+      const result = updateCompanySchema.safeParse({ ...validCompany, address: null });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.address).toBeNull();
+      }
+    });
+
+    it('应接受 undefined（可选字段）', () => {
+      const { address: _, ...without } = validCompany;
+      const result = updateCompanySchema.safeParse(without);
+      expect(result.success).toBe(true);
+    });
+  });
+
+  // === operator_ids（部分更新：无 min(1) 约束） ===
   describe('operator_ids', () => {
     it('应接受有效的运营者ID数组', () => {
       expect(updateCompanySchema.parse(validCompany).operator_ids).toEqual([1, 2, 3]);
     });
 
-    it('应拒绝空数组', () => {
+    it('应接受空数组（部分更新无 min(1) 约束）', () => {
       const result = updateCompanySchema.safeParse({ ...validCompany, operator_ids: [] });
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.operator_ids).toEqual([]);
+      }
+    });
+
+    it('应接受 undefined（可选字段）', () => {
+      const { operator_ids: _, ...without } = validCompany;
+      const result = updateCompanySchema.safeParse(without);
+      expect(result.success).toBe(true);
     });
 
     it('应拒绝超过100个运营者ID', () => {
       const ids = Array.from({ length: 101 }, (_, i) => i + 1);
       const result = updateCompanySchema.safeParse({ ...validCompany, operator_ids: ids });
       expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0].message).toBe('运营者不能超过100个');
+      }
     });
 
     it('应拒绝负数ID', () => {
       const result = updateCompanySchema.safeParse({ ...validCompany, operator_ids: [-1] });
+      expect(result.success).toBe(false);
+    });
+
+    it('应拒绝零作为ID', () => {
+      const result = updateCompanySchema.safeParse({ ...validCompany, operator_ids: [0] });
+      expect(result.success).toBe(false);
+    });
+
+    it('应拒绝浮点数ID', () => {
+      const result = updateCompanySchema.safeParse({ ...validCompany, operator_ids: [1.5] });
+      expect(result.success).toBe(false);
+    });
+
+    it('应拒绝字符串ID', () => {
+      const result = updateCompanySchema.safeParse({ ...validCompany, operator_ids: ['1'] as unknown as number[] });
       expect(result.success).toBe(false);
     });
   });
@@ -592,11 +743,73 @@ describe('updateCompanySchema', () => {
       const ids = Array.from({ length: 101 }, (_, i) => i + 1);
       const result = updateCompanySchema.safeParse({ ...validCompany, viewer_ids: ids });
       expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0].message).toBe('查看者不能超过100个');
+      }
     });
 
     it('应拒绝负数ID', () => {
       const result = updateCompanySchema.safeParse({ ...validCompany, viewer_ids: [-1] });
       expect(result.success).toBe(false);
+    });
+
+    it('应拒绝零作为ID', () => {
+      const result = updateCompanySchema.safeParse({ ...validCompany, viewer_ids: [0] });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  // === operator_ids / viewer_ids 互斥校验 ===
+  describe('operator_ids / viewer_ids 互斥校验', () => {
+    it('应拒绝运营者和查看者存在重叠ID', () => {
+      const result = updateCompanySchema.safeParse({
+        ...validCompany,
+        operator_ids: [1, 2],
+        viewer_ids: [2, 3],
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0].message).toBe('同一用户不能同时出现在运营者和查看者列表中');
+        expect(result.error.issues[0].path).toEqual(['viewer_ids']);
+      }
+    });
+
+    it('应接受不重叠的运营者和查看者ID', () => {
+      const result = updateCompanySchema.safeParse({
+        ...validCompany,
+        operator_ids: [1, 2],
+        viewer_ids: [3, 4],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('应接受仅提供 operator_ids 无 viewer_ids', () => {
+      const result = updateCompanySchema.safeParse({ operator_ids: [1, 2] });
+      expect(result.success).toBe(true);
+    });
+
+    it('应接受仅提供 viewer_ids 无 operator_ids', () => {
+      const result = updateCompanySchema.safeParse({ viewer_ids: [3, 4] });
+      expect(result.success).toBe(true);
+    });
+
+    it('应接受 operator_ids 为空数组且 viewer_ids 为空数组', () => {
+      const result = updateCompanySchema.safeParse({
+        operator_ids: [],
+        viewer_ids: [],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('应拒绝完全相同的 operator_ids 和 viewer_ids', () => {
+      const result = updateCompanySchema.safeParse({
+        operator_ids: [1, 2, 3],
+        viewer_ids: [1, 2, 3],
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0].message).toBe('同一用户不能同时出现在运营者和查看者列表中');
+      }
     });
   });
 

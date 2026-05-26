@@ -13,6 +13,7 @@ import {
   updateContentSchema,
   listArticlesSchema,
 } from '../schema/article.schema';
+import type { CreateArticleRequest, UpdateArticleRequest } from '../entity';
 
 // M-1 fix: Factory pattern — lazy initialization, testable via module mock
 const articleService: IArticleService = createArticleService();
@@ -105,13 +106,13 @@ export const getArticle = withArticleAuth(async (req, res, ctx) => {
 }, { requireId: true, errorContext: '获取文章详情失败' });
 
 export const createArticle = withArticleAuth(async (req, res, ctx) => {
-  const body = req.body as z.infer<typeof createArticleSchema>;
+  const body = req.body as CreateArticleRequest;
   const item = await articleService.create(ctx.projectId, body, ctx);
   created(res, item, '创建文章成功');
 }, { errorContext: '创建文章失败' });
 
 export const updateArticle = withArticleAuth(async (req, res, ctx) => {
-  const body = req.body as z.infer<typeof updateArticleSchema>;
+  const body = req.body as UpdateArticleRequest;
   const item = await articleService.update(ctx.projectId, ctx.articleId!, body, ctx);
   success(res, item, body.status === 'generating' ? '已提交AI生成' : '更新文章成功');
 }, { requireId: true, errorContext: '更新文章失败' });

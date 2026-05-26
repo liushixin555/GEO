@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Row, Col, Input, Select, Tag, Typography, Spin, Pagination, Button, Modal, DatePicker, Breadcrumb, App, Card, Descriptions, Radio, Tooltip, Popconfirm, Form, Empty, Table } from 'antd';
 import { PlusOutlined, EditOutlined, RollbackOutlined, DeleteOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
+import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../lib/apiClient';
 import { formatDateTime } from '../utils/date';
 import { getSafeUser } from '../utils/auth';
@@ -99,19 +99,20 @@ const PublishingSchedulePage: React.FC = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = { page, pageSize };
+      const params: Record<string, unknown> = { page, pageSize };
+      if (projectId) params.projectId = projectId;
       if (search) params.search = search;
       if (filterStatus) params.status = filterStatus;
 
       const res = await apiClient.get('/publishing-schedule', { params });
       setData(res.data.data.list);
       setTotal(res.data.data.total);
-    } catch {
-      // ignore
+    } catch (err) {
+      message.error(getApiErrorMessage(err, '获取发布计划列表失败'));
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, search, filterStatus]);
+  }, [page, pageSize, search, filterStatus, projectId, message]);
 
   useEffect(() => {
     fetchData();
@@ -120,25 +121,22 @@ const PublishingSchedulePage: React.FC = () => {
   const fetchPublishableArticles = useCallback(async () => {
     setArticleLoading(true);
     try {
-      const params: any = { page: 1, pageSize: 200, status: 'approved' };
-      if (user.role !== 'sysadmin') {
-        // 非 sysadmin 只能选自己的文章
-      }
+      const params: Record<string, unknown> = { page: 1, pageSize: 200, status: 'approved' };
+      if (projectId) params.projectId = projectId;
       const res = await apiClient.get('/publishing-schedule/articles', { params });
-      const articles: ArticleOption[] = (res.data.data.list || []).map((a: any) => ({
-        id: a.id,
-        title: a.title || '<无标题>',
-        keywords: a.keywords,
-        project_id: a.project_id,
+      const articles: ArticleOption[] = (res.data.data.list || []).map((a: Record<string, unknown>) => ({
+        id: a.id as number,
+        title: (a.title as string) || '<无标题>',
+        keywords: a.keywords as string | null,
+        project_id: a.project_id as number,
       }));
-      // 非 sysadmin 只能选自己创建的文章
       setArticleOptions(articles);
     } catch {
       setArticleOptions([]);
     } finally {
       setArticleLoading(false);
     }
-  }, [user.role]);
+  }, [projectId]);
 
   const fetchPlatformOptions = useCallback(async () => {
     setPlatformLoading(true);
@@ -164,6 +162,7 @@ const PublishingSchedulePage: React.FC = () => {
   };
 
   const handleCreate = async () => {
+    if (createSaving) return;
     if (!selectedArticleId) {
       message.warning('请选择文章');
       return;
@@ -202,6 +201,7 @@ const PublishingSchedulePage: React.FC = () => {
   };
 
   const handleSaveSchedule = async () => {
+    if (editSaving) return;
     if (!editItem) return;
     if (!editScheduleType) {
       message.warning('请选择发布计划类型');
@@ -255,14 +255,17 @@ const PublishingSchedulePage: React.FC = () => {
   };
 
   const canEditSchedule = (item: ScheduleItem) => {
+    if (user.role === 'view') return false;
     return item.status === 'pending' && (user.role === 'sysadmin' || item.created_by === user.id);
   };
 
   const canRejectSchedule = (item: ScheduleItem) => {
+    if (user.role === 'view') return false;
     return (item.status === 'pending' || item.status === 'publishing') && item.created_by !== user.id;
   };
 
   const canDeleteSchedule = (item: ScheduleItem) => {
+    if (user.role === 'view') return false;
     return (item.status === 'pending' || item.status === 'publish_failed') && (user.role === 'sysadmin' || item.created_by === user.id);
   };
 
@@ -501,7 +504,7 @@ const PublishingSchedulePage: React.FC = () => {
                 showTime
                 style={{ width: '100%' }}
                 value={createDate ? dayjs(createDate) : null}
-                onChange={(_date: unknown, dateString: string | null) => {
+                onChange={(_date: Dayjs | null, dateString: string | null) => {
                   setCreateDate(dateString || null);
                 }}
                 format="YYYY-MM-DD HH:mm"
@@ -544,7 +547,7 @@ const PublishingSchedulePage: React.FC = () => {
               showTime
               style={{ width: '100%' }}
               value={editDate ? dayjs(editDate) : null}
-              onChange={(_date: unknown, dateString: string | null) => {
+              onChange={(_date: Dayjs | null, dateString: string | null) => {
                 setEditDate(dateString || null);
               }}
               format="YYYY-MM-DD HH:mm"

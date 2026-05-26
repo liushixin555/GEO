@@ -49,6 +49,8 @@ export async function getCompany(req: Request, res: Response): Promise<void> {
 
 export async function createCompany(req: Request, res: Response): Promise<void> {
   try {
+    if (!req.user) { fail(res, 401, '未登录'); return; }
+
     const parsed = createCompanySchema.safeParse(req.body);
     if (!parsed.success) {
       fail(res, 400, parsed.error.issues.map(e => e.message).join('; '));
@@ -56,7 +58,7 @@ export async function createCompany(req: Request, res: Response): Promise<void> 
     }
 
     const createRequest: CreateCompanyRequest = parsed.data;
-    const company = await companyService.create(createRequest);
+    const company = await companyService.create(createRequest, req.user.userId);
     created(res, company, '创建公司成功');
   } catch (err: unknown) {
     if (err instanceof BusinessError) {
@@ -70,6 +72,8 @@ export async function createCompany(req: Request, res: Response): Promise<void> 
 
 export async function updateCompany(req: Request, res: Response): Promise<void> {
   try {
+    if (!req.user) { fail(res, 401, '未登录'); return; }
+
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id) || id <= 0) {
       fail(res, 400, MSG_INVALID_ID);
@@ -83,7 +87,7 @@ export async function updateCompany(req: Request, res: Response): Promise<void> 
     }
 
     const updateRequest: UpdateCompanyRequest = parsed.data;
-    const company = await companyService.update(id, updateRequest);
+    const company = await companyService.update(id, updateRequest, req.user.userId);
     success(res, company, '更新公司成功');
   } catch (err: unknown) {
     if (err instanceof NotFoundError) {
@@ -99,6 +103,8 @@ export async function updateCompany(req: Request, res: Response): Promise<void> 
 
 export async function toggleCompanyStatus(req: Request, res: Response): Promise<void> {
   try {
+    if (!req.user) { fail(res, 401, '未登录'); return; }
+
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id) || id <= 0) {
       fail(res, 400, MSG_INVALID_ID);
@@ -112,7 +118,7 @@ export async function toggleCompanyStatus(req: Request, res: Response): Promise<
     }
 
     const { status } = parsed.data;
-    const company = await companyService.toggleStatus(id, status);
+    const company = await companyService.toggleStatus(id, status, req.user.userId);
     success(res, company, status ? MSG_ENABLED : MSG_DISABLED);
   } catch (err: unknown) {
     if (err instanceof NotFoundError) {

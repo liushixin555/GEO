@@ -85,6 +85,7 @@ function createDefaultPrisma(overrides: Record<string, any> = {}) {
     },
     articleVersion: {
       create: jest.fn().mockResolvedValue({ id: 1 }),
+      findFirst: jest.fn().mockResolvedValue(null),
       ...articleVersion,
     },
     $transaction,
@@ -238,7 +239,7 @@ describe('Article Generation Scheduler', () => {
         knowledgeBase: { findMany: kbFindMany },
         knowledgeImage: { findMany: imgFindMany },
         skills: { findFirst: jest.fn().mockResolvedValue(null) },
-        articleVersion: { create: versionCreate },
+        articleVersion: { create: versionCreate, findFirst: jest.fn().mockResolvedValue(null) },
         $transaction,
       });
 
@@ -250,7 +251,6 @@ describe('Article Generation Scheduler', () => {
       expect(prisma.article.findMany).toHaveBeenCalledWith({
         where: { status: 'generating' },
         orderBy: { updatedAt: 'asc' },
-        take: 10,
       });
 
       // 验证获取知识库
@@ -314,10 +314,10 @@ describe('Article Generation Scheduler', () => {
       expect(mockGenerateArticle).toHaveBeenNthCalledWith(2, expect.objectContaining({ title: '文章2' }));
 
       expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('本批次取到 2 篇待生成文章'),
+        expect.stringContaining('取到 2 篇待生成文章'),
       );
       expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('本批次处理完成，成功 2/2'),
+        expect.stringContaining('处理完成，成功 2/2'),
       );
     });
 

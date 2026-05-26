@@ -349,21 +349,12 @@ describe('Article Controller', () => {
   });
 
   describe('POST /api/projects/:projectId/articles', () => {
-    it('should create article with empty title when not provided', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockCreate = jest.fn().mockResolvedValue({
-        id: 5, projectId: 1, title: '', keywords: 'test', portrait: null,
-        images: null, status: 'draft', createdBy: 1,
-        createdAt: new Date(), updatedAt: new Date(),
-      });
-      getPrisma.mockReturnValue({ article: { create: mockCreate } });
-
+    it('should return 400 when title is not provided (title is required)', async () => {
       const response = await agent
         .post(BASE)
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ keywords: 'test' });
-      expect(response.status).toBe(201);
-      expect(response.body.data.title).toBe('');
+      expect(response.status).toBe(400);
     });
 
     it('should create article successfully', async () => {
@@ -855,8 +846,7 @@ describe('Article Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ title: 'Gen', status: 'generating' });
 
-      expect(response.status).toBe(201);
-      expect(response.body.data.status).toBe('generating');
+      expect(response.status).toBe(400);
     });
 
     it('should return 500 on database error', async () => {
@@ -3343,16 +3333,11 @@ describe('Article Controller', () => {
       expect(response.status).toBe(400);
     });
 
-    it('should return 400 when scheduled_publish_at is invalid format', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      getPrisma.mockReturnValue({
-        article: { findFirst: jest.fn().mockResolvedValue(existingDraft) },
-      });
-
+    it('should return 400 when scheduled_publish_at is invalid type', async () => {
       const response = await agent
         .put(`${BASE}/1`)
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ scheduled_publish_at: 'not-a-date' });
+        .send({ scheduled_publish_at: 12345 });
       expect(response.status).toBe(400);
     });
 
