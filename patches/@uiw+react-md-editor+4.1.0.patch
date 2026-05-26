@@ -624,14 +624,26 @@ index 0453ae6..9ff385b 100644
   */
  export var title2 = heading2;
 diff --git a/node_modules/@uiw/react-md-editor/esm/commands/title3.js b/node_modules/@uiw/react-md-editor/esm/commands/title3.js
-index 00c09f1..6f53e5e 100644
+index 00c09f1..7d91230 100644
 --- a/node_modules/@uiw/react-md-editor/esm/commands/title3.js
 +++ b/node_modules/@uiw/react-md-editor/esm/commands/title3.js
-@@ -19,11 +19,12 @@ export var heading3 = {
-     children: "Heading 3"
+@@ -12,25 +12,29 @@ export var heading3 = {
+     title: 'Insert Heading 3 (ctrl + 3)'
+   },
+   icon: /*#__PURE__*/_jsx("div", {
++    role: "img",
++    "aria-hidden": "true",
+     style: {
+       fontSize: 15,
+-      textAlign: 'left'
++      textAlign: 'left',
++      fontFamily: "'IBM Plex Sans', sans-serif",
++      color: '#161616'
+     },
+-    children: "Heading 3"
++    children: "H3"
    }),
    execute: (state, api) => {
-+    // S1: 防御性默认值 — nullish coalescing 替代直接传递，防止 undefined
      headingExecute({
        state,
        api,
@@ -642,6 +654,17 @@ index 00c09f1..6f53e5e 100644
      });
    }
  };
+ 
+ /**
+- * @deprecated Use `heading3` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title3` for inserting Heading 3.
++ * @deprecated Since v4.0.0. Use `heading3` instead.
++ * Scheduled for removal in v5.0.0.
++ * @see heading3
+  */
+ export var title3 = heading3;
+\ No newline at end of file
 diff --git a/node_modules/@uiw/react-md-editor/esm/commands/title4.js b/node_modules/@uiw/react-md-editor/esm/commands/title4.js
 index 26bba92..8df4381 100644
 --- a/node_modules/@uiw/react-md-editor/esm/commands/title4.js
@@ -1400,14 +1423,26 @@ index 64081a9..171fc26 100644
   */
  var title2 = exports.title2 = heading2;
 diff --git a/node_modules/@uiw/react-md-editor/lib/commands/title3.js b/node_modules/@uiw/react-md-editor/lib/commands/title3.js
-index c1ead2d..128ae36 100644
+index c1ead2d..7babf7a 100644
 --- a/node_modules/@uiw/react-md-editor/lib/commands/title3.js
 +++ b/node_modules/@uiw/react-md-editor/lib/commands/title3.js
-@@ -26,11 +26,12 @@ var heading3 = exports.heading3 = {
-     children: "Heading 3"
+@@ -19,25 +19,29 @@ var heading3 = exports.heading3 = {
+     title: 'Insert Heading 3 (ctrl + 3)'
+   },
+   icon: /*#__PURE__*/(0, _jsxRuntime.jsx)("div", {
++    role: "img",
++    "aria-hidden": "true",
+     style: {
+       fontSize: 15,
+-      textAlign: 'left'
++      textAlign: 'left',
++      fontFamily: "'IBM Plex Sans', sans-serif",
++      color: '#161616'
+     },
+-    children: "Heading 3"
++    children: "H3"
    }),
    execute: function execute(state, api) {
-+    // S1: 防御性默认值 — nullish coalescing 替代直接传递，防止 undefined
      (0, _title.headingExecute)({
        state: state,
        api: api,
@@ -1418,6 +1453,17 @@ index c1ead2d..128ae36 100644
      });
    }
  };
+ 
+ /**
+- * @deprecated Use `heading3` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title3` for inserting Heading 3.
++ * @deprecated Since v4.0.0. Use `heading3` instead.
++ * Scheduled for removal in v5.0.0.
++ * @see heading3
+  */
+ var title3 = exports.title3 = heading3;
+\ No newline at end of file
 diff --git a/node_modules/@uiw/react-md-editor/lib/commands/title4.js b/node_modules/@uiw/react-md-editor/lib/commands/title4.js
 index 36dcd33..6952f56 100644
 --- a/node_modules/@uiw/react-md-editor/lib/commands/title4.js
@@ -2136,21 +2182,38 @@ index 4ab3753..791553b 100644
   */
  export const title2: ICommand = heading2;
 diff --git a/node_modules/@uiw/react-md-editor/src/commands/title3.tsx b/node_modules/@uiw/react-md-editor/src/commands/title3.tsx
-index bde067d..1d1bfb5 100644
+index bde067d..c489ac6 100644
 --- a/node_modules/@uiw/react-md-editor/src/commands/title3.tsx
 +++ b/node_modules/@uiw/react-md-editor/src/commands/title3.tsx
-@@ -11,7 +11,10 @@ export const heading3: ICommand = {
+@@ -1,6 +1,6 @@
+ import React from 'react';
+ import { headingExecute } from '../commands/title';
+-import { ICommand, ExecuteState, TextAreaTextApi } from './';
++import type { ICommand, ExecuteState, TextAreaTextApi } from './';
+ 
+ export const heading3: ICommand = {
+   name: 'heading3',
+@@ -9,15 +9,15 @@ export const heading3: ICommand = {
+   prefix: '### ',
+   suffix: '',
    buttonProps: { 'aria-label': 'Insert Heading 3 (ctrl + 3)', title: 'Insert Heading 3 (ctrl + 3)' },
-   icon: <div style={{ fontSize: 15, textAlign: 'left' }}>Heading 3</div>,
+-  icon: <div style={{ fontSize: 15, textAlign: 'left' }}>Heading 3</div>,
++  icon: <div role="img" aria-hidden="true" style={{ fontSize: 15, textAlign: 'left', fontFamily: "'IBM Plex Sans', sans-serif", color: '#161616' }}>H3</div>,
    execute: (state: ExecuteState, api: TextAreaTextApi) => {
 -    headingExecute({ state, api, prefix: state.command.prefix!, suffix: state.command.suffix });
-+    // S1: 防御性默认值 — 替换非空断言 prefix! 为 ?? '### '，防止 undefined 传入
-+    const prefix = state.command.prefix ?? '### ';
-+    const suffix = state.command.suffix ?? '';
-+    headingExecute({ state, api, prefix, suffix });
++    headingExecute({ state, api, prefix: state.command.prefix ?? '### ', suffix: state.command.suffix ?? '' });
    },
  };
  
+ /**
+- * @deprecated Use `heading3` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title3` for inserting Heading 3.
++ * @deprecated Since v4.0.0. Use `heading3` instead.
++ * Scheduled for removal in v5.0.0.
++ * @see heading3
+  */
+ export const title3: ICommand = heading3;
 diff --git a/node_modules/@uiw/react-md-editor/src/commands/title4.tsx b/node_modules/@uiw/react-md-editor/src/commands/title4.tsx
 index 219f84e..ed79e75 100644
 --- a/node_modules/@uiw/react-md-editor/src/commands/title4.tsx

@@ -5109,7 +5109,10 @@
                 "generating",
                 "generate_failed",
                 "pending_review",
-                "approved"
+                "approved",
+                "publishing",
+                "published",
+                "publish_failed"
               ]
             }
           }
@@ -5273,11 +5276,13 @@
                     "type": "string",
                     "enum": [
                       "draft",
-                      "generating",
                       "manual_writing"
                     ]
                   }
                 },
+                "required": [
+                  "title"
+                ],
                 "additionalProperties": false
               }
             }
@@ -5561,8 +5566,15 @@
                       "generating",
                       "generate_failed",
                       "pending_review",
-                      "approved"
+                      "approved",
+                      "publishing",
+                      "published",
+                      "publish_failed"
                     ]
+                  },
+                  "scheduled_publish_at": {
+                    "nullable": true,
+                    "type": "string"
                   }
                 },
                 "additionalProperties": false
@@ -5790,6 +5802,10 @@
                 "properties": {
                   "approved": {
                     "type": "boolean"
+                  },
+                  "comment": {
+                    "type": "string",
+                    "maxLength": 2000
                   }
                 },
                 "required": [
