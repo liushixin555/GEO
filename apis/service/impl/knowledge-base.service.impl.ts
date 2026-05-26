@@ -1,5 +1,6 @@
+import { Prisma } from '@prisma/client';
 import { getPrisma } from '../../utils';
-import { KnowledgeBase, KnowledgeBaseDetail, CreateKnowledgeBaseRequest, UpdateKnowledgeBaseRequest } from '../../entity';
+import { KnowledgeBase, KnowledgeBaseDetail, KnowledgeScope, CreateKnowledgeBaseRequest, UpdateKnowledgeBaseRequest } from '../../entity';
 import { IKnowledgeBaseService } from '../knowledge-base.service';
 import { NotFoundError, BusinessError, ForbiddenError } from '../../errors';
 
@@ -17,7 +18,9 @@ const BASE_INCLUDE = {
   },
 };
 
-function mapKnowledgeBase(item: any): KnowledgeBaseDetail {
+type KnowledgeBasePayload = Prisma.KnowledgeBaseGetPayload<{ include: typeof BASE_INCLUDE }>;
+
+function mapKnowledgeBase(item: KnowledgeBasePayload): KnowledgeBaseDetail {
   return {
     id: item.id,
     name: item.name,
@@ -41,10 +44,10 @@ function mapKnowledgeBase(item: any): KnowledgeBaseDetail {
 }
 
 export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
-  async list(page: number, pageSize: number, search?: string, scope?: string, status?: boolean, userId?: number, role?: string): Promise<{ list: KnowledgeBaseDetail[]; total: number }> {
+  async list(page: number, pageSize: number, search?: string, scope?: KnowledgeScope, status?: boolean, userId?: number, role?: string): Promise<{ list: KnowledgeBaseDetail[]; total: number }> {
     const prisma = getPrisma();
 
-    const where: any = {};
+    const where: Prisma.KnowledgeBaseWhereInput = {};
 
     if (search) {
       where.OR = [
@@ -68,7 +71,7 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
         return { list: [], total: 0 };
       }
 
-      const orConditions: any[] = [
+      const orConditions: Prisma.KnowledgeBaseWhereInput[] = [
         { scope: 'platform', status: true },
       ];
 
@@ -194,6 +197,21 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
       throw new ForbiddenError('只能修改自己创建的知识库');
     }
 
+    // SEC-H-01: scope 变更需 sysadmin 权限
+    if (request.scope !== undefined && request.scope !== existing.scope && role !== 'sysadmin') {
+      throw new ForbiddenError('知识库范围变更需要系统管理员权限');
+    }
+
+    // SEC-H-04: company_id/project_id 变更需 sysadmin 权限
+    if (role !== 'sysadmin') {
+      if (request.company_id !== undefined && request.company_id !== existing.companyId) {
+        throw new ForbiddenError('知识库公司关联变更需要系统管理员权限');
+      }
+      if (request.project_id !== undefined && request.project_id !== existing.projectId) {
+        throw new ForbiddenError('知识库项目关联变更需要系统管理员权限');
+      }
+    }
+
     // Ownership validation (SEC-M-01): only admin needs validation
     if (role === 'admin') {
       if (request.company_id !== undefined) {
@@ -212,7 +230,7 @@ export class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
       }
     }
 
-    const data: any = {};
+    const data: { name?: string; description?: string | null; status?: boolean; scope?: KnowledgeScope; companyId?: number | null; projectId?: number | null } = {};
     if (request.name !== undefined) data.name = request.name;
     if (request.description !== undefined) data.description = request.description ?? null;
     if (request.status !== undefined) data.status = request.status;

@@ -35,14 +35,11 @@ export interface KnowledgeBaseDetail extends KnowledgeBase {
   document_count: number;
 }
 
-export interface CreateKnowledgeBaseRequest {
-  name: string;
-  /** undefined=不提供, string=新值, null=显式清除 */
-  description?: string | null;
-  scope: KnowledgeScope;
-  company_id?: number;
-  project_id?: number;
-}
+/** 创建知识库请求（判别联合：scope 决定必填字段，编译期阻止非法组合） */
+export type CreateKnowledgeBaseRequest =
+  | { name: string; description?: string | null; scope: 'platform' }
+  | { name: string; description?: string | null; scope: 'company'; company_id: number }
+  | { name: string; description?: string | null; scope: 'project'; project_id: number; company_id?: number };
 
 export interface UpdateKnowledgeBaseRequest {
   name?: string;

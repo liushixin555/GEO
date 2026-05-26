@@ -1066,7 +1066,7 @@ describe('KnowledgeBaseServiceImpl', () => {
         knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await service.update(1, { scope: 'platform' }, 1, 'admin');
+      await service.update(1, { scope: 'platform' }, 1, 'sysadmin');
 
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -1104,7 +1104,7 @@ describe('KnowledgeBaseServiceImpl', () => {
         knowledgeBase: { findFirst: mockFindFirst, update: mockUpdate },
       } as any);
 
-      await service.update(1, { scope: 'company' }, 1, 'admin');
+      await service.update(1, { scope: 'company' }, 1, 'sysadmin');
 
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1122,7 +1122,7 @@ describe('KnowledgeBaseServiceImpl', () => {
         knowledgeBase: { findFirst: mockFindFirst },
       } as any);
 
-      await expect(service.update(1, { scope: 'company' }, 1, 'admin')).rejects.toThrow('公司公共知识库必须选择公司');
+      await expect(service.update(1, { scope: 'company' }, 1, 'sysadmin')).rejects.toThrow('公司公共知识库必须选择公司');
     });
 
     it('should change scope to project with new project_id and company_id', async () => {
@@ -1254,7 +1254,8 @@ describe('KnowledgeBaseServiceImpl', () => {
         user: { findFirst: mockUserFindFirst },
       } as any);
 
-      await expect(service.update(1, { company_id: 10 }, 1, 'admin')).rejects.toThrow('无权关联该公司');
+      // SEC-H-04: admin cannot change company_id (only sysadmin can)
+      await expect(service.update(1, { company_id: 10 }, 1, 'admin')).rejects.toThrow('知识库公司关联变更需要系统管理员权限');
     });
 
     it('should throw ForbiddenError when admin updates company_id but user not found', async () => {
@@ -1266,10 +1267,11 @@ describe('KnowledgeBaseServiceImpl', () => {
         user: { findFirst: mockUserFindFirst },
       } as any);
 
-      await expect(service.update(1, { company_id: 10 }, 1, 'admin')).rejects.toThrow('无权关联该公司');
+      // SEC-H-04: admin cannot change company_id (only sysadmin can)
+      await expect(service.update(1, { company_id: 10 }, 1, 'admin')).rejects.toThrow('知识库公司关联变更需要系统管理员权限');
     });
 
-    it('should allow admin to update company_id when user belongs to same company', async () => {
+    it('should allow sysadmin to update company_id when user belongs to same company', async () => {
       const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1, scope: 'company', companyId: 10 });
       const updated = makePrismaKnowledgeBase({ id: 1, companyId: 10 });
       const mockKbFindFirst = jest.fn().mockResolvedValue(existing);
@@ -1280,7 +1282,7 @@ describe('KnowledgeBaseServiceImpl', () => {
         user: { findFirst: mockUserFindFirst },
       } as any);
 
-      const result = await service.update(1, { company_id: 10 }, 1, 'admin');
+      const result = await service.update(1, { company_id: 10 }, 1, 'sysadmin');
 
       expect(result.id).toBe(1);
       expect(mockUpdate).toHaveBeenCalled();
@@ -1295,10 +1297,11 @@ describe('KnowledgeBaseServiceImpl', () => {
         projectOperator: { findFirst: mockOperatorFindFirst },
       } as any);
 
-      await expect(service.update(1, { project_id: 20 }, 1, 'admin')).rejects.toThrow('无权关联该项目');
+      // SEC-H-04: admin cannot change project_id (only sysadmin can)
+      await expect(service.update(1, { project_id: 20 }, 1, 'admin')).rejects.toThrow('知识库项目关联变更需要系统管理员权限');
     });
 
-    it('should allow admin to update project_id when user is operator', async () => {
+    it('should allow sysadmin to update project_id when user is operator', async () => {
       const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1, scope: 'project', projectId: 10 });
       const updated = makePrismaKnowledgeBase({ id: 1, projectId: 20 });
       const mockKbFindFirst = jest.fn().mockResolvedValue(existing);
@@ -1309,12 +1312,11 @@ describe('KnowledgeBaseServiceImpl', () => {
         projectOperator: { findFirst: mockOperatorFindFirst },
       } as any);
 
-      const result = await service.update(1, { project_id: 20 }, 1, 'admin');
+      const result = await service.update(1, { project_id: 20 }, 1, 'sysadmin');
 
       expect(result.id).toBe(1);
-      expect(mockOperatorFindFirst).toHaveBeenCalledWith({
-        where: { userId: 1, projectId: 20, deletedAt: null },
-      });
+      expect(mockUpdate).toHaveBeenCalled();
+      // sysadmin bypasses ownership validation — operator check is not called
     });
 
     it('should skip ownership validation for sysadmin updating company_id', async () => {
@@ -1347,7 +1349,7 @@ describe('KnowledgeBaseServiceImpl', () => {
       expect(mockUpdate).toHaveBeenCalled();
     });
 
-    it('should validate both company and project ownership for admin update', async () => {
+    it('should allow sysadmin to update both company_id and project_id', async () => {
       const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1, scope: 'project', companyId: 10, projectId: 20 });
       const updated = makePrismaKnowledgeBase({ id: 1, companyId: 10, projectId: 30 });
       const mockKbFindFirst = jest.fn().mockResolvedValue(existing);
@@ -1360,13 +1362,11 @@ describe('KnowledgeBaseServiceImpl', () => {
         projectOperator: { findFirst: mockOperatorFindFirst },
       } as any);
 
-      const result = await service.update(1, { company_id: 10, project_id: 30 }, 1, 'admin');
+      const result = await service.update(1, { company_id: 10, project_id: 30 }, 1, 'sysadmin');
 
       expect(result.id).toBe(1);
-      expect(mockUserFindFirst).toHaveBeenCalledWith({ where: { id: 1, deletedAt: null } });
-      expect(mockOperatorFindFirst).toHaveBeenCalledWith({
-        where: { userId: 1, projectId: 30, deletedAt: null },
-      });
+      expect(mockUpdate).toHaveBeenCalled();
+      // sysadmin bypasses ownership validation — user/operator checks are not called
     });
   });
 
@@ -2114,7 +2114,7 @@ describe('KnowledgeBaseServiceImpl', () => {
       });
     });
 
-    it('should verify deletedAt null filter on projectOperator for admin update', async () => {
+    it('should verify sysadmin can update project_id bypassing ownership check', async () => {
       const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1, scope: 'project' });
       const updated = makePrismaKnowledgeBase({ id: 1, projectId: 20 });
       const mockKbFindFirst = jest.fn().mockResolvedValue(existing);
@@ -2125,14 +2125,14 @@ describe('KnowledgeBaseServiceImpl', () => {
         projectOperator: { findFirst: mockOperatorFindFirst },
       } as any);
 
-      await service.update(1, { project_id: 20 }, 1, 'admin');
+      await service.update(1, { project_id: 20 }, 1, 'sysadmin');
 
-      expect(mockOperatorFindFirst).toHaveBeenCalledWith({
-        where: { userId: 1, projectId: 20, deletedAt: null },
-      });
+      expect(mockUpdate).toHaveBeenCalled();
+      // sysadmin bypasses admin ownership validation — operator check is NOT called
+      expect(mockOperatorFindFirst).not.toHaveBeenCalled();
     });
 
-    it('should verify deletedAt null filter on user findFirst for admin update', async () => {
+    it('should verify sysadmin can update company_id bypassing ownership check', async () => {
       const existing = makePrismaKnowledgeBase({ id: 1, createdBy: 1, scope: 'company' });
       const updated = makePrismaKnowledgeBase({ id: 1, companyId: 10 });
       const mockKbFindFirst = jest.fn().mockResolvedValue(existing);
@@ -2143,9 +2143,11 @@ describe('KnowledgeBaseServiceImpl', () => {
         user: { findFirst: mockUserFindFirst },
       } as any);
 
-      await service.update(1, { company_id: 10 }, 1, 'admin');
+      await service.update(1, { company_id: 10 }, 1, 'sysadmin');
 
-      expect(mockUserFindFirst).toHaveBeenCalledWith({ where: { id: 1, deletedAt: null } });
+      expect(mockUpdate).toHaveBeenCalled();
+      // sysadmin bypasses admin ownership validation — user check is NOT called
+      expect(mockUserFindFirst).not.toHaveBeenCalled();
     });
 
     it('should handle update with scope change to project without company_id', async () => {

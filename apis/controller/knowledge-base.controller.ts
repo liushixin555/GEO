@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { createKnowledgeBaseService } from '../service';
 import { success, fail, paginate, created } from '../utils';
-import { UpdateKnowledgeBaseRequest, KnowledgeScope } from '../entity';
+import { CreateKnowledgeBaseRequest, UpdateKnowledgeBaseRequest, KnowledgeScope } from '../entity';
 import { AppError, BusinessError } from '../errors';
 
 const knowledgeBaseService = createKnowledgeBaseService();
@@ -83,11 +83,21 @@ export async function createKnowledgeBase(req: Request, res: Response): Promise<
     const user = req.user;
     if (!user) { fail(res, 401, '未登录'); return; }
     const { userId, role } = user;
-    const item = await knowledgeBaseService.create(
-      { name: name.trim(), description: validDescription, scope, company_id: validCompanyId, project_id: validProjectId },
-      userId,
-      role
-    );
+
+    // 构建判别联合请求（编译期保证 scope + 关联字段合法性）
+    const trimmedName = name.trim();
+    let createRequest: CreateKnowledgeBaseRequest;
+    if (scope === 'platform') {
+      createRequest = { name: trimmedName, description: validDescription, scope: 'platform' };
+    } else if (scope === 'company') {
+      if (!validCompanyId) { fail(res, 400, '公司公共知识库必须选择公司'); return; }
+      createRequest = { name: trimmedName, description: validDescription, scope: 'company', company_id: validCompanyId };
+    } else {
+      if (!validProjectId) { fail(res, 400, '项目私有知识库必须选择项目'); return; }
+      createRequest = { name: trimmedName, description: validDescription, scope: 'project', project_id: validProjectId, company_id: validCompanyId };
+    }
+
+    const item = await knowledgeBaseService.create(createRequest, userId, role);
     created(res, item, '创建知识库成功');
   } catch (err: unknown) {
     if (err instanceof AppError) {
@@ -119,8 +129,8 @@ export async function updateKnowledgeBase(req: Request, res: Response): Promise<
     const validDescription = typeof req.body.description === 'string'
       ? req.body.description
       : (req.body.description === null ? null : undefined);
-    if (typeof validDescription === 'string' && validDescription.length > 2000) {
-      fail(res, 400, '描述不能超过2000个字符'); return;
+    if (typeof validDescription === 'string' && validDescription.length > 500) {
+      fail(res, 400, '描述不能超过500个字符'); return;
     }
 
     // Explicitly construct update request to prevent mass assignment (SEC-M-04)
