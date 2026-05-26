@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** 文章状态枚举，与 Prisma ArticleStatus 一致 */
+/** 文章状态枚举，与 Entity ARTICLE_STATUSES 一致 */
 export const articleStatusSchema = z.enum([
   'draft',
   'manual_writing',
@@ -8,10 +8,13 @@ export const articleStatusSchema = z.enum([
   'generate_failed',
   'pending_review',
   'approved',
+  'publishing',
+  'published',
+  'publish_failed',
 ]);
 
 export const createArticleSchema = z.object({
-  title: z.string().max(500).optional(),
+  title: z.string().max(500),
   article_type: z.string().max(50).optional(),
   write_mode: z.string().max(20).optional(),
   keywords: z.string().max(500).optional(),
@@ -20,7 +23,7 @@ export const createArticleSchema = z.object({
   skills: z.array(z.number().int().nonnegative()).max(50).nullable().optional(),
   llm_model_id: z.number().int().nonnegative().nullable().optional(),
   content: z.string().max(500_000).optional(),
-  status: z.enum(['draft', 'generating', 'manual_writing']).optional(),
+  status: z.enum(['draft', 'manual_writing']).optional(),
 }).strict();
 
 export const updateArticleSchema = z.object({
@@ -34,10 +37,12 @@ export const updateArticleSchema = z.object({
   llm_model_id: z.number().int().nonnegative().nullable().optional(),
   content: z.string().max(500_000).optional(),
   status: articleStatusSchema.optional(),
+  scheduled_publish_at: z.string().nullable().optional(),
 }).strict();
 
 export const reviewArticleSchema = z.object({
   approved: z.boolean(),
+  comment: z.string().max(2000).optional(),
 }).strict();
 
 export const updateContentSchema = z.object({

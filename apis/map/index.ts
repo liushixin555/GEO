@@ -93,7 +93,7 @@ export function mapProject(prismaProject: any): Project {
   };
 }
 
-export function mapArticle(prismaArticle: any): Article {
+export function mapArticle(prismaArticle: any): ArticleDetail {
   return {
     id: prismaArticle.id,
     project_id: prismaArticle.projectId,
@@ -103,7 +103,7 @@ export function mapArticle(prismaArticle: any): Article {
     keywords: prismaArticle.keywords,
     portrait: prismaArticle.portrait,
     images: prismaArticle.images,
-    skills: prismaArticle.skills,
+    skills: Array.isArray(prismaArticle.skills) ? prismaArticle.skills as number[] : null,
     llm_model_id: prismaArticle.llmModelId ?? null,
     content: prismaArticle.content,
     version: prismaArticle.version,
@@ -111,6 +111,8 @@ export function mapArticle(prismaArticle: any): Article {
     created_by: prismaArticle.createdBy ?? null,
     created_at: prismaArticle.createdAt,
     updated_at: prismaArticle.updatedAt,
+    deleted_at: prismaArticle.deletedAt ?? null,
+    creator_name: prismaArticle.creator?.cnName || null,
     schedule_count: prismaArticle._count?.schedules ?? 0,
   };
 }
@@ -123,6 +125,7 @@ export function mapArticleVersion(prismaVersion: any): ArticleVersion {
     content: prismaVersion.content,
     created_by: prismaVersion.createdBy ?? null,
     created_at: prismaVersion.createdAt,
+    deleted_at: prismaVersion.deletedAt ?? null,
   };
 }
 
