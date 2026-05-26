@@ -4,6 +4,7 @@
 **评审维度**: 安全（Security）
 **评审日期**: 2026-05-26
 **评审结果**: **REJECT 1.0/10** — 测试与源码完全脱节，零安全测试覆盖，mock 策略与 API 层架构不兼容
+**修复状态**: ✅ 已修复（2026-05-26）— 从零重写，42 个测试用例覆盖所有 BLOCKING/HIGH 问题，详见 `tasks/progress_tasks/2026-05-26-sysadmin-test-security-fix.md`
 
 ---
 
