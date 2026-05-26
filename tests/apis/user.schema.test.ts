@@ -357,13 +357,12 @@ describe('createUserSchema', () => {
       expect(result.success).toBe(false);
     });
 
-    it('应拒绝 unicode 字符', () => {
-      const u = '用户🎉名';
-      const result = createUserSchema.safeParse({ ...validCreateUser, username: u });
+    it('应拒绝 unicode 字符（仅允许ASCII字母+数字+下划线）', () => {
+      const result = createUserSchema.safeParse({ ...validCreateUser, username: '用户🎉名' });
       expect(result.success).toBe(false);
     });
 
-    it('应拒绝空格字符串', () => {
+    it('应拒绝空格字符串（regex 不允许空格）', () => {
       const result = createUserSchema.safeParse({ ...validCreateUser, username: '   ' });
       expect(result.success).toBe(false);
     });
