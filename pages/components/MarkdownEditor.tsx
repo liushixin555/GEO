@@ -40,6 +40,10 @@ const URL_PROPERTIES = new Set([
   'poster', 'background', 'dynsrc', 'lowsrc',
 ]);
 
+// UX-02: 平台检测——Mac 显示 ⌘，其他平台显示 Ctrl
+const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent);
+const MOD_KEY = IS_MAC ? '⌘' : 'Ctrl';
+
 export type EditorPreviewMode = 'live' | 'edit' | 'preview';
 
 export type EditorSize = 'small' | 'middle' | 'large';
@@ -277,23 +281,23 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
 
     const TOOLBAR_LABELS: Record<string, string> = {
       // heading 命令——commandsFilter 已设置精确中文标签，
-      // 此处必须在通用 'header'/'title' 之前匹配，防止 '标题' 过宽匹配覆盖 '2级标题 (Ctrl+2)' 等
-      '1级标题': '1级标题 (Ctrl+1)',
-      '2级标题': '2级标题 (Ctrl+2)',
-      '3级标题': '3级标题 (Ctrl+3)',
-      '4级标题': '4级标题 (Ctrl+4)',
-      '5级标题': '5级标题 (Ctrl+5)',
-      '6级标题': '6级标题 (Ctrl+6)',
+      // 此处必须在通用 'header'/'title' 之前匹配，防止 '标题' 过宽匹配覆盖
+      '1级标题': `1级标题 (${MOD_KEY}+1)`,
+      '2级标题': `2级标题 (${MOD_KEY}+2)`,
+      '3级标题': `3级标题 (${MOD_KEY}+3)`,
+      '4级标题': `4级标题 (${MOD_KEY}+4)`,
+      '5级标题': `5级标题 (${MOD_KEY}+5)`,
+      '6级标题': `6级标题 (${MOD_KEY}+6)`,
       'header': '标题',
-      'bold': '粗体 (Ctrl+B)',
-      'italic': '斜体 (Ctrl+I)',
+      'bold': `粗体 (${MOD_KEY}+B)`,
+      'italic': `斜体 (${MOD_KEY}+I)`,
       'strikethrough': '删除线',
       'hr': '分隔线',
       'title': '标题',
       'link': '链接',
       'quote': '引用',
-      'codeBlock': '插入代码块 (Ctrl+Shift+E)',
-      'code': '插入行内代码 (Ctrl+E)',
+      'codeBlock': `插入代码块 (${MOD_KEY}+Shift+E)`,
+      'code': `插入行内代码 (${MOD_KEY}+E)`,
       'image': '图片',
       'unorderedListCommand': '无序列表',
       'orderedListCommand': '有序列表',
@@ -546,8 +550,8 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
           ...command,
           icon: <span role="img" aria-hidden="true" style={{ fontSize: Math.max(11, 20 - levelNum * 2), fontWeight: 500, fontFamily: "'IBM Plex Sans', sans-serif", color: '#161616' }}>H{level}</span>,
           buttonProps: {
-            'aria-label': `${level}级标题 (Ctrl+${level})`,
-            title: `${level}级标题 (Ctrl+${level})`,
+            'aria-label': `${level}级标题 (${MOD_KEY}+${level})`,
+            title: `${level}级标题 (${MOD_KEY}+${level})`,
           },
           execute: (state: any, api: any) => {
             try {
@@ -570,7 +574,7 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
           shortcuts: 'ctrlcmd+shift+f',
           buttonProps: {
             'aria-label': '切换全屏模式',
-            title: '切换全屏模式 (Ctrl+Shift+F)',
+            title: `切换全屏模式 (${MOD_KEY}+Shift+F)`,
           },
           icon: <FullscreenOutlined style={{ fontSize: 16 }} />,
           execute: (state: any, api: any, dispatch?: any, executeCommandState?: any) => {
@@ -592,8 +596,8 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
           ...command,
           shortcuts: 'ctrlcmd+shift+h',
           buttonProps: {
-            'aria-label': '插入水平分割线 (Ctrl+Shift+H)',
-            title: '插入水平分割线 (Ctrl+Shift+H)',
+            'aria-label': `插入水平分割线 (${MOD_KEY}+Shift+H)`,
+            title: `插入水平分割线 (${MOD_KEY}+Shift+H)`,
           },
           icon: (
             <svg role="img" aria-hidden="true" width="12" height="12" viewBox="0 0 12 12">
@@ -638,8 +642,8 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
           ...command,
           shortcuts: 'ctrlcmd+shift+t',
           buttonProps: {
-            'aria-label': '插入表格 (Ctrl+Shift+T)',
-            title: '插入表格 (Ctrl+Shift+T)',
+            'aria-label': `插入表格 (${MOD_KEY}+Shift+T)`,
+            title: `插入表格 (${MOD_KEY}+Shift+T)`,
           },
           icon: (
             <svg role="img" aria-hidden="true" width="16" height="16" viewBox="0 0 512 512" focusable="false">
@@ -688,8 +692,8 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
           ...command,
           shortcuts: 'ctrlcmd+shift+k',
           buttonProps: {
-            'aria-label': '插入图片 (Ctrl+Shift+K)',
-            title: '插入图片 (Ctrl+Shift+K)',
+            'aria-label': `插入图片 (${MOD_KEY}+Shift+K)`,
+            title: `插入图片 (${MOD_KEY}+Shift+K)`,
           },
           icon: (
             <svg
@@ -744,8 +748,8 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
           ...command,
           shortcuts: 'ctrlcmd+k',
           buttonProps: {
-            'aria-label': '插入链接 (Ctrl+K)',
-            title: '插入链接 (Ctrl+K)',
+            'aria-label': `插入链接 (${MOD_KEY}+K)`,
+            title: `插入链接 (${MOD_KEY}+K)`,
           },
           icon: <LinkOutlined style={{ fontSize: 16 }} />,
           execute: (state: any, api: any) => {
@@ -807,8 +811,8 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
         return {
           ...command,
           buttonProps: {
-            'aria-label': '插入/取消注释 (Ctrl+/)',
-            title: '插入/取消注释 (Ctrl+/)',
+            'aria-label': `插入/取消注释 (${MOD_KEY}+/)`,
+            title: `插入/取消注释 (${MOD_KEY}+/)`,
           },
           icon: <CommentOutlined style={{ fontSize: 16 }} />,
           execute: (state: any, api: any) => {
@@ -922,8 +926,8 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
             ...command,
             shortcuts: 'ctrlcmd+shift+q',
             buttonProps: {
-              'aria-label': '插入引用 (Ctrl+Shift+Q)',
-              title: '插入引用 (Ctrl+Shift+Q)',
+              'aria-label': `插入引用 (${MOD_KEY}+Shift+Q)`,
+              title: `插入引用 (${MOD_KEY}+Shift+Q)`,
             },
             execute: (state: any, api: any) => {
               try {
@@ -950,8 +954,8 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
           ...command,
           shortcuts: 'ctrlcmd+shift+c',
           buttonProps: {
-            'aria-label': '任务列表 (Ctrl+Shift+C)',
-            title: '任务列表 (Ctrl+Shift+C)',
+            'aria-label': `任务列表 (${MOD_KEY}+Shift+C)`,
+            title: `任务列表 (${MOD_KEY}+Shift+C)`,
           },
           execute: (state: any, api: any) => {
             try {
@@ -1013,8 +1017,8 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
             ...command,
             shortcuts: 'ctrlcmd+shift+u',
             buttonProps: {
-              'aria-label': '无序列表 (Ctrl+Shift+U)',
-              title: '无序列表 (Ctrl+Shift+U)',
+              'aria-label': `无序列表 (${MOD_KEY}+Shift+U)`,
+              title: `无序列表 (${MOD_KEY}+Shift+U)`,
             },
             execute: (state: any, api: any) => {
               try {
@@ -1039,8 +1043,8 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
             ...command,
             shortcuts: 'ctrlcmd+shift+o',
             buttonProps: {
-              'aria-label': '有序列表 (Ctrl+Shift+O)',
-              title: '有序列表 (Ctrl+Shift+O)',
+              'aria-label': `有序列表 (${MOD_KEY}+Shift+O)`,
+              title: `有序列表 (${MOD_KEY}+Shift+O)`,
             },
             execute: (state: any, api: any) => {
               try {
@@ -1063,8 +1067,8 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
         const originalExecute = command.execute;
         // I18N-01: 中文 ARIA 标注——渲染时即生效，无需等待 annotateToolbar 后处理
         const INLINE_LABELS: Record<string, { 'aria-label': string; title: string }> = {
-          bold: { 'aria-label': '粗体 (Ctrl+B)', title: '粗体 (Ctrl+B)' },
-          italic: { 'aria-label': '斜体 (Ctrl+I)', title: '斜体 (Ctrl+I)' },
+          bold: { 'aria-label': `粗体 (${MOD_KEY}+B)`, title: `粗体 (${MOD_KEY}+B)` },
+          italic: { 'aria-label': `斜体 (${MOD_KEY}+I)`, title: `斜体 (${MOD_KEY}+I)` },
           strikethrough: { 'aria-label': '删除线', title: '删除线' },
         };
         const inlineLabel = INLINE_LABELS[command.name];
@@ -1092,14 +1096,14 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
         if (command.name === 'code') {
           wrapped.shortcuts = 'ctrlcmd+e';
           wrapped.buttonProps = {
-            'aria-label': '插入行内代码 (Ctrl+E)',
-            title: '插入行内代码 (Ctrl+E)',
+            'aria-label': `插入行内代码 (${MOD_KEY}+E)`,
+            title: `插入行内代码 (${MOD_KEY}+E)`,
           };
         } else {
           wrapped.shortcuts = 'ctrlcmd+shift+e';
           wrapped.buttonProps = {
-            'aria-label': '插入代码块 (Ctrl+Shift+E)',
-            title: '插入代码块 (Ctrl+Shift+E)',
+            'aria-label': `插入代码块 (${MOD_KEY}+Shift+E)`,
+            title: `插入代码块 (${MOD_KEY}+Shift+E)`,
           };
         }
 
@@ -1137,7 +1141,7 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
         const config = modeMap[mode];
         if (!config) return command;
 
-        const shortcutKey = command.shortcuts?.replace('ctrlcmd+', 'Ctrl+') ?? '';
+        const shortcutKey = command.shortcuts?.replace('ctrlcmd+', `${MOD_KEY}+`) ?? '';
         return {
           ...command,
           buttonProps: {

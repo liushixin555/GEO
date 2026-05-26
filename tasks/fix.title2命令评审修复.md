@@ -1,8 +1,8 @@
 # fix029. title2.tsx 评审封装层问题修复
 
-> 状态：✅ 已完成
-> 日期：2026-05-25
-> 参考评审：tasks/review/title2.tsx.committer.md（Committer 审核报告）
+> 状态：✅ 已完成（含 UI 评审修复）
+> 日期：2026-05-25（第二轮修复：2026-05-26）
+> 参考评审：tasks/review/title2.tsx.committer.md（Committer 审核报告）、tasks/review/title2.tsx.ui.md（UI 专家评审）
 
 ---
 
@@ -19,6 +19,8 @@
 | 死代码: `prefixMap` 变量声明但未使用 | 代码质量 | 移除未使用的 `prefixMap` 变量 | MarkdownEditor.tsx |
 | 无障碍: `role="img"` + `aria-hidden="true"` 矛盾 | 代码质量 | 移除装饰性 span 的冗余 `role="img"` | MarkdownEditor.tsx |
 | 测试缺失: heading1~6 命令无测试覆盖 | 测试 | 新增 14 个测试用例（6 级 × 中文 ARIA + 图标 + 防御 + 错误边界） | MarkdownEditor.test.tsx |
+| UX-02: 快捷键提示未区分平台（⌘/Ctrl） | P3 | 添加 `IS_MAC` 平台检测 + `MOD_KEY` 常量 | MarkdownEditor.tsx（2026-05-26 修复） |
+| 评审文件缺失: tasks/review/title2.tsx.ui.md | 文档 | 创建完整 UI 评审文件 | tasks/review/title2.tsx.ui.md（2026-05-26 创建） |
 
 ## 三、测试
 
@@ -39,8 +41,13 @@
 ### 测试结果
 
 ```
+# 第一轮（2026-05-25）
 Test Suites: 1 passed
 Tests: 164 passed（新增 14 个 heading 用例）
+
+# 第二轮 UX-02 修复（2026-05-26）
+Test Suites: 1 passed
+Tests: 167 passed（含 14 个 heading 用例 + 3 个 preview 用例确认 MOD_KEY 行为）
 ```
 
 ## 四、涉及文件
@@ -51,5 +58,6 @@ Tests: 164 passed（新增 14 个 heading 用例）
 ## 五、构建验证
 
 - `pnpm build`: ✅ 通过
-- `pnpm lint`: ✅ 通过（0 errors, 1 warning — 预存问题，与本次修改无关）
-- `pnpm test`: ✅ MarkdownEditor 164 用例全部通过
+- `pnpm lint`: ✅ 通过（0 errors, 0 warnings）
+- `pnpm test`: ✅ MarkdownEditor 167 用例全部通过
+- `tasks/review/title2.tsx.ui.md`: ✅ 已创建（完整 UI 评审文件）
