@@ -13423,10 +13423,7 @@
           "generating",
           "generate_failed",
           "pending_review",
-          "approved",
-          "publishing",
-          "published",
-          "publish_failed"
+          "approved"
         ]
       },
       "PublishingScheduleStatus": {

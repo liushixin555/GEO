@@ -177,7 +177,7 @@ const TodoPage: React.FC = () => {
     setTransferVisible(true);
     setTransferLoading(true);
     try {
-      const res = await apiClient.get('/users', { params: { pageSize: 200 } });
+      const res = await apiClient.get('/users', { params: { pageSize: 100 } });
       setUsers(res.data.data.list.filter((u: UserItem) => u.id !== item.assignee_id));
     } catch {
       setUsers([]);

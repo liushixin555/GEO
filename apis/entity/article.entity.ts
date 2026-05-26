@@ -3,7 +3,7 @@
  * 单一真相源：Zod schema 和前端从此导出状态枚举
  */
 
-/** 文章状态常量数组，与 Prisma ArticleStatus enum 一致 */
+/** 文章状态常量数组，与 Prisma ArticleStatus enum 一致（仅内容生命周期状态） */
 export const ARTICLE_STATUSES = [
   'draft',
   'manual_writing',
@@ -11,9 +11,6 @@ export const ARTICLE_STATUSES = [
   'generate_failed',
   'pending_review',
   'approved',
-  'publishing',
-  'published',
-  'publish_failed',
 ] as const;
 
 /** 文章状态类型，从 ARTICLE_STATUSES 常量数组导出 */
