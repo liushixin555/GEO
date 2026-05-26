@@ -154,12 +154,12 @@ describe('company.entity', () => {
         deleted_at: null,
         operator_ids: [1, 2],
         operators: [
-          { id: 1, cn_name: '运营者1', username: 'op1' },
-          { id: 2, cn_name: '运营者2', username: 'op2' },
+          { id: 1, cn_name: '运营者1' },
+          { id: 2, cn_name: '运营者2' },
         ],
         viewer_ids: [3],
         viewers: [
-          { id: 3, cn_name: '查看者1', username: 'viewer1' },
+          { id: 3, cn_name: '查看者1' },
         ],
       };
       expect(detail.operator_ids).toEqual([1, 2]);
@@ -207,14 +207,14 @@ describe('company.entity', () => {
         updated_at: new Date(),
         deleted_at: null,
         operator_ids: [1],
-        operators: [{ id: 1, cn_name: '用户', username: 'user1' }],
+        operators: [{ id: 1, cn_name: '用户' }],
         viewer_ids: [],
         viewers: [],
       };
       const operator = detail.operators[0];
       expect(operator).toHaveProperty('id');
       expect(operator).toHaveProperty('cn_name');
-      expect(operator).toHaveProperty('username');
+      expect(operator).toHaveProperty('cn_name');
     });
   });
 
@@ -780,16 +780,16 @@ describe('company.entity', () => {
         deleted_at: null,
         operator_ids: [1, 2, 3, 4, 5],
         operators: [
-          { id: 1, cn_name: '运营1', username: 'op1' },
-          { id: 2, cn_name: '运营2', username: 'op2' },
-          { id: 3, cn_name: '运营3', username: 'op3' },
-          { id: 4, cn_name: '运营4', username: 'op4' },
-          { id: 5, cn_name: '运营5', username: 'op5' },
+          { id: 1, cn_name: '运营1' },
+          { id: 2, cn_name: '运营2' },
+          { id: 3, cn_name: '运营3' },
+          { id: 4, cn_name: '运营4' },
+          { id: 5, cn_name: '运营5' },
         ],
         viewer_ids: [10, 11],
         viewers: [
-          { id: 10, cn_name: '查看1', username: 'vw1' },
-          { id: 11, cn_name: '查看2', username: 'vw2' },
+          { id: 10, cn_name: '查看1' },
+          { id: 11, cn_name: '查看2' },
         ],
       };
       expect(detail.operator_ids).toHaveLength(5);
@@ -798,7 +798,7 @@ describe('company.entity', () => {
       expect(detail.viewers).toHaveLength(2);
     });
 
-    it('should preserve viewer object shape (id, cn_name, username)', () => {
+    it('should preserve viewer object shape (id, cn_name)', () => {
       const detail: CompanyDetail = {
         id: 1,
         short_name: 'A',
@@ -813,12 +813,12 @@ describe('company.entity', () => {
         operator_ids: [],
         operators: [],
         viewer_ids: [100],
-        viewers: [{ id: 100, cn_name: '查看者', username: 'viewer100' }],
+        viewers: [{ id: 100, cn_name: '查看者' }],
       };
       const viewer = detail.viewers[0];
       expect(viewer).toHaveProperty('id', 100);
       expect(viewer).toHaveProperty('cn_name', '查看者');
-      expect(viewer).toHaveProperty('username', 'viewer100');
+      expect(viewer).toHaveProperty('cn_name', '查看者');
     });
 
     it('should include address when not null', () => {
@@ -854,9 +854,9 @@ describe('company.entity', () => {
         updated_at: new Date(),
         deleted_at: null,
         operator_ids: [1],
-        operators: [{ id: 1, cn_name: 'OP', username: 'op' }],
+        operators: [{ id: 1, cn_name: 'OP' }],
         viewer_ids: [2],
-        viewers: [{ id: 2, cn_name: 'VW', username: 'vw' }],
+        viewers: [{ id: 2, cn_name: 'VW' }],
       };
       // Verify all Company base fields exist
       const baseKeys = ['id', 'short_name', 'full_name', 'address', 'contact_person', 'contact_phone', 'status', 'created_at', 'updated_at', 'deleted_at'];
@@ -883,9 +883,9 @@ describe('company.entity', () => {
         updated_at: new Date(),
         deleted_at: null,
         operator_ids: [1],
-        operators: [{ id: 1, cn_name: '双角色', username: 'dual' }],
+        operators: [{ id: 1, cn_name: '双角色' }],
         viewer_ids: [1],
-        viewers: [{ id: 1, cn_name: '双角色', username: 'dual' }],
+        viewers: [{ id: 1, cn_name: '双角色' }],
       };
       expect(detail.operator_ids).toContain(1);
       expect(detail.viewer_ids).toContain(1);
@@ -918,27 +918,27 @@ describe('company.entity', () => {
         contact_person: 'C', contact_phone: 'D', status: true,
         created_at: new Date(), updated_at: new Date(), deleted_at: null,
         operator_ids: [1],
-        operators: [{ id: 1, cn_name: '张三<经理>&"总监"', username: 'op1' }],
+        operators: [{ id: 1, cn_name: '张三<经理>&"总监"' }],
         viewer_ids: [], viewers: [],
       };
       expect(detail.operators[0].cn_name).toContain('<经理>');
       expect(detail.operators[0].cn_name).toContain('&');
     });
 
-    it('should support operators with empty string cn_name and username', () => {
+    it('should support operators with empty string cn_name', () => {
       const detail: CompanyDetail = {
         id: 1, short_name: 'A', full_name: 'B', address: null,
         contact_person: 'C', contact_phone: 'D', status: true,
         created_at: new Date(), updated_at: new Date(), deleted_at: null,
         operator_ids: [1],
-        operators: [{ id: 1, cn_name: '', username: '' }],
+        operators: [{ id: 1, cn_name: '' }],
         viewer_ids: [], viewers: [],
       };
       expect(detail.operators[0].cn_name).toBe('');
-      expect(detail.operators[0].username).toBe('');
+      expect(detail.operators[0].cn_name).toBe('');
     });
 
-    it('should support viewer with unicode username', () => {
+    it('should support viewer with unicode cn_name', () => {
       const detail: CompanyDetail = {
         id: 1, short_name: 'A', full_name: 'B', address: null,
         contact_person: 'C', contact_phone: 'D', status: true,
@@ -946,10 +946,10 @@ describe('company.entity', () => {
         operator_ids: [],
         operators: [],
         viewer_ids: [1],
-        viewers: [{ id: 1, cn_name: '查看者🎉', username: 'viewer_测试' }],
+        viewers: [{ id: 1, cn_name: '查看者🎉' }],
       };
       expect(detail.viewers[0].cn_name).toContain('🎉');
-      expect(detail.viewers[0].username).toContain('测试');
+      expect(detail.viewers[0].cn_name).toContain('🎉');
     });
 
     it('should support operator/viewer count mismatch (ids more than objects)', () => {
@@ -958,9 +958,9 @@ describe('company.entity', () => {
         contact_person: 'C', contact_phone: 'D', status: true,
         created_at: new Date(), updated_at: new Date(), deleted_at: null,
         operator_ids: [1, 2, 3],
-        operators: [{ id: 1, cn_name: 'O1', username: 'op1' }],
+        operators: [{ id: 1, cn_name: 'O1' }],
         viewer_ids: [10, 11],
-        viewers: [{ id: 10, cn_name: 'V1', username: 'vw1' }],
+        viewers: [{ id: 10, cn_name: 'V1' }],
       };
       expect(detail.operator_ids).toHaveLength(3);
       expect(detail.operators).toHaveLength(1);
@@ -1081,9 +1081,9 @@ describe('company.entity', () => {
       const detail: CompanyDetail = {
         ...company,
         operator_ids: [1],
-        operators: [{ id: 1, cn_name: '运营者', username: 'op1' }],
+        operators: [{ id: 1, cn_name: '运营者' }],
         viewer_ids: [2],
-        viewers: [{ id: 2, cn_name: '查看者', username: 'vw1' }],
+        viewers: [{ id: 2, cn_name: '查看者' }],
       };
       expect(detail.id).toBe(company.id);
       expect(detail.short_name).toBe(company.short_name);
@@ -1125,16 +1125,16 @@ describe('company.entity', () => {
         deleted_at: null,
         operator_ids: [1, 2],
         operators: [
-          { id: 1, cn_name: '运营1', username: 'op1' },
-          { id: 2, cn_name: '运营2', username: 'op2' },
+          { id: 1, cn_name: '运营1' },
+          { id: 2, cn_name: '运营2' },
         ],
         viewer_ids: [3],
-        viewers: [{ id: 3, cn_name: '查看1', username: 'vw1' }],
+        viewers: [{ id: 3, cn_name: '查看1' }],
       };
       expect(detail.id).toBe(42);
       expect(detail.operators).toHaveLength(2);
       expect(detail.operators[0].cn_name).toBe('运营1');
-      expect(detail.operators[1].username).toBe('op2');
+      expect(detail.operators[1].cn_name).toBe('运营2');
       expect(detail.viewers[0].cn_name).toBe('查看1');
       expect(detail.created_at.getFullYear()).toBe(2026);
     });

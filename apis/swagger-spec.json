@@ -13381,7 +13381,10 @@
           "generating",
           "generate_failed",
           "pending_review",
-          "approved"
+          "approved",
+          "publishing",
+          "published",
+          "publish_failed"
         ]
       },
       "PublishingScheduleStatus": {

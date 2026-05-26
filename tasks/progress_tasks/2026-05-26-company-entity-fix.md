@@ -35,6 +35,18 @@ Committer 审核报告中提出 3 个 P1 级别强烈建议修复项：
 - `pnpm lint` ✅ 通过
 - 公司相关测试: 509 passed ✅
 
+## 2026-05-26 第二次修复：Entity 测试清理
+
+**问题**: `tests/apis/company.entity.test.ts` 中 `CompanyDetail` 的 operators/viewers 测试 fixture 仍包含 `username` 属性，但接口已移除此字段（仅保留 `id` 和 `cn_name`）。相关断言（如 `toHaveProperty('username')`）为误报。
+
+**修复**:
+- 移除所有 operator/viewer fixture 中的 `username` 属性（34处）
+- 将 `expect(operator).toHaveProperty('username')` 改为 `toHaveProperty('cn_name')`
+- 将 `expect(viewer).toHaveProperty('username', ...)` 改为 `toHaveProperty('cn_name', ...)`
+- 更新测试描述（如 `'should preserve viewer object shape (id, cn_name)'`）
+
+**验证**: 4个测试套件、509个测试全部通过 ✅
+
 ## P2/P3 改进项（无需本次修复）
 
 | 优先级 | 问题 | 状态 |
