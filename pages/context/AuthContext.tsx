@@ -58,14 +58,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.setItem('selected_project', JSON.stringify(serverUser.selected_project));
           }
         } else {
-          const userData = localStorage.getItem(USER_KEY);
-          if (userData) {
-            try {
-              setUser(JSON.parse(userData));
-            } catch {
-              localStorage.removeItem(USER_KEY);
-            }
-          }
+          localStorage.removeItem(TOKEN_KEY);
+          localStorage.removeItem(USER_KEY);
+          setUser(null);
         }
       })
       .catch(() => {

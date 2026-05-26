@@ -60,7 +60,7 @@ const PageRouter: React.FC = () => {
     { path: '/knowledge/:baseId/document/:id', roles: ['sysadmin', 'admin'], element: <DocumentDetail /> },
     { path: '/article', roles: ['sysadmin', 'admin'], element: <ArticlePage /> },
     { path: '/article/:id', roles: ['sysadmin', 'admin'], element: <ArticleDetail /> },
-    { path: '/publish', roles: ['sysadmin', 'admin', 'view'], element: <PublishingSchedulePage /> },
+    { path: '/publish', roles: ['sysadmin', 'admin'], element: <PublishingSchedulePage /> },
 
     { path: '/project', roles: ['sysadmin', 'admin'], element: <ProjectPage /> },
     { path: '/users', roles: ['sysadmin'], element: <UserPage /> },
@@ -80,11 +80,11 @@ const PageRouter: React.FC = () => {
             key={route.path}
             path={route.path}
             element={
-              route.roles.includes(role) ? route.element : <Navigate to="/publish" replace />
+              route.roles.includes(role) ? route.element : <Result status="403" title="无权限" subTitle="您没有访问此页面的权限" />
             }
           />
         ))}
-        <Route path="*" element={<Navigate to="/publish" replace />} />
+        <Route path="*" element={<Result status="404" title="页面不存在" subTitle="请检查访问的地址是否正确" />} />
       </Routes>
     </Suspense>
   );

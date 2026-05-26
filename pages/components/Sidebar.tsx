@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Menu, Button, Tooltip, Space, Typography } from 'antd';
+import { Menu, Button, Tooltip, Space, Typography, message } from 'antd';
 import {
   LogoutOutlined,
   UserOutlined,
@@ -21,6 +21,14 @@ import type { ReactNode } from 'react';
 import CompanyProjectSwitcher from './CompanyProjectSwitcher';
 import { useAuth } from '../context/AuthContext';
 
+const ROLES = {
+  SYSADMIN: 'sysadmin',
+  ADMIN: 'admin',
+  VIEW: 'view',
+} as const;
+
+type Role = typeof ROLES[keyof typeof ROLES];
+
 interface SidebarProps {
   collapsed: boolean;
   onCollapse: (collapsed: boolean) => void;
@@ -30,21 +38,21 @@ interface SidebarProps {
 interface MenuItemDef {
   label: string;
   path: string;
-  roles: string[];
+  roles: Role[];
   icon: ReactNode;
 }
 
 const menuItems: MenuItemDef[] = [
-  { label: '今日待办', path: '/todo', roles: ['sysadmin', 'admin'], icon: <CheckSquareOutlined /> },
-  { label: 'AI知识库', path: '/knowledge', roles: ['sysadmin', 'admin'], icon: <BookOutlined /> },
-  { label: '文章管理', path: '/article', roles: ['sysadmin', 'admin'], icon: <FileTextOutlined /> },
-  { label: '发布管理', path: '/publish', roles: ['sysadmin', 'admin', 'view'], icon: <TrophyOutlined /> },
-  { label: '项目管理', path: '/project', roles: ['sysadmin', 'admin'], icon: <ProjectOutlined /> },
-  { label: '技能管理', path: '/skills', roles: ['sysadmin', 'admin'], icon: <ThunderboltOutlined /> },
-  { label: '用户管理', path: '/users', roles: ['sysadmin'], icon: <UserOutlined /> },
-  { label: '公司管理', path: '/company', roles: ['sysadmin'], icon: <HomeOutlined /> },
-  { label: '系统管理', path: '/sysadmin', roles: ['sysadmin'], icon: <SettingOutlined /> },
-  { label: 'API 文档', path: '/swagger', roles: ['sysadmin'], icon: <ApiOutlined /> },
+  { label: '今日待办', path: '/todo', roles: [ROLES.SYSADMIN, ROLES.ADMIN], icon: <CheckSquareOutlined /> },
+  { label: 'AI知识库', path: '/knowledge', roles: [ROLES.SYSADMIN, ROLES.ADMIN], icon: <BookOutlined /> },
+  { label: '文章管理', path: '/article', roles: [ROLES.SYSADMIN, ROLES.ADMIN], icon: <FileTextOutlined /> },
+  { label: '发布管理', path: '/publish', roles: [ROLES.SYSADMIN, ROLES.ADMIN], icon: <TrophyOutlined /> },
+  { label: '项目管理', path: '/project', roles: [ROLES.SYSADMIN, ROLES.ADMIN], icon: <ProjectOutlined /> },
+  { label: '技能管理', path: '/skills', roles: [ROLES.SYSADMIN, ROLES.ADMIN], icon: <ThunderboltOutlined /> },
+  { label: '用户管理', path: '/users', roles: [ROLES.SYSADMIN], icon: <UserOutlined /> },
+  { label: '公司管理', path: '/company', roles: [ROLES.SYSADMIN], icon: <HomeOutlined /> },
+  { label: '系统管理', path: '/sysadmin', roles: [ROLES.SYSADMIN], icon: <SettingOutlined /> },
+  { label: 'API 文档', path: '/swagger', roles: [ROLES.SYSADMIN], icon: <ApiOutlined /> },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -58,11 +66,15 @@ const Sidebar: React.FC<SidebarProps> = ({
   const userRole = user?.role ?? '';
   const cnName = user?.cn_name ?? '';
 
-  const visibleMenuItems = menuItems.filter((item) => item.roles.includes(userRole));
+  const visibleMenuItems = menuItems.filter((item) => item.roles.includes(userRole as Role));
 
   const handleMenuClick = ({ key }: { key: string }) => {
-    navigate(key);
-    if (isMobile) onCollapse(true);
+    try {
+      navigate(key);
+      if (isMobile) onCollapse(true);
+    } catch {
+      message.error('页面跳转失败，请重试');
+    }
   };
 
   const antdMenuItems = visibleMenuItems.map((item) => ({
@@ -72,16 +84,19 @@ const Sidebar: React.FC<SidebarProps> = ({
   }));
 
   const selectedKey = visibleMenuItems
-    .filter((item) => location.pathname.startsWith(item.path))
+    .filter((item) =>
+      location.pathname === item.path ||
+      location.pathname.startsWith(item.path + '/')
+    )
     .sort((a, b) => b.path.length - a.path.length)[0]?.path || '';
-
-  const showFull = !collapsed;
 
   return (
     <div className="sidebar-container">
       <div className={collapsed ? 'sidebar-header-collapsed' : 'sidebar-header'}>
-        {showFull && (
+        {!collapsed ? (
           <Typography.Text strong className="sidebar-brand">薄云商机倍增服务</Typography.Text>
+        ) : (
+          <Typography.Text strong style={{ fontSize: 16 }}>薄</Typography.Text>
         )}
         <Button
           type="text"
@@ -102,7 +117,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         className="sidebar-menu-area"
       />
 
-      {showFull ? (
+      {!collapsed ? (
         <div className="sidebar-footer">
           <Space orientation="vertical" size={4} className="sidebar-footer-full-width">
             <div className="sidebar-footer-row">
@@ -111,7 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 {cnName}
               </Typography.Text>
               <Tooltip title="登出">
-                <Button type="text" size="small" icon={<LogoutOutlined />} onClick={logout} aria-label="登出" />
+                <Button type="text" size="small" danger icon={<LogoutOutlined />} onClick={logout} aria-label="登出" />
               </Tooltip>
             </div>
             <CompanyProjectSwitcher />
@@ -119,8 +134,11 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       ) : (
         <div className="sidebar-footer-collapsed">
-          <Tooltip title={`登出（${cnName}）`}>
-            <Button type="text" size="small" icon={<LogoutOutlined />} onClick={logout} aria-label={`登出（${cnName}）`} />
+          <Tooltip title={cnName}>
+            <Button type="text" size="small" icon={<UserOutlined />} aria-label={cnName} />
+          </Tooltip>
+          <Tooltip title="登出">
+            <Button type="text" size="small" danger icon={<LogoutOutlined />} onClick={logout} aria-label="登出" />
           </Tooltip>
         </div>
       )}

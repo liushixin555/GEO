@@ -279,8 +279,8 @@ a:hover {
 
 .sidebar-footer-name {
   font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.16px;
+  font-weight: 400;
+  letter-spacing: 0.32px;
 }
 
 .sidebar-footer-info {
@@ -302,9 +302,10 @@ a:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
-  font-size: 12px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 8px;
+  font-size: 16px;
   color: var(--color-ink-muted);
 }
 
