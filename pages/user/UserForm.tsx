@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Select, Button, Alert } from 'antd';
 import apiClient from '../lib/apiClient';
+import { ROLE_OPTIONS } from '../constants/roles';
 import type { UserItem } from '../types/user';
 
 interface UserFormProps {
@@ -79,9 +80,9 @@ const UserForm: React.FC<UserFormProps> = ({ item, isSysadmin, onClose, onSaved 
         </Form.Item>
         <Form.Item name="role" label="角色" rules={[{ required: true, message: '请选择角色' }]}>
           <Select disabled={isEdit && item?.role === 'sysadmin'}>
-            <Select.Option value="admin">运营者</Select.Option>
-            <Select.Option value="view">查看者</Select.Option>
-            {isSysadmin && <Select.Option value="sysadmin">系统管理员</Select.Option>}
+            {ROLE_OPTIONS.filter(o => o.value !== 'sysadmin' || isSysadmin).map(o => (
+              <Select.Option key={o.value} value={o.value}>{o.label}</Select.Option>
+            ))}
           </Select>
         </Form.Item>
         <div className="form-actions">

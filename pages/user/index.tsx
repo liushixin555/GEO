@@ -1,87 +1,36 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Row, Col, Card, Input, Select, Switch, Tag, Spin, Pagination, Breadcrumb, Button, App, Table, Tooltip, Popconfirm, Empty } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Row, Col, Card, Input, Select, Switch, Tag, Spin, Pagination, Breadcrumb, Button, Table, Tooltip, Popconfirm, Empty } from 'antd';
 import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import apiClient from '../lib/apiClient';
 import { useAuth } from '../context/AuthContext';
-import { getApiErrorMessage } from '../utils/error';
+import { ROLE_LABELS, ROLE_COLORS, ROLE_OPTIONS } from '../constants/roles';
+import { useUserList } from './hooks/useUserList';
+import { useUserActions } from './hooks/useUserActions';
 import UserForm from './UserForm';
 import type { UserItem } from '../types/user';
 
-interface ListUsersParams {
-  page: number;
-  pageSize: number;
-  search?: string;
-  role?: string;
-  status?: string;
-}
-
-const roleLabels: Record<string, string> = {
-  sysadmin: '系统管理员',
-  admin: '运营者',
-  view: '查看者',
-};
-
 const UserPage: React.FC = () => {
   const { user } = useAuth();
-  const { message } = App.useApp();
+  const {
+    data, total, page, pageSize, loading,
+    searchInput, setSearchInput,
+    filterRole, changeRole,
+    filterStatus, changeStatus,
+    setPage, fetchData,
+  } = useUserList();
 
-  const [data, setData] = useState<UserItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(12);
-  const [loading, setLoading] = useState(false);
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
-  const [filterRole, setFilterRole] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const { toggleStatus, togglingId } = useUserActions(fetchData);
+
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<UserItem | null>(null);
-  const [togglingId, setTogglingId] = useState<number | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const [isWide, setIsWide] = useState(() => window.matchMedia('(min-width: 1280px)').matches);
 
   useEffect(() => {
-    debounceRef.current = setTimeout(() => {
-      setSearch(searchInput);
-      setPage(1);
-    }, 300);
-    return () => clearTimeout(debounceRef.current);
-  }, [searchInput]);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: ListUsersParams = { page, pageSize };
-      if (search) params.search = search;
-      if (filterRole) params.role = filterRole;
-      if (filterStatus !== '') params.status = filterStatus;
-
-      const res = await apiClient.get('/users', { params });
-      setData(res.data.data.list);
-      setTotal(res.data.data.total);
-    } catch (err: unknown) {
-      message.error(getApiErrorMessage(err, '获取用户列表失败'));
-    } finally {
-      setLoading(false);
-    }
-  }, [page, pageSize, search, filterRole, filterStatus, message]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const handleToggleStatus = async (item: UserItem) => {
-    setTogglingId(item.id);
-    try {
-      await apiClient.put(`/users/${item.id}`, { status: !item.status });
-      message.success(item.status ? '用户已禁用' : '用户已启用');
-      fetchData();
-    } catch (err: unknown) {
-      message.error(getApiErrorMessage(err, '操作失败'));
-    } finally {
-      setTogglingId(null);
-    }
-  };
+    const mql = window.matchMedia('(min-width: 1280px)');
+    const handler = (e: MediaQueryListEvent) => setIsWide(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
 
   const renderStatusSwitch = (item: UserItem) => {
     if (item.role === 'sysadmin') return <Tag color="green">启用</Tag>;
@@ -90,7 +39,7 @@ const UserPage: React.FC = () => {
         title={item.status ? '确定禁用该用户？' : '确定启用该用户？'}
         okText="确定"
         cancelText="取消"
-        onConfirm={() => handleToggleStatus(item)}
+        onConfirm={() => toggleStatus(item)}
       >
         <Switch
           size="small"
@@ -134,7 +83,7 @@ const UserPage: React.FC = () => {
       dataIndex: 'role',
       key: 'role',
       width: 120,
-      render: (role: string) => <Tag color={role === 'sysadmin' ? 'blue' : role === 'admin' ? 'default' : 'default'}>{roleLabels[role] || role}</Tag>,
+      render: (role: string) => <Tag color={ROLE_COLORS[role] || 'default'}>{ROLE_LABELS[role] || role}</Tag>,
     },
     {
       title: '状态',
@@ -168,21 +117,17 @@ const UserPage: React.FC = () => {
         <Col xs={24} sm={4}>
           <Select
             value={filterRole || undefined}
-            onChange={(val) => { setFilterRole(val || ''); setPage(1); }}
+            onChange={changeRole}
             allowClear
             placeholder="全部角色"
             style={{ width: '100%' }}
-            options={[
-              { value: 'sysadmin', label: '系统管理员' },
-              { value: 'admin', label: '运营者' },
-              { value: 'view', label: '查看者' },
-            ]}
+            options={ROLE_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
           />
         </Col>
         <Col xs={24} sm={4}>
           <Select
             value={filterStatus || undefined}
-            onChange={(val) => { setFilterStatus(val || ''); setPage(1); }}
+            onChange={changeStatus}
             allowClear
             placeholder="全部状态"
             style={{ width: '100%' }}
@@ -200,35 +145,35 @@ const UserPage: React.FC = () => {
       </Row>
 
       <Spin spinning={loading}>
-        {/* 卡片视图：<1280px */}
-        <div className="user-cards">
-          {data.length === 0 && !loading && (
-            <Empty description="暂无用户数据" />
-          )}
-          {data.map((item) => (
-            <Card key={item.id} size="small" title={item.cn_name} extra={<Tag color={item.role === 'sysadmin' ? 'blue' : 'default'}>{roleLabels[item.role] || item.role}</Tag>}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--color-ink-muted, #525252)' }}>@{item.username}</span>
-                {renderStatusSwitch(item)}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--color-hairline, #e0e0e0)' }}>
-                {renderEditButton(item)}
-              </div>
-            </Card>
-          ))}
-        </div>
-
-        {/* 表格视图：>=1280px */}
-        <div className="user-table-wrapper">
-          <Table
-            columns={tableColumns}
-            dataSource={data}
-            rowKey="id"
-            size="middle"
-            pagination={false}
-            locale={{ emptyText: <Empty description="暂无用户数据" /> }}
-          />
-        </div>
+        {isWide ? (
+          <div className="user-table-wrapper">
+            <Table
+              columns={tableColumns}
+              dataSource={data}
+              rowKey="id"
+              size="middle"
+              pagination={false}
+              locale={{ emptyText: <Empty description="暂无用户数据" /> }}
+            />
+          </div>
+        ) : (
+          <div className="user-cards">
+            {data.length === 0 && !loading && (
+              <Empty description="暂无用户数据" />
+            )}
+            {data.map((item) => (
+              <Card key={item.id} size="small" title={item.cn_name} extra={<Tag color={ROLE_COLORS[item.role] || 'default'}>{ROLE_LABELS[item.role] || item.role}</Tag>}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: 'var(--color-ink-muted, #525252)' }}>@{item.username}</span>
+                  {renderStatusSwitch(item)}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--color-hairline, #e0e0e0)' }}>
+                  {renderEditButton(item)}
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </Spin>
 
       {total > pageSize && (
