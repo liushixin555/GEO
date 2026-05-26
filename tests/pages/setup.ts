@@ -60,6 +60,17 @@ jest.mock('antd', () => {
           props.children
         );
       }
+      // Form: intercept submit to trigger onFinish with form values
+      if (name === 'Form') {
+        const formAttrs: Record<string, any> = { 'data-testid': name, className: props.className, style: props.style };
+        formAttrs.onSubmit = (e: any) => {
+          e?.preventDefault?.();
+          if (props.onFinish) {
+            Promise.resolve(STABLE_FORM.validateFields()).then(props.onFinish).catch(() => {});
+          }
+        };
+        return React.createElement('form', formAttrs, props.children);
+      }
       // Render message/title/tip/label prop + action + children for text-based assertions
       const textContent = props.message || props.title || props.tip || props.label || null;
       // Forward common HTML attributes for realistic testing (href, target, rel, aria-*, etc.)
