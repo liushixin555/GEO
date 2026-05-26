@@ -535,3 +535,33 @@ fullscreen.tsx 所有 Committer 裁决条件已在 `pages/components/MarkdownEdi
 3. **建议（P2）**: 中文 ARIA 标注 + antd 图标替换
 
 *Committer 审核完成 — 2026-05-25*
+
+---
+
+## pages/user/index.tsx — Committer 审核专家评审
+
+**评审日期**: 2026-05-26
+**评审角色**: Committer 审核专家（代码合并准入 · 依赖可接受性 · 项目集成风险 · 规范兼容性 · 生产就绪度）
+**文件路径**: `pages/user/index.tsx` (228行) + `pages/user/UserForm.tsx` (101行)
+**前序评审**: 安全评审 5.8/10、架构评审 4.5/10、质量评审 6.4/10、UI 评审 4.0/10
+**评审结论**: **REQUEST CHANGES** — 阻断合并，3项 BLOCKING 问题必须修复
+**综合评分**: 4.9 / 10
+
+### 发现汇总
+
+| 级别 | 数量 | 关键发现 |
+|------|------|---------|
+| BLOCKING | 3 | 原生table违反铁律(B-1) / 空catch吞错误(B-2) / 搜索无防抖DoS(B-3) |
+| HIGH | 5 | 状态切换无确认(H-1) / Switch无loading(H-2) / 双视图同渲染(H-3) / 认证双数据源(H-4) / 类型重复定义(H-5) |
+| MEDIUM | 9 | 无AbortController / 无Tooltip / 无Skeleton / 分页不完整 / any类型 / 魔术字符串 / 颜色硬编码 / 空状态无引导 / useState扁平罗列 |
+| LOW | ~8 | 各报告L级问题合计 |
+
+### Committer 裁决条件
+
+1. **必须（P0）**: 替换原生table为antd Table（消除铁律违规 + 附带解决H-3/M-4/L-3）
+2. **必须（P0）**: 空 catch 添加 `console.error` + `message.error()` 错误提示
+3. **必须（P0）**: 搜索输入添加 300ms debounce
+4. **建议（P1）**: Popconfirm确认 + useAuth替换 + 共享类型文件
+5. **建议（P2）**: M-1 ~ M-9 中等优化
+
+*Committer 审核完成 — 2026-05-26*
