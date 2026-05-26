@@ -105,6 +105,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 if (config.swagger.enabled) {
   const { apiReference } = require('@scalar/express-api-reference');
   const swaggerSpec = require('./swagger-spec.json');
+  app.get('/api-docs/health', (_req: Request, res: Response) => res.json({ available: true }));
   app.use('/api-docs', swaggerAuthMiddleware, apiReference({
     spec: { url: '/api-docs.json' },
     theme: 'default',

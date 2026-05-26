@@ -121,6 +121,10 @@ a:hover {
   background-color: var(--color-surface-1) !important;
 }
 
+.ant-card {
+  box-shadow: none !important;
+}
+
 .ant-menu-inline .ant-menu-item-selected {
   border-left: 3px solid var(--color-primary) !important;
 }

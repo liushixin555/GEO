@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import ApiDocsPage from '../../pages/swagger';
 
@@ -75,14 +75,16 @@ describe('ApiDocsPage', () => {
     mockFetch.mockRejectedValue(new Error('Network error'));
     renderWithRouter();
     await waitFor(() => {
-      expect(screen.getByText('API 文档服务当前不可用')).toBeInTheDocument();
+      const alert = document.querySelector('[data-testid="Alert"]');
+      expect(alert).toBeTruthy();
+      expect(alert?.textContent).toContain('API 文档服务当前不可用');
     });
   });
 
-  it('should show spinner while checking Swagger availability', () => {
+  it('should show Skeleton while checking Swagger availability', () => {
     mockFetch.mockReturnValue(new Promise(() => {}));
     renderWithRouter();
-    expect(document.querySelector('[data-testid="Spin"]')).toBeTruthy();
+    expect(document.querySelector('[data-testid="Skeleton"]')).toBeTruthy();
   });
 
   it('should render API base URL info', () => {
@@ -142,11 +144,11 @@ describe('ApiDocsPage', () => {
     });
   });
 
-  it('should fetch Swagger UI path on mount', () => {
+  it('should fetch health endpoint on mount', () => {
     renderWithRouter();
     expect(mockFetch).toHaveBeenCalledWith(
-      '/api-docs/',
-      expect.objectContaining({ method: 'HEAD' })
+      '/api-docs/health',
+      expect.objectContaining({ method: 'GET' })
     );
   });
 
@@ -154,7 +156,7 @@ describe('ApiDocsPage', () => {
     const { unmount } = renderWithRouter();
     unmount();
     expect(mockFetch).toHaveBeenCalledWith(
-      '/api-docs/',
+      '/api-docs/health',
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
   });
@@ -162,5 +164,68 @@ describe('ApiDocsPage', () => {
   it('should not render breadcrumb (QUA-05: removed single-level breadcrumb)', () => {
     renderWithRouter();
     expect(document.querySelector('[data-testid="Breadcrumb"]')).toBeFalsy();
+  });
+
+  it('should log warning for non-AbortError fetch failures', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+    const error = new Error('DNS failure');
+    error.name = 'TypeError';
+    mockFetch.mockRejectedValue(error);
+    renderWithRouter();
+    await waitFor(() => {
+      expect(screen.getByText('API 文档服务当前不可用')).toBeInTheDocument();
+    });
+    expect(warnSpy).toHaveBeenCalledWith('[Swagger] 可用性检查失败:', 'DNS failure');
+    warnSpy.mockRestore();
+  });
+
+  it('should not log warning for AbortError', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+    const abortError = new DOMException('The operation was aborted.', 'AbortError');
+    mockFetch.mockRejectedValue(abortError);
+    renderWithRouter();
+    await waitFor(() => {
+      expect(screen.getByText('API 文档服务当前不可用')).toBeInTheDocument();
+    });
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('should show retry button when API docs unavailable', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 404 });
+    renderWithRouter();
+    await waitFor(() => {
+      expect(screen.getByText('重新检测')).toBeInTheDocument();
+    });
+  });
+
+  it('should recheck availability when retry button clicked', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
+    renderWithRouter();
+    await waitFor(() => {
+      expect(screen.getByText('重新检测')).toBeInTheDocument();
+    });
+    mockFetch.mockResolvedValueOnce({ ok: true, status: 200 });
+    fireEvent.click(screen.getByText('重新检测'));
+    await waitFor(() => {
+      expect(screen.getByText('打开 API 文档')).toBeInTheDocument();
+    });
+  });
+
+  it('should show simplified error message without environment details', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 404 });
+    renderWithRouter();
+    await waitFor(() => {
+      const alert = document.querySelector('[data-testid="Alert"]');
+      expect(alert).toBeTruthy();
+      expect(alert?.textContent).toContain('API 文档服务当前不可用');
+    });
+    expect(screen.queryByText(/开发环境中访问/)).not.toBeInTheDocument();
+  });
+
+  it('should use orientation prop on Space instead of direction', () => {
+    renderWithRouter();
+    const spaces = document.querySelectorAll('[data-testid="Space"]');
+    expect(spaces.length).toBeGreaterThan(0);
   });
 });

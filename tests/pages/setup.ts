@@ -52,7 +52,7 @@ jest.mock('antd', () => {
       const textContent = props.message || props.title || props.tip || props.label || null;
       // Forward common HTML attributes for realistic testing (href, target, rel, aria-*, etc.)
       const htmlAttrs: Record<string, any> = { 'data-testid': name };
-      for (const key of ['href', 'target', 'rel', 'aria-label', 'aria-hidden', 'role', 'type', 'disabled', 'className', 'id', 'placeholder', 'value', 'src', 'alt', 'name']) {
+      for (const key of ['href', 'target', 'rel', 'aria-label', 'aria-hidden', 'role', 'type', 'disabled', 'className', 'id', 'placeholder', 'value', 'src', 'alt', 'name', 'onClick']) {
         if (props[key] !== undefined) htmlAttrs[key] = props[key];
       }
       if (props.style) htmlAttrs.style = props.style;
