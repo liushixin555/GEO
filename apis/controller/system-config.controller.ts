@@ -3,24 +3,10 @@ import { createSystemConfigService } from '../service';
 import type { AuthContext } from '../service';
 import { success, fail } from '../utils';
 import { logger } from '../utils/logger.util';
-import { ALLOWED_CONFIG_KEYS, SENSITIVE_CONFIG_KEYS } from '../constants/system-config';
+import { ALLOWED_CONFIG_KEYS } from '../constants/system-config';
 import { Role } from '../constants/roles';
 
 const systemConfigService = createSystemConfigService();
-
-function maskSensitiveValue(key: string, value: string): string {
-  if (SENSITIVE_CONFIG_KEYS.has(key)) {
-    return value.length > 2 ? `${value.slice(0, 2)}****` : '****';
-  }
-  return value;
-}
-
-function sanitizeConfigItems(items: { config_key: string; config_value: string }[]) {
-  return items.map(item => ({
-    ...item,
-    config_value: maskSensitiveValue(item.config_key, item.config_value),
-  }));
-}
 
 function getAuth(req: Request): AuthContext {
   const user = req.user;
@@ -32,7 +18,7 @@ export async function getSystemConfigs(req: Request, res: Response): Promise<voi
   try {
     const auth = getAuth(req);
     const items = await systemConfigService.getAll(auth);
-    success(res, sanitizeConfigItems(items));
+    success(res, items);
   } catch (err: unknown) {
     logger.error('获取系统配置失败', { error: err instanceof Error ? err.message : String(err) });
     fail(res, 500, '获取系统配置失败');
@@ -66,7 +52,7 @@ export async function updateSystemConfigs(req: Request, res: Response): Promise<
       keys: configs.map((c: { config_key: string }) => c.config_key),
     });
 
-    success(res, sanitizeConfigItems(items), '更新系统配置成功');
+    success(res, items, '更新系统配置成功');
   } catch (err: unknown) {
     logger.error('更新系统配置失败', { error: err instanceof Error ? err.message : String(err) });
     fail(res, 500, '更新系统配置失败');

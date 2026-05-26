@@ -12,3 +12,10 @@ export type AllowedConfigKey = (typeof ALLOWED_CONFIG_KEYS)[number];
 export const SENSITIVE_CONFIG_KEYS: Set<string> = new Set([
   'yishangshu_password',
 ]);
+
+export function maskSensitiveValue(key: string, value: string): string {
+  if (SENSITIVE_CONFIG_KEYS.has(key)) {
+    return value.length > 2 ? `${value.slice(0, 2)}****` : '****';
+  }
+  return value;
+}

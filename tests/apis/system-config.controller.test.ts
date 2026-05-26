@@ -499,7 +499,7 @@ describe('System Config Controller', () => {
       const { updateSystemConfigs } = require('../../apis/controller/system-config.controller');
 
       it('应返回400当configs不是数组时（直接调用）', async () => {
-        const req = { body: { configs: 'not-array' } } as any;
+        const req = { body: { configs: 'not-array' }, user: { userId: 1, role: 'sysadmin' } } as any;
         await updateSystemConfigs(req, mockRes);
 
         expect(mockStatus).toHaveBeenCalledWith(400);
@@ -509,7 +509,7 @@ describe('System Config Controller', () => {
       });
 
       it('应返回400当configs为空数组时（直接调用）', async () => {
-        const req = { body: { configs: [] } } as any;
+        const req = { body: { configs: [] }, user: { userId: 1, role: 'sysadmin' } } as any;
         await updateSystemConfigs(req, mockRes);
 
         expect(mockStatus).toHaveBeenCalledWith(400);
@@ -519,7 +519,7 @@ describe('System Config Controller', () => {
       });
 
       it('应返回400当config_key缺失时（直接调用）', async () => {
-        const req = { body: { configs: [{ config_value: 'test' }] } } as any;
+        const req = { body: { configs: [{ config_value: 'test' }] }, user: { userId: 1, role: 'sysadmin' } } as any;
         await updateSystemConfigs(req, mockRes);
 
         expect(mockStatus).toHaveBeenCalledWith(400);
@@ -529,7 +529,7 @@ describe('System Config Controller', () => {
       });
 
       it('应返回400当config_value为undefined时（直接调用）', async () => {
-        const req = { body: { configs: [{ config_key: 'yishangshu_username' }] } } as any;
+        const req = { body: { configs: [{ config_key: 'yishangshu_username' }] }, user: { userId: 1, role: 'sysadmin' } } as any;
         await updateSystemConfigs(req, mockRes);
 
         expect(mockStatus).toHaveBeenCalledWith(400);
@@ -539,7 +539,7 @@ describe('System Config Controller', () => {
       });
 
       it('应返回400当config_key不在白名单中时（直接调用）', async () => {
-        const req = { body: { configs: [{ config_key: 'unknown_key', config_value: 'test' }] } } as any;
+        const req = { body: { configs: [{ config_key: 'unknown_key', config_value: 'test' }] }, user: { userId: 1, role: 'sysadmin' } } as any;
         await updateSystemConfigs(req, mockRes);
 
         expect(mockStatus).toHaveBeenCalledWith(400);
@@ -579,7 +579,7 @@ describe('System Config Controller', () => {
           },
         });
 
-        const req = {} as any;
+        const req = { user: { userId: 1, role: 'sysadmin' } } as any;
         await getSystemConfigs(req, mockRes);
 
         expect(mockJson).toHaveBeenCalledWith(
@@ -599,7 +599,7 @@ describe('System Config Controller', () => {
           systemConfig: { findMany: jest.fn().mockResolvedValue([]) },
         });
 
-        const req = {} as any;
+        const req = { user: { userId: 1, role: 'sysadmin' } } as any;
         await getSystemConfigs(req, mockRes);
 
         expect(mockJson).toHaveBeenCalledWith(
@@ -621,7 +621,7 @@ describe('System Config Controller', () => {
           $transaction: mockTransaction,
         });
 
-        const req = { body: { configs: [{ config_key: 'yishangshu_username', config_value: 'new_user' }] } } as any;
+        const req = { body: { configs: [{ config_key: 'yishangshu_username', config_value: 'new_user' }] }, user: { userId: 1, role: 'sysadmin' } } as any;
         await updateSystemConfigs(req, mockRes);
 
         expect(mockJson).toHaveBeenCalledWith(
@@ -643,7 +643,7 @@ describe('System Config Controller', () => {
           $transaction: mockTransaction,
         });
 
-        const req = { body: { configs: [{ config_key: 'yishangshu_username', config_value: '' }] } } as any;
+        const req = { body: { configs: [{ config_key: 'yishangshu_username', config_value: '' }] }, user: { userId: 1, role: 'sysadmin' } } as any;
         await updateSystemConfigs(req, mockRes);
 
         expect(mockJson).toHaveBeenCalledWith(
@@ -660,7 +660,7 @@ describe('System Config Controller', () => {
           $transaction: mockTransaction,
         });
 
-        const req = { body: { configs: [{ config_key: 'yishangshu_password', config_value: 'new_pass' }] } } as any;
+        const req = { body: { configs: [{ config_key: 'yishangshu_password', config_value: 'new_pass' }] }, user: { userId: 1, role: 'sysadmin' } } as any;
         await updateSystemConfigs(req, mockRes);
 
         expect(mockJson).toHaveBeenCalledWith(
@@ -686,7 +686,7 @@ describe('System Config Controller', () => {
           $transaction: mockTransaction,
         });
 
-        const req = { body: { configs: [{ config_key: 'yishangshu_username', config_value: 'test' }] } } as any;
+        const req = { body: { configs: [{ config_key: 'yishangshu_username', config_value: 'test' }] }, user: { userId: 1, role: 'sysadmin' } } as any;
         await updateSystemConfigs(req, mockRes);
 
         expect(mockStatus).toHaveBeenCalledWith(500);
@@ -696,7 +696,7 @@ describe('System Config Controller', () => {
       });
 
       it('应返回400当多条配置中第一条key不在白名单时（直接调用）', async () => {
-        const req = { body: { configs: [{ config_key: 'invalid', config_value: 'test' }, { config_key: 'yishangshu_username', config_value: 'test' }] } } as any;
+        const req = { body: { configs: [{ config_key: 'invalid', config_value: 'test' }, { config_key: 'yishangshu_username', config_value: 'test' }] }, user: { userId: 1, role: 'sysadmin' } } as any;
         await updateSystemConfigs(req, mockRes);
 
         expect(mockStatus).toHaveBeenCalledWith(400);
@@ -706,7 +706,7 @@ describe('System Config Controller', () => {
       });
 
       it('应返回400当多条配置中第二条key不在白名单时（直接调用）', async () => {
-        const req = { body: { configs: [{ config_key: 'yishangshu_username', config_value: 'test' }, { config_key: 'invalid', config_value: 'test' }] } } as any;
+        const req = { body: { configs: [{ config_key: 'yishangshu_username', config_value: 'test' }, { config_key: 'invalid', config_value: 'test' }] }, user: { userId: 1, role: 'sysadmin' } } as any;
         await updateSystemConfigs(req, mockRes);
 
         expect(mockStatus).toHaveBeenCalledWith(400);
@@ -1429,7 +1429,7 @@ describe('System Config Controller', () => {
           systemConfig: { findMany: jest.fn().mockRejectedValue(new Error('prisma timeout')) },
         });
 
-        await getSystemConfigs({}, mockRes);
+        await getSystemConfigs({ user: { userId: 1, role: 'sysadmin' } }, mockRes);
 
         expect(loggerErrorSpy).toHaveBeenCalledWith(
           '获取系统配置失败',
@@ -1445,7 +1445,7 @@ describe('System Config Controller', () => {
           systemConfig: { findMany: jest.fn().mockRejectedValue('string err') },
         });
 
-        await getSystemConfigs({}, mockRes);
+        await getSystemConfigs({ user: { userId: 1, role: 'sysadmin' } }, mockRes);
 
         expect(loggerErrorSpy).toHaveBeenCalledWith(
           '获取系统配置失败',
@@ -1475,7 +1475,7 @@ describe('System Config Controller', () => {
         );
       });
 
-      it('PUT 直接调用应记录info日志当req.user为undefined', async () => {
+      it('PUT 直接调用应记录error日志当req.user为undefined', async () => {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { updateSystemConfigs } = require('../../apis/controller/system-config.controller');
         const { getPrisma } = require('../../apis/utils/db.util');
@@ -1488,9 +1488,9 @@ describe('System Config Controller', () => {
         const req = { body: { configs: [{ config_key: 'yishangshu_username', config_value: 'val' }] } } as any;
         await updateSystemConfigs(req, mockRes);
 
-        expect(loggerInfoSpy).toHaveBeenCalledWith(
-          '系统配置更新',
-          expect.objectContaining({ userId: undefined, keys: ['yishangshu_username'] })
+        expect(loggerErrorSpy).toHaveBeenCalledWith(
+          '更新系统配置失败',
+          expect.objectContaining({ error: '未认证' })
         );
       });
 
@@ -1503,7 +1503,7 @@ describe('System Config Controller', () => {
           $transaction: jest.fn().mockRejectedValue(42),
         });
 
-        const req = { body: { configs: [{ config_key: 'yishangshu_username', config_value: 'val' }] } } as any;
+        const req = { body: { configs: [{ config_key: 'yishangshu_username', config_value: 'val' }] }, user: { userId: 1, role: 'sysadmin' } } as any;
         await updateSystemConfigs(req, mockRes);
 
         expect(loggerErrorSpy).toHaveBeenCalledWith(
@@ -1522,7 +1522,7 @@ describe('System Config Controller', () => {
           $transaction: jest.fn().mockResolvedValue([mockResult]),
         });
 
-        const req = { body: { configs: [{ config_key: 'yishangshu_password', config_value: 'my_long_password' }] } } as any;
+        const req = { body: { configs: [{ config_key: 'yishangshu_password', config_value: 'my_long_password' }] }, user: { userId: 1, role: 'sysadmin' } } as any;
         await updateSystemConfigs(req, mockRes);
 
         expect(mockJson).toHaveBeenCalledWith(

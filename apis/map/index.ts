@@ -2,6 +2,7 @@ import { Company, User, Skills, SkillsDetail, LlmModel, SystemConfig, Project, A
 import type { PublishingSchedule, PublishingScheduleItem } from '../entity/publishing-schedule.entity';
 import { Company as PrismaCompany, Skills as PrismaSkills, User as PrismaUser } from '@prisma/client';
 import { isEncrypted } from '../utils/encryption.util';
+import { maskSensitiveValue } from '../constants/system-config';
 
 export function mapCompany(prismaCompany: PrismaCompany): Company {
   return {
@@ -64,10 +65,11 @@ export function mapLlmModel(prismaLlmModel: any): LlmModel {
 }
 
 export function mapSystemConfig(prismaConfig: any): SystemConfig {
+  const config_key = prismaConfig.configKey;
   return {
     id: prismaConfig.id,
-    config_key: prismaConfig.configKey,
-    config_value: prismaConfig.configValue,
+    config_key,
+    config_value: maskSensitiveValue(config_key, prismaConfig.configValue),
     created_at: prismaConfig.createdAt,
     updated_at: prismaConfig.updatedAt,
   };
