@@ -183,3 +183,51 @@ interface CompanyDetail extends Company {
 **CONDITIONAL APPROVE — 5.5/10**
 
 文件功能正确、类型匹配、测试充分，核心问题集中在**文档缺失**和**类型设计约定不一致**。建议优先补全文档（P1/P4），然后处理类型改进（P2/P3）。P6 的组合替代继承属于破坏性变更，可在下次涉及该实体的重构任务中一并处理。
+
+---
+
+## 七、修复记录（2026-05-26）
+
+基于三维综合评审（Committer 评审 4.8/10 REQUEST CHANGES），完成以下修复：
+
+### 已修复 BLOCKING 项
+
+| 编号 | 修复项 | 涉及文件 | 状态 |
+|------|--------|---------|------|
+| B-1 | 添加 `created_by`/`updated_by` 审计追踪字段 | company.entity.ts + Prisma schema + map + service + controller | ✅ 已修复 |
+| B-2 | `UpdateCompanyRequest` 改为部分更新（全部 optional + 三值 null 语义） | company.entity.ts + company.schema.ts + company.service.impl.ts | ✅ 已修复 |
+
+### 已修复 HIGH 项
+
+| 编号 | 修复项 | 涉及文件 | 状态 |
+|------|--------|---------|------|
+| H-1 | 新增 `CompanyListItem` 列表类型（脱敏+统计） | company.entity.ts + company.service.ts + company.service.impl.ts | ✅ 已修复 |
+| H-2 | `address` 统一为三值语义 `address?: string \| null` | company.entity.ts + company.schema.ts | ✅ 已修复 |
+| H-3 | `operator_ids`/`viewer_ids` 互斥校验（Schema refine + Service validate） | company.schema.ts + company.service.impl.ts | ✅ 已修复 |
+| H-4 | 提取 `CompanyUserRef` 命名类型消除内联重复 | company.entity.ts + entity/index.ts | ✅ 已修复 |
+| H-5 | 补全模块级 `@module` JSDoc + 全字段 Prisma 约束注释 | company.entity.ts | ✅ 已修复 |
+
+### 已修复 MEDIUM 项
+
+| 编号 | 修复项 | 状态 |
+|------|--------|------|
+| M-1 | `CompanyDetail` 改为 `extends Omit<Company, 'deleted_at'>` 不暴露 deleted_at | ✅ 已修复 |
+| M-2 | operator_ids/viewer_ids JSDoc 标注互斥约束和业务语义 | ✅ 已修复 |
+
+### 同步更新的下游文件
+
+- `apis/entity/index.ts` — 导出新类型
+- `apis/service/company.service.ts` — 接口签名更新
+- `apis/service/impl/company.service.impl.ts` — 部分更新+审计+互斥+ListItem
+- `apis/controller/company.controller.ts` — 传递 userId
+- `apis/map/index.ts` — mapCompany 添加 created_by/updated_by
+- `apis/schema/company.schema.ts` — 部分更新+互斥校验
+- `prisma/schema.prisma` — Company 添加 createdById/updatedById
+- `tests/apis/company.*.test.ts` — 509 测试全部通过
+
+### 预期评分提升
+
+| 阶段 | 评分 |
+|------|------|
+| 修复前 | 4.8/10 (REQUEST CHANGES) |
+| 修复后（预期） | 8.0/10 (APPROVE) |

@@ -914,3 +914,46 @@ model PublishingSchedule {
 - `apis/map/index.ts` — mapPublishingSchedule / mapPublishingScheduleItem 新增 reject_reason 映射
 - `apis/service/impl/publishing-schedule.service.impl.ts` — reject 方法保存 rejectReason
 - `apis/schema/publishing-schedule.schema.ts` — listPublishableArticlesSchema pageSize 默认值统一为 10
+
+---
+
+## db012. Company 新增审计追踪字段 created_by_id / updated_by_id
+
+### 变更原因
+Company 是系统中唯一缺少审计追踪的核心实体。Article、Skills、KnowledgeBase、Todo 均有 `created_by`，Company 缺失导致多 sysadmin 环境下无法追溯谁创建/修改了公司数据。
+
+### Schema 变更
+```prisma
+// Before
+model Company {
+  status        Boolean @default(true)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  // ... 无 createdById/updatedById
+}
+
+// After
+model Company {
+  status        Boolean @default(true)
+  createdById   Int?    @map("created_by_id")
+  updatedById   Int?    @map("updated_by_id")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  createdBy     User?   @relation("CompanyCreator", fields: [createdById], references: [id])
+  updatedBy     User?   @relation("CompanyUpdater", fields: [updatedById], references: [id])
+}
+
+model User {
+  // 新增反向关联
+  createdCompanies Company[] @relation("CompanyCreator")
+  updatedCompanies Company[] @relation("CompanyUpdater")
+}
+```
+
+### 影响文件
+- `prisma/schema.prisma` — Company 新增 createdById/updatedById + User 新增反向关联
+- `apis/entity/company.entity.ts` — Company 接口新增 created_by/updated_by 字段
+- `apis/map/index.ts` — mapCompany 新增 created_by/updated_by 映射
+- `apis/service/company.service.ts` — create/update 签名新增 userId 参数
+- `apis/service/impl/company.service.impl.ts` — create 注入 createdById，update 注入 updatedById
+- `apis/controller/company.controller.ts` — create/update 传递 req.user!.userId

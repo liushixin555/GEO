@@ -1,4 +1,4 @@
-import { Company, User, Skills, SkillsDetail, LlmModel, SystemConfig, Project, Article, ArticleDetail, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, KnowledgeBase, MinedKeyword, Todo, TodoLog, UserListItem } from '../entity';
+import { Company, CompanyListItem, User, Skills, SkillsDetail, LlmModel, SystemConfig, Project, Article, ArticleDetail, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, KnowledgeBase, MinedKeyword, Todo, TodoLog, UserListItem } from '../entity';
 import { validateSkills } from '../entity/article.entity';
 import type { PublishingSchedule, PublishingScheduleItem } from '../entity/publishing-schedule.entity';
 import { Prisma, Company as PrismaCompany, User as PrismaUser } from '@prisma/client';
