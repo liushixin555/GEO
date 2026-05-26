@@ -1,3 +1,5 @@
+import type { CompanyRef } from './company.entity';
+
 export type UserRole = 'sysadmin' | 'admin' | 'view';
 
 export interface User {
@@ -25,7 +27,7 @@ export interface LoginResponse {
     cn_name: string;
     role: UserRole;
     company_id?: number | null;
-    selected_company: { id: number; short_name: string } | null;
+    selected_company: CompanyRef | null;
     selected_project: { id: number; short_name: string } | null;
   };
 }

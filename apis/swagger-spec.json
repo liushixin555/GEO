@@ -5279,13 +5279,11 @@
                     "type": "string",
                     "enum": [
                       "draft",
-                      "manual_writing"
+                      "manual_writing",
+                      "generating"
                     ]
                   }
                 },
-                "required": [
-                  "title"
-                ],
                 "additionalProperties": false
               }
             }

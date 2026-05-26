@@ -34,6 +34,12 @@ export interface Company {
   deleted_at: Date | null;
 }
 
+/** 公司轻量引用（ID + 简称），用于关联实体展示（如 LoginResponse.selected_company） */
+export interface CompanyRef {
+  id: number;
+  short_name: string;
+}
+
 /** 公司列表项（不含 PII 和软删除元数据），用于列表 API 返回 */
 export interface CompanyListItem extends Omit<Company, 'contact_person' | 'contact_phone' | 'address' | 'deleted_at' | 'created_by' | 'updated_by'> {
   /** 关联用户数量（含 admin + view） */
