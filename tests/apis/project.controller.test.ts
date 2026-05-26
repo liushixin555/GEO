@@ -4,6 +4,7 @@
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 
+process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-secret';
 process.env.JWT_EXPIRES_IN = '2h';
 process.env.SWAGGER_ENABLED = 'false';
@@ -317,24 +318,16 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的 status 参数');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
-    it('should cap pageSize at 100', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindMany = jest.fn().mockResolvedValue([]);
-      const mockCount = jest.fn().mockResolvedValue(0);
-      getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
-
+    it('should reject pageSize exceeding 100', async () => {
       const response = await agent
         .get('/api/v1/projects?pageSize=9999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(response.body.data.pageSize).toBe(100);
-      expect(mockFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ take: 100 })
-      );
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
   });
 
@@ -351,7 +344,7 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的项目ID');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should return 404 for non-existent project', async () => {
@@ -740,7 +733,7 @@ describe('Project Controller', () => {
         .send({ short_name: 'Updated' });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的项目ID');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should return 404 for non-existent project', async () => {
@@ -1102,7 +1095,7 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的项目ID');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should return 404 for non-existent project', async () => {
@@ -1235,80 +1228,12 @@ describe('Project Controller', () => {
   });
 
   // ========== Direct controller unit tests (bypass route guards) ==========
-  describe('deleteProject - direct unit test for view role', () => {
-    it('should return 403 for view role (defense-in-depth)', async () => {
-      const { deleteProject } = require('../../apis/controller/project.controller');
-
-      const mockRes: any = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockReturnThis(),
-      };
-      const mockReq = {
-        params: { id: '1' },
-        user: { userId: 3, role: 'view', companyId: 2 },
-        body: {},
-      };
-
-      await deleteProject(mockReq, mockRes);
-      expect(mockRes.status).toHaveBeenCalledWith(403);
-      expect(mockRes.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: '无权删除项目' })
-      );
-    });
-  });
+  // NOTE: view role defense-in-depth tests removed — controller no longer checks roles;
+  // view role is now fully handled by route-level roleMiddleware.
 
   // ========== Defense-in-depth: view role controller tests ==========
-  describe('getProject - view role defense-in-depth', () => {
-    it('should return 403 for view role trying to get project', async () => {
-      const { getProject } = require('../../apis/controller/project.controller');
-
-      const mockRes: any = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockReturnThis(),
-      };
-      const mockReq = {
-        params: { id: '1' },
-        user: { userId: 3, role: 'view', companyId: 2 },
-        body: {},
-      };
-
-      // Mock service to return a project (simulating data exists)
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindFirst = jest.fn().mockResolvedValue({
-        ...mockProjectRow,
-        companyId: 2,
-      });
-      getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
-
-      await getProject(mockReq, mockRes);
-      expect(mockRes.status).toHaveBeenCalledWith(403);
-      expect(mockRes.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: '无权查看该项目' })
-      );
-    });
-  });
-
-  describe('updateProject - view role defense-in-depth', () => {
-    it('should return 403 for view role trying to update project', async () => {
-      const { updateProject } = require('../../apis/controller/project.controller');
-
-      const mockRes: any = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockReturnThis(),
-      };
-      const mockReq = {
-        params: { id: '1' },
-        user: { userId: 3, role: 'view', companyId: 2 },
-        body: { short_name: 'Updated' },
-      };
-
-      await updateProject(mockReq, mockRes);
-      expect(mockRes.status).toHaveBeenCalledWith(403);
-      expect(mockRes.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: '查看者无权操作该项目' })
-      );
-    });
-  });
+  // NOTE: getProject/updateProject view role defense-in-depth tests removed —
+  // controller no longer checks roles; view role is handled by route-level roleMiddleware.
 
   // ========== Input validation tests ==========
   describe('listProjects - input validation', () => {
@@ -1319,7 +1244,7 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('搜索关键词长度不能超过100个字符');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should allow search with exactly 100 characters', async () => {
@@ -1342,7 +1267,7 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的公司ID');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should return 400 for negative company_id', async () => {
@@ -1351,7 +1276,7 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的公司ID');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should return 400 for zero company_id', async () => {
@@ -1360,7 +1285,7 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的公司ID');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
   });
 
@@ -2108,7 +2033,7 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的项目ID');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
   });
 
@@ -2120,7 +2045,7 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的项目ID');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
   });
 
@@ -2235,54 +2160,35 @@ describe('Project Controller', () => {
 
   // ---------- 2-14  List pagination boundary ----------
   describe('GET /api/projects - pagination boundary', () => {
-    it('should handle page=0 as defaulting to 1', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindMany = jest.fn().mockResolvedValue([]);
-      const mockCount = jest.fn().mockResolvedValue(0);
-      getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
-
+    it('should reject page=0 with validation error', async () => {
       const response = await agent
         .get('/api/v1/projects?page=0&pageSize=10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      // page=0 → parseInt('0')=0, but `|| 1` converts falsy to 1
-      expect(mockFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ skip: 0 })
-      );
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
-    it('should handle pageSize=0 as defaulting to 10', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindMany = jest.fn().mockResolvedValue([]);
-      const mockCount = jest.fn().mockResolvedValue(0);
-      getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
-
+    it('should reject pageSize=0 with validation error', async () => {
       const response = await agent
         .get('/api/v1/projects?pageSize=0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      // pageSize=0 → Math.min(100, 0 || 10) = Math.min(100, 10) = 10
-      expect(mockFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ take: 10 })
-      );
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
   });
 
   // ---------- 2-15  getProject - NaN id edge cases ----------
   describe('GET /api/projects/:id - various invalid id formats', () => {
-    it('should treat decimal id as truncated integer', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
-      getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
-
+    it('should reject decimal id as non-integer', async () => {
       const response = await agent
         .get('/api/v1/projects/1.5')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      // parseInt('1.5') = 1, not NaN → passes to service, finds mock data
-      expect(response.status).toBe(200);
+      // Zod z.coerce.number().int() rejects 1.5 (non-integer)
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should return 400 for id with special characters', async () => {
@@ -2291,7 +2197,7 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的项目ID');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
   });
 
@@ -2717,7 +2623,7 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('搜索关键词长度不能超过100个字符');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should handle unicode/emoji in search parameter', async () => {
@@ -2922,21 +2828,13 @@ describe('Project Controller', () => {
 
   // ---------- 3-06  Boundary values ----------
   describe('Boundary values', () => {
-    it('should handle MAX_SAFE_INTEGER as page parameter', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindMany = jest.fn().mockResolvedValue([]);
-      const mockCount = jest.fn().mockResolvedValue(0);
-      getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
-
+    it('should reject MAX_SAFE_INTEGER as page parameter (exceeds max 10000)', async () => {
       const response = await agent
         .get(`/api/v1/projects?page=${Number.MAX_SAFE_INTEGER}`)
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      const skip = (Number.MAX_SAFE_INTEGER - 1) * 10;
-      expect(mockFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ skip })
-      );
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should handle very large company_id parameter', async () => {
@@ -2970,21 +2868,13 @@ describe('Project Controller', () => {
       expect(response.status).toBe(404);
     });
 
-    it('should pass negative page to service (controller does not validate sign)', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindMany = jest.fn().mockResolvedValue([]);
-      const mockCount = jest.fn().mockResolvedValue(0);
-      getPrisma.mockReturnValue({ project: { findMany: mockFindMany, count: mockCount } });
-
+    it('should reject negative page with validation error', async () => {
       const response = await agent
         .get('/api/v1/projects?page=-5&pageSize=10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      // page=-5 is truthy, so `|| 1` does NOT convert; skip = (-5-1)*10 = -60
-      expect(mockFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ skip: -60 })
-      );
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should handle pageSize=1 (minimum valid)', async () => {
@@ -3025,7 +2915,7 @@ describe('Project Controller', () => {
         .send({ short_name: 'Updated' });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的项目ID');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should reject id=0 in GET', async () => {
@@ -3034,20 +2924,17 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的项目ID');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
-    it('should handle id = very large float (truncated to integer)', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindFirst = jest.fn().mockResolvedValue(null);
-      getPrisma.mockReturnValue({ project: { findFirst: mockFindFirst } });
-
+    it('should reject very large float id as non-integer', async () => {
       const response = await agent
         .get('/api/v1/projects/999999.999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      // parseInt('999999.999') = 999999, passes validation
-      expect([200, 404]).toContain(response.status);
+      // Zod z.coerce.number().int() rejects 999999.999 (non-integer)
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should reject DELETE with id=-1', async () => {
@@ -3056,7 +2943,7 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的项目ID');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should reject PUT with id=-1', async () => {
@@ -3066,7 +2953,7 @@ describe('Project Controller', () => {
         .send({ short_name: 'Updated' });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的项目ID');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
   });
 
@@ -3133,25 +3020,8 @@ describe('Project Controller', () => {
       expect(response.status).toBe(200);
     });
 
-    it('view role should be rejected on deleteProject (direct controller)', async () => {
-      const { deleteProject } = require('../../apis/controller/project.controller');
-
-      const mockRes: any = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockReturnThis(),
-      };
-      const mockReq = {
-        params: { id: '1' },
-        user: { userId: 3, role: 'view', companyId: 2 },
-        body: {},
-      };
-
-      await deleteProject(mockReq, mockRes);
-      expect(mockRes.status).toHaveBeenCalledWith(403);
-      expect(mockRes.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: '无权删除项目' })
-      );
-    });
+    // NOTE: view role direct controller test removed — controller no longer checks roles;
+    // view role is fully handled by route-level roleMiddleware.
 
     it('admin role should be rejected on deleteProject if not operator (direct controller)', async () => {
       const { deleteProject } = require('../../apis/controller/project.controller');
@@ -3186,7 +3056,7 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的 status 参数');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should reject status=FALSE (case-sensitive)', async () => {
@@ -3195,7 +3065,7 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的 status 参数');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should reject status=1', async () => {
@@ -3204,7 +3074,7 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的 status 参数');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should reject status=0', async () => {
@@ -3213,7 +3083,7 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的 status 参数');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should reject empty status parameter', async () => {
@@ -3221,9 +3091,8 @@ describe('Project Controller', () => {
         .get('/api/v1/projects?status=')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      // status='' is truthy for `statusParam !== undefined`, but not 'true'/'false'
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的 status 参数');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should reject status=yes', async () => {
@@ -3232,7 +3101,7 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的 status 参数');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should reject status with whitespace', async () => {
@@ -3241,7 +3110,7 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的 status 参数');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
   });
 
@@ -3449,7 +3318,7 @@ describe('Project Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的项目ID');
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
 
     it('should handle spaces-only id as NaN', async () => {

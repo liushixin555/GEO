@@ -2,13 +2,14 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import config from '../config';
 import { isTokenRevoked } from '../utils/token-blacklist.util';
+import { Role } from '../constants/roles';
 
 const BEARER_PREFIX = 'Bearer ';
 
 export interface AuthPayload {
   userId: number;
   username: string;
-  role: string;
+  role: Role;
   companyId?: number | null;
 }
 
