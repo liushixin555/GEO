@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { getPrisma } from '../../utils';
 import { Skills, CreateSkillsRequest, UpdateSkillsRequest } from '../../entity';
 import { NotFoundError, ConflictError } from '../../errors';
@@ -8,8 +9,10 @@ export class SkillsServiceImpl implements ISkillsService {
   async list(page: number, pageSize: number, search?: string): Promise<{ list: Skills[]; total: number }> {
     const prisma = getPrisma();
 
-    const where: any = {};
-    if (search) where.name = { contains: search, mode: 'insensitive' };
+    const where: Prisma.SkillsWhereInput = {
+      deletedAt: null,
+      ...(search ? { name: { contains: search, mode: 'insensitive' } } : {}),
+    };
 
     const [items, total] = await Promise.all([
       prisma.skills.findMany({
@@ -28,7 +31,7 @@ export class SkillsServiceImpl implements ISkillsService {
   async getById(id: number): Promise<Skills> {
     const prisma = getPrisma();
     const item = await prisma.skills.findFirst({
-      where: { id },
+      where: { id, deletedAt: null },
       include: { creator: true },
     });
     if (!item) throw new NotFoundError('技能');
@@ -38,8 +41,8 @@ export class SkillsServiceImpl implements ISkillsService {
   async create(request: CreateSkillsRequest): Promise<Skills> {
     const prisma = getPrisma();
 
-    // Check duplicate name
-    const existing = await prisma.skills.findFirst({ where: { name: request.name } });
+    // Check duplicate name (excluding soft-deleted)
+    const existing = await prisma.skills.findFirst({ where: { name: request.name, deletedAt: null } });
     if (existing) throw new ConflictError(`已存在同名技能「${request.name}」`);
 
     const item = await prisma.skills.create({
@@ -47,7 +50,7 @@ export class SkillsServiceImpl implements ISkillsService {
         name: request.name,
         description: request.description || null,
         skillDir: request.skill_dir,
-        ...(request.created_by ? { createdBy: request.created_by } : {}),
+        createdBy: request.created_by ?? null,
       },
       include: { creator: true },
     });
@@ -57,10 +60,16 @@ export class SkillsServiceImpl implements ISkillsService {
   async update(id: number, request: UpdateSkillsRequest): Promise<Skills> {
     const prisma = getPrisma();
 
-    const existing = await prisma.skills.findFirst({ where: { id } });
+    const existing = await prisma.skills.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new NotFoundError('技能');
 
-    const data: any = {};
+    // If name is being updated, check for duplicates
+    if (request.name !== undefined && request.name !== existing.name) {
+      const duplicate = await prisma.skills.findFirst({ where: { name: request.name, deletedAt: null } });
+      if (duplicate) throw new ConflictError(`已存在同名技能「${request.name}」`);
+    }
+
+    const data: Prisma.SkillsUpdateInput = {};
     if (request.name !== undefined) data.name = request.name;
     if (request.description !== undefined) data.description = request.description;
 
@@ -75,9 +84,13 @@ export class SkillsServiceImpl implements ISkillsService {
   async delete(id: number): Promise<void> {
     const prisma = getPrisma();
 
-    const existing = await prisma.skills.findFirst({ where: { id } });
+    const existing = await prisma.skills.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new NotFoundError('技能');
 
-    await prisma.skills.delete({ where: { id } });
+    // Soft delete: set deletedAt timestamp
+    await prisma.skills.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
   }
 }

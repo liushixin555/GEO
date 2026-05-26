@@ -153,8 +153,11 @@ export async function updateSkills(req: Request, res: Response): Promise<void> {
     if (name !== undefined && (typeof name !== 'string' || name.trim().length === 0 || name.length > 200)) {
       fail(res, 400, '技能名称无效'); return;
     }
-    if (description !== undefined && (typeof description !== 'string' || description.length > 500)) {
+    if (description !== undefined && typeof description !== 'string') {
       fail(res, 400, '技能描述无效'); return;
+    }
+    if (description !== undefined && description.length > 500) {
+      fail(res, 400, '技能描述不能超过500个字符'); return;
     }
     const item = await skillsService.update(id, { name, description });
     success(res, item, '更新技能成功');
@@ -183,7 +186,7 @@ export async function deleteSkills(req: Request, res: Response): Promise<void> {
       skillsFileService.validateSkillDirPath(skillDir);
     }
 
-    // Step 1: DB soft delete (reversible)
+    // Step 1: DB soft delete — set deletedAt timestamp
     await skillsService.delete(id);
 
     // Step 2: Remove skill directory (irreversible) — only after DB success

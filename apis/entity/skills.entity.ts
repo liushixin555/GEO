@@ -13,7 +13,7 @@ export interface CreateSkillsRequest {
   name: string;
   description?: string;
   skill_dir: string;
-  created_by?: number | null;
+  created_by?: number;
 }
 
 export interface UpdateSkillsRequest {

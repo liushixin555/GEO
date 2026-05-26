@@ -8,7 +8,7 @@ import { ISkillsFileService, SkillZipResult } from '../skills-file.service';
 const MAX_ENTRY_SIZE = 100 * 1024 * 1024; // 100MB per entry
 const MAX_TOTAL_EXTRACTED_SIZE = 500 * 1024 * 1024; // 500MB total extracted
 const MAX_NAME_LENGTH = 200;
-const MAX_DESC_LENGTH = 2000;
+const MAX_DESC_LENGTH = 500;
 
 export class SkillsFileServiceImpl implements ISkillsFileService {
   private skillsDir: string | null = null;
