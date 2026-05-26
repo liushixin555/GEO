@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
-  Form, Input, Select, Button, Alert, Segmented, Upload, App, Modal,
+  Form, Input, Select, Button, Alert, Segmented, Upload, App,
 } from 'antd';
 import { ImportOutlined } from '@ant-design/icons';
 import type { ArticleFormValues, WriteMode, KbKeyword, KbPortrait, KbImage, SkillOption, LlmModelOption } from '../types';
@@ -54,17 +54,6 @@ const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
   const { onSave, onImportDocument, onErrorClear } = callbacks;
   const { message } = App.useApp();
   const writeMode = (Form.useWatch('write_mode', form) ?? 'ai') as WriteMode;
-  const portraitValue = Form.useWatch('portrait', form);
-
-  const [portraitMode, setPortraitMode] = useState<'input' | 'select'>('select');
-
-  // 编辑已有文章时，根据 portrait 值智能推断 portraitMode
-  useEffect(() => {
-    if (portraitValue && kb.portraits.length > 0) {
-      const isInKb = kb.portraits.some(p => p.value === portraitValue);
-      setPortraitMode(isInKb ? 'select' : 'input');
-    }
-  }, [portraitValue, kb.portraits]);
 
   const handleFinish = (values: ArticleFormValues) => {
     if (saving || !editable) return;
@@ -150,59 +139,19 @@ const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
           />
         </Form.Item>
         {writeMode === 'ai' && (<>
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ marginBottom: 8 }}><label>画像</label></div>
-            <Segmented
-              size="small"
-              style={{ marginBottom: 8 }}
+          <Form.Item name="portrait" label="画像">
+            <Select
+              mode="multiple"
+              allowClear
+              showSearch
+              placeholder="请选择画像"
+              options={kb.portraits}
               disabled={!editable}
-              aria-label="画像输入方式"
-              options={[
-                { label: '从知识库选择', value: 'select' },
-                { label: '手动输入', value: 'input' },
-              ]}
-              value={portraitMode}
-              onChange={(val) => {
-                const next = val as 'input' | 'select';
-                if (portraitValue) {
-                  Modal.confirm({
-                    title: '切换输入方式',
-                    content: '切换后将清空当前画像内容，是否继续？',
-                    okText: '确认',
-                    cancelText: '取消',
-                    onOk: () => {
-                      setPortraitMode(next);
-                      form.resetFields(['portrait']);
-                    },
-                  });
-                } else {
-                  setPortraitMode(next);
-                  form.resetFields(['portrait']);
-                }
-              }}
+              loading={kb.loading}
+              notFoundContent={kb.loading ? '加载中...' : '知识库暂无画像'}
+              optionFilterProp="label"
             />
-            <Form.Item name="portrait" noStyle>
-              {portraitMode === 'select' ? (
-                <Select
-                  allowClear showSearch
-                  placeholder="请选择画像"
-                  options={kb.portraits}
-                  disabled={!editable}
-                  loading={kb.loading}
-                  notFoundContent={kb.loading ? '加载中...' : '知识库暂无画像'}
-                  optionFilterProp="label"
-                />
-              ) : (
-                <Input.TextArea
-                  placeholder="请输入画像描述"
-                  autoSize={{ minRows: 2, maxRows: 6 }}
-                  disabled={!editable}
-                  maxLength={2000}
-                  showCount
-                />
-              )}
-            </Form.Item>
-          </div>
+          </Form.Item>
           <Form.Item label="插图">
             <ArticleImageManager
               imageList={images.list}
