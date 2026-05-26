@@ -20,6 +20,7 @@ const mockKnowledgeBaseFindMany = jest.fn();
 const mockKnowledgeImageFindMany = jest.fn();
 const mockSkillsFindFirst = jest.fn();
 const mockArticleVersionCreate = jest.fn();
+const mockArticleVersionFindFirst = jest.fn();
 const mockTransaction = jest.fn();
 
 const mockPrisma = {
@@ -38,6 +39,7 @@ const mockPrisma = {
   },
   articleVersion: {
     create: mockArticleVersionCreate,
+    findFirst: mockArticleVersionFindFirst,
   },
   $transaction: mockTransaction,
 };
@@ -68,6 +70,7 @@ describe('article-generation.scheduler', () => {
     mockValidate.mockReturnValue(true);
     mockSchedule.mockReturnValue(mockScheduledTask);
     mockStop.mockReset();
+    mockArticleVersionFindFirst.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -190,12 +193,11 @@ describe('article-generation.scheduler', () => {
       expect(mockArticleFindMany).toHaveBeenCalledWith({
         where: { status: 'generating' },
         orderBy: { updatedAt: 'asc' },
-        take: 10,
       });
       expect(mockGenerateArticle).not.toHaveBeenCalled();
     });
 
-    test('应正确查询状态为 generating 的文章', async () => {
+    test('应查询所有状态为 generating 的文章（不限制数量）', async () => {
       mockArticleFindMany.mockResolvedValue([]);
 
       const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
@@ -205,7 +207,6 @@ describe('article-generation.scheduler', () => {
       expect(mockArticleFindMany).toHaveBeenCalledWith({
         where: { status: 'generating' },
         orderBy: { updatedAt: 'asc' },
-        take: 10,
       });
     });
 
@@ -252,6 +253,7 @@ describe('article-generation.scheduler', () => {
 
     beforeEach(() => {
       mockArticleFindMany.mockResolvedValue([mockArticle]);
+      mockArticleVersionFindFirst.mockResolvedValue(null);
       mockKnowledgeBaseFindMany.mockResolvedValue([{ id: 10 }, { id: 11 }]);
       mockKnowledgeImageFindMany.mockResolvedValue([
         { title: '图1', description: '描述1', imageUrl: 'http://img1.png' },
@@ -270,6 +272,18 @@ describe('article-generation.scheduler', () => {
 
       expect(mockGenerateArticle).toHaveBeenCalledTimes(1);
       expect(mockTransaction).toHaveBeenCalledTimes(1);
+    });
+
+    test('应查询文章最近一个版本的内容', async () => {
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      expect(mockArticleVersionFindFirst).toHaveBeenCalledWith({
+        where: { articleId: 1 },
+        orderBy: { version: 'desc' },
+        select: { content: true },
+      });
     });
 
     test('应查询项目的知识库', async () => {
@@ -304,6 +318,7 @@ describe('article-generation.scheduler', () => {
         portrait: '技术读者',
         images: [{ title: '图1', description: '描述1', imageUrl: 'http://img1.png' }],
         skills: '',
+        previousContent: undefined,
       });
     });
 
@@ -313,7 +328,6 @@ describe('article-generation.scheduler', () => {
       await processNextGeneratingArticle();
 
       expect(mockTransaction).toHaveBeenCalledTimes(1);
-      // Verify transaction contains version create and article update
       const txOps = mockTransaction.mock.calls[0][0];
       expect(txOps).toHaveLength(2);
     });
@@ -334,19 +348,16 @@ describe('article-generation.scheduler', () => {
       });
     });
 
-    test('应在没有标题时从内容提取标题', async () => {
-      const articleNoTitle = { ...mockArticle, title: '' };
-      mockArticleFindMany.mockResolvedValue([articleNoTitle]);
-
+    test('应在文章已有标题时保留原标题不修改', async () => {
       const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
 
       await processNextGeneratingArticle();
 
-      // Should use extracted title "生成标题" from content "# 生成标题"
+      // 已有标题 "测试文章"，不应从生成内容中提取新标题
       expect(mockArticleUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
         data: expect.objectContaining({
-          title: '生成标题',
+          title: '测试文章',
         }),
       });
     });
@@ -415,7 +426,7 @@ describe('article-generation.scheduler', () => {
   });
 
   // =========================================================
-  // 5. processNextGeneratingArticle - 批量处理
+  // 5. processNextGeneratingArticle - 批量处理（无数量限制）
   // =========================================================
   describe('processNextGeneratingArticle - 批量处理', () => {
     const articles = [
@@ -426,6 +437,7 @@ describe('article-generation.scheduler', () => {
 
     beforeEach(() => {
       mockArticleFindMany.mockResolvedValue(articles);
+      mockArticleVersionFindFirst.mockResolvedValue(null);
       mockKnowledgeBaseFindMany.mockResolvedValue([]);
       mockKnowledgeImageFindMany.mockResolvedValue([]);
       mockSkillsFindFirst.mockResolvedValue(null);
@@ -443,14 +455,38 @@ describe('article-generation.scheduler', () => {
       expect(mockGenerateArticle).toHaveBeenCalledTimes(3);
     });
 
-    test('应限制每批最多10篇文章', async () => {
+    test('应查询所有待生成文章（不限制数量）', async () => {
       const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
 
       await processNextGeneratingArticle();
 
-      expect(mockArticleFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ take: 10 }),
-      );
+      expect(mockArticleFindMany).toHaveBeenCalledWith({
+        where: { status: 'generating' },
+        orderBy: { updatedAt: 'asc' },
+      });
+    });
+
+    test('应每完成一篇写入数据库后再处理下一篇', async () => {
+      const callOrder: string[] = [];
+      mockGenerateArticle.mockImplementation(async () => {
+        callOrder.push('generate');
+        return '内容';
+      });
+      mockTransaction.mockImplementation(async (ops: any[]) => {
+        callOrder.push('transaction');
+        return Promise.all(ops);
+      });
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      // Should interleave: generate → transaction → generate → transaction → generate → transaction
+      expect(callOrder).toEqual([
+        'generate', 'transaction',
+        'generate', 'transaction',
+        'generate', 'transaction',
+      ]);
     });
   });
 
@@ -470,6 +506,7 @@ describe('article-generation.scheduler', () => {
 
     beforeEach(() => {
       mockArticleFindMany.mockResolvedValue([mockArticle]);
+      mockArticleVersionFindFirst.mockResolvedValue(null);
       mockKnowledgeBaseFindMany.mockResolvedValue([]);
       mockKnowledgeImageFindMany.mockResolvedValue([]);
     });
@@ -504,6 +541,7 @@ describe('article-generation.scheduler', () => {
         { id: 2, title: '文章2', keywords: 'k2', portrait: 'p2', skills: null, projectId: 1, version: 0 },
       ];
       mockArticleFindMany.mockResolvedValue(articles);
+      mockArticleVersionFindFirst.mockResolvedValue(null);
 
       // First article fails, second succeeds
       mockGenerateArticle
@@ -557,6 +595,7 @@ describe('article-generation.scheduler', () => {
     test('应处理 skills 为 null 的情况', async () => {
       const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
       mockArticleFindMany.mockResolvedValue([article]);
+      mockArticleVersionFindFirst.mockResolvedValue(null);
       mockKnowledgeBaseFindMany.mockResolvedValue([]);
       mockKnowledgeImageFindMany.mockResolvedValue([]);
       mockGenerateArticle.mockResolvedValue('内容');
@@ -577,6 +616,7 @@ describe('article-generation.scheduler', () => {
     test('应处理 skills 对象但 id 为 null 的情况', async () => {
       const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: { id: null }, projectId: 1, version: 0 };
       mockArticleFindMany.mockResolvedValue([article]);
+      mockArticleVersionFindFirst.mockResolvedValue(null);
       mockKnowledgeBaseFindMany.mockResolvedValue([]);
       mockKnowledgeImageFindMany.mockResolvedValue([]);
       mockGenerateArticle.mockResolvedValue('内容');
@@ -588,12 +628,14 @@ describe('article-generation.scheduler', () => {
 
       await processNextGeneratingArticle();
 
+      // skills is {}, typeof === 'object', .id is undefined → if(skillsId) is false
       expect(mockSkillsFindFirst).not.toHaveBeenCalled();
     });
 
     test('应处理 skills 记录不存在的情况', async () => {
       const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: { id: 999 }, projectId: 1, version: 0 };
       mockArticleFindMany.mockResolvedValue([article]);
+      mockArticleVersionFindFirst.mockResolvedValue(null);
       mockKnowledgeBaseFindMany.mockResolvedValue([]);
       mockKnowledgeImageFindMany.mockResolvedValue([]);
       mockSkillsFindFirst.mockResolvedValue(null);
@@ -617,6 +659,7 @@ describe('article-generation.scheduler', () => {
   // =========================================================
   describe('标题提取边界情况', () => {
     beforeEach(() => {
+      mockArticleVersionFindFirst.mockResolvedValue(null);
       mockKnowledgeBaseFindMany.mockResolvedValue([]);
       mockKnowledgeImageFindMany.mockResolvedValue([]);
       mockSkillsFindFirst.mockResolvedValue(null);
@@ -625,7 +668,7 @@ describe('article-generation.scheduler', () => {
       mockTransaction.mockImplementation((ops: any[]) => Promise.all(ops));
     });
 
-    test('应在内容以 ## 开头时正确提取标题', async () => {
+    test('应在内容以 ## 开头且文章无标题时正确提取标题', async () => {
       const article = { id: 1, title: '', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
       mockArticleFindMany.mockResolvedValue([article]);
       mockGenerateArticle.mockResolvedValue('## Markdown标题\n\n正文内容');
@@ -640,8 +683,8 @@ describe('article-generation.scheduler', () => {
       });
     });
 
-    test('应在内容只有空行时不修改原始标题', async () => {
-      const article = { id: 1, title: '原始标题', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
+    test('应在内容只有空行且文章无标题时不修改原始标题', async () => {
+      const article = { id: 1, title: '', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
       mockArticleFindMany.mockResolvedValue([article]);
       mockGenerateArticle.mockResolvedValue('\n\n\n');
 
@@ -649,13 +692,14 @@ describe('article-generation.scheduler', () => {
 
       await processNextGeneratingArticle();
 
+      // title remains empty since both original and extracted are empty
       expect(mockArticleUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: expect.objectContaining({ title: '原始标题' }),
+        data: expect.objectContaining({ title: '' }),
       });
     });
 
-    test('应在文章已有标题时保留原标题', async () => {
+    test('应在文章已有标题时始终保留原标题', async () => {
       const article = { id: 1, title: '已有标题', keywords: '', portrait: '', skills: null, projectId: 1, version: 3 };
       mockArticleFindMany.mockResolvedValue([article]);
       mockGenerateArticle.mockResolvedValue('# 新生成的标题\n\n内容');
@@ -676,6 +720,7 @@ describe('article-generation.scheduler', () => {
   // =========================================================
   describe('版本号处理', () => {
     beforeEach(() => {
+      mockArticleVersionFindFirst.mockResolvedValue(null);
       mockKnowledgeBaseFindMany.mockResolvedValue([]);
       mockKnowledgeImageFindMany.mockResolvedValue([]);
       mockSkillsFindFirst.mockResolvedValue(null);
@@ -717,6 +762,7 @@ describe('article-generation.scheduler', () => {
   // =========================================================
   describe('默认 portrait 处理', () => {
     beforeEach(() => {
+      mockArticleVersionFindFirst.mockResolvedValue(null);
       mockKnowledgeBaseFindMany.mockResolvedValue([]);
       mockKnowledgeImageFindMany.mockResolvedValue([]);
       mockSkillsFindFirst.mockResolvedValue(null);
@@ -759,6 +805,7 @@ describe('article-generation.scheduler', () => {
   // =========================================================
   describe('Skills 字段额外边界情况', () => {
     beforeEach(() => {
+      mockArticleVersionFindFirst.mockResolvedValue(null);
       mockKnowledgeBaseFindMany.mockResolvedValue([]);
       mockKnowledgeImageFindMany.mockResolvedValue([]);
       mockGenerateArticle.mockResolvedValue('内容');
@@ -776,7 +823,6 @@ describe('article-generation.scheduler', () => {
 
       await processNextGeneratingArticle();
 
-      // skills is string "7", typeof !== 'object', so skillsId = "7"
       expect(mockSkillsFindFirst).toHaveBeenCalledWith({ where: { id: 7 } });
       expect(mockGenerateArticle).toHaveBeenCalledWith(
         expect.objectContaining({ skills: '内容策略' }),
@@ -791,7 +837,6 @@ describe('article-generation.scheduler', () => {
 
       await processNextGeneratingArticle();
 
-      // skills is {}, typeof === 'object', .id is undefined → if(skillsId) is false
       expect(mockSkillsFindFirst).not.toHaveBeenCalled();
       expect(mockGenerateArticle).toHaveBeenCalledWith(
         expect.objectContaining({ skills: '' }),
@@ -806,7 +851,6 @@ describe('article-generation.scheduler', () => {
 
       await processNextGeneratingArticle();
 
-      // skillsId = 0 → if(skillsId) is false
       expect(mockSkillsFindFirst).not.toHaveBeenCalled();
       expect(mockGenerateArticle).toHaveBeenCalledWith(
         expect.objectContaining({ skills: '' }),
@@ -819,6 +863,7 @@ describe('article-generation.scheduler', () => {
   // =========================================================
   describe('Keywords 默认值处理', () => {
     beforeEach(() => {
+      mockArticleVersionFindFirst.mockResolvedValue(null);
       mockKnowledgeBaseFindMany.mockResolvedValue([]);
       mockKnowledgeImageFindMany.mockResolvedValue([]);
       mockSkillsFindFirst.mockResolvedValue(null);
@@ -856,75 +901,90 @@ describe('article-generation.scheduler', () => {
   });
 
   // =========================================================
-  // 13. 标题提取额外边界情况
+  // 13. 历史版本内容传递
   // =========================================================
-  describe('标题提取额外边界情况', () => {
+  describe('历史版本内容传递', () => {
     beforeEach(() => {
       mockKnowledgeBaseFindMany.mockResolvedValue([]);
       mockKnowledgeImageFindMany.mockResolvedValue([]);
       mockSkillsFindFirst.mockResolvedValue(null);
+      mockGenerateArticle.mockResolvedValue('新内容');
       mockArticleVersionCreate.mockResolvedValue({});
       mockArticleUpdate.mockResolvedValue({});
       mockTransaction.mockImplementation((ops: any[]) => Promise.all(ops));
     });
 
-    test('应在内容以 ### 三级标题开头时正确提取标题', async () => {
-      const article = { id: 1, title: '', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
+    test('应在有历史版本时将内容传递给 LLM', async () => {
+      const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: null, projectId: 1, version: 2 };
       mockArticleFindMany.mockResolvedValue([article]);
-      mockGenerateArticle.mockResolvedValue('### 三级标题\n\n正文内容');
+      mockArticleVersionFindFirst.mockResolvedValue({ content: '这是上一版内容' });
 
       const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
 
       await processNextGeneratingArticle();
 
-      expect(mockArticleUpdate).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: expect.objectContaining({ title: '三级标题' }),
+      expect(mockArticleVersionFindFirst).toHaveBeenCalledWith({
+        where: { articleId: 1 },
+        orderBy: { version: 'desc' },
+        select: { content: true },
       });
+      expect(mockGenerateArticle).toHaveBeenCalledWith(
+        expect.objectContaining({ previousContent: '这是上一版内容' }),
+      );
     });
 
-    test('应在内容首行无 # 前缀时直接使用首行文本', async () => {
-      const article = { id: 1, title: '', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
+    test('应在没有历史版本时不传递 previousContent', async () => {
+      const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
       mockArticleFindMany.mockResolvedValue([article]);
-      mockGenerateArticle.mockResolvedValue('普通标题文本\n\n正文内容');
+      mockArticleVersionFindFirst.mockResolvedValue(null);
 
       const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
 
       await processNextGeneratingArticle();
 
-      expect(mockArticleUpdate).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: expect.objectContaining({ title: '普通标题文本' }),
-      });
+      expect(mockGenerateArticle).toHaveBeenCalledWith(
+        expect.objectContaining({ previousContent: undefined }),
+      );
     });
 
-    test('应在标题行有额外空格时正确去除', async () => {
-      const article = { id: 1, title: '', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
+    test('应在历史版本内容为空字符串时不传递 previousContent', async () => {
+      const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: null, projectId: 1, version: 1 };
       mockArticleFindMany.mockResolvedValue([article]);
-      mockGenerateArticle.mockResolvedValue('#   带空格的标题  \n\n正文');
+      mockArticleVersionFindFirst.mockResolvedValue({ content: '' });
 
       const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
 
       await processNextGeneratingArticle();
 
-      expect(mockArticleUpdate).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: expect.objectContaining({ title: '带空格的标题' }),
-      });
+      expect(mockGenerateArticle).toHaveBeenCalledWith(
+        expect.objectContaining({ previousContent: undefined }),
+      );
     });
 
-    test('应在内容首行为空行、第二行有文本时提取第二行', async () => {
-      const article = { id: 1, title: '', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
-      mockArticleFindMany.mockResolvedValue([article]);
-      mockGenerateArticle.mockResolvedValue('\n# 第二行标题\n\n正文');
+    test('应为每篇文章独立查询历史版本', async () => {
+      const articles = [
+        { id: 1, title: '文章1', keywords: '', portrait: '', skills: null, projectId: 1, version: 1 },
+        { id: 2, title: '文章2', keywords: '', portrait: '', skills: null, projectId: 2, version: 3 },
+      ];
+      mockArticleFindMany.mockResolvedValue(articles);
+      mockArticleVersionFindFirst
+        .mockResolvedValueOnce({ content: '文章1的历史版本' })
+        .mockResolvedValueOnce({ content: '文章2的历史版本' });
 
       const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
 
       await processNextGeneratingArticle();
 
-      expect(mockArticleUpdate).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: expect.objectContaining({ title: '第二行标题' }),
+      expect(mockArticleVersionFindFirst).toHaveBeenCalledTimes(2);
+      expect(mockArticleVersionFindFirst).toHaveBeenNthCalledWith(1, {
+        where: { articleId: 1 },
+        orderBy: { version: 'desc' },
+        select: { content: true },
+      });
+      expect(mockArticleVersionFindFirst).toHaveBeenNthCalledWith(2, {
+        where: { articleId: 2 },
+        orderBy: { version: 'desc' },
+        select: { content: true },
       });
     });
   });
@@ -934,6 +994,7 @@ describe('article-generation.scheduler', () => {
   // =========================================================
   describe('版本号额外边界情况', () => {
     beforeEach(() => {
+      mockArticleVersionFindFirst.mockResolvedValue(null);
       mockKnowledgeBaseFindMany.mockResolvedValue([]);
       mockKnowledgeImageFindMany.mockResolvedValue([]);
       mockSkillsFindFirst.mockResolvedValue(null);
@@ -979,6 +1040,7 @@ describe('article-generation.scheduler', () => {
     const generatedContent = '# 完整标题\n\n完整内容段落。';
 
     beforeEach(() => {
+      mockArticleVersionFindFirst.mockResolvedValue(null);
       mockKnowledgeBaseFindMany.mockResolvedValue([{ id: 20 }]);
       mockKnowledgeImageFindMany.mockResolvedValue([
         { title: '图片A', description: '图片描述A', imageUrl: 'http://a.png' },
@@ -999,7 +1061,6 @@ describe('article-generation.scheduler', () => {
 
       await processNextGeneratingArticle();
 
-      // Verify articleVersion.create was called within transaction context
       expect(mockArticleVersionCreate).toHaveBeenCalledWith({
         data: {
           articleId: 42,
@@ -1009,7 +1070,6 @@ describe('article-generation.scheduler', () => {
         },
       });
 
-      // Verify article.update was called with correct data
       expect(mockArticleUpdate).toHaveBeenCalledWith({
         where: { id: 42 },
         data: {
@@ -1038,6 +1098,7 @@ describe('article-generation.scheduler', () => {
           { title: '图片B', description: '图片描述B', imageUrl: 'http://b.png' },
         ],
         skills: '',
+        previousContent: undefined,
       });
     });
 
@@ -1067,6 +1128,7 @@ describe('article-generation.scheduler', () => {
     test('应在知识库查询失败时标记文章为 generate_failed', async () => {
       const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
       mockArticleFindMany.mockResolvedValue([article]);
+      mockArticleVersionFindFirst.mockResolvedValue(null);
       mockKnowledgeBaseFindMany.mockRejectedValue(new Error('知识库查询失败'));
       mockArticleUpdate.mockResolvedValue({});
 
@@ -1083,6 +1145,7 @@ describe('article-generation.scheduler', () => {
     test('应在图片查询失败时标记文章为 generate_failed', async () => {
       const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
       mockArticleFindMany.mockResolvedValue([article]);
+      mockArticleVersionFindFirst.mockResolvedValue(null);
       mockKnowledgeBaseFindMany.mockResolvedValue([{ id: 1 }]);
       mockKnowledgeImageFindMany.mockRejectedValue(new Error('图片查询失败'));
       mockArticleUpdate.mockResolvedValue({});
@@ -1100,6 +1163,7 @@ describe('article-generation.scheduler', () => {
     test('应在技能查询失败时标记文章为 generate_failed', async () => {
       const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: { id: 5 }, projectId: 1, version: 0 };
       mockArticleFindMany.mockResolvedValue([article]);
+      mockArticleVersionFindFirst.mockResolvedValue(null);
       mockKnowledgeBaseFindMany.mockResolvedValue([]);
       mockKnowledgeImageFindMany.mockResolvedValue([]);
       mockSkillsFindFirst.mockRejectedValue(new Error('技能查询失败'));
@@ -1118,10 +1182,27 @@ describe('article-generation.scheduler', () => {
     test('应在事务执行失败时标记文章为 generate_failed', async () => {
       const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
       mockArticleFindMany.mockResolvedValue([article]);
+      mockArticleVersionFindFirst.mockResolvedValue(null);
       mockKnowledgeBaseFindMany.mockResolvedValue([]);
       mockKnowledgeImageFindMany.mockResolvedValue([]);
       mockGenerateArticle.mockResolvedValue('内容');
       mockTransaction.mockRejectedValue(new Error('事务执行失败'));
+      mockArticleUpdate.mockResolvedValue({});
+
+      const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
+
+      await processNextGeneratingArticle();
+
+      expect(mockArticleUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: 'generate_failed' },
+      });
+    });
+
+    test('应在版本查询失败时标记文章为 generate_failed', async () => {
+      const article = { id: 1, title: 'T', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 };
+      mockArticleFindMany.mockResolvedValue([article]);
+      mockArticleVersionFindFirst.mockRejectedValue(new Error('版本查询失败'));
       mockArticleUpdate.mockResolvedValue({});
 
       const { processNextGeneratingArticle } = require('../../../apis/scheduler/article-generation.scheduler');
@@ -1185,6 +1266,7 @@ describe('article-generation.scheduler', () => {
         { id: 2, title: 'T2', keywords: '', portrait: '', skills: null, projectId: 1, version: 0 },
       ];
       mockArticleFindMany.mockResolvedValue(articles);
+      mockArticleVersionFindFirst.mockResolvedValue(null);
       mockKnowledgeBaseFindMany.mockResolvedValue([]);
       mockKnowledgeImageFindMany.mockResolvedValue([]);
       mockGenerateArticle
@@ -1215,6 +1297,7 @@ describe('article-generation.scheduler', () => {
         { id: 2, title: '项目B文章', keywords: '', portrait: '', skills: null, projectId: 200, version: 0 },
       ];
       mockArticleFindMany.mockResolvedValue(articles);
+      mockArticleVersionFindFirst.mockResolvedValue(null);
       mockKnowledgeBaseFindMany
         .mockResolvedValueOnce([{ id: 10 }])
         .mockResolvedValueOnce([{ id: 20 }, { id: 21 }]);

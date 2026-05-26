@@ -101,6 +101,14 @@ ${content}`;
       ? params.images.map((img, i) => `  ${i + 1}. "${img.title}" (${img.description || '无描述'}) URL: ${img.imageUrl}`).join('\n')
       : '无可用图片';
 
+    const titleInstruction = params.title
+      ? `\n7. 文章标题必须使用"${params.title}"，不得修改或重新生成标题`
+      : '';
+
+    const previousContentSection = params.previousContent
+      ? `\n## 参考内容（上一版正文）\n${params.previousContent}\n\n请基于参考内容进行优化改写，保留其核心观点和优质表达，同时改进不足之处。`
+      : '';
+
     const systemPrompt = `你是一位资深的GEO（Generative Engine Optimization）内容专家，擅长创作既符合搜索引擎优化又具有深度价值的文章。
 
 要求：
@@ -109,12 +117,12 @@ ${content}`;
 3. 自然地在文章中插入可用图片资源，使用 Markdown 图片语法：![图片描述](图片URL)
 4. 每张图片最多使用一次，选择与上下文最匹配的图片
 5. 语言流畅自然，避免过度SEO化的痕迹
-6. 文章字数控制在1500-3000字`;
+6. 文章字数控制在1500-3000字${titleInstruction}`;
 
     const userPrompt = `请根据以下信息撰写一篇文章：
 
 ## 文章标题
-${params.title}
+${params.title || '（请自行拟定标题）'}
 
 ## 目标关键词
 ${params.keywords}
@@ -127,7 +135,7 @@ ${imageList}
 
 ## 写作技能方向
 ${params.skills || '无特殊要求'}
-
+${previousContentSection}
 请直接输出文章内容（Markdown格式），不需要额外说明。`;
 
     const url = `${model.baseUrl.replace(/\/+$/, '')}/chat/completions`;

@@ -36,10 +36,19 @@ export function stopArticleGenerationCron(): void {
   }
 }
 
-const BATCH_SIZE = 10;
-
 async function processSingleArticle(prisma: any, article: any): Promise<void> {
   console.log(`[文章生成] 开始处理文章 #${article.id}: ${article.title}`);
+
+  // Get latest version content for reference
+  let previousContent = '';
+  const latestVersion = await prisma.articleVersion.findFirst({
+    where: { articleId: article.id },
+    orderBy: { version: 'desc' },
+    select: { content: true },
+  });
+  if (latestVersion?.content) {
+    previousContent = latestVersion.content;
+  }
 
   // Get project knowledge images via knowledge bases
   const knowledgeBases = await prisma.knowledgeBase.findMany({
@@ -68,14 +77,15 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
   }));
 
   const content = await llmService.generateArticle({
-    title: article.title,
+    title: article.title || '',
     keywords: article.keywords || '',
     portrait: article.portrait || '通用读者',
     images: imageResources,
     skills: skillsName,
+    previousContent: previousContent || undefined,
   });
 
-  // Extract title from first non-empty line of content
+  // Title: if article already has a title, keep it unchanged
   let title = article.title;
   if (!title) {
     const firstLine = content.split('\n').map((l: string) => l.replace(/^#+\s*/, '').trim()).find((l: string) => l.length > 0);
@@ -121,16 +131,14 @@ export async function processNextGeneratingArticle(): Promise<void> {
     const articles = await prisma.article.findMany({
       where: { status: 'generating' },
       orderBy: { updatedAt: 'asc' },
-      take: BATCH_SIZE,
     });
 
     if (articles.length === 0) {
       return;
     }
 
-    console.log(`[文章生成] 本批次取到 ${articles.length} 篇待生成文章`);
+    console.log(`[文章生成] 取到 ${articles.length} 篇待生成文章`);
 
-    // Process articles sequentially
     let successCount = 0;
     for (const article of articles) {
       try {
@@ -150,7 +158,7 @@ export async function processNextGeneratingArticle(): Promise<void> {
       }
     }
 
-    console.log(`[文章生成] 本批次处理完成，成功 ${successCount}/${articles.length}`);
+    console.log(`[文章生成] 处理完成，成功 ${successCount}/${articles.length}`);
   } catch (err: any) {
     console.error(`[文章生成] 批次处理失败: ${err.message}`);
   } finally {

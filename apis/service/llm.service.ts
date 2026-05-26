@@ -4,6 +4,7 @@ export interface ArticleGenerationParams {
   portrait: string;
   images: { title: string; description: string; imageUrl: string }[];
   skills: string;
+  previousContent?: string;
 }
 
 export interface ILlmService {
