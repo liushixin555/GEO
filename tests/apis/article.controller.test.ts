@@ -3198,7 +3198,7 @@ describe('Article Controller', () => {
         .delete(`${BASE}/1`)
         .set('Authorization', `Bearer ${adminToken(2, 2)}`);
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('发布中或已发布的文章不能删除');
+      expect(response.body.message).toBe('已审核通过的文章不能删除');
     });
 
     it('should delete manual_writing article as sysadmin', async () => {
@@ -3373,25 +3373,14 @@ describe('Article Controller', () => {
       expect(response.status).toBe(400);
     });
 
-    it('should strip schedule_type from update (not in allowed fields)', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockUpdate = jest.fn().mockResolvedValue({ ...existingDraft, title: 'Updated' });
-      getPrisma.mockReturnValue({
-        article: {
-          findFirst: jest.fn().mockResolvedValue(existingDraft),
-          update: mockUpdate,
-        },
-      });
-
+    it('should return 400 when schedule_type is sent (Zod strict, field removed)', async () => {
       const response = await agent
         .put(`${BASE}/1`)
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ title: 'Updated', schedule_type: 'asap' });
 
-      expect(response.status).toBe(200);
-      const updateData = mockUpdate.mock.calls[0][0].data;
-      expect(updateData.scheduleType).toBeUndefined();
-      expect(updateData.schedule_type).toBeUndefined();
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/参数验证失败/);
     });
   });
 

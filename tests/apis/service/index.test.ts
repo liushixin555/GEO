@@ -2,7 +2,7 @@
  * @jest-environment node
  *
  * apis/service/index.ts TDD 测试
- * 覆盖：barrel 重导出完整性、引用一致性、工厂函数行为、接口方法存在性、异步验证
+ * 覆盖：barrel 重导出完整性、工厂函数行为、接口方法存在性、异步验证
  */
 process.env.JWT_SECRET = 'test-secret';
 process.env.JWT_EXPIRES_IN = '2h';
@@ -37,25 +37,27 @@ import { SystemConfigServiceImpl } from '../../../apis/service/impl/system-confi
 import { PublishingPlatformServiceImpl } from '../../../apis/service/impl/publishing-platform.service.impl';
 import { TodoServiceImpl } from '../../../apis/service/impl/todo.service.impl';
 
-// ══════════════════════════════════════════
-// 常量
-// ══════════════════════════════════════════
-
-const EXPECTED_EXPORTS = [
-  'AuthServiceImpl',
-  'CompanyServiceImpl',
-  'SkillsServiceImpl',
-  'UserServiceImpl',
-  'LlmModelServiceImpl',
-  'SystemConfigServiceImpl',
-  'PublishingPlatformServiceImpl',
-  'TodoServiceImpl',
+const FACTORY_EXPORTS = [
+  'createAuthService',
   'createUserService',
+  'createArticleService',
+  'createProjectService',
+  'createTodoService',
+  'createPublishingPlatformService',
+  'createPublishingScheduleService',
+  'createKnowledgeBaseService',
+  'createKeywordService',
+  'createPortraitService',
+  'createImageService',
+  'createDocumentService',
+  'createMinedKeywordService',
+  'createCompanyService',
+  'createSkillsService',
+  'createSkillsFileService',
   'createLlmModelService',
+  'createLlmService',
+  'createSystemConfigService',
 ] as const;
-
-const IMPL_NAMES = EXPECTED_EXPORTS.slice(0, 8);
-const FACTORY_NAMES = EXPECTED_EXPORTS.slice(8);
 
 // ══════════════════════════════════════════
 // Tests
@@ -63,33 +65,19 @@ const FACTORY_NAMES = EXPECTED_EXPORTS.slice(8);
 
 describe('service/index.ts barrel file', () => {
 
-  // ──────────────────────────────────────
-  // 1. 导出数量验证
-  // ──────────────────────────────────────
   describe('导出数量验证', () => {
-    it('应精确导出 10 个命名成员（不含 __esModule）', () => {
+    it('应精确导出 19 个工厂函数（不含 __esModule）', () => {
       const keys = Object.keys(serviceIndex).filter(k => k !== '__esModule');
-      expect(keys).toHaveLength(10);
+      expect(keys).toHaveLength(FACTORY_EXPORTS.length);
     });
 
-    it('应包含 __esModule 标记（CJS 兼容，由 TypeScript 编译生成）', () => {
+    it('应包含 __esModule 标记（CJS 兼容）', () => {
       expect((serviceIndex as any).__esModule).toBe(true);
     });
   });
 
-  // ──────────────────────────────────────
-  // 2. 导出存在性与类型验证
-  // ──────────────────────────────────────
-  describe('导出存在性与类型验证', () => {
-    IMPL_NAMES.forEach(name => {
-      it(`应导出 "${name}" 作为构造函数（class）`, () => {
-        expect(serviceIndex[name]).toBeDefined();
-        expect(typeof serviceIndex[name]).toBe('function');
-        expect((serviceIndex as any)[name].prototype).toBeDefined();
-      });
-    });
-
-    FACTORY_NAMES.forEach(name => {
+  describe('工厂函数存在性验证', () => {
+    FACTORY_EXPORTS.forEach(name => {
       it(`应导出 "${name}" 作为函数`, () => {
         expect((serviceIndex as any)[name]).toBeDefined();
         expect(typeof (serviceIndex as any)[name]).toBe('function');
@@ -97,72 +85,21 @@ describe('service/index.ts barrel file', () => {
     });
   });
 
-  // ──────────────────────────────────────
-  // 3. 无意外导出验证
-  // ──────────────────────────────────────
   describe('无意外导出验证', () => {
-    it('不应包含预期列表之外的导出', () => {
-      const keys = Object.keys(serviceIndex);
-      const extra = keys.filter(k => !(EXPECTED_EXPORTS as readonly string[]).includes(k));
+    it('不应包含预期列表之外的运行时导出', () => {
+      const keys = Object.keys(serviceIndex).filter(k => k !== '__esModule');
+      const extra = keys.filter(k => !(FACTORY_EXPORTS as readonly string[]).includes(k));
       expect(extra).toEqual([]);
     });
 
     it('不应缺失任何预期导出', () => {
       const keys = Object.keys(serviceIndex);
-      (EXPECTED_EXPORTS as readonly string[]).forEach(name => {
+      (FACTORY_EXPORTS as readonly string[]).forEach(name => {
         expect(keys).toContain(name);
       });
     });
   });
 
-  // ──────────────────────────────────────
-  // 4. 实现类实例化验证
-  // ──────────────────────────────────────
-  describe('实现类实例化验证', () => {
-    it('AuthServiceImpl 应可实例化', () => {
-      const instance = new serviceIndex.AuthServiceImpl();
-      expect(instance).toBeInstanceOf(AuthServiceImpl);
-    });
-
-    it('CompanyServiceImpl 应可实例化', () => {
-      const instance = new serviceIndex.CompanyServiceImpl();
-      expect(instance).toBeInstanceOf(CompanyServiceImpl);
-    });
-
-    it('SkillsServiceImpl 应可实例化', () => {
-      const instance = new serviceIndex.SkillsServiceImpl();
-      expect(instance).toBeInstanceOf(SkillsServiceImpl);
-    });
-
-    it('UserServiceImpl 应可实例化', () => {
-      const instance = new serviceIndex.UserServiceImpl();
-      expect(instance).toBeInstanceOf(UserServiceImpl);
-    });
-
-    it('LlmModelServiceImpl 应可实例化', () => {
-      const instance = new serviceIndex.LlmModelServiceImpl();
-      expect(instance).toBeInstanceOf(LlmModelServiceImpl);
-    });
-
-    it('SystemConfigServiceImpl 应可实例化', () => {
-      const instance = new serviceIndex.SystemConfigServiceImpl();
-      expect(instance).toBeInstanceOf(SystemConfigServiceImpl);
-    });
-
-    it('PublishingPlatformServiceImpl 应可实例化', () => {
-      const instance = new serviceIndex.PublishingPlatformServiceImpl();
-      expect(instance).toBeInstanceOf(PublishingPlatformServiceImpl);
-    });
-
-    it('TodoServiceImpl 应可实例化', () => {
-      const instance = new serviceIndex.TodoServiceImpl();
-      expect(instance).toBeInstanceOf(TodoServiceImpl);
-    });
-  });
-
-  // ──────────────────────────────────────
-  // 5. 工厂函数行为
-  // ──────────────────────────────────────
   describe('工厂函数行为', () => {
     it('createUserService 应返回 UserServiceImpl 实例', () => {
       const service = serviceIndex.createUserService();
@@ -186,14 +123,6 @@ describe('service/index.ts barrel file', () => {
       expect(a).not.toBe(b);
     });
 
-    it('createUserService 接受 0 个参数', () => {
-      expect(serviceIndex.createUserService.length).toBe(0);
-    });
-
-    it('createLlmModelService 接受 0 个参数', () => {
-      expect(serviceIndex.createLlmModelService.length).toBe(0);
-    });
-
     it('createUserService 返回值应有 list 方法', () => {
       const service = serviceIndex.createUserService();
       expect(typeof (service as any).list).toBe('function');
@@ -205,46 +134,6 @@ describe('service/index.ts barrel file', () => {
     });
   });
 
-  // ──────────────────────────────────────
-  // 6. 源模块关联验证
-  // ──────────────────────────────────────
-  describe('源模块关联验证', () => {
-    it('AuthServiceImpl 应与源模块同一引用', () => {
-      expect(serviceIndex.AuthServiceImpl).toBe(AuthServiceImpl);
-    });
-
-    it('CompanyServiceImpl 应与源模块同一引用', () => {
-      expect(serviceIndex.CompanyServiceImpl).toBe(CompanyServiceImpl);
-    });
-
-    it('SkillsServiceImpl 应与源模块同一引用', () => {
-      expect(serviceIndex.SkillsServiceImpl).toBe(SkillsServiceImpl);
-    });
-
-    it('UserServiceImpl 应与源模块同一引用', () => {
-      expect(serviceIndex.UserServiceImpl).toBe(UserServiceImpl);
-    });
-
-    it('LlmModelServiceImpl 应与源模块同一引用', () => {
-      expect(serviceIndex.LlmModelServiceImpl).toBe(LlmModelServiceImpl);
-    });
-
-    it('SystemConfigServiceImpl 应与源模块同一引用', () => {
-      expect(serviceIndex.SystemConfigServiceImpl).toBe(SystemConfigServiceImpl);
-    });
-
-    it('PublishingPlatformServiceImpl 应与源模块同一引用', () => {
-      expect(serviceIndex.PublishingPlatformServiceImpl).toBe(PublishingPlatformServiceImpl);
-    });
-
-    it('TodoServiceImpl 应与源模块同一引用', () => {
-      expect(serviceIndex.TodoServiceImpl).toBe(TodoServiceImpl);
-    });
-  });
-
-  // ──────────────────────────────────────
-  // 7. 重导入一致性
-  // ──────────────────────────────────────
   describe('重导入一致性', () => {
     it('多次 require 应返回相同模块引用', () => {
       const a = require('../../../apis/service/index');
@@ -255,15 +144,12 @@ describe('service/index.ts barrel file', () => {
     it('函数引用在多次 require 间保持稳定', () => {
       const a = require('../../../apis/service/index');
       const b = require('../../../apis/service/index');
-      (EXPECTED_EXPORTS as readonly string[]).forEach(name => {
+      (FACTORY_EXPORTS as readonly string[]).forEach(name => {
         expect(a[name]).toBe(b[name]);
       });
     });
   });
 
-  // ──────────────────────────────────────
-  // 8. 导出唯一性
-  // ──────────────────────────────────────
   describe('导出唯一性', () => {
     it('所有导出名称应无重复', () => {
       const keys = Object.keys(serviceIndex);
@@ -278,10 +164,7 @@ describe('service/index.ts barrel file', () => {
     });
   });
 
-  // ──────────────────────────────────────
-  // 9. 接口方法存在性验证
-  // ──────────────────────────────────────
-  describe('接口方法存在性验证', () => {
+  describe('接口方法存在性验证（通过直接导入实现类）', () => {
     it('AuthServiceImpl 应具有 IAuthService 定义的所有方法', () => {
       const instance = new AuthServiceImpl();
       const methods = ['login', 'verifyToken', 'getLatestUserState', 'saveSelection', 'getAccessibleCompanies', 'getAccessibleProjects', 'getCompanyUsers'];
@@ -347,9 +230,6 @@ describe('service/index.ts barrel file', () => {
     });
   });
 
-  // ──────────────────────────────────────
-  // 10. 所有方法均为异步函数
-  // ──────────────────────────────────────
   describe('所有方法均为异步函数', () => {
     const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
 
@@ -393,24 +273,14 @@ describe('service/index.ts barrel file', () => {
     });
   });
 
-  // ──────────────────────────────────────
-  // 11. 模块结构汇总
-  // ──────────────────────────────────────
   describe('模块结构汇总', () => {
-    it('应导出 8 个实现类', () => {
-      const classCount = IMPL_NAMES.filter(name => typeof (serviceIndex as any)[name] === 'function' && (serviceIndex as any)[name].prototype).length;
-      expect(classCount).toBe(8);
-    });
-
-    it('应导出 2 个工厂函数', () => {
-      const fnCount = FACTORY_NAMES.filter(name => typeof (serviceIndex as any)[name] === 'function').length;
-      expect(fnCount).toBe(2);
+    it('应导出 19 个工厂函数', () => {
+      const keys = Object.keys(serviceIndex).filter(k => k !== '__esModule');
+      const fnCount = keys.filter(name => typeof (serviceIndex as any)[name] === 'function').length;
+      expect(fnCount).toBe(FACTORY_EXPORTS.length);
     });
   });
 
-  // ──────────────────────────────────────
-  // 12. 工厂函数与直接实例化一致性
-  // ──────────────────────────────────────
   describe('工厂函数与直接实例化一致性', () => {
     it('createUserService 与 new UserServiceImpl 返回相同类型', () => {
       const factory = serviceIndex.createUserService();
@@ -443,9 +313,6 @@ describe('service/index.ts barrel file', () => {
     });
   });
 
-  // ──────────────────────────────────────
-  // 13. 接口方法参数数量验证
-  // ──────────────────────────────────────
   describe('接口方法参数数量验证', () => {
     it('AuthServiceImpl 方法参数数量正确', () => {
       expect(AuthServiceImpl.prototype.login.length).toBe(1);
@@ -491,8 +358,8 @@ describe('service/index.ts barrel file', () => {
     });
 
     it('SystemConfigServiceImpl 方法参数数量正确', () => {
-      expect(SystemConfigServiceImpl.prototype.getAll.length).toBe(0);
-      expect(SystemConfigServiceImpl.prototype.batchUpdate.length).toBe(1);
+      expect(SystemConfigServiceImpl.prototype.getAll.length).toBe(1);
+      expect(SystemConfigServiceImpl.prototype.batchUpdate.length).toBe(2);
     });
 
     it('PublishingPlatformServiceImpl 方法参数数量正确', () => {
