@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layout as AntLayout, Button, Spin } from 'antd';
+import { Layout as AntLayout, Button, Drawer, Spin } from 'antd';
 import { Navigate } from 'react-router-dom';
 import { MenuUnfoldOutlined } from '@ant-design/icons';
 import Sidebar from './Sidebar';
@@ -19,7 +19,45 @@ const Layout: React.FC = () => {
   if (!user) return <Navigate to="/login" replace />;
 
   return (
-    <AntLayout className="app-layout-root">
+    <AntLayout className={['app-layout-root', isMobile && 'app-layout-mobile'].filter(Boolean).join(' ')}>
+      {/* 桌面端 Sider */}
+      {!isMobile && (
+        <Sider
+          width={LAYOUT.SIDER_WIDTH}
+          collapsedWidth={LAYOUT.SIDER_COLLAPSED_WIDTH}
+          collapsed={collapsed}
+          trigger={null}
+          className="app-sider"
+        >
+          <Sidebar
+            collapsed={collapsed}
+            onCollapse={setCollapsed}
+            isMobile={false}
+          />
+        </Sider>
+      )}
+
+      {/* 移动端 Drawer 侧边栏（替代 Sider + overlay 手写方案，antd Drawer 自带 mask/动画/Escape 关闭） */}
+      {isMobile && (
+        <Drawer
+          placement="left"
+          open={!collapsed}
+          onClose={() => setCollapsed(true)}
+          width={LAYOUT.SIDER_WIDTH}
+          maskClosable
+          closable={false}
+          styles={{ body: { padding: 0 }, wrapper: {} }}
+          rootClassName="mobile-drawer"
+        >
+          <Sidebar
+            collapsed={false}
+            onCollapse={setCollapsed}
+            isMobile
+          />
+        </Drawer>
+      )}
+
+      {/* 移动端展开按钮 */}
       {isMobile && collapsed && (
         <Button
           type="text"
@@ -29,27 +67,8 @@ const Layout: React.FC = () => {
           aria-label="展开侧边栏"
         />
       )}
-      {(!isMobile || !collapsed) && (
-        <Sider
-          width={LAYOUT.SIDER_WIDTH}
-          collapsedWidth={isMobile ? 0 : LAYOUT.SIDER_COLLAPSED_WIDTH}
-          collapsed={collapsed}
-          trigger={null}
-          className={`app-sider${isMobile ? ' app-sider-mobile' : ''}`}
-        >
-          <Sidebar
-            collapsed={collapsed}
-            onCollapse={setCollapsed}
-            isMobile={isMobile}
-          />
-        </Sider>
-      )}
 
-      {isMobile && !collapsed && (
-        <div className="mobile-overlay" onClick={() => setCollapsed(true)} role="presentation" aria-hidden="true" />
-      )}
-
-      <Content className="main-content">
+      <Content className={['main-content', isMobile && 'main-content-mobile'].filter(Boolean).join(' ')}>
         {/* skip-to-content: WAI-ARIA 最佳实践，原生 <a> 用于屏幕阅读器语义正确性 */}
         <a
           href="#main-content"

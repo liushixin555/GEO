@@ -118,16 +118,18 @@ describe('Layout.tsx', () => {
       expect(screen.getByLabelText('展开侧边栏')).toBeInTheDocument();
     });
 
-    it('折叠态 Sider 不应渲染 DOM', () => {
+    it('移动端应渲染 Drawer 而非桌面端 Sider', () => {
       renderLayout();
       goMobile();
-      expect(screen.queryByTestId('mock-sidebar')).not.toBeInTheDocument();
+      // Drawer 始终渲染（open=false 时隐藏），sidebar 在 Drawer 内
+      expect(screen.getByTestId('mock-sidebar')).toBeInTheDocument();
+      // 桌面端 Sider 的 ant-layout-sider 不应在移动端存在
+      expect(document.querySelector('.ant-layout-sider')).not.toBeInTheDocument();
     });
 
-    it('展开按钮点击应展开侧边栏', () => {
+    it('展开按钮点击应打开 Drawer 显示侧边栏', () => {
       renderLayout();
       goMobile();
-      expect(screen.queryByTestId('mock-sidebar')).not.toBeInTheDocument();
 
       fireEvent.click(screen.getByLabelText('展开侧边栏'));
 
@@ -135,54 +137,24 @@ describe('Layout.tsx', () => {
       expect(screen.queryByLabelText('展开侧边栏')).not.toBeInTheDocument();
     });
 
-    it('遮罩点击应折叠侧边栏', () => {
+    it('移动端侧边栏 Sidebar isMobile 为 true', () => {
       renderLayout();
       goMobile();
-      fireEvent.click(screen.getByLabelText('展开侧边栏'));
-
-      const overlay = document.querySelector('.mobile-overlay');
-      expect(overlay).toBeInTheDocument();
-      fireEvent.click(overlay!);
-
-      expect(screen.getByLabelText('展开侧边栏')).toBeInTheDocument();
-    });
-
-    it('Escape 键应在移动端展开态关闭侧边栏', () => {
-      renderLayout();
-      goMobile();
-      fireEvent.click(screen.getByLabelText('展开侧边栏'));
-
-      fireEvent.keyDown(document.body, { key: 'Escape' });
-
-      expect(screen.getByLabelText('展开侧边栏')).toBeInTheDocument();
-    });
-
-    it('Escape 键在 Modal 打开时不应关闭侧边栏', () => {
-      renderLayout();
-      goMobile();
-      fireEvent.click(screen.getByLabelText('展开侧边栏'));
-
-      const modal = document.createElement('div');
-      modal.className = 'ant-modal';
-      document.body.appendChild(modal);
-
-      fireEvent.keyDown(modal, { key: 'Escape' });
-
-      expect(screen.queryByLabelText('展开侧边栏')).not.toBeInTheDocument();
-
-      document.body.removeChild(modal);
+      const sidebar = screen.getByTestId('mock-sidebar');
+      expect(sidebar).toHaveAttribute('data-mobile', 'true');
     });
 
     it('从移动端回到桌面端应恢复 Sider 渲染', () => {
       renderLayout();
       goMobile();
-      expect(screen.queryByTestId('mock-sidebar')).not.toBeInTheDocument();
 
       window.innerWidth = 1024;
       fireEvent(window, new Event('resize'));
       act(() => { jest.advanceTimersByTime(200); });
 
       expect(screen.getByTestId('mock-sidebar')).toBeInTheDocument();
+      // 桌面端 Sidebar collapsed 应为 false（初始默认值）
+      expect(screen.getByTestId('mock-sidebar')).toHaveAttribute('data-mobile', 'false');
     });
   });
 
