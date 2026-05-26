@@ -229,3 +229,4 @@
 | 2026-05-26 | tasks/review/Sidebar.tsx.quality.md | Sidebar.tsx 软件质量专家评审——7.2/10，CRITICAL×1（view角色越界）+HIGH×2（触控目标+路径匹配）+MEDIUM×4+LOW×2 |
 | 2026-05-26 | tasks/review/knowledge-base.entity.ts.security.md | knowledge-base.entity.ts 代码安全专家评审——5.0/10 REQUEST CHANGES，C×2(判别联合缺失+deleted_at遗漏)+H×4(scope提权+类型漂移+any映射+跨边界重绑定)+M×5 |
 | 2026-05-26 | progress_tasks/2026-05-26-usecopied-committer-review-fix.md | useCopied.tsx Committer评审修复——pnpm patch 6项(迭代遍历+错误处理+useCallback+超时清理+防重复点击+aria-live)+CSS覆盖3项，27测试全通过 |
+| 2026-05-26 | progress_tasks/2026-05-26-hr-tsx-committer-fix.md | hr.tsx Committer评审修复验证——P1-1快捷键+P1-2 SVG图标+8副本同步，CONDITIONAL APPROVE→APPROVE 8.0/10，build+lint通过，9839测试通过 |
