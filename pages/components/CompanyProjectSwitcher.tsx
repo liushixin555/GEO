@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Modal, Select, Typography, Space, App } from 'antd';
+import { Button, Modal, Select, Typography, Space, App, Tooltip } from 'antd';
 import { SwapOutlined, HomeOutlined, ProjectOutlined } from '@ant-design/icons';
 import apiClient from '../lib/apiClient';
 import { useAppContext } from '../context/AppContext';
@@ -9,7 +9,11 @@ interface SelectionItem {
   short_name: string;
 }
 
-const CompanyProjectSwitcher: React.FC = () => {
+interface CompanyProjectSwitcherProps {
+  collapsed?: boolean;
+}
+
+const CompanyProjectSwitcher: React.FC<CompanyProjectSwitcherProps> = ({ collapsed = false }) => {
   const { companyId, companyName, projectId, projectName, setContext } = useAppContext();
   const { message } = App.useApp();
   const [modalOpen, setModalOpen] = useState(false);
@@ -84,6 +88,17 @@ const CompanyProjectSwitcher: React.FC = () => {
 
   return (
     <>
+      {collapsed ? (
+        <Tooltip title={`切换公司/项目\n${companyName || '未选择公司'} / ${projectName || '未选择项目'}`}>
+          <Button
+            type="text"
+            size="small"
+            icon={<SwapOutlined />}
+            onClick={openModal}
+            aria-label="切换公司/项目"
+          />
+        </Tooltip>
+      ) : (
       <div className="switcher-info">
         <div className="switcher-row">
           <Typography.Text type="secondary" className="sidebar-footer-info">
@@ -105,6 +120,7 @@ const CompanyProjectSwitcher: React.FC = () => {
           </Typography.Text>
         </div>
       </div>
+      )}
 
       <Modal
         title="切换公司/项目"

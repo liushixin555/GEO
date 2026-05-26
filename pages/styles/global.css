@@ -229,6 +229,7 @@ a:hover {
   display: flex;
   flex-direction: column;
   height: 100%;
+  transition: width var(--transition-normal);
 }
 
 .sidebar-header {
@@ -239,6 +240,7 @@ a:hover {
   padding: 0 var(--spacing-md);
   border-bottom: 1px solid var(--color-hairline);
   flex-shrink: 0;
+  transition: padding var(--transition-normal);
 }
 
 .sidebar-header-collapsed {
@@ -249,6 +251,7 @@ a:hover {
   padding: 0;
   border-bottom: 1px solid var(--color-hairline);
   flex-shrink: 0;
+  transition: padding var(--transition-normal);
 }
 
 .sidebar-brand {
@@ -257,6 +260,7 @@ a:hover {
   letter-spacing: 0.16px;
   white-space: nowrap;
   overflow: hidden;
+  transition: opacity var(--transition-fast);
 }
 
 .sidebar-menu-area {
@@ -306,15 +310,17 @@ a:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 32px;
-  min-height: 32px;
+  min-width: 48px;
+  min-height: 48px;
   padding: 8px;
   font-size: 16px;
   color: var(--color-ink-muted);
+  transition: color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .sidebar-toggle-btn:hover {
   color: var(--color-ink);
+  background-color: var(--color-surface-1);
 }
 
 .sidebar-mobile-unfold {

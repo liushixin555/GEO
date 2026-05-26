@@ -10,7 +10,6 @@ import {
   BookOutlined,
   FileTextOutlined,
   TrophyOutlined,
-
   ProjectOutlined,
   SettingOutlined,
   ThunderboltOutlined,
@@ -66,6 +65,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   const userRole = user?.role ?? '';
   const cnName = user?.cn_name ?? '';
 
+  const businessPaths = ['/todo', '/knowledge', '/article', '/publish', '/project', '/skills'];
+  const systemPaths = ['/users', '/company', '/sysadmin', '/swagger'];
+
   const visibleMenuItems = menuItems.filter((item) => item.roles.includes(userRole as Role));
 
   const handleMenuClick = ({ key }: { key: string }) => {
@@ -77,11 +79,33 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  const antdMenuItems = visibleMenuItems.map((item) => ({
+  const toMenuItem = (item: MenuItemDef) => ({
     key: item.path,
     icon: item.icon,
     label: item.label,
-  }));
+  });
+
+  const businessItems = visibleMenuItems.filter((item) => businessPaths.includes(item.path));
+  const systemItems = visibleMenuItems.filter((item) => systemPaths.includes(item.path));
+
+  const antdMenuItems: Array<ReturnType<typeof toMenuItem> | { type: 'group'; label: string; key: string; children: ReturnType<typeof toMenuItem>[] }> = [];
+
+  if (businessItems.length > 0) {
+    antdMenuItems.push({
+      type: 'group',
+      label: '业务管理',
+      key: 'group-business',
+      children: businessItems.map(toMenuItem),
+    });
+  }
+  if (systemItems.length > 0) {
+    antdMenuItems.push({
+      type: 'group',
+      label: '系统管理',
+      key: 'group-system',
+      children: systemItems.map(toMenuItem),
+    });
+  }
 
   const selectedKey = visibleMenuItems
     .filter((item) =>
@@ -94,9 +118,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     <div className="sidebar-container">
       <div className={collapsed ? 'sidebar-header-collapsed' : 'sidebar-header'}>
         {!collapsed ? (
-          <Typography.Text strong className="sidebar-brand">薄云商机倍增服务</Typography.Text>
+          <Typography.Text className="sidebar-brand">薄云商机倍增服务</Typography.Text>
         ) : (
-          <Typography.Text strong style={{ fontSize: 16 }}>薄</Typography.Text>
+          <Typography.Text style={{ fontSize: 16, fontWeight: 400 }}>薄</Typography.Text>
         )}
         <Button
           type="text"
@@ -137,6 +161,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <Tooltip title={cnName}>
             <Button type="text" size="small" icon={<UserOutlined />} aria-label={cnName} />
           </Tooltip>
+          <CompanyProjectSwitcher collapsed />
           <Tooltip title="登出">
             <Button type="text" size="small" danger icon={<LogoutOutlined />} onClick={logout} aria-label="登出" />
           </Tooltip>
