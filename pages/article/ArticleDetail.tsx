@@ -132,7 +132,7 @@ const ArticleDetail: React.FC = () => {
   };
 
   if (detail.loading) {
-    return <div className="page-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}><Spin size="large" tip="正在加载文章..." /></div>;
+    return <div className="page-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}><Spin size="large" description="正在加载文章..." /></div>;
   }
 
   if (!isNew && !detail.article) {

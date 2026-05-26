@@ -96,7 +96,7 @@ const PageLoading: React.FC = () => (
     aria-busy="true"
     aria-label="页面加载中"
   >
-    <Spin size="large" tip="页面加载中...">
+    <Spin size="large" description="页面加载中...">
       <div className="loading-content" />
     </Spin>
   </div>
