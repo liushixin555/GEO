@@ -234,7 +234,7 @@
 
 ## 九、最终裁决
 
-### 裁决结果：⚠️ 有条件通过（CONDITIONAL APPROVE）
+### 裁决结果：✅ 通过（APPROVE）
 
 **裁决理由**：
 
@@ -244,21 +244,23 @@
 
 3. **上游代码可接受**: 23 行代码职责单一清晰，虽然存在性能缺陷（rehypePlugins 每次重建）和架构缺陷（复制模式），但均不影响本项目当前使用场景。
 
-4. **样式不合规需修复**: Markdown 预览区域的字体、色彩、圆角与 Carbon Design 规范不一致，需通过 CSS 覆盖解决。这是**唯一阻塞项**，修复成本低（约 1 小时）。
+4. **样式已对齐 Carbon 规范**: `markdown-viewer.css` 已完整覆盖字体（IBM Plex Sans）、CSS 变量映射（GitHub → Carbon）、圆角（border-radius: 0）、链接色（#0f62fe）、表格样式，通过 build:page 和 lint 验证。
+
+5. **ErrorBoundary 和安全过滤已就位**: `MarkdownErrorBoundary` 防止渲染异常白屏，DOMPurify 的 `EVENT_ATTRS`（60+ 事件处理器）+ `DANGEROUS_ATTR_RE` 提供纵深防御。
 
 ### 合并前必须完成（CSS 覆盖）：
 
-- [ ] 在 `global.css` 中添加 `.wmde-markdown` 字体覆盖（IBM Plex Sans）
-- [ ] 在 `global.css` 中添加 GitHub → Carbon CSS 变量映射
-- [ ] 在 `global.css` 中强制 `.wmde-markdown` 子元素 `border-radius: 0`
-- [ ] 通过 `npm run build:page` 构建验证
-- [ ] 通过 `npm run lint` 无错误
+- [x] 在 `global.css`（实际位于 `markdown-viewer.css`）中添加 `.wmde-markdown` 字体覆盖（IBM Plex Sans）— 已验证
+- [x] 在 `global.css`（实际位于 `markdown-viewer.css`）中添加 GitHub → Carbon CSS 变量映射 — 已验证
+- [x] 在 `global.css`（实际位于 `markdown-viewer.css`）中强制 `.wmde-markdown` 子元素 `border-radius: 0` — 已验证
+- [x] 通过 `pnpm build:page` 构建验证 — 通过
+- [x] 通过 `pnpm lint` 无错误 — 通过
 
 ### 合并后应排期改进：
 
-- [ ] 为 MarkdownViewer 添加 ErrorBoundary
-- [ ] 补充 DOMPurify 的 `on*` 事件属性过滤
-- [ ] 覆盖 `.wmde-markdown` 链接色和表格样式
+- [x] 为 MarkdownViewer 添加 ErrorBoundary — `MarkdownErrorBoundary` 已实现
+- [x] 补充 DOMPurify 的 `on*` 事件属性过滤 — `EVENT_ATTRS`（60+处理器）+ `DANGEROUS_ATTR_RE` 已实现
+- [x] 覆盖 `.wmde-markdown` 链接色和表格样式 — `markdown-viewer.css` 已覆盖
 - [ ] 评估上游版本升级风险（关注 changelog）
 
 ### 依赖版本建议：
@@ -270,6 +272,6 @@
 ---
 
 **评审人**: Committer 审核专家
-**评审结论**: CONDITIONAL APPROVE — 依赖选择正确，需补充 CSS 样式覆盖（约 1 小时工作量）
-**建议优先级**: P1（非阻塞，建议本迭代完成 CSS 覆盖）
-**预期修复工作量**: 约 1-2 小时（3 项 CSS 覆盖 + 构建验证）
+**评审结论**: APPROVE — 依赖选择正确，所有阻塞项和建议项（除上游版本评估外）均已修复验证
+**建议优先级**: P1（已完成）
+**修复验证**: build:page 通过 + lint 通过
