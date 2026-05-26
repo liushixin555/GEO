@@ -305,6 +305,117 @@ index 5b354a3c764d75f8e1266eb2b0ff44e515f5cbee..956d5e74d04ab5a10e4a645e5527cd7f
    }
  };
 \ No newline at end of file
+diff --git a/esm/commands/preview.js b/esm/commands/preview.js
+index 114d98702205dd27cca87028d6fd5efaa4b11f26..57681fc30bf044ccb5d28e7e10c9e8f8be001be8 100644
+--- a/esm/commands/preview.js
++++ b/esm/commands/preview.js
+@@ -6,13 +6,14 @@ export var codePreview = {
+   value: 'preview',
+   shortcuts: 'ctrlcmd+9',
+   buttonProps: {
+-    'aria-label': 'Preview code (ctrl + 9)',
+-    title: 'Preview code (ctrl + 9)'
++    'aria-label': '预览 (Ctrl+9)',
++    title: '预览 (Ctrl+9)'
+   },
+   icon: /*#__PURE__*/_jsxs("svg", {
+     width: "12",
+     height: "12",
+     viewBox: "0 0 520 520",
++    "aria-hidden": "true",
+     children: [/*#__PURE__*/_jsx("polygon", {
+       fill: "currentColor",
+       points: "0 71.293 0 122 38.023 123 38.023 398 0 397 0 449.707 91.023 450.413 91.023 72.293"
+@@ -22,12 +23,12 @@ export var codePreview = {
+     })]
+   }),
+   execute: (state, api, dispatch, executeCommandState, shortcuts) => {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
+-      dispatch({
+-        preview: 'preview'
+-      });
+-    }
++    try {
++      if (api && api.textArea) api.textArea.focus();
++      if (shortcuts && dispatch && executeCommandState) {
++        dispatch(function (prev) { return Object.assign({}, prev, { preview: 'preview' }); });
++      }
++    } catch (e) {}
+   }
+ };
+ export var codeEdit = {
+@@ -36,13 +37,14 @@ export var codeEdit = {
+   value: 'edit',
+   shortcuts: 'ctrlcmd+7',
+   buttonProps: {
+-    'aria-label': 'Edit code (ctrl + 7)',
+-    title: 'Edit code (ctrl + 7)'
++    'aria-label': '编辑 (Ctrl+7)',
++    title: '编辑 (Ctrl+7)'
+   },
+   icon: /*#__PURE__*/_jsxs("svg", {
+     width: "12",
+     height: "12",
+     viewBox: "0 0 520 520",
++    "aria-hidden": "true",
+     children: [/*#__PURE__*/_jsx("polygon", {
+       fill: "currentColor",
+       points: "0 71.293 0 122 319 122 319 397 0 397 0 449.707 372 449.413 372 71.293"
+@@ -52,12 +54,12 @@ export var codeEdit = {
+     })]
+   }),
+   execute: (state, api, dispatch, executeCommandState, shortcuts) => {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
+-      dispatch({
+-        preview: 'edit'
+-      });
+-    }
++    try {
++      if (api && api.textArea) api.textArea.focus();
++      if (shortcuts && dispatch && executeCommandState) {
++        dispatch(function (prev) { return Object.assign({}, prev, { preview: 'edit' }); });
++      }
++    } catch (e) {}
+   }
+ };
+ export var codeLive = {
+@@ -66,13 +68,14 @@ export var codeLive = {
+   value: 'live',
+   shortcuts: 'ctrlcmd+8',
+   buttonProps: {
+-    'aria-label': 'Live code (ctrl + 8)',
+-    title: 'Live code (ctrl + 8)'
++    'aria-label': '实时预览 (Ctrl+8)',
++    title: '实时预览 (Ctrl+8)'
+   },
+   icon: /*#__PURE__*/_jsxs("svg", {
+     width: "12",
+     height: "12",
+     viewBox: "0 0 520 520",
++    "aria-hidden": "true",
+     children: [/*#__PURE__*/_jsx("polygon", {
+       fill: "currentColor",
+       points: "0 71.293 0 122 179 122 179 397 0 397 0 449.707 232 449.413 232 71.293"
+@@ -82,11 +85,11 @@ export var codeLive = {
+     })]
+   }),
+   execute: (state, api, dispatch, executeCommandState, shortcuts) => {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
+-      dispatch({
+-        preview: 'live'
+-      });
+-    }
++    try {
++      if (api && api.textArea) api.textArea.focus();
++      if (shortcuts && dispatch && executeCommandState) {
++        dispatch(function (prev) { return Object.assign({}, prev, { preview: 'live' }); });
++      }
++    } catch (e) {}
+   }
+ };
 diff --git a/esm/commands/strikeThrough.js b/esm/commands/strikeThrough.js
 index 49c09344ce1e3c35c720383acf570100efcd2a4f..02adeb9a3cc7921676722d27b7b589199045a512 100644
 --- a/esm/commands/strikeThrough.js
@@ -383,7 +494,7 @@ index 00c09f1abaaebf52067016a15ee86e112c35caeb..efaef81867d8627c32082223f2f2e980
    }
  };
 diff --git a/esm/commands/title5.js b/esm/commands/title5.js
-index 241d34de0d7b3b118620e228885bc30e72ba363f..30c0a676209dc4fe6a1822ac499f7578f5f84dac 100644
+index 241d34de0d7b3b118620e228885bc30e72ba363f..3a8eafe443b1be045a509ea6c903489c09252389 100644
 --- a/esm/commands/title5.js
 +++ b/esm/commands/title5.js
 @@ -12,25 +12,29 @@ export var heading5 = {
@@ -423,8 +534,9 @@ index 241d34de0d7b3b118620e228885bc30e72ba363f..30c0a676209dc4fe6a1822ac499f7578
 + * @see heading5
   */
  export var title5 = heading5;
+\ No newline at end of file
 diff --git a/esm/commands/title6.js b/esm/commands/title6.js
-index 85c7a2040bfa3c203f2f1b95ffcd656819544099..443c488ecaa09c6987efc2140d96d790b96e71a9 100644
+index 85c7a2040bfa3c203f2f1b95ffcd656819544099..be613137da81cc5c123ce1774ebdd472f717151c 100644
 --- a/esm/commands/title6.js
 +++ b/esm/commands/title6.js
 @@ -12,25 +12,29 @@ export var heading6 = {
@@ -776,6 +888,117 @@ index e6d6a2fb202cd4005b34351b0d2b5e983ae37ca9..72531538b7bfa87162e1f60e8690ab40
    }
  };
 \ No newline at end of file
+diff --git a/lib/commands/preview.js b/lib/commands/preview.js
+index 4e3e225ad848647014a0574736f100ca5160c099..c8029d1635f3b50059abb3d5a79f3d6f10e6338e 100644
+--- a/lib/commands/preview.js
++++ b/lib/commands/preview.js
+@@ -13,13 +13,14 @@ var codePreview = exports.codePreview = {
+   value: 'preview',
+   shortcuts: 'ctrlcmd+9',
+   buttonProps: {
+-    'aria-label': 'Preview code (ctrl + 9)',
+-    title: 'Preview code (ctrl + 9)'
++    'aria-label': '预览 (Ctrl+9)',
++    title: '预览 (Ctrl+9)'
+   },
+   icon: /*#__PURE__*/(0, _jsxRuntime.jsxs)("svg", {
+     width: "12",
+     height: "12",
+     viewBox: "0 0 520 520",
++    "aria-hidden": "true",
+     children: [/*#__PURE__*/(0, _jsxRuntime.jsx)("polygon", {
+       fill: "currentColor",
+       points: "0 71.293 0 122 38.023 123 38.023 398 0 397 0 449.707 91.023 450.413 91.023 72.293"
+@@ -29,12 +30,12 @@ var codePreview = exports.codePreview = {
+     })]
+   }),
+   execute: function execute(state, api, dispatch, executeCommandState, shortcuts) {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
+-      dispatch({
+-        preview: 'preview'
+-      });
+-    }
++    try {
++      if (api && api.textArea) api.textArea.focus();
++      if (shortcuts && dispatch && executeCommandState) {
++        dispatch(function (prev) { return Object.assign({}, prev, { preview: 'preview' }); });
++      }
++    } catch (e) {}
+   }
+ };
+ var codeEdit = exports.codeEdit = {
+@@ -43,13 +44,14 @@ var codeEdit = exports.codeEdit = {
+   value: 'edit',
+   shortcuts: 'ctrlcmd+7',
+   buttonProps: {
+-    'aria-label': 'Edit code (ctrl + 7)',
+-    title: 'Edit code (ctrl + 7)'
++    'aria-label': '编辑 (Ctrl+7)',
++    title: '编辑 (Ctrl+7)'
+   },
+   icon: /*#__PURE__*/(0, _jsxRuntime.jsxs)("svg", {
+     width: "12",
+     height: "12",
+     viewBox: "0 0 520 520",
++    "aria-hidden": "true",
+     children: [/*#__PURE__*/(0, _jsxRuntime.jsx)("polygon", {
+       fill: "currentColor",
+       points: "0 71.293 0 122 319 122 319 397 0 397 0 449.707 372 449.413 372 71.293"
+@@ -59,12 +61,12 @@ var codeEdit = exports.codeEdit = {
+     })]
+   }),
+   execute: function execute(state, api, dispatch, executeCommandState, shortcuts) {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
+-      dispatch({
+-        preview: 'edit'
+-      });
+-    }
++    try {
++      if (api && api.textArea) api.textArea.focus();
++      if (shortcuts && dispatch && executeCommandState) {
++        dispatch(function (prev) { return Object.assign({}, prev, { preview: 'edit' }); });
++      }
++    } catch (e) {}
+   }
+ };
+ var codeLive = exports.codeLive = {
+@@ -73,13 +75,14 @@ var codeLive = exports.codeLive = {
+   value: 'live',
+   shortcuts: 'ctrlcmd+8',
+   buttonProps: {
+-    'aria-label': 'Live code (ctrl + 8)',
+-    title: 'Live code (ctrl + 8)'
++    'aria-label': '实时预览 (Ctrl+8)',
++    title: '实时预览 (Ctrl+8)'
+   },
+   icon: /*#__PURE__*/(0, _jsxRuntime.jsxs)("svg", {
+     width: "12",
+     height: "12",
+     viewBox: "0 0 520 520",
++    "aria-hidden": "true",
+     children: [/*#__PURE__*/(0, _jsxRuntime.jsx)("polygon", {
+       fill: "currentColor",
+       points: "0 71.293 0 122 179 122 179 397 0 397 0 449.707 232 449.413 232 71.293"
+@@ -89,11 +92,11 @@ var codeLive = exports.codeLive = {
+     })]
+   }),
+   execute: function execute(state, api, dispatch, executeCommandState, shortcuts) {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
+-      dispatch({
+-        preview: 'live'
+-      });
+-    }
++    try {
++      if (api && api.textArea) api.textArea.focus();
++      if (shortcuts && dispatch && executeCommandState) {
++        dispatch(function (prev) { return Object.assign({}, prev, { preview: 'live' }); });
++      }
++    } catch (e) {}
+   }
+ };
 diff --git a/lib/commands/strikeThrough.js b/lib/commands/strikeThrough.js
 index a82d4f10dc0acae63b70a4629fdc620ff4114050..ee48015d25627125f40d798a8a00e1002486ff32 100644
 --- a/lib/commands/strikeThrough.js
@@ -854,7 +1077,7 @@ index c1ead2d85c922c1accae66ff82f6805d6b796193..e7ce0a5a8657bac420ea0b2207ed8bc7
    }
  };
 diff --git a/lib/commands/title5.js b/lib/commands/title5.js
-index 203e500c89a8e4c0d62feb2084f4247d4740c8a0..c16846a02262428e86f253b38ebc288e7a6d0798 100644
+index 203e500c89a8e4c0d62feb2084f4247d4740c8a0..7f15bf35ae3624b8dd8dbfb7be069bb7f923d2fc 100644
 --- a/lib/commands/title5.js
 +++ b/lib/commands/title5.js
 @@ -19,25 +19,29 @@ var heading5 = exports.heading5 = {
@@ -894,8 +1117,9 @@ index 203e500c89a8e4c0d62feb2084f4247d4740c8a0..c16846a02262428e86f253b38ebc288e
 + * @see heading5
   */
  var title5 = exports.title5 = heading5;
+\ No newline at end of file
 diff --git a/lib/commands/title6.js b/lib/commands/title6.js
-index 1ad2f6f720d848aeb9b1fe55e24308b4c81cd2c2..91f898ca8a4dd344696e8f9e48aaf470f6291f92 100644
+index 1ad2f6f720d848aeb9b1fe55e24308b4c81cd2c2..096d420ea4d25a476a13a794e38f5af42ec15abe 100644
 --- a/lib/commands/title6.js
 +++ b/lib/commands/title6.js
 @@ -19,25 +19,29 @@ var heading6 = exports.heading6 = {
@@ -1422,7 +1646,7 @@ index bde067d01ae1c306a1bd89b064edb3a985fb569d..a23a958c86f09602edcce310407d5d5e
  };
  
 diff --git a/src/commands/title5.tsx b/src/commands/title5.tsx
-index 89347df4a99b688892f170df0915e7a5ccb8f065..8810e8dfa8bec382a2070aa8e032e3440b3d2a7b 100644
+index 89347df4a99b688892f170df0915e7a5ccb8f065..1f7a6a693f16455b291146702b7a4c35d09f68fa 100644
 --- a/src/commands/title5.tsx
 +++ b/src/commands/title5.tsx
 @@ -1,6 +1,6 @@
@@ -1455,7 +1679,7 @@ index 89347df4a99b688892f170df0915e7a5ccb8f065..8810e8dfa8bec382a2070aa8e032e344
   */
  export const title5: ICommand = heading5;
 diff --git a/src/commands/title6.tsx b/src/commands/title6.tsx
-index d959038460a7ed32fd6519d907258dd85f22a24c..cfcdcaddeb82be0c542456b59235cfc6566fbdb0 100644
+index d959038460a7ed32fd6519d907258dd85f22a24c..c0d2ccf9f1bade835996112d26d7253aaee0f5d0 100644
 --- a/src/commands/title6.tsx
 +++ b/src/commands/title6.tsx
 @@ -1,6 +1,6 @@

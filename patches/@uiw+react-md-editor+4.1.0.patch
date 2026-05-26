@@ -140,6 +140,65 @@ index 4ef5e0d..9415f69 100644
    }
  };
 \ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/esm/commands/italic.js b/node_modules/@uiw/react-md-editor/esm/commands/italic.js
+index d59f9d7..1ca01ec 100644
+--- a/node_modules/@uiw/react-md-editor/esm/commands/italic.js
++++ b/node_modules/@uiw/react-md-editor/esm/commands/italic.js
+@@ -7,14 +7,13 @@ export var italic = {
+   shortcuts: 'ctrlcmd+i',
+   prefix: '*',
+   buttonProps: {
+-    'aria-label': 'Add italic text (ctrl + i)',
+-    title: 'Add italic text (ctrl + i)'
++    'aria-label': '添加斜体 (Ctrl+I)',
++    title: '添加斜体 (Ctrl+I)'
+   },
+   icon: /*#__PURE__*/_jsx("svg", {
+-    "data-name": "italic",
+     width: "12",
+     height: "12",
+-    role: "img",
++    "aria-hidden": "true",
+     viewBox: "0 0 320 512",
+     children: /*#__PURE__*/_jsx("path", {
+       fill: "currentColor",
+@@ -22,17 +21,23 @@ export var italic = {
+     })
+   }),
+   execute: (state, api) => {
+-    var newSelectionRange = selectWord({
+-      text: state.text,
+-      selection: state.selection,
+-      prefix: state.command.prefix
+-    });
+-    var state1 = api.setSelectionRange(newSelectionRange);
+-    executeCommand({
+-      api,
+-      selectedText: state1.selectedText,
+-      selection: state.selection,
+-      prefix: state.command.prefix
+-    });
++    try {
++      const prefix = state.command.prefix;
++      if (!prefix) return;
++      var newSelectionRange = selectWord({
++        text: state.text,
++        selection: state.selection,
++        prefix
++      });
++      var selectedState = api.setSelectionRange(newSelectionRange);
++      executeCommand({
++        api,
++        selectedText: selectedState.selectedText,
++        selection: state.selection,
++        prefix
++      });
++    } catch {
++      // 静默失败 — 命令执行失败不应崩溃编辑器
++    }
+   }
+ };
+\ No newline at end of file
 diff --git a/node_modules/@uiw/react-md-editor/esm/commands/link.js b/node_modules/@uiw/react-md-editor/esm/commands/link.js
 index 5b354a3..68531ee 100644
 --- a/node_modules/@uiw/react-md-editor/esm/commands/link.js
@@ -246,6 +305,118 @@ index 5b354a3..68531ee 100644
    }
  };
 \ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/esm/commands/preview.js b/node_modules/@uiw/react-md-editor/esm/commands/preview.js
+index 114d987..bf734ed 100644
+--- a/node_modules/@uiw/react-md-editor/esm/commands/preview.js
++++ b/node_modules/@uiw/react-md-editor/esm/commands/preview.js
+@@ -6,13 +6,14 @@ export var codePreview = {
+   value: 'preview',
+   shortcuts: 'ctrlcmd+9',
+   buttonProps: {
+-    'aria-label': 'Preview code (ctrl + 9)',
+-    title: 'Preview code (ctrl + 9)'
++    'aria-label': '预览 (Ctrl+9)',
++    title: '预览 (Ctrl+9)'
+   },
+   icon: /*#__PURE__*/_jsxs("svg", {
+     width: "12",
+     height: "12",
+     viewBox: "0 0 520 520",
++    "aria-hidden": "true",
+     children: [/*#__PURE__*/_jsx("polygon", {
+       fill: "currentColor",
+       points: "0 71.293 0 122 38.023 123 38.023 398 0 397 0 449.707 91.023 450.413 91.023 72.293"
+@@ -22,12 +23,12 @@ export var codePreview = {
+     })]
+   }),
+   execute: (state, api, dispatch, executeCommandState, shortcuts) => {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
+-      dispatch({
+-        preview: 'preview'
+-      });
+-    }
++    try {
++      if (api && api.textArea) api.textArea.focus();
++      if (shortcuts && dispatch && executeCommandState) {
++        dispatch(function (prev) { return Object.assign({}, prev, { preview: 'preview' }); });
++      }
++    } catch (e) {}
+   }
+ };
+ export var codeEdit = {
+@@ -36,13 +37,14 @@ export var codeEdit = {
+   value: 'edit',
+   shortcuts: 'ctrlcmd+7',
+   buttonProps: {
+-    'aria-label': 'Edit code (ctrl + 7)',
+-    title: 'Edit code (ctrl + 7)'
++    'aria-label': '编辑 (Ctrl+7)',
++    title: '编辑 (Ctrl+7)'
+   },
+   icon: /*#__PURE__*/_jsxs("svg", {
+     width: "12",
+     height: "12",
+     viewBox: "0 0 520 520",
++    "aria-hidden": "true",
+     children: [/*#__PURE__*/_jsx("polygon", {
+       fill: "currentColor",
+       points: "0 71.293 0 122 319 122 319 397 0 397 0 449.707 372 449.413 372 71.293"
+@@ -52,12 +54,12 @@ export var codeEdit = {
+     })]
+   }),
+   execute: (state, api, dispatch, executeCommandState, shortcuts) => {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
+-      dispatch({
+-        preview: 'edit'
+-      });
+-    }
++    try {
++      if (api && api.textArea) api.textArea.focus();
++      if (shortcuts && dispatch && executeCommandState) {
++        dispatch(function (prev) { return Object.assign({}, prev, { preview: 'edit' }); });
++      }
++    } catch (e) {}
+   }
+ };
+ export var codeLive = {
+@@ -66,13 +68,14 @@ export var codeLive = {
+   value: 'live',
+   shortcuts: 'ctrlcmd+8',
+   buttonProps: {
+-    'aria-label': 'Live code (ctrl + 8)',
+-    title: 'Live code (ctrl + 8)'
++    'aria-label': '实时预览 (Ctrl+8)',
++    title: '实时预览 (Ctrl+8)'
+   },
+   icon: /*#__PURE__*/_jsxs("svg", {
+     width: "12",
+     height: "12",
+     viewBox: "0 0 520 520",
++    "aria-hidden": "true",
+     children: [/*#__PURE__*/_jsx("polygon", {
+       fill: "currentColor",
+       points: "0 71.293 0 122 179 122 179 397 0 397 0 449.707 232 449.413 232 71.293"
+@@ -82,11 +85,11 @@ export var codeLive = {
+     })]
+   }),
+   execute: (state, api, dispatch, executeCommandState, shortcuts) => {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
+-      dispatch({
+-        preview: 'live'
+-      });
+-    }
++    try {
++      if (api && api.textArea) api.textArea.focus();
++      if (shortcuts && dispatch && executeCommandState) {
++        dispatch(function (prev) { return Object.assign({}, prev, { preview: 'live' }); });
++      }
++    } catch (e) {}
+   }
+ };
+\ No newline at end of file
 diff --git a/node_modules/@uiw/react-md-editor/esm/commands/strikeThrough.js b/node_modules/@uiw/react-md-editor/esm/commands/strikeThrough.js
 index 49c0934..af717dd 100644
 --- a/node_modules/@uiw/react-md-editor/esm/commands/strikeThrough.js
@@ -323,6 +494,91 @@ index 00c09f1..6f53e5e 100644
      });
    }
  };
+diff --git a/node_modules/@uiw/react-md-editor/esm/commands/title5.js b/node_modules/@uiw/react-md-editor/esm/commands/title5.js
+index 241d34d..0791847 100644
+--- a/node_modules/@uiw/react-md-editor/esm/commands/title5.js
++++ b/node_modules/@uiw/react-md-editor/esm/commands/title5.js
+@@ -12,25 +12,29 @@ export var heading5 = {
+     title: 'Insert Heading 5 (ctrl + 5)'
+   },
+   icon: /*#__PURE__*/_jsx("div", {
++    role: "img",
++    "aria-hidden": "true",
+     style: {
+       fontSize: 12,
+-      textAlign: 'left'
++      textAlign: 'left',
++      fontFamily: "'IBM Plex Sans', sans-serif",
++      color: '#161616'
+     },
+-    children: "Heading 5"
++    children: "H5"
+   }),
+   execute: (state, api) => {
+     headingExecute({
+       state,
+       api,
+-      prefix: state.command.prefix,
+-      suffix: state.command.suffix
++      prefix: state.command.prefix ?? '##### ',
++      suffix: state.command.suffix ?? ''
+     });
+   }
+ };
+ 
+ /**
+- * @deprecated Use `heading5` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title5` for inserting Heading 5.
++ * @deprecated Since v4.0.0. Use `heading5` instead.
++ * Scheduled for removal in v5.0.0.
++ * @see heading5
+  */
+ export var title5 = heading5;
+\ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/esm/commands/title6.js b/node_modules/@uiw/react-md-editor/esm/commands/title6.js
+index 85c7a20..443c488 100644
+--- a/node_modules/@uiw/react-md-editor/esm/commands/title6.js
++++ b/node_modules/@uiw/react-md-editor/esm/commands/title6.js
+@@ -12,25 +12,29 @@ export var heading6 = {
+     title: 'Insert Heading 6 (ctrl + 6)'
+   },
+   icon: /*#__PURE__*/_jsx("div", {
++    role: "img",
++    "aria-hidden": "true",
+     style: {
+-      fontSize: 12,
+-      textAlign: 'left'
++      fontSize: 11,
++      textAlign: 'left',
++      fontFamily: "'IBM Plex Sans', sans-serif",
++      color: '#161616'
+     },
+-    children: "Heading 6"
++    children: "H6"
+   }),
+   execute: (state, api) => {
+     headingExecute({
+       state,
+       api,
+-      prefix: state.command.prefix,
+-      suffix: state.command.suffix
++      prefix: state.command.prefix ?? '###### ',
++      suffix: state.command.suffix ?? ''
+     });
+   }
+ };
+ 
+ /**
+- * @deprecated Use `heading6` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title6` for inserting Heading 6.
++ * @deprecated Since v4.0.0. Use `heading6` instead.
++ * Scheduled for removal in v5.0.0.
++ * @see heading6
+  */
+ export var title6 = heading6;
+\ No newline at end of file
 diff --git a/node_modules/@uiw/react-md-editor/lib/commands/bold.js b/node_modules/@uiw/react-md-editor/lib/commands/bold.js
 index 9c8b327..84b11a8 100644
 --- a/node_modules/@uiw/react-md-editor/lib/commands/bold.js
@@ -461,6 +717,65 @@ index 0fc3d1e..09e29f1 100644
    }
  };
 \ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/lib/commands/italic.js b/node_modules/@uiw/react-md-editor/lib/commands/italic.js
+index c983301..84bebaf 100644
+--- a/node_modules/@uiw/react-md-editor/lib/commands/italic.js
++++ b/node_modules/@uiw/react-md-editor/lib/commands/italic.js
+@@ -14,14 +14,13 @@ var italic = exports.italic = {
+   shortcuts: 'ctrlcmd+i',
+   prefix: '*',
+   buttonProps: {
+-    'aria-label': 'Add italic text (ctrl + i)',
+-    title: 'Add italic text (ctrl + i)'
++    'aria-label': '添加斜体 (Ctrl+I)',
++    title: '添加斜体 (Ctrl+I)'
+   },
+   icon: /*#__PURE__*/(0, _jsxRuntime.jsx)("svg", {
+-    "data-name": "italic",
+     width: "12",
+     height: "12",
+-    role: "img",
++    "aria-hidden": "true",
+     viewBox: "0 0 320 512",
+     children: /*#__PURE__*/(0, _jsxRuntime.jsx)("path", {
+       fill: "currentColor",
+@@ -29,17 +28,23 @@ var italic = exports.italic = {
+     })
+   }),
+   execute: function execute(state, api) {
+-    var newSelectionRange = (0, _markdownUtils.selectWord)({
+-      text: state.text,
+-      selection: state.selection,
+-      prefix: state.command.prefix
+-    });
+-    var state1 = api.setSelectionRange(newSelectionRange);
+-    (0, _markdownUtils.executeCommand)({
+-      api: api,
+-      selectedText: state1.selectedText,
+-      selection: state.selection,
+-      prefix: state.command.prefix
+-    });
++    try {
++      var prefix = state.command.prefix;
++      if (!prefix) return;
++      var newSelectionRange = (0, _markdownUtils.selectWord)({
++        text: state.text,
++        selection: state.selection,
++        prefix: prefix
++      });
++      var selectedState = api.setSelectionRange(newSelectionRange);
++      (0, _markdownUtils.executeCommand)({
++        api: api,
++        selectedText: selectedState.selectedText,
++        selection: state.selection,
++        prefix: prefix
++      });
++    } catch (e) {
++      // 静默失败 — 命令执行失败不应崩溃编辑器
++    }
+   }
+ };
+\ No newline at end of file
 diff --git a/node_modules/@uiw/react-md-editor/lib/commands/link.js b/node_modules/@uiw/react-md-editor/lib/commands/link.js
 index e6d6a2f..2b94ab7 100644
 --- a/node_modules/@uiw/react-md-editor/lib/commands/link.js
@@ -574,6 +889,118 @@ index e6d6a2f..2b94ab7 100644
    }
  };
 \ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/lib/commands/preview.js b/node_modules/@uiw/react-md-editor/lib/commands/preview.js
+index 4e3e225..2df3af9 100644
+--- a/node_modules/@uiw/react-md-editor/lib/commands/preview.js
++++ b/node_modules/@uiw/react-md-editor/lib/commands/preview.js
+@@ -13,13 +13,14 @@ var codePreview = exports.codePreview = {
+   value: 'preview',
+   shortcuts: 'ctrlcmd+9',
+   buttonProps: {
+-    'aria-label': 'Preview code (ctrl + 9)',
+-    title: 'Preview code (ctrl + 9)'
++    'aria-label': '预览 (Ctrl+9)',
++    title: '预览 (Ctrl+9)'
+   },
+   icon: /*#__PURE__*/(0, _jsxRuntime.jsxs)("svg", {
+     width: "12",
+     height: "12",
+     viewBox: "0 0 520 520",
++    "aria-hidden": "true",
+     children: [/*#__PURE__*/(0, _jsxRuntime.jsx)("polygon", {
+       fill: "currentColor",
+       points: "0 71.293 0 122 38.023 123 38.023 398 0 397 0 449.707 91.023 450.413 91.023 72.293"
+@@ -29,12 +30,12 @@ var codePreview = exports.codePreview = {
+     })]
+   }),
+   execute: function execute(state, api, dispatch, executeCommandState, shortcuts) {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
+-      dispatch({
+-        preview: 'preview'
+-      });
+-    }
++    try {
++      if (api && api.textArea) api.textArea.focus();
++      if (shortcuts && dispatch && executeCommandState) {
++        dispatch(function (prev) { return Object.assign({}, prev, { preview: 'preview' }); });
++      }
++    } catch (e) {}
+   }
+ };
+ var codeEdit = exports.codeEdit = {
+@@ -43,13 +44,14 @@ var codeEdit = exports.codeEdit = {
+   value: 'edit',
+   shortcuts: 'ctrlcmd+7',
+   buttonProps: {
+-    'aria-label': 'Edit code (ctrl + 7)',
+-    title: 'Edit code (ctrl + 7)'
++    'aria-label': '编辑 (Ctrl+7)',
++    title: '编辑 (Ctrl+7)'
+   },
+   icon: /*#__PURE__*/(0, _jsxRuntime.jsxs)("svg", {
+     width: "12",
+     height: "12",
+     viewBox: "0 0 520 520",
++    "aria-hidden": "true",
+     children: [/*#__PURE__*/(0, _jsxRuntime.jsx)("polygon", {
+       fill: "currentColor",
+       points: "0 71.293 0 122 319 122 319 397 0 397 0 449.707 372 449.413 372 71.293"
+@@ -59,12 +61,12 @@ var codeEdit = exports.codeEdit = {
+     })]
+   }),
+   execute: function execute(state, api, dispatch, executeCommandState, shortcuts) {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
+-      dispatch({
+-        preview: 'edit'
+-      });
+-    }
++    try {
++      if (api && api.textArea) api.textArea.focus();
++      if (shortcuts && dispatch && executeCommandState) {
++        dispatch(function (prev) { return Object.assign({}, prev, { preview: 'edit' }); });
++      }
++    } catch (e) {}
+   }
+ };
+ var codeLive = exports.codeLive = {
+@@ -73,13 +75,14 @@ var codeLive = exports.codeLive = {
+   value: 'live',
+   shortcuts: 'ctrlcmd+8',
+   buttonProps: {
+-    'aria-label': 'Live code (ctrl + 8)',
+-    title: 'Live code (ctrl + 8)'
++    'aria-label': '实时预览 (Ctrl+8)',
++    title: '实时预览 (Ctrl+8)'
+   },
+   icon: /*#__PURE__*/(0, _jsxRuntime.jsxs)("svg", {
+     width: "12",
+     height: "12",
+     viewBox: "0 0 520 520",
++    "aria-hidden": "true",
+     children: [/*#__PURE__*/(0, _jsxRuntime.jsx)("polygon", {
+       fill: "currentColor",
+       points: "0 71.293 0 122 179 122 179 397 0 397 0 449.707 232 449.413 232 71.293"
+@@ -89,11 +92,11 @@ var codeLive = exports.codeLive = {
+     })]
+   }),
+   execute: function execute(state, api, dispatch, executeCommandState, shortcuts) {
+-    api.textArea.focus();
+-    if (shortcuts && dispatch && executeCommandState) {
+-      dispatch({
+-        preview: 'live'
+-      });
+-    }
++    try {
++      if (api && api.textArea) api.textArea.focus();
++      if (shortcuts && dispatch && executeCommandState) {
++        dispatch(function (prev) { return Object.assign({}, prev, { preview: 'live' }); });
++      }
++    } catch (e) {}
+   }
+ };
+\ No newline at end of file
 diff --git a/node_modules/@uiw/react-md-editor/lib/commands/strikeThrough.js b/node_modules/@uiw/react-md-editor/lib/commands/strikeThrough.js
 index a82d4f1..cc45812 100644
 --- a/node_modules/@uiw/react-md-editor/lib/commands/strikeThrough.js
@@ -651,6 +1078,91 @@ index c1ead2d..128ae36 100644
      });
    }
  };
+diff --git a/node_modules/@uiw/react-md-editor/lib/commands/title5.js b/node_modules/@uiw/react-md-editor/lib/commands/title5.js
+index 203e500..cd3bc29 100644
+--- a/node_modules/@uiw/react-md-editor/lib/commands/title5.js
++++ b/node_modules/@uiw/react-md-editor/lib/commands/title5.js
+@@ -19,25 +19,29 @@ var heading5 = exports.heading5 = {
+     title: 'Insert Heading 5 (ctrl + 5)'
+   },
+   icon: /*#__PURE__*/(0, _jsxRuntime.jsx)("div", {
++    role: "img",
++    "aria-hidden": "true",
+     style: {
+       fontSize: 12,
+-      textAlign: 'left'
++      textAlign: 'left',
++      fontFamily: "'IBM Plex Sans', sans-serif",
++      color: '#161616'
+     },
+-    children: "Heading 5"
++    children: "H5"
+   }),
+   execute: function execute(state, api) {
+     (0, _title.headingExecute)({
+       state: state,
+       api: api,
+-      prefix: state.command.prefix,
+-      suffix: state.command.suffix
++      prefix: state.command.prefix ?? '##### ',
++      suffix: state.command.suffix ?? ''
+     });
+   }
+ };
+ 
+ /**
+- * @deprecated Use `heading5` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title5` for inserting Heading 5.
++ * @deprecated Since v4.0.0. Use `heading5` instead.
++ * Scheduled for removal in v5.0.0.
++ * @see heading5
+  */
+ var title5 = exports.title5 = heading5;
+\ No newline at end of file
+diff --git a/node_modules/@uiw/react-md-editor/lib/commands/title6.js b/node_modules/@uiw/react-md-editor/lib/commands/title6.js
+index 1ad2f6f..91f898c 100644
+--- a/node_modules/@uiw/react-md-editor/lib/commands/title6.js
++++ b/node_modules/@uiw/react-md-editor/lib/commands/title6.js
+@@ -19,25 +19,29 @@ var heading6 = exports.heading6 = {
+     title: 'Insert Heading 6 (ctrl + 6)'
+   },
+   icon: /*#__PURE__*/(0, _jsxRuntime.jsx)("div", {
++    role: "img",
++    "aria-hidden": "true",
+     style: {
+-      fontSize: 12,
+-      textAlign: 'left'
++      fontSize: 11,
++      textAlign: 'left',
++      fontFamily: "'IBM Plex Sans', sans-serif",
++      color: '#161616'
+     },
+-    children: "Heading 6"
++    children: "H6"
+   }),
+   execute: function execute(state, api) {
+     (0, _title.headingExecute)({
+       state: state,
+       api: api,
+-      prefix: state.command.prefix,
+-      suffix: state.command.suffix
++      prefix: state.command.prefix ?? '###### ',
++      suffix: state.command.suffix ?? ''
+     });
+   }
+ };
+ 
+ /**
+- * @deprecated Use `heading6` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title6` for inserting Heading 6.
++ * @deprecated Since v4.0.0. Use `heading6` instead.
++ * Scheduled for removal in v5.0.0.
++ * @see heading6
+  */
+ var title6 = exports.title6 = heading6;
+\ No newline at end of file
 diff --git a/node_modules/@uiw/react-md-editor/src/commands/bold.tsx b/node_modules/@uiw/react-md-editor/src/commands/bold.tsx
 index 0c26323..39d4ba0 100644
 --- a/node_modules/@uiw/react-md-editor/src/commands/bold.tsx
@@ -791,6 +1303,62 @@ index 824c641..cb68754 100644
 +    } catch {
 +      // 静默失败 — 命令执行失败不应崩溃编辑器
      }
+   },
+ };
+diff --git a/node_modules/@uiw/react-md-editor/src/commands/italic.tsx b/node_modules/@uiw/react-md-editor/src/commands/italic.tsx
+index 00862cc..c13c20f 100644
+--- a/node_modules/@uiw/react-md-editor/src/commands/italic.tsx
++++ b/node_modules/@uiw/react-md-editor/src/commands/italic.tsx
+@@ -7,27 +7,36 @@ export const italic: ICommand = {
+   keyCommand: 'italic',
+   shortcuts: 'ctrlcmd+i',
+   prefix: '*',
+-  buttonProps: { 'aria-label': 'Add italic text (ctrl + i)', title: 'Add italic text (ctrl + i)' },
++  buttonProps: {
++    'aria-label': '添加斜体 (Ctrl+I)',
++    title: '添加斜体 (Ctrl+I)',
++  },
+   icon: (
+-    <svg data-name="italic" width="12" height="12" role="img" viewBox="0 0 320 512">
++    <svg width="12" height="12" aria-hidden="true" viewBox="0 0 320 512">
+       <path
+         fill="currentColor"
+         d="M204.758 416h-33.849l62.092-320h40.725a16 16 0 0 0 15.704-12.937l6.242-32C297.599 41.184 290.034 32 279.968 32H120.235a16 16 0 0 0-15.704 12.937l-6.242 32C96.362 86.816 103.927 96 113.993 96h33.846l-62.09 320H46.278a16 16 0 0 0-15.704 12.935l-6.245 32C22.402 470.815 29.967 480 40.034 480h158.479a16 16 0 0 0 15.704-12.935l6.245-32c1.927-9.88-5.638-19.065-15.704-19.065z"
+       />
+     </svg>
+   ),
+-  execute: (state: ExecuteState, api: TextAreaTextApi) => {
+-    const newSelectionRange = selectWord({
+-      text: state.text,
+-      selection: state.selection,
+-      prefix: state.command.prefix!,
+-    });
+-    const state1 = api.setSelectionRange(newSelectionRange);
+-    executeCommand({
+-      api,
+-      selectedText: state1.selectedText,
+-      selection: state.selection,
+-      prefix: state.command.prefix!,
+-    });
++  execute: (state: ExecuteState, api: TextAreaTextApi): void => {
++    try {
++      const prefix = state.command.prefix;
++      if (!prefix) return;
++      const newSelectionRange = selectWord({
++        text: state.text,
++        selection: state.selection,
++        prefix,
++      });
++      const selectedState = api.setSelectionRange(newSelectionRange);
++      executeCommand({
++        api,
++        selectedText: selectedState.selectedText,
++        selection: state.selection,
++        prefix,
++      });
++    } catch {
++      // 静默失败 — 命令执行失败不应崩溃编辑器
++    }
    },
  };
 diff --git a/node_modules/@uiw/react-md-editor/src/commands/link.tsx b/node_modules/@uiw/react-md-editor/src/commands/link.tsx
@@ -1079,179 +1647,69 @@ index bde067d..1d1bfb5 100644
    },
  };
  
-diff --git a/node_modules/@uiw/react-md-editor/esm/commands/italic.js b/node_modules/@uiw/react-md-editor/esm/commands/italic.js
-index 7b3f3a5..5a2ed36 100644
---- a/node_modules/@uiw/react-md-editor/esm/commands/italic.js
-+++ b/node_modules/@uiw/react-md-editor/esm/commands/italic.js
-@@ -7,14 +7,13 @@ export var italic = {
-   shortcuts: 'ctrlcmd+i',
-   prefix: '*',
-   buttonProps: {
--    'aria-label': 'Add italic text (ctrl + i)',
--    title: 'Add italic text (ctrl + i)'
-+    'aria-label': '添加斜体 (Ctrl+I)',
-+    title: '添加斜体 (Ctrl+I)'
-   },
-   icon: /*#__PURE__*/_jsx("svg", {
--    "data-name": "italic",
-     width: "12",
-     height: "12",
--    role: "img",
-+    "aria-hidden": "true",
-     viewBox: "0 0 320 512",
-     children: /*#__PURE__*/_jsx("path", {
-       fill: "currentColor",
-@@ -22,17 +21,23 @@ export var italic = {
-     })
-   }),
-   execute: (state, api) => {
--    var newSelectionRange = selectWord({
--      text: state.text,
--      selection: state.selection,
--      prefix: state.command.prefix
--    });
--    var state1 = api.setSelectionRange(newSelectionRange);
--    executeCommand({
--      api,
--      selectedText: state1.selectedText,
--      selection: state.selection,
--      prefix: state.command.prefix
--    });
-+    try {
-+      const prefix = state.command.prefix;
-+      if (!prefix) return;
-+      var newSelectionRange = selectWord({
-+        text: state.text,
-+        selection: state.selection,
-+        prefix
-+      });
-+      var selectedState = api.setSelectionRange(newSelectionRange);
-+      executeCommand({
-+        api,
-+        selectedText: selectedState.selectedText,
-+        selection: state.selection,
-+        prefix
-+      });
-+    } catch {
-+      // 静默失败 — 命令执行失败不应崩溃编辑器
-+    }
-   }
--};
-\ No newline at end of file
-+};
-diff --git a/node_modules/@uiw/react-md-editor/lib/commands/italic.js b/node_modules/@uiw/react-md-editor/lib/commands/italic.js
-index 96d957c..dc2a6e1 100644
---- a/node_modules/@uiw/react-md-editor/lib/commands/italic.js
-+++ b/node_modules/@uiw/react-md-editor/lib/commands/italic.js
-@@ -14,14 +14,13 @@ var italic = exports.italic = {
-   shortcuts: 'ctrlcmd+i',
-   prefix: '*',
-   buttonProps: {
--    'aria-label': 'Add italic text (ctrl + i)',
--    title: 'Add italic text (ctrl + i)'
-+    'aria-label': '添加斜体 (Ctrl+I)',
-+    title: '添加斜体 (Ctrl+I)'
-   },
-   icon: /*#__PURE__*/(0, _jsxRuntime.jsx)("svg", {
--    "data-name": "italic",
-     width: "12",
-     height: "12",
--    role: "img",
-+    "aria-hidden": "true",
-     viewBox: "0 0 320 512",
-     children: /*#__PURE__*/(0, _jsxRuntime.jsx)("path", {
-       fill: "currentColor",
-@@ -29,17 +28,23 @@ var italic = exports.italic = {
-     })
-   }),
-   execute: function execute(state, api) {
--    var newSelectionRange = (0, _markdownUtils.selectWord)({
--      text: state.text,
--      selection: state.selection,
--      prefix: state.command.prefix
--    });
--    var state1 = api.setSelectionRange(newSelectionRange);
--    (0, _markdownUtils.executeCommand)({
--      api: api,
--      selectedText: state1.selectedText,
--      selection: state.selection,
--      prefix: state.command.prefix
--    });
-+    try {
-+      var prefix = state.command.prefix;
-+      if (!prefix) return;
-+      var newSelectionRange = (0, _markdownUtils.selectWord)({
-+        text: state.text,
-+        selection: state.selection,
-+        prefix: prefix
-+      });
-+      var selectedState = api.setSelectionRange(newSelectionRange);
-+      (0, _markdownUtils.executeCommand)({
-+        api: api,
-+        selectedText: selectedState.selectedText,
-+        selection: state.selection,
-+        prefix: prefix
-+      });
-+    } catch (e) {
-+      // 静默失败 — 命令执行失败不应崩溃编辑器
-+    }
-   }
--};
-\ No newline at end of file
-+};
-diff --git a/node_modules/@uiw/react-md-editor/src/commands/italic.tsx b/node_modules/@uiw/react-md-editor/src/commands/italic.tsx
-index 3d8df6c..e5e14e3 100644
---- a/node_modules/@uiw/react-md-editor/src/commands/italic.tsx
-+++ b/node_modules/@uiw/react-md-editor/src/commands/italic.tsx
-@@ -7,27 +7,36 @@ export const italic: ICommand = {
-   keyCommand: 'italic',
-   shortcuts: 'ctrlcmd+i',
-   prefix: '*',
--  buttonProps: { 'aria-label': 'Add italic text (ctrl + i)', title: 'Add italic text (ctrl + i)' },
-+  buttonProps: {
-+    'aria-label': '添加斜体 (Ctrl+I)',
-+    title: '添加斜体 (Ctrl+I)',
-+  },
-   icon: (
--    <svg data-name="italic" width="12" height="12" role="img" viewBox="0 0 320 512">
-+    <svg width="12" height="12" aria-hidden="true" viewBox="0 0 320 512">
-       <path
-         fill="currentColor"
-         d="M204.758 416h-33.849l62.092-320h40.725a16 16 0 0 0 15.704-12.937l6.242-32C297.599 41.184 290.034 32 279.968 32H120.235a16 16 0 0 0-15.704 12.937l-6.242 32C96.362 86.816 103.927 96 113.993 96h33.846l-62.09 320H46.278a16 16 0 0 0-15.704 12.935l-6.245 32C22.402 470.815 29.967 480 40.034 480h158.479a16 16 0 0 0 15.704-12.935l6.245-32c1.927-9.88-5.638-19.065-15.704-19.065z"
-       />
-     </svg>
-   ),
--  execute: (state: ExecuteState, api: TextAreaTextApi) => {
--    const newSelectionRange = selectWord({
--      text: state.text,
--      selection: state.selection,
--      prefix: state.command.prefix!,
--    });
--    const state1 = api.setSelectionRange(newSelectionRange);
--    executeCommand({
--      api,
--      selectedText: state1.selectedText,
--      selection: state.selection,
--      prefix: state.command.prefix!,
--    });
-+  execute: (state: ExecuteState, api: TextAreaTextApi): void => {
-+    try {
-+      const prefix = state.command.prefix;
-+      if (!prefix) return;
-+      const newSelectionRange = selectWord({
-+        text: state.text,
-+        selection: state.selection,
-+        prefix,
-+      });
-+      const selectedState = api.setSelectionRange(newSelectionRange);
-+      executeCommand({
-+        api,
-+        selectedText: selectedState.selectedText,
-+        selection: state.selection,
-+        prefix,
-+      });
-+    } catch {
-+      // 静默失败 — 命令执行失败不应崩溃编辑器
-+    }
+diff --git a/node_modules/@uiw/react-md-editor/src/commands/title5.tsx b/node_modules/@uiw/react-md-editor/src/commands/title5.tsx
+index 89347df..8810e8d 100644
+--- a/node_modules/@uiw/react-md-editor/src/commands/title5.tsx
++++ b/node_modules/@uiw/react-md-editor/src/commands/title5.tsx
+@@ -1,6 +1,6 @@
+ import React from 'react';
+ import { headingExecute } from '../commands/title';
+-import { ICommand, ExecuteState, TextAreaTextApi } from './';
++import type { ICommand, ExecuteState, TextAreaTextApi } from './';
+ 
+ export const heading5: ICommand = {
+   name: 'heading5',
+@@ -9,15 +9,15 @@ export const heading5: ICommand = {
+   prefix: '##### ',
+   suffix: '',
+   buttonProps: { 'aria-label': 'Insert Heading 5 (ctrl + 5)', title: 'Insert Heading 5 (ctrl + 5)' },
+-  icon: <div style={{ fontSize: 12, textAlign: 'left' }}>Heading 5</div>,
++  icon: <div role="img" aria-hidden="true" style={{ fontSize: 12, textAlign: 'left', fontFamily: "'IBM Plex Sans', sans-serif", color: '#161616' }}>H5</div>,
+   execute: (state: ExecuteState, api: TextAreaTextApi) => {
+-    headingExecute({ state, api, prefix: state.command.prefix!, suffix: state.command.suffix });
++    headingExecute({ state, api, prefix: state.command.prefix ?? '##### ', suffix: state.command.suffix ?? '' });
    },
  };
+ 
+ /**
+- * @deprecated Use `heading5` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title5` for inserting Heading 5.
++ * @deprecated Since v4.0.0. Use `heading5` instead.
++ * Scheduled for removal in v5.0.0.
++ * @see heading5
+  */
+ export const title5: ICommand = heading5;
+diff --git a/node_modules/@uiw/react-md-editor/src/commands/title6.tsx b/node_modules/@uiw/react-md-editor/src/commands/title6.tsx
+index d959038..cfcdcad 100644
+--- a/node_modules/@uiw/react-md-editor/src/commands/title6.tsx
++++ b/node_modules/@uiw/react-md-editor/src/commands/title6.tsx
+@@ -1,6 +1,6 @@
+ import React from 'react';
+ import { headingExecute } from '../commands/title';
+-import { ICommand, ExecuteState, TextAreaTextApi } from './';
++import type { ICommand, ExecuteState, TextAreaTextApi } from './';
+ 
+ export const heading6: ICommand = {
+   name: 'heading6',
+@@ -9,15 +9,15 @@ export const heading6: ICommand = {
+   prefix: '###### ',
+   suffix: '',
+   buttonProps: { 'aria-label': 'Insert Heading 6 (ctrl + 6)', title: 'Insert Heading 6 (ctrl + 6)' },
+-  icon: <div style={{ fontSize: 12, textAlign: 'left' }}>Heading 6</div>,
++  icon: <div role="img" aria-hidden="true" style={{ fontSize: 11, textAlign: 'left', fontFamily: "'IBM Plex Sans', sans-serif", color: '#161616' }}>H6</div>,
+   execute: (state: ExecuteState, api: TextAreaTextApi) => {
+-    headingExecute({ state, api, prefix: state.command.prefix!, suffix: state.command.suffix });
++    headingExecute({ state, api, prefix: state.command.prefix ?? '###### ', suffix: state.command.suffix ?? '' });
+   },
+ };
+ 
+ /**
+- * @deprecated Use `heading6` instead.
+- * This command is now deprecated and will be removed in future versions.
+- * Use `title6` for inserting Heading 6.
++ * @deprecated Since v4.0.0. Use `heading6` instead.
++ * Scheduled for removal in v5.0.0.
++ * @see heading6
+  */
+ export const title6: ICommand = heading6;
