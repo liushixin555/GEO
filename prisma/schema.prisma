@@ -467,6 +467,7 @@ model PublishingSchedule {
   scheduleType      String?                @map("schedule_type") @db.VarChar(20)
   scheduledPublishAt DateTime?             @map("scheduled_publish_at") @db.Timestamptz()
   status            PublishingScheduleStatus @default(pending)
+  rejectReason      String?                @map("reject_reason") @db.VarChar(500)
   createdBy         Int?                   @map("created_by")
   createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt         DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()

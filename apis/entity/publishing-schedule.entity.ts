@@ -12,6 +12,7 @@ export interface PublishingSchedule {
   schedule_type: ScheduleType | null;
   scheduled_publish_at: Date | null;
   status: PublishingScheduleStatus;
+  reject_reason: string | null;
   created_by: number | null;
   created_at: Date;
   updated_at: Date;

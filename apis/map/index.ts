@@ -256,6 +256,7 @@ export function mapPublishingSchedule(prismaSchedule: any): PublishingSchedule {
     schedule_type: prismaSchedule.scheduleType ?? null,
     scheduled_publish_at: prismaSchedule.scheduledPublishAt ?? null,
     status: prismaSchedule.status,
+    reject_reason: prismaSchedule.rejectReason ?? null,
     created_by: prismaSchedule.createdBy ?? null,
     created_at: prismaSchedule.createdAt,
     updated_at: prismaSchedule.updatedAt,

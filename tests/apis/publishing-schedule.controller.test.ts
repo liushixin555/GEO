@@ -104,6 +104,7 @@ const mockCreatedSchedule = {
   schedule_type: 'asap',
   scheduled_publish_at: null,
   status: 'pending',
+  reject_reason: null,
   created_by: 1,
   created_at: new Date('2025-01-01'),
   updated_at: new Date('2025-01-01'),
@@ -644,6 +645,7 @@ describe('PublishingSchedule Controller', () => {
       schedule_type: 'asap',
       scheduled_publish_at: null,
       status: 'publish_failed',
+      reject_reason: null,
       created_by: 2,
       created_at: new Date('2025-01-01'),
       updated_at: new Date('2025-01-02'),
@@ -685,6 +687,31 @@ describe('PublishingSchedule Controller', () => {
       expect(response.status).toBe(200);
       expect(response.body.code).toBe(0);
       expect(mockScheduleReject).toHaveBeenCalledWith(1, { userId: 2, role: 'admin' }, undefined);
+    });
+
+    it('should reject with reason and pass to service', async () => {
+      mockScheduleReject.mockResolvedValue({ ...mockRejectedSchedule, reject_reason: '内容不符合要求' });
+
+      const response = await agent
+        .put('/api/v1/publishing-schedule/1/reject')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({ reason: '内容不符合要求' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.code).toBe(0);
+      expect(mockScheduleReject).toHaveBeenCalledWith(1, { userId: 1, role: 'sysadmin' }, '内容不符合要求');
+    });
+
+    it('should reject without reason body (optional)', async () => {
+      mockScheduleReject.mockResolvedValue(mockRejectedSchedule);
+
+      const response = await agent
+        .put('/api/v1/publishing-schedule/1/reject')
+        .set('Authorization', `Bearer ${sysadminToken()}`)
+        .send({});
+
+      expect(response.status).toBe(200);
+      expect(mockScheduleReject).toHaveBeenCalledWith(1, { userId: 1, role: 'sysadmin' }, undefined);
     });
 
     it('should return 400 when id is not a number', async () => {
@@ -854,7 +881,7 @@ describe('PublishingSchedule Controller', () => {
       mockArticleList.mockResolvedValue({ list: [{ id: 10, title: '文章A' }], total: 1 });
 
       const response = await agent
-        .get('/api/v1/publishing-schedule/articles?page=1&pageSize=20')
+        .get('/api/v1/publishing-schedule/articles?page=1&pageSize=10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
@@ -873,7 +900,7 @@ describe('PublishingSchedule Controller', () => {
       expect(response.body.code).toBe(0);
     });
 
-    it('should use default page=1 and pageSize=20', async () => {
+    it('should use default page=1 and pageSize=10', async () => {
       mockArticleList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
@@ -882,7 +909,7 @@ describe('PublishingSchedule Controller', () => {
 
       expect(response.status).toBe(200);
       expect(mockArticleList).toHaveBeenCalledWith(
-        0, 1, 20, { userId: 1, role: 'sysadmin' }, undefined, 'approved',
+        0, 1, 10, { userId: 1, role: 'sysadmin' }, undefined, 'approved',
       );
     });
 
@@ -895,7 +922,7 @@ describe('PublishingSchedule Controller', () => {
 
       expect(response.status).toBe(200);
       expect(mockArticleList).toHaveBeenCalledWith(
-        0, 1, 20, { userId: 1, role: 'sysadmin' }, '测试', 'approved',
+        0, 1, 10, { userId: 1, role: 'sysadmin' }, '测试', 'approved',
       );
     });
 
@@ -908,7 +935,7 @@ describe('PublishingSchedule Controller', () => {
 
       expect(response.status).toBe(200);
       expect(mockArticleList).toHaveBeenCalledWith(
-        5, 1, 20, { userId: 1, role: 'sysadmin' }, undefined, 'approved',
+        5, 1, 10, { userId: 1, role: 'sysadmin' }, undefined, 'approved',
       );
     });
 

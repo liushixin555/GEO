@@ -1147,7 +1147,7 @@ describe('PublishingScheduleServiceImpl', () => {
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 1 },
-          data: { status: 'publish_failed' },
+          data: { status: 'publish_failed', rejectReason: null },
         }),
       );
     });
@@ -1259,6 +1259,58 @@ describe('PublishingScheduleServiceImpl', () => {
       await service.reject(1, { userId: 1, role: 'sysadmin' });
 
       expect(mockTransaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('should persist rejectReason when reason is provided', async () => {
+      const existing = makeSchedule({ status: 'pending', createdBy: 2 });
+      const rejected = makeSchedule({ status: 'publish_failed', rejectReason: '内容不符合要求' });
+
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(rejected);
+      const mockTransaction = jest.fn().mockImplementation(async (cb: any) => {
+        return cb({
+          publishingSchedule: { findFirst: mockFindFirst, update: mockUpdate },
+        });
+      });
+
+      mockedGetPrisma.mockReturnValue({
+        $transaction: mockTransaction,
+      } as any);
+
+      const result = await service.reject(1, { userId: 1, role: 'sysadmin' }, '内容不符合要求');
+
+      expect(result.status).toBe('publish_failed');
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 1 },
+          data: { status: 'publish_failed', rejectReason: '内容不符合要求' },
+        }),
+      );
+    });
+
+    it('should set rejectReason to null when no reason provided', async () => {
+      const existing = makeSchedule({ status: 'pending', createdBy: 2 });
+      const rejected = makeSchedule({ status: 'publish_failed', rejectReason: null });
+
+      const mockFindFirst = jest.fn().mockResolvedValue(existing);
+      const mockUpdate = jest.fn().mockResolvedValue(rejected);
+      const mockTransaction = jest.fn().mockImplementation(async (cb: any) => {
+        return cb({
+          publishingSchedule: { findFirst: mockFindFirst, update: mockUpdate },
+        });
+      });
+
+      mockedGetPrisma.mockReturnValue({
+        $transaction: mockTransaction,
+      } as any);
+
+      const result = await service.reject(1, { userId: 1, role: 'sysadmin' });
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { status: 'publish_failed', rejectReason: null },
+        }),
+      );
     });
   });
 

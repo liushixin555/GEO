@@ -967,6 +967,8 @@ components:
           format: date-time
         status:
           $ref: "#/components/schemas/PublishingScheduleStatus"
+        rejectReason:
+          type: string
         createdBy:
           type: integer
           format: int32

@@ -189,7 +189,7 @@ export class PublishingScheduleServiceImpl implements IPublishingScheduleService
 
       const updated = await tx.publishingSchedule.update({
         where: { id },
-        data: { status: 'publish_failed' },
+        data: { status: 'publish_failed', rejectReason: reason ?? null },
       });
       return mapPublishingSchedule(updated);
     });

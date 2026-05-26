@@ -883,3 +883,34 @@ model Article {
 - `pages/publish/index.tsx` — 独立发布计划管理页面
 - `pages/article/components/PlatformSelectModal.tsx` — 已删除
 - `pages/article/components/ArticleSettingsForm.tsx` — 移除平台选择
+
+---
+
+## db019. PublishingSchedule 新增 reject_reason 字段
+
+### 变更原因
+安全评审 H-3 修复：reject 端点的 reason 字段需持久化到数据库，满足审计可追溯性要求。
+
+### Schema 变更
+```prisma
+// Before
+model PublishingSchedule {
+  status  PublishingScheduleStatus @default(pending)
+  createdBy  Int? @map("created_by")
+}
+
+// After
+model PublishingSchedule {
+  status       PublishingScheduleStatus @default(pending)
+  rejectReason String? @map("reject_reason") @db.VarChar(500)
+  createdBy    Int?    @map("created_by")
+}
+```
+
+### 影响文件
+- `prisma/schema.prisma` — PublishingSchedule 新增 rejectReason 字段
+- `prisma/migrations/20260526000001_add_publishing_schedule_reject_reason/migration.sql` — 新增迁移
+- `apis/entity/publishing-schedule.entity.ts` — PublishingSchedule 接口新增 reject_reason
+- `apis/map/index.ts` — mapPublishingSchedule / mapPublishingScheduleItem 新增 reject_reason 映射
+- `apis/service/impl/publishing-schedule.service.impl.ts` — reject 方法保存 rejectReason
+- `apis/schema/publishing-schedule.schema.ts` — listPublishableArticlesSchema pageSize 默认值统一为 10
