@@ -108,7 +108,7 @@ export class AuthServiceImpl implements IAuthService {
           selectedProject: { select: { id: true, shortName: true } },
         },
       });
-      if (!user) return { valid: false };
+      if (!user || !user.status) return { valid: false };
       return {
         valid: true,
         user: {

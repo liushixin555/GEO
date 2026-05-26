@@ -17,6 +17,8 @@ import { getPrisma } from '../../apis/utils/db.util';
 
 const mockedGetPrisma = getPrisma as jest.MockedFunction<typeof getPrisma>;
 
+const hashPassword = (password: string) => require('bcryptjs').hashSync(password, 10);
+
 describe('AuthService', () => {
   let authService: AuthServiceImpl;
 
@@ -30,7 +32,6 @@ describe('AuthService', () => {
   // ══════════════════════════════════════
 
   describe('login', () => {
-    const hashPassword = (password: string) => require('bcryptjs').hashSync(password, 10);
 
     it('用户不存在时应抛出"用户名或密码错误"', async () => {
       const mockFindUnique = jest.fn().mockResolvedValue(null);
@@ -1166,8 +1167,6 @@ describe('AuthService', () => {
   // ══════════════════════════════════════
 
   describe('login 第3轮补充', () => {
-    const hashPassword = (password: string) => require('bcryptjs').hashSync(password, 10);
-
     it('selectedCompany 存在且在列表中但 selectedProject 为 null 时应自动选择第一个项目', async () => {
       const hash = hashPassword('password123');
       const mockFindUnique = jest.fn().mockResolvedValue({
@@ -1382,6 +1381,221 @@ describe('AuthService', () => {
           select: { id: true, role: true, cnName: true, username: true },
         })
       );
+    });
+  });
+
+  // ══════════════════════════════════════
+  //  错误路径测试
+  // ══════════════════════════════════════
+
+  describe('错误路径', () => {
+    it('login 数据库查询失败时应抛出原始错误', async () => {
+      const mockFindUnique = jest.fn().mockRejectedValue(new Error('Connection refused'));
+      mockedGetPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } } as any);
+
+      await expect(
+        authService.login({ username: 'test', password: 'pass' })
+      ).rejects.toThrow('Connection refused');
+    });
+
+    it('login 持久化选择时数据库更新失败应抛出原始错误', async () => {
+      const hash = hashPassword('password123');
+      const mockFindUnique = jest.fn().mockResolvedValue({
+        id: 1, username: 'sysadmin', passwordHash: hash,
+        cnName: '系统管理员', role: 'sysadmin', companyId: null, status: true,
+        selectedCompany: null, selectedProject: null,
+      });
+      const mockCompanyFindMany = jest.fn().mockResolvedValue([{ id: 1, shortName: 'Co1' }]);
+      const mockProjectFindMany = jest.fn().mockResolvedValue([{ id: 10, shortName: 'Proj1' }]);
+      const mockUpdate = jest.fn().mockRejectedValue(new Error('Write failed'));
+      mockedGetPrisma.mockReturnValue({
+        user: { findUnique: mockFindUnique, update: mockUpdate },
+        company: { findMany: mockCompanyFindMany },
+        project: { findMany: mockProjectFindMany },
+      } as any);
+
+      await expect(
+        authService.login({ username: 'sysadmin', password: 'password123' })
+      ).rejects.toThrow('Write failed');
+    });
+
+    it('verifyToken 数据库查询失败时应返回 { valid: false }', async () => {
+      const token = jwt.sign(
+        { userId: 1, username: 'test', role: 'admin', companyId: 1 },
+        'test-secret',
+        { expiresIn: '2h' }
+      );
+      const mockFindUnique = jest.fn().mockRejectedValue(new Error('DB Error'));
+      mockedGetPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } } as any);
+
+      const result = await authService.verifyToken(token);
+      expect(result.valid).toBe(false);
+    });
+
+    it('getLatestUserState 数据库查询失败时应抛出原始错误', async () => {
+      const mockFindUnique = jest.fn().mockRejectedValue(new Error('Connection lost'));
+      mockedGetPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } } as any);
+
+      await expect(authService.getLatestUserState(1)).rejects.toThrow('Connection lost');
+    });
+
+    it('getCompanyUsers 数据库查询失败时应抛出原始错误', async () => {
+      const mockFindMany = jest.fn().mockRejectedValue(new Error('Timeout'));
+      mockedGetPrisma.mockReturnValue({ user: { findMany: mockFindMany } } as any);
+
+      await expect(authService.getCompanyUsers(10)).rejects.toThrow('Timeout');
+    });
+
+    it('saveSelection 数据库更新失败时应抛出原始错误', async () => {
+      const mockUpdate = jest.fn().mockRejectedValue(new Error('Write failed'));
+      const mockCompanyFindMany = jest.fn().mockResolvedValue([{ id: 1, shortName: 'Co1' }]);
+      mockedGetPrisma.mockReturnValue({
+        user: { update: mockUpdate },
+        company: { findMany: mockCompanyFindMany },
+      } as any);
+
+      await expect(
+        authService.saveSelection(1, 'sysadmin', null, { company_id: 1 })
+      ).rejects.toThrow('Write failed');
+    });
+
+    it('getAccessibleCompanies 数据库查询失败时应抛出原始错误', async () => {
+      const mockFindMany = jest.fn().mockRejectedValue(new Error('DB Down'));
+      mockedGetPrisma.mockReturnValue({ company: { findMany: mockFindMany } } as any);
+
+      await expect(
+        authService.getAccessibleCompanies(1, 'sysadmin', null)
+      ).rejects.toThrow('DB Down');
+    });
+
+    it('getAccessibleProjects 数据库查询失败时应抛出原始错误', async () => {
+      const mockFindMany = jest.fn().mockRejectedValue(new Error('Connection reset'));
+      mockedGetPrisma.mockReturnValue({ project: { findMany: mockFindMany } } as any);
+
+      await expect(
+        authService.getAccessibleProjects(1, 'sysadmin', 1)
+      ).rejects.toThrow('Connection reset');
+    });
+
+    it('getAccessibleProjects admin 公司查询失败时应抛出原始错误', async () => {
+      const mockCompanyFindUnique = jest.fn().mockRejectedValue(new Error('Company lookup failed'));
+      mockedGetPrisma.mockReturnValue({
+        company: { findUnique: mockCompanyFindUnique },
+      } as any);
+
+      await expect(
+        authService.getAccessibleProjects(1, 'admin', 1)
+      ).rejects.toThrow('Company lookup failed');
+    });
+  });
+
+  // ══════════════════════════════════════
+  //  安全边界测试
+  // ══════════════════════════════════════
+
+  describe('安全边界', () => {
+    it('verifyToken 用户被禁用时应返回 { valid: false }', async () => {
+      const token = jwt.sign(
+        { userId: 1, username: 'test', role: 'admin', companyId: 1 },
+        'test-secret',
+        { expiresIn: '2h' }
+      );
+      const mockFindUnique = jest.fn().mockResolvedValue({
+        id: 1, username: 'test', cnName: '测试', role: 'admin', companyId: 1,
+        status: false,
+        selectedCompany: null, selectedProject: null,
+      });
+      mockedGetPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } } as any);
+
+      const result = await authService.verifyToken(token);
+      expect(result.valid).toBe(false);
+      expect(result.user).toBeUndefined();
+    });
+
+    it('saveSelection company_id 为负数时应被权限检查拦截', async () => {
+      const mockCompanyFindMany = jest.fn().mockResolvedValue([{ id: 1, shortName: 'Co1' }]);
+      mockedGetPrisma.mockReturnValue({
+        user: { update: jest.fn() },
+        company: { findMany: mockCompanyFindMany },
+      } as any);
+
+      await expect(
+        authService.saveSelection(1, 'sysadmin', null, { company_id: -1 })
+      ).rejects.toThrow('无权选择该公司');
+    });
+
+    it('saveSelection project_id 为负数时应被权限检查拦截', async () => {
+      const mockCompanyFindMany = jest.fn().mockResolvedValue([{ id: 1, shortName: 'Co1' }]);
+      const mockProjectFindMany = jest.fn().mockResolvedValue([{ id: 10, shortName: 'Proj1' }]);
+      mockedGetPrisma.mockReturnValue({
+        user: { update: jest.fn() },
+        company: { findMany: mockCompanyFindMany },
+        project: { findMany: mockProjectFindMany },
+      } as any);
+
+      await expect(
+        authService.saveSelection(1, 'sysadmin', null, { company_id: 1, project_id: -999 })
+      ).rejects.toThrow('无权选择该项目');
+    });
+
+    it('getAccessibleProjects companyId 为负数时 sysadmin 应查询不报错', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({ project: { findMany: mockFindMany } } as any);
+
+      const result = await authService.getAccessibleProjects(1, 'sysadmin', -1);
+      expect(result).toEqual([]);
+    });
+
+    it('getCompanyUsers companyId 为 0 时应正常查询（返回空）', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      mockedGetPrisma.mockReturnValue({ user: { findMany: mockFindMany } } as any);
+
+      const result = await authService.getCompanyUsers(0);
+      expect(result.operators).toEqual([]);
+      expect(result.viewers).toEqual([]);
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { companyId: 0, status: true, role: { in: ['admin', 'view'] } } })
+      );
+    });
+
+    it('getLatestUserState 禁用用户仍可返回状态', async () => {
+      const mockFindUnique = jest.fn().mockResolvedValue({
+        id: 1, username: 'disabled', cnName: '禁用用户', role: 'admin',
+        companyId: 1, status: false,
+        selectedCompany: { id: 1, shortName: 'Co1' },
+        selectedProject: null,
+      });
+      mockedGetPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } } as any);
+
+      const result = await authService.getLatestUserState(1);
+      expect(result.id).toBe(1);
+      expect(result.role).toBe('admin');
+    });
+
+    it('login JWT token 不应包含 passwordHash', async () => {
+      const hash = hashPassword('password123');
+      const mockFindUnique = jest.fn().mockResolvedValue({
+        id: 1, username: 'admin', passwordHash: hash,
+        cnName: 'Admin', role: 'admin', companyId: 1, status: true,
+        selectedCompany: null, selectedProject: null,
+      });
+      const mockCompanyFindUnique = jest.fn().mockResolvedValue({ id: 1, shortName: 'Co1', status: true });
+      const mockProjectOperatorFindMany = jest.fn().mockResolvedValue([
+        { project: { id: 10, shortName: 'Proj1' } },
+      ]);
+      const mockUpdate = jest.fn().mockResolvedValue({});
+      mockedGetPrisma.mockReturnValue({
+        user: { findUnique: mockFindUnique, update: mockUpdate },
+        company: { findUnique: mockCompanyFindUnique },
+        projectOperator: { findMany: mockProjectOperatorFindMany },
+      } as any);
+
+      const result = await authService.login({ username: 'admin', password: 'password123' });
+      const decoded = jwt.verify(result.token, 'test-secret') as any;
+
+      expect(decoded.passwordHash).toBeUndefined();
+      expect(decoded.password).toBeUndefined();
+      expect(decoded.userId).toBe(1);
     });
   });
 });
