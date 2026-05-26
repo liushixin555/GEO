@@ -114,14 +114,19 @@ tests/apis/  + tests/pages/  测试文件
   - admin 创建项目时仍强制 company_id = 自己的公司
 - **技能不再绑定单一公司**：company_id 改为可选字段（Int?），与用户一致
 - **文章管理（2026-05-17）**：新增 Article 模型
-  - `articles` 表：id, project_id, title, keywords(Json), portrait(Text), images(Json), platforms(Json), skills(Json, 技能ID), llm_model_id(Int?, FK→llm_models, ON DELETE SET NULL), content(Text?), version(Float, 默认1.0), status(ArticleStatus枚举), created_by
+  - `articles` 表：id, project_id, title, keywords(Json), portrait(Text), images(Json), skills(Json, 技能ID), llm_model_id(Int?, FK→llm_models, ON DELETE SET NULL), content(Text?), version(Float, 默认1.0), status(ArticleStatus枚举), created_by
   - `article_versions` 表：id, article_id, version(Float), content(Text), created_by, created_at
-  - 7个状态：draft → manual_writing / generating → generate_failed / pending_review → publishing → publish_failed / published
+  - 6个状态：draft → manual_writing / generating → generate_failed / pending_review → approved
   - API: GET/POST/PUT/DELETE `/api/projects/:projectId/articles` + PUT `.../review` + PUT `.../submit-review`
-  - 正文专用 API: PUT `.../content`（仅 draft/manual_writing/generate_failed/publish_failed 可编辑）、GET `.../versions`（版本历史）
+  - 正文专用 API: PUT `.../content`（仅 draft/manual_writing/generate_failed 可编辑）、GET `.../versions`（版本历史）
   - 提交审核 API: PUT `.../submit-review`（仅 manual_writing → pending_review）
   - 正文版本管理：每次保存自动递增版本号（1.0 → 2.0），历史存入 article_versions
   - admin 需为项目运营者，编辑/删除限创建者或 sysadmin
+  - **文章发布解耦改造（2026-05-26）**：Article 不再包含发布相关字段（platforms/scheduleType/scheduledPublishAt），发布功能独立为 PublishingSchedule 模型
+    - `ArticleStatus` 枚举移除 `publishing`/`published`/`publish_failed`，新增 `approved`
+    - 新增 `PublishingSchedule` 模型：article_id(FK), platforms(Json), scheduleType(Enum: immediate/scheduled/manual), scheduledPublishAt(DateTime?), status(Enum: pending/publishing/published/publish_failed), createdBy
+    - 新增 `PublishingScheduleStatus` 枚举：pending, publishing, published, publish_failed
+    - `service/index.ts` barrel 导出 19 个工厂函数（含 createPublishingScheduleService）
   - 前端：独立路由页面 `/article/:id`（非Modal），Tab 切换「文章设置」和「正文」
   - 非编辑状态时字段 disabled 只读
   - **设置编辑权限**：仅 draft 状态可编辑设置（`SETTINGS_EDITABLE_STATUSES`）

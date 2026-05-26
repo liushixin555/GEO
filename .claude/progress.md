@@ -15,7 +15,7 @@
 | 技能管理 | ✅ | CRUD + created_by 权限控制 |
 | 文章管理 | ✅ | CRUD + AI生成 + 正文编辑 + 版本历史 + 审核 |
 | 知识库 | ✅ | 关键词/画像/图片/文档 + 扩展词 + 关键词挖掘 + Zod schema验证 + 架构评审7.9/10 |
-| 发布管理 | ✅ | 发布平台 + 发布调度 |
+| 发布管理 | ✅ | 发布平台 + 发布调度（独立 PublishingSchedule 模型解耦） |
 | LLM 模型 | ✅ | CRUD（仅 sysadmin） |
 | 系统配置 | ✅ | 配置管理（仅 sysadmin） |
 | 文件上传 | ✅ | multer 图片上传 |
@@ -80,9 +80,8 @@
 | 2026-05-24 | `tasks/review/Context.tsx.quality.md` | @uiw/react-md-editor Context.tsx 软件质量专家评审——CONDITIONAL APPROVE 3.6/10（P0索引签名any+P1 dispatch混入state+DOM引用存Context+Reducer无Action区分） |
 
 ## 已知问题
-- `apis/service/impl/auth.service.impl.ts` Prisma 类型错误（待 schema 同步）
-- `apis/service/impl/todo.service.impl.ts` 编译错误（待修复）
-- `apis/service/impl/user.service.impl.ts` deletedAt 字段不存在（待 schema 同步）
+- `tests/apis/article-generation.test.ts` 9 个失败用例（与 staged scheduler 变更相关）
+- `tests/apis/user.schema.test.ts` 2 个失败用例（username regex 拒绝 unicode）
 
 | 2026-05-24 | progress_tasks/2026-05-24-index-tsx-ui-review-fix.md | index.tsx UI评审修复——CSS border/font-family/token颜色 + 测试 + jest-dom类型 |
 | 2026-05-24 | progress_tasks/2026-05-24-app-committer-review-fix.md | App.tsx Committer评审修复——重写测试覆盖认证/未认证/认证失败/ErrorBoundary，11用例全通过 |
