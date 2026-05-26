@@ -275,6 +275,88 @@ describe('SystemAdminPage', () => {
       expect(mockedGet).toHaveBeenCalledWith('/system-configs');
     });
   });
+
+  it('保存蚁上数配置应调用 PUT /system-configs', async () => {
+    mockedPut.mockResolvedValueOnce({ data: {} });
+
+    renderWithApp(
+      <MemoryRouter initialEntries={['/sysadmin']}>
+        <Routes>
+          <Route path="/sysadmin" element={<SystemAdminPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('蚁上数热点账号')).toBeInTheDocument();
+    });
+
+    const configValues = { username: 'new_ys_user', password: 'new_ys_pass' };
+    STABLE_FORM.validateFields.mockResolvedValueOnce(configValues);
+    const forms = screen.getAllByTestId('Form');
+    fireEvent.submit(forms[0]); // forms[0] = 蚁上数配置表单
+
+    await waitFor(() => {
+      expect(mockedPut).toHaveBeenCalledWith('/system-configs', {
+        configs: [
+          { config_key: 'yishangshu_username', config_value: 'new_ys_user' },
+          { config_key: 'yishangshu_password', config_value: 'new_ys_pass' },
+        ],
+      });
+    });
+  });
+
+  it('保存软盟配置应调用 PUT /system-configs', async () => {
+    mockedPut.mockResolvedValueOnce({ data: {} });
+
+    renderWithApp(
+      <MemoryRouter initialEntries={['/sysadmin']}>
+        <Routes>
+          <Route path="/sysadmin" element={<SystemAdminPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('软盟账号')).toBeInTheDocument();
+    });
+
+    const configValues = { username: 'new_rm_user', password: 'new_rm_pass' };
+    STABLE_FORM.validateFields.mockResolvedValueOnce(configValues);
+    const forms = screen.getAllByTestId('Form');
+    fireEvent.submit(forms[1]); // forms[1] = 软盟配置表单
+
+    await waitFor(() => {
+      expect(mockedPut).toHaveBeenCalledWith('/system-configs', {
+        configs: [
+          { config_key: 'ruanmeng_username', config_value: 'new_rm_user' },
+          { config_key: 'ruanmeng_password', config_value: 'new_rm_pass' },
+        ],
+      });
+    });
+  });
+
+  it('点击同步发布平台应调用 POST /publishing-platforms/sync', async () => {
+    mockedPost.mockResolvedValueOnce({ data: { message: '同步成功' } });
+
+    renderWithApp(
+      <MemoryRouter initialEntries={['/sysadmin']}>
+        <Routes>
+          <Route path="/sysadmin" element={<SystemAdminPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('同步发布平台')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('同步发布平台'));
+
+    await waitFor(() => {
+      expect(mockedPost).toHaveBeenCalledWith('/publishing-platforms/sync');
+    });
+  });
 });
 
 // ============================================================

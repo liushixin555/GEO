@@ -276,7 +276,7 @@
 
 Form mock 从 `<div>` 改为 `<form>` 元素，支持 `fireEvent.submit` 触发 `onFinish` 回调（通过 `STABLE_FORM.validateFields()` 返回值），使表单提交测试可行。
 
-### 修复后测试结果
+### 修复后测试结果（第一轮）
 
 ```
 PASS tests/pages/sysadmin.test.tsx (26 tests)
@@ -285,4 +285,25 @@ PASS tests/pages/sysadmin.test.tsx (26 tests)
   CompanyForm - Add: 5 tests ✓
   CompanyForm - Edit: 5 tests ✓
   ArticlePermissions (sysadmin related): 1 test ✓
+```
+
+---
+
+### 第二轮修复（HIGH 项补充）
+
+**修复项**:
+
+| 评审项 | 修复动作 |
+|--------|---------|
+| H-2: 零系统配置功能覆盖 | 新增 2 个测试：保存蚁上数配置（PUT /system-configs + yishangshu 前缀）、保存软盟配置（PUT /system-configs + ruanmeng 前缀） |
+| H-4: 零平台同步功能覆盖 | 新增 1 个测试：点击同步发布平台按钮（POST /publishing-platforms/sync） |
+
+### 修复后测试结果（第二轮）
+
+```
+PASS tests/pages/sysadmin.test.tsx (30 tests)
+  SystemAdminPage: 12 tests ✓
+  LlmModelForm: 8 tests ✓
+  CompanyForm - Add: 5 tests ✓
+  CompanyForm - Edit: 5 tests ✓
 ```
