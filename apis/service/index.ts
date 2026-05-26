@@ -37,6 +37,9 @@ import { TodoServiceImpl } from './impl/todo.service.impl';
 import { IPublishingPlatformService } from './publishing-platform.service';
 import { PublishingPlatformServiceImpl } from './impl/publishing-platform.service.impl';
 
+import { IPublishingScheduleService } from './publishing-schedule.service';
+import { PublishingScheduleServiceImpl } from './impl/publishing-schedule.service.impl';
+
 // --- 知识域 ---
 import { IKnowledgeBaseService } from './knowledge-base.service';
 import { KnowledgeBaseServiceImpl } from './impl/knowledge-base.service.impl';
@@ -88,6 +91,7 @@ export { IArticleService, AuthContext };
 export { IProjectService };
 export { ITodoService };
 export { IPublishingPlatformService };
+export { IPublishingScheduleService };
 
 // 知识域
 export { IKnowledgeBaseService };
@@ -129,6 +133,10 @@ export function createTodoService(): ITodoService {
 
 export function createPublishingPlatformService(): IPublishingPlatformService {
   return new PublishingPlatformServiceImpl();
+}
+
+export function createPublishingScheduleService(): IPublishingScheduleService {
+  return new PublishingScheduleServiceImpl();
 }
 
 // 知识域

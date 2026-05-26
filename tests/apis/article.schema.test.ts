@@ -18,9 +18,7 @@ describe('articleStatusSchema', () => {
     'generating',
     'generate_failed',
     'pending_review',
-    'publishing',
-    'publish_failed',
-    'published',
+    'approved',
   ];
 
   it.each(validStatuses)('应接受有效状态 "%s"', (status) => {
@@ -217,39 +215,6 @@ describe('createArticleSchema', () => {
     });
   });
 
-  // --- platforms ---
-  describe('platforms', () => {
-    it('应接受有效平台数组', () => {
-      expect(createArticleSchema.parse({ platforms: ['新浪', '搜狐'] }).platforms).toEqual(['新浪', '搜狐']);
-    });
-
-    it('应接受 null', () => {
-      expect(createArticleSchema.parse({ platforms: null }).platforms).toBeNull();
-    });
-
-    it('应接受最多10个平台', () => {
-      const platforms = Array.from({ length: 10 }, (_, i) => `平台${i}`);
-      expect(createArticleSchema.parse({ platforms }).platforms).toHaveLength(10);
-    });
-
-    it('应拒绝超过10个平台', () => {
-      const platforms = Array.from({ length: 11 }, (_, i) => `平台${i}`);
-      const result = createArticleSchema.safeParse({ platforms });
-      expect(result.success).toBe(false);
-    });
-
-    it('应接受最长100字符的平台名', () => {
-      const platform = 'p'.repeat(100);
-      expect(createArticleSchema.parse({ platforms: [platform] }).platforms).toEqual([platform]);
-    });
-
-    it('应拒绝超过100字符的平台名', () => {
-      const platform = 'p'.repeat(101);
-      const result = createArticleSchema.safeParse({ platforms: [platform] });
-      expect(result.success).toBe(false);
-    });
-  });
-
   // --- skills ---
   describe('skills', () => {
     it('应接受有效技能ID数组', () => {
@@ -355,8 +320,8 @@ describe('createArticleSchema', () => {
       expect(createArticleSchema.parse({ status: 'manual_writing' }).status).toBe('manual_writing');
     });
 
-    it('应拒绝 create 不允许的状态（如 published）', () => {
-      const result = createArticleSchema.safeParse({ status: 'published' });
+    it('应拒绝 create 不允许的状态（如 approved）', () => {
+      const result = createArticleSchema.safeParse({ status: 'approved' });
       expect(result.success).toBe(false);
     });
 
@@ -389,7 +354,6 @@ describe('createArticleSchema', () => {
         keywords: '关键词',
         portrait: '画像',
         images: ['img1.jpg'],
-        platforms: ['平台1'],
         skills: [1, 2],
         llm_model_id: 1,
         content: '内容',
@@ -427,11 +391,11 @@ describe('updateArticleSchema', () => {
     });
   });
 
-  // --- status (update 允许所有8个状态) ---
+  // --- status (update 允许所有6个状态) ---
   describe('status', () => {
     const allStatuses = [
       'draft', 'manual_writing', 'generating', 'generate_failed',
-      'pending_review', 'publishing', 'publish_failed', 'published',
+      'pending_review', 'approved',
     ];
 
     it.each(allStatuses)('应允许更新状态为 "%s"', (status) => {
@@ -443,79 +407,10 @@ describe('updateArticleSchema', () => {
     });
   });
 
-  // --- scheduled_publish_at ---
-  describe('scheduled_publish_at', () => {
-    it('应接受未来时间的 ISO datetime 带偏移', () => {
-      const future = new Date(Date.now() + 86400000).toISOString(); // 明天
-      const result = updateArticleSchema.safeParse({ scheduled_publish_at: future });
-      // 注意：带 offset 的 datetime 与纯 Z 的差异
-      // z.string().datetime({ offset: true }) 要求有时区偏移，纯 Z 格式可能不通过
-      // 但实际 ISO Z 格式是 offset: true 允许的（Z 是一种 offset）
-      expect(result.success).toBe(true);
-    });
-
-    it('应接受带 +08:00 偏移的未来时间', () => {
-      const future = new Date(Date.now() + 86400000);
-      const offset = future.toISOString().replace('Z', '+08:00');
-      const result = updateArticleSchema.safeParse({ scheduled_publish_at: offset });
-      expect(result.success).toBe(true);
-    });
-
-    it('应拒绝过去的 scheduled_publish_at', () => {
-      const past = '2020-01-01T00:00:00.000Z';
-      const result = updateArticleSchema.safeParse({ scheduled_publish_at: past });
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.issues[0].message).toBe('定时发布时间必须在未来');
-      }
-    });
-
-    it('应接受 null', () => {
-      expect(updateArticleSchema.parse({ scheduled_publish_at: null }).scheduled_publish_at).toBeNull();
-    });
-
-    it('应拒绝非 datetime 格式字符串', () => {
-      const result = updateArticleSchema.safeParse({ scheduled_publish_at: 'not-a-date' });
-      expect(result.success).toBe(false);
-    });
-
-    it('应拒绝不带偏移的日期字符串', () => {
-      const result = updateArticleSchema.safeParse({ scheduled_publish_at: '2026-12-31' });
-      expect(result.success).toBe(false);
-    });
-  });
-
-  // --- schedule_type ---
-  describe('schedule_type', () => {
-    it('应接受 "asap"', () => {
-      expect(updateArticleSchema.parse({ schedule_type: 'asap' }).schedule_type).toBe('asap');
-    });
-
-    it('应接受 "scheduled"', () => {
-      expect(updateArticleSchema.parse({ schedule_type: 'scheduled' }).schedule_type).toBe('scheduled');
-    });
-
-    it('应接受 "after"', () => {
-      expect(updateArticleSchema.parse({ schedule_type: 'after' }).schedule_type).toBe('after');
-    });
-
-    it('应接受 null', () => {
-      expect(updateArticleSchema.parse({ schedule_type: null }).schedule_type).toBeNull();
-    });
-
-    it('应拒绝无效值', () => {
-      expect(updateArticleSchema.safeParse({ schedule_type: 'invalid' }).success).toBe(false);
-    });
-  });
-
-  // --- images / platforms / skills (nullable) ---
+  // --- images / skills (nullable) ---
   describe('可空数组字段', () => {
     it('应接受 null images', () => {
       expect(updateArticleSchema.parse({ images: null }).images).toBeNull();
-    });
-
-    it('应接受 null platforms', () => {
-      expect(updateArticleSchema.parse({ platforms: null }).platforms).toBeNull();
     });
 
     it('应接受 null skills', () => {
@@ -525,11 +420,6 @@ describe('updateArticleSchema', () => {
     it('应拒绝超过20张图片', () => {
       const images = Array.from({ length: 21 }, (_, i) => `img${i}.jpg`);
       expect(updateArticleSchema.safeParse({ images }).success).toBe(false);
-    });
-
-    it('应拒绝超过10个平台', () => {
-      const platforms = Array.from({ length: 11 }, (_, i) => `p${i}`);
-      expect(updateArticleSchema.safeParse({ platforms }).success).toBe(false);
     });
 
     it('应拒绝超过50个技能ID', () => {
@@ -728,7 +618,7 @@ describe('listArticlesSchema', () => {
   describe('status', () => {
     const validStatuses = [
       'draft', 'manual_writing', 'generating', 'generate_failed',
-      'pending_review', 'publishing', 'publish_failed', 'published',
+      'pending_review', 'approved',
     ];
 
     it.each(validStatuses)('应接受状态 "%s"', (status) => {

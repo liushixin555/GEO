@@ -1,4 +1,5 @@
 import { Company, User, Skills, LlmModel, SystemConfig, Project, Article, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, KnowledgeBase, MinedKeyword, Todo, TodoLog } from '../entity';
+import type { PublishingSchedule, PublishingScheduleItem } from '../entity/publishing-schedule.entity';
 import { Company as PrismaCompany } from '@prisma/client';
 import { isEncrypted } from '../utils/encryption.util';
 
@@ -101,17 +102,15 @@ export function mapArticle(prismaArticle: any): Article {
     keywords: prismaArticle.keywords,
     portrait: prismaArticle.portrait,
     images: prismaArticle.images,
-    platforms: prismaArticle.platforms,
     skills: prismaArticle.skills,
     llm_model_id: prismaArticle.llmModelId ?? null,
     content: prismaArticle.content,
     version: prismaArticle.version,
     status: prismaArticle.status,
-    schedule_type: prismaArticle.scheduleType ?? null,
-    scheduled_publish_at: prismaArticle.scheduledPublishAt ?? null,
     created_by: prismaArticle.createdBy ?? null,
     created_at: prismaArticle.createdAt,
     updated_at: prismaArticle.updatedAt,
+    schedule_count: prismaArticle._count?.schedules ?? 0,
   };
 }
 
@@ -241,5 +240,40 @@ export function mapTodoLog(prismaLog: any): TodoLog {
     object_id: prismaLog.objectId ?? null,
     remark: prismaLog.remark ?? null,
     created_at: prismaLog.createdAt,
+  };
+}
+
+export function mapPublishingSchedule(prismaSchedule: any): PublishingSchedule {
+  return {
+    id: prismaSchedule.id,
+    article_id: prismaSchedule.articleId,
+    platforms: prismaSchedule.platforms,
+    schedule_type: prismaSchedule.scheduleType ?? null,
+    scheduled_publish_at: prismaSchedule.scheduledPublishAt ?? null,
+    status: prismaSchedule.status,
+    created_by: prismaSchedule.createdBy ?? null,
+    created_at: prismaSchedule.createdAt,
+    updated_at: prismaSchedule.updatedAt,
+  };
+}
+
+export function mapPublishingScheduleItem(prismaItem: any): PublishingScheduleItem {
+  return {
+    id: prismaItem.id,
+    article_id: prismaItem.articleId,
+    title: prismaItem.article?.title || '',
+    keywords: prismaItem.article?.keywords ?? null,
+    article_type: prismaItem.article?.articleType ?? null,
+    platforms: prismaItem.platforms,
+    status: prismaItem.status,
+    schedule_type: prismaItem.scheduleType ?? null,
+    scheduled_publish_at: prismaItem.scheduledPublishAt ?? null,
+    project_id: prismaItem.article?.projectId ?? 0,
+    project_name: prismaItem.article?.project?.shortName || '',
+    company_name: prismaItem.article?.project?.company?.shortName || '',
+    created_by: prismaItem.createdBy ?? null,
+    created_by_name: prismaItem.creator?.cnName || '',
+    created_at: prismaItem.createdAt,
+    updated_at: prismaItem.updatedAt,
   };
 }

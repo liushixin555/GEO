@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import {
-  Form, Input, Select, Button, Alert, Segmented, Upload, Tag, Radio, Space, App,
+  Form, Input, Select, Button, Alert, Segmented, Upload, Radio, Space, App,
 } from 'antd';
 import { ImportOutlined } from '@ant-design/icons';
 import type { ArticleFormValues, WriteMode, KbKeyword, KbPortrait, KbImage, SkillOption, LlmModelOption } from '../types';
 import { ARTICLE_TYPE_OPTIONS } from '../types';
 import ArticleImageManager from './ArticleImageManager';
-import PlatformSelectModal from './PlatformSelectModal';
 
 type FormInstance = ReturnType<typeof Form.useForm<ArticleFormValues>>[0];
 
@@ -23,24 +22,6 @@ interface ArticleSettingsFormProps {
   onErrorClear: () => void;
   onSave: (values: ArticleFormValues) => void;
   onImportDocument: (file: File) => void;
-  platformSelector: {
-    modalOpen: boolean;
-    platformList: any[];
-    platformTotal: number;
-    platformPage: number;
-    platformSearch: string;
-    platformLoading: boolean;
-    selectedPlatformKeys: string[];
-    platformSortBy: string;
-    platformSortOrder: 'asc' | 'desc';
-    fetchList: (page?: number, search?: string, sortBy?: string, sortOrder?: 'asc' | 'desc') => void;
-    openModal: () => void;
-    confirmSelection: (onUpdate: (keys: string[]) => void) => void;
-    closeModal: () => void;
-    setSearch: (search: string) => void;
-    setSelectedKeys: (keys: string[]) => void;
-    setSort: (sortBy: string, sortOrder: 'asc' | 'desc') => void;
-  };
   kbKeywords: KbKeyword[];
   kbPortraits: KbPortrait[];
   kbImages: KbImage[];
@@ -52,11 +33,10 @@ interface ArticleSettingsFormProps {
 const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
   form, isNew, editable, saving, error, writeMode, writeModeChange,
   imageList, imageListChange, onErrorClear, onSave, onImportDocument,
-  platformSelector, kbKeywords, kbPortraits, kbImages, kbLoading,
+  kbKeywords, kbPortraits, kbImages, kbLoading,
   skillsOptions, llmModelsOptions,
 }) => {
   const [portraitMode, setPortraitMode] = useState<'input' | 'select'>('select');
-  const [platformDisplayOptions, setPlatformDisplayOptions] = useState<{ label: string; value: string }[]>([]);
 
   return (
     <>
@@ -120,53 +100,7 @@ const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
           <Select placeholder="选择大模型" options={llmModelsOptions} disabled={!editable} allowClear />
         </Form.Item>
         </>)}
-        <Form.Item name="platforms" label="发布平台" rules={[{ required: true, message: '发布平台不能为空' }]}>
-          <div
-            role="combobox"
-            aria-expanded={platformSelector.modalOpen}
-            aria-haspopup="dialog"
-            aria-label="选择发布平台"
-            tabIndex={editable ? 0 : -1}
-            style={{ display: 'flex', flexWrap: 'wrap', gap: 4, minHeight: 32, padding: '4px 12px', border: '1px solid var(--color-hairline)', borderRadius: 0, cursor: editable ? 'pointer' : 'default' }}
-            onClick={() => { if (editable) platformSelector.openModal(); }}
-            onKeyDown={(e) => { if (editable && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); platformSelector.openModal(); } }}
-          >
-            {(() => {
-              const platforms: string[] = form.getFieldValue('platforms') || [];
-              if (platforms.length === 0) {
-                return <span style={{ color: 'var(--color-ink-subtle)' }}>点击选择发布平台</span>;
-              }
-              return platforms.map((name) => (
-                <Tag key={name} closable={editable} onClose={(e) => {
-                  e.stopPropagation();
-                  const current: string[] = form.getFieldValue('platforms') || [];
-                  const updated = current.filter((p) => p !== name);
-                  form.setFieldValue('platforms', updated);
-                  setPlatformDisplayOptions(updated.map((p) => ({ label: p, value: p })));
-                }}>{name}</Tag>
-              ));
-            })()}
-          </div>
-        </Form.Item>
       </Form>
-      <PlatformSelectModal
-        open={platformSelector.modalOpen}
-        platformList={platformSelector.platformList}
-        platformTotal={platformSelector.platformTotal}
-        platformPage={platformSelector.platformPage}
-        platformSearch={platformSelector.platformSearch}
-        platformLoading={platformSelector.platformLoading}
-        selectedPlatformKeys={platformSelector.selectedPlatformKeys}
-        platformSortBy={platformSelector.platformSortBy}
-        platformSortOrder={platformSelector.platformSortOrder}
-        onSearch={(val) => platformSelector.fetchList(1, val, platformSelector.platformSortBy, platformSelector.platformSortOrder)}
-        onSearchChange={platformSelector.setSearch}
-        onSelectChange={platformSelector.setSelectedKeys}
-        onSortChange={platformSelector.setSort}
-        onFetch={platformSelector.fetchList}
-        onConfirm={() => platformSelector.confirmSelection((keys) => setPlatformDisplayOptions(keys.map((k) => ({ label: k, value: k }))))}
-        onCancel={platformSelector.closeModal}
-      />
     </>
   );
 };

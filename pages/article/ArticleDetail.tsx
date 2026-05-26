@@ -5,7 +5,6 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useAppContext } from '../context/AppContext';
 import { useArticleDetail } from './hooks/useArticleDetail';
 import { useArticlePermissions } from './hooks/useArticlePermissions';
-import { usePlatformSelector } from './hooks/usePlatformSelector';
 import { useKnowledgeBase } from './hooks/useKnowledgeBase';
 import { useArticleActions } from './hooks/useArticleActions';
 import { useDocumentImport } from './hooks/useDocumentImport';
@@ -28,7 +27,6 @@ const ArticleDetail: React.FC = () => {
 
   const detail = useArticleDetail(id, projectId, isNew, form);
   const permissions = useArticlePermissions(detail.article);
-  const platformSelector = usePlatformSelector(form);
   const kb = useKnowledgeBase(projectId, isNew, form);
   const actions = useArticleActions(detail.article, projectId, id, detail.fetchArticle);
   const docImport = useDocumentImport(form, detail.setContent);
@@ -38,7 +36,6 @@ const ArticleDetail: React.FC = () => {
   const statusCfg = detail.article ? (STATUS_CONFIG[detail.article.status] || { label: detail.article.status, color: 'default' }) : null;
   const originalContentRef = useRef('');
 
-  // 同步 writeMode / imageList state 与已加载文章数据
   useEffect(() => {
     if (!detail.article) return;
     if (detail.article.write_mode) {
@@ -63,7 +60,6 @@ const ArticleDetail: React.FC = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [detail.content, form]);
 
-  // Auto-save every 5 minutes
   useEffect(() => {
     const timer = setInterval(async () => {
       const result = await detail.autoSave(imageList);
@@ -74,12 +70,10 @@ const ArticleDetail: React.FC = () => {
     return () => clearInterval(timer);
   }, [isNew, id, projectId, imageList, detail.autoSave, navigate]);
 
-  // Reset contentMode when transitioning from /article/new to /article/:id
   useEffect(() => {
     if (!isNew && !location.state?.openContentEdit) setContentMode('preview');
   }, [isNew, location.state]);
 
-  // Handle navigation state for manual write mode
   useEffect(() => {
     if (location.state?.openContentEdit && !isNew) {
       setContentMode('edit');
@@ -161,7 +155,6 @@ const ArticleDetail: React.FC = () => {
       onErrorClear={() => detail.setError('')}
       onSave={handleSave}
       onImportDocument={docImport.importDocument}
-      platformSelector={platformSelector}
       kbKeywords={kb.kbKeywords}
       kbPortraits={kb.kbPortraits}
       kbImages={kb.kbImages}

@@ -107,7 +107,6 @@ const mockArticle = {
   keywords: '测试关键词',
   portrait: null,
   images: [] as string[],
-  platforms: ['平台A'],
   skills: null,
   llm_model_id: 1,
   content: '# 测试内容\n\n这是测试正文',
@@ -231,8 +230,8 @@ describe('ArticleDetail', () => {
   });
 
   // === 6. 非草稿不显示删除按钮 ===
-  it('should not show delete button for published article', async () => {
-    setupMockGet({ status: 'published' });
+  it('should not show delete button for approved article', async () => {
+    setupMockGet({ status: 'approved' });
 
     renderWithRouter('/article/1');
 
@@ -241,7 +240,7 @@ describe('ArticleDetail', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText('已发布')).toBeInTheDocument();
+      expect(screen.getByText('已通过')).toBeInTheDocument();
     });
 
     expect(screen.queryByText('删除文章')).not.toBeInTheDocument();

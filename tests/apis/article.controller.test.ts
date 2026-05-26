@@ -118,7 +118,7 @@ describe('Article Controller', () => {
       const mockFindMany = jest.fn().mockResolvedValue([
         {
           id: 1, projectId: 1, title: 'Article 1', keywords: ['seo'], portrait: null,
-          images: null, platforms: null, status: 'draft', createdBy: 2,
+          images: null, status: 'draft', createdBy: 2,
           createdAt: new Date(), updatedAt: new Date(),
         },
       ]);
@@ -249,7 +249,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'Article 1', keywords: ['seo'], portrait: null,
-            images: null, platforms: null, status: 'draft', createdBy: 2,
+            images: null, status: 'draft', createdBy: 2,
             createdAt: new Date(), updatedAt: new Date(),
           }),
         },
@@ -270,7 +270,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 999, title: 'Article 1', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'draft', createdBy: 2,
+            images: null, status: 'draft', createdBy: 2,
             createdAt: new Date(), updatedAt: new Date(),
           }),
         },
@@ -288,7 +288,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'Article 1', keywords: ['seo'], portrait: null,
-            images: null, platforms: null, status: 'draft', createdBy: 2,
+            images: null, status: 'draft', createdBy: 2,
             createdAt: new Date(), updatedAt: new Date(),
           }),
         },
@@ -317,7 +317,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'draft', createdBy: 2,
+            images: null, status: 'draft', createdBy: 2,
             createdAt: new Date(), updatedAt: new Date(),
           }),
         },
@@ -357,7 +357,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockCreate = jest.fn().mockResolvedValue({
         id: 5, projectId: 1, title: '', keywords: 'test', portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1,
+        images: null, status: 'draft', createdBy: 1,
         createdAt: new Date(), updatedAt: new Date(),
       });
       getPrisma.mockReturnValue({ article: { create: mockCreate } });
@@ -374,7 +374,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, projectId: 1, title: 'New Article', keywords: 'seo', portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1,
+        images: null, status: 'draft', createdBy: 1,
         createdAt: new Date(), updatedAt: new Date(),
       });
       getPrisma.mockReturnValue({ article: { create: mockCreate } });
@@ -394,7 +394,7 @@ describe('Article Controller', () => {
       mockPrismaWithProjectAccess({
         create: jest.fn().mockResolvedValue({
           id: 2, projectId: 1, title: 'Admin Article', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'draft', createdBy: 2,
+          images: null, status: 'draft', createdBy: 2,
           createdAt: new Date(), updatedAt: new Date(),
         }),
       });
@@ -434,7 +434,7 @@ describe('Article Controller', () => {
   describe('PUT /api/projects/:projectId/articles/:id', () => {
     const existingDraft = {
       id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
-      images: null, platforms: null, status: 'draft', createdBy: 2,
+      images: null, status: 'draft', createdBy: 2,
       createdAt: new Date(), updatedAt: new Date(),
     };
 
@@ -511,7 +511,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       getPrisma.mockReturnValue({
         article: {
-          findFirst: jest.fn().mockResolvedValue({ ...existingDraft, status: 'published' }),
+          findFirst: jest.fn().mockResolvedValue({ ...existingDraft, status: 'approved' }),
         },
       });
 
@@ -541,11 +541,11 @@ describe('Article Controller', () => {
       expect(response.body.message).toBe('当前文章状态不可编辑');
     });
 
-    it('should return 400 when editing in publish_failed status', async () => {
+    it('should return 400 when editing in approved status', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       getPrisma.mockReturnValue({
         article: {
-          findFirst: jest.fn().mockResolvedValue({ ...existingDraft, status: 'publish_failed' }),
+          findFirst: jest.fn().mockResolvedValue({ ...existingDraft, status: 'approved' }),
         },
       });
 
@@ -562,7 +562,7 @@ describe('Article Controller', () => {
   describe('DELETE /api/projects/:projectId/articles/:id', () => {
     const existingDraft = {
       id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
-      images: null, platforms: null, status: 'draft', createdBy: 2,
+      images: null, status: 'draft', createdBy: 2,
       createdAt: new Date(), updatedAt: new Date(),
     };
 
@@ -609,11 +609,11 @@ describe('Article Controller', () => {
       expect(response.status).toBe(403);
     });
 
-    it('should return 400 when deleting published article', async () => {
+    it('should return 400 when deleting approved article', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       getPrisma.mockReturnValue({
         article: {
-          findFirst: jest.fn().mockResolvedValue({ ...existingDraft, status: 'published' }),
+          findFirst: jest.fn().mockResolvedValue({ ...existingDraft, status: 'approved' }),
         },
       });
 
@@ -622,7 +622,7 @@ describe('Article Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('发布中或已发布的文章不能删除');
+      expect(response.body.message).toBe('已审核通过的文章不能删除');
     });
 
     it('should delete non-published article (generating) as sysadmin', async () => {
@@ -669,11 +669,11 @@ describe('Article Controller', () => {
       expect(response.status).toBe(200);
     });
 
-    it('should return 400 when deleting publishing article', async () => {
+    it('should return 400 when deleting approved article (duplicate check)', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       getPrisma.mockReturnValue({
         article: {
-          findFirst: jest.fn().mockResolvedValue({ ...existingDraft, status: 'publishing' }),
+          findFirst: jest.fn().mockResolvedValue({ ...existingDraft, status: 'approved' }),
         },
       });
 
@@ -682,14 +682,14 @@ describe('Article Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('发布中或已发布的文章不能删除');
+      expect(response.body.message).toBe('已审核通过的文章不能删除');
     });
 
-    it('should delete non-published article (publish_failed) as creator admin', async () => {
+    it('should delete non-published article (generate_failed) as creator admin', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       mockPrismaWithProjectAccess({
-        findFirst: jest.fn().mockResolvedValue({ ...existingDraft, status: 'publish_failed' }),
-        update: jest.fn().mockResolvedValue({ ...existingDraft, status: 'publish_failed', deletedAt: new Date() }),
+        findFirst: jest.fn().mockResolvedValue({ ...existingDraft, status: 'generate_failed' }),
+        update: jest.fn().mockResolvedValue({ ...existingDraft, status: 'generate_failed', deletedAt: new Date() }),
       });
 
       const response = await agent
@@ -703,7 +703,7 @@ describe('Article Controller', () => {
   describe('PUT /api/projects/:projectId/articles/:id/review', () => {
     const pendingArticle = {
       id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
-      images: null, platforms: null, status: 'pending_review', createdBy: 2,
+      images: null, status: 'pending_review', createdBy: 2,
       createdAt: new Date(), updatedAt: new Date(),
     };
 
@@ -713,7 +713,7 @@ describe('Article Controller', () => {
         article: {
           // Called twice: once by controller getById, once by service review
           findFirst: jest.fn().mockResolvedValue(pendingArticle),
-          update: jest.fn().mockResolvedValue({ ...pendingArticle, status: 'publishing' }),
+          update: jest.fn().mockResolvedValue({ ...pendingArticle, status: 'approved' }),
         },
       });
 
@@ -723,7 +723,7 @@ describe('Article Controller', () => {
         .send({ approved: true });
 
       expect(response.status).toBe(200);
-      expect(response.body.data.status).toBe('publishing');
+      expect(response.body.data.status).toBe('approved');
     });
 
     it('should reject article review (back to draft)', async () => {
@@ -776,7 +776,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: {
           findFirst: jest.fn().mockResolvedValue(pendingArticle),
-          update: jest.fn().mockResolvedValue({ ...pendingArticle, status: 'publishing' }),
+          update: jest.fn().mockResolvedValue({ ...pendingArticle, status: 'approved' }),
         },
         project: {
           findFirst: jest.fn().mockResolvedValue({
@@ -802,7 +802,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       mockPrismaWithProjectAccess({
         findFirst: jest.fn().mockResolvedValue(pendingArticle),
-        update: jest.fn().mockResolvedValue({ ...pendingArticle, status: 'publishing' }),
+        update: jest.fn().mockResolvedValue({ ...pendingArticle, status: 'approved' }),
       });
 
       // admin operator userId=2, same as createdBy=2
@@ -823,7 +823,7 @@ describe('Article Controller', () => {
       const response = await agent
         .post(BASE)
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ title: 'Test', status: 'published' });
+        .send({ title: 'Test', status: 'approved' });
       expect(response.status).toBe(400);
       expect(response.body.message).toMatch(/参数验证失败/);    });
 
@@ -831,7 +831,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockCreate = jest.fn().mockResolvedValue({
         id: 3, projectId: 1, title: 'Manual', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+        images: null, status: 'manual_writing', createdBy: 1,
         createdAt: new Date(), updatedAt: new Date(),
       });
       getPrisma.mockReturnValue({ article: { create: mockCreate } });
@@ -849,7 +849,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockCreate = jest.fn().mockResolvedValue({
         id: 4, projectId: 1, title: 'Gen', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'generating', createdBy: 1,
+        images: null, status: 'generating', createdBy: 1,
         createdAt: new Date(), updatedAt: new Date(),
       });
       getPrisma.mockReturnValue({ article: { create: mockCreate } });
@@ -881,7 +881,7 @@ describe('Article Controller', () => {
   describe('PUT /api/projects/:projectId/articles/:id - additional', () => {
     const existingDraft = {
       id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
-      images: null, platforms: null, status: 'draft', createdBy: 2,
+      images: null, status: 'draft', createdBy: 2,
       createdAt: new Date(), updatedAt: new Date(),
     };
 
@@ -1009,7 +1009,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 999, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'draft', createdBy: 1,
+          images: null, status: 'draft', createdBy: 1,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
       });
@@ -1026,7 +1026,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'draft', createdBy: 2,
+          images: null, status: 'draft', createdBy: 2,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
         project: {
@@ -1052,7 +1052,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'draft', createdBy: 2,
+          images: null, status: 'draft', createdBy: 2,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
         project: {
@@ -1080,7 +1080,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'draft', createdBy: 1,
+            images: null, status: 'draft', createdBy: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
           update: jest.fn().mockRejectedValue(new Error('DB error')),
@@ -1098,7 +1098,7 @@ describe('Article Controller', () => {
   describe('PUT /api/projects/:projectId/articles/:id/review - additional', () => {
     const pendingArticle = {
       id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
-      images: null, platforms: null, status: 'pending_review', createdBy: 2,
+      images: null, status: 'pending_review', createdBy: 2,
       createdAt: new Date(), updatedAt: new Date(),
     };
 
@@ -1181,7 +1181,7 @@ describe('Article Controller', () => {
   describe('PUT /api/projects/:projectId/articles/:id/content', () => {
     const existingArticle = {
       id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
-      images: null, platforms: null, status: 'draft', createdBy: 1,
+      images: null, status: 'draft', createdBy: 1,
       content: 'old content', version: 1,
       createdAt: new Date(), updatedAt: new Date(),
     };
@@ -1290,10 +1290,10 @@ describe('Article Controller', () => {
       expect(response.body.message).toBe('只能修改自己创建的文章');
     });
 
-    it('should return 400 when status is not content-editable (published)', async () => {
+    it('should return 400 when status is not content-editable (approved)', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       getPrisma.mockReturnValue({
-        article: { findFirst: jest.fn().mockResolvedValue({ ...existingArticle, status: 'published' }) },
+        article: { findFirst: jest.fn().mockResolvedValue({ ...existingArticle, status: 'approved' }) },
       });
 
       const response = await agent
@@ -1369,12 +1369,12 @@ describe('Article Controller', () => {
       expect(response.status).toBe(200);
     });
 
-    it('should update content for publish_failed article', async () => {
+    it('should update content for generate_failed article', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       getPrisma.mockReturnValue({
         article: {
-          findFirst: jest.fn().mockResolvedValue({ ...existingArticle, status: 'publish_failed' }),
-          update: jest.fn().mockResolvedValue({ ...existingArticle, status: 'publish_failed', content: 'new content', version: 2 }),
+          findFirst: jest.fn().mockResolvedValue({ ...existingArticle, status: 'generate_failed' }),
+          update: jest.fn().mockResolvedValue({ ...existingArticle, status: 'generate_failed', content: 'new content', version: 2 }),
         },
         articleVersion: { create: jest.fn().mockResolvedValue({}) },
       });
@@ -1430,7 +1430,7 @@ describe('Article Controller', () => {
   describe('PUT /api/projects/:projectId/articles/:id/regenerate', () => {
     const pendingArticle = {
       id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
-      images: null, platforms: null, status: 'pending_review', createdBy: 2,
+      images: null, status: 'pending_review', createdBy: 2,
       content: 'content', version: 1,
       createdAt: new Date(), updatedAt: new Date(),
     };
@@ -1567,7 +1567,7 @@ describe('Article Controller', () => {
   describe('PUT /api/projects/:projectId/articles/:id/submit-review', () => {
     const manualArticle = {
       id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
-      images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+      images: null, status: 'manual_writing', createdBy: 1,
       content: 'manual content', version: 1,
       createdAt: new Date(), updatedAt: new Date(),
     };
@@ -1724,7 +1724,7 @@ describe('Article Controller', () => {
   describe('GET /api/projects/:projectId/articles/:id/versions', () => {
     const existingArticle = {
       id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
-      images: null, platforms: null, status: 'draft', createdBy: 1,
+      images: null, status: 'draft', createdBy: 1,
       content: 'content', version: 2,
       createdAt: new Date(), updatedAt: new Date(),
     };
@@ -1868,7 +1868,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockCreate = jest.fn().mockResolvedValue({
         id: 10, projectId: 1, title: 'With Content', articleType: null, writeMode: null,
-        keywords: null, portrait: null, images: null, platforms: null, skills: null,
+        keywords: null, portrait: null, images: null, skills: null,
         llmModelId: null, content: 'initial content', status: 'draft', version: 1,
         createdBy: 1, createdAt: new Date(), updatedAt: new Date(),
       });
@@ -1902,7 +1902,7 @@ describe('Article Controller', () => {
   describe('PUT /api/projects/:projectId/articles/:id - with scheduled_publish_at', () => {
     const existingDraft = {
       id: 1, projectId: 1, title: 'Article 1', articleType: null, writeMode: null,
-      keywords: null, portrait: null, images: null, platforms: null, skills: null,
+      keywords: null, portrait: null, images: null, skills: null,
       llmModelId: null, content: 'content', status: 'draft', version: 1,
       createdBy: 1, createdAt: new Date(), updatedAt: new Date(),
     };
@@ -1953,7 +1953,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existingArticle = {
         id: 1, projectId: 1, title: '', articleType: null, writeMode: 'ai',
-        keywords: null, portrait: null, images: null, platforms: null, skills: null,
+        keywords: null, portrait: null, images: null, skills: null,
         llmModelId: null, content: 'old content', status: 'draft', version: 1,
         createdBy: 1, createdAt: new Date(), updatedAt: new Date(),
       };
@@ -1982,7 +1982,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existingArticle = {
         id: 1, projectId: 1, title: '', articleType: null, writeMode: 'manual',
-        keywords: null, portrait: null, images: null, platforms: null, skills: null,
+        keywords: null, portrait: null, images: null, skills: null,
         llmModelId: null, content: 'old content', status: 'draft', version: 1,
         createdBy: 1, createdAt: new Date(), updatedAt: new Date(),
       };
@@ -2013,7 +2013,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const pendingManual = {
         id: 1, projectId: 1, title: 'Manual', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'pending_review', createdBy: 2,
+        images: null, status: 'pending_review', createdBy: 2,
         writeMode: 'manual',
         createdAt: new Date(), updatedAt: new Date(),
       };
@@ -2066,7 +2066,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1,
+        images: null, status: 'draft', createdBy: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
       getPrisma.mockReturnValue({
@@ -2085,7 +2085,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1,
+        images: null, status: 'draft', createdBy: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
       getPrisma.mockReturnValue({
@@ -2106,7 +2106,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1, content: 'old',
+        images: null, status: 'draft', createdBy: 1, content: 'old',
         createdAt: new Date(), updatedAt: new Date(),
       };
       getPrisma.mockReturnValue({
@@ -2180,7 +2180,7 @@ describe('Article Controller', () => {
   describe('PUT /api/projects/:projectId/articles/:id - empty field defaults', () => {
     const existingDraft = {
       id: 1, projectId: 1, title: 'Article 1', articleType: 'seo', writeMode: 'ai',
-      keywords: 'kw', portrait: 'p', images: [], platforms: [], skills: 1,
+      keywords: 'kw', portrait: 'p', images: [], skills: 1,
       llmModelId: 1, content: 'old', status: 'draft', version: 1,
       createdBy: 1, createdAt: new Date(), updatedAt: new Date(),
     };
@@ -2193,7 +2193,7 @@ describe('Article Controller', () => {
           update: jest.fn().mockResolvedValue({
             ...existingDraft,
             articleType: null, writeMode: null, keywords: null,
-            portrait: null, images: null, platforms: null, skills: null, llmModelId: null,
+            portrait: null, images: null, skills: null, llmModelId: null,
           }),
         },
       });
@@ -2207,7 +2207,6 @@ describe('Article Controller', () => {
           keywords: '',
           portrait: '',
           images: null,
-          platforms: null,
           skills: [],
           llm_model_id: 0,
         });
@@ -2223,7 +2222,7 @@ describe('Article Controller', () => {
           update: jest.fn().mockResolvedValue({
             ...existingDraft,
             title: 'New Title', articleType: 'blog', writeMode: 'manual',
-            keywords: 'new kw', portrait: 'new p', images: ['img1'], platforms: ['p1'],
+            keywords: 'new kw', portrait: 'new p', images: ['img1'],
             skills: [2], llmModelId: 3, status: 'draft',
           }),
         },
@@ -2239,7 +2238,6 @@ describe('Article Controller', () => {
           keywords: 'new kw',
           portrait: 'new p',
           images: ['img1'],
-          platforms: ['p1'],
           skills: [2],
           llm_model_id: 3,
         });
@@ -2255,7 +2253,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', articleType: null, writeMode: null,
-        keywords: null, portrait: null, images: null, platforms: null, skills: null,
+        keywords: null, portrait: null, images: null, skills: null,
         llmModelId: null, content: 'same content', status: 'draft', version: 1,
         createdBy: 1, createdAt: new Date(), updatedAt: new Date(),
       };
@@ -2282,7 +2280,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: '', articleType: null, writeMode: 'ai',
-        keywords: null, portrait: null, images: null, platforms: null, skills: null,
+        keywords: null, portrait: null, images: null, skills: null,
         llmModelId: null, content: 'old', status: 'draft', version: 1,
         createdBy: 1, createdAt: new Date(), updatedAt: new Date(),
       };
@@ -2310,7 +2308,7 @@ describe('Article Controller', () => {
   describe('Branch coverage: projectService throws generic error for admin', () => {
     const existingArticle = {
       id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
-      images: null, platforms: null, status: 'draft', createdBy: 1,
+      images: null, status: 'draft', createdBy: 1,
       content: 'content', version: 1,
       createdAt: new Date(), updatedAt: new Date(),
     };
@@ -2422,7 +2420,7 @@ describe('Article Controller', () => {
   describe('PUT /api/projects/:projectId/articles/:id - invalid status transition', () => {
     const existingDraft = {
       id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
-      images: null, platforms: null, status: 'draft', createdBy: 1,
+      images: null, status: 'draft', createdBy: 1,
       createdAt: new Date(), updatedAt: new Date(),
     };
 
@@ -2437,7 +2435,7 @@ describe('Article Controller', () => {
       const response = await agent
         .put(`${BASE}/1`)
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ status: 'published' });
+        .send({ status: 'approved' });
 
       expect(response.status).toBe(400);
       expect(response.body.message).toBe('非法的状态转换');
@@ -2471,7 +2469,7 @@ describe('Article Controller', () => {
       const response = await agent
         .put(`${BASE}/1`)
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ status: 'publishing' });
+        .send({ status: 'pending_review' });
 
       expect(response.status).toBe(400);
       expect(response.body.message).toBe('非法的状态转换');
@@ -2495,7 +2493,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1,
+        images: null, status: 'draft', createdBy: 1,
         content: 'old', version: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
@@ -2524,7 +2522,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'generate_failed', createdBy: 2,
+          images: null, status: 'generate_failed', createdBy: 2,
           content: 'c', version: 1,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
@@ -2553,7 +2551,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'generate_failed', createdBy: 99,
+            images: null, status: 'generate_failed', createdBy: 99,
             content: 'c', version: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
@@ -2579,7 +2577,7 @@ describe('Article Controller', () => {
   describe('PUT /api/projects/:projectId/articles/:id - valid status transitions', () => {
     const makeArticle = (status: string, createdBy = 1) => ({
       id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-      images: null, platforms: null, status, createdBy,
+      images: null, status, createdBy,
       content: 'c', version: 1,
       createdAt: new Date(), updatedAt: new Date(),
     });
@@ -2637,18 +2635,18 @@ describe('Article Controller', () => {
       expect(response.body.message).toBe('当前文章状态不可编辑');
     });
 
-    it('should reject publish_failed -> publishing via updateArticle (not in SETTINGS_EDITABLE_STATUSES)', async () => {
+    it('should reject approved -> manual_writing via updateArticle (not in SETTINGS_EDITABLE_STATUSES)', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       getPrisma.mockReturnValue({
         article: {
-          findFirst: jest.fn().mockResolvedValue(makeArticle('publish_failed')),
+          findFirst: jest.fn().mockResolvedValue(makeArticle('approved')),
         },
       });
 
       const response = await agent
         .put(`${BASE}/1`)
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ status: 'publishing' });
+        .send({ status: 'manual_writing' });
 
       expect(response.status).toBe(400);
       expect(response.body.message).toBe('当前文章状态不可编辑');
@@ -2711,7 +2709,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1,
+        images: null, status: 'draft', createdBy: 1,
         content: 'old', version: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
@@ -2776,7 +2774,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, projectId: 1, title: 'Test', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1,
+        images: null, status: 'draft', createdBy: 1,
         createdAt: new Date(), updatedAt: new Date(),
       });
       getPrisma.mockReturnValue({ article: { create: mockCreate } });
@@ -2799,7 +2797,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, projectId: 1, title: 'Full Article', articleType: 'seo', writeMode: 'ai',
-        keywords: 'kw1,kw2', portrait: 'portrait-url', images: ['img1.jpg'], platforms: ['wechat'],
+        keywords: 'kw1,kw2', portrait: 'portrait-url', images: ['img1.jpg'],
         skills: 5, llmModelId: 2, content: 'article content', status: 'draft', version: 1,
         createdBy: 1, createdAt: new Date(), updatedAt: new Date(),
       });
@@ -2818,7 +2816,6 @@ describe('Article Controller', () => {
           keywords: 'kw1,kw2',
           portrait: 'portrait-url',
           images: ['img1.jpg'],
-          platforms: ['wechat'],
           skills: [5],
           llm_model_id: 2,
           content: 'article content',
@@ -2859,7 +2856,7 @@ describe('Article Controller', () => {
   describe('PUT /api/projects/:projectId/articles/:id - field whitelist on update', () => {
     const existingDraft = {
       id: 1, projectId: 1, title: 'Article 1', keywords: null, portrait: null,
-      images: null, platforms: null, status: 'draft', createdBy: 1,
+      images: null, status: 'draft', createdBy: 1,
       createdAt: new Date(), updatedAt: new Date(),
     };
 
@@ -2892,7 +2889,7 @@ describe('Article Controller', () => {
       const mockUpdate = jest.fn().mockResolvedValue({
         ...existingDraft,
         title: 'New Title', articleType: 'blog', writeMode: 'manual',
-        keywords: 'new kw', portrait: 'new p', images: ['img1'], platforms: ['p1'],
+        keywords: 'new kw', portrait: 'new p', images: ['img1'],
         skills: 2, llmModelId: 3,
       });
       getPrisma.mockReturnValue({
@@ -2912,10 +2909,8 @@ describe('Article Controller', () => {
           keywords: 'new kw',
           portrait: 'new p',
           images: ['img1'],
-          platforms: ['p1'],
           skills: [2],
           llm_model_id: 3,
-          scheduled_publish_at: '2026-07-01T10:00:00Z',
         });
 
       expect(response.status).toBe(200);
@@ -2923,7 +2918,6 @@ describe('Article Controller', () => {
       expect(updateData.title).toBe('New Title');
       expect(updateData.articleType).toBe('blog');
       expect(updateData.writeMode).toBe('manual');
-      expect(updateData.scheduledPublishAt).toEqual(new Date('2026-07-01T10:00:00Z'));
     });
   });
 
@@ -2934,7 +2928,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockCreate = jest.fn().mockResolvedValue({
         id: 1, projectId: 1, title: 'Minimal', articleType: null, writeMode: null,
-        keywords: null, portrait: null, images: null, platforms: null, skills: null,
+        keywords: null, portrait: null, images: null, skills: null,
         llmModelId: null, content: null, status: 'draft', version: 1,
         createdBy: 1, createdAt: new Date(), updatedAt: new Date(),
       });
@@ -2958,7 +2952,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1,
+        images: null, status: 'draft', createdBy: 1,
         content: 'old', version: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
@@ -3030,7 +3024,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', keywords: 'kw', portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1,
+        images: null, status: 'draft', createdBy: 1,
         content: 'old content', version: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
@@ -3095,7 +3089,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'generating', createdBy: 1,
+          images: null, status: 'generating', createdBy: 1,
           content: 'c', version: 1,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
@@ -3113,7 +3107,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'pending_review', createdBy: 1,
+          images: null, status: 'pending_review', createdBy: 1,
           content: 'c', version: 1,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
@@ -3131,7 +3125,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'published', createdBy: 1,
+          images: null, status: 'approved', createdBy: 1,
           content: 'c', version: 1,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
@@ -3150,7 +3144,7 @@ describe('Article Controller', () => {
   describe('PUT /api/projects/:projectId/articles/:id/content - non-editable statuses', () => {
     const makeArticle = (status: string) => ({
       id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-      images: null, platforms: null, status, createdBy: 1,
+      images: null, status, createdBy: 1,
       content: 'old', version: 1,
       createdAt: new Date(), updatedAt: new Date(),
     });
@@ -3169,10 +3163,10 @@ describe('Article Controller', () => {
       expect(response.body.message).toBe('当前文章状态不可编辑正文');
     });
 
-    it('should return 400 when status is publishing', async () => {
+    it('should return 400 when status is approved', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       getPrisma.mockReturnValue({
-        article: { findFirst: jest.fn().mockResolvedValue(makeArticle('publishing')) },
+        article: { findFirst: jest.fn().mockResolvedValue(makeArticle('approved')) },
       });
 
       const response = await agent
@@ -3216,7 +3210,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'pending_review', createdBy: 99,
+            images: null, status: 'pending_review', createdBy: 99,
             content: 'c', version: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
@@ -3244,7 +3238,7 @@ describe('Article Controller', () => {
       mockPrismaWithProjectAccess({
         findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'published', createdBy: 2,
+          images: null, status: 'approved', createdBy: 2,
           createdAt: new Date(), updatedAt: new Date(),
         }),
       });
@@ -3262,7 +3256,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+            images: null, status: 'manual_writing', createdBy: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
           update: jest.fn().mockResolvedValue({
@@ -3324,7 +3318,7 @@ describe('Article Controller', () => {
       expect(response.status).toBe(400);
     });
 
-    it('should return 400 when platforms array exceeds 10 items', async () => {
+    it('should return 400 when unknown field platforms is sent (Zod strict)', async () => {
       const response = await agent
         .post(BASE)
         .set('Authorization', `Bearer ${sysadminToken()}`)
@@ -3373,11 +3367,11 @@ describe('Article Controller', () => {
       expect(response.status).toBe(400);
     });
 
-    it('should return 400 when platform name exceeds 100 characters', async () => {
+    it('should return 400 when unknown field platform_name exceeds limit (Zod strict)', async () => {
       const response = await agent
         .post(BASE)
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ platforms: ['x'.repeat(101)] });
+        .send({ platform_names: ['x'.repeat(101)] });
       expect(response.status).toBe(400);
     });
   });
@@ -3385,7 +3379,7 @@ describe('Article Controller', () => {
   describe('PUT /api/projects/:projectId/articles/:id - Zod validation edge cases', () => {
     const existingDraft = {
       id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-      images: null, platforms: null, status: 'draft', createdBy: 1,
+      images: null, status: 'draft', createdBy: 1,
       createdAt: new Date(), updatedAt: new Date(),
     };
 
@@ -3467,13 +3461,13 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const pendingArticle = {
         id: 1, projectId: 1, title: 'Self Review', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'pending_review', createdBy: 1,
+        images: null, status: 'pending_review', createdBy: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
       getPrisma.mockReturnValue({
         article: {
           findFirst: jest.fn().mockResolvedValue(pendingArticle),
-          update: jest.fn().mockResolvedValue({ ...pendingArticle, status: 'publishing' }),
+          update: jest.fn().mockResolvedValue({ ...pendingArticle, status: 'approved' }),
         },
       });
 
@@ -3490,7 +3484,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const pendingArticle = {
         id: 1, projectId: 1, title: 'Self Reject', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'pending_review', createdBy: 1,
+        images: null, status: 'pending_review', createdBy: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
       getPrisma.mockReturnValue({
@@ -3517,7 +3511,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1,
+        images: null, status: 'draft', createdBy: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
       getPrisma.mockReturnValue({
@@ -3539,7 +3533,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1,
+        images: null, status: 'draft', createdBy: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
       getPrisma.mockReturnValue({
@@ -3560,7 +3554,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1,
+        images: null, status: 'draft', createdBy: 1,
         content: 'old', version: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
@@ -3584,7 +3578,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const pending = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'pending_review', createdBy: 2,
+        images: null, status: 'pending_review', createdBy: 2,
         createdAt: new Date(), updatedAt: new Date(),
       };
       getPrisma.mockReturnValue({
@@ -3608,7 +3602,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'published', createdBy: 1,
+            images: null, status: 'approved', createdBy: 1,
             content: 'c', version: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
@@ -3629,7 +3623,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+            images: null, status: 'manual_writing', createdBy: 1,
             content: 'c', version: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
@@ -3648,7 +3642,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1,
+        images: null, status: 'draft', createdBy: 1,
         content: 'c', version: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
@@ -3707,7 +3701,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 2,
+        images: null, status: 'draft', createdBy: 2,
         content: 'old', version: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
@@ -3733,7 +3727,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'generate_failed', createdBy: 1,
+            images: null, status: 'generate_failed', createdBy: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
           update: jest.fn().mockResolvedValue({
@@ -3754,7 +3748,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'draft', createdBy: 1,
+            images: null, status: 'draft', createdBy: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
           update: jest.fn().mockResolvedValue({
@@ -3777,7 +3771,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const manualArticle = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+        images: null, status: 'manual_writing', createdBy: 1,
         content: 'c', version: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
@@ -3803,7 +3797,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'pending_review', createdBy: 2,
+            images: null, status: 'pending_review', createdBy: 2,
             createdAt: new Date(), updatedAt: new Date(),
           }),
           update: jest.fn().mockRejectedValue(new BusinessError('文章当前状态不支持审核操作')),
@@ -3824,7 +3818,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1,
+        images: null, status: 'draft', createdBy: 1,
         content: 'c', version: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
@@ -3938,7 +3932,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1,
+        images: null, status: 'draft', createdBy: 1,
         content: 'c', version: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
@@ -3964,7 +3958,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1,
+        images: null, status: 'draft', createdBy: 1,
         content: 'old', version: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
@@ -3993,7 +3987,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'draft', createdBy: 1,
+            images: null, status: 'draft', createdBy: 1,
             content: 'c', version: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
@@ -4014,7 +4008,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'pending_review', createdBy: 1,
+            images: null, status: 'pending_review', createdBy: 1,
             content: 'c', version: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
@@ -4037,7 +4031,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'pending_review', createdBy: 2,
+            images: null, status: 'pending_review', createdBy: 2,
             createdAt: new Date(), updatedAt: new Date(),
           }),
           update: jest.fn().mockRejectedValue(new NotFoundError('文章')),
@@ -4058,7 +4052,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1,
+        images: null, status: 'draft', createdBy: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
       getPrisma.mockReturnValue({
@@ -4100,7 +4094,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1,
+        images: null, status: 'draft', createdBy: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
       getPrisma.mockReturnValue({
@@ -4125,7 +4119,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+            images: null, status: 'manual_writing', createdBy: 1,
             content: 'c', version: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
@@ -4183,7 +4177,7 @@ describe('Article Controller', () => {
       const response = await agent
         .post(BASE)
         .set('Authorization', `Bearer ${sysadminToken()}`)
-        .send({ title: 'Test', status: 'published' });
+        .send({ title: 'Test', status: 'approved' });
       expect(response.status).toBe(400);
       expect(response.body.message).toMatch(/参数验证失败/);
     });
@@ -4192,7 +4186,7 @@ describe('Article Controller', () => {
   describe('PUT /api/v1/projects/:projectId/articles/:id - Zod fail path', () => {
     const existingDraft = {
       id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-      images: null, platforms: null, status: 'draft', createdBy: 1,
+      images: null, status: 'draft', createdBy: 1,
       createdAt: new Date(), updatedAt: new Date(),
     };
 
@@ -4255,7 +4249,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+          images: null, status: 'manual_writing', createdBy: 1,
           content: null, version: 1,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
@@ -4273,7 +4267,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+          images: null, status: 'manual_writing', createdBy: 1,
           content: '', version: 1,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
@@ -4291,7 +4285,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+          images: null, status: 'manual_writing', createdBy: 1,
           content: '   \n\t  ', version: 1,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
@@ -4340,7 +4334,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'draft', createdBy: 2,
+          images: null, status: 'draft', createdBy: 2,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
         project: { findFirst: jest.fn().mockResolvedValue(divergedProject) },
@@ -4371,7 +4365,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'draft', createdBy: 2,
+          images: null, status: 'draft', createdBy: 2,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
         project: { findFirst: jest.fn().mockResolvedValue(divergedProject) },
@@ -4389,7 +4383,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'draft', createdBy: 2, content: 'old', version: 1,
+          images: null, status: 'draft', createdBy: 2, content: 'old', version: 1,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
         project: { findFirst: jest.fn().mockResolvedValue(divergedProject) },
@@ -4407,7 +4401,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'draft', createdBy: 2,
+          images: null, status: 'draft', createdBy: 2,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
         project: { findFirst: jest.fn().mockResolvedValue(divergedProject) },
@@ -4424,7 +4418,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'pending_review', createdBy: 99,
+          images: null, status: 'pending_review', createdBy: 99,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
         project: { findFirst: jest.fn().mockResolvedValue(divergedProject) },
@@ -4442,7 +4436,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'generate_failed', createdBy: 2,
+          images: null, status: 'generate_failed', createdBy: 2,
           content: 'c', version: 1,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
@@ -4460,7 +4454,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'manual_writing', createdBy: 2,
+          images: null, status: 'manual_writing', createdBy: 2,
           content: 'c', version: 1,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
@@ -4478,7 +4472,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'draft', createdBy: 2,
+          images: null, status: 'draft', createdBy: 2,
           content: 'c', version: 1,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
@@ -4572,7 +4566,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const existing = {
         id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-        images: null, platforms: null, status: 'draft', createdBy: 1,
+        images: null, status: 'draft', createdBy: 1,
         content: 'old', version: 1,
         createdAt: new Date(), updatedAt: new Date(),
       };
@@ -4600,14 +4594,14 @@ describe('Article Controller', () => {
   // ============= 第六轮补全：submitForReview 的状态校验完整覆盖 =============
 
   describe('PUT /api/projects/:projectId/articles/:id/submit-review - all non-manual_writing statuses', () => {
-    const nonManualStatuses = ['draft', 'generating', 'generate_failed', 'pending_review', 'publishing', 'publish_failed', 'published'];
+    const nonManualStatuses = ['draft', 'generating', 'generate_failed', 'pending_review', 'approved'];
 
     it.each(nonManualStatuses.filter(s => s !== 'manual_writing'))('should return 400 when status is %s', async (status) => {
       const { getPrisma } = require('../../apis/utils/db.util');
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status, createdBy: 1,
+          images: null, status, createdBy: 1,
           content: 'c', version: 1,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
@@ -4629,7 +4623,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'draft', createdBy: 1,
+          images: null, status: 'draft', createdBy: 1,
           content: 'c', version: 1,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
@@ -4648,7 +4642,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'generate_failed', createdBy: 1,
+            images: null, status: 'generate_failed', createdBy: 1,
             content: 'c', version: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
@@ -4702,7 +4696,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+          images: null, status: 'manual_writing', createdBy: 1,
           content: '', version: 1,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
@@ -4720,7 +4714,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+          images: null, status: 'manual_writing', createdBy: 1,
           content: '   \n\t  ', version: 1,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
@@ -4738,7 +4732,7 @@ describe('Article Controller', () => {
       getPrisma.mockReturnValue({
         article: { findFirst: jest.fn().mockResolvedValue({
           id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-          images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+          images: null, status: 'manual_writing', createdBy: 1,
           content: null, version: 1,
           createdAt: new Date(), updatedAt: new Date(),
         }) },
@@ -4801,7 +4795,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'draft', createdBy: 1,
+            images: null, status: 'draft', createdBy: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
           update: jest.fn().mockRejectedValue('string error'),
@@ -4822,7 +4816,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'draft', createdBy: 1,
+            images: null, status: 'draft', createdBy: 1,
             content: 'old', version: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
@@ -4845,7 +4839,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'draft', createdBy: 1,
+            images: null, status: 'draft', createdBy: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
           update: jest.fn().mockRejectedValue('string error'),
@@ -4865,7 +4859,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'pending_review', createdBy: 2,
+            images: null, status: 'pending_review', createdBy: 2,
             createdAt: new Date(), updatedAt: new Date(),
           }),
           update: jest.fn().mockRejectedValue('string error'),
@@ -4886,7 +4880,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'generate_failed', createdBy: 1,
+            images: null, status: 'generate_failed', createdBy: 1,
             content: 'c', version: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),
@@ -4907,7 +4901,7 @@ describe('Article Controller', () => {
         article: {
           findFirst: jest.fn().mockResolvedValue({
             id: 1, projectId: 1, title: 'A', keywords: null, portrait: null,
-            images: null, platforms: null, status: 'manual_writing', createdBy: 1,
+            images: null, status: 'manual_writing', createdBy: 1,
             content: 'c', version: 1,
             createdAt: new Date(), updatedAt: new Date(),
           }),

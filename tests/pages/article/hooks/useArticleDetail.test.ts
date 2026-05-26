@@ -29,7 +29,6 @@ const mockArticleData: ArticleData = {
   keywords: '关键词',
   portrait: null,
   images: null,
-  platforms: null,
   skills: null,
   llm_model_id: 1,
   content: '文章正文内容',
@@ -88,7 +87,7 @@ describe('useArticleDetail', () => {
       let saveResult: any;
       await act(async () => {
         saveResult = await result.current.saveSettings(
-          { title: '新文章', keywords: '关键词', llm_model_id: 1, platforms: ['平台A'], write_mode: 'ai' },
+          { title: '新文章', keywords: '关键词', llm_model_id: 1, write_mode: 'ai' },
           [],
           { submitForGeneration: true, writeMode: 'ai' },
         );
@@ -111,7 +110,7 @@ describe('useArticleDetail', () => {
 
       await act(async () => {
         await result.current.saveSettings(
-          { title: '手工文章', keywords: '关键词', platforms: ['平台A'], write_mode: 'manual' },
+          { title: '手工文章', keywords: '关键词', write_mode: 'manual' },
           [],
           { manualWrite: true, writeMode: 'manual' },
         );

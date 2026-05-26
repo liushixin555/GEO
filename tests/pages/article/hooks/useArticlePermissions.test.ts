@@ -13,7 +13,6 @@ const mockArticle = (overrides: Partial<ArticleData> = {}): ArticleData => ({
   keywords: '测试',
   portrait: null,
   images: null,
-  platforms: null,
   skills: null,
   llm_model_id: 1,
   content: '正文内容',
@@ -65,9 +64,9 @@ describe('useArticlePermissions', () => {
       expect(result.current.canEditSettings).toBe(false);
     });
 
-    it('published 状态下不可编辑设置', () => {
+    it('approved 状态下不可编辑设置', () => {
       localStorage.setItem('user', JSON.stringify({ id: 10, role: 'admin' }));
-      const { result } = renderHook(() => useArticlePermissions(mockArticle({ status: 'published', created_by: 10 })));
+      const { result } = renderHook(() => useArticlePermissions(mockArticle({ status: 'approved', created_by: 10 })));
       expect(result.current.canEditSettings).toBe(false);
     });
   });
@@ -91,10 +90,10 @@ describe('useArticlePermissions', () => {
       expect(result.current.canEditContent).toBe(true);
     });
 
-    it('publish_failed 状态下创建者可编辑正文', () => {
+    it('approved 状态下创建者不可编辑正文', () => {
       localStorage.setItem('user', JSON.stringify({ id: 10, role: 'admin' }));
-      const { result } = renderHook(() => useArticlePermissions(mockArticle({ status: 'publish_failed', created_by: 10 })));
-      expect(result.current.canEditContent).toBe(true);
+      const { result } = renderHook(() => useArticlePermissions(mockArticle({ status: 'approved', created_by: 10 })));
+      expect(result.current.canEditContent).toBe(false);
     });
 
     it('pending_review 状态下创建者不可编辑正文（待审核禁止编辑）', () => {
@@ -109,9 +108,9 @@ describe('useArticlePermissions', () => {
       expect(result.current.canEditContent).toBe(false);
     });
 
-    it('published 状态下不可编辑正文', () => {
+    it('approved 状态下不可编辑正文', () => {
       localStorage.setItem('user', JSON.stringify({ id: 10, role: 'admin' }));
-      const { result } = renderHook(() => useArticlePermissions(mockArticle({ status: 'published', created_by: 10 })));
+      const { result } = renderHook(() => useArticlePermissions(mockArticle({ status: 'approved', created_by: 10 })));
       expect(result.current.canEditContent).toBe(false);
     });
 

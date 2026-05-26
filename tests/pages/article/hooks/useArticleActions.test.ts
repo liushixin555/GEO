@@ -22,7 +22,6 @@ const mockArticle = (overrides: Partial<ArticleData> = {}): ArticleData => ({
   keywords: '测试',
   portrait: null,
   images: null,
-  platforms: null,
   skills: null,
   llm_model_id: 1,
   content: '正文',
@@ -52,7 +51,7 @@ describe('useArticleActions', () => {
   describe('review', () => {
     it('审核通过应调用 PUT /review 并刷新', async () => {
       mockedPut.mockResolvedValueOnce({ data: { data: {} } });
-      mockRefetch.mockResolvedValueOnce(mockArticle({ status: 'publishing' }));
+      mockRefetch.mockResolvedValueOnce(mockArticle({ status: 'approved' }));
 
       const { useArticleActions } = require('../../../../pages/article/hooks/useArticleActions');
       const { result } = renderHook(

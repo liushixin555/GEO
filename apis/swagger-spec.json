@@ -4715,10 +4715,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "scheduled_publish_at": {
-                    "nullable": true,
-                    "type": "string"
-                  },
                   "schedule_type": {
                     "nullable": true,
                     "type": "string",
@@ -4726,6 +4722,19 @@
                       "asap",
                       "scheduled",
                       "after"
+                    ]
+                  },
+                  "scheduled_publish_at": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "publishing",
+                      "published",
+                      "publish_failed"
                     ]
                   }
                 },
@@ -5100,9 +5109,7 @@
                 "generating",
                 "generate_failed",
                 "pending_review",
-                "publishing",
-                "publish_failed",
-                "published"
+                "approved"
               ]
             }
           }
@@ -5240,15 +5247,6 @@
                     "items": {
                       "type": "string",
                       "maxLength": 2000
-                    }
-                  },
-                  "platforms": {
-                    "nullable": true,
-                    "maxItems": 10,
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "maxLength": 100
                     }
                   },
                   "skills": {
@@ -5535,15 +5533,6 @@
                       "maxLength": 2000
                     }
                   },
-                  "platforms": {
-                    "nullable": true,
-                    "maxItems": 10,
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "maxLength": 100
-                    }
-                  },
                   "skills": {
                     "nullable": true,
                     "maxItems": 50,
@@ -5572,24 +5561,7 @@
                       "generating",
                       "generate_failed",
                       "pending_review",
-                      "publishing",
-                      "publish_failed",
-                      "published"
-                    ]
-                  },
-                  "scheduled_publish_at": {
-                    "nullable": true,
-                    "type": "string",
-                    "format": "date-time",
-                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-                  },
-                  "schedule_type": {
-                    "nullable": true,
-                    "type": "string",
-                    "enum": [
-                      "asap",
-                      "scheduled",
-                      "after"
+                      "approved"
                     ]
                   }
                 },
@@ -12214,6 +12186,12 @@
               "$ref": "#/components/schemas/ArticleVersion"
             }
           },
+          "createdSchedules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublishingSchedule"
+            }
+          },
           "createdKeywords": {
             "type": "array",
             "items": {
@@ -12281,6 +12259,7 @@
           "createdSkills",
           "createdArticles",
           "articleVersions",
+          "createdSchedules",
           "createdKeywords",
           "createdPortraits",
           "createdImages",
@@ -12755,9 +12734,6 @@
           "images": {
             "type": "object"
           },
-          "platforms": {
-            "type": "object"
-          },
           "skills": {
             "type": "object"
           },
@@ -12774,13 +12750,6 @@
           },
           "status": {
             "$ref": "#/components/schemas/ArticleStatus"
-          },
-          "scheduledPublishAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "scheduleType": {
-            "type": "string"
           },
           "createdBy": {
             "type": "integer",
@@ -12809,6 +12778,12 @@
               "$ref": "#/components/schemas/ArticleVersion"
             }
           },
+          "schedules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublishingSchedule"
+            }
+          },
           "deletedAt": {
             "type": "string",
             "format": "date-time"
@@ -12823,7 +12798,8 @@
           "createdAt",
           "updatedAt",
           "project",
-          "versions"
+          "versions",
+          "schedules"
         ]
       },
       "ArticleVersion": {
@@ -13333,6 +13309,62 @@
           "operator"
         ]
       },
+      "PublishingSchedule": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "articleId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "platforms": {
+            "type": "object"
+          },
+          "scheduleType": {
+            "type": "string"
+          },
+          "scheduledPublishAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PublishingScheduleStatus"
+          },
+          "createdBy": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "article": {
+            "$ref": "#/components/schemas/Article"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/User"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "articleId",
+          "status",
+          "createdAt",
+          "updatedAt",
+          "article"
+        ]
+      },
       "Role": {
         "type": "string",
         "enum": [
@@ -13349,9 +13381,16 @@
           "generating",
           "generate_failed",
           "pending_review",
+          "approved"
+        ]
+      },
+      "PublishingScheduleStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
           "publishing",
-          "publish_failed",
-          "published"
+          "published",
+          "publish_failed"
         ]
       },
       "KnowledgeScope": {

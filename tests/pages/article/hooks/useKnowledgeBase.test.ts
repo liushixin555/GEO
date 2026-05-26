@@ -115,8 +115,7 @@ describe('useKnowledgeBase', () => {
     expect(result.current.kbImages).toEqual([]);
   });
 
-  it('API 失败时应 console.warn 而非崩溃', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  it('API 失败时应静默处理而非崩溃', async () => {
     mockedGet.mockRejectedValue(new Error('网络错误'));
 
     const { useKnowledgeBase } = require('../../../../pages/article/hooks/useKnowledgeBase');
@@ -125,15 +124,13 @@ describe('useKnowledgeBase', () => {
       () => useKnowledgeBase(200, false, form),
     );
 
+    // Hook should not throw — it silently catches errors and returns empty arrays
     await waitFor(() => {
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[useKnowledgeBase]'),
-        expect.any(Error),
-      );
+      expect(result.current.kbKeywords).toEqual([]);
     });
 
-    expect(result.current.kbKeywords).toEqual([]);
-    warnSpy.mockRestore();
+    expect(result.current.kbPortraits).toEqual([]);
+    expect(result.current.kbImages).toEqual([]);
   });
 
   it('画像 content 为空时 fallback 到 title', async () => {

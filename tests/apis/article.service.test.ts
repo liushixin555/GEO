@@ -63,13 +63,11 @@ const baseArticle = {
   keywords: '关键词',
   portrait: '人物画像',
   images: null,
-  platforms: null,
   skills: null,
   llmModelId: null,
   content: '文章内容',
   version: 1,
   status: 'draft',
-  scheduledPublishAt: null,
   createdBy: 1,
   createdAt: new Date('2026-01-01'),
   updatedAt: new Date('2026-01-01'),
@@ -346,6 +344,7 @@ describe('ArticleServiceImpl', () => {
       expect(result.project_id).toBe(10);
       expect(mockArticleFindFirst).toHaveBeenCalledWith({
         where: { id: 1, deletedAt: null },
+        include: { _count: { select: { schedules: { where: { deletedAt: null } } } } },
       });
     });
 
@@ -361,6 +360,7 @@ describe('ArticleServiceImpl', () => {
       await expect(service.getById(-1)).rejects.toThrow('文章不存在');
       expect(mockArticleFindFirst).toHaveBeenCalledWith({
         where: { id: -1, deletedAt: null },
+        include: { _count: { select: { schedules: { where: { deletedAt: null } } } } },
       });
     });
 
@@ -370,6 +370,7 @@ describe('ArticleServiceImpl', () => {
       await expect(service.getById(0)).rejects.toThrow('文章不存在');
       expect(mockArticleFindFirst).toHaveBeenCalledWith({
         where: { id: 0, deletedAt: null },
+        include: { _count: { select: { schedules: { where: { deletedAt: null } } } } },
       });
     });
   });
@@ -428,7 +429,6 @@ describe('ArticleServiceImpl', () => {
         keywords: 'kw',
         portrait: '画像',
         images: ['img.jpg'],
-        platforms: ['新浪'],
         skills: [1],
         llm_model_id: 2,
         content: '内容',
@@ -504,15 +504,6 @@ describe('ArticleServiceImpl', () => {
       expect(callData.images).toBe(Prisma.JsonNull);
     });
 
-    it('platforms未提供时应设为Prisma.JsonNull', async () => {
-      mockArticleCreate.mockResolvedValue(baseArticle);
-
-      await service.create(10, { title: 'T' }, sysadminAuth);
-
-      const callData = mockArticleCreate.mock.calls[0][0].data;
-      expect(callData.platforms).toBe(Prisma.JsonNull);
-    });
-
     it('skills未提供时应设为Prisma.JsonNull', async () => {
       mockArticleCreate.mockResolvedValue(baseArticle);
 
@@ -529,15 +520,6 @@ describe('ArticleServiceImpl', () => {
 
       const callData = mockArticleCreate.mock.calls[0][0].data;
       expect(callData.images).toEqual([]);
-    });
-
-    it('platforms为空数组时应保留空数组', async () => {
-      mockArticleCreate.mockResolvedValue(baseArticle);
-
-      await service.create(10, { title: 'T', platforms: [] }, sysadminAuth);
-
-      const callData = mockArticleCreate.mock.calls[0][0].data;
-      expect(callData.platforms).toEqual([]);
     });
 
     it('skills为空数组时应保留空数组', async () => {
@@ -713,7 +695,6 @@ describe('ArticleServiceImpl', () => {
         keywords: 'kw2',
         portrait: '画像2',
         images: ['new.jpg'],
-        platforms: ['搜狐'],
         skills: 2,
         llm_model_id: 3,
         status: 'generating',
@@ -746,42 +727,20 @@ describe('ArticleServiceImpl', () => {
       expect(updateData.portrait).toBeNull();
     });
 
-    it('images/platforms/skills为falsy值时应设为JsonNull或null', async () => {
+    it('images/skills为falsy值时应设为JsonNull或null', async () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
       mockArticleUpdate.mockResolvedValue(baseArticle);
 
       await service.update(10, 1, {
         images: null as any,
-        platforms: null as any,
         skills: 0,
         llm_model_id: 0,
       }, creatorAuth);
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.images).toBe(Prisma.JsonNull);
-      expect(updateData.platforms).toBe(Prisma.JsonNull);
       expect(updateData.skills).toBe(Prisma.JsonNull);
       expect(updateData.llmModelId).toBeNull();
-    });
-
-    it('应支持更新scheduled_publish_at', async () => {
-      mockArticleFindFirst.mockResolvedValue(baseArticle);
-      mockArticleUpdate.mockResolvedValue(baseArticle);
-
-      await service.update(10, 1, { scheduled_publish_at: '2026-06-01T10:00:00Z' }, creatorAuth);
-
-      const updateData = mockArticleUpdate.mock.calls[0][0].data;
-      expect(updateData.scheduledPublishAt).toBeInstanceOf(Date);
-    });
-
-    it('应支持清除scheduled_publish_at（传null）', async () => {
-      mockArticleFindFirst.mockResolvedValue(baseArticle);
-      mockArticleUpdate.mockResolvedValue(baseArticle);
-
-      await service.update(10, 1, { scheduled_publish_at: null }, creatorAuth);
-
-      const updateData = mockArticleUpdate.mock.calls[0][0].data;
-      expect(updateData.scheduledPublishAt).toBeNull();
     });
 
     it('内容变化时应递增版本号并创建版本快照', async () => {
@@ -974,16 +933,6 @@ describe('ArticleServiceImpl', () => {
       expect(updateData.images).toEqual([]);
     });
 
-    it('scheduled_publish_at为空字符串时应设为null', async () => {
-      mockArticleFindFirst.mockResolvedValue(baseArticle);
-      mockArticleUpdate.mockResolvedValue(baseArticle);
-
-      await service.update(10, 1, { scheduled_publish_at: '' as any }, creatorAuth);
-
-      const updateData = mockArticleUpdate.mock.calls[0][0].data;
-      expect(updateData.scheduledPublishAt).toBeNull();
-    });
-
     it('content显式设为null且existing有内容时应触发版本递增', async () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
       mockArticleUpdate.mockResolvedValue({ ...baseArticle, content: null, version: 2 });
@@ -1103,16 +1052,6 @@ describe('ArticleServiceImpl', () => {
       expect(Object.keys(updateData)).toHaveLength(0);
     });
 
-    it('平台为空数组时应保留空数组', async () => {
-      mockArticleFindFirst.mockResolvedValue(baseArticle);
-      mockArticleUpdate.mockResolvedValue(baseArticle);
-
-      await service.update(10, 1, { platforms: [] }, creatorAuth);
-
-      const updateData = mockArticleUpdate.mock.calls[0][0].data;
-      expect(updateData.platforms).toEqual([]);
-    });
-
     it('技能为空数组时应保留空数组', async () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
       mockArticleUpdate.mockResolvedValue(baseArticle);
@@ -1121,17 +1060,6 @@ describe('ArticleServiceImpl', () => {
 
       const updateData = mockArticleUpdate.mock.calls[0][0].data;
       expect(updateData.skills).toEqual([]);
-    });
-
-    it('scheduled_publish_at为有效日期字符串时应正确转换', async () => {
-      mockArticleFindFirst.mockResolvedValue(baseArticle);
-      mockArticleUpdate.mockResolvedValue(baseArticle);
-
-      await service.update(10, 1, { scheduled_publish_at: '2026-12-31T23:59:59.000Z' }, creatorAuth);
-
-      const updateData = mockArticleUpdate.mock.calls[0][0].data;
-      expect(updateData.scheduledPublishAt).toBeInstanceOf(Date);
-      expect(updateData.scheduledPublishAt!.toISOString()).toBe('2026-12-31T23:59:59.000Z');
     });
 
     it('content相同但其他字段不同时不应触发版本递增', async () => {
@@ -1162,8 +1090,8 @@ describe('ArticleServiceImpl', () => {
     });
 
     it('非settings-editable状态时应拒绝更新', async () => {
-      const publishedArticle = { ...baseArticle, status: 'published' };
-      mockArticleFindFirst.mockResolvedValue(publishedArticle);
+      const approvedArticle = { ...baseArticle, status: 'approved' };
+      mockArticleFindFirst.mockResolvedValue(approvedArticle);
 
       await expect(service.update(10, 1, { title: 'T' }, creatorAuth)).rejects.toThrow('当前文章状态不可编辑');
     });
@@ -1177,7 +1105,7 @@ describe('ArticleServiceImpl', () => {
     it('非法状态转换应拒绝', async () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
 
-      await expect(service.update(10, 1, { status: 'published' }, creatorAuth)).rejects.toThrow('非法的状态转换');
+      await expect(service.update(10, 1, { status: 'approved' }, creatorAuth)).rejects.toThrow('非法的状态转换');
     });
 
     it('项目归属不匹配应抛出NotFoundError', async () => {
@@ -1238,18 +1166,11 @@ describe('ArticleServiceImpl', () => {
       expect(mockArticleUpdate).toHaveBeenCalled();
     });
 
-    it('published状态的文章不能删除', async () => {
-      const publishedArticle = { ...baseArticle, status: 'published' };
-      mockArticleFindFirst.mockResolvedValue(publishedArticle);
+    it('approved状态的文章不能删除', async () => {
+      const approvedArticle = { ...baseArticle, status: 'approved' };
+      mockArticleFindFirst.mockResolvedValue(approvedArticle);
 
-      await expect(service.delete(10, 1, creatorAuth)).rejects.toThrow('发布中或已发布的文章不能删除');
-    });
-
-    it('publishing状态的文章不能删除', async () => {
-      const publishingArticle = { ...baseArticle, status: 'publishing' };
-      mockArticleFindFirst.mockResolvedValue(publishingArticle);
-
-      await expect(service.delete(10, 1, creatorAuth)).rejects.toThrow('发布中或已发布的文章不能删除');
+      await expect(service.delete(10, 1, creatorAuth)).rejects.toThrow('已审核通过的文章不能删除');
     });
 
     it('非创建者非sysadmin应拒绝删除', async () => {
@@ -1270,16 +1191,17 @@ describe('ArticleServiceImpl', () => {
   describe('review', () => {
     const pendingArticle = { ...baseArticle, status: 'pending_review' };
 
-    it('审核通过应将状态设为publishing', async () => {
+    it('审核通过应将状态设为approved', async () => {
       mockArticleFindFirst.mockResolvedValue(pendingArticle);
-      mockArticleUpdate.mockResolvedValue({ ...pendingArticle, status: 'publishing' });
+      mockArticleUpdate.mockResolvedValue({ ...pendingArticle, status: 'approved' });
 
       const result = await service.review(10, 1, true, { userId: 2, role: 'sysadmin' });
 
-      expect(result.status).toBe('publishing');
+      expect(result.status).toBe('approved');
       expect(mockArticleUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { status: 'publishing' },
+        data: { status: 'approved' },
+        include: { _count: { select: { schedules: { where: { deletedAt: null } } } } },
       });
     });
 
@@ -1341,14 +1263,8 @@ describe('ArticleServiceImpl', () => {
       await expect(service.review(10, 1, true, { userId: 2, role: 'sysadmin' })).rejects.toThrow('文章当前状态不支持审核操作');
     });
 
-    it('published状态的文件不能审核', async () => {
-      mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'published' });
-
-      await expect(service.review(10, 1, true, { userId: 2, role: 'sysadmin' })).rejects.toThrow('文章当前状态不支持审核操作');
-    });
-
-    it('publish_failed状态的文件不能审核', async () => {
-      mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'publish_failed' });
+    it('approved状态的文件不能审核', async () => {
+      mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'approved' });
 
       await expect(service.review(10, 1, true, { userId: 2, role: 'sysadmin' })).rejects.toThrow('文章当前状态不支持审核操作');
     });
@@ -1371,7 +1287,7 @@ describe('ArticleServiceImpl', () => {
 
     it('审核应使用事务包裹操作', async () => {
       mockArticleFindFirst.mockResolvedValue(pendingArticle);
-      mockArticleUpdate.mockResolvedValue({ ...pendingArticle, status: 'publishing' });
+      mockArticleUpdate.mockResolvedValue({ ...pendingArticle, status: 'approved' });
 
       await service.review(10, 1, true, { userId: 2, role: 'sysadmin' });
 
@@ -1390,6 +1306,7 @@ describe('ArticleServiceImpl', () => {
       expect(mockArticleUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { status: 'draft' },
+        include: { _count: { select: { schedules: { where: { deletedAt: null } } } } },
       });
     });
 
@@ -1431,6 +1348,7 @@ describe('ArticleServiceImpl', () => {
       expect(mockArticleUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { status: 'generating' },
+        include: { _count: { select: { schedules: { where: { deletedAt: null } } } } },
       });
     });
 
@@ -1457,6 +1375,7 @@ describe('ArticleServiceImpl', () => {
       expect(mockArticleUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { status: 'generating' },
+        include: { _count: { select: { schedules: { where: { deletedAt: null } } } } },
       });
     });
 
@@ -1472,20 +1391,8 @@ describe('ArticleServiceImpl', () => {
       await expect(service.regenerate(10, 1, creatorAuth)).rejects.toThrow('文章当前状态不支持重新生成');
     });
 
-    it('publishing状态不能重新生成', async () => {
-      mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'publishing' });
-
-      await expect(service.regenerate(10, 1, creatorAuth)).rejects.toThrow('文章当前状态不支持重新生成');
-    });
-
-    it('publish_failed状态不能重新生成', async () => {
-      mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'publish_failed' });
-
-      await expect(service.regenerate(10, 1, creatorAuth)).rejects.toThrow('文章当前状态不支持重新生成');
-    });
-
-    it('published状态不能重新生成', async () => {
-      mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'published' });
+    it('approved状态不能重新生成', async () => {
+      mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status: 'approved' });
 
       await expect(service.regenerate(10, 1, creatorAuth)).rejects.toThrow('文章当前状态不支持重新生成');
     });
@@ -1511,6 +1418,7 @@ describe('ArticleServiceImpl', () => {
       expect(mockArticleUpdate).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { status: 'generating' },
+        include: { _count: { select: { schedules: { where: { deletedAt: null } } } } },
       });
     });
 
@@ -1657,16 +1565,15 @@ describe('ArticleServiceImpl', () => {
         keywords: 'kw',
         portrait: '画像',
         images: ['img.jpg'],
-        platforms: ['新浪'],
         skills: [1],
         llmModelId: 2,
         content: '内容',
         version: 3,
         status: 'draft',
-        scheduledPublishAt: new Date('2026-06-01'),
         createdBy: 5,
         createdAt: new Date('2026-01-01'),
         updatedAt: new Date('2026-01-02'),
+        _count: { schedules: 2 },
       };
 
       mockArticleFindFirst.mockResolvedValue(fullArticle);
@@ -1681,13 +1588,12 @@ describe('ArticleServiceImpl', () => {
       expect(result.keywords).toBe('kw');
       expect(result.portrait).toBe('画像');
       expect(result.images).toEqual(['img.jpg']);
-      expect(result.platforms).toEqual(['新浪']);
       expect(result.skills).toEqual([1]);
       expect(result.llm_model_id).toBe(2);
       expect(result.content).toBe('内容');
       expect(result.version).toBe(3);
       expect(result.status).toBe('draft');
-      expect(result.scheduled_publish_at).toEqual(new Date('2026-06-01'));
+      expect(result.schedule_count).toBe(2);
       expect(result.created_by).toBe(5);
     });
 
@@ -1701,16 +1607,15 @@ describe('ArticleServiceImpl', () => {
         keywords: null,
         portrait: null,
         images: null,
-        platforms: null,
         skills: null,
         llmModelId: null,
         content: null,
         version: 0,
         status: 'draft',
-        scheduledPublishAt: null,
         createdBy: null,
         createdAt: new Date(),
         updatedAt: new Date(),
+        _count: { schedules: 0 },
       };
 
       mockArticleFindFirst.mockResolvedValue(nullArticle);
@@ -1722,11 +1627,10 @@ describe('ArticleServiceImpl', () => {
       expect(result.keywords).toBeNull();
       expect(result.portrait).toBeNull();
       expect(result.images).toBeNull();
-      expect(result.platforms).toBeNull();
       expect(result.skills).toBeNull();
       expect(result.llm_model_id).toBeNull();
       expect(result.content).toBeNull();
-      expect(result.scheduled_publish_at).toBeNull();
+      expect(result.schedule_count).toBe(0);
       expect(result.created_by).toBeNull();
     });
   });
@@ -1785,7 +1689,7 @@ describe('ArticleServiceImpl', () => {
     it('所有ArticleStatus值都应被支持', async () => {
       const statuses: ArticleStatus[] = [
         'draft', 'manual_writing', 'generating', 'generate_failed',
-        'pending_review', 'publishing', 'publish_failed', 'published',
+        'pending_review', 'approved',
       ];
 
       for (const status of statuses) {
@@ -1823,8 +1727,8 @@ describe('ArticleServiceImpl', () => {
       expect(service.isValidStatusTransition('generate_failed', 'generating')).toBe(true);
     });
 
-    it('pending_review → publishing 应是合法转换', () => {
-      expect(service.isValidStatusTransition('pending_review', 'publishing')).toBe(true);
+    it('pending_review → approved 应是合法转换', () => {
+      expect(service.isValidStatusTransition('pending_review', 'approved')).toBe(true);
     });
 
     it('pending_review → manual_writing 应是合法转换', () => {
@@ -1839,28 +1743,12 @@ describe('ArticleServiceImpl', () => {
       expect(service.isValidStatusTransition('pending_review', 'generating')).toBe(true);
     });
 
-    it('publishing → published 应是合法转换', () => {
-      expect(service.isValidStatusTransition('publishing', 'published')).toBe(true);
+    it('draft → approved 应是非法转换', () => {
+      expect(service.isValidStatusTransition('draft', 'approved')).toBe(false);
     });
 
-    it('publishing → publish_failed 应是合法转换', () => {
-      expect(service.isValidStatusTransition('publishing', 'publish_failed')).toBe(true);
-    });
-
-    it('publishing → pending_review 应是合法转换', () => {
-      expect(service.isValidStatusTransition('publishing', 'pending_review')).toBe(true);
-    });
-
-    it('publish_failed → publishing 应是合法转换', () => {
-      expect(service.isValidStatusTransition('publish_failed', 'publishing')).toBe(true);
-    });
-
-    it('draft → published 应是非法转换', () => {
-      expect(service.isValidStatusTransition('draft', 'published')).toBe(false);
-    });
-
-    it('published → draft 应是非法转换', () => {
-      expect(service.isValidStatusTransition('published', 'draft')).toBe(false);
+    it('approved → draft 应是非法转换', () => {
+      expect(service.isValidStatusTransition('approved', 'draft')).toBe(false);
     });
 
     it('不存在的源状态应返回 false', () => {

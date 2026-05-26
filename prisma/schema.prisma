@@ -54,6 +54,7 @@ model User {
   createdSkills        Skills[]              @relation("SkillsCreator")
   createdArticles      Article[]             @relation("ArticleCreator")
   articleVersions      ArticleVersion[]      @relation("ArticleVersionCreator")
+  createdSchedules     PublishingSchedule[]  @relation("ScheduleCreator")
   createdKeywords      KnowledgeKeyword[]    @relation("KnowledgeKeywordCreator")
   createdPortraits     KnowledgePortrait[]   @relation("KnowledgePortraitCreator")
   createdImages        KnowledgeImage[]      @relation("KnowledgeImageCreator")
@@ -82,9 +83,14 @@ enum ArticleStatus {
   generating
   generate_failed
   pending_review
+  approved
+}
+
+enum PublishingScheduleStatus {
+  pending
   publishing
-  publish_failed
   published
+  publish_failed
 }
 
 enum KnowledgeScope {
@@ -236,14 +242,11 @@ model Article {
   keywords    String?       @db.VarChar(500)
   portrait    String?
   images      Json?
-  platforms   Json?
   skills      Json?
   llmModelId  Int?          @map("llm_model_id")
   content     String?
   version     Float         @default(1.0)
   status              ArticleStatus @default(draft)
-  scheduledPublishAt  DateTime?     @map("scheduled_publish_at") @db.Timestamptz()
-  scheduleType        String?       @map("schedule_type") @db.VarChar(20)
   createdBy           Int?          @map("created_by")
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
@@ -251,6 +254,7 @@ model Article {
   creator     User?         @relation("ArticleCreator", fields: [createdBy], references: [id])
   llmModel    LlmModel?     @relation(fields: [llmModelId], references: [id], onDelete: SetNull)
   versions    ArticleVersion[]
+  schedules   PublishingSchedule[]
 
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([projectId])
@@ -451,4 +455,24 @@ model TodoLog {
 
   @@index([todoId])
   @@map("todo_logs")
+}
+
+model PublishingSchedule {
+  id                Int                    @id @default(autoincrement())
+  articleId         Int                    @map("article_id")
+  platforms         Json?
+  scheduleType      String?                @map("schedule_type") @db.VarChar(20)
+  scheduledPublishAt DateTime?             @map("scheduled_publish_at") @db.Timestamptz()
+  status            PublishingScheduleStatus @default(pending)
+  createdBy         Int?                   @map("created_by")
+  createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt         DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  article           Article                @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  creator           User?                  @relation("ScheduleCreator", fields: [createdBy], references: [id])
+
+  deletedAt         DateTime?              @map("deleted_at") @db.Timestamptz()
+  @@index([articleId])
+  @@index([status])
+  @@map("publishing_schedules")
 }

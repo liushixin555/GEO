@@ -124,6 +124,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ArticleVersion"
+        createdSchedules:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublishingSchedule"
         createdKeywords:
           type: array
           items:
@@ -173,6 +177,7 @@ components:
         - createdSkills
         - createdArticles
         - articleVersions
+        - createdSchedules
         - createdKeywords
         - createdPortraits
         - createdImages
@@ -520,8 +525,6 @@ components:
           type: string
         images:
           type: object
-        platforms:
-          type: object
         skills:
           type: object
         llmModelId:
@@ -534,11 +537,6 @@ components:
           format: double
         status:
           $ref: "#/components/schemas/ArticleStatus"
-        scheduledPublishAt:
-          type: string
-          format: date-time
-        scheduleType:
-          type: string
         createdBy:
           type: integer
           format: int32
@@ -558,6 +556,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ArticleVersion"
+        schedules:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublishingSchedule"
         deletedAt:
           type: string
           format: date-time
@@ -571,6 +573,7 @@ components:
         - updatedAt
         - project
         - versions
+        - schedules
     ArticleVersion:
       type: object
       properties:
@@ -946,6 +949,47 @@ components:
         - createdAt
         - todo
         - operator
+    PublishingSchedule:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        articleId:
+          type: integer
+          format: int32
+        platforms:
+          type: object
+        scheduleType:
+          type: string
+        scheduledPublishAt:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/PublishingScheduleStatus"
+        createdBy:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        article:
+          $ref: "#/components/schemas/Article"
+        creator:
+          $ref: "#/components/schemas/User"
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - articleId
+        - status
+        - createdAt
+        - updatedAt
+        - article
     Role:
       type: string
       enum:
@@ -960,9 +1004,14 @@ components:
         - generating
         - generate_failed
         - pending_review
+        - approved
+    PublishingScheduleStatus:
+      type: string
+      enum:
+        - pending
         - publishing
-        - publish_failed
         - published
+        - publish_failed
     KnowledgeScope:
       type: string
       enum:

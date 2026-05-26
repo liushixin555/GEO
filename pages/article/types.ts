@@ -4,9 +4,7 @@ export type ArticleStatus =
   | 'generating'
   | 'generate_failed'
   | 'pending_review'
-  | 'publishing'
-  | 'publish_failed'
-  | 'published';
+  | 'approved';
 
 export type ArticleType =
   | '榜单排名'
@@ -28,13 +26,13 @@ export interface ArticleData {
   keywords: string | null;
   portrait: string | null;
   images: string[] | null;
-  platforms: string[] | null;
   skills: number[] | null;
   llm_model_id: number | null;
   content: string | null;
   version: number;
   status: ArticleStatus;
   created_by: number | null;
+  schedule_count?: number;
 }
 
 export interface ArticleFormValues {
@@ -43,17 +41,8 @@ export interface ArticleFormValues {
   write_mode?: WriteMode;
   keywords?: string;
   portrait?: string;
-  platforms?: string[];
   skills?: number[];
   llm_model_id?: number;
-}
-
-export interface Platform {
-  name: string;
-  taxonomy: string;
-  price: number | null;
-  include_rate: number | null;
-  publish_rate: number | null;
 }
 
 export interface SkillOption {
@@ -88,12 +77,10 @@ export const STATUS_CONFIG: Record<ArticleStatus, { label: string; color: string
   generating: { label: '生成中', color: 'processing' },
   generate_failed: { label: '生成失败', color: 'error' },
   pending_review: { label: '待审核', color: 'warning' },
-  publishing: { label: '发布中', color: 'processing' },
-  publish_failed: { label: '发布失败', color: 'error' },
-  published: { label: '已发布', color: 'success' },
+  approved: { label: '已通过', color: 'success' },
 };
 
-export const EDITABLE_STATUSES: ArticleStatus[] = ['draft', 'manual_writing', 'generate_failed', 'publish_failed'];
+export const EDITABLE_STATUSES: ArticleStatus[] = ['draft', 'manual_writing', 'generate_failed'];
 
 export const ARTICLE_TYPE_OPTIONS: { label: string; value: ArticleType }[] = [
   { label: '榜单排名', value: '榜单排名' },

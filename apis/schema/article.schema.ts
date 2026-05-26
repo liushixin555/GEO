@@ -7,9 +7,7 @@ export const articleStatusSchema = z.enum([
   'generating',
   'generate_failed',
   'pending_review',
-  'publishing',
-  'publish_failed',
-  'published',
+  'approved',
 ]);
 
 export const createArticleSchema = z.object({
@@ -19,7 +17,6 @@ export const createArticleSchema = z.object({
   keywords: z.string().max(500).optional(),
   portrait: z.string().max(2000).optional(),
   images: z.array(z.string().max(2000)).max(20).nullable().optional(),
-  platforms: z.array(z.string().max(100)).max(10).nullable().optional(),
   skills: z.array(z.number().int().nonnegative()).max(50).nullable().optional(),
   llm_model_id: z.number().int().nonnegative().nullable().optional(),
   content: z.string().max(500_000).optional(),
@@ -33,15 +30,10 @@ export const updateArticleSchema = z.object({
   keywords: z.string().max(500).optional(),
   portrait: z.string().max(2000).optional(),
   images: z.array(z.string().max(2000)).max(20).nullable().optional(),
-  platforms: z.array(z.string().max(100)).max(10).nullable().optional(),
   skills: z.array(z.number().int().nonnegative()).max(50).nullable().optional(),
   llm_model_id: z.number().int().nonnegative().nullable().optional(),
   content: z.string().max(500_000).optional(),
   status: articleStatusSchema.optional(),
-  scheduled_publish_at: z.string().datetime({ offset: true })
-    .refine(val => new Date(val) > new Date(), '定时发布时间必须在未来')
-    .nullable().optional(),
-  schedule_type: z.enum(['asap', 'scheduled', 'after']).nullable().optional(),
 }).strict();
 
 export const reviewArticleSchema = z.object({

@@ -17,6 +17,7 @@ interface ArticleItem {
   status: string;
   created_by: number | null;
   created_at: string;
+  schedule_count?: number;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -25,10 +26,15 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   generating: { label: '生成中', color: 'processing' },
   generate_failed: { label: '生成失败', color: 'error' },
   pending_review: { label: '待审核', color: 'warning' },
-  publishing: { label: '发布中', color: 'processing' },
-  publish_failed: { label: '发布失败', color: 'error' },
-  published: { label: '已发布', color: 'success' },
+  approved: { label: '已通过', color: 'success' },
 };
+
+function getScheduleStatus(item: ArticleItem): { label: string; color: string } | null {
+  if (item.status !== 'approved') return null;
+  const count = item.schedule_count ?? 0;
+  if (count === 0) return { label: '可发布', color: 'blue' };
+  return { label: `${count}个发布`, color: 'cyan' };
+}
 
 const ArticlePage: React.FC = () => {
   const { projectId } = useAppContext();
@@ -77,7 +83,7 @@ const ArticlePage: React.FC = () => {
   };
 
   const canDelete = (item: ArticleItem) => {
-    if (item.status === 'published' || item.status === 'publishing') return false;
+    if (item.status === 'approved') return false;
     return user.role === 'sysadmin' || item.created_by === user.id;
   };
 
@@ -119,6 +125,16 @@ const ArticlePage: React.FC = () => {
       render: (status: string) => {
         const cfg = STATUS_CONFIG[status] || { label: status, color: 'default' };
         return <Tag color={cfg.color}>{cfg.label}</Tag>;
+      },
+    },
+    {
+      title: '发布',
+      key: 'schedule',
+      width: 100,
+      render: (_: unknown, record: ArticleItem) => {
+        const scheduleStatus = getScheduleStatus(record);
+        if (!scheduleStatus) return <span style={{ color: 'var(--color-ink-subtle)' }}>-</span>;
+        return <Tag color={scheduleStatus.color}>{scheduleStatus.label}</Tag>;
       },
     },
     {
@@ -186,12 +202,18 @@ const ArticlePage: React.FC = () => {
           )}
           {data.map((item) => {
             const statusCfg = STATUS_CONFIG[item.status] || { label: item.status, color: 'default' };
+            const scheduleStatus = getScheduleStatus(item);
             return (
               <Card
                 key={item.id}
                 size="small"
                 title={item.title || '<还没有标题，待生成>'}
-                extra={<Tag color={statusCfg.color}>{statusCfg.label}</Tag>}
+                extra={
+                  <Flex gap={4}>
+                    <Tag color={statusCfg.color}>{statusCfg.label}</Tag>
+                    {scheduleStatus && <Tag color={scheduleStatus.color}>{scheduleStatus.label}</Tag>}
+                  </Flex>
+                }
                 hoverable
                 onClick={() => navigate(`/article/${item.id}`)}
                 style={{ cursor: 'pointer' }}

@@ -25,7 +25,7 @@ export function useKnowledgeBase(projectId: number | undefined, isNew: boolean, 
     const fetchOptions = async () => {
       try {
         const [skillsRes, llmRes] = await Promise.all([
-          apiClient.get('/skills?status=true&pageSize=999'),
+          apiClient.get('/skills?status=true&pageSize=100'),
           apiClient.get('/llm-models/enabled'),
         ]);
         const skillsRaw: SkillApiItem[] = skillsRes.data.data?.list || skillsRes.data.data || [];
@@ -61,9 +61,9 @@ export function useKnowledgeBase(projectId: number | undefined, isNew: boolean, 
       setKbLoading(true);
       try {
         const [kwRes, ptRes, imgRes] = await Promise.all([
-          apiClient.get(`/projects/${projectId}/knowledge/keywords`, { params: { pageSize: 999 } }),
-          apiClient.get(`/projects/${projectId}/knowledge/portraits`, { params: { pageSize: 999 } }),
-          apiClient.get(`/projects/${projectId}/knowledge/images`, { params: { pageSize: 999 } }),
+          apiClient.get(`/projects/${projectId}/knowledge/keywords`, { params: { pageSize: 100 } }),
+          apiClient.get(`/projects/${projectId}/knowledge/portraits`, { params: { pageSize: 100 } }),
+          apiClient.get(`/projects/${projectId}/knowledge/images`, { params: { pageSize: 100 } }),
         ]);
         const kwList: KbKeywordApiItem[] = kwRes.data.data?.list || [];
         const ptList: KbPortraitApiItem[] = ptRes.data.data?.list || [];

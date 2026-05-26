@@ -66,7 +66,7 @@ const ArticleContentEditor: React.FC<ArticleContentEditorProps> = ({
               <Button size="small" type="primary">提交审核</Button>
             </Popconfirm>
           )}
-          {['generate_failed', 'publish_failed'].includes(article.status) && isContentEditable && (
+          {['generate_failed'].includes(article.status) && isContentEditable && (
             <Popconfirm title="确认重新提交AI生成？" onConfirm={onRegenerate} okText="确认" cancelText="取消">
               <Button size="small" type="primary" icon={<ReloadOutlined />}>重新生成</Button>
             </Popconfirm>
@@ -82,7 +82,7 @@ const ArticleContentEditor: React.FC<ArticleContentEditorProps> = ({
         style={{ marginBottom: 12 }}
         action={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Popconfirm title="确认审核通过？" description="通过后将自动进入发布流程" onConfirm={() => onReview(true)} okText="确认" cancelText="取消">
+            <Popconfirm title="确认审核通过？" description="通过后文章将完成审核流程" onConfirm={() => onReview(true)} okText="确认" cancelText="取消">
               <Button type="primary" icon={<CheckCircleOutlined />}>审核通过</Button>
             </Popconfirm>
             <Popconfirm title="确认审核不通过？" description="不通过后将退回为草稿" onConfirm={() => onReview(false)} okText="确认" cancelText="取消">

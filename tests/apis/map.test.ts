@@ -529,17 +529,15 @@ describe('mapArticle', () => {
     keywords: 'keyword1,keyword2',
     portrait: 'portrait content',
     images: ['img1.jpg', 'img2.jpg'],
-    platforms: ['wechat', 'toutiao'],
     skills: 5,
     llmModelId: 3,
     content: 'Article content here',
     version: 2,
     status: 'draft',
-    scheduleType: null,
-    scheduledPublishAt: new Date('2024-12-01'),
     createdBy: 1,
     createdAt: new Date('2024-03-01'),
     updatedAt: new Date('2024-07-01'),
+    _count: { schedules: 3 },
   };
 
   test('正确映射所有字段', () => {
@@ -553,14 +551,12 @@ describe('mapArticle', () => {
       keywords: 'keyword1,keyword2',
       portrait: 'portrait content',
       images: ['img1.jpg', 'img2.jpg'],
-      platforms: ['wechat', 'toutiao'],
       skills: 5,
       llm_model_id: 3,
       content: 'Article content here',
       version: 2,
       status: 'draft',
-      schedule_type: null,
-      scheduled_publish_at: new Date('2024-12-01'),
+      schedule_count: 3,
       created_by: 1,
       created_at: basePrisma.createdAt,
       updated_at: basePrisma.updatedAt,
@@ -600,17 +596,6 @@ describe('mapArticle', () => {
     expect(result.llm_model_id).toBeNull();
   });
 
-  test('scheduledPublishAt 为 null 时映射为 null', () => {
-    const result = mapArticle({ ...basePrisma, scheduledPublishAt: null });
-    expect(result.scheduled_publish_at).toBeNull();
-  });
-
-  test('scheduledPublishAt 为 undefined 时映射为 null', () => {
-    const { scheduledPublishAt, ...rest } = basePrisma;
-    const result = mapArticle(rest);
-    expect(result.scheduled_publish_at).toBeNull();
-  });
-
   test('createdBy 为 null 时映射为 null', () => {
     const result = mapArticle({ ...basePrisma, createdBy: null });
     expect(result.created_by).toBeNull();
@@ -625,11 +610,6 @@ describe('mapArticle', () => {
   test('images 为 null 时正确映射', () => {
     const result = mapArticle({ ...basePrisma, images: null });
     expect(result.images).toBeNull();
-  });
-
-  test('platforms 为 null 时正确映射', () => {
-    const result = mapArticle({ ...basePrisma, platforms: null });
-    expect(result.platforms).toBeNull();
   });
 
   test('keywords 为 null 时正确映射', () => {
@@ -657,14 +637,21 @@ describe('mapArticle', () => {
     expect(result.images).toEqual([]);
   });
 
-  test('platforms 为空数组时正确映射', () => {
-    const result = mapArticle({ ...basePrisma, platforms: [] });
-    expect(result.platforms).toEqual([]);
+  test('status 为 approved 时正确映射', () => {
+    const result = mapArticle({ ...basePrisma, status: 'approved' });
+    expect(result.status).toBe('approved');
   });
 
-  test('status 为 published 时正确映射', () => {
-    const result = mapArticle({ ...basePrisma, status: 'published' });
-    expect(result.status).toBe('published');
+  test('_count.schedules 不存在时 schedule_count 默认为 0', () => {
+    const { _count, ...rest } = basePrisma;
+    const result = mapArticle(rest);
+    expect(result.schedule_count).toBe(0);
+  });
+
+  test('_count 不存在时 schedule_count 默认为 0', () => {
+    const { _count, ...rest } = basePrisma;
+    const result = mapArticle({ ...rest });
+    expect(result.schedule_count).toBe(0);
   });
 });
 
@@ -1339,9 +1326,9 @@ describe('mapTodoLog', () => {
 });
 
 // ============================================================
-// 增强测试：scheduleType 边界（mapArticle 遗漏字段）
+// 增强测试：schedule_count 边界（mapArticle 新增字段）
 // ============================================================
-describe('mapArticle - scheduleType 边界', () => {
+describe('mapArticle - schedule_count 边界', () => {
   const base = {
     id: 1,
     projectId: 10,
@@ -1351,38 +1338,34 @@ describe('mapArticle - scheduleType 边界', () => {
     keywords: null,
     portrait: null,
     images: null,
-    platforms: null,
     skills: null,
     llmModelId: null,
     content: '',
     version: 0,
     status: 'draft',
-    scheduleType: null,
-    scheduledPublishAt: null,
     createdBy: null,
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
   };
 
-  test('scheduleType 为 null 时映射为 null', () => {
+  test('_count.schedules 有值时 schedule_count 正确映射', () => {
+    const result = mapArticle({ ...base, _count: { schedules: 5 } });
+    expect(result.schedule_count).toBe(5);
+  });
+
+  test('_count.schedules 为 0 时 schedule_count 为 0', () => {
+    const result = mapArticle({ ...base, _count: { schedules: 0 } });
+    expect(result.schedule_count).toBe(0);
+  });
+
+  test('_count 不存在时 schedule_count 默认为 0', () => {
     const result = mapArticle(base);
-    expect(result.schedule_type).toBeNull();
+    expect(result.schedule_count).toBe(0);
   });
 
-  test('scheduleType 为 undefined 时映射为 null', () => {
-    const { scheduleType, ...rest } = base;
-    const result = mapArticle(rest);
-    expect(result.schedule_type).toBeNull();
-  });
-
-  test('scheduleType 有值时正确映射', () => {
-    const result = mapArticle({ ...base, scheduleType: 'scheduled' });
-    expect(result.schedule_type).toBe('scheduled');
-  });
-
-  test('scheduleType 为空字符串时保持为空字符串', () => {
-    const result = mapArticle({ ...base, scheduleType: '' });
-    expect(result.schedule_type).toBe('');
+  test('_count.schedules 不存在时 schedule_count 默认为 0', () => {
+    const result = mapArticle({ ...base, _count: {} });
+    expect(result.schedule_count).toBe(0);
   });
 });
 
@@ -1611,16 +1594,16 @@ describe('属性数量验证', () => {
     expect(Object.keys(result)).toHaveLength(13);
   });
 
-  test('mapArticle 返回恰好 19 个属性', () => {
+  test('mapArticle 返回恰好 17 个属性', () => {
     const result = mapArticle({
       id: 1, projectId: 10, title: 'T', articleType: null,
       writeMode: null, keywords: null, portrait: null,
-      images: null, platforms: null, skills: null,
+      images: null, skills: null,
       llmModelId: null, content: '', version: 0, status: 'draft',
-      scheduleType: null, scheduledPublishAt: null, createdBy: null,
+      createdBy: null,
       createdAt: new Date(), updatedAt: new Date(),
     });
-    expect(Object.keys(result)).toHaveLength(19);
+    expect(Object.keys(result)).toHaveLength(17);
   });
 
   test('mapArticleVersion 返回恰好 6 个属性', () => {
@@ -1755,17 +1738,16 @@ describe('JSON 序列化安全', () => {
     const result = mapArticle({
       id: 1, projectId: 10, title: 'T', articleType: 'seo',
       writeMode: 'auto', keywords: 'k1,k2', portrait: 'p',
-      images: ['a.jpg'], platforms: ['wechat'],
+      images: ['a.jpg'],
       skills: 5, llmModelId: 3, content: 'c', version: 1,
-      status: 'draft', scheduleType: null, scheduledPublishAt: null,
+      status: 'draft',
       createdBy: 1,
       createdAt: new Date(), updatedAt: new Date(),
     });
     const json = JSON.stringify(result);
     const parsed = JSON.parse(json);
     expect(parsed.images).toEqual(['a.jpg']);
-    expect(parsed.platforms).toEqual(['wechat']);
-    expect(parsed.schedule_type).toBeNull();
+    expect(parsed.schedule_count).toBe(0);
   });
 });
 
@@ -1777,9 +1759,9 @@ describe('深拷贝独立性', () => {
     const input = {
       id: 1, projectId: 10, title: 'T', articleType: null,
       writeMode: null, keywords: null, portrait: null,
-      images: ['a.jpg', 'b.jpg'], platforms: null, skills: null,
+      images: ['a.jpg', 'b.jpg'], skills: null,
       llmModelId: null, content: '', version: 0, status: 'draft',
-      scheduleType: null, scheduledPublishAt: null, createdBy: null,
+      createdBy: null,
       createdAt: new Date(), updatedAt: new Date(),
     };
     const result1 = mapArticle(input);
@@ -1976,13 +1958,13 @@ describe('解构模式', () => {
     const result = mapArticle({
       id: 1, projectId: 10, title: 'T', articleType: null,
       writeMode: null, keywords: null, portrait: null,
-      images: null, platforms: null, skills: null,
+      images: null, skills: null,
       llmModelId: null, content: '', version: 0, status: 'draft',
-      scheduleType: null, scheduledPublishAt: null, createdBy: null,
+      createdBy: null,
       createdAt: new Date(), updatedAt: new Date(),
     });
     const entries = Object.entries(result);
-    expect(entries.length).toBe(19);
+    expect(entries.length).toBe(17);
     const titleEntry = entries.find(([k]) => k === 'title');
     expect(titleEntry).toEqual(['title', 'T']);
   });

@@ -46,7 +46,6 @@ export function useArticleDetail(
         write_mode: data.write_mode || undefined,
         keywords: data.keywords || '',
         portrait: data.portrait || '',
-        platforms: data.platforms || [],
         skills: data.skills ?? undefined,
         llm_model_id: data.llm_model_id ?? undefined,
       });
@@ -80,7 +79,6 @@ export function useArticleDetail(
         keywords: values.keywords?.trim() ? values.keywords.trim() : undefined,
         portrait: values.portrait?.trim() || undefined,
         images: imageList.length ? imageList : undefined,
-        platforms: values.platforms?.length ? values.platforms : undefined,
         skills: values.skills || undefined,
         llm_model_id: values.llm_model_id || undefined,
       };
@@ -133,14 +131,13 @@ export function useArticleDetail(
     try {
       if (isNew) {
         const formValues = form.getFieldsValue();
-        if (!formValues.keywords || !formValues.llm_model_id || !formValues.platforms?.length) return;
+        if (!formValues.keywords || !formValues.llm_model_id) return;
         const payload: Partial<ArticleData> & { content: string } = {
           article_type: formValues.article_type || undefined,
           write_mode: formValues.write_mode || undefined,
           keywords: formValues.keywords,
           portrait: formValues.portrait?.trim() || undefined,
           images: imageList.length ? imageList : undefined,
-          platforms: formValues.platforms,
           skills: formValues.skills || undefined,
           llm_model_id: formValues.llm_model_id,
           content: currentContent,
