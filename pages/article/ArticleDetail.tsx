@@ -142,15 +142,21 @@ const ArticleDetail: React.FC = () => {
   const settingsTab = (
     <ArticleSettingsForm
       form={form}
-      isNew={isNew}
-      editable={isSettingsEditable}
-      saving={detail.saving}
+      config={{
+        isNew,
+        editable: isSettingsEditable,
+        saving: detail.saving,
+      }}
       error={detail.error}
-      onErrorClear={() => detail.setError('')}
-      onSave={handleSave}
-      onImportDocument={docImport.importDocument}
-      imageList={imageList}
-      imageListChange={setImageList}
+      callbacks={{
+        onSave: handleSave,
+        onImportDocument: docImport.importDocument,
+        onErrorClear: () => detail.setError(''),
+      }}
+      images={{
+        list: imageList,
+        onChange: setImageList,
+      }}
       kb={{
         keywords: kb.kbKeywords,
         portraits: kb.kbPortraits,

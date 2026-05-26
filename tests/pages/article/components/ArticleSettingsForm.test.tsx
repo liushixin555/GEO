@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ArticleSettingsForm from '../../../../pages/article/components/ArticleSettingsForm';
-import type { KnowledgeBaseData } from '../../../../pages/article/components/ArticleSettingsForm';
+import type { KnowledgeBaseData, FormCallbacks, ImageManagerProps, FormConfig } from '../../../../pages/article/components/ArticleSettingsForm';
 import { STABLE_FORM } from '../../setup';
 
 jest.mock('../../../../pages/article/components/ArticleImageManager', () => {
@@ -26,15 +26,21 @@ const mockKb: KnowledgeBaseData = {
 
 const createProps = (overrides: Record<string, any> = {}) => ({
   form: STABLE_FORM as any,
-  isNew: true,
-  editable: true,
-  saving: false,
+  config: {
+    isNew: true,
+    editable: true,
+    saving: false,
+  } as FormConfig,
   error: '',
-  onErrorClear: jest.fn(),
-  onSave: jest.fn(),
-  onImportDocument: jest.fn(),
-  imageList: [] as string[],
-  imageListChange: jest.fn(),
+  callbacks: {
+    onSave: jest.fn(),
+    onImportDocument: jest.fn(),
+    onErrorClear: jest.fn(),
+  } as FormCallbacks,
+  images: {
+    list: [] as string[],
+    onChange: jest.fn(),
+  } as ImageManagerProps,
   kb: { ...mockKb },
   ...overrides,
 });
@@ -99,7 +105,7 @@ describe('ArticleSettingsForm', () => {
     });
 
     it('非编辑态不显示导入按钮', () => {
-      renderComponent({ editable: false });
+      renderComponent({ config: { isNew: true, editable: false, saving: false } });
       expect(screen.queryByText('导入文档')).not.toBeInTheDocument();
     });
 
@@ -146,20 +152,20 @@ describe('ArticleSettingsForm', () => {
   describe('表单提交防护', () => {
     it('saving为true时不调用onSave', () => {
       const onSave = jest.fn();
-      renderComponent({ saving: true, onSave });
+      renderComponent({ config: { isNew: true, editable: true, saving: true }, callbacks: { onSave, onImportDocument: jest.fn(), onErrorClear: jest.fn() } });
       expect(onSave).not.toHaveBeenCalled();
     });
 
     it('editable为false时不调用onSave', () => {
       const onSave = jest.fn();
-      renderComponent({ editable: false, onSave });
+      renderComponent({ config: { isNew: true, editable: false, saving: false }, callbacks: { onSave, onImportDocument: jest.fn(), onErrorClear: jest.fn() } });
       expect(onSave).not.toHaveBeenCalled();
     });
   });
 
   describe('disabled状态', () => {
     it('editable=false时writeMode Segmented被禁用', () => {
-      renderComponent({ editable: false });
+      renderComponent({ config: { isNew: true, editable: false, saving: false } });
       expect(screen.getByTestId('segmented-manual')).toHaveAttribute('disabled');
       expect(screen.getByTestId('segmented-ai')).toHaveAttribute('disabled');
     });

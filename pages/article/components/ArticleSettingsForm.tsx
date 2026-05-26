@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Form, Input, Select, Button, Alert, Segmented, Upload, App,
+  Form, Input, Select, Button, Alert, Segmented, Upload, App, Modal,
 } from 'antd';
 import { ImportOutlined } from '@ant-design/icons';
 import type { ArticleFormValues, WriteMode, KbKeyword, KbPortrait, KbImage, SkillOption, LlmModelOption } from '../types';
@@ -18,27 +18,40 @@ export interface KnowledgeBaseData {
   llmModelsOptions: LlmModelOption[];
 }
 
-interface ArticleSettingsFormProps {
-  form: FormInstance;
+export interface FormCallbacks {
+  onSave: (values: ArticleFormValues) => void;
+  onImportDocument: (file: File) => void;
+  onErrorClear: () => void;
+}
+
+export interface ImageManagerProps {
+  list: string[];
+  onChange: (list: string[]) => void;
+}
+
+export interface FormConfig {
   isNew: boolean;
   editable: boolean;
   saving: boolean;
-  error: string;
-  onErrorClear: () => void;
-  onSave: (values: ArticleFormValues) => void;
-  onImportDocument: (file: File) => void;
-  imageList: string[];
-  imageListChange: (list: string[]) => void;
+}
+
+interface ArticleSettingsFormProps {
+  form: FormInstance;
+  config: FormConfig;
   kb: KnowledgeBaseData;
+  images: ImageManagerProps;
+  callbacks: FormCallbacks;
+  error: string;
 }
 
 const ALLOWED_EXTENSIONS = /\.(md|doc|docx)$/i;
 const MAX_IMPORT_SIZE = 10 * 1024 * 1024;
 
 const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
-  form, isNew, editable, saving, error, onErrorClear, onSave, onImportDocument,
-  imageList, imageListChange, kb,
+  form, config, kb, images, callbacks, error,
 }) => {
+  const { isNew, editable, saving } = config;
+  const { onSave, onImportDocument, onErrorClear } = callbacks;
   const { message } = App.useApp();
   const writeMode = (Form.useWatch('write_mode', form) ?? 'ai') as WriteMode;
   const portraitValue = Form.useWatch('portrait', form);
@@ -89,6 +102,7 @@ const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
         onFinish={handleFinish}
         onValuesChange={handleFormValuesChange}
         layout="vertical"
+        requiredMark
         initialValues={{ write_mode: 'ai' as WriteMode }}
       >
         {error && (
@@ -149,8 +163,22 @@ const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
               ]}
               value={portraitMode}
               onChange={(val) => {
-                setPortraitMode(val as 'input' | 'select');
-                form.resetFields(['portrait']);
+                const next = val as 'input' | 'select';
+                if (portraitValue) {
+                  Modal.confirm({
+                    title: '切换输入方式',
+                    content: '切换后将清空当前画像内容，是否继续？',
+                    okText: '确认',
+                    cancelText: '取消',
+                    onOk: () => {
+                      setPortraitMode(next);
+                      form.resetFields(['portrait']);
+                    },
+                  });
+                } else {
+                  setPortraitMode(next);
+                  form.resetFields(['portrait']);
+                }
               }}
             />
             <Form.Item name="portrait" noStyle>
@@ -177,8 +205,8 @@ const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
           </div>
           <Form.Item label="插图">
             <ArticleImageManager
-              imageList={imageList}
-              imageListChange={imageListChange}
+              imageList={images.list}
+              imageListChange={images.onChange}
               editable={editable}
               kbImages={kb.images}
               kbLoading={kb.loading}
@@ -186,7 +214,7 @@ const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
           </Form.Item>
           <Form.Item name="skills" label="选择技能">
             <Select
-              placeholder="请选择关联技能"
+              placeholder="请选择技能"
               options={kb.skillsOptions}
               disabled={!editable}
               allowClear
