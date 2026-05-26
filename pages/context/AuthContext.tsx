@@ -1,11 +1,18 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { ROLES, type Role } from '../../apis/constants/roles';
+
+const VALID_ROLES = Object.values(ROLES) as string[];
+
+function isValidRole(role: unknown): role is Role {
+  return typeof role === 'string' && VALID_ROLES.includes(role);
+}
 
 export interface UserData {
   id: number;
   username: string;
   cn_name: string;
-  role: string;
+  role: Role;
   company_id?: number | null;
   selected_company: { id: number; short_name: string } | null;
   selected_project: { id: number; short_name: string } | null;
@@ -78,7 +85,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       if (e.key === USER_KEY) {
         if (e.newValue) {
-          try { setUser(JSON.parse(e.newValue)); } catch { /* ignore */ }
+          try {
+            const parsed = JSON.parse(e.newValue);
+            if (!isValidRole(parsed?.role)) {
+              parsed.role = ROLES.VIEW;
+            }
+            setUser(parsed);
+          } catch { /* ignore */ }
         } else {
           setUser(null);
         }
