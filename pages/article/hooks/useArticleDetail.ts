@@ -45,7 +45,7 @@ export function useArticleDetail(
         article_type: data.article_type || undefined,
         write_mode: data.write_mode || undefined,
         keywords: data.keywords || '',
-        portrait: data.portrait || '',
+        portrait: data.portrait ? JSON.parse(data.portrait) : undefined,
         skills: data.skills ?? undefined,
         llm_model_id: data.llm_model_id ?? undefined,
       });
@@ -77,7 +77,9 @@ export function useArticleDetail(
         article_type: values.article_type || undefined,
         write_mode: values.write_mode || undefined,
         keywords: values.keywords?.trim() ? values.keywords.trim() : undefined,
-        portrait: values.portrait?.trim() || undefined,
+        portrait: Array.isArray(values.portrait) && values.portrait.length > 0
+          ? JSON.stringify(values.portrait)
+          : undefined,
         images: imageList.length ? imageList : undefined,
         skills: values.skills || undefined,
         llm_model_id: values.llm_model_id || undefined,
@@ -136,7 +138,9 @@ export function useArticleDetail(
           article_type: formValues.article_type || undefined,
           write_mode: formValues.write_mode || undefined,
           keywords: formValues.keywords,
-          portrait: formValues.portrait?.trim() || undefined,
+          portrait: Array.isArray(formValues.portrait) && formValues.portrait.length > 0
+            ? JSON.stringify(formValues.portrait)
+            : undefined,
           images: imageList.length ? imageList : undefined,
           skills: formValues.skills || undefined,
           llm_model_id: formValues.llm_model_id,

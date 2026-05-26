@@ -29,7 +29,7 @@ export const articleTypeSchema = z.enum([
 export const writeModeSchema = z.enum(['manual', 'ai']);
 
 export const createArticleSchema = z.object({
-  title: z.string().max(500),
+  title: z.string().max(500).optional(),
   article_type: articleTypeSchema.optional(),
   write_mode: writeModeSchema.optional(),
   keywords: z.string().max(500).optional(),
@@ -38,7 +38,7 @@ export const createArticleSchema = z.object({
   skills: z.array(z.number().int().nonnegative()).max(50).nullable().optional(),
   llm_model_id: z.number().int().nonnegative().nullable().optional(),
   content: z.string().max(500_000).optional(),
-  status: z.enum(['draft', 'manual_writing']).optional(),
+  status: z.enum(['draft', 'manual_writing', 'generating']).optional(),
 }).strict();
 
 export const updateArticleSchema = z.object({
