@@ -58,3 +58,4 @@
 | fix049 | upload controller 专家评审修复（fd泄漏+内存优化+sanitize+safeCleanup） | `apis/utils/image-validator.ts`, `apis/controller/upload.controller.ts`, `apis/controller/upload-document.controller.ts` |
 | fix050 | routes.tsx 五维评审修复（role类型安全+死代码+ChunkErrorBoundary+ROLES常量+403/404操作出口+根路径重定向+aria属性+审计日志） | `pages/router/routes.tsx`, `pages/context/AuthContext.tsx` |
 | fix051 | 文章发布解耦重构（ArticleStatus新增approved+PublishingSchedule独立模型+前端发布计划页面+knowledge entity deleted_at修复） | `apis/entity/`, `apis/service/`, `apis/controller/`, `apis/map/`, `pages/article/`, `pages/publish/` |
+| fix058 | list-reveal-chapter.test.tsx 评审修复——删除（源组件不存在+违反.agents铁律+Mock API断裂，59测试0可执行） | `tests/pages/list-reveal-chapter.test.tsx`（已删除） |
