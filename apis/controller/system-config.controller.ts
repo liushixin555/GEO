@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { createSystemConfigService } from '../service';
-import type { AuthContext } from '../types/auth';
+import type { AuthContext } from '../service';
 import { success, fail } from '../utils';
 import { logger } from '../utils/logger.util';
 import { ALLOWED_CONFIG_KEYS, SENSITIVE_CONFIG_KEYS } from '../constants/system-config';

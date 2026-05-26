@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { createArticleService, createProjectService, IArticleService, IProjectService } from '../service';
-import type { AuthContext } from '../types/auth';
+import type { AuthContext } from '../service';
 import { success, fail, paginate, created } from '../utils';
 import { AppError, ForbiddenError } from '../errors';
 import { logger } from '../utils/logger.util';
