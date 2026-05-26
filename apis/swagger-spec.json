@@ -1098,6 +1098,7 @@
                     "maxLength": 200
                   },
                   "address": {
+                    "nullable": true,
                     "type": "string",
                     "maxLength": 500
                   },
@@ -1368,6 +1369,7 @@
                     "maxLength": 200
                   },
                   "address": {
+                    "nullable": true,
                     "type": "string",
                     "maxLength": 500
                   },
@@ -1383,7 +1385,6 @@
                     "pattern": "^[\\d\\-+()#\\s]+$"
                   },
                   "operator_ids": {
-                    "minItems": 1,
                     "maxItems": 100,
                     "type": "array",
                     "items": {
@@ -1403,14 +1404,7 @@
                       "maximum": 9007199254740991
                     }
                   }
-                },
-                "required": [
-                  "short_name",
-                  "full_name",
-                  "contact_person",
-                  "contact_phone",
-                  "operator_ids"
-                ]
+                }
               }
             }
           }
@@ -12093,6 +12087,14 @@
             "type": "string",
             "format": "date-time"
           },
+          "createdById": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updatedById": {
+            "type": "integer",
+            "format": "int32"
+          },
           "users": {
             "type": "array",
             "items": {
@@ -12122,6 +12124,12 @@
             "items": {
               "$ref": "#/components/schemas/Todo"
             }
+          },
+          "createdBy": {
+            "$ref": "#/components/schemas/User"
+          },
+          "updatedBy": {
+            "$ref": "#/components/schemas/User"
           },
           "deletedAt": {
             "type": "string",
@@ -12261,6 +12269,18 @@
               "$ref": "#/components/schemas/KnowledgeBase"
             }
           },
+          "createdCompanies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Company"
+            }
+          },
+          "updatedCompanies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Company"
+            }
+          },
           "assignedTodos": {
             "type": "array",
             "items": {
@@ -12304,6 +12324,8 @@
           "createdImages",
           "createdDocuments",
           "createdKnowledgeBases",
+          "createdCompanies",
+          "updatedCompanies",
           "assignedTodos",
           "createdTodos",
           "todoLogOperations"
