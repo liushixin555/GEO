@@ -55,7 +55,7 @@ const TodoLogModal: React.FC<TodoLogModalProps> = ({ visible, todoId, onClose })
       onCancel={onClose}
       footer={null}
       width={520}
-      destroyOnClose
+      destroyOnHidden
     >
       <Spin spinning={loading}>
         {logs.length === 0 ? (

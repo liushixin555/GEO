@@ -294,7 +294,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ visible, todo, onClose }) => {
       okText={isEdit ? '保存' : '创建'}
       cancelText="取消"
       confirmLoading={loading}
-      destroyOnClose
+      destroyOnHidden
       width={560}
     >
       <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
