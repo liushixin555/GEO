@@ -6,9 +6,9 @@ import { BusinessError } from '../../errors';
 import { IPublishingPlatformService } from '../publishing-platform.service';
 import type { ISystemConfigService } from '../system-config.service';
 import { SystemConfigServiceImpl } from './system-config.service.impl';
-import { AuthContext } from '../article.service';
+import type { AuthContext } from '../../types/auth';
 
-const SYSTEM_AUTH: AuthContext = { userId: 0, role: 'system' };
+const SYSTEM_AUTH: AuthContext = { userId: 0, role: 'sysadmin' };
 
 export class PublishingPlatformServiceImpl implements IPublishingPlatformService {
   private systemConfigService: ISystemConfigService;

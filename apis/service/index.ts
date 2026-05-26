@@ -25,7 +25,7 @@ import { IUserService, UserListOptions } from './user.service';
 import { UserServiceImpl } from './impl/user.service.impl';
 
 // --- 内容域 ---
-import { IArticleService, AuthContext } from './article.service';
+import { IArticleService } from './article.service';
 import { ArticleServiceImpl } from './impl/article.service.impl';
 
 import { IProjectService } from './project.service';
@@ -87,7 +87,8 @@ export { IAuthService };
 export { IUserService, UserListOptions };
 
 // 内容域
-export { IArticleService, AuthContext };
+export { IArticleService };
+export { AuthContext } from '../types/auth';
 export { IProjectService };
 export { ITodoService };
 export { IPublishingPlatformService };

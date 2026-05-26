@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
-import { createSystemConfigService, AuthContext } from '../service';
+import { createSystemConfigService } from '../service';
+import type { AuthContext } from '../types/auth';
+import type { Role } from '../constants/roles';
 import { success, fail } from '../utils';
 import { logger } from '../utils/logger.util';
 import { ALLOWED_CONFIG_KEYS, SENSITIVE_CONFIG_KEYS } from '../constants/system-config';
@@ -23,7 +25,7 @@ function sanitizeConfigItems(items: { config_key: string; config_value: string }
 function getAuth(req: Request): AuthContext {
   const user = req.user;
   if (!user) throw new Error('未认证');
-  return { userId: user.userId, role: user.role };
+  return { userId: user.userId, role: user.role as Role };
 }
 
 export async function getSystemConfigs(req: Request, res: Response): Promise<void> {

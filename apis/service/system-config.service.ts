@@ -1,5 +1,5 @@
 import { SystemConfig, UpdateSystemConfigsRequest } from '../entity';
-import { AuthContext } from './article.service';
+import type { AuthContext } from '../types/auth';
 
 export interface ISystemConfigService {
   getAll(auth: AuthContext): Promise<SystemConfig[]>;

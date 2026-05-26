@@ -39,8 +39,6 @@ export interface PublishingScheduleListParams {
   search?: string;
   status?: string;
   projectId?: number;
-  userId?: number;
-  role?: string;
 }
 
 /** 发布计划列表项（含关联信息） */

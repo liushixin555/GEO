@@ -91,7 +91,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([baseArticle]);
       mockArticleCount.mockResolvedValue(1);
 
-      const result = await service.list(10, 1, 10);
+      const result = await service.list(10, 1, 10, sysadminAuth);
 
       expect(result.list).toHaveLength(1);
       expect(result.list[0].id).toBe(1);
@@ -112,7 +112,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(25);
 
-      const result = await service.list(10, 3, 10);
+      const result = await service.list(10, 3, 10, sysadminAuth);
 
       expect(result.total).toBe(25);
       expect(mockArticleFindMany).toHaveBeenCalledWith(
@@ -127,7 +127,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(10, 1, 10, '测试关键词');
+      await service.list(10, 1, 10, sysadminAuth, '测试关键词');
 
       expect(mockArticleFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -142,7 +142,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(10, 1, 10, undefined, 'draft');
+      await service.list(10, 1, 10, sysadminAuth, undefined, 'draft');
 
       expect(mockArticleFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -155,7 +155,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(10, 1, 10, '关键词', 'pending_review');
+      await service.list(10, 1, 10, sysadminAuth, '关键词', 'pending_review');
 
       expect(mockArticleFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -171,7 +171,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(10, 1, 10, undefined, undefined, adminAuth);
+      await service.list(10, 1, 10, adminAuth);
 
       expect(mockArticleFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -190,7 +190,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(10, 1, 10, undefined, undefined, sysadminAuth);
+      await service.list(10, 1, 10, sysadminAuth);
 
       const callArgs = mockArticleFindMany.mock.calls[0][0] as any;
       expect(callArgs.where.project).toBeUndefined();
@@ -200,7 +200,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(10, 1, 10, undefined, undefined, { userId: 0, role: 'admin' });
+      await service.list(10, 1, 10, { userId: 0, role: 'admin' });
 
       const callArgs = mockArticleFindMany.mock.calls[0][0] as any;
       expect(callArgs.where.project).toBeUndefined();

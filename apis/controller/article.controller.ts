@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { createArticleService, createProjectService, IArticleService, IProjectService, AuthContext } from '../service';
+import { createArticleService, createProjectService, IArticleService, IProjectService } from '../service';
+import type { AuthContext } from '../types/auth';
+import type { Role } from '../constants/roles';
 import { success, fail, paginate, created } from '../utils';
 import { AppError, ForbiddenError, NotFoundError } from '../errors';
 import { logger } from '../utils/logger.util';
@@ -37,8 +39,9 @@ function handleServerError(res: Response, err: unknown, contextMsg: string): voi
   }
 }
 
-function getAuthUser(req: Request): { userId: number; role: string } | null {
-  return req.user ?? null;
+function getAuthUser(req: Request): AuthContext | null {
+  if (!req.user) return null;
+  return { userId: req.user.userId, role: req.user.role as Role };
 }
 
 function parseId(value: string | undefined, label: string, res: Response): number | null {
@@ -93,15 +96,13 @@ function withArticleAuth(handler: AuthenticatedHandler, options: WithAuthOptions
 export const listArticles = withArticleAuth(async (req, res, ctx) => {
   // Route validate() middleware already validated req.query — no redundant parse
   const { page, pageSize, search, status } = req.query as unknown as z.infer<typeof listArticlesSchema>;
-  const { list, total } = await articleService.list(ctx.projectId, page, pageSize, search, status, ctx);
+  const { list, total } = await articleService.list(ctx.projectId, page, pageSize, ctx, search, status);
   paginate(res, list, total, page, pageSize);
 }, { errorContext: '获取文章列表失败' });
 
 export const getArticle = withArticleAuth(async (req, res, ctx) => {
-  const item = await articleService.getById(ctx.articleId!);
-  if (item.project_id !== ctx.projectId) {
-    throw new NotFoundError('文章');
-  }
+  // C-1 fix: projectId now enforced at service layer — no post-hoc compensation needed
+  const item = await articleService.getById(ctx.projectId, ctx.articleId!);
   success(res, item);
 }, { requireId: true, errorContext: '获取文章详情失败' });
 
@@ -146,10 +147,7 @@ export const submitForReview = withArticleAuth(async (req, res, ctx) => {
 }, { requireId: true, errorContext: '提交审核失败' });
 
 export const listArticleVersions = withArticleAuth(async (req, res, ctx) => {
-  const article = await articleService.getById(ctx.articleId!);
-  if (article.project_id !== ctx.projectId) {
-    throw new NotFoundError('文章');
-  }
-  const versions = await articleService.listVersions(ctx.articleId!);
+  // C-1 fix: projectId now enforced at service layer — no post-hoc compensation needed
+  const versions = await articleService.listVersions(ctx.projectId, ctx.articleId!);
   success(res, versions);
 }, { requireId: true, errorContext: '获取版本历史失败' });
