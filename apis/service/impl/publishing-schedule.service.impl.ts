@@ -2,7 +2,7 @@ import { getPrisma } from '../../utils';
 import type { PublishingSchedule, PublishingScheduleItem, PublishingScheduleUpdateResult, CreatePublishingScheduleRequest, UpdatePublishingScheduleRequest, ScheduleType, PublishingScheduleListParams } from '../../entity/publishing-schedule.entity';
 import { mapPublishingSchedule, mapPublishingScheduleItem } from '../../map';
 import { IPublishingScheduleService } from '../publishing-schedule.service';
-import type { AuthContext } from '../../types/auth';
+import type { AuthContext } from '../article.service';
 import { Prisma } from '@prisma/client';
 import { NotFoundError, BusinessError, ForbiddenError } from '../../errors';
 
@@ -175,7 +175,7 @@ export class PublishingScheduleServiceImpl implements IPublishingScheduleService
     };
   }
 
-  async reject(id: number, auth: AuthContext): Promise<PublishingSchedule> {
+  async reject(id: number, auth: AuthContext, reason?: string): Promise<PublishingSchedule> {
     return await getPrisma().$transaction(async (tx: Prisma.TransactionClient) => {
       const existing = await this.findScheduleOrThrow(id, tx);
 

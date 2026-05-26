@@ -110,7 +110,7 @@ describe('KeywordServiceImpl R2 deep verification', () => {
     const result = await service.create(5, { keyword: 'mapped' }, 7);
     expect(result).toEqual({
       id: 10, base_id: 5, keyword: 'mapped', seed_word: 'seed', group_id: 3, created_by: 7,
-      created_at: expect.any(Date), updated_at: expect.any(Date),
+      created_at: expect.any(Date), updated_at: expect.any(Date), deleted_at: null, expanded_words: [],
     });
   });
 

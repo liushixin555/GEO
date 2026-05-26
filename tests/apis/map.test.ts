@@ -807,6 +807,7 @@ describe('mapKeyword', () => {
       created_by: 3,
       created_at: basePrisma.createdAt,
       updated_at: basePrisma.updatedAt,
+      deleted_at: null,
     });
   });
 
@@ -878,6 +879,7 @@ describe('mapPortrait', () => {
       created_by: 2,
       created_at: basePrisma.createdAt,
       updated_at: basePrisma.updatedAt,
+      deleted_at: null,
     });
   });
 
@@ -934,6 +936,7 @@ describe('mapKnowledgeImage', () => {
       created_by: 3,
       created_at: basePrisma.createdAt,
       updated_at: basePrisma.updatedAt,
+      deleted_at: null,
     });
   });
 
@@ -996,6 +999,7 @@ describe('mapKnowledgeDocument', () => {
       created_by: 4,
       created_at: basePrisma.createdAt,
       updated_at: basePrisma.updatedAt,
+      deleted_at: null,
     });
   });
 
@@ -1058,6 +1062,7 @@ describe('mapMinedKeyword', () => {
       selected: true,
       created_by: 5,
       created_at: basePrisma.createdAt,
+      deleted_at: null,
     });
   });
 
@@ -1623,47 +1628,47 @@ describe('属性数量验证', () => {
     expect(Object.keys(result)).toHaveLength(10);
   });
 
-  test('mapKeyword 返回恰好 8 个属性', () => {
+  test('mapKeyword 返回恰好 9 个属性', () => {
     const result = mapKeyword({
       id: 1, baseId: 10, keyword: 'K', seedWord: null,
       groupId: null, createdBy: null,
-      createdAt: new Date(), updatedAt: new Date(),
+      createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
+    });
+    expect(Object.keys(result)).toHaveLength(9);
+  });
+
+  test('mapPortrait 返回恰好 8 个属性', () => {
+    const result = mapPortrait({
+      id: 1, baseId: 10, title: 'T', content: null,
+      createdBy: null, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
     });
     expect(Object.keys(result)).toHaveLength(8);
   });
 
-  test('mapPortrait 返回恰好 7 个属性', () => {
-    const result = mapPortrait({
-      id: 1, baseId: 10, title: 'T', content: null,
-      createdBy: null, createdAt: new Date(), updatedAt: new Date(),
-    });
-    expect(Object.keys(result)).toHaveLength(7);
-  });
-
-  test('mapKnowledgeImage 返回恰好 8 个属性', () => {
+  test('mapKnowledgeImage 返回恰好 9 个属性', () => {
     const result = mapKnowledgeImage({
       id: 1, baseId: 10, title: 'T', description: null,
       imageUrl: null, createdBy: null,
-      createdAt: new Date(), updatedAt: new Date(),
+      createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
     });
-    expect(Object.keys(result)).toHaveLength(8);
+    expect(Object.keys(result)).toHaveLength(9);
   });
 
-  test('mapKnowledgeDocument 返回恰好 11 个属性', () => {
+  test('mapKnowledgeDocument 返回恰好 12 个属性', () => {
     const result = mapKnowledgeDocument({
       id: 1, baseId: 10, title: 'T', description: null,
       fileUrl: null, fileName: null, fileType: null, fileSize: 0,
-      createdBy: null, createdAt: new Date(), updatedAt: new Date(),
+      createdBy: null, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
     });
-    expect(Object.keys(result)).toHaveLength(11);
+    expect(Object.keys(result)).toHaveLength(12);
   });
 
-  test('mapMinedKeyword 返回恰好 6 个属性', () => {
+  test('mapMinedKeyword 返回恰好 7 个属性', () => {
     const result = mapMinedKeyword({
       id: 1, baseId: 10, keyword: 'K', selected: false,
-      createdBy: null, createdAt: new Date(),
+      createdBy: null, createdAt: new Date(), deletedAt: null,
     });
-    expect(Object.keys(result)).toHaveLength(6);
+    expect(Object.keys(result)).toHaveLength(7);
   });
 
   test('mapTodo 返回恰好 19 个属性', () => {

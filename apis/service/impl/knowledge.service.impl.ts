@@ -1,5 +1,5 @@
 import { getPrisma } from '../../utils';
-import { KnowledgeKeyword, KeywordExpandedWord, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, CreateKeywordRequest, UpdateKeywordRequest, CreatePortraitRequest, UpdatePortraitRequest, CreateImageRequest, UpdateImageRequest, CreateDocumentRequest, UpdateDocumentRequest, MinedKeyword } from '../../entity';
+import { KnowledgeKeyword, KnowledgeKeywordDetail, KeywordExpandedWord, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, CreateKeywordRequest, UpdateKeywordRequest, CreatePortraitRequest, UpdatePortraitRequest, CreateImageRequest, UpdateImageRequest, CreateDocumentRequest, UpdateDocumentRequest, MinedKeyword } from '../../entity';
 import { mapKeyword, mapPortrait, mapKnowledgeImage, mapKnowledgeDocument, mapMinedKeyword } from '../../map';
 import { IKeywordService, IPortraitService, IImageService, IDocumentService, IMinedKeywordService } from '../knowledge.service';
 import { KnowledgeBaseServiceImpl } from './knowledge-base.service.impl';
@@ -15,6 +15,7 @@ function mapRawKeyword(r: any): KnowledgeKeyword {
     created_by: r.created_by,
     created_at: r.created_at,
     updated_at: r.updated_at,
+    deleted_at: r.deleted_at ?? null,
   };
 }
 
@@ -26,6 +27,7 @@ function mapRawExpandedWord(r: any): KeywordExpandedWord {
     selected: r.selected,
     created_at: r.created_at,
     updated_at: r.updated_at,
+    deleted_at: r.deleted_at ?? null,
   };
 }
 
@@ -61,21 +63,22 @@ export class KeywordServiceImpl implements IKeywordService {
     return { list: items.map(mapKeyword), total };
   }
 
-  async getById(id: number): Promise<KnowledgeKeyword> {
+  async getById(id: number): Promise<KnowledgeKeywordDetail> {
     const prisma = getPrisma();
     const rows: any[] = await prisma.$queryRaw`SELECT * FROM knowledge_keywords WHERE id = ${id} AND deleted_at IS NULL`;
     if (!rows || rows.length === 0) throw new NotFoundError('关键词');
-    const keyword = mapRawKeyword(rows[0]);
+    const keyword = mapRawKeyword(rows[0]) as KnowledgeKeywordDetail;
     keyword.expanded_words = await this.listExpandedWords(id);
     return keyword;
   }
 
-  async create(baseId: number, request: CreateKeywordRequest, userId: number): Promise<KnowledgeKeyword> {
+  async create(baseId: number, request: CreateKeywordRequest, userId: number): Promise<KnowledgeKeywordDetail> {
     const prisma = getPrisma();
     const item = await prisma.knowledgeKeyword.create({
       data: { baseId, keyword: request.keyword, createdBy: userId },
     });
-    const keyword = mapKeyword(item);
+    const keyword = mapKeyword(item) as KnowledgeKeywordDetail;
+    keyword.expanded_words = [];
     if (request.expanded_words && request.expanded_words.length > 0) {
       keyword.expanded_words = await this.syncExpandedWords(keyword.id, baseId, request.expanded_words, userId);
     }
@@ -108,12 +111,12 @@ export class KeywordServiceImpl implements IKeywordService {
     return [];
   }
 
-  async update(id: number, request: UpdateKeywordRequest): Promise<KnowledgeKeyword> {
+  async update(id: number, request: UpdateKeywordRequest): Promise<KnowledgeKeywordDetail> {
     const prisma = getPrisma();
     const existing = await prisma.knowledgeKeyword.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new NotFoundError('关键词');
     const updated = await prisma.knowledgeKeyword.update({ where: { id }, data: { keyword: request.keyword } });
-    const keyword = mapKeyword(updated);
+    const keyword = mapKeyword(updated) as KnowledgeKeywordDetail;
     if (request.expanded_words !== undefined) {
       keyword.expanded_words = await this.syncExpandedWords(id, existing.baseId, request.expanded_words, existing.createdBy ?? 0);
     } else {

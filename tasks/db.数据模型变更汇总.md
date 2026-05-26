@@ -844,3 +844,42 @@ model Article {
 
 ### 迁移
 通过 `npx prisma db push` 执行。
+
+---
+
+## db012. 文章管理与发布计划解耦
+
+### 变更原因
+文章管理和发布计划紧密耦合：文章审核通过后直接进入 `publishing` 状态。需要将两者完全解耦，文章审核通过即结束流程（`approved`），发布计划作为独立实体手工创建。
+
+### 变更内容
+
+#### 1. ArticleStatus 枚举变更
+- 新增 `approved` 状态（审核通过）
+- `publishing`/`publish_failed`/`published` 保留于 Prisma schema（待后续迁移移除）
+- 状态机更新：`pending_review → approved`（替代原 `pending_review → publishing`）
+
+#### 2. Article 模型变更
+- 移除 `platforms`、`scheduledPublishAt`、`scheduleType` 字段（待迁移）
+- 新增 `schedules PublishingSchedule[]` 关联关系
+- 列表/详情 API 返回 `schedule_count`（关联发布计划数量）
+
+#### 3. 新建 PublishingSchedule 模型
+- 独立发布计划表，包含：articleId、platforms、scheduleType、scheduledPublishAt、status、createdBy
+- `PublishingScheduleStatus` 枚举：`pending`/`publishing`/`published`/`publish_failed`
+- `ScheduleType` 枚举：`asap`/`scheduled`/`after`
+- 支持软删除（deletedAt）
+
+### 影响文件
+- `prisma/schema.prisma` — 新增 PublishingSchedule 模型、Article 关联
+- `apis/entity/article.entity.ts` — 新增 schedule_count，状态类型更新
+- `apis/entity/publishing-schedule.entity.ts` — 全新发布计划实体
+- `apis/service/article.service.ts` — 移除发布相关方法
+- `apis/service/publishing-schedule.service.ts` — 全新发布计划服务接口
+- `apis/service/impl/publishing-schedule.service.impl.ts` — Prisma 实现
+- `apis/controller/article.controller.ts` — 移除发布端点
+- `apis/controller/publishing-schedule.controller.ts` — 全新发布计划控制器
+- `pages/article/index.tsx` — 显示"可发布"/"x个发布"标签
+- `pages/publish/index.tsx` — 独立发布计划管理页面
+- `pages/article/components/PlatformSelectModal.tsx` — 已删除
+- `pages/article/components/ArticleSettingsForm.tsx` — 移除平台选择

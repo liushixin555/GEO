@@ -203,6 +203,7 @@ describe('KeywordServiceImpl', () => {
         created_by: 1,
         created_at: new Date('2025-01-01'),
         updated_at: new Date('2025-06-01'),
+        deleted_at: null,
       });
     });
   });
@@ -361,7 +362,7 @@ describe('KeywordServiceImpl', () => {
 
       const result = await service.create(10, { keyword: '空扩展', expanded_words: [] }, 1);
 
-      expect(result.expanded_words).toBeUndefined();
+      expect(result.expanded_words).toEqual([]);
     });
   });
 
@@ -619,6 +620,7 @@ describe('KeywordServiceImpl', () => {
         selected: true,
         created_at: new Date('2025-01-01'),
         updated_at: new Date('2025-06-01'),
+        deleted_at: null,
       });
     });
 
@@ -786,6 +788,7 @@ describe('PortraitServiceImpl', () => {
         created_by: 1,
         created_at: new Date('2025-01-01'),
         updated_at: new Date('2025-06-01'),
+        deleted_at: null,
       });
     });
   });
@@ -1052,6 +1055,7 @@ describe('ImageServiceImpl', () => {
         created_by: 1,
         created_at: new Date('2025-01-01'),
         updated_at: new Date('2025-06-01'),
+        deleted_at: null,
       });
     });
   });
@@ -1348,6 +1352,7 @@ describe('DocumentServiceImpl', () => {
         created_by: 1,
         created_at: new Date('2025-01-01'),
         updated_at: new Date('2025-06-01'),
+        deleted_at: null,
       });
     });
   });
@@ -1604,6 +1609,7 @@ describe('MinedKeywordServiceImpl', () => {
         selected: true,
         created_by: 3,
         created_at: new Date('2025-01-01'),
+        deleted_at: null,
       });
     });
 

@@ -2,7 +2,7 @@ import { getPrisma } from '../../utils';
 import { Article, ArticleStatus, ArticleVersion, CreateArticleRequest, UpdateArticleRequest } from '../../entity';
 import { mapArticle, mapArticleVersion } from '../../map';
 import { IArticleService } from '../article.service';
-import type { AuthContext } from '../../types/auth';
+import type { AuthContext } from '../article.service';
 import { Prisma } from '@prisma/client';
 import { NotFoundError, BusinessError, ForbiddenError } from '../../errors';
 import { validateAndSanitizeMarkdown } from '../../utils/sanitize-markdown.util';
@@ -15,6 +15,9 @@ export class ArticleServiceImpl implements IArticleService {
     'generate_failed': ['generating'],
     'pending_review': ['approved', 'manual_writing', 'draft', 'generating'],
     'approved': [],
+    'publishing': [],
+    'published': [],
+    'publish_failed': [],
   };
 
   private static readonly SETTINGS_EDITABLE_STATUSES: ArticleStatus[] = ['draft'];

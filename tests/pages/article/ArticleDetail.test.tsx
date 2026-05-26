@@ -263,7 +263,8 @@ describe('ArticleDetail', () => {
 
   // === 8. 待审核 — 显示审核提示 ===
   it('should show review alert for pending_review status', async () => {
-    setupMockGet({ status: 'pending_review' });
+    // canReview requires sysadmin && created_by !== user.id
+    setupMockGet({ status: 'pending_review', created_by: 999 });
 
     renderWithRouter('/article/1');
 
@@ -278,7 +279,8 @@ describe('ArticleDetail', () => {
 
   // === 9. 待审核正文不可编辑 ===
   it('should NOT allow content editing in pending_review status', async () => {
-    setupMockGet({ status: 'pending_review' });
+    // canReview requires sysadmin && created_by !== user.id
+    setupMockGet({ status: 'pending_review', created_by: 999 });
 
     renderWithRouter('/article/1');
 
@@ -286,6 +288,7 @@ describe('ArticleDetail', () => {
       await flushPromises();
     });
 
+    // Wait for the review alert to confirm page loaded with pending_review status
     await waitFor(() => {
       expect(screen.getByText('该文章待审核')).toBeInTheDocument();
     });
@@ -312,7 +315,8 @@ describe('ArticleDetail', () => {
 
   // === 11. 审核通过 API 调用 ===
   it('should call review API when approved', async () => {
-    setupMockGet({ status: 'pending_review' });
+    // canReview requires sysadmin && created_by !== user.id
+    setupMockGet({ status: 'pending_review', created_by: 999 });
     mockPut.mockResolvedValueOnce({ data: { data: mockArticle } });
 
     renderWithRouter('/article/1');

@@ -1458,7 +1458,7 @@ describe('PublishingScheduleServiceImpl', () => {
 
       it('should implement reject method', () => {
         expect(typeof service.reject).toBe('function');
-        expect(service.reject.length).toBe(2);
+        expect(service.reject.length).toBe(3);
       });
 
       it('should implement delete method', () => {

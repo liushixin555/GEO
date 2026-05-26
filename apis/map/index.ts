@@ -150,6 +150,7 @@ export function mapKeyword(prismaKeyword: any): KnowledgeKeyword {
     created_by: prismaKeyword.createdBy ?? null,
     created_at: prismaKeyword.createdAt,
     updated_at: prismaKeyword.updatedAt,
+    deleted_at: prismaKeyword.deletedAt ?? null,
   };
 }
 
@@ -162,6 +163,7 @@ export function mapPortrait(prismaPortrait: any): KnowledgePortrait {
     created_by: prismaPortrait.createdBy ?? null,
     created_at: prismaPortrait.createdAt,
     updated_at: prismaPortrait.updatedAt,
+    deleted_at: prismaPortrait.deletedAt ?? null,
   };
 }
 
@@ -175,6 +177,7 @@ export function mapKnowledgeImage(prismaImage: any): KnowledgeImage {
     created_by: prismaImage.createdBy ?? null,
     created_at: prismaImage.createdAt,
     updated_at: prismaImage.updatedAt,
+    deleted_at: prismaImage.deletedAt ?? null,
   };
 }
 
@@ -191,6 +194,7 @@ export function mapKnowledgeDocument(prismaDoc: any): KnowledgeDocument {
     created_by: prismaDoc.createdBy ?? null,
     created_at: prismaDoc.createdAt,
     updated_at: prismaDoc.updatedAt,
+    deleted_at: prismaDoc.deletedAt ?? null,
   };
 }
 
@@ -202,6 +206,7 @@ export function mapMinedKeyword(prismaItem: any): MinedKeyword {
     selected: prismaItem.selected,
     created_by: prismaItem.createdBy ?? null,
     created_at: prismaItem.createdAt,
+    deleted_at: prismaItem.deletedAt ?? null,
   };
 }
 

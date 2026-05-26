@@ -3,7 +3,6 @@ import { createPublishingScheduleService, createArticleService } from '../servic
 import { success, fail, paginate, created } from '../utils';
 import { AppError } from '../errors';
 import { logger } from '../utils/logger.util';
-import { PUBLISH_SCHEDULE_STATUSES } from '../constants/publish-statuses';
 import { Role } from '../constants/roles';
 
 const scheduleService = createPublishingScheduleService();
@@ -14,21 +13,14 @@ export async function listPublishingSchedule(req: Request, res: Response): Promi
     if (!req.user) { fail(res, 401, '未授权访问'); return; }
     const { userId, role } = req.user;
 
-    const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
-    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize as string, 10) || 10));
-    const search = req.query.search as string | undefined;
-
-    const rawStatus = req.query.status as string | undefined;
-    const status = rawStatus && (PUBLISH_SCHEDULE_STATUSES as readonly string[]).includes(rawStatus) ? rawStatus : undefined;
-
-    const rawProjectId = parseInt(req.query.projectId as string, 10);
-    const projectId = !isNaN(rawProjectId) ? rawProjectId : undefined;
+    // validate 中间件已验证 req.query，直接使用
+    const { page, pageSize, search, status, projectId } = req.query as any;
 
     const { list, total } = await scheduleService.list({
-      page, pageSize, search, status, projectId, userId, role,
-    });
+      page: Number(page), pageSize: Number(pageSize), search, status, projectId: projectId ?? undefined,
+    }, { userId, role: role as Role });
 
-    paginate(res, list, total, page, pageSize);
+    paginate(res, list, total, Number(page), Number(pageSize));
   } catch (err: unknown) {
     if (err instanceof AppError) {
       fail(res, err.statusCode, err.message);
@@ -90,8 +82,9 @@ export async function rejectPublishingSchedule(req: Request, res: Response): Pro
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { fail(res, 400, '无效的ID'); return; }
 
-    const item = await scheduleService.reject(id, { userId, role: role as Role });
-    logger.info('publishing_schedule_rejected', { scheduleId: id, operatorId: userId, role });
+    const reason = (req.body as any)?.reason as string | undefined;
+    const item = await scheduleService.reject(id, { userId, role: role as Role }, reason);
+    logger.info('publishing_schedule_rejected', { scheduleId: id, operatorId: userId, role, reason: reason || '未提供原因' });
     success(res, item, '驳回成功');
   } catch (err: unknown) {
     if (err instanceof AppError) {
@@ -130,15 +123,12 @@ export async function listPublishableArticles(req: Request, res: Response): Prom
     if (!req.user) { fail(res, 401, '未授权访问'); return; }
     const { userId, role } = req.user;
 
-    const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
-    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize as string, 10) || 20));
-    const search = req.query.search as string | undefined;
-    const rawProjectId = parseInt(req.query.projectId as string, 10);
-    const projectId = !isNaN(rawProjectId) ? rawProjectId : undefined;
+    // validate 中间件已验证 req.query，直接使用
+    const { page, pageSize, search, projectId } = req.query as any;
 
     // 使用 articleService 查询已审核通过的文章
-    const { list, total } = await articleService.list(projectId ?? 0, page, pageSize, { userId, role: role as Role }, search, 'approved');
-    paginate(res, list, total, page, pageSize);
+    const { list, total } = await articleService.list(Number(projectId) || 0, Number(page), Number(pageSize), { userId, role: role as Role }, search as string | undefined, 'approved');
+    paginate(res, list, total, Number(page), Number(pageSize));
   } catch (err: unknown) {
     if (err instanceof AppError) {
       fail(res, err.statusCode, err.message);

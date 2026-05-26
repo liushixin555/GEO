@@ -175,15 +175,10 @@ describe('PublishingSchedule Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(200);
-      expect(mockScheduleList).toHaveBeenCalledWith({
-        page: 1,
-        pageSize: 10,
-        search: undefined,
-        status: undefined,
-        projectId: undefined,
-        userId: 1,
-        role: 'sysadmin',
-      });
+      expect(mockScheduleList).toHaveBeenCalledWith(
+        { page: 1, pageSize: 10, search: undefined, status: undefined, projectId: undefined },
+        { userId: 1, role: 'sysadmin' },
+      );
     });
 
     it('should pass search parameter to service', async () => {
@@ -196,6 +191,7 @@ describe('PublishingSchedule Controller', () => {
       expect(response.status).toBe(200);
       expect(mockScheduleList).toHaveBeenCalledWith(
         expect.objectContaining({ search: '测试' }),
+        expect.anything(),
       );
     });
 
@@ -209,6 +205,7 @@ describe('PublishingSchedule Controller', () => {
       expect(response.status).toBe(200);
       expect(mockScheduleList).toHaveBeenCalledWith(
         expect.objectContaining({ status: 'publishing' }),
+        expect.anything(),
       );
     });
 
@@ -222,6 +219,7 @@ describe('PublishingSchedule Controller', () => {
       expect(response.status).toBe(200);
       expect(mockScheduleList).toHaveBeenCalledWith(
         expect.objectContaining({ projectId: 5 }),
+        expect.anything(),
       );
     });
 
@@ -239,9 +237,7 @@ describe('PublishingSchedule Controller', () => {
         search: '文章',
         status: 'publishing',
         projectId: 3,
-        userId: 1,
-        role: 'sysadmin',
-      });
+      }, { userId: 1, role: 'sysadmin' });
     });
 
     it('should pass userId and role for admin user', async () => {
@@ -253,6 +249,7 @@ describe('PublishingSchedule Controller', () => {
 
       expect(response.status).toBe(200);
       expect(mockScheduleList).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ userId: 2, role: 'admin' }),
       );
     });
@@ -266,6 +263,7 @@ describe('PublishingSchedule Controller', () => {
 
       expect(response.status).toBe(200);
       expect(mockScheduleList).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ userId: 3, role: 'view' }),
       );
     });
@@ -674,7 +672,7 @@ describe('PublishingSchedule Controller', () => {
       expect(response.status).toBe(200);
       expect(response.body.code).toBe(0);
       expect(response.body.message).toBe('驳回成功');
-      expect(mockScheduleReject).toHaveBeenCalledWith(1, { userId: 1, role: 'sysadmin' });
+      expect(mockScheduleReject).toHaveBeenCalledWith(1, { userId: 1, role: 'sysadmin' }, undefined);
     });
 
     it('should reject successfully for admin (non-creator)', async () => {
@@ -686,7 +684,7 @@ describe('PublishingSchedule Controller', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.code).toBe(0);
-      expect(mockScheduleReject).toHaveBeenCalledWith(1, { userId: 2, role: 'admin' });
+      expect(mockScheduleReject).toHaveBeenCalledWith(1, { userId: 2, role: 'admin' }, undefined);
     });
 
     it('should return 400 when id is not a number', async () => {
@@ -928,69 +926,44 @@ describe('PublishingSchedule Controller', () => {
 
   // ========== Edge Cases for listPublishingSchedule ==========
   describe('GET /api/publishing-schedule - edge cases', () => {
-    it('should use default page when page is non-numeric', async () => {
-      mockScheduleList.mockResolvedValue({ list: [], total: 0 });
-
+    it('should return 400 when page is non-numeric (Zod rejects)', async () => {
       const response = await agent
         .get('/api/v1/publishing-schedule?page=abc&pageSize=10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockScheduleList).toHaveBeenCalledWith(
-        expect.objectContaining({ page: 1 }),
-      );
+      expect(response.status).toBe(400);
     });
 
-    it('should use default pageSize when pageSize is non-numeric', async () => {
-      mockScheduleList.mockResolvedValue({ list: [], total: 0 });
-
+    it('should return 400 when pageSize is non-numeric (Zod rejects)', async () => {
       const response = await agent
         .get('/api/v1/publishing-schedule?page=1&pageSize=xyz')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockScheduleList).toHaveBeenCalledWith(
-        expect.objectContaining({ pageSize: 10 }),
-      );
+      expect(response.status).toBe(400);
     });
 
-    it('should use page=1 when page is 0', async () => {
-      mockScheduleList.mockResolvedValue({ list: [], total: 0 });
-
+    it('should return 400 when page is 0 (Zod min(1) rejects)', async () => {
       const response = await agent
         .get('/api/v1/publishing-schedule?page=0&pageSize=10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockScheduleList).toHaveBeenCalledWith(
-        expect.objectContaining({ page: 1 }),
-      );
+      expect(response.status).toBe(400);
     });
 
-    it('should clamp negative pageSize to 1', async () => {
-      mockScheduleList.mockResolvedValue({ list: [], total: 0 });
-
+    it('should return 400 when pageSize is negative (Zod min(1) rejects)', async () => {
       const response = await agent
         .get('/api/v1/publishing-schedule?page=1&pageSize=-5')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockScheduleList).toHaveBeenCalledWith(
-        expect.objectContaining({ pageSize: 1 }),
-      );
+      expect(response.status).toBe(400);
     });
 
-    it('should pass projectId as undefined when projectId is empty string', async () => {
-      mockScheduleList.mockResolvedValue({ list: [], total: 0 });
-
+    it('should return 400 when projectId is empty string (Zod rejects)', async () => {
       const response = await agent
         .get('/api/v1/publishing-schedule?projectId=')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockScheduleList).toHaveBeenCalledWith(
-        expect.objectContaining({ projectId: undefined }),
-      );
+      expect(response.status).toBe(400);
     });
 
     it('should return multiple items correctly', async () => {
@@ -1022,6 +995,7 @@ describe('PublishingSchedule Controller', () => {
       expect(response.status).toBe(200);
       expect(mockScheduleList).toHaveBeenCalledWith(
         expect.objectContaining({ page: 999 }),
+        expect.anything(),
       );
     });
 
@@ -1035,24 +1009,16 @@ describe('PublishingSchedule Controller', () => {
       expect(response.status).toBe(200);
       expect(mockScheduleList).toHaveBeenCalledWith(
         expect.objectContaining({ search: '测试&<>' }),
+        expect.anything(),
       );
     });
 
-    it('should handle projectId with value 0', async () => {
-      mockScheduleList.mockResolvedValue({ list: [], total: 0 });
-
+    it('should return 400 when projectId is 0 (Zod positive() rejects)', async () => {
       const response = await agent
         .get('/api/v1/publishing-schedule?projectId=0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      // parseInt('0') = 0, isNaN(0) = false, so projectId = 0
-      // But the controller: !isNaN(0) = true, so projectId = 0
-      // However, in the implementation, projectId=0 goes to articleService.list(0, ...) for listPublishableArticles
-      // For listPublishingSchedule, projectId=0 is passed as-is
-      expect(mockScheduleList).toHaveBeenCalledWith(
-        expect.objectContaining({ projectId: 0 }),
-      );
+      expect(response.status).toBe(400);
     });
 
     it('should return correct pagination metadata for page 2', async () => {
@@ -1069,43 +1035,28 @@ describe('PublishingSchedule Controller', () => {
       expect(response.body.data.total).toBe(15);
     });
 
-    it('should filter out invalid status parameter', async () => {
-      mockScheduleList.mockResolvedValue({ list: [], total: 0 });
-
+    it('should return 400 when status is invalid (Zod enum rejects)', async () => {
       const response = await agent
         .get('/api/v1/publishing-schedule?status=invalid_status')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockScheduleList).toHaveBeenCalledWith(
-        expect.objectContaining({ status: undefined }),
-      );
+      expect(response.status).toBe(400);
     });
 
-    it('should filter out non-numeric projectId', async () => {
-      mockScheduleList.mockResolvedValue({ list: [], total: 0 });
-
+    it('should return 400 when projectId is non-numeric (Zod rejects)', async () => {
       const response = await agent
         .get('/api/v1/publishing-schedule?projectId=abc')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockScheduleList).toHaveBeenCalledWith(
-        expect.objectContaining({ projectId: undefined }),
-      );
+      expect(response.status).toBe(400);
     });
 
-    it('should clamp pageSize to max 100', async () => {
-      mockScheduleList.mockResolvedValue({ list: [], total: 0 });
-
+    it('should return 400 when pageSize exceeds max 100 (Zod max(100) rejects)', async () => {
       const response = await agent
         .get('/api/v1/publishing-schedule?pageSize=999999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockScheduleList).toHaveBeenCalledWith(
-        expect.objectContaining({ pageSize: 100 }),
-      );
+      expect(response.status).toBe(400);
     });
 
     it('should pass status=published correctly', async () => {
@@ -1118,6 +1069,7 @@ describe('PublishingSchedule Controller', () => {
       expect(response.status).toBe(200);
       expect(mockScheduleList).toHaveBeenCalledWith(
         expect.objectContaining({ status: 'published' }),
+        expect.anything(),
       );
     });
 
@@ -1131,6 +1083,7 @@ describe('PublishingSchedule Controller', () => {
       expect(response.status).toBe(200);
       expect(mockScheduleList).toHaveBeenCalledWith(
         expect.objectContaining({ status: 'publish_failed' }),
+        expect.anything(),
       );
     });
 
@@ -1144,6 +1097,7 @@ describe('PublishingSchedule Controller', () => {
       expect(response.status).toBe(200);
       expect(mockScheduleList).toHaveBeenCalledWith(
         expect.objectContaining({ pageSize: 100 }),
+        expect.anything(),
       );
     });
 
@@ -1157,59 +1111,47 @@ describe('PublishingSchedule Controller', () => {
       expect(response.status).toBe(200);
       expect(mockScheduleList).toHaveBeenCalledWith(
         expect.objectContaining({ pageSize: 1 }),
+        expect.anything(),
       );
     });
 
-    it('should use page=1 when page is negative', async () => {
-      mockScheduleList.mockResolvedValue({ list: [], total: 0 });
-
+    it('should return 400 when page is negative (Zod min(1) rejects)', async () => {
       const response = await agent
         .get('/api/v1/publishing-schedule?page=-5&pageSize=10')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockScheduleList).toHaveBeenCalledWith(
-        expect.objectContaining({ page: 1 }),
-      );
+      expect(response.status).toBe(400);
     });
 
-    it('should pass search as empty string when search= is provided', async () => {
+    it('should handle search as trimmed empty string when search= is provided', async () => {
       mockScheduleList.mockResolvedValue({ list: [], total: 0 });
 
       const response = await agent
         .get('/api/v1/publishing-schedule?search=')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
+      // Zod trim() + optional(): empty string after trim is '', which is a valid string
       expect(response.status).toBe(200);
       expect(mockScheduleList).toHaveBeenCalledWith(
         expect.objectContaining({ search: '' }),
+        expect.anything(),
       );
     });
 
-    it('should handle NaN-like page value like "undefined"', async () => {
-      mockScheduleList.mockResolvedValue({ list: [], total: 0 });
-
+    it('should return 400 when page value is "undefined" (Zod rejects)', async () => {
       const response = await agent
         .get('/api/v1/publishing-schedule?page=undefined')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockScheduleList).toHaveBeenCalledWith(
-        expect.objectContaining({ page: 1 }),
-      );
+      expect(response.status).toBe(400);
     });
 
-    it('should handle NaN-like pageSize value like "null"', async () => {
-      mockScheduleList.mockResolvedValue({ list: [], total: 0 });
-
+    it('should return 400 when pageSize value is "null" (Zod rejects)', async () => {
       const response = await agent
         .get('/api/v1/publishing-schedule?pageSize=null')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockScheduleList).toHaveBeenCalledWith(
-        expect.objectContaining({ pageSize: 10 }),
-      );
+      expect(response.status).toBe(400);
     });
   });
 
@@ -1874,6 +1816,7 @@ describe('PublishingSchedule Controller', () => {
       expect(response.status).toBe(200);
       expect(mockScheduleList).toHaveBeenCalledWith(
         expect.objectContaining({ search: "'; DROP TABLE publishing_schedules;--" }),
+        expect.anything(),
       );
     });
 
@@ -1887,6 +1830,7 @@ describe('PublishingSchedule Controller', () => {
       expect(response.status).toBe(200);
       expect(mockScheduleList).toHaveBeenCalledWith(
         expect.objectContaining({ search: '<script>alert(1)</script>' }),
+        expect.anything(),
       );
     });
 
@@ -1919,18 +1863,14 @@ describe('PublishingSchedule Controller', () => {
       );
     });
 
-    it('should handle extremely long search string', async () => {
-      mockScheduleList.mockResolvedValue({ list: [], total: 0 });
+    it('should return 400 for extremely long search string (Zod max(200) rejects)', async () => {
       const longSearch = 'a'.repeat(10000);
 
       const response = await agent
         .get(`/api/v1/publishing-schedule?search=${longSearch}`)
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockScheduleList).toHaveBeenCalledWith(
-        expect.objectContaining({ search: longSearch }),
-      );
+      expect(response.status).toBe(400);
     });
 
     it('should handle extremely large page number', async () => {
@@ -1943,20 +1883,16 @@ describe('PublishingSchedule Controller', () => {
       expect(response.status).toBe(200);
       expect(mockScheduleList).toHaveBeenCalledWith(
         expect.objectContaining({ page: 999999999 }),
+        expect.anything(),
       );
     });
 
-    it('should handle extremely large pageSize (clamped to 100)', async () => {
-      mockScheduleList.mockResolvedValue({ list: [], total: 0 });
-
+    it('should return 400 for extremely large pageSize (Zod max(100) rejects)', async () => {
       const response = await agent
         .get('/api/v1/publishing-schedule?pageSize=999999999')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockScheduleList).toHaveBeenCalledWith(
-        expect.objectContaining({ pageSize: 100 }),
-      );
+      expect(response.status).toBe(400);
     });
   });
 
@@ -2079,6 +2015,7 @@ describe('PublishingSchedule Controller', () => {
 
       expect(response.status).toBe(200);
       expect(mockScheduleList).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ userId: 1, role: 'sysadmin' }),
       );
     });
@@ -2092,6 +2029,7 @@ describe('PublishingSchedule Controller', () => {
 
       expect(response.status).toBe(200);
       expect(mockScheduleList).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ userId: 2, role: 'admin' }),
       );
     });
@@ -2105,6 +2043,7 @@ describe('PublishingSchedule Controller', () => {
 
       expect(response.status).toBe(200);
       expect(mockScheduleList).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ userId: 3, role: 'view' }),
       );
     });
@@ -2201,35 +2140,26 @@ describe('PublishingSchedule Controller', () => {
 
         expect(response.status).toBe(200);
         expect(mockScheduleList).toHaveBeenLastCalledWith(
-          expect.objectContaining({ status: 'pending', userId, role }),
+          expect.objectContaining({ status: 'pending' }),
+          expect.objectContaining({ userId, role }),
         );
       }
     });
 
-    it('should handle projectId with float value (parseInt truncates)', async () => {
-      mockScheduleList.mockResolvedValue({ list: [], total: 0 });
-
+    it('should return 400 for projectId with float value (Zod int() rejects)', async () => {
       const response = await agent
         .get('/api/v1/publishing-schedule?projectId=3.7')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockScheduleList).toHaveBeenCalledWith(
-        expect.objectContaining({ projectId: 3 }),
-      );
+      expect(response.status).toBe(400);
     });
 
-    it('should handle negative projectId as valid number', async () => {
-      mockScheduleList.mockResolvedValue({ list: [], total: 0 });
-
+    it('should return 400 for negative projectId (Zod positive() rejects)', async () => {
       const response = await agent
         .get('/api/v1/publishing-schedule?projectId=-5')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockScheduleList).toHaveBeenCalledWith(
-        expect.objectContaining({ projectId: -5 }),
-      );
+      expect(response.status).toBe(400);
     });
 
     it('should handle list with all valid status values', async () => {
@@ -2243,21 +2173,17 @@ describe('PublishingSchedule Controller', () => {
         expect(response.status).toBe(200);
         expect(mockScheduleList).toHaveBeenLastCalledWith(
           expect.objectContaining({ status: s }),
+          expect.anything(),
         );
       }
     });
 
-    it('should treat "Pending" (capitalized) as invalid status', async () => {
-      mockScheduleList.mockResolvedValue({ list: [], total: 0 });
-
+    it('should return 400 for "Pending" (capitalized) as invalid status (Zod enum rejects)', async () => {
       const response = await agent
         .get('/api/v1/publishing-schedule?status=Pending')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(mockScheduleList).toHaveBeenCalledWith(
-        expect.objectContaining({ status: undefined }),
-      );
+      expect(response.status).toBe(400);
     });
   });
 });
