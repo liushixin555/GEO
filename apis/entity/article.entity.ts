@@ -16,13 +16,15 @@ export interface Article {
   id: number;
   project_id: number;
   title: string;
+  /** 文章类型，推荐值：榜单排名/方法论讲解/案例分析/行业洞察/对比测评/客户证言/FAQ问答/实操指南 */
   article_type: string | null;
+  /** 写作模式，推荐值：manual（手工编写）/ ai（AI 生成） */
   write_mode: string | null;
   keywords: string | null;
   portrait: string | null;
   images: string[] | null;
   platforms: string[] | null;
-  /** Prisma Json? 类型，运行时可能为任意 JSON 结构 */
+  /** Prisma Json? 类型，运行时可能为任意 JSON 结构；API 输入输出为 number[] | null */
   skills: unknown | null;
   llm_model_id: number | null;
   /** 文章正文（纯文本，禁止 HTML） */

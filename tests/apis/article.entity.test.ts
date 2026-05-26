@@ -16,13 +16,13 @@ describe('article.entity', () => {
       id: 1,
       project_id: 1,
       title: '测试文章',
-      article_type: 'seo',
-      write_mode: 'auto',
+      article_type: '案例分析',
+      write_mode: 'ai',
       keywords: '关键词1,关键词2',
       portrait: '人物画像',
       images: ['img1.jpg', 'img2.jpg'],
       platforms: ['新浪', '搜狐'],
-      skills: 1,
+      skills: [1],
       llm_model_id: 1,
       content: '<p>文章内容</p>',
       version: 1,
@@ -38,13 +38,13 @@ describe('article.entity', () => {
       expect(baseArticle.id).toBe(1);
       expect(baseArticle.project_id).toBe(1);
       expect(baseArticle.title).toBe('测试文章');
-      expect(baseArticle.article_type).toBe('seo');
-      expect(baseArticle.write_mode).toBe('auto');
+      expect(baseArticle.article_type).toBe('案例分析');
+      expect(baseArticle.write_mode).toBe('ai');
       expect(baseArticle.keywords).toBe('关键词1,关键词2');
       expect(baseArticle.portrait).toBe('人物画像');
       expect(baseArticle.images).toEqual(['img1.jpg', 'img2.jpg']);
       expect(baseArticle.platforms).toEqual(['新浪', '搜狐']);
-      expect(baseArticle.skills).toBe(1);
+      expect(baseArticle.skills).toEqual([1]);
       expect(baseArticle.llm_model_id).toBe(1);
       expect(baseArticle.content).toBe('<p>文章内容</p>');
       expect(baseArticle.version).toBe(1);
@@ -118,7 +118,7 @@ describe('article.entity', () => {
     });
 
     it('should support various article_type values', () => {
-      const types = ['seo', 'original', 'rewrite', 'custom'];
+      const types = ['榜单排名', '方法论讲解', '案例分析', '行业洞察'];
       types.forEach((type) => {
         const article: Article = { ...baseArticle, article_type: type };
         expect(article.article_type).toBe(type);
@@ -126,7 +126,7 @@ describe('article.entity', () => {
     });
 
     it('should support various write_mode values', () => {
-      const modes = ['auto', 'manual', 'ai_assist'];
+      const modes = ['manual', 'ai'];
       modes.forEach((mode) => {
         const article: Article = { ...baseArticle, write_mode: mode };
         expect(article.write_mode).toBe(mode);
@@ -152,8 +152,8 @@ describe('article.entity', () => {
     });
 
     it('should support skills as 0', () => {
-      const article: Article = { ...baseArticle, skills: 0 };
-      expect(article.skills).toBe(0);
+      const article: Article = { ...baseArticle, skills: [0] };
+      expect(article.skills).toEqual([0]);
     });
 
     it('should support long content', () => {
@@ -459,8 +459,8 @@ describe('article.entity', () => {
     it('should include all optional fields', () => {
       const req: CreateArticleRequest = {
         title: '新文章',
-        article_type: 'seo',
-        write_mode: 'auto',
+        article_type: '案例分析',
+        write_mode: 'ai',
         keywords: '关键词',
         portrait: '画像',
         images: ['img.jpg'],
@@ -471,8 +471,8 @@ describe('article.entity', () => {
         status: 'draft',
       };
       expect(req.title).toBe('新文章');
-      expect(req.article_type).toBe('seo');
-      expect(req.write_mode).toBe('auto');
+      expect(req.article_type).toBe('案例分析');
+      expect(req.write_mode).toBe('ai');
       expect(req.keywords).toBe('关键词');
       expect(req.portrait).toBe('画像');
       expect(req.images).toEqual(['img.jpg']);
@@ -621,7 +621,7 @@ describe('article.entity', () => {
     it('should create a valid request with all optional fields', () => {
       const req: UpdateArticleRequest = {
         title: '更新标题',
-        article_type: 'seo',
+        article_type: '案例分析',
         write_mode: 'manual',
         keywords: '新关键词',
         portrait: '新画像',
@@ -913,8 +913,8 @@ describe('article.entity', () => {
 
   describe('Article JSON 序列化/反序列化', () => {
     const baseArticle: Article = {
-      id: 1, project_id: 1, title: '测试文章', article_type: 'seo',
-      write_mode: 'auto', keywords: '关键词', portrait: '画像',
+      id: 1, project_id: 1, title: '测试文章', article_type: '案例分析',
+      write_mode: 'ai', keywords: '关键词', portrait: '画像',
       images: ['img1.jpg'], platforms: ['新浪'], skills: null,
       llm_model_id: 1, content: '内容', version: 1, status: 'draft',
       scheduled_publish_at: new Date('2026-06-01T10:00:00Z'),
@@ -1096,7 +1096,7 @@ describe('article.entity', () => {
   describe('跨接口一致性', () => {
     it('CreateArticleRequest fields should be subset of Article fields', () => {
       const req: CreateArticleRequest = {
-        title: '新文章', article_type: 'seo', write_mode: 'auto',
+        title: '新文章', article_type: '案例分析', write_mode: 'ai',
         keywords: 'kw', portrait: 'p', images: [], platforms: [],
         skills: [1], llm_model_id: 1, content: 'c', status: 'draft',
       };
@@ -1541,7 +1541,6 @@ describe('article.entity', () => {
       const approve: ReviewArticleRequest = { approved: true };
       const reject: ReviewArticleRequest = { approved: false };
       expect(approve.approved === true).toBe(true);
-      expect(reject.approve !== undefined ? reject.approved === false : false).toBe(false);
       expect(reject.approved === false).toBe(true);
     });
 
@@ -1643,8 +1642,8 @@ describe('article.entity', () => {
     it('should create article from CreateArticleRequest with defaults', () => {
       const req: CreateArticleRequest = {
         title: 'AI时代的技术写作',
-        article_type: 'seo',
-        write_mode: 'auto',
+        article_type: '案例分析',
+        write_mode: 'ai',
         keywords: 'AI,技术写作,大模型',
         portrait: '科技从业者',
         images: [],
@@ -1682,8 +1681,8 @@ describe('article.entity', () => {
 
     it('should apply partial update to existing article', () => {
       const original: Article = {
-        id: 1, project_id: 1, title: '原标题', article_type: 'seo',
-        write_mode: 'auto', keywords: '旧关键词', portrait: '旧画像',
+        id: 1, project_id: 1, title: '原标题', article_type: '案例分析',
+        write_mode: 'ai', keywords: '旧关键词', portrait: '旧画像',
         images: ['old.jpg'], platforms: ['旧平台'], skills: [1],
         llm_model_id: 1, content: '旧内容', version: 2, status: 'draft',
         scheduled_publish_at: null, schedule_type: null, created_by: 1,
@@ -1698,7 +1697,7 @@ describe('article.entity', () => {
       expect(result.status).toBe('pending_review');
       expect(result.content).toBe('旧内容');
       expect(result.version).toBe(2);
-      expect(result.article_type).toBe('seo');
+      expect(result.article_type).toBe('案例分析');
     });
 
     it('should handle review flow with ReviewArticleRequest', () => {
