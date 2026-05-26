@@ -128,21 +128,39 @@ describe('useArticlePermissions', () => {
   });
 
   describe('canReview', () => {
-    it('sysadmin 可审核 pending_review 文章', () => {
+    it('sysadmin 可审核 pending_review 文章（非自己创建）', () => {
       localStorage.setItem('user', JSON.stringify({ id: 99, role: 'sysadmin' }));
-      const { result } = renderHook(() => useArticlePermissions(mockArticle({ status: 'pending_review' })));
+      const { result } = renderHook(() => useArticlePermissions(mockArticle({ status: 'pending_review', created_by: 10 })));
       expect(result.current.canReview).toBe(true);
     });
 
-    it('admin 不可审核 pending_review 文章', () => {
+    it('admin 可审核 pending_review 文章（非自己创建）', () => {
+      localStorage.setItem('user', JSON.stringify({ id: 20, role: 'admin' }));
+      const { result } = renderHook(() => useArticlePermissions(mockArticle({ status: 'pending_review', created_by: 10 })));
+      expect(result.current.canReview).toBe(true);
+    });
+
+    it('不能审核自己创建的文章（sysadmin 自审拦截）', () => {
+      localStorage.setItem('user', JSON.stringify({ id: 10, role: 'sysadmin' }));
+      const { result } = renderHook(() => useArticlePermissions(mockArticle({ status: 'pending_review', created_by: 10 })));
+      expect(result.current.canReview).toBe(false);
+    });
+
+    it('不能审核自己创建的文章（admin 自审拦截）', () => {
       localStorage.setItem('user', JSON.stringify({ id: 10, role: 'admin' }));
+      const { result } = renderHook(() => useArticlePermissions(mockArticle({ status: 'pending_review', created_by: 10 })));
+      expect(result.current.canReview).toBe(false);
+    });
+
+    it('view 角色不可审核', () => {
+      localStorage.setItem('user', JSON.stringify({ id: 20, role: 'view' }));
       const { result } = renderHook(() => useArticlePermissions(mockArticle({ status: 'pending_review', created_by: 10 })));
       expect(result.current.canReview).toBe(false);
     });
 
     it('sysadmin 对非 pending_review 文章不可审核', () => {
       localStorage.setItem('user', JSON.stringify({ id: 99, role: 'sysadmin' }));
-      const { result } = renderHook(() => useArticlePermissions(mockArticle({ status: 'draft' })));
+      const { result } = renderHook(() => useArticlePermissions(mockArticle({ status: 'draft', created_by: 10 })));
       expect(result.current.canReview).toBe(false);
     });
   });

@@ -18,7 +18,7 @@ export function useArticlePermissions(article: ArticleData | null) {
       : false;
 
     const canReview = article?.status === 'pending_review'
-      && user.role === 'sysadmin'
+      && ['sysadmin', 'admin'].includes(user.role)
       && article.created_by !== user.id;
 
     const canSubmitForReview = article?.status === 'manual_writing' && isOwnerOrAdmin;
