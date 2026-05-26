@@ -2,9 +2,9 @@ import * as cron from 'node-cron';
 import { ScheduledTask } from 'node-cron';
 import config from '../config';
 import { getPrisma } from '../utils';
-import { LlmServiceImpl } from '../service/impl/llm.service.impl';
+import { createLlmService } from '../service';
 
-const llmService = new LlmServiceImpl();
+const llmService = createLlmService();
 
 let task: ScheduledTask | null = null;
 let isRunning = false;

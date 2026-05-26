@@ -2,15 +2,16 @@ import { getPrisma } from '../../utils';
 import { SystemConfig, UpdateSystemConfigsRequest } from '../../entity';
 import { mapSystemConfig } from '../../map';
 import { ISystemConfigService } from '../system-config.service';
+import { AuthContext } from '../article.service';
 
 export class SystemConfigServiceImpl implements ISystemConfigService {
-  async getAll(): Promise<SystemConfig[]> {
+  async getAll(_auth: AuthContext): Promise<SystemConfig[]> {
     const prisma = getPrisma();
     const items = await prisma.systemConfig.findMany({ orderBy: { id: 'asc' } });
     return items.map(mapSystemConfig);
   }
 
-  async batchUpdate(request: UpdateSystemConfigsRequest): Promise<SystemConfig[]> {
+  async batchUpdate(request: UpdateSystemConfigsRequest, _auth: AuthContext): Promise<SystemConfig[]> {
     const prisma = getPrisma();
     const results = await prisma.$transaction(
       request.configs.map(config =>

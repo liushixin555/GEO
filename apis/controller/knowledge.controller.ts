@@ -1,9 +1,15 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { KeywordServiceImpl, PortraitServiceImpl, ImageServiceImpl, DocumentServiceImpl, MinedKeywordServiceImpl } from '../service/impl/knowledge.service.impl';
-import { KnowledgeBaseServiceImpl } from '../service/impl/knowledge-base.service.impl';
-import { ProjectServiceImpl } from '../service/impl/project.service.impl';
-import { LlmServiceImpl } from '../service/impl/llm.service.impl';
+import {
+  createKeywordService,
+  createPortraitService,
+  createImageService,
+  createDocumentService,
+  createMinedKeywordService,
+  createKnowledgeBaseService,
+  createProjectService,
+  createLlmService,
+} from '../service';
 import { success, fail, paginate, created, getPrisma } from '../utils';
 import { AppError, NotFoundError, BusinessError, ForbiddenError, ConflictError, UnauthorizedError } from '../errors';
 import { logger } from '../utils/logger.util';
@@ -18,14 +24,14 @@ import {
 
 function createServices() {
   return {
-    keywordService: new KeywordServiceImpl(),
-    portraitService: new PortraitServiceImpl(),
-    imageService: new ImageServiceImpl(),
-    documentService: new DocumentServiceImpl(),
-    knowledgeBaseService: new KnowledgeBaseServiceImpl(),
-    projectService: new ProjectServiceImpl(),
-    llmService: new LlmServiceImpl(),
-    minedKeywordService: new MinedKeywordServiceImpl(),
+    keywordService: createKeywordService(),
+    portraitService: createPortraitService(),
+    imageService: createImageService(),
+    documentService: createDocumentService(),
+    knowledgeBaseService: createKnowledgeBaseService(),
+    projectService: createProjectService(),
+    llmService: createLlmService(),
+    minedKeywordService: createMinedKeywordService(),
   };
 }
 

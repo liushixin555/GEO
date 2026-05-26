@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
-import { AuthServiceImpl } from '../service/impl/auth.service.impl';
-import { IAuthService } from '../service/auth.service';
+import { createAuthService, IAuthService } from '../service';
 import { LoginSelectionError, PermissionDeniedError } from '../entity';
 import { success, fail } from '../utils';
 import { revokeToken, parseExpiryToMs } from '../utils/token-blacklist.util';
@@ -8,7 +7,7 @@ import { isAccountLocked, recordLoginFailure, recordLoginSuccess } from '../util
 import config from '../config';
 import { logger } from '../utils/logger.util';
 
-const authService: IAuthService = new AuthServiceImpl();
+const authService: IAuthService = createAuthService();
 
 const BEARER_PREFIX = 'Bearer ';
 

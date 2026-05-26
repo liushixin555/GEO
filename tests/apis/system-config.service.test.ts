@@ -14,6 +14,8 @@ import { SystemConfigServiceImpl } from '../../apis/service/impl/system-config.s
 
 const mockedGetPrisma = getPrisma as jest.MockedFunction<typeof getPrisma>;
 
+const AUTH = { userId: 1, role: 'sysadmin' } as const;
+
 // ══════════════════════════════════════════
 //  Helpers
 // ══════════════════════════════════════════
@@ -67,7 +69,7 @@ describe('SystemConfigServiceImpl', () => {
         systemConfig: { findMany: mockFindMany },
       } as any);
 
-      const result = await service.getAll();
+      const result = await service.getAll(AUTH);
 
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual(makeMappedSystemConfig({ id: 1, config_key: 'site_name', config_value: '薄云商机倍增服务' }));
@@ -81,7 +83,7 @@ describe('SystemConfigServiceImpl', () => {
         systemConfig: { findMany: mockFindMany },
       } as any);
 
-      await service.getAll();
+      await service.getAll(AUTH);
 
       expect(mockFindMany).toHaveBeenCalledWith({ orderBy: { id: 'asc' } });
     });
@@ -93,7 +95,7 @@ describe('SystemConfigServiceImpl', () => {
         systemConfig: { findMany: mockFindMany },
       } as any);
 
-      const result = await service.getAll();
+      const result = await service.getAll(AUTH);
 
       expect(result).toEqual([]);
       expect(result).toHaveLength(0);
@@ -113,7 +115,7 @@ describe('SystemConfigServiceImpl', () => {
         systemConfig: { findMany: mockFindMany },
       } as any);
 
-      const result = await service.getAll();
+      const result = await service.getAll(AUTH);
 
       expect(result[0]).toEqual({
         id: 42,
@@ -132,7 +134,7 @@ describe('SystemConfigServiceImpl', () => {
         systemConfig: { findMany: mockFindMany },
       } as any);
 
-      const result = await service.getAll();
+      const result = await service.getAll(AUTH);
 
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe(1);
@@ -147,7 +149,7 @@ describe('SystemConfigServiceImpl', () => {
         systemConfig: { findMany: mockFindMany },
       } as any);
 
-      await expect(service.getAll()).rejects.toThrow('DB connection lost');
+      await expect(service.getAll(AUTH)).rejects.toThrow('DB connection lost');
     });
 
     it('应调用 getPrisma 获取实例', async () => {
@@ -157,7 +159,7 @@ describe('SystemConfigServiceImpl', () => {
         systemConfig: { findMany: mockFindMany },
       } as any);
 
-      await service.getAll();
+      await service.getAll(AUTH);
 
       expect(mockedGetPrisma).toHaveBeenCalledTimes(1);
     });
@@ -189,7 +191,7 @@ describe('SystemConfigServiceImpl', () => {
           { config_key: 'site_name', config_value: '新名称' },
           { config_key: 'max_articles', config_value: '200' },
         ],
-      });
+      }, AUTH);
 
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual(makeMappedSystemConfig({ config_key: 'site_name', config_value: '新名称' }));
@@ -213,7 +215,7 @@ describe('SystemConfigServiceImpl', () => {
           { config_key: 'key2', config_value: 'val2' },
           { config_key: 'key3', config_value: 'val3' },
         ],
-      });
+      }, AUTH);
 
       expect(mockTransaction).toHaveBeenCalledTimes(1);
       expect(mockUpsert).toHaveBeenCalledTimes(3);
@@ -232,7 +234,7 @@ describe('SystemConfigServiceImpl', () => {
 
       await service.batchUpdate({
         configs: [{ config_key: 'site_name', config_value: '更新值' }],
-      });
+      }, AUTH);
 
       expect(mockUpsert).toHaveBeenCalledWith({
         where: { configKey: 'site_name' },
@@ -251,7 +253,7 @@ describe('SystemConfigServiceImpl', () => {
         $transaction: mockTransaction,
       } as any);
 
-      const result = await service.batchUpdate({ configs: [] });
+      const result = await service.batchUpdate({ configs: [] }, AUTH);
 
       expect(result).toEqual([]);
       expect(result).toHaveLength(0);
@@ -277,7 +279,7 @@ describe('SystemConfigServiceImpl', () => {
 
       const result = await service.batchUpdate({
         configs: [{ config_key: 'theme_color', config_value: '#FF5733' }],
-      });
+      }, AUTH);
 
       expect(result[0]).toEqual({
         id: 99,
@@ -306,7 +308,7 @@ describe('SystemConfigServiceImpl', () => {
 
       const result = await service.batchUpdate({
         configs: [{ config_key: 'new_setting', config_value: 'enabled' }],
-      });
+      }, AUTH);
 
       expect(mockUpsert).toHaveBeenCalledWith({
         where: { configKey: 'new_setting' },
@@ -326,7 +328,7 @@ describe('SystemConfigServiceImpl', () => {
       } as any);
 
       await expect(
-        service.batchUpdate({ configs: [{ config_key: 'k', config_value: 'v' }] })
+        service.batchUpdate({ configs: [{ config_key: 'k', config_value: 'v' }] }, AUTH)
       ).rejects.toThrow('Transaction failed');
     });
 
@@ -342,7 +344,7 @@ describe('SystemConfigServiceImpl', () => {
       } as any);
 
       await expect(
-        service.batchUpdate({ configs: [{ config_key: 'k', config_value: 'v' }] })
+        service.batchUpdate({ configs: [{ config_key: 'k', config_value: 'v' }] }, AUTH)
       ).rejects.toThrow('Upsert error');
     });
 
@@ -356,7 +358,7 @@ describe('SystemConfigServiceImpl', () => {
         $transaction: mockTransaction,
       } as any);
 
-      await service.batchUpdate({ configs: [{ config_key: 'k', config_value: 'v' }] });
+      await service.batchUpdate({ configs: [{ config_key: 'k', config_value: 'v' }] }, AUTH);
 
       expect(mockedGetPrisma).toHaveBeenCalledTimes(1);
     });
@@ -375,7 +377,7 @@ describe('SystemConfigServiceImpl', () => {
 
       const result = await service.batchUpdate({
         configs: [{ config_key: 'site_name', config_value: '唯一值' }],
-      });
+      }, AUTH);
 
       expect(result).toHaveLength(1);
       expect(result[0].config_value).toBe('唯一值');
@@ -396,7 +398,7 @@ describe('SystemConfigServiceImpl', () => {
 
       const result = await service.batchUpdate({
         configs: [{ config_key: 'footer_html', config_value: specialValue }],
-      });
+      }, AUTH);
 
       expect(mockUpsert).toHaveBeenCalledWith({
         where: { configKey: 'footer_html' },
@@ -424,7 +426,7 @@ describe('SystemConfigServiceImpl', () => {
           { config_key: 'key1', config_value: 'val1' },
           { config_key: 'key2', config_value: 'val2' },
         ],
-      });
+      }, AUTH);
 
       expect(mockUpsert).toHaveBeenCalledTimes(2);
       expect(results).toHaveLength(2);
@@ -450,7 +452,7 @@ describe('SystemConfigServiceImpl', () => {
         $transaction: mockTransaction,
       } as any);
 
-      const result = await service.batchUpdate({ configs });
+      const result = await service.batchUpdate({ configs }, AUTH);
 
       expect(result).toHaveLength(50);
       expect(mockUpsert).toHaveBeenCalledTimes(50);
@@ -473,7 +475,7 @@ describe('SystemConfigServiceImpl', () => {
         systemConfig: { findMany: mockFindMany },
       } as any);
 
-      const result = await service.getAll();
+      const result = await service.getAll(AUTH);
 
       expect(result[0].config_value).toBe(specialValue);
     });
@@ -488,7 +490,7 @@ describe('SystemConfigServiceImpl', () => {
         systemConfig: { findMany: mockFindMany },
       } as any);
 
-      const result = await service.getAll();
+      const result = await service.getAll(AUTH);
 
       expect(result).toHaveLength(100);
       expect(result[0].config_key).toBe('key_0');
@@ -503,7 +505,7 @@ describe('SystemConfigServiceImpl', () => {
         systemConfig: { findMany: mockFindMany },
       } as any);
 
-      const result = await service.getAll();
+      const result = await service.getAll(AUTH);
 
       expect(result[0].config_value).toBe('');
     });
@@ -520,7 +522,7 @@ describe('SystemConfigServiceImpl', () => {
         mockedGetPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } } as any);
 
         try {
-          await service.getAll();
+          await service.getAll(AUTH);
           fail('应抛出错误');
         } catch (e: any) {
           expect(e).toBeInstanceOf(Error);
@@ -536,7 +538,7 @@ describe('SystemConfigServiceImpl', () => {
         } as any);
 
         try {
-          await service.batchUpdate({ configs: [{ config_key: 'k', config_value: 'v' }] });
+          await service.batchUpdate({ configs: [{ config_key: 'k', config_value: 'v' }] }, AUTH);
           fail('应抛出错误');
         } catch (e: any) {
           expect(e).toBeInstanceOf(Error);
@@ -555,7 +557,7 @@ describe('SystemConfigServiceImpl', () => {
         } as any);
 
         try {
-          await service.batchUpdate({ configs: [{ config_key: 'k', config_value: 'v' }] });
+          await service.batchUpdate({ configs: [{ config_key: 'k', config_value: 'v' }] }, AUTH);
           fail('应抛出错误');
         } catch (e: any) {
           expect(e).toBeInstanceOf(Error);
@@ -575,7 +577,7 @@ describe('SystemConfigServiceImpl', () => {
         const mockFindMany = jest.fn().mockResolvedValue(prismaItems);
         mockedGetPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } } as any);
 
-        const result = await service.getAll();
+        const result = await service.getAll(AUTH);
 
         expect(result).toHaveLength(3);
         for (let i = 0; i < prismaItems.length; i++) {
@@ -607,7 +609,7 @@ describe('SystemConfigServiceImpl', () => {
           $transaction: mockTransaction,
         } as any);
 
-        const result = await service.batchUpdate({ configs });
+        const result = await service.batchUpdate({ configs }, AUTH);
 
         expect(result).toHaveLength(3);
         expect(result[0].config_key).toBe('z_key');
@@ -629,7 +631,7 @@ describe('SystemConfigServiceImpl', () => {
           $transaction: mockTransaction,
         } as any);
 
-        await service.batchUpdate({ configs });
+        await service.batchUpdate({ configs }, AUTH);
 
         expect(mockUpsert).toHaveBeenCalledTimes(2);
         expect(mockUpsert).toHaveBeenNthCalledWith(1, {
@@ -652,7 +654,7 @@ describe('SystemConfigServiceImpl', () => {
         const mockFindMany = jest.fn().mockResolvedValue([prismaItem]);
         mockedGetPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } } as any);
 
-        const result = await service.getAll();
+        const result = await service.getAll(AUTH);
         expect(result[0].config_value).toBe('   ');
       });
 
@@ -661,7 +663,7 @@ describe('SystemConfigServiceImpl', () => {
         const mockFindMany = jest.fn().mockResolvedValue([prismaItem]);
         mockedGetPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } } as any);
 
-        const result = await service.getAll();
+        const result = await service.getAll(AUTH);
         expect(result[0].config_key).toBe('  spaced_key  ');
       });
 
@@ -671,7 +673,7 @@ describe('SystemConfigServiceImpl', () => {
         const mockFindMany = jest.fn().mockResolvedValue([prismaItem]);
         mockedGetPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } } as any);
 
-        const result = await service.getAll();
+        const result = await service.getAll(AUTH);
         expect(result[0].config_value).toBe(unicodeValue);
       });
 
@@ -681,7 +683,7 @@ describe('SystemConfigServiceImpl', () => {
         const mockFindMany = jest.fn().mockResolvedValue([prismaItem]);
         mockedGetPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } } as any);
 
-        const result = await service.getAll();
+        const result = await service.getAll(AUTH);
         expect(result[0].config_value).toBe(multilineValue);
       });
 
@@ -691,7 +693,7 @@ describe('SystemConfigServiceImpl', () => {
         const mockFindMany = jest.fn().mockResolvedValue([prismaItem]);
         mockedGetPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } } as any);
 
-        const result = await service.getAll();
+        const result = await service.getAll(AUTH);
         expect(result[0].config_value).toBe(longValue);
         expect(result[0].config_value.length).toBe(10000);
       });
@@ -709,7 +711,7 @@ describe('SystemConfigServiceImpl', () => {
 
         const result = await service.batchUpdate({
           configs: [{ config_key: 'test_sql', config_value: sqlInjection }],
-        });
+        }, AUTH);
 
         expect(mockUpsert).toHaveBeenCalledWith({
           where: { configKey: 'test_sql' },
@@ -727,7 +729,7 @@ describe('SystemConfigServiceImpl', () => {
         const mockFindMany = jest.fn().mockResolvedValue([prismaItem]);
         mockedGetPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } } as any);
 
-        const result = await service.getAll();
+        const result = await service.getAll(AUTH);
         expect(result[0].id).toBe(0);
         expect(result[0].config_key).toBe('zero_id');
       });
@@ -737,7 +739,7 @@ describe('SystemConfigServiceImpl', () => {
         const mockFindMany = jest.fn().mockResolvedValue([prismaItem]);
         mockedGetPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } } as any);
 
-        const result = await service.getAll();
+        const result = await service.getAll(AUTH);
         expect(result[0].id).toBe(Number.MAX_SAFE_INTEGER);
       });
 
@@ -754,7 +756,7 @@ describe('SystemConfigServiceImpl', () => {
 
         const result = await service.batchUpdate({
           configs: [{ config_key: 'brand_new', config_value: 'new' }],
-        });
+        }, AUTH);
 
         expect(result[0].id).toBe(999);
         expect(result[0].config_key).toBe('brand_new');
@@ -775,7 +777,7 @@ describe('SystemConfigServiceImpl', () => {
         const mockFindMany = jest.fn().mockResolvedValue([prismaItem]);
         mockedGetPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } } as any);
 
-        const result = await service.getAll();
+        const result = await service.getAll(AUTH);
 
         expect(result[0]).toEqual({
           id: 1,
@@ -794,7 +796,7 @@ describe('SystemConfigServiceImpl', () => {
         const mockFindMany = jest.fn().mockResolvedValue([prismaItem]);
         mockedGetPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } } as any);
 
-        const result = await service.getAll();
+        const result = await service.getAll(AUTH);
 
         expect(result[0]).toEqual(makeMappedSystemConfig());
         expect((result[0] as any).deletedAt).toBeUndefined();
@@ -807,7 +809,7 @@ describe('SystemConfigServiceImpl', () => {
         const mockFindMany = jest.fn().mockResolvedValue([prismaItem]);
         mockedGetPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } } as any);
 
-        const result = await service.getAll();
+        const result = await service.getAll(AUTH);
 
         expect(result[0].created_at).toBe(preciseDate);
         expect(result[0].updated_at).toBe(preciseDate);
@@ -832,7 +834,7 @@ describe('SystemConfigServiceImpl', () => {
             { config_key: 'dup_key', config_value: 'val1' },
             { config_key: 'dup_key', config_value: 'val2' },
           ],
-        });
+        }, AUTH);
 
         expect(mockUpsert).toHaveBeenCalledTimes(2);
         expect(mockUpsert).toHaveBeenNthCalledWith(1, {
@@ -864,7 +866,7 @@ describe('SystemConfigServiceImpl', () => {
             { config_key: 'k1', config_value: 'v1' },
             { config_key: 'k2', config_value: 'v2' },
           ],
-        });
+        }, AUTH);
 
         expect(mockTransaction).toHaveBeenCalledTimes(1);
       });
@@ -879,7 +881,7 @@ describe('SystemConfigServiceImpl', () => {
           $transaction: mockTransaction,
         } as any);
 
-        const result = await service.batchUpdate({ configs: [] });
+        const result = await service.batchUpdate({ configs: [] }, AUTH);
         expect(result).toEqual([]);
       });
 
@@ -896,7 +898,7 @@ describe('SystemConfigServiceImpl', () => {
         } as any);
 
         try {
-          await service.batchUpdate({ configs: [{ config_key: 'k', config_value: 'v' }] });
+          await service.batchUpdate({ configs: [{ config_key: 'k', config_value: 'v' }] }, AUTH);
           fail('应抛出错误');
         } catch (e: any) {
           expect(e.code).toBe('P2002');
@@ -911,8 +913,8 @@ describe('SystemConfigServiceImpl', () => {
         const mockFindMany = jest.fn().mockResolvedValue([]);
         mockedGetPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } } as any);
 
-        await service.getAll();
-        await service.getAll();
+        await service.getAll(AUTH);
+        await service.getAll(AUTH);
 
         expect(mockedGetPrisma).toHaveBeenCalledTimes(2);
         expect(mockFindMany).toHaveBeenCalledTimes(2);
@@ -923,7 +925,7 @@ describe('SystemConfigServiceImpl', () => {
         const mockFindMany = jest.fn().mockResolvedValue([makePrismaSystemConfig()]);
         mockedGetPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } } as any);
 
-        const result1 = await service.getAll();
+        const result1 = await service.getAll(AUTH);
         const result2 = await service2.getAll();
 
         expect(result1).toEqual(result2);
@@ -942,8 +944,8 @@ describe('SystemConfigServiceImpl', () => {
           $transaction: mockTransaction,
         } as any);
 
-        await service.getAll();
-        await service.batchUpdate({ configs: [{ config_key: 'k', config_value: 'v' }] });
+        await service.getAll(AUTH);
+        await service.batchUpdate({ configs: [{ config_key: 'k', config_value: 'v' }] }, AUTH);
 
         expect(mockedGetPrisma).toHaveBeenCalledTimes(2);
       });
@@ -956,19 +958,19 @@ describe('SystemConfigServiceImpl', () => {
         expect(typeof service.batchUpdate).toBe('function');
       });
 
-      it('getAll 方法签名应无参数', () => {
-        expect(service.getAll.length).toBe(0);
+      it('getAll 方法签名应接受 1 个参数 (auth)', () => {
+        expect(service.getAll.length).toBe(1);
       });
 
-      it('batchUpdate 方法签名应接受 1 个参数 (request)', () => {
-        expect(service.batchUpdate.length).toBe(1);
+      it('batchUpdate 方法签名应接受 2 个参数 (request, auth)', () => {
+        expect(service.batchUpdate.length).toBe(2);
       });
 
       it('getAll 应返回 Promise<SystemConfig[]>', async () => {
         const mockFindMany = jest.fn().mockResolvedValue([]);
         mockedGetPrisma.mockReturnValue({ systemConfig: { findMany: mockFindMany } } as any);
 
-        const result = service.getAll();
+        const result = service.getAll(AUTH);
         expect(result).toBeInstanceOf(Promise);
         const resolved = await result;
         expect(Array.isArray(resolved)).toBe(true);
@@ -981,7 +983,7 @@ describe('SystemConfigServiceImpl', () => {
           $transaction: mockTransaction,
         } as any);
 
-        const result = service.batchUpdate({ configs: [] });
+        const result = service.batchUpdate({ configs: [] }, AUTH);
         expect(result).toBeInstanceOf(Promise);
         const resolved = await result;
         expect(Array.isArray(resolved)).toBe(true);

@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
-import { SystemConfigServiceImpl } from '../service/impl/system-config.service.impl';
+import { createSystemConfigService, AuthContext } from '../service';
 import { success, fail } from '../utils';
 import { logger } from '../utils/logger.util';
 import { ALLOWED_CONFIG_KEYS, SENSITIVE_CONFIG_KEYS } from '../constants/system-config';
 
-const systemConfigService = new SystemConfigServiceImpl();
+const systemConfigService = createSystemConfigService();
 
 function maskSensitiveValue(key: string, value: string): string {
   if (SENSITIVE_CONFIG_KEYS.has(key)) {
@@ -20,9 +20,16 @@ function sanitizeConfigItems(items: { config_key: string; config_value: string }
   }));
 }
 
-export async function getSystemConfigs(_req: Request, res: Response): Promise<void> {
+function getAuth(req: Request): AuthContext {
+  const user = req.user;
+  if (!user) throw new Error('未认证');
+  return { userId: user.userId, role: user.role };
+}
+
+export async function getSystemConfigs(req: Request, res: Response): Promise<void> {
   try {
-    const items = await systemConfigService.getAll();
+    const auth = getAuth(req);
+    const items = await systemConfigService.getAll(auth);
     success(res, sanitizeConfigItems(items));
   } catch (err: unknown) {
     logger.error('获取系统配置失败', { error: err instanceof Error ? err.message : String(err) });
@@ -32,6 +39,7 @@ export async function getSystemConfigs(_req: Request, res: Response): Promise<vo
 
 export async function updateSystemConfigs(req: Request, res: Response): Promise<void> {
   try {
+    const auth = getAuth(req);
     const { configs } = req.body;
     if (!Array.isArray(configs) || configs.length === 0) {
       fail(res, 400, 'configs不能为空');
@@ -49,10 +57,10 @@ export async function updateSystemConfigs(req: Request, res: Response): Promise<
       }
     }
 
-    const items = await systemConfigService.batchUpdate({ configs });
+    const items = await systemConfigService.batchUpdate({ configs }, auth);
 
     logger.info('系统配置更新', {
-      userId: (req as any).user?.userId,
+      userId: auth.userId,
       keys: configs.map((c: { config_key: string }) => c.config_key),
     });
 

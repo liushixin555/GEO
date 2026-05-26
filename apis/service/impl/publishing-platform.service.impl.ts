@@ -6,6 +6,9 @@ import { BusinessError } from '../../errors';
 import { IPublishingPlatformService } from '../publishing-platform.service';
 import type { ISystemConfigService } from '../system-config.service';
 import { SystemConfigServiceImpl } from './system-config.service.impl';
+import { AuthContext } from '../article.service';
+
+const SYSTEM_AUTH: AuthContext = { userId: 0, role: 'system' };
 
 export class PublishingPlatformServiceImpl implements IPublishingPlatformService {
   private systemConfigService: ISystemConfigService;
@@ -15,7 +18,7 @@ export class PublishingPlatformServiceImpl implements IPublishingPlatformService
   }
 
   async syncFromSystemConfig(): Promise<number> {
-    const configs = await this.systemConfigService.getAll();
+    const configs = await this.systemConfigService.getAll(SYSTEM_AUTH);
     const configMap = new Map(configs.map((c) => [c.config_key, c.config_value]));
     const username = configMap.get('ruanmeng_username');
     const password = configMap.get('ruanmeng_password');

@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
-import { KnowledgeBaseServiceImpl } from '../service/impl/knowledge-base.service.impl';
+import { createKnowledgeBaseService } from '../service';
 import { success, fail, paginate, created } from '../utils';
 import { UpdateKnowledgeBaseRequest } from '../entity';
 import { AppError, BusinessError } from '../errors';
 
-const knowledgeBaseService = new KnowledgeBaseServiceImpl();
+const knowledgeBaseService = createKnowledgeBaseService();
 
 const VALID_SCOPES = ['platform', 'company', 'project'] as const;
 

@@ -1,13 +1,10 @@
 import { Request, Response } from 'express';
-import { ITodoService } from '../service/todo.service';
-import { IProjectService } from '../service/project.service';
-import { TodoServiceImpl } from '../service/impl/todo.service.impl';
-import { ProjectServiceImpl } from '../service/impl/project.service.impl';
+import { createTodoService, createProjectService, ITodoService, IProjectService } from '../service';
 import { success, fail, created, paginate, handleControllerError } from '../utils';
 import { NotFoundError, ForbiddenError } from '../errors';
 
-const todoService: ITodoService = new TodoServiceImpl();
-const projectService: IProjectService = new ProjectServiceImpl();
+const todoService: ITodoService = createTodoService();
+const projectService: IProjectService = createProjectService();
 
 // 错误消息常量
 const MSG_NO_ACCESS_ALL = '无权访问全部待办';

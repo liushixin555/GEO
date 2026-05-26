@@ -1,14 +1,13 @@
 import { Request, Response } from 'express';
 import multer from 'multer';
 import fs from 'fs';
-import { SkillsServiceImpl } from '../service/impl/skills.service.impl';
-import { SkillsFileServiceImpl } from '../service/skills-file.service';
+import { createSkillsService, createSkillsFileService } from '../service';
 import { success, fail, paginate, created } from '../utils';
 import { NotFoundError, ConflictError, BusinessError } from '../entity';
 import { logger } from '../utils/logger.util';
 
-const skillsService = new SkillsServiceImpl();
-const skillsFileService = new SkillsFileServiceImpl();
+const skillsService = createSkillsService();
+const skillsFileService = createSkillsFileService();
 
 // Lazy-initialized multer instance
 let upload: ReturnType<typeof multer> | null = null;

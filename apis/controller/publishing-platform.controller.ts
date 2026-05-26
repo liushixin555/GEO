@@ -1,12 +1,11 @@
 import { Request, Response } from 'express';
-import type { IPublishingPlatformService } from '../service/publishing-platform.service';
-import { PublishingPlatformServiceImpl } from '../service/impl/publishing-platform.service.impl';
+import { createPublishingPlatformService, IPublishingPlatformService } from '../service';
 import { BusinessError } from '../errors';
 import { success, fail, paginate } from '../utils';
 import { parsePagination } from '../utils/pagination.util';
 import { logger } from '../utils/logger.util';
 
-const publishingPlatformService: IPublishingPlatformService = new PublishingPlatformServiceImpl();
+const publishingPlatformService: IPublishingPlatformService = createPublishingPlatformService();
 
 // 排序字段白名单 — PublishingPlatform Entity 的可排序字段子集
 // Entity 另有 id, rmResourceId, remark, createdAt, updatedAt 字段不支持排序

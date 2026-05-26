@@ -1,11 +1,11 @@
 import { Request, Response } from 'express';
-import { CompanyServiceImpl } from '../service/impl/company.service.impl';
+import { createCompanyService } from '../service';
 import { success, fail, created } from '../utils';
 import { CreateCompanyRequest, UpdateCompanyRequest } from '../entity';
 import { NotFoundError, BusinessError } from '../errors';
 import { toggleCompanyStatusSchema } from '../schema/company.schema';
 
-const companyService = new CompanyServiceImpl();
+const companyService = createCompanyService();
 
 /** 常量消息 */
 const MSG_INVALID_ID = '无效的公司ID';
