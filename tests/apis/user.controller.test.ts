@@ -216,7 +216,7 @@ describe('User Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的用户ID');
+      expect(response.body.message).toContain('无效的用户ID');
     });
 
     it('should return user detail for sysadmin', async () => {
@@ -348,7 +348,7 @@ describe('User Controller', () => {
       const mockCreate = jest.fn().mockResolvedValue({
         id: 5, username: 'newuser', cnName: '新用户', role: 'admin', status: true, companyId: 1, company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } });
 
       const response = await agent
         .post('/api/v1/users')
@@ -362,7 +362,7 @@ describe('User Controller', () => {
     it('should return 409 for duplicate username', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindUnique = jest.fn().mockResolvedValue({ id: 1, username: 'existing' });
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique } });
 
       const response = await agent
         .post('/api/v1/users')
@@ -375,7 +375,7 @@ describe('User Controller', () => {
     it('should return 500 on database error during create', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindUnique = jest.fn().mockRejectedValue(new Error('DB error'));
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique } });
 
       const response = await agent
         .post('/api/v1/users')
@@ -388,7 +388,7 @@ describe('User Controller', () => {
     it('should return 500 with fallback message when create error has no message', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindUnique = jest.fn().mockRejectedValue(new Error());
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique } });
 
       const response = await agent
         .post('/api/v1/users')
@@ -408,7 +408,7 @@ describe('User Controller', () => {
         .send({ cn_name: '新名称' });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的用户ID');
+      expect(response.body.message).toContain('无效的用户ID');
     });
 
     it('should update user successfully', async () => {
@@ -575,7 +575,7 @@ describe('User Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('无效的用户ID');
+      expect(response.body.message).toContain('无效的用户ID');
     });
 
     it('should return 404 for non-existent user', async () => {
@@ -760,7 +760,7 @@ describe('User Controller', () => {
         id: 6, username: 'test8char', cnName: '8位密码', role: 'view', status: true, companyId: 1,
         company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } });
 
       const response = await agent
         .post('/api/v1/users')
@@ -789,7 +789,7 @@ describe('User Controller', () => {
         id: 7, username: 'newsysadmin', cnName: '新管理员', role: 'sysadmin', status: true, companyId: 1,
         company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } });
 
       const response = await agent
         .post('/api/v1/users')
@@ -808,7 +808,7 @@ describe('User Controller', () => {
         id: 8, username: 'newviewer', cnName: '新观察者', role: 'view', status: true, companyId: 1,
         company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } });
 
       const response = await agent
         .post('/api/v1/users')
@@ -882,7 +882,7 @@ describe('User Controller', () => {
         id: 10, username: 'test_user', cnName: '下划线用户', role: 'admin', status: true, companyId: 1,
         company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } });
 
       const response = await agent
         .post('/api/v1/users')
@@ -994,21 +994,13 @@ describe('User Controller', () => {
       expect(response.status).toBe(400);
     });
 
-    // getUser: edge case with id=0
-    it('should return user detail for id=0 edge case', async () => {
-      const { getPrisma } = require('../../apis/utils/db.util');
-      const mockFindFirst = jest.fn().mockResolvedValue({
-        id: 0, username: 'edge', cnName: '边界', role: 'admin', status: true, companyId: 1,
-        company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
-      });
-      getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
-
+    // getUser: edge case with id=0 — rejected by idParamSchema (.positive())
+    it('should return 400 for id=0 edge case', async () => {
       const response = await agent
         .get('/api/v1/users/0')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(200);
-      expect(response.body.code).toBe(0);
+      expect(response.status).toBe(400);
     });
 
     // getUser: negative id
@@ -1145,7 +1137,7 @@ describe('User Controller', () => {
         id: 9, username: 'structtest', cnName: '结构测试', role: 'admin', status: true, companyId: 1,
         company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } });
 
       const response = await agent
         .post('/api/v1/users')
@@ -1239,18 +1231,14 @@ describe('User Controller', () => {
   });
 
   // ============================================================
-  // handleError ZodError 分支覆盖（line 11）
+  // handleError 未知错误分支覆盖（ZodError 已移至路由层验证，controller 不再处理）
   // ============================================================
-  describe('handleError ZodError branch', () => {
-    it('should return 400 with ZodError issues when service throws ZodError', async () => {
-      const { z: zod } = require('zod');
+  describe('handleError unknown error branch', () => {
+    it('should return 500 when service throws unknown error', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
 
-      // 让 listUsers 的 userService.list 抛出 ZodError
-      const zodError = new zod.ZodError([
-        { code: 'custom', path: ['role'], message: '无效角色' },
-      ]);
-      const mockFindMany = jest.fn().mockRejectedValue(zodError);
+      // 让 listUsers 的 userService.list 抛出未知错误
+      const mockFindMany = jest.fn().mockRejectedValue(new Error('意外错误'));
       const mockCount = jest.fn().mockResolvedValue(0);
       getPrisma.mockReturnValue({ user: { findMany: mockFindMany, count: mockCount } });
 
@@ -1258,8 +1246,8 @@ describe('User Controller', () => {
         .get('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(400);
-      expect(response.body.message).toContain('无效角色');
+      expect(response.status).toBe(500);
+      expect(response.body.message).toContain('获取用户列表失败');
     });
   });
 
@@ -1316,18 +1304,15 @@ describe('User Controller', () => {
     });
 
     // --- getUser 错误类型 ---
-    it('getUser: ZodError → 400', async () => {
-      const mockFindFirst = jest.fn().mockRejectedValue(new zod.ZodError([
-        { code: 'custom', path: ['id'], message: 'ID格式错误' },
-      ]));
+    it('getUser: unknown error → 500', async () => {
+      const mockFindFirst = jest.fn().mockRejectedValue(new Error('未知错误'));
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
 
       const response = await agent
         .get('/api/v1/users/1')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(400);
-      expect(response.body.message).toContain('ID格式错误');
+      expect(response.status).toBe(500);
     });
 
     it('getUser: ConflictError → 409', async () => {
@@ -1342,24 +1327,21 @@ describe('User Controller', () => {
     });
 
     // --- createUser 错误类型 ---
-    it('createUser: ZodError → 400', async () => {
-      const mockFindUnique = jest.fn().mockRejectedValue(new zod.ZodError([
-        { code: 'custom', path: ['username'], message: '用户名格式错误' },
-      ]));
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } });
+    it('createUser: unknown error → 500', async () => {
+      const mockFindUnique = jest.fn().mockRejectedValue(new Error('未知错误'));
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique } });
 
       const response = await agent
         .post('/api/v1/users')
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ username: 'test', password: 'Pass1234', cn_name: 'Test', role: 'admin' });
 
-      expect(response.status).toBe(400);
-      expect(response.body.message).toContain('用户名格式错误');
+      expect(response.status).toBe(500);
     });
 
     it('createUser: NotFoundError → 404', async () => {
       const mockFindUnique = jest.fn().mockRejectedValue(new NotFoundError('公司'));
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique } });
 
       const response = await agent
         .post('/api/v1/users')
@@ -1372,7 +1354,7 @@ describe('User Controller', () => {
 
     it('createUser: ForbiddenError → 403', async () => {
       const mockFindUnique = jest.fn().mockRejectedValue(new ForbiddenError('无权限'));
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique } });
 
       const response = await agent
         .post('/api/v1/users')
@@ -1383,10 +1365,8 @@ describe('User Controller', () => {
     });
 
     // --- updateUser 错误类型 ---
-    it('updateUser: ZodError → 400', async () => {
-      const mockFindFirst = jest.fn().mockRejectedValue(new zod.ZodError([
-        { code: 'custom', path: ['cn_name'], message: '姓名格式错误' },
-      ]));
+    it('updateUser: unknown error → 500', async () => {
+      const mockFindFirst = jest.fn().mockRejectedValue(new Error('未知错误'));
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
 
       const response = await agent
@@ -1394,8 +1374,7 @@ describe('User Controller', () => {
         .set('Authorization', `Bearer ${sysadminToken()}`)
         .send({ cn_name: '新名称' });
 
-      expect(response.status).toBe(400);
-      expect(response.body.message).toContain('姓名格式错误');
+      expect(response.status).toBe(500);
     });
 
     it('updateUser: ConflictError → 409', async () => {
@@ -1413,17 +1392,15 @@ describe('User Controller', () => {
     });
 
     // --- deleteUser 错误类型 ---
-    it('deleteUser: ZodError → 400', async () => {
-      const mockFindFirst = jest.fn().mockRejectedValue(new zod.ZodError([
-        { code: 'custom', path: ['id'], message: 'ID无效' },
-      ]));
+    it('deleteUser: unknown error → 500', async () => {
+      const mockFindFirst = jest.fn().mockRejectedValue(new Error('未知错误'));
       getPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } });
 
       const response = await agent
         .delete('/api/v1/users/2')
         .set('Authorization', `Bearer ${sysadminToken()}`);
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(500);
     });
 
     it('deleteUser: ConflictError → 409', async () => {
@@ -1589,7 +1566,7 @@ describe('User Controller', () => {
         id: 11, username: 'sqltest', cnName: 'SQL测试', role: 'admin', status: true, companyId: 1,
         company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } });
 
       const response = await agent
         .post('/api/v1/users')
@@ -1817,7 +1794,7 @@ describe('User Controller', () => {
         id: 12, username: username50, cnName: '50字符', role: 'admin', status: true, companyId: 1,
         company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } });
 
       const response = await agent
         .post('/api/v1/users')
@@ -1847,7 +1824,7 @@ describe('User Controller', () => {
         id: 13, username: 'name50', cnName: name50, role: 'admin', status: true, companyId: 1,
         company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } });
 
       const response = await agent
         .post('/api/v1/users')
@@ -1877,7 +1854,7 @@ describe('User Controller', () => {
         id: 14, username: 'pwd128', cnName: '128密码', role: 'admin', status: true, companyId: 1,
         company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } });
 
       const response = await agent
         .post('/api/v1/users')
@@ -2033,7 +2010,7 @@ describe('User Controller', () => {
         id: 15, username: 'a', cnName: '单字符', role: 'admin', status: true, companyId: 1,
         company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } });
 
       const response = await agent
         .post('/api/v1/users')
@@ -2122,7 +2099,7 @@ describe('User Controller', () => {
         id: 16, username: 'comptest', cnName: '公司测试', role: 'admin', status: true, companyId: 1,
         company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } });
 
       const response = await agent
         .post('/api/v1/users')
@@ -2208,7 +2185,7 @@ describe('User Controller', () => {
     it('createUser: 409 response should have code=409 and message', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       const mockFindUnique = jest.fn().mockResolvedValue({ id: 1, username: 'existing' });
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique } });
 
       const response = await agent
         .post('/api/v1/users')
@@ -2382,7 +2359,7 @@ describe('User Controller', () => {
         id: 17, username: 'new', cnName: '新', role: 'admin', status: true, companyId: 1,
         company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } });
 
       const response = await agent
         .post('/api/v1/users')
@@ -2472,7 +2449,7 @@ describe('User Controller', () => {
         id: 18, username: 'raceuser', cnName: 'Race', role: 'admin', status: true, companyId: 1,
         company: { shortName: 'ACME' }, createdAt: new Date(), updatedAt: new Date(),
       });
-      getPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } });
+      getPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } });
 
       const responses = await Promise.all([
         agent

@@ -10,7 +10,7 @@ export class UserServiceImpl implements IUserService {
     const prisma = getPrisma();
     const { companyId, search, role, status } = options ?? {};
 
-    const where: any = {};
+    const where: Record<string, unknown> = { deletedAt: null };
     if (search) {
       where.OR = [
         { username: { contains: search, mode: 'insensitive' } },
@@ -37,7 +37,7 @@ export class UserServiceImpl implements IUserService {
   async getById(id: number): Promise<UserListItem> {
     const prisma = getPrisma();
     const user = await prisma.user.findFirst({
-      where: { id },
+      where: { id, deletedAt: null },
     });
     if (!user) throw new NotFoundError('用户');
     return mapUser(user);
@@ -46,7 +46,7 @@ export class UserServiceImpl implements IUserService {
   async create(request: CreateUserRequest): Promise<UserListItem> {
     const prisma = getPrisma();
 
-    const existing = await prisma.user.findUnique({ where: { username: request.username } });
+    const existing = await prisma.user.findFirst({ where: { username: request.username, deletedAt: null } });
     if (existing) throw new ConflictError('用户名已存在');
 
     const passwordHash = await bcrypt.hash(request.password, 10);
@@ -65,14 +65,14 @@ export class UserServiceImpl implements IUserService {
   async update(id: number, request: UpdateUserRequest): Promise<UserListItem> {
     const prisma = getPrisma();
 
-    const existing = await prisma.user.findFirst({ where: { id } });
+    const existing = await prisma.user.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new NotFoundError('用户');
 
     if (existing.role === 'sysadmin' && request.role !== undefined && request.role !== 'sysadmin') {
       throw new ForbiddenError('系统管理员角色不可修改');
     }
 
-    const data: any = {};
+    const data: Record<string, unknown> = {};
     if (request.cn_name !== undefined) data.cnName = request.cn_name;
     if (request.role !== undefined) data.role = request.role;
     if (request.status !== undefined) data.status = request.status;
@@ -88,7 +88,7 @@ export class UserServiceImpl implements IUserService {
   async delete(id: number): Promise<void> {
     const prisma = getPrisma();
 
-    const existing = await prisma.user.findFirst({ where: { id } });
+    const existing = await prisma.user.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new NotFoundError('用户');
 
     if (existing.role === 'sysadmin') throw new ForbiddenError('系统管理员不可删除');

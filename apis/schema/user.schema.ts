@@ -1,5 +1,13 @@
 import { z } from 'zod';
 
+export const idParamSchema = z.object({
+  id: z
+    .string()
+    .regex(/^\d+$/, '无效的用户ID')
+    .transform(Number)
+    .pipe(z.number().int().positive('无效的用户ID')),
+});
+
 export const listUsersSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(10),

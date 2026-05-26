@@ -88,12 +88,12 @@ describe('UserServiceImpl', () => {
         total: 2,
       });
       expect(mockFindMany).toHaveBeenCalledWith({
-        where: {},
+        where: { deletedAt: null },
         orderBy: { id: 'asc' },
         skip: 0,
         take: 10,
       });
-      expect(mockCount).toHaveBeenCalledWith({ where: {} });
+      expect(mockCount).toHaveBeenCalledWith({ where: { deletedAt: null } });
     });
 
     it('应正确计算分页偏移量（第2页）', async () => {
@@ -122,6 +122,7 @@ describe('UserServiceImpl', () => {
       await service.list(1, 10, { search: '测试' });
 
       const expectedWhere = {
+        deletedAt: null,
         OR: [
           { username: { contains: '测试', mode: 'insensitive' } },
           { cnName: { contains: '测试', mode: 'insensitive' } },
@@ -144,7 +145,7 @@ describe('UserServiceImpl', () => {
       await service.list(1, 10, { role: 'admin' });
 
       expect(mockFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { role: 'admin' } }),
+        expect.objectContaining({ where: { deletedAt: null, role: 'admin' } }),
       );
     });
 
@@ -159,7 +160,7 @@ describe('UserServiceImpl', () => {
       await service.list(1, 10, { status: false });
 
       expect(mockFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { status: false } }),
+        expect.objectContaining({ where: { deletedAt: null, status: false } }),
       );
     });
 
@@ -174,7 +175,7 @@ describe('UserServiceImpl', () => {
       await service.list(1, 10, { companyId: 5 });
 
       expect(mockFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { companyId: 5 } }),
+        expect.objectContaining({ where: { deletedAt: null, companyId: 5 } }),
       );
     });
 
@@ -189,6 +190,7 @@ describe('UserServiceImpl', () => {
       await service.list(1, 10, { companyId: 1, search: '张', role: 'admin', status: true });
 
       const expectedWhere = {
+        deletedAt: null,
         OR: [
           { username: { contains: '张', mode: 'insensitive' } },
           { cnName: { contains: '张', mode: 'insensitive' } },
@@ -245,7 +247,7 @@ describe('UserServiceImpl', () => {
       const result = await service.getById(1);
 
       expect(result).toEqual(makeMappedUser({ id: 1 }));
-      expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 1, deletedAt: null } });
     });
 
     it('用户不存在时应抛出错误', async () => {
@@ -269,7 +271,7 @@ describe('UserServiceImpl', () => {
       const mockCreate = jest.fn().mockResolvedValue(newUser);
 
       mockedGetPrisma.mockReturnValue({
-        user: { findUnique: mockFindUnique, create: mockCreate },
+        user: { findFirst: mockFindUnique, create: mockCreate },
       } as any);
 
       const result = await service.create({
@@ -298,7 +300,7 @@ describe('UserServiceImpl', () => {
       const mockFindUnique = jest.fn().mockResolvedValue(existingUser);
 
       mockedGetPrisma.mockReturnValue({
-        user: { findUnique: mockFindUnique },
+        user: { findFirst: mockFindUnique },
       } as any);
 
       await expect(
@@ -317,7 +319,7 @@ describe('UserServiceImpl', () => {
       const mockCreate = jest.fn().mockResolvedValue(newUser);
 
       mockedGetPrisma.mockReturnValue({
-        user: { findUnique: mockFindUnique, create: mockCreate },
+        user: { findFirst: mockFindUnique, create: mockCreate },
       } as any);
 
       await service.create({
@@ -337,7 +339,7 @@ describe('UserServiceImpl', () => {
       const mockCreate = jest.fn().mockResolvedValue(newUser);
 
       mockedGetPrisma.mockReturnValue({
-        user: { findUnique: mockFindUnique, create: mockCreate },
+        user: { findFirst: mockFindUnique, create: mockCreate },
       } as any);
 
       await service.create({
@@ -358,7 +360,7 @@ describe('UserServiceImpl', () => {
       const mockCreate = jest.fn().mockResolvedValue(newUser);
 
       mockedGetPrisma.mockReturnValue({
-        user: { findUnique: mockFindUnique, create: mockCreate },
+        user: { findFirst: mockFindUnique, create: mockCreate },
       } as any);
 
       mockedBcryptHash.mockResolvedValue('$2b$10$customhash');
@@ -718,7 +720,7 @@ describe('UserServiceImpl', () => {
       const mockCreate = jest.fn().mockResolvedValue(newUser);
 
       mockedGetPrisma.mockReturnValue({
-        user: { findUnique: mockFindUnique, create: mockCreate },
+        user: { findFirst: mockFindUnique, create: mockCreate },
       } as any);
 
       await service.create({
@@ -739,7 +741,7 @@ describe('UserServiceImpl', () => {
       const mockCreate = jest.fn().mockResolvedValue(sysadminUser);
 
       mockedGetPrisma.mockReturnValue({
-        user: { findUnique: mockFindUnique, create: mockCreate },
+        user: { findFirst: mockFindUnique, create: mockCreate },
       } as any);
 
       const result = await service.create({
@@ -920,7 +922,7 @@ describe('UserServiceImpl', () => {
     it('create - ConflictError 应为 Error 实例且 statusCode=409', async () => {
       const existing = makePrismaUser();
       const mockFindUnique = jest.fn().mockResolvedValue(existing);
-      mockedGetPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } } as any);
+      mockedGetPrisma.mockReturnValue({ user: { findFirst: mockFindUnique } } as any);
 
       try {
         await service.create({ username: 'testuser', password: 'pass', cn_name: '测试', role: 'admin' });
@@ -981,30 +983,30 @@ describe('UserServiceImpl', () => {
       await service.list(1, 10);
 
       expect(mockFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: {} }),
+        expect.objectContaining({ where: { deletedAt: null } }),
       );
-      expect(mockCount).toHaveBeenCalledWith({ where: {} });
+      expect(mockCount).toHaveBeenCalledWith({ where: { deletedAt: null } });
     });
 
-    it('getById - findFirst 应使用 where: { id } 查询', async () => {
+    it('getById - findFirst 应使用 where: { id, deletedAt: null } 查询', async () => {
       const prismaUser = makePrismaUser({ id: 42 });
       const mockFindFirst = jest.fn().mockResolvedValue(prismaUser);
       mockedGetPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } } as any);
 
       await service.getById(42);
 
-      expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 42 } });
+      expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 42, deletedAt: null } });
     });
 
-    it('create - findUnique 应使用 where: { username } 查重', async () => {
+    it('create - findFirst 应使用 where: { username, deletedAt: null } 查重', async () => {
       const newUser = makePrismaUser();
       const mockFindUnique = jest.fn().mockResolvedValue(null);
       const mockCreate = jest.fn().mockResolvedValue(newUser);
-      mockedGetPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } } as any);
+      mockedGetPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } } as any);
 
       await service.create({ username: 'uniqueuser', password: 'pass', cn_name: '唯一', role: 'admin' });
 
-      expect(mockFindUnique).toHaveBeenCalledWith({ where: { username: 'uniqueuser' } });
+      expect(mockFindUnique).toHaveBeenCalledWith({ where: { username: 'uniqueuser', deletedAt: null } });
     });
   });
 
@@ -1077,7 +1079,7 @@ describe('UserServiceImpl', () => {
       const newUser = makePrismaUser({ username: ' spaced ' });
       const mockFindUnique = jest.fn().mockResolvedValue(null);
       const mockCreate = jest.fn().mockResolvedValue(newUser);
-      mockedGetPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } } as any);
+      mockedGetPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } } as any);
 
       await service.create({ username: ' spaced ', password: 'pass', cn_name: '空格用户', role: 'admin' });
 
@@ -1090,7 +1092,7 @@ describe('UserServiceImpl', () => {
       const newUser = makePrismaUser({ cnName: '行1\n行2\t缩进' });
       const mockFindUnique = jest.fn().mockResolvedValue(null);
       const mockCreate = jest.fn().mockResolvedValue(newUser);
-      mockedGetPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } } as any);
+      mockedGetPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } } as any);
 
       await service.create({ username: 'newlines', password: 'pass', cn_name: '行1\n行2\t缩进', role: 'admin' });
 
@@ -1148,7 +1150,7 @@ describe('UserServiceImpl', () => {
       mockedGetPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } } as any);
 
       try { await service.getById(0); fail('应抛出错误'); } catch (e: any) {
-        expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 0 } });
+        expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 0, deletedAt: null } });
       }
     });
 
@@ -1157,7 +1159,7 @@ describe('UserServiceImpl', () => {
       mockedGetPrisma.mockReturnValue({ user: { findFirst: mockFindFirst } } as any);
 
       try { await service.getById(2147483647); fail('应抛出错误'); } catch (e: any) {
-        expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 2147483647 } });
+        expect(mockFindFirst).toHaveBeenCalledWith({ where: { id: 2147483647, deletedAt: null } });
       }
     });
   });
@@ -1220,7 +1222,7 @@ describe('UserServiceImpl', () => {
       const newUser = makePrismaUser({ id: 99 });
       const mockFindUnique = jest.fn().mockResolvedValue(null);
       const mockCreate = jest.fn().mockResolvedValue(newUser);
-      mockedGetPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } } as any);
+      mockedGetPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } } as any);
 
       const result = await service.create({ username: 'test99', password: 'pass', cn_name: '99号', role: 'admin', company_id: 1 });
 
@@ -1356,7 +1358,7 @@ describe('UserServiceImpl', () => {
       const newUser = makePrismaUser({ id: 1 });
       const mockFindUnique = jest.fn().mockResolvedValue(null);
       const mockCreate = jest.fn().mockResolvedValue(newUser);
-      mockedGetPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } } as any);
+      mockedGetPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } } as any);
 
       await service.create({ username: 'fulluser', password: 'fullpass', cn_name: '完整用户', role: 'admin', company_id: 5 });
 
@@ -1375,7 +1377,7 @@ describe('UserServiceImpl', () => {
       for (const role of roles) {
         const mockFindUnique = jest.fn().mockResolvedValue(null);
         const mockCreate = jest.fn().mockResolvedValue(makePrismaUser({ role }));
-        mockedGetPrisma.mockReturnValue({ user: { findUnique: mockFindUnique, create: mockCreate } } as any);
+        mockedGetPrisma.mockReturnValue({ user: { findFirst: mockFindUnique, create: mockCreate } } as any);
 
         await service.create({ username: `user_${role}`, password: 'pass', cn_name: role, role });
 
@@ -1386,7 +1388,7 @@ describe('UserServiceImpl', () => {
 
     it('create - bcrypt hash 失败时应抛出错误', async () => {
       const mockFindUnique = jest.fn().mockResolvedValue(null);
-      mockedGetPrisma.mockReturnValue({ user: { findUnique: mockFindUnique } } as any);
+      mockedGetPrisma.mockReturnValue({ user: { findFirst: mockFindUnique } } as any);
       mockedBcryptHash.mockRejectedValue(new Error('bcrypt failed'));
 
       await expect(

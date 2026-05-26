@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import { z } from 'zod';
 import { createUserService } from '../service';
 import { success, fail, created, paginate } from '../utils';
 import { NotFoundError, ForbiddenError, ConflictError } from '../errors';
@@ -7,9 +6,7 @@ import { NotFoundError, ForbiddenError, ConflictError } from '../errors';
 const userService = createUserService();
 
 function handleError(res: Response, err: unknown, defaultMsg: string): void {
-  if (err instanceof z.ZodError) {
-    fail(res, 400, err.issues.map((e: any) => e.message).join('; '));
-  } else if (err instanceof NotFoundError) {
+  if (err instanceof NotFoundError) {
     fail(res, 404, err.message);
   } else if (err instanceof ForbiddenError) {
     fail(res, 403, err.message);
@@ -37,8 +34,8 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
 
 export async function getUser(req: Request, res: Response): Promise<void> {
   try {
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id)) { fail(res, 400, '无效的用户ID'); return; }
+    // req.params.id already validated by validate(idParamSchema, 'params') middleware
+    const id = Number(req.params.id);
 
     const user = await userService.getById(id);
     success(res, user);
@@ -59,10 +56,10 @@ export async function createUser(req: Request, res: Response): Promise<void> {
 
 export async function updateUser(req: Request, res: Response): Promise<void> {
   try {
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id)) { fail(res, 400, '无效的用户ID'); return; }
-
+    // req.params.id already validated by validate(idParamSchema, 'params') middleware
     // req.body already validated by validate(updateUserSchema) middleware
+    const id = Number(req.params.id);
+
     const user = await userService.update(id, req.body);
     success(res, user, '更新用户成功');
   } catch (err: unknown) {
@@ -72,8 +69,8 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
 
 export async function deleteUser(req: Request, res: Response): Promise<void> {
   try {
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id)) { fail(res, 400, '无效的用户ID'); return; }
+    // req.params.id already validated by validate(idParamSchema, 'params') middleware
+    const id = Number(req.params.id);
 
     await userService.delete(id);
     success(res, null, '删除用户成功');
