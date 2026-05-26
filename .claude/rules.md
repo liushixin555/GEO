@@ -33,9 +33,9 @@
 - **每次任务结束后必须执行 `git add` + `git commit` + `git push`**，将所有变更提交并推送到远程仓库
 - 每次提交代码前必须执行 `pnpm build` 和 `pnpm lint`，确保编译和规范检查通过后再提交
 - **前端 message.error 必须使用 getApiErrorMessage** — 所有 `message.error()` 调用必须使用 `getApiErrorMessage(err, fallback)`，禁止使用 `err.message`（会显示 "Request failed with status code xxx"）或硬编码字符串
-- TDD：先写测试，再写代码；每次修改后跑单测
-- 每个 API 都必须严格测试
-- 每个页面都必须严格测试
+- TDD：先写测试，再写代码；**禁止执行 `pnpm test`**（太耗时，仅在用户明确要求时才运行），验证用 `pnpm build` + `pnpm lint`
+- 每个 API 都必须严格测试（仅在用户要求时运行）
+- 每个页面都必须严格测试（仅在用户要求时运行）
 - 每次文件修改后 git commit + push
 - 每次任务结束后，将价值信息持久化保存到本项目 `.claude/` 目录下的对应文件，禁止保存到用户目录 `~/.claude/projects/`
 - 所有页面必须响应式（移动端窄屏 + PC）

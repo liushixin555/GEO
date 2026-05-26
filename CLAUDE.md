@@ -70,7 +70,7 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 
 ## Key Conventions
 
-- **TDD**: write tests first, then code; run tests after every change
+- **TDD**: write tests first, then code; 仅执行 `pnpm build` 和 `pnpm lint` 验证，禁止执行 `pnpm test`（太耗时）
 - **Three roles**: sysadmin (full access + 系统管理), admin (company operations), view (仅在被授权后查看每日检测报告，无其他任何权限)
 - **禁止使用GEO字眼**: 项目中禁止使用GEO字眼，薄云GEO应称为薄云商机倍增服务，GEO文章应称为文章管理，GEO成绩应称为发布管理
 - **All API routes** (except `POST /api/auth/login`) require JWT auth + anti-crawl + rate-limit headers
@@ -90,7 +90,7 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 1. **前端必须使用 Ant Design (antd) 组件** — 禁止使用原生 HTML 元素替代 antd 提供的组件（Button、Input、Form、Card、Menu、Layout、Table、Modal 等）
 2. **前端必须遵守 DESIGN.md** — 所有页面样式必须遵循 DESIGN.md 定义的 IBM Carbon Design System 规范（颜色、字体、间距、形状、组件）
 3. **时间必须格式化为中国时区** — 所有页面显示时间必须使用 `pages/utils/date.ts` 中的 `formatDate` / `formatDateTime`（强制 Asia/Shanghai UTC+8），禁止使用 `new Date().getFullYear()` 等本地时区方法
-4. **严格测试** — 执行 `pnpm build` 、`pnpm lint`和 `pnpm test`，补全测试用例，进行测试，输出测试结果，并分析测试覆盖率
+4. **严格测试** — 执行 `pnpm build` 和 `pnpm lint`，确保编译和 lint 通过。**禁止执行 `pnpm test`**（太耗时，仅在用户明确要求时才运行）
 5. **view 角色权限铁律** — view 角色只有被授权后查看每日检测报告的权限（每日检测功能待开发），除此之外没有任何权限。路由守卫、侧边栏菜单、API 权限校验中必须严格拦截 view 角色
 6. **禁止修改或测试 `.agents/` 目录** — `.agents/skills/` 下的所有文档（README、SKILL、manifest、模板、主题等）禁止任何形式的修改、删除或测试，该目录为只读参考资源
 7. **页面布局高度自适应铁律** — 所有页面容器（`.main-content` → `#main-content` → `.page-container`）必须形成完整的 flex 高度链，每一层都必须设置 `flex: 1; min-height: 0; height: 100%`，严禁只改 `overflow: hidden` 而不设高度导致容器塌缩。修改布局样式前必须先在浏览器实测确认效果，禁止凭推测提交
