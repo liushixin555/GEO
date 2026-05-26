@@ -44,6 +44,7 @@ interface InventoryItem {
   projectName: string;
   creatorName: string;
   updatedAt: string;
+  articleCount: number;
 }
 
 interface InventoryStats {
@@ -258,6 +259,13 @@ const KnowledgePage: React.FC = () => {
       width: 100,
     },
     {
+      title: '被使用次数',
+      dataIndex: 'articleCount',
+      key: 'articleCount',
+      width: 90,
+      render: (val: number) => val ?? 0,
+    },
+    {
       title: '更新时间',
       dataIndex: 'updatedAt',
       key: 'updatedAt',
@@ -435,6 +443,7 @@ const KnowledgePage: React.FC = () => {
                   <Descriptions.Item label="公司">{item.companyName}</Descriptions.Item>
                   <Descriptions.Item label="项目">{item.projectName}</Descriptions.Item>
                   <Descriptions.Item label="添加者">{item.creatorName || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="被使用次数">{item.articleCount ?? 0} 篇</Descriptions.Item>
                   <Descriptions.Item label="更新时间">{formatDateTime(item.updatedAt)}</Descriptions.Item>
                 </Descriptions>
               </Card>

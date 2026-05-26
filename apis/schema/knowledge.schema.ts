@@ -17,7 +17,7 @@ const content = z.string({ error: '内容不能为空' })
 const imageUrl = z.string({ error: '图片地址不能为空' })
   .min(1, '图片地址不能为空')
   .max(2000, '图片地址不能超过2000个字符')
-  .refine(val => /^https?:\/\/.+/.test(val), { message: '图片地址必须是有效的HTTP/HTTPS URL' });
+  .refine(val => /^(https?:\/\/|\/)[^\s]+/.test(val), { message: '图片地址必须是有效的URL' });
 
 const description = z.string()
   .max(2000, '描述不能超过2000个字符')

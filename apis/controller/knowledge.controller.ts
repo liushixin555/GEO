@@ -748,6 +748,7 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
       creatorName: string;
       creatorId: number | null;
       updatedAt: Date;
+      articleCount: number;
     }> = [];
 
     const creatorIds = new Set<number>();
@@ -756,14 +757,16 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
       const kwWhere: any = { ...baseFilter };
       if (search) kwWhere.keyword = { contains: search, mode: 'insensitive' };
       const keywords = await prisma.knowledgeKeyword.findMany({ where: kwWhere, orderBy: { updatedAt: 'desc' }, take: MAX_INVENTORY_ITEMS_PER_CATEGORY });
-      for (const k of keywords) {
+      const kwCounts = await Promise.all(keywords.map(k => prisma.article.count({ where: { keywords: { contains: k.keyword }, deletedAt: null } })));
+      for (let idx = 0; idx < keywords.length; idx++) {
+        const k = keywords[idx];
         if (k.createdBy) creatorIds.add(k.createdBy);
         const base = baseMap.get(k.baseId);
         items.push({
           id: `keyword-${k.id}`, name: k.keyword, category: '关键词', categoryKey: 'keyword',
           baseId: k.baseId, baseName: base?.name || '-', scope: base?.scope || 'platform',
           companyName: base?.company_name || '-', projectName: base ? getScopeLabel(base) : '-',
-          creatorName: '', creatorId: k.createdBy, updatedAt: k.updatedAt,
+          creatorName: '', creatorId: k.createdBy, updatedAt: k.updatedAt, articleCount: kwCounts[idx],
         });
       }
     }
@@ -772,14 +775,22 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
       const ptWhere: any = { ...baseFilter };
       if (search) ptWhere.title = { contains: search, mode: 'insensitive' };
       const portraits = await prisma.knowledgePortrait.findMany({ where: ptWhere, orderBy: { updatedAt: 'desc' }, take: MAX_INVENTORY_ITEMS_PER_CATEGORY });
-      for (const p of portraits) {
+      const ptCounts = await Promise.all(portraits.map(p => {
+        if (!p.content || p.content === p.title) return prisma.article.count({ where: { portrait: p.title, deletedAt: null } });
+        return Promise.all([
+          prisma.article.count({ where: { portrait: p.content, deletedAt: null } }),
+          prisma.article.count({ where: { portrait: p.title, deletedAt: null } }),
+        ]).then(([a, b]) => a + b);
+      }));
+      for (let idx = 0; idx < portraits.length; idx++) {
+        const p = portraits[idx];
         if (p.createdBy) creatorIds.add(p.createdBy);
         const base = baseMap.get(p.baseId);
         items.push({
           id: `portrait-${p.id}`, name: p.title, category: '画像', categoryKey: 'portrait',
           baseId: p.baseId, baseName: base?.name || '-', scope: base?.scope || 'platform',
           companyName: base?.company_name || '-', projectName: base ? getScopeLabel(base) : '-',
-          creatorName: '', creatorId: p.createdBy, updatedAt: p.updatedAt,
+          creatorName: '', creatorId: p.createdBy, updatedAt: p.updatedAt, articleCount: ptCounts[idx],
         });
       }
     }
@@ -788,14 +799,18 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
       const imgWhere: any = { ...baseFilter };
       if (search) imgWhere.title = { contains: search, mode: 'insensitive' };
       const images = await prisma.knowledgeImage.findMany({ where: imgWhere, orderBy: { updatedAt: 'desc' }, take: MAX_INVENTORY_ITEMS_PER_CATEGORY });
-      for (const i of images) {
+      const imgCounts = await Promise.all(images.map(i =>
+        prisma.$queryRaw<Array<{ count: bigint }>>`SELECT COUNT(*) as count FROM articles WHERE deleted_at IS NULL AND images IS NOT NULL AND images::jsonb @> to_jsonb(${i.imageUrl}::text)`.then(r => Number(r[0]?.count ?? 0))
+      ));
+      for (let idx = 0; idx < images.length; idx++) {
+        const i = images[idx];
         if (i.createdBy) creatorIds.add(i.createdBy);
         const base = baseMap.get(i.baseId);
         items.push({
           id: `image-${i.id}`, name: i.title, category: '图片', categoryKey: 'image',
           baseId: i.baseId, baseName: base?.name || '-', scope: base?.scope || 'platform',
           companyName: base?.company_name || '-', projectName: base ? getScopeLabel(base) : '-',
-          creatorName: '', creatorId: i.createdBy, updatedAt: i.updatedAt,
+          creatorName: '', creatorId: i.createdBy, updatedAt: i.updatedAt, articleCount: imgCounts[idx],
         });
       }
     }
@@ -816,7 +831,7 @@ export async function listInventory(req: Request, res: Response): Promise<void> 
           id: `document-${d.id}`, name: d.title, category: '文档', categoryKey: 'document',
           baseId: d.baseId, baseName: base?.name || '-', scope: base?.scope || 'platform',
           companyName: base?.company_name || '-', projectName: base ? getScopeLabel(base) : '-',
-          creatorName: '', creatorId: d.createdBy, updatedAt: d.updatedAt,
+          creatorName: '', creatorId: d.createdBy, updatedAt: d.updatedAt, articleCount: 0,
         });
       }
     }

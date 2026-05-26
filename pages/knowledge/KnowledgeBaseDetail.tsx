@@ -21,6 +21,7 @@ interface KeywordItem {
   seed_word: string | null;
   created_by: number | null;
   created_at: string;
+  article_count?: number;
 }
 
 interface PortraitItem {
@@ -30,6 +31,7 @@ interface PortraitItem {
   content: string | null;
   created_by: number | null;
   created_at: string;
+  article_count?: number;
 }
 
 interface ImageItem {
@@ -40,6 +42,7 @@ interface ImageItem {
   image_url: string;
   created_by: number | null;
   created_at: string;
+  article_count?: number;
 }
 
 interface DocumentItem {
@@ -334,6 +337,13 @@ const KnowledgeBaseDetail: React.FC = () => {
       render: (text: string | null) => text || '-',
     },
     {
+      title: '被使用次数',
+      dataIndex: 'article_count',
+      key: 'article_count',
+      width: 100,
+      render: (val: number) => val ?? 0,
+    },
+    {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
@@ -346,12 +356,14 @@ const KnowledgeBaseDetail: React.FC = () => {
       width: 120,
       render: (_: unknown, record: PortraitItem) => {
         const mod = canModify(record.created_by);
+        const inUse = (record.article_count ?? 0) > 0;
+        const canDelete = mod && !inUse;
         return (
           <span>
             <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => navigate(`/knowledge/${baseId}/portrait/${record.id}`)} style={{ color: 'var(--color-primary, #0f62fe)' }} />
             <Button type="text" size="small" icon={<EditOutlined />} disabled={!mod} onClick={() => navigate(`/knowledge/${baseId}/portrait/${record.id}?mode=edit`)} style={{ color: mod ? 'var(--color-primary, #0f62fe)' : undefined }} />
-            <Popconfirm title="确定删除此画像？" onConfirm={() => handleDeletePortrait(record)} okText="删除" cancelText="取消" disabled={!mod}>
-              <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!mod} danger={mod} />
+            <Popconfirm title={inUse ? `该画像正在被 ${record.article_count} 篇文章使用，无法删除` : '确定删除此画像？'} onConfirm={() => handleDeletePortrait(record)} okText="删除" cancelText="取消" disabled={!canDelete}>
+              <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!canDelete} danger={canDelete} />
             </Popconfirm>
           </span>
         );
@@ -377,6 +389,13 @@ const KnowledgeBaseDetail: React.FC = () => {
       render: (text: string | null) => text || '-',
     },
     {
+      title: '被使用次数',
+      dataIndex: 'article_count',
+      key: 'article_count',
+      width: 100,
+      render: (val: number) => val ?? 0,
+    },
+    {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
@@ -389,11 +408,13 @@ const KnowledgeBaseDetail: React.FC = () => {
       width: 80,
       render: (_: unknown, record: ImageItem) => {
         const mod = canModify(record.created_by);
+        const inUse = (record.article_count ?? 0) > 0;
+        const canDelete = mod && !inUse;
         return (
           <span>
             <Button type="text" size="small" icon={<EditOutlined />} disabled={!mod} onClick={() => navigate(`/knowledge/${baseId}/image/${record.id}?mode=edit`)} style={{ color: mod ? 'var(--color-primary, #0f62fe)' : undefined }} />
-            <Popconfirm title="确定删除此图片？" onConfirm={() => handleDeleteImage(record)} okText="删除" cancelText="取消" disabled={!mod}>
-              <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!mod} danger={mod} />
+            <Popconfirm title={inUse ? `该图片正在被 ${record.article_count} 篇文章使用，无法删除` : '确定删除此图片？'} onConfirm={() => handleDeleteImage(record)} okText="删除" cancelText="取消" disabled={!canDelete}>
+              <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!canDelete} danger={canDelete} />
             </Popconfirm>
           </span>
         );
@@ -421,6 +442,13 @@ const KnowledgeBaseDetail: React.FC = () => {
       },
     },
     {
+      title: '被使用次数',
+      dataIndex: 'article_count',
+      key: 'article_count',
+      width: 100,
+      render: (val: number) => val ?? 0,
+    },
+    {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
@@ -433,10 +461,12 @@ const KnowledgeBaseDetail: React.FC = () => {
       width: 60,
       render: (_: unknown, record: KeywordItem) => {
         const mod = canModify(record.created_by);
+        const inUse = (record.article_count ?? 0) > 0;
+        const canDelete = mod && !inUse;
         return (
           <span>
-            <Popconfirm title="确定删除此关键词？" onConfirm={() => handleDeleteKeyword(record)} okText="删除" cancelText="取消" disabled={!mod}>
-              <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!mod} danger={mod} />
+            <Popconfirm title={inUse ? `该关键词正在被 ${record.article_count} 篇文章使用，无法删除` : '确定删除此关键词？'} onConfirm={() => handleDeleteKeyword(record)} okText="删除" cancelText="取消" disabled={!canDelete}>
+              <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!canDelete} danger={canDelete} />
             </Popconfirm>
           </span>
         );
@@ -468,8 +498,8 @@ const KnowledgeBaseDetail: React.FC = () => {
                   <div className="item-card-header">
                     <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.keyword}>{item.keyword}</span>
                     <div className="item-card-actions">
-                      <Popconfirm title="确定删除此关键词？" onConfirm={() => handleDeleteKeyword(item)} okText="删除" cancelText="取消">
-                        <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!canModify(item.created_by)} danger={canModify(item.created_by)} />
+                      <Popconfirm title={(item.article_count ?? 0) > 0 ? `该关键词正在被 ${item.article_count} 篇文章使用，无法删除` : '确定删除此关键词？'} onConfirm={() => handleDeleteKeyword(item)} okText="删除" cancelText="取消" disabled={!canModify(item.created_by) || (item.article_count ?? 0) > 0}>
+                        <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!canModify(item.created_by) || (item.article_count ?? 0) > 0} danger={canModify(item.created_by) && (item.article_count ?? 0) === 0} />
                       </Popconfirm>
                     </div>
                   </div>
@@ -479,6 +509,9 @@ const KnowledgeBaseDetail: React.FC = () => {
                     {item.seed_word === '手工输入' && <Tag style={{ marginLeft: 8 }} color="green">手工输入</Tag>}
                     {item.seed_word === '关键词挖掘' && <Tag style={{ marginLeft: 8 }} color="purple">关键词挖掘</Tag>}
                     {item.seed_word && item.seed_word !== '手工输入' && item.seed_word !== '关键词挖掘' && <Tag style={{ marginLeft: 8 }} color="blue">{item.seed_word} 智能扩词</Tag>}
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text-secondary, #697077)' }}>
+                    {item.article_count ?? 0} 篇文章使用
                   </div>
                 </Card>
               </Col>
@@ -527,8 +560,8 @@ const KnowledgeBaseDetail: React.FC = () => {
                     <div className="item-card-actions">
                       <Button type="text" size="small" icon={<EyeOutlined />} onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/portrait/${item.id}`); }} style={{ color: 'var(--color-primary, #0f62fe)' }} />
                       <Button type="text" size="small" icon={<EditOutlined />} disabled={!canModify(item.created_by)} onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/portrait/${item.id}?mode=edit`); }} style={{ color: canModify(item.created_by) ? 'var(--color-primary, #0f62fe)' : undefined }} />
-                      <Popconfirm title="确定删除此画像？" onConfirm={(e) => { e?.stopPropagation(); handleDeletePortrait(item); }} okText="删除" cancelText="取消">
-                        <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!canModify(item.created_by)} danger={canModify(item.created_by)} />
+                      <Popconfirm title={(item.article_count ?? 0) > 0 ? `该画像正在被 ${item.article_count} 篇文章使用，无法删除` : '确定删除此画像？'} onConfirm={(e) => { e?.stopPropagation(); handleDeletePortrait(item); }} okText="删除" cancelText="取消" disabled={!canModify(item.created_by) || (item.article_count ?? 0) > 0}>
+                        <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!canModify(item.created_by) || (item.article_count ?? 0) > 0} danger={canModify(item.created_by) && (item.article_count ?? 0) === 0} />
                       </Popconfirm>
                     </div>
                   </div>
@@ -539,6 +572,9 @@ const KnowledgeBaseDetail: React.FC = () => {
                   )}
                   <div className="item-card-row">
                     <span className="item-card-username">{formatDate(item.created_at)}</span>
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text-secondary, #697077)' }}>
+                    {item.article_count ?? 0} 篇文章使用
                   </div>
                 </Card>
               </Col>
@@ -589,11 +625,12 @@ const KnowledgeBaseDetail: React.FC = () => {
                   <div style={{ padding: '8px 4px 4px' }}>
                     <Typography.Text strong ellipsis style={{ display: 'block' }}>{item.title}</Typography.Text>
                     {item.description && <Typography.Text type="secondary" style={{ fontSize: 12 }} ellipsis>{item.description}</Typography.Text>}
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary, #697077)', marginTop: 2 }}>{item.article_count ?? 0} 篇文章使用</div>
                   </div>
                   <div className="knowledge-image-actions">
                     <Button type="text" size="small" icon={<EditOutlined />} disabled={!canModify(item.created_by)} onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/image/${item.id}?mode=edit`); }} style={{ color: canModify(item.created_by) ? 'var(--color-primary, #0f62fe)' : undefined }} />
-                    <Popconfirm title="确定删除此图片？" onConfirm={(e) => { e?.stopPropagation(); handleDeleteImage(item); }} okText="删除" cancelText="取消">
-                      <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!canModify(item.created_by)} danger={canModify(item.created_by)} />
+                    <Popconfirm title={(item.article_count ?? 0) > 0 ? `该图片正在被 ${item.article_count} 篇文章使用，无法删除` : '确定删除此图片？'} onConfirm={(e) => { e?.stopPropagation(); handleDeleteImage(item); }} okText="删除" cancelText="取消" disabled={!canModify(item.created_by) || (item.article_count ?? 0) > 0}>
+                      <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!canModify(item.created_by) || (item.article_count ?? 0) > 0} danger={canModify(item.created_by) && (item.article_count ?? 0) === 0} />
                     </Popconfirm>
                   </div>
                 </Card>
