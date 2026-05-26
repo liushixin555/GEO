@@ -5,6 +5,8 @@
 2. **必须使用 Ant Design (antd) 组件** — Button、Input、Form、Card、Menu、Layout、Table、Modal、Select、Switch、Tag、Popconfirm、Typography、Space 等，凡 antd 有的组件必须使用，禁止用原生 HTML 元素替代
 3. **禁止在 TSX 文件中写 inline style (`style={{}}`)** — 所有 CSS 样式必须写入 `pages/styles/global.css`，用 className 引用
 4. **Git commit 消息必须使用中文** — 格式：`<类型>: <中文描述>`，例如 `feat: 添加知识库模块`，禁止使用英文 commit 消息
+5. **页面布局高度自适应铁律** — 所有页面容器（`.main-content` → `#main-content` → `.page-container`）必须形成完整的 flex 高度链，每一层都必须设置 `flex: 1; min-height: 0; height: 100%`。严禁只改 `overflow: hidden` 而不设高度导致容器塌缩。修改布局样式前必须先在浏览器实测确认效果，禁止凭推测提交
+6. **页面内严禁出现 y 轴滚动条** — 页面内容必须在视口内完全展示，严禁出现页面级或组件级 y 轴滚动条。如内容超出，应通过分页、折叠等手段控制数据量，不得用 `overflow-y: auto/scroll` 或 antd Table 的 `scroll={{ y }}` 产生滚动条
 
 ## 记忆规范
 - **所有 `.claude/` 下的文件必须用中文编写** — 包括 MEMORY.md、rules.md、architecture.md、frontend.md、progress.md 等，禁止使用英文内容
