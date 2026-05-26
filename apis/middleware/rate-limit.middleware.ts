@@ -33,3 +33,6 @@ export const articleActionLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// 别名: 用于非 article 的高价值操作限流（如项目删除）
+export const destructiveActionLimiter = articleActionLimiter;

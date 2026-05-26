@@ -3503,7 +3503,7 @@ describe('Project Controller', () => {
       );
     });
 
-    it('admin without companyId in token should return 400', async () => {
+    it('admin without companyId in token should return 403', async () => {
       const { createProject } = require('../../apis/controller/project.controller');
 
       const mockRes: any = {
@@ -3521,8 +3521,8 @@ describe('Project Controller', () => {
 
       await createProject(mockReq, mockRes);
       // Admin: effectiveCompanyId = req.user.companyId = undefined
-      // !undefined → true → 400
-      expect(mockRes.status).toHaveBeenCalledWith(400);
+      // admin 角色无 companyId → 403（不允许 fallback 到 body.company_id）
+      expect(mockRes.status).toHaveBeenCalledWith(403);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({ message: '所属公司不能为空' })
       );
@@ -4106,6 +4106,146 @@ describe('Project Controller', () => {
       expect(mockLoggerError).toHaveBeenCalledWith(
         '[ProjectController] 未预期错误',
         expect.objectContaining({ error: 'unexpected string', context: '获取项目列表失败' })
+      );
+    });
+  });
+
+  // ========== Committer 评审修复测试 ==========
+
+  // H-1: admin 无 companyId 时返回 403（非 400）
+  describe('createProject - admin without companyId returns 403 (committer H-1)', () => {
+    it('admin with null companyId should return 403, not fallback to body.company_id', async () => {
+      const { createProject } = require('../../apis/controller/project.controller');
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        body: {
+          short_name: 'P1',
+          full_name: 'Project 1',
+          company_id: 999, // 恶意指定其他公司
+        },
+        user: { userId: 5, role: 'admin', companyId: null },
+      };
+
+      await createProject(mockReq, mockRes);
+      // admin 角色 companyId 为空 → 403，不应 fallback 到 body.company_id
+      expect(mockRes.status).toHaveBeenCalledWith(403);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '所属公司不能为空' })
+      );
+    });
+
+    it('admin with companyId=0 (falsy) should return 403', async () => {
+      const { createProject } = require('../../apis/controller/project.controller');
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        body: {
+          short_name: 'P1',
+          full_name: 'Project 1',
+          company_id: 1,
+        },
+        user: { userId: 5, role: 'admin', companyId: 0 },
+      };
+
+      await createProject(mockReq, mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(403);
+    });
+  });
+
+  // H-2: admin 不能修改项目 status
+  describe('updateProject - admin cannot modify status (committer H-2)', () => {
+    it('admin updateProject should strip status field', async () => {
+      const { updateProject } = require('../../apis/controller/project.controller');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        operators: [{ userId: 2, user: { cnName: '张三' } }], // admin(userId:2) 是运营者
+      });
+      const mockUpdate = jest.fn().mockResolvedValue(mockProjectRow);
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        params: { id: '1' },
+        body: { status: false }, // admin 尝试禁用项目
+        user: { userId: 2, role: 'admin', companyId: 2 },
+      };
+
+      await updateProject(mockReq, mockRes);
+      expect(mockRes.json).toHaveBeenCalled();
+      // status 不应出现在 update data 中
+      const updateCall = mockUpdate.mock.calls[0][0];
+      expect(updateCall.data).not.toHaveProperty('status');
+    });
+
+    it('sysadmin updateProject should include status field', async () => {
+      const { updateProject } = require('../../apis/controller/project.controller');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const mockFindFirst = jest.fn().mockResolvedValue(mockProjectRow);
+      const mockUpdate = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        status: false,
+      });
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        params: { id: '1' },
+        body: { status: false },
+        user: { userId: 1, role: 'sysadmin', companyId: 1 },
+      };
+
+      await updateProject(mockReq, mockRes);
+      expect(mockRes.json).toHaveBeenCalled();
+      const updateCall = mockUpdate.mock.calls[0][0];
+      expect(updateCall.data).toHaveProperty('status', false);
+    });
+
+    it('admin updateProject without status should work normally', async () => {
+      const { updateProject } = require('../../apis/controller/project.controller');
+      const { getPrisma } = require('../../apis/utils/db.util');
+
+      const mockFindFirst = jest.fn().mockResolvedValue({
+        ...mockProjectRow,
+        operators: [{ userId: 2, user: { cnName: '张三' } }],
+      });
+      const mockUpdate = jest.fn().mockResolvedValue(mockProjectRow);
+      getPrisma.mockReturnValue({
+        project: { findFirst: mockFindFirst, update: mockUpdate },
+      });
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockReq = {
+        params: { id: '1' },
+        body: { short_name: 'Updated' },
+        user: { userId: 2, role: 'admin', companyId: 2 },
+      };
+
+      await updateProject(mockReq, mockRes);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 0, message: '更新项目成功' })
       );
     });
   });

@@ -14,7 +14,7 @@
  *   DELETE /:id        → deleteProject   (params: id)
  */
 import { Router } from 'express';
-import { authMiddleware, roleMiddleware, articleActionLimiter } from '../middleware';
+import { authMiddleware, roleMiddleware, destructiveActionLimiter } from '../middleware';
 import { validate } from '../middleware/validate';
 import { ROLES } from '../constants/roles';
 import {
@@ -38,6 +38,6 @@ router.get('/', validate(listProjectSchema, 'query'), listProjects);
 router.get('/:id', validate(idParamSchema, 'params'), getProject);
 router.post('/', validate(createProjectSchema), createProject);
 router.put('/:id', validate(idParamSchema, 'params'), validate(updateProjectSchema), updateProject);
-router.delete('/:id', articleActionLimiter, validate(idParamSchema, 'params'), deleteProject);
+router.delete('/:id', destructiveActionLimiter, validate(idParamSchema, 'params'), deleteProject);
 
 export default router;

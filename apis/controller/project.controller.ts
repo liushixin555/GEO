@@ -24,10 +24,8 @@ export async function listProjects(req: Request, res: Response): Promise<void> {
     if (!req.user) { fail(res, 401, '未登录'); return; }
     const { userId, role } = req.user;
 
-    // validate 中间件已验证 req.query，直接使用
-    const { page: rawPage, pageSize: rawPageSize, search, company_id, status } = req.query as any;
-    const page = Number(rawPage);
-    const pageSize = Number(rawPageSize);
+    // validate 中间件已验证 req.query 并转换类型，直接使用
+    const { page, pageSize, search, company_id, status } = req.query as any;
 
     const { list, total } = await projectService.list(page, pageSize, search, company_id != null ? Number(company_id) : undefined, status, userId, role);
     paginate(res, list, total, page, pageSize);
@@ -55,9 +53,11 @@ export async function createProject(req: Request, res: Response): Promise<void> 
     if (!req.user) { fail(res, 401, '未登录'); return; }
     const { short_name, full_name } = req.body;
 
-    const effectiveCompanyId = req.user.role === 'admin' ? req.user.companyId : req.body.company_id;
+    const effectiveCompanyId = req.user.role === 'admin'
+      ? req.user.companyId
+      : req.body.company_id;
     if (!effectiveCompanyId) {
-      fail(res, 400, '所属公司不能为空');
+      fail(res, req.user.role === 'admin' ? 403 : 400, '所属公司不能为空');
       return;
     }
 
@@ -85,15 +85,18 @@ export async function updateProject(req: Request, res: Response): Promise<void> 
 
     const { userId, role } = req.user;
 
-    const updateData = {
+    const updateData: Record<string, any> = {
       short_name: req.body.short_name,
       full_name: req.body.full_name,
       description: req.body.description,
       company_id: req.body.company_id,
       operator_ids: req.body.operator_ids,
       viewer_ids: req.body.viewer_ids,
-      status: req.body.status,
     };
+    // 只有 sysadmin 可以修改项目状态
+    if (role === 'sysadmin' && req.body.status !== undefined) {
+      updateData.status = req.body.status;
+    }
 
     const item = await projectService.update(id, updateData, userId, role);
     success(res, item, '更新项目成功');
