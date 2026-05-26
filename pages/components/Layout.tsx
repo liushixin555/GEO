@@ -1,42 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { Layout as AntLayout, Button } from 'antd';
+import React from 'react';
+import { Layout as AntLayout, Button, Spin } from 'antd';
+import { Navigate } from 'react-router-dom';
 import { MenuUnfoldOutlined } from '@ant-design/icons';
 import Sidebar from './Sidebar';
 import PageRouter from '../router/routes';
 import { useAuth } from '../context/AuthContext';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
+import { LAYOUT } from '../constants/layout';
 
 const { Sider, Content } = AntLayout;
 
-const MOBILE_BREAKPOINT = 672;
-
 const Layout: React.FC = () => {
-  const { user } = useAuth();
-  const [collapsed, setCollapsed] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const { user, loading } = useAuth();
+  const { collapsed, setCollapsed, isMobile } = useResponsiveLayout();
 
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  useEffect(() => {
-    if (isMobile && !collapsed) {
-      setCollapsed(true);
-    }
-  }, [isMobile]);
-
-  useEffect(() => {
-    if (!isMobile || collapsed) return;
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setCollapsed(true);
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isMobile, collapsed]);
-
-  if (!user) return null;
+  // 防御性检查（defense-in-depth），主认证守卫在 AuthGuard
+  if (loading) return <Spin size="large" />;
+  if (!user) return <Navigate to="/login" replace />;
 
   return (
     <AntLayout className="app-layout-root">
@@ -49,36 +29,44 @@ const Layout: React.FC = () => {
           aria-label="展开侧边栏"
         />
       )}
-      <Sider
-        width={240}
-        collapsedWidth={isMobile ? 0 : 64}
-        collapsed={collapsed}
-        trigger={null}
-        className={[
-          'app-sider',
-          isMobile ? 'app-sider-mobile' : '',
-          isMobile && collapsed ? 'app-sider-mobile-collapsed' : '',
-        ].filter(Boolean).join(' ')}
-      >
-        <Sidebar
+      {(!isMobile || !collapsed) && (
+        <Sider
+          width={LAYOUT.SIDER_WIDTH}
+          collapsedWidth={isMobile ? 0 : LAYOUT.SIDER_COLLAPSED_WIDTH}
           collapsed={collapsed}
-          onCollapse={setCollapsed}
-          isMobile={isMobile}
-        />
-      </Sider>
+          trigger={null}
+          className={`app-sider${isMobile ? ' app-sider-mobile' : ''}`}
+        >
+          <Sidebar
+            collapsed={collapsed}
+            onCollapse={setCollapsed}
+            isMobile={isMobile}
+          />
+        </Sider>
+      )}
 
       {isMobile && !collapsed && (
         <div className="mobile-overlay" onClick={() => setCollapsed(true)} role="presentation" aria-hidden="true" />
       )}
 
       <Content className="main-content">
-        <a href="#main-content" className="skip-to-content">跳到主要内容</a>
-        <div id="main-content">
+        {/* skip-to-content: WAI-ARIA 最佳实践，原生 <a> 用于屏幕阅读器语义正确性 */}
+        <a
+          href="#main-content"
+          className="skip-to-content"
+          onClick={(e) => { e.preventDefault(); document.getElementById('main-content')?.focus(); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('main-content')?.focus(); } }}
+        >
+          跳到主要内容
+        </a>
+        <div id="main-content" tabIndex={-1}>
           <PageRouter />
         </div>
       </Content>
     </AntLayout>
   );
 };
+
+Layout.displayName = 'Layout';
 
 export default Layout;
