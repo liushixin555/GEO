@@ -63,11 +63,11 @@ describe('ApiDocsPage', () => {
     });
   });
 
-  it('should show button when Swagger returns 401 (needs auth)', async () => {
+  it('should show alert when Swagger returns 401', async () => {
     mockFetch.mockResolvedValue({ ok: false, status: 401 });
     renderWithRouter();
     await waitFor(() => {
-      expect(screen.getByText('打开 API 文档')).toBeInTheDocument();
+      expect(screen.getByText('API 文档服务当前不可用')).toBeInTheDocument();
     });
   });
 

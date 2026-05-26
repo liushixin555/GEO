@@ -14,15 +14,15 @@ const ApiDocsPage = memo(() => {
   useEffect(() => {
     const controller = new AbortController();
     fetch(SWAGGER_UI_PATH, { method: 'HEAD', signal: controller.signal })
-      .then(res => setApiDocsAvailable(res.status !== 404 && res.status !== 502 && res.status !== 503))
+      .then(res => setApiDocsAvailable(res.ok))
       .catch(() => setApiDocsAvailable(false));
     return () => controller.abort();
   }, []);
 
   return (
     <div className="page-container">
-      <Card variant="borderless" style={{ maxWidth: 600 }}>
-        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+      <Card style={{ maxWidth: 600, width: '100%' }}>
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <Typography.Title level={3} style={{ margin: 0 }}>
             <ApiOutlined style={{ marginRight: 8, color: 'var(--color-primary)' }} />
             API 文档
