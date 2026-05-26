@@ -6964,7 +6964,7 @@
                   "description": {
                     "nullable": true,
                     "type": "string",
-                    "maxLength": 2000
+                    "maxLength": 500
                   },
                   "scope": {
                     "type": "string",
@@ -7215,7 +7215,7 @@
                   "description": {
                     "nullable": true,
                     "type": "string",
-                    "maxLength": 2000
+                    "maxLength": 500
                   },
                   "scope": {
                     "type": "string",

@@ -1,46 +1,46 @@
-// === Imports ===
+/**
+ * Service Layer Barrel — 统一公共入口
+ *
+ * 设计意图：
+ * - 作为 Service 层唯一对外导出点，消费者（controller）仅通过 '../service' 导入
+ * - 导出接口类型（供类型标注）+ 工厂函数（供实例化），不导出实现类
+ * - 工厂函数将消费者与具体实现解耦，支持后续替换实现（mock 测试、更换 ORM 等）
+ *
+ * 分组规则（按业务域）：
+ *   1. 认证域 — Auth, User
+ *   2. 内容域 — Article, Project, Todo, PublishingPlatform
+ *   3. 知识域 — KnowledgeBase, Keyword, Portrait, Image, Document, MinedKeyword
+ *   4. 系统域 — Company, Skills, SkillsFile, LlmModel, Llm, SystemConfig
+ */
 
-// Auth
+// ============================================================================
+// Section 1: Imports
+// ============================================================================
+
+// --- 认证域 ---
 import { IAuthService } from './auth.service';
 import { AuthServiceImpl } from './impl/auth.service.impl';
 
-// Company
-import { ICompanyService } from './company.service';
-import { CompanyServiceImpl } from './impl/company.service.impl';
-
-// Skills
-import { ISkillsService } from './skills.service';
-import { SkillsServiceImpl } from './impl/skills.service.impl';
-
-// User
 import { IUserService, UserListOptions } from './user.service';
 import { UserServiceImpl } from './impl/user.service.impl';
 
-// LlmModel
-import { ILlmModelService } from './llm-model.service';
-import { LlmModelServiceImpl } from './impl/llm-model.service.impl';
-
-// SystemConfig
-import { ISystemConfigService } from './system-config.service';
-import { SystemConfigServiceImpl } from './impl/system-config.service.impl';
-
-// PublishingPlatform
-import { IPublishingPlatformService } from './publishing-platform.service';
-import { PublishingPlatformServiceImpl } from './impl/publishing-platform.service.impl';
-
-// Todo
-import { ITodoService } from './todo.service';
-import { TodoServiceImpl } from './impl/todo.service.impl';
-
-// Article
+// --- 内容域 ---
 import { IArticleService, AuthContext } from './article.service';
 import { ArticleServiceImpl } from './impl/article.service.impl';
 
-// Project
 import { IProjectService } from './project.service';
 import { ProjectServiceImpl } from './impl/project.service.impl';
 
-// Knowledge
+import { ITodoService } from './todo.service';
+import { TodoServiceImpl } from './impl/todo.service.impl';
+
+import { IPublishingPlatformService } from './publishing-platform.service';
+import { PublishingPlatformServiceImpl } from './impl/publishing-platform.service.impl';
+
+// --- 知识域 ---
+import { IKnowledgeBaseService } from './knowledge-base.service';
+import { KnowledgeBaseServiceImpl } from './impl/knowledge-base.service.impl';
+
 import {
   IKeywordService,
   IPortraitService,
@@ -56,74 +56,84 @@ import {
   MinedKeywordServiceImpl,
 } from './impl/knowledge.service.impl';
 
-// KnowledgeBase
-import { IKnowledgeBaseService } from './knowledge-base.service';
-import { KnowledgeBaseServiceImpl } from './impl/knowledge-base.service.impl';
+// --- 系统域 ---
+import { ICompanyService } from './company.service';
+import { CompanyServiceImpl } from './impl/company.service.impl';
 
-// Llm
+import { ISkillsService } from './skills.service';
+import { SkillsServiceImpl } from './impl/skills.service.impl';
+
+import { ISkillsFileService, SkillZipResult } from './skills-file.service';
+import { SkillsFileServiceImpl } from './impl/skills-file.service.impl';
+
+import { ILlmModelService } from './llm-model.service';
+import { LlmModelServiceImpl } from './impl/llm-model.service.impl';
+
 import { ILlmService, ArticleGenerationParams } from './llm.service';
 import { LlmServiceImpl } from './impl/llm.service.impl';
 
-// SkillsFile
-import { ISkillsFileService, SkillZipResult, SkillsFileServiceImpl } from './skills-file.service';
+import { ISystemConfigService } from './system-config.service';
+import { SystemConfigServiceImpl } from './impl/system-config.service.impl';
 
-// === Re-exports (interfaces & types only, no implementation classes) ===
+// ============================================================================
+// Section 2: Re-exports (interfaces & types only)
+// ============================================================================
 
+// 认证域
 export { IAuthService };
-export { ICompanyService };
-export { ISkillsService };
 export { IUserService, UserListOptions };
-export { ILlmModelService };
-export { ISystemConfigService };
-export { IPublishingPlatformService };
-export { ITodoService };
+
+// 内容域
 export { IArticleService, AuthContext };
 export { IProjectService };
-export { IKeywordService, IPortraitService, IImageService, IDocumentService, IMinedKeywordService };
+export { ITodoService };
+export { IPublishingPlatformService };
+
+// 知识域
 export { IKnowledgeBaseService };
-export { ILlmService, ArticleGenerationParams };
+export { IKeywordService, IPortraitService, IImageService, IDocumentService, IMinedKeywordService };
+
+// 系统域
+export { ICompanyService };
+export { ISkillsService };
 export { ISkillsFileService, SkillZipResult };
+export { ILlmModelService };
+export { ILlmService, ArticleGenerationParams };
+export { ISystemConfigService };
 
-// === Factory Functions ===
+// ============================================================================
+// Section 3: Factory Functions
+// ============================================================================
 
+// 认证域
 export function createAuthService(): IAuthService {
   return new AuthServiceImpl();
-}
-
-export function createCompanyService(): ICompanyService {
-  return new CompanyServiceImpl();
-}
-
-export function createSkillsService(): ISkillsService {
-  return new SkillsServiceImpl();
 }
 
 export function createUserService(): IUserService {
   return new UserServiceImpl();
 }
 
-export function createLlmModelService(): ILlmModelService {
-  return new LlmModelServiceImpl();
-}
-
-export function createSystemConfigService(): ISystemConfigService {
-  return new SystemConfigServiceImpl();
-}
-
-export function createPublishingPlatformService(): IPublishingPlatformService {
-  return new PublishingPlatformServiceImpl();
-}
-
-export function createTodoService(): ITodoService {
-  return new TodoServiceImpl();
-}
-
+// 内容域
 export function createArticleService(): IArticleService {
   return new ArticleServiceImpl();
 }
 
 export function createProjectService(): IProjectService {
   return new ProjectServiceImpl();
+}
+
+export function createTodoService(): ITodoService {
+  return new TodoServiceImpl();
+}
+
+export function createPublishingPlatformService(): IPublishingPlatformService {
+  return new PublishingPlatformServiceImpl();
+}
+
+// 知识域
+export function createKnowledgeBaseService(): IKnowledgeBaseService {
+  return new KnowledgeBaseServiceImpl();
 }
 
 export function createKeywordService(): IKeywordService {
@@ -146,14 +156,27 @@ export function createMinedKeywordService(): IMinedKeywordService {
   return new MinedKeywordServiceImpl();
 }
 
-export function createKnowledgeBaseService(): IKnowledgeBaseService {
-  return new KnowledgeBaseServiceImpl();
+// 系统域
+export function createCompanyService(): ICompanyService {
+  return new CompanyServiceImpl();
+}
+
+export function createSkillsService(): ISkillsService {
+  return new SkillsServiceImpl();
+}
+
+export function createSkillsFileService(): ISkillsFileService {
+  return new SkillsFileServiceImpl();
+}
+
+export function createLlmModelService(): ILlmModelService {
+  return new LlmModelServiceImpl();
 }
 
 export function createLlmService(): ILlmService {
   return new LlmServiceImpl();
 }
 
-export function createSkillsFileService(): ISkillsFileService {
-  return new SkillsFileServiceImpl();
+export function createSystemConfigService(): ISystemConfigService {
+  return new SystemConfigServiceImpl();
 }
