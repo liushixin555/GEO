@@ -1937,14 +1937,14 @@ describe('MarkdownEditor', () => {
       expect(result.buttonProps.title).toBe(`${level}级标题 (Ctrl+${level})`);
     });
 
-    // 图标替换为 HN span
+    // 图标替换为 HN span — UI-2 IBM Plex Sans + UI-3 Carbon ink + UI-4 role="img" + UI-6 H6=11px 视觉区分
     it.each([
       { level: 1, expectedFontSize: 18 },
       { level: 2, expectedFontSize: 16 },
       { level: 3, expectedFontSize: 14 },
       { level: 4, expectedFontSize: 12 },
-      { level: 5, expectedFontSize: 12 },
-      { level: 6, expectedFontSize: 12 },
+      { level: 5, expectedFontSize: 11 },
+      { level: 6, expectedFontSize: 11 },
     ])('should replace icon with H$level span (fontSize=$expectedFontSize)', ({ level, expectedFontSize }) => {
       render(<MarkdownEditor value="" />);
       const result = commandsFilterFn!(createHeadingCommand(level), false);
@@ -1955,10 +1955,14 @@ describe('MarkdownEditor', () => {
       const children = result.icon.props.children;
       expect(children).toEqual(['H', `${level}`]);
       expect(result.icon.props.style.fontSize).toBe(expectedFontSize);
+      // UI-2: IBM Plex Sans 字体
+      expect(result.icon.props.style.fontFamily).toBe("'IBM Plex Sans', sans-serif");
+      // UI-3: Carbon ink 颜色 #161616
+      expect(result.icon.props.style.color).toBe('#161616');
       // aria-hidden="true" — 图标装饰性，不播报给屏幕阅读器
       expect(result.icon.props['aria-hidden']).toBe('true');
-      // 不应有 role="img"（与 aria-hidden 矛盾）
-      expect(result.icon.props.role).toBeUndefined();
+      // UI-4: role="img" WCAG 无障碍标识
+      expect(result.icon.props.role).toBe('img');
     });
 
     // prefix! 防御：prefix 缺失时跳过执行

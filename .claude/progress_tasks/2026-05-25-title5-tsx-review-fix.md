@@ -43,7 +43,34 @@
 - `node_modules/.pnpm_patches/@uiw/react-md-editor@4.1.0/src/commands/title5.tsx` — 源文件修复
 - `node_modules/.pnpm/@uiw+react-md-editor@4.1.0__*/node_modules/@uiw/react-md-editor/src/commands/title5.tsx` — 3个运行时副本同步
 
-## 验证结果
+## 第二轮修复（2026-05-26）—— commandsFilter UI 增量修复
+
+### 新增修复
+
+| # | 来源 | 问题 | 修复方案 | 文件 |
+|---|------|------|----------|------|
+| 5 | UI-3 HIGH | icon 颜色未显式指定（依赖 currentColor 兜底） | 添加 `color: '#161616'`（Carbon ink） | MarkdownEditor.tsx:545 |
+| 6 | UI-4 MEDIUM | icon 缺少 `role="img"` WCAG 无障碍属性 | 添加 `role="img"` | MarkdownEditor.tsx:545 |
+| 7 | UI-6 MEDIUM | H5/H6 字号均为 12px 无视觉区分 | `Math.max(12,...)` → `Math.max(11,...)`，H5=11, H6=11 | MarkdownEditor.tsx:545 |
+
+### node_modules title5.tsx 同步修复
+
+对 5 个 node_modules 副本 + 5 个 ESM + 5 个 CJS 编译输出同步修复：
+- `import type` 语义导入
+- `role="img" aria-hidden="true"` 无障碍属性
+- `fontFamily: "'IBM Plex Sans', sans-serif"` Carbon 字体
+- `color: '#161616'` Carbon ink 颜色
+- "H5" 文本缩写
+- `prefix ?? '##### '` 空值合并
+
+### 验证结果
+
+- ✅ `pnpm build` 构建通过
+- ✅ `pnpm lint` 通过
+- ✅ MarkdownEditor 167 测试通过
+- ✅ 测试新增断言：fontFamily / color / role="img"
+
+## 验证结果（第一轮）
 
 - ✅ `tsc -p tsconfig.api.json` 构建通过
 - ✅ `vite build` 前端构建通过

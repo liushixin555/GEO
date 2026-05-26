@@ -535,14 +535,16 @@ const MarkdownEditorBase = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(({
         };
       }
 
-      // P2-01/A-01/I18N-01: 覆盖 heading1~6 命令——中文 ARIA + 图标文本 HN + prefix! 防御
+      // P2-01/A-01/I18N-01/UI-2/UI-3/UI-4/UI-6/UI-8: 覆盖 heading1~6 命令——
+      //   中文 ARIA + IBM Plex Sans + Carbon ink #161616 + role="img" 无障碍 +
+      //   H6=11px 视觉区分 + HN 缩写 + prefix! 防御
       if (command.name?.startsWith('heading') && /^heading[1-6]$/.test(command.name)) {
         const level = command.name.replace('heading', '');
         const levelNum = Number(level);
         const originalExecute = command.execute;
         return {
           ...command,
-          icon: <span aria-hidden="true" style={{ fontSize: Math.max(12, 20 - levelNum * 2), fontWeight: 500, fontFamily: "'IBM Plex Sans', sans-serif" }}>H{level}</span>,
+          icon: <span role="img" aria-hidden="true" style={{ fontSize: Math.max(11, 20 - levelNum * 2), fontWeight: 500, fontFamily: "'IBM Plex Sans', sans-serif", color: '#161616' }}>H{level}</span>,
           buttonProps: {
             'aria-label': `${level}级标题 (Ctrl+${level})`,
             title: `${level}级标题 (Ctrl+${level})`,
