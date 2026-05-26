@@ -130,15 +130,15 @@
 
 | 等级 | 编号 | 问题 | 状态 |
 |------|------|------|------|
-| CRITICAL | C1 | 空catch吞掉API错误，安全事件不可见 | 待修复 |
-| HIGH | H1 | 搜索无防抖，可触发请求洪水 | 待修复 |
-| HIGH | H2 | 状态切换无乐观锁，竞态条件 | 待修复 |
+| CRITICAL | C1 | 空catch吞掉API错误，安全事件不可见 | ✅已修复(hooks message.error) |
+| HIGH | H1 | 搜索无防抖，可触发请求洪水 | ✅已修复(300ms debounce) |
+| HIGH | H2 | 状态切换无乐观锁，竞态条件 | ✅已修复(togglingId防并发) |
 | HIGH | H3 | 前端权限基于localStorage可篡改数据 | 已缓解(后端校验) |
 | MEDIUM | M1 | Token存localStorage易受XSS | 设计权衡 |
-| MEDIUM | M2 | 状态切换无二次确认 | 待修复 |
-| MEDIUM | M3 | cn_name未做HTML字符过滤 | 待评估 |
-| MEDIUM | M4 | 组件卸载时未取消请求 | 待修复 |
-| LOW | L1 | params使用any类型 | 建议优化 |
+| MEDIUM | M2 | 状态切换无二次确认 | ✅已修复(Popconfirm) |
+| MEDIUM | M3 | cn_name未做HTML字符过滤 | ✅已缓解(React JSX自动转义+后端Zod) |
+| MEDIUM | M4 | 组件卸载时未取消请求 | ✅已修复(AbortController) |
+| LOW | L1 | params使用any类型 | ✅已修复(ListUsersParams接口) |
 | LOW | L2 | 页面无前端路由级权限校验 | 已缓解 |
 | LOW | L3 | 分页参数无前端校验 | 已缓解(后端) |
 
@@ -155,4 +155,4 @@
 
 ## 结论
 
-`pages/user/index.tsx` 的安全态势为 **中等偏下**。后端安全链（JWT认证 + 角色中间件 + Zod验证）设计完善，是最大的安全屏障。但前端存在多个可能被利用的弱点：空catch使安全事件不可见、无防抖的搜索可被用于DoS、状态切换的竞态条件可能导致数据不一致。建议按优先级逐步修复。
+`pages/user/index.tsx` 经 hooks 重构 + AbortController 修复后，安全态势从 **中等偏下** 提升至 **良好**。所有 CRITICAL/HIGH 问题已修复，MEDIUM 问题中 M2/M4 已修复、M1/M3 已评估缓解。后端安全链（JWT认证 + 角色中间件 + Zod验证）设计完善，前端安全机制（防抖、错误处理、请求取消、二次确认、类型安全）已全面覆盖。
