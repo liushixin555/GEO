@@ -14,6 +14,8 @@ export function mapCompany(prismaCompany: PrismaCompany): Company {
     contact_person: prismaCompany.contactPerson,
     contact_phone: prismaCompany.contactPhone,
     status: prismaCompany.status,
+    created_by: prismaCompany.createdById ?? null,
+    updated_by: prismaCompany.updatedById ?? null,
     created_at: prismaCompany.createdAt,
     updated_at: prismaCompany.updatedAt,
     deleted_at: prismaCompany.deletedAt,
