@@ -3,7 +3,7 @@ import { createCompanyService } from '../service';
 import { success, fail, created } from '../utils';
 import { CreateCompanyRequest, UpdateCompanyRequest } from '../entity';
 import { NotFoundError, BusinessError } from '../errors';
-import { toggleCompanyStatusSchema } from '../schema/company.schema';
+import { createCompanySchema, updateCompanySchema, toggleCompanyStatusSchema } from '../schema/company.schema';
 
 const companyService = createCompanyService();
 
@@ -49,7 +49,13 @@ export async function getCompany(req: Request, res: Response): Promise<void> {
 
 export async function createCompany(req: Request, res: Response): Promise<void> {
   try {
-    const createRequest: CreateCompanyRequest = req.body;
+    const parsed = createCompanySchema.safeParse(req.body);
+    if (!parsed.success) {
+      fail(res, 400, parsed.error.issues.map(e => e.message).join('; '));
+      return;
+    }
+
+    const createRequest: CreateCompanyRequest = parsed.data;
     const company = await companyService.create(createRequest);
     created(res, company, '创建公司成功');
   } catch (err: unknown) {
@@ -70,7 +76,13 @@ export async function updateCompany(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const updateRequest: UpdateCompanyRequest = req.body;
+    const parsed = updateCompanySchema.safeParse(req.body);
+    if (!parsed.success) {
+      fail(res, 400, parsed.error.issues.map(e => e.message).join('; '));
+      return;
+    }
+
+    const updateRequest: UpdateCompanyRequest = parsed.data;
     const company = await companyService.update(id, updateRequest);
     success(res, company, '更新公司成功');
   } catch (err: unknown) {
