@@ -1,5 +1,5 @@
 import type { PublishingSchedule, PublishingScheduleItem, PublishingScheduleUpdateResult, CreatePublishingScheduleRequest, UpdatePublishingScheduleRequest } from '../entity/publishing-schedule.entity';
-import type { AuthContext } from './article.service';
+import type { AuthContext } from '../types/auth';
 
 export interface IPublishingScheduleService {
   list(params: {

@@ -2,7 +2,7 @@ import { getPrisma } from '../../utils';
 import type { PublishingSchedule, PublishingScheduleItem, PublishingScheduleUpdateResult, CreatePublishingScheduleRequest, UpdatePublishingScheduleRequest, ScheduleType } from '../../entity/publishing-schedule.entity';
 import { mapPublishingSchedule, mapPublishingScheduleItem } from '../../map';
 import { IPublishingScheduleService } from '../publishing-schedule.service';
-import type { AuthContext } from '../article.service';
+import type { AuthContext } from '../../types/auth';
 import { Prisma } from '@prisma/client';
 import { NotFoundError, BusinessError, ForbiddenError } from '../../errors';
 

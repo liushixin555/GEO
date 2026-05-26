@@ -268,11 +268,7 @@ describe('Article Controller', () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       getPrisma.mockReturnValue({
         article: {
-          findFirst: jest.fn().mockResolvedValue({
-            id: 1, projectId: 999, title: 'Article 1', keywords: null, portrait: null,
-            images: null, status: 'draft', createdBy: 2,
-            createdAt: new Date(), updatedAt: new Date(),
-          }),
+          findFirst: jest.fn().mockResolvedValue(null),
         },
       });
 
@@ -1758,7 +1754,7 @@ describe('Article Controller', () => {
     it('should return 404 when article belongs to different project', async () => {
       const { getPrisma } = require('../../apis/utils/db.util');
       getPrisma.mockReturnValue({
-        article: { findFirst: jest.fn().mockResolvedValue({ ...existingArticle, projectId: 999 }) },
+        article: { findFirst: jest.fn().mockResolvedValue(null) },
       });
 
       const response = await agent

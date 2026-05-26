@@ -26,6 +26,7 @@ import { UserServiceImpl } from './impl/user.service.impl';
 
 // --- 内容域 ---
 import { IArticleService } from './article.service';
+import { AuthContext } from '../types/auth';
 import { ArticleServiceImpl } from './impl/article.service.impl';
 
 import { IProjectService } from './project.service';

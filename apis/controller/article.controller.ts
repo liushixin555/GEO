@@ -2,11 +2,10 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { createArticleService, createProjectService, IArticleService, IProjectService } from '../service';
 import type { AuthContext } from '../types/auth';
-import type { Role } from '../constants/roles';
 import { success, fail, paginate, created } from '../utils';
-import { AppError, ForbiddenError, NotFoundError } from '../errors';
+import { AppError, ForbiddenError } from '../errors';
 import { logger } from '../utils/logger.util';
-import { ROLES } from '../constants/roles';
+import { ROLES, Role } from '../constants/roles';
 import {
   createArticleSchema,
   updateArticleSchema,
@@ -84,7 +83,7 @@ function withArticleAuth(handler: AuthenticatedHandler, options: WithAuthOptions
         await checkProjectOperator(projectId, user.userId, user.role);
       }
 
-      await handler(req, res, { ...user, projectId, articleId });
+      await handler(req, res, { ...user, role: user.role as Role, projectId, articleId });
     } catch (err: unknown) {
       handleServerError(res, err, options.errorContext ?? '操作失败');
     }
@@ -101,7 +100,6 @@ export const listArticles = withArticleAuth(async (req, res, ctx) => {
 }, { errorContext: '获取文章列表失败' });
 
 export const getArticle = withArticleAuth(async (req, res, ctx) => {
-  // C-1 fix: projectId now enforced at service layer — no post-hoc compensation needed
   const item = await articleService.getById(ctx.projectId, ctx.articleId!);
   success(res, item);
 }, { requireId: true, errorContext: '获取文章详情失败' });
@@ -147,7 +145,6 @@ export const submitForReview = withArticleAuth(async (req, res, ctx) => {
 }, { requireId: true, errorContext: '提交审核失败' });
 
 export const listArticleVersions = withArticleAuth(async (req, res, ctx) => {
-  // C-1 fix: projectId now enforced at service layer — no post-hoc compensation needed
   const versions = await articleService.listVersions(ctx.projectId, ctx.articleId!);
   success(res, versions);
 }, { requireId: true, errorContext: '获取版本历史失败' });

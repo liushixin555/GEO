@@ -2,7 +2,7 @@ import { getPrisma } from '../../utils';
 import { SystemConfig, UpdateSystemConfigsRequest } from '../../entity';
 import { mapSystemConfig } from '../../map';
 import { ISystemConfigService } from '../system-config.service';
-import type { AuthContext } from '../../types/auth';
+import { AuthContext } from '../../types/auth';
 
 export class SystemConfigServiceImpl implements ISystemConfigService {
   async getAll(_auth: AuthContext): Promise<SystemConfig[]> {

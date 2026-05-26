@@ -74,10 +74,11 @@ const baseArticle = {
 };
 
 // Auth context helpers — match current IArticleService signatures
-const sysadminAuth = { userId: 1, role: 'sysadmin' };
-const adminAuth = { userId: 2, role: 'admin' };
-const viewAuth = { userId: 3, role: 'view' };
-const creatorAuth = { userId: 1, role: 'sysadmin' }; // matches baseArticle.createdBy
+import type { AuthContext } from '../../apis/types/auth';
+const sysadminAuth: AuthContext = { userId: 1, role: 'sysadmin' };
+const adminAuth: AuthContext = { userId: 2, role: 'admin' };
+const viewAuth: AuthContext = { userId: 3, role: 'view' };
+const creatorAuth: AuthContext = { userId: 1, role: 'sysadmin' }; // matches baseArticle.createdBy
 
 describe('ArticleServiceImpl', () => {
   beforeEach(() => {
@@ -171,7 +172,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(10, 1, 10, adminAuth);
+      await service.list(10, 1, 10, adminAuth, undefined, undefined);
 
       expect(mockArticleFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -190,7 +191,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(10, 1, 10, sysadminAuth);
+      await service.list(10, 1, 10, sysadminAuth, undefined, undefined);
 
       const callArgs = mockArticleFindMany.mock.calls[0][0] as any;
       expect(callArgs.where.project).toBeUndefined();
@@ -200,7 +201,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(10, 1, 10, { userId: 0, role: 'admin' });
+      await service.list(10, 1, 10, { userId: 0, role: 'admin' } as AuthContext, undefined, undefined);
 
       const callArgs = mockArticleFindMany.mock.calls[0][0] as any;
       expect(callArgs.where.project).toBeUndefined();
@@ -210,7 +211,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      const result = await service.list(10, 1, 10);
+      const result = await service.list(10, 1, 10, sysadminAuth);
 
       expect(result.list).toHaveLength(0);
       expect(result.total).toBe(0);
@@ -220,7 +221,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(10, 1, 10, '');
+      await service.list(10, 1, 10, sysadminAuth, '');
 
       const callArgs = mockArticleFindMany.mock.calls[0][0] as any;
       expect(callArgs.where.keywords).toBeUndefined();
@@ -230,7 +231,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(10, 1, 10, undefined, '');
+      await service.list(10, 1, 10, sysadminAuth, undefined, '');
 
       const callArgs = mockArticleFindMany.mock.calls[0][0] as any;
       expect(callArgs.where.status).toBeUndefined();
@@ -240,7 +241,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(10, 1, 10, undefined, undefined, viewAuth);
+      await service.list(10, 1, 10, viewAuth, undefined, undefined);
 
       const callArgs = mockArticleFindMany.mock.calls[0][0] as any;
       expect(callArgs.where.project).toBeUndefined();
@@ -250,7 +251,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(10, 1, 10, '关键词', 'draft', adminAuth);
+      await service.list(10, 1, 10, adminAuth, '关键词', 'draft');
 
       const callArgs = mockArticleFindMany.mock.calls[0][0] as any;
       expect(callArgs.where.keywords).toEqual({ contains: '关键词', mode: 'insensitive' });
@@ -266,7 +267,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(10, 1, 20);
+      await service.list(10, 1, 20, sysadminAuth);
 
       expect(mockArticleFindMany).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 0, take: 20 }),
@@ -277,7 +278,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(10, 2, 5);
+      await service.list(10, 2, 5, sysadminAuth);
 
       expect(mockArticleFindMany).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 5, take: 5 }),
@@ -288,7 +289,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(10, 0, 10);
+      await service.list(10, 0, 10, sysadminAuth);
 
       expect(mockArticleFindMany).toHaveBeenCalledWith(
         expect.objectContaining({ skip: -10, take: 10 }),
@@ -299,7 +300,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(10, 1, 10, '搜索', 'draft', adminAuth);
+      await service.list(10, 1, 10, adminAuth, '搜索', 'draft');
 
       const findWhere = mockArticleFindMany.mock.calls[0][0].where;
       const countWhere = mockArticleCount.mock.calls[0][0].where;
@@ -310,7 +311,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(0, 1, 10);
+      await service.list(0, 1, 10, sysadminAuth);
 
       expect(mockArticleFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -323,7 +324,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([]);
       mockArticleCount.mockResolvedValue(0);
 
-      await service.list(10, 1, 10);
+      await service.list(10, 1, 10, sysadminAuth);
 
       const callArgs = mockArticleFindMany.mock.calls[0][0] as any;
       const where = callArgs.where;
@@ -337,13 +338,13 @@ describe('ArticleServiceImpl', () => {
     it('应返回指定ID的文章', async () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
 
-      const result = await service.getById(1);
+      const result = await service.getById(10, 1);
 
       expect(result.id).toBe(1);
       expect(result.title).toBe('测试文章');
       expect(result.project_id).toBe(10);
       expect(mockArticleFindFirst).toHaveBeenCalledWith({
-        where: { id: 1, deletedAt: null },
+        where: { id: 1, projectId: 10, deletedAt: null },
         include: { _count: { select: { schedules: { where: { deletedAt: null } } } } },
       });
     });
@@ -351,15 +352,15 @@ describe('ArticleServiceImpl', () => {
     it('文章不存在时应抛出异常', async () => {
       mockArticleFindFirst.mockResolvedValue(null);
 
-      await expect(service.getById(999)).rejects.toThrow('文章不存在');
+      await expect(service.getById(10, 999)).rejects.toThrow('文章不存在');
     });
 
     it('id为负数时查询不抛异常', async () => {
       mockArticleFindFirst.mockResolvedValue(null);
 
-      await expect(service.getById(-1)).rejects.toThrow('文章不存在');
+      await expect(service.getById(10, -1)).rejects.toThrow('文章不存在');
       expect(mockArticleFindFirst).toHaveBeenCalledWith({
-        where: { id: -1, deletedAt: null },
+        where: { id: -1, projectId: 10, deletedAt: null },
         include: { _count: { select: { schedules: { where: { deletedAt: null } } } } },
       });
     });
@@ -367,9 +368,9 @@ describe('ArticleServiceImpl', () => {
     it('id为0时查询不抛异常', async () => {
       mockArticleFindFirst.mockResolvedValue(null);
 
-      await expect(service.getById(0)).rejects.toThrow('文章不存在');
+      await expect(service.getById(10, 0)).rejects.toThrow('文章不存在');
       expect(mockArticleFindFirst).toHaveBeenCalledWith({
-        where: { id: 0, deletedAt: null },
+        where: { id: 0, projectId: 10, deletedAt: null },
         include: { _count: { select: { schedules: { where: { deletedAt: null } } } } },
       });
     });
@@ -617,7 +618,7 @@ describe('ArticleServiceImpl', () => {
     it('userId为0时应正确设置createdBy', async () => {
       mockArticleCreate.mockResolvedValue(baseArticle);
 
-      await service.create(10, { title: 'T' }, { userId: 0, role: 'admin' });
+      await service.create(10, { title: 'T' }, { userId: 0, role: 'admin' } as AuthContext);
 
       const callData = mockArticleCreate.mock.calls[0][0].data;
       expect(callData.createdBy).toBe(0);
@@ -1099,7 +1100,7 @@ describe('ArticleServiceImpl', () => {
     it('非创建者非sysadmin应拒绝更新', async () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
 
-      await expect(service.update(10, 1, { title: 'T' }, { userId: 999, role: 'admin' })).rejects.toThrow('只能修改自己创建的文章');
+      await expect(service.update(10, 1, { title: 'T' }, { userId: 999, role: 'admin' } as AuthContext)).rejects.toThrow('只能修改自己创建的文章');
     });
 
     it('非法状态转换应拒绝', async () => {
@@ -1176,7 +1177,7 @@ describe('ArticleServiceImpl', () => {
     it('非创建者非sysadmin应拒绝删除', async () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
 
-      await expect(service.delete(10, 1, { userId: 999, role: 'admin' })).rejects.toThrow('只能删除自己创建的文章');
+      await expect(service.delete(10, 1, { userId: 999, role: 'admin' } as AuthContext)).rejects.toThrow('只能删除自己创建的文章');
     });
 
     it('项目归属不匹配应抛出NotFoundError', async () => {
@@ -1425,7 +1426,7 @@ describe('ArticleServiceImpl', () => {
     it('非创建者非sysadmin应拒绝重新生成', async () => {
       mockArticleFindFirst.mockResolvedValue(pendingArticle);
 
-      await expect(service.regenerate(10, 1, { userId: 999, role: 'admin' })).rejects.toThrow('只能重新生成自己创建的文章');
+      await expect(service.regenerate(10, 1, { userId: 999, role: 'admin' } as AuthContext)).rejects.toThrow('只能重新生成自己创建的文章');
     });
 
     it('项目归属不匹配应抛出NotFoundError', async () => {
@@ -1439,13 +1440,14 @@ describe('ArticleServiceImpl', () => {
 
   describe('listVersions', () => {
     it('应返回文章的版本列表（按版本号降序）', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle);
       const versions = [
         { id: 2, articleId: 1, version: 2, content: 'v2', createdBy: 1, createdAt: new Date(), deletedAt: null },
         { id: 1, articleId: 1, version: 1, content: 'v1', createdBy: 1, createdAt: new Date(), deletedAt: null },
       ];
       mockArticleVersionFindMany.mockResolvedValue(versions);
 
-      const result = await service.listVersions(1);
+      const result = await service.listVersions(10, 1);
 
       expect(result).toHaveLength(2);
       expect(result[0].version).toBe(2);
@@ -1458,33 +1460,36 @@ describe('ArticleServiceImpl', () => {
     });
 
     it('应返回空版本列表', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle);
       mockArticleVersionFindMany.mockResolvedValue([]);
 
-      const result = await service.listVersions(1);
+      const result = await service.listVersions(10, 1);
 
       expect(result).toHaveLength(0);
     });
 
     it('版本映射应正确处理null的createdBy', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle);
       const version = {
         id: 1, articleId: 1, version: 1, content: 'c',
         createdBy: null, createdAt: new Date(), deletedAt: null,
       };
       mockArticleVersionFindMany.mockResolvedValue([version]);
 
-      const result = await service.listVersions(1);
+      const result = await service.listVersions(10, 1);
 
       expect(result[0].created_by).toBeNull();
     });
 
     it('应正确映射版本的所有字段', async () => {
+      mockArticleFindFirst.mockResolvedValue({ ...baseArticle, id: 5 });
       const version = {
         id: 10, articleId: 5, version: 3, content: '版本3内容',
         createdBy: 7, createdAt: new Date('2026-03-15'), deletedAt: null,
       };
       mockArticleVersionFindMany.mockResolvedValue([version]);
 
-      const result = await service.listVersions(5);
+      const result = await service.listVersions(10, 5);
 
       expect(result[0].id).toBe(10);
       expect(result[0].article_id).toBe(5);
@@ -1495,6 +1500,7 @@ describe('ArticleServiceImpl', () => {
     });
 
     it('多个版本应按版本号降序排列', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle);
       const versions = [
         { id: 3, articleId: 1, version: 3, content: 'v3', createdBy: 1, createdAt: new Date(), deletedAt: null },
         { id: 2, articleId: 1, version: 2, content: 'v2', createdBy: 1, createdAt: new Date(), deletedAt: null },
@@ -1502,7 +1508,7 @@ describe('ArticleServiceImpl', () => {
       ];
       mockArticleVersionFindMany.mockResolvedValue(versions);
 
-      const result = await service.listVersions(1);
+      const result = await service.listVersions(10, 1);
 
       expect(result).toHaveLength(3);
       expect(result[0].version).toBe(3);
@@ -1515,9 +1521,10 @@ describe('ArticleServiceImpl', () => {
     });
 
     it('articleId为0时应正确查询', async () => {
+      mockArticleFindFirst.mockResolvedValue({ ...baseArticle, id: 0 });
       mockArticleVersionFindMany.mockResolvedValue([]);
 
-      await service.listVersions(0);
+      await service.listVersions(10, 0);
 
       expect(mockArticleVersionFindMany).toHaveBeenCalledWith({
         where: { articleId: 0, deletedAt: null },
@@ -1526,29 +1533,37 @@ describe('ArticleServiceImpl', () => {
     });
 
     it('版本内容为null时应正确映射', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle);
       const version = {
         id: 1, articleId: 1, version: 1, content: null,
         createdBy: 1, createdAt: new Date(), deletedAt: null,
       };
       mockArticleVersionFindMany.mockResolvedValue([version]);
 
-      const result = await service.listVersions(1);
+      const result = await service.listVersions(10, 1);
 
       expect(result[0].content).toBeNull();
     });
 
     it('单个版本应正确返回', async () => {
+      mockArticleFindFirst.mockResolvedValue({ ...baseArticle, id: 2 });
       const version = {
         id: 5, articleId: 2, version: 1, content: '唯一版本',
         createdBy: 3, createdAt: new Date('2026-05-01'), deletedAt: null,
       };
       mockArticleVersionFindMany.mockResolvedValue([version]);
 
-      const result = await service.listVersions(2);
+      const result = await service.listVersions(10, 2);
 
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe(5);
       expect(result[0].article_id).toBe(2);
+    });
+
+    it('文章不属于该项目时应抛出NotFoundError', async () => {
+      mockArticleFindFirst.mockResolvedValue(null);
+
+      await expect(service.listVersions(999, 1)).rejects.toThrow('文章不存在');
     });
   });
 
@@ -1578,7 +1593,7 @@ describe('ArticleServiceImpl', () => {
 
       mockArticleFindFirst.mockResolvedValue(fullArticle);
 
-      const result = await service.getById(42);
+      const result = await service.getById(10, 42);
 
       expect(result.id).toBe(42);
       expect(result.project_id).toBe(10);
@@ -1620,7 +1635,7 @@ describe('ArticleServiceImpl', () => {
 
       mockArticleFindFirst.mockResolvedValue(nullArticle);
 
-      const result = await service.getById(1);
+      const result = await service.getById(10, 1);
 
       expect(result.article_type).toBeNull();
       expect(result.write_mode).toBeNull();
@@ -1694,7 +1709,7 @@ describe('ArticleServiceImpl', () => {
 
       for (const status of statuses) {
         mockArticleFindFirst.mockResolvedValue({ ...baseArticle, status });
-        const result = await service.getById(1);
+        const result = await service.getById(10, 1);
         expect(result.status).toBe(status);
       }
     });
@@ -1752,7 +1767,7 @@ describe('ArticleServiceImpl', () => {
     });
 
     it('不存在的源状态应返回 false', () => {
-      expect(service.isValidStatusTransition('nonexistent', 'draft')).toBe(false);
+      expect(service.isValidStatusTransition('nonexistent' as ArticleStatus, 'draft')).toBe(false);
     });
   });
 
@@ -1783,7 +1798,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleCount.mockResolvedValue(0);
 
       const prisma = getPrisma();
-      await service.list(10, 1, 10);
+      await service.list(10, 1, 10, sysadminAuth);
 
       expect(prisma.$transaction).not.toHaveBeenCalled();
     });
@@ -1792,16 +1807,17 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
 
       const prisma = getPrisma();
-      await service.getById(1);
+      await service.getById(10, 1);
 
       expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
     it('listVersions不在事务中执行', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle);
       mockArticleVersionFindMany.mockResolvedValue([]);
 
       const prisma = getPrisma();
-      await service.listVersions(1);
+      await service.listVersions(10, 1);
 
       expect(prisma.$transaction).not.toHaveBeenCalled();
     });
@@ -1814,7 +1830,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([baseArticle]);
       mockArticleCount.mockResolvedValue(1);
 
-      const result = await service.list(10, 1, 10);
+      const result = await service.list(10, 1, 10, sysadminAuth);
 
       expect(result).toHaveProperty('list');
       expect(result).toHaveProperty('total');
@@ -1825,7 +1841,7 @@ describe('ArticleServiceImpl', () => {
     it('getById返回值应包含所有必要字段', async () => {
       mockArticleFindFirst.mockResolvedValue(baseArticle);
 
-      const result = await service.getById(1);
+      const result = await service.getById(10, 1);
 
       expect(result).toHaveProperty('id');
       expect(result).toHaveProperty('project_id');
@@ -1855,13 +1871,14 @@ describe('ArticleServiceImpl', () => {
     });
 
     it('listVersions返回值每个元素应包含必要字段', async () => {
+      mockArticleFindFirst.mockResolvedValue(baseArticle);
       const version = {
         id: 1, articleId: 1, version: 1, content: 'c',
         createdBy: 1, createdAt: new Date(), deletedAt: null,
       };
       mockArticleVersionFindMany.mockResolvedValue([version]);
 
-      const result = await service.listVersions(1);
+      const result = await service.listVersions(10, 1);
 
       expect(result[0]).toHaveProperty('id');
       expect(result[0]).toHaveProperty('article_id');
@@ -1879,7 +1896,7 @@ describe('ArticleServiceImpl', () => {
       mockArticleFindMany.mockResolvedValue([baseArticle]);
       mockArticleCount.mockResolvedValue(1);
 
-      await service.list(10, 1, 10);
+      await service.list(10, 1, 10, sysadminAuth);
 
       expect(mockArticleFindMany).toHaveBeenCalledTimes(1);
       expect(mockArticleCount).toHaveBeenCalledTimes(1);

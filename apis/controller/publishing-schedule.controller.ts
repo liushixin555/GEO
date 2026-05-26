@@ -4,6 +4,7 @@ import { success, fail, paginate, created } from '../utils';
 import { AppError } from '../errors';
 import { logger } from '../utils/logger.util';
 import { PUBLISH_SCHEDULE_STATUSES } from '../constants/publish-statuses';
+import { Role } from '../constants/roles';
 
 const scheduleService = createPublishingScheduleService();
 const articleService = createArticleService();
@@ -46,7 +47,7 @@ export async function createPublishingSchedule(req: Request, res: Response): Pro
     const { article_id, platforms, schedule_type, scheduled_publish_at } = req.body;
     const item = await scheduleService.create(
       { article_id, platforms, schedule_type, scheduled_publish_at },
-      { userId, role },
+      { userId, role: role as Role },
     );
     logger.info('publishing_schedule_created', { scheduleId: item.id, articleId: article_id, operatorId: userId, role });
     created(res, item, '创建发布计划成功');
@@ -69,7 +70,7 @@ export async function updatePublishingSchedule(req: Request, res: Response): Pro
     if (isNaN(id)) { fail(res, 400, '无效的ID'); return; }
 
     const { schedule_type, scheduled_publish_at, status } = req.body;
-    const item = await scheduleService.update(id, { schedule_type, scheduled_publish_at, status }, { userId, role });
+    const item = await scheduleService.update(id, { schedule_type, scheduled_publish_at, status }, { userId, role: role as Role });
     success(res, item, '更新发布计划成功');
   } catch (err: unknown) {
     if (err instanceof AppError) {
@@ -89,7 +90,7 @@ export async function rejectPublishingSchedule(req: Request, res: Response): Pro
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { fail(res, 400, '无效的ID'); return; }
 
-    const item = await scheduleService.reject(id, { userId, role });
+    const item = await scheduleService.reject(id, { userId, role: role as Role });
     logger.info('publishing_schedule_rejected', { scheduleId: id, operatorId: userId, role });
     success(res, item, '驳回成功');
   } catch (err: unknown) {
@@ -110,7 +111,7 @@ export async function deletePublishingSchedule(req: Request, res: Response): Pro
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { fail(res, 400, '无效的ID'); return; }
 
-    await scheduleService.delete(id, { userId, role });
+    await scheduleService.delete(id, { userId, role: role as Role });
     logger.info('publishing_schedule_deleted', { scheduleId: id, operatorId: userId, role });
     success(res, null, '删除发布计划成功');
   } catch (err: unknown) {
@@ -136,7 +137,7 @@ export async function listPublishableArticles(req: Request, res: Response): Prom
     const projectId = !isNaN(rawProjectId) ? rawProjectId : undefined;
 
     // 使用 articleService 查询已审核通过的文章
-    const { list, total } = await articleService.list(projectId ?? 0, page, pageSize, search, 'approved', { userId, role });
+    const { list, total } = await articleService.list(projectId ?? 0, page, pageSize, { userId, role: role as Role }, search, 'approved');
     paginate(res, list, total, page, pageSize);
   } catch (err: unknown) {
     if (err instanceof AppError) {

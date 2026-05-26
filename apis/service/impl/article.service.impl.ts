@@ -1,38 +1,42 @@
 import { getPrisma } from '../../utils';
 import { Article, ArticleStatus, ArticleVersion, CreateArticleRequest, UpdateArticleRequest } from '../../entity';
 import { mapArticle, mapArticleVersion } from '../../map';
-import { IArticleService, AuthContext } from '../article.service';
+import { IArticleService } from '../article.service';
+import type { AuthContext } from '../../types/auth';
 import { Prisma } from '@prisma/client';
 import { NotFoundError, BusinessError, ForbiddenError } from '../../errors';
 import { validateAndSanitizeMarkdown } from '../../utils/sanitize-markdown.util';
 
 export class ArticleServiceImpl implements IArticleService {
-  private static readonly STATUS_TRANSITIONS: Record<string, string[]> = {
+  private static readonly STATUS_TRANSITIONS: Record<ArticleStatus, ArticleStatus[]> = {
     'draft': ['generating', 'manual_writing'],
     'manual_writing': ['pending_review'],
     'generating': ['pending_review', 'generate_failed'],
     'generate_failed': ['generating'],
     'pending_review': ['approved', 'manual_writing', 'draft', 'generating'],
+    'approved': [],
   };
 
-  private static readonly SETTINGS_EDITABLE_STATUSES = ['draft'];
-  private static readonly CONTENT_EDITABLE_STATUSES = ['draft', 'manual_writing', 'generate_failed'];
+  private static readonly SETTINGS_EDITABLE_STATUSES: ArticleStatus[] = ['draft'];
+  private static readonly CONTENT_EDITABLE_STATUSES: ArticleStatus[] = ['draft', 'manual_writing', 'generate_failed'];
 
-  isSettingsEditable(status: string): boolean {
+  isSettingsEditable(status: ArticleStatus): boolean {
     return ArticleServiceImpl.SETTINGS_EDITABLE_STATUSES.includes(status);
   }
 
-  isContentEditable(status: string): boolean {
+  isContentEditable(status: ArticleStatus): boolean {
     return ArticleServiceImpl.CONTENT_EDITABLE_STATUSES.includes(status);
   }
 
-  isValidStatusTransition(from: string, to: string): boolean {
+  isValidStatusTransition(from: ArticleStatus, to: ArticleStatus): boolean {
     return ArticleServiceImpl.STATUS_TRANSITIONS[from]?.includes(to) ?? false;
   }
 
-  private async findArticleOrThrow(id: number, tx?: Prisma.TransactionClient) {
+  private async findArticleOrThrow(id: number, tx?: Prisma.TransactionClient, projectId?: number) {
     const client = tx ?? getPrisma();
-    const item = await client.article.findFirst({ where: { id, deletedAt: null } });
+    const where: any = { id, deletedAt: null };
+    if (projectId !== undefined) where.projectId = projectId;
+    const item = await client.article.findFirst({ where });
     if (!item) throw new NotFoundError('文章');
     return item;
   }
@@ -47,7 +51,7 @@ export class ArticleServiceImpl implements IArticleService {
     }
   }
 
-  async list(projectId: number, page: number, pageSize: number, search?: string, status?: string, auth?: AuthContext): Promise<{ list: Article[]; total: number }> {
+  async list(projectId: number, page: number, pageSize: number, auth: AuthContext, search?: string, status?: string): Promise<{ list: Article[]; total: number }> {
     const prisma = getPrisma();
 
     const where: any = { projectId, deletedAt: null };
@@ -58,7 +62,7 @@ export class ArticleServiceImpl implements IArticleService {
       where.status = status;
     }
 
-    if (auth?.role === 'admin' && auth.userId) {
+    if (auth.role === 'admin' && auth.userId) {
       where.project = { operators: { some: { userId: auth.userId } }, company: { status: true }, status: true };
     }
 
@@ -76,10 +80,10 @@ export class ArticleServiceImpl implements IArticleService {
     return { list: items.map(mapArticle), total };
   }
 
-  async getById(id: number): Promise<Article> {
+  async getById(projectId: number, id: number): Promise<Article> {
     const prisma = getPrisma();
     const item = await prisma.article.findFirst({
-      where: { id, deletedAt: null },
+      where: { id, projectId, deletedAt: null },
       include: { _count: { select: { schedules: { where: { deletedAt: null } } } } },
     });
     if (!item) throw new NotFoundError('文章');
@@ -317,8 +321,13 @@ export class ArticleServiceImpl implements IArticleService {
     });
   }
 
-  async listVersions(articleId: number): Promise<ArticleVersion[]> {
+  async listVersions(projectId: number, articleId: number): Promise<ArticleVersion[]> {
     const prisma = getPrisma();
+    // C-1 fix: verify article belongs to project before listing versions
+    const article = await prisma.article.findFirst({
+      where: { id: articleId, projectId, deletedAt: null },
+    });
+    if (!article) throw new NotFoundError('文章');
     const versions = await prisma.articleVersion.findMany({
       where: { articleId, deletedAt: null },
       orderBy: { version: 'desc' },

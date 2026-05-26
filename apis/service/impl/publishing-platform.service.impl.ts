@@ -6,7 +6,7 @@ import { BusinessError } from '../../errors';
 import { IPublishingPlatformService } from '../publishing-platform.service';
 import type { ISystemConfigService } from '../system-config.service';
 import { SystemConfigServiceImpl } from './system-config.service.impl';
-import type { AuthContext } from '../../types/auth';
+import { AuthContext } from '../../types/auth';
 
 const SYSTEM_AUTH: AuthContext = { userId: 0, role: 'sysadmin' };
 
