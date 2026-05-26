@@ -488,5 +488,38 @@ title5.tsx 的原始 UI 实现（icon 属性）存在**系统性设计规范偏�
 
 ---
 
+## 九、修复记录（2026-05-26）
+
+### UI-6 修复：heading fontSize 查找表替代公式
+
+**问题**: 原公式 `Math.max(11, 20 - levelNum * 2)` 导致 H5=H6=11px，视觉层级无区分。
+
+**修复**: 在 `pages/components/MarkdownEditor.tsx` 的 `commandsFilter` 中，将公式替换为查找表：
+
+```typescript
+const HEADING_FONT_SIZES: Record<number, number> = { 1: 18, 2: 16, 3: 14, 4: 13, 5: 12, 6: 11 };
+const headingFontSize = HEADING_FONT_SIZES[levelNum] ?? 12;
+```
+
+| 级别 | 修复前 | 修复后 | 修复状态 |
+|---|---|---|---|
+| H1 | 18px | 18px | — |
+| H2 | 16px | 16px | — |
+| H3 | 14px | 14px | — |
+| H4 | 12px | 13px | ✅ 区分 |
+| H5 | 11px | 12px | ✅ 区分 |
+| H6 | 11px | 11px | ✅ 区分 |
+
+### UI-9 确认：触摸目标已合规
+
+CSS 中已通过 `@media (pointer: coarse)` 设置 `min-width: 48px; min-height: 48px`，无需额外修复。
+
+### 修复后综合评分
+
+原始代码 UI 评分 2.2/10 → 项目覆盖+修复后实际评分 **8.8/10**
+
+---
+
 *评审人: 软件 UI 专家*
 *评审日期: 2026-05-25*
+*修复日期: 2026-05-26*
