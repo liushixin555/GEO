@@ -16,6 +16,8 @@ export interface KnowledgeKeyword {
   updated_at: Date;
   /** 软删除时间戳，null 表示未删除 */
   deleted_at: Date | null;
+  /** 被文章引用的数量（非数据库字段，由 service 层填充） */
+  article_count?: number;
 }
 
 /** 关键词详情（含关联解析），用于列表/详情 API 返回 */
@@ -71,6 +73,8 @@ export interface KnowledgePortrait {
   updated_at: Date;
   /** 软删除时间戳，null 表示未删除 */
   deleted_at: Date | null;
+  /** 被文章引用的数量（非数据库字段，由 service 层填充） */
+  article_count?: number;
 }
 
 /** 人设详情（含关联解析），用于列表/详情 API 返回 */
@@ -111,6 +115,8 @@ export interface KnowledgeImage {
   updated_at: Date;
   /** 软删除时间戳，null 表示未删除 */
   deleted_at: Date | null;
+  /** 被文章引用的数量（非数据库字段，由 service 层填充） */
+  article_count?: number;
 }
 
 /** 图片详情（含关联解析），用于列表/详情 API 返回 */

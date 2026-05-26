@@ -9,6 +9,7 @@ export function handleControllerError(res: Response, err: unknown, defaultMsg: s
   } else if (err instanceof z.ZodError) {
     fail(res, 400, err.issues.map((e: { message: string }) => e.message).join('; '));
   } else {
+    console.error(`[ControllerError] ${defaultMsg}:`, err);
     fail(res, 500, defaultMsg);
   }
 }

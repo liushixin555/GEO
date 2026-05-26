@@ -4,6 +4,41 @@ import { mapKeyword, mapPortrait, mapKnowledgeImage, mapKnowledgeDocument, mapMi
 import { IKeywordService, IPortraitService, IImageService, IDocumentService, IMinedKeywordService } from '../knowledge.service';
 import { KnowledgeBaseServiceImpl } from './knowledge-base.service.impl';
 import { NotFoundError, ConflictError } from '../../errors';
+import { Prisma } from '@prisma/client';
+
+// ─── Article usage count helpers ───
+
+async function countKeywordUsage(keywordText: string): Promise<number> {
+  const prisma = getPrisma();
+  return prisma.article.count({
+    where: { keywords: { contains: keywordText }, deletedAt: null },
+  });
+}
+
+async function countPortraitUsage(content: string | null, title: string): Promise<number> {
+  const prisma = getPrisma();
+  if (!content) {
+    return prisma.article.count({ where: { portrait: title, deletedAt: null } });
+  }
+  if (content === title) {
+    return prisma.article.count({ where: { portrait: title, deletedAt: null } });
+  }
+  const [byContent, byTitle] = await Promise.all([
+    prisma.article.count({ where: { portrait: content, deletedAt: null } }),
+    prisma.article.count({ where: { portrait: title, deletedAt: null } }),
+  ]);
+  return byContent + byTitle;
+}
+
+async function countImageUsage(imageUrl: string): Promise<number> {
+  const prisma = getPrisma();
+  const result = await prisma.$queryRaw<Array<{ count: bigint }>>`
+    SELECT COUNT(*) as count FROM articles
+    WHERE deleted_at IS NULL AND images IS NOT NULL
+    AND images::jsonb @> to_jsonb(${imageUrl}::text)
+  `;
+  return Number(result[0]?.count ?? 0);
+}
 
 function mapRawKeyword(r: any): KnowledgeKeyword {
   return {
@@ -44,7 +79,10 @@ export class KeywordServiceImpl implements IKeywordService {
       prisma.knowledgeKeyword.findMany({ where, orderBy: { id: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
       prisma.knowledgeKeyword.count({ where }),
     ]);
-    return { list: items.map(mapKeyword), total };
+    const list = items.map(mapKeyword);
+    const counts = await Promise.all(list.map(k => countKeywordUsage(k.keyword)));
+    list.forEach((k, i) => { k.article_count = counts[i]; });
+    return { list, total };
   }
 
   async listByProject(projectId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeKeyword[]; total: number }> {
@@ -60,7 +98,10 @@ export class KeywordServiceImpl implements IKeywordService {
       prisma.knowledgeKeyword.findMany({ where, orderBy: { id: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
       prisma.knowledgeKeyword.count({ where }),
     ]);
-    return { list: items.map(mapKeyword), total };
+    const list = items.map(mapKeyword);
+    const counts = await Promise.all(list.map(k => countKeywordUsage(k.keyword)));
+    list.forEach((k, i) => { k.article_count = counts[i]; });
+    return { list, total };
   }
 
   async getById(id: number): Promise<KnowledgeKeywordDetail> {
@@ -129,6 +170,8 @@ export class KeywordServiceImpl implements IKeywordService {
     const prisma = getPrisma();
     const existing = await prisma.knowledgeKeyword.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new NotFoundError('关键词');
+    const usage = await countKeywordUsage(existing.keyword);
+    if (usage > 0) throw new ConflictError(`该关键词正在被 ${usage} 篇文章使用，无法删除`);
     await prisma.knowledgeKeyword.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 
@@ -161,7 +204,10 @@ export class PortraitServiceImpl implements IPortraitService {
       prisma.knowledgePortrait.findMany({ where, orderBy: { id: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
       prisma.knowledgePortrait.count({ where }),
     ]);
-    return { list: items.map(mapPortrait), total };
+    const list = items.map(mapPortrait);
+    const counts = await Promise.all(list.map(p => countPortraitUsage(p.content, p.title)));
+    list.forEach((p, i) => { p.article_count = counts[i]; });
+    return { list, total };
   }
 
   async listByProject(projectId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgePortrait[]; total: number }> {
@@ -177,7 +223,10 @@ export class PortraitServiceImpl implements IPortraitService {
       prisma.knowledgePortrait.findMany({ where, orderBy: { id: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
       prisma.knowledgePortrait.count({ where }),
     ]);
-    return { list: items.map(mapPortrait), total };
+    const list = items.map(mapPortrait);
+    const counts = await Promise.all(list.map(p => countPortraitUsage(p.content, p.title)));
+    list.forEach((p, i) => { p.article_count = counts[i]; });
+    return { list, total };
   }
 
   async getById(id: number): Promise<KnowledgePortrait> {
@@ -210,6 +259,8 @@ export class PortraitServiceImpl implements IPortraitService {
     const prisma = getPrisma();
     const existing = await prisma.knowledgePortrait.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new NotFoundError('画像');
+    const usage = await countPortraitUsage(existing.content, existing.title);
+    if (usage > 0) throw new ConflictError(`该画像正在被 ${usage} 篇文章使用，无法删除`);
     await prisma.knowledgePortrait.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 }
@@ -227,7 +278,10 @@ export class ImageServiceImpl implements IImageService {
       prisma.knowledgeImage.findMany({ where, orderBy: { id: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
       prisma.knowledgeImage.count({ where }),
     ]);
-    return { list: items.map(mapKnowledgeImage), total };
+    const list = items.map(mapKnowledgeImage);
+    const counts = await Promise.all(list.map(img => countImageUsage(img.image_url)));
+    list.forEach((img, i) => { img.article_count = counts[i]; });
+    return { list, total };
   }
 
   async listByProject(projectId: number, page: number, pageSize: number, search?: string): Promise<{ list: KnowledgeImage[]; total: number }> {
@@ -243,7 +297,10 @@ export class ImageServiceImpl implements IImageService {
       prisma.knowledgeImage.findMany({ where, orderBy: { id: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
       prisma.knowledgeImage.count({ where }),
     ]);
-    return { list: items.map(mapKnowledgeImage), total };
+    const list = items.map(mapKnowledgeImage);
+    const counts = await Promise.all(list.map(img => countImageUsage(img.image_url)));
+    list.forEach((img, i) => { img.article_count = counts[i]; });
+    return { list, total };
   }
 
   async getById(id: number): Promise<KnowledgeImage> {
@@ -276,6 +333,8 @@ export class ImageServiceImpl implements IImageService {
     const prisma = getPrisma();
     const existing = await prisma.knowledgeImage.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new NotFoundError('图片');
+    const usage = await countImageUsage(existing.imageUrl);
+    if (usage > 0) throw new ConflictError(`该图片正在被 ${usage} 篇文章使用，无法删除`);
     await prisma.knowledgeImage.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 
