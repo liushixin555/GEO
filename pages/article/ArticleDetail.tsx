@@ -217,9 +217,6 @@ const ArticleDetail: React.FC = () => {
               <Button danger loading={detail.deleting}>删除文章</Button>
             </Popconfirm>
           )}
-          {(isNew || detail.article?.status === 'draft') && (
-          <Button loading={detail.saving} onClick={() => submitForm(handleSave)}>存草稿</Button>
-          )}
           {(isNew || detail.article?.status === 'draft') && writeMode !== 'manual' && (
             <Button type="primary" loading={detail.saving} onClick={() => submitForm(handleSave)}>提交给AI</Button>
           )}
