@@ -138,10 +138,26 @@ export interface UpdateArticleRequest {
   status?: ContentArticleStatus;
 }
 
+/** 审核拒绝原因分类 */
+export type RejectReason = 'quality' | 'compliance' | 'accuracy' | 'other';
+
 /** 审核文章请求 DTO */
 export interface ReviewArticleRequest {
   /** 审核通过/拒绝 */
   approved: boolean;
   /** 审核意见，拒绝时建议必填 */
   comment?: string;
+  /** 拒绝原因分类（当 approved=false 时） */
+  reject_reason?: RejectReason;
+}
+
+/**
+ * 运行时校验 skills 字段，防止数据库中被篡改的 JSON 透传到前端。
+ * Prisma Json → number[] | null 的安全收窄。
+ */
+export function validateSkills(value: unknown): number[] | null {
+  if (value === null || value === undefined) return null;
+  if (!Array.isArray(value)) return null;
+  if (!value.every((v): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0)) return null;
+  return value;
 }

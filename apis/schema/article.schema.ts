@@ -57,6 +57,7 @@ export const updateArticleSchema = z.object({
 export const reviewArticleSchema = z.object({
   approved: z.boolean(),
   comment: z.string().max(2000).optional(),
+  reject_reason: z.enum(['quality', 'compliance', 'accuracy', 'other']).optional(),
 }).strict();
 
 export const updateContentSchema = z.object({

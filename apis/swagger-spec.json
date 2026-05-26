@@ -5109,10 +5109,7 @@
                 "generating",
                 "generate_failed",
                 "pending_review",
-                "approved",
-                "publishing",
-                "published",
-                "publish_failed"
+                "approved"
               ]
             }
           }
@@ -5235,7 +5232,9 @@
                       "案例分析",
                       "行业洞察",
                       "对比测评",
-                      "客户证言"
+                      "客户证言",
+                      "FAQ问答",
+                      "实操指南"
                     ]
                   },
                   "write_mode": {
@@ -5531,7 +5530,9 @@
                       "案例分析",
                       "行业洞察",
                       "对比测评",
-                      "客户证言"
+                      "客户证言",
+                      "FAQ问答",
+                      "实操指南"
                     ]
                   },
                   "write_mode": {
@@ -5586,13 +5587,8 @@
                       "generating",
                       "generate_failed",
                       "pending_review",
-                      "approved",
-                      "publish_failed"
+                      "approved"
                     ]
-                  },
-                  "scheduled_publish_at": {
-                    "nullable": true,
-                    "type": "string"
                   }
                 },
                 "additionalProperties": false
@@ -5824,6 +5820,15 @@
                   "comment": {
                     "type": "string",
                     "maxLength": 2000
+                  },
+                  "reject_reason": {
+                    "type": "string",
+                    "enum": [
+                      "quality",
+                      "compliance",
+                      "accuracy",
+                      "other"
+                    ]
                   }
                 },
                 "required": [

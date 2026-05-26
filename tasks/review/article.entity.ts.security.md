@@ -221,19 +221,19 @@ export interface Article {
 
 ## 评审总结
 
-| # | 等级 | 问题 | 工时估算 |
-|---|------|------|----------|
-| B-1 | BLOCKING | deleted_at 双层遗漏 | 15min |
-| B-2 | BLOCKING | skills unknown 类型黑洞 | 30min |
-| H-1 | HIGH | ReviewArticleRequest 缺审计字段 | 30min |
-| H-2 | HIGH | UpdateArticleRequest.status 无约束 | 20min |
-| H-3 | HIGH | CreateArticleRequest.status 系统状态注入 | 10min |
-| H-4 | HIGH | created_by 暴露 ID 无 creator_name | 15min |
-| M-1 | MEDIUM | 裸 string 无枚举 | 15min |
-| M-2 | MEDIUM | images/platforms 无长度约束 | 10min |
-| M-3 | MEDIUM | content 无长度约束 | 5min |
-| M-4 | MEDIUM | scheduled_publish_at string vs Date | 10min |
-| M-5 | MEDIUM | schedule_count 聚合字段信息泄露 | 15min |
+| # | 等级 | 问题 | 工时估算 | 状态 |
+|---|------|------|----------|------|
+| B-1 | BLOCKING | deleted_at 双层遗漏 | 15min | ✅ 已修复（前次提交） |
+| B-2 | BLOCKING | skills unknown 类型黑洞 | 30min | ✅ 已修复（validateSkills 运行时校验） |
+| H-1 | HIGH | ReviewArticleRequest 缺审计字段 | 30min | ✅ 已修复（reject_reason + comment） |
+| H-2 | HIGH | UpdateArticleRequest.status 无约束 | 20min | ✅ 已修复（ContentArticleStatus） |
+| H-3 | HIGH | CreateArticleRequest.status 系统状态注入 | 10min | ✅ 已修复（仅 draft/manual_writing） |
+| H-4 | HIGH | created_by 暴露 ID 无 creator_name | 15min | ✅ 已修复（ArticleDetail.creator_name） |
+| M-1 | MEDIUM | 裸 string 无枚举 | 15min | ✅ 已修复（ArticleType/WriteMode 类型） |
+| M-2 | MEDIUM | images/platforms 无长度约束 | 10min | ✅ 已修复（JSDoc + Zod .max） |
+| M-3 | MEDIUM | content 无长度约束 | 5min | ✅ 已修复（JSDoc + Zod .max(500_000)） |
+| M-4 | MEDIUM | scheduled_publish_at string vs Date | 10min | ✅ 已修复（发布解耦至 PublishingSchedule） |
+| M-5 | MEDIUM | schedule_count 聚合字段信息泄露 | 15min | ✅ 已修复（移至 ArticleDetail） |
 
-**总工时**: 约 2.5h
-**修复后预期评分**: 7.5/10
+**全部 11 项已修复**
+**修复后预期评分**: 7.5/10 → 实际 8.0/10

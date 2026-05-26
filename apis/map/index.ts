@@ -1,4 +1,5 @@
 import { Company, User, Skills, SkillsDetail, LlmModel, SystemConfig, Project, Article, ArticleDetail, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, KnowledgeBase, MinedKeyword, Todo, TodoLog, UserListItem } from '../entity';
+import { validateSkills } from '../entity/article.entity';
 import type { PublishingSchedule, PublishingScheduleItem } from '../entity/publishing-schedule.entity';
 import { Prisma, Company as PrismaCompany, User as PrismaUser } from '@prisma/client';
 import { isEncrypted } from '../utils/encryption.util';
@@ -106,7 +107,7 @@ export function mapArticle(prismaArticle: any): ArticleDetail {
     keywords: prismaArticle.keywords,
     portrait: prismaArticle.portrait,
     images: prismaArticle.images,
-    skills: Array.isArray(prismaArticle.skills) ? prismaArticle.skills as number[] : null,
+    skills: validateSkills(prismaArticle.skills),
     llm_model_id: prismaArticle.llmModelId ?? null,
     content: prismaArticle.content,
     version: prismaArticle.version,
