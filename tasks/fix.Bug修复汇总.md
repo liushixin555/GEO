@@ -60,3 +60,4 @@
 | fix051 | 文章发布解耦重构（ArticleStatus新增approved+PublishingSchedule独立模型+前端发布计划页面+knowledge entity deleted_at修复） | `apis/entity/`, `apis/service/`, `apis/controller/`, `apis/map/`, `pages/article/`, `pages/publish/` |
 | fix058 | list-reveal-chapter.test.tsx 评审修复——删除（源组件不存在+违反.agents铁律+Mock API断裂，59测试0可执行） | `tests/pages/list-reveal-chapter.test.tsx`（已删除） |
 | fix059 | 文章列表+发布计划列表500错误——迁移脚本枚举顺序修复+Prisma schema/Entity同步 | `prisma/migrations/`, `prisma/schema.prisma`, `apis/entity/article.entity.ts` |
+| fix060 | 知识库图片上传400错误——imageUrl校验不支持相对路径+知识清单/详情显示被文章使用次数 | `apis/schema/knowledge.schema.ts`, `apis/controller/knowledge.controller.ts`, `pages/knowledge/index.tsx`, `pages/knowledge/KnowledgeBaseDetail.tsx` |
