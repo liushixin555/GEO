@@ -51,9 +51,9 @@ async function readValidationBuffer(filePath: string, ext: string): Promise<Buff
 
 function sanitizeErrorMessage(error: string | null): string {
   if (!error) return '文档内容格式校验失败';
+  // 隐藏包含内部检测类型信息的错误消息（如"实际为 .xlsx"）
   if (error.includes('实际为')) return '文件内容与声明格式不匹配';
-  if (error.includes('OLE2')) return '文件内容与声明格式不匹配';
-  if (error.includes('ZIP 文件不是')) return '文件内容不是有效的 Office 文档';
+  // 其他已知安全消息直接转发
   return error;
 }
 

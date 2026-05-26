@@ -55,3 +55,4 @@
 | fix046 | help.tsx UI评审源文件修复（图标尺寸+noopener+弹窗拦截） | `node_modules/.../react-md-editor/` 三份输出（src/esm/lib） |
 | fix047 | swagger/index.tsx 评审验证确认（8项问题全部已修复） | `tasks/review/index.tsx.md` |
 | fix048 | Sidebar.tsx 多维评审修复（view越权+路径匹配+触控目标+AuthContext信任链） | `pages/components/Sidebar.tsx`, `pages/router/routes.tsx`, `pages/context/AuthContext.tsx`, `pages/styles/global.css` |
+| fix049 | upload controller 专家评审修复（fd泄漏+内存优化+sanitize+safeCleanup） | `apis/utils/image-validator.ts`, `apis/controller/upload.controller.ts`, `apis/controller/upload-document.controller.ts` |

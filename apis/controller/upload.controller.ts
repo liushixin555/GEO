@@ -17,6 +17,10 @@ export const uploadMiddleware = createUploadMiddleware({
   getExtension: (file) => ImageValidator.getExtension(file.mimetype),
 });
 
+function safeCleanup(filePath: string): void {
+  try { fs.unlinkSync(filePath); } catch (_e) { /* 清理失败不应阻断响应 */ }
+}
+
 export async function uploadFile(req: Request, res: Response): Promise<void> {
   try {
     if (!req.file) {
@@ -25,23 +29,23 @@ export async function uploadFile(req: Request, res: Response): Promise<void> {
     }
 
     if (!ImageValidator.verifyFileSignature(req.file.path, req.file.mimetype)) {
-      try { fs.unlinkSync(req.file.path); } catch {}
+      safeCleanup(req.file.path);
       fail(res, 400, '文件内容与声明类型不匹配');
       return;
     }
 
     if (!ImageValidator.validateDimensions(req.file.path).valid) {
-      try { fs.unlinkSync(req.file.path); } catch {}
+      safeCleanup(req.file.path);
       fail(res, 400, '图片尺寸超过限制（最大 8000x8000 像素）');
       return;
     }
 
     const url = `/uploads/${req.file.filename}`;
     success(res, { url }, '上传成功');
-  } catch {
+  } catch (_err: unknown) {
     try {
-      if (req.file) { fs.unlinkSync(req.file.path); }
-    } catch {}
+      if (req.file) safeCleanup(req.file.path);
+    } catch { /* 二次清理失败忽略 */ }
     fail(res, 500, '上传失败');
   }
 }

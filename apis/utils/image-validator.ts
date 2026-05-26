@@ -33,19 +33,29 @@ export class ImageValidator {
   static verifyFileSignature(filePath: string, mimetype: string): boolean {
     const sig = this.FILE_SIGNATURES[mimetype];
     if (!sig) return false;
-    const fd = fs.openSync(filePath, 'r');
-    const buf = Buffer.alloc(sig.length);
-    fs.readSync(fd, buf, 0, sig.length, 0);
-    fs.closeSync(fd);
-    return buf.equals(sig);
+    let fd: number | null = null;
+    try {
+      fd = fs.openSync(filePath, 'r');
+      const buf = Buffer.alloc(sig.length);
+      fs.readSync(fd, buf, 0, sig.length, 0);
+      return buf.equals(sig);
+    } finally {
+      if (fd !== null) fs.closeSync(fd);
+    }
   }
 
   static readonly MAX_DIMENSIONS = 8000;
 
+  private static readonly DIMENSION_READ_SIZE = 64 * 1024; // 64KB 足够获取图片尺寸
+
   static validateDimensions(filePath: string): { valid: boolean; width?: number; height?: number } {
+    let fd: number | null = null;
     try {
-      const buf = fs.readFileSync(filePath);
-      const dim = imageSize(new Uint8Array(buf));
+      fd = fs.openSync(filePath, 'r');
+      const buf = Buffer.alloc(this.DIMENSION_READ_SIZE);
+      const bytesRead = fs.readSync(fd, buf, 0, this.DIMENSION_READ_SIZE, 0);
+      const slice = new Uint8Array(buf.buffer, buf.byteOffset, bytesRead);
+      const dim = imageSize(slice);
       if ((dim.width && dim.width > this.MAX_DIMENSIONS) || (dim.height && dim.height > this.MAX_DIMENSIONS)) {
         return { valid: false, width: dim.width, height: dim.height };
       }
@@ -53,6 +63,8 @@ export class ImageValidator {
     } catch {
       // 无法解析尺寸时放行（文件已通过签名验证），避免误拒合法的最小化测试文件
       return { valid: true };
+    } finally {
+      if (fd !== null) fs.closeSync(fd);
     }
   }
 }
