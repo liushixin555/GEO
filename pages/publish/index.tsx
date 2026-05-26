@@ -141,7 +141,7 @@ const PublishingSchedulePage: React.FC = () => {
   const fetchPlatformOptions = useCallback(async () => {
     setPlatformLoading(true);
     try {
-      const res = await apiClient.get('/publishing-platforms', { params: { page: 1, pageSize: 200 } });
+      const res = await apiClient.get('/publishing-platforms', { params: { page: 1, pageSize: 100 } });
       const list = res.data.data.list || res.data.data || [];
       setPlatformOptions(list.map((p: any) => ({ label: `${p.name} (${p.taxonomy})`, value: p.name })));
     } catch {
