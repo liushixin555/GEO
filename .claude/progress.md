@@ -228,3 +228,4 @@
 | 2026-05-25 | tasks/tdd/todo.entity.test.round2.md | todo.entity TDD 第二轮补全——242用例全覆盖，安全注入18+JSON reviver 13+业务场景15+NaN边界14+类型守卫14+深冻结12+生命周期7共92新增用例 |
 | 2026-05-25 | progress_tasks/2026-05-25-publishing-schedule-merge-reject.md | 发布管理优化——合并 publishing-schedule service 到 article service + 驳回按钮 + 操作图标化 + 已删除文章过滤，250测试全通过 |
 | 2026-05-26 | tasks/review/Sidebar.tsx.quality.md | Sidebar.tsx 软件质量专家评审——7.2/10，CRITICAL×1（view角色越界）+HIGH×2（触控目标+路径匹配）+MEDIUM×4+LOW×2 |
+| 2026-05-26 | tasks/review/knowledge-base.entity.ts.security.md | knowledge-base.entity.ts 代码安全专家评审——5.0/10 REQUEST CHANGES，C×2(判别联合缺失+deleted_at遗漏)+H×4(scope提权+类型漂移+any映射+跨边界重绑定)+M×5 |
