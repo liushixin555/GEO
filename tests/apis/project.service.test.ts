@@ -4,10 +4,22 @@
 process.env.JWT_SECRET = 'test-secret';
 process.env.JWT_EXPIRES_IN = '2h';
 
-jest.mock('../../apis/utils/db.util', () => ({
-  getPrisma: jest.fn(),
-  closePrisma: jest.fn(),
-}));
+jest.mock('../../apis/utils/db.util', () => {
+  // Create getPrisma mock that auto-wraps return values with $transaction
+  // This supports service methods (update/delete) that use prisma.$transaction()
+  const getPrismaMock = jest.fn() as any;
+  const origMockReturnValue = getPrismaMock.mockReturnValue.bind(getPrismaMock);
+  getPrismaMock.mockReturnValue = (val: any) => {
+    return origMockReturnValue({
+      ...val,
+      $transaction: (cb: (tx: any) => Promise<any>) => cb(val),
+    });
+  };
+  return {
+    getPrisma: getPrismaMock,
+    closePrisma: jest.fn(),
+  };
+});
 
 import { getPrisma } from '../../apis/utils/db.util';
 import { ProjectServiceImpl } from '../../apis/service/impl/project.service.impl';
