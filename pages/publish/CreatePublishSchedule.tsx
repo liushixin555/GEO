@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Breadcrumb, Select, Radio, DatePicker, Button, Table, Input, Tooltip, App, Tag, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
@@ -39,11 +39,15 @@ const CreatePublishSchedule: React.FC = () => {
   const [articleLoading, setArticleLoading] = useState(false);
   const [selectedArticleId, setSelectedArticleId] = useState<number | null>(null);
 
-  // 平台
+  // 平台 - 服务端分页
   const [platformList, setPlatformList] = useState<PlatformItem[]>([]);
+  const [platformTotal, setPlatformTotal] = useState(0);
+  const [platformPage, setPlatformPage] = useState(1);
   const [platformLoading, setPlatformLoading] = useState(false);
   const [selectedPlatformIds, setSelectedPlatformIds] = useState<React.Key[]>([]);
   const [platformSearch, setPlatformSearch] = useState('');
+  // 缓存所有已选平台的完整信息（跨页保留选中状态）
+  const selectedMapRef = useRef<Map<number, PlatformItem>>(new Map());
 
   // 发布策略
   const [scheduleType, setScheduleType] = useState<ScheduleType>('asap');
@@ -73,31 +77,48 @@ const CreatePublishSchedule: React.FC = () => {
     fetchArticles();
   }, [projectId]);
 
-  // 加载平台列表
-  useEffect(() => {
-    const fetchPlatforms = async () => {
-      setPlatformLoading(true);
-      try {
-        const res = await apiClient.get('/publishing-platforms', { params: { page: 1, pageSize: 500 } });
-        const list = res.data.data.list || res.data.data || [];
-        setPlatformList(list);
-      } catch {
-        setPlatformList([]);
-      } finally {
-        setPlatformLoading(false);
-      }
-    };
-    fetchPlatforms();
+  // 加载平台列表 - 服务端分页
+  const fetchPlatforms = useCallback(async (page: number, search: string) => {
+    setPlatformLoading(true);
+    try {
+      const params: Record<string, unknown> = { page, pageSize: 10 };
+      if (search.trim()) params.search = search.trim();
+      const res = await apiClient.get('/publishing-platforms', { params });
+      const list = res.data.data.list || [];
+      const total = res.data.data.total || 0;
+      setPlatformList(list);
+      setPlatformTotal(total);
+    } catch {
+      setPlatformList([]);
+      setPlatformTotal(0);
+    } finally {
+      setPlatformLoading(false);
+    }
   }, []);
 
-  // 搜索过滤平台
-  const filteredPlatforms = useMemo(() => {
-    if (!platformSearch.trim()) return platformList;
-    const keyword = platformSearch.toLowerCase();
-    return platformList.filter(
-      (p) => p.name.toLowerCase().includes(keyword) || p.taxonomy.toLowerCase().includes(keyword),
-    );
-  }, [platformList, platformSearch]);
+  useEffect(() => {
+    fetchPlatforms(platformPage, platformSearch);
+  }, [platformPage, platformSearch, fetchPlatforms]);
+
+  // 搜索时重置到第1页
+  const handlePlatformSearch = (value: string) => {
+    setPlatformSearch(value);
+    setPlatformPage(1);
+  };
+
+  // 选中/取消选中时维护跨页缓存
+  const handleSelectionChange = (newKeys: React.Key[]) => {
+    // 把当前页数据写入缓存
+    platformList.forEach((p) => selectedMapRef.current.set(p.id, p));
+    // 计算差集：新增的 + 移除的
+    const prevKeys = new Set(selectedPlatformIds);
+    const newKeysSet = new Set(newKeys);
+    // 移除取消选中的
+    selectedPlatformIds.forEach((k) => {
+      if (!newKeysSet.has(k)) selectedMapRef.current.delete(k as number);
+    });
+    setSelectedPlatformIds(newKeys);
+  };
 
   const handleSubmit = async () => {
     if (saving) return;
@@ -114,10 +135,10 @@ const CreatePublishSchedule: React.FC = () => {
       return;
     }
 
-    // 从选中的 id 找到对应的 name
-    const selectedNames = platformList
-      .filter((p) => selectedPlatformIds.includes(p.id))
-      .map((p) => p.name);
+    // 从缓存中取已选平台的 name
+    const selectedNames = selectedPlatformIds
+      .map((k) => selectedMapRef.current.get(k as number)?.name)
+      .filter(Boolean) as string[];
 
     setSaving(true);
     try {
@@ -260,7 +281,8 @@ const CreatePublishSchedule: React.FC = () => {
               <Input.Search
                 placeholder="搜索平台名称或分类..."
                 value={platformSearch}
-                onChange={(e) => setPlatformSearch(e.target.value)}
+                onChange={(e) => handlePlatformSearch(e.target.value)}
+                onSearch={(val) => handlePlatformSearch(val)}
                 allowClear
                 style={{ width: 260 }}
               />
@@ -268,13 +290,20 @@ const CreatePublishSchedule: React.FC = () => {
             <Table
               rowSelection={{
                 selectedRowKeys: selectedPlatformIds,
-                onChange: setSelectedPlatformIds,
+                onChange: handleSelectionChange,
               }}
               columns={platformColumns}
-              dataSource={filteredPlatforms}
+              dataSource={platformList}
               rowKey="id"
               size="small"
-              pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (total) => `共 ${total} 个平台` }}
+              pagination={{
+                current: platformPage,
+                pageSize: 10,
+                total: platformTotal,
+                showSizeChanger: false,
+                showTotal: (total) => `共 ${total} 个平台`,
+                onChange: (p) => setPlatformPage(p),
+              }}
               locale={{ emptyText: '暂无平台数据' }}
               scroll={{ y: 400 }}
             />
