@@ -9,7 +9,7 @@ RUN sed -i 's|deb.debian.org|mirrors.tencent.com|g' /etc/apt/sources.list.d/debi
     && rm -rf /var/lib/apt/lists/*
 
 # Copy production dependencies
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml .npmrc ./
 
 ENV NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
 ENV PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma
