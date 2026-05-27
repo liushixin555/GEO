@@ -5,7 +5,7 @@ import { mapAuditLog } from '../../map';
 
 export class AuditLogServiceImpl implements IAuditLogService {
   async list(params: AuditLogListParams): Promise<{ list: AuditLog[]; total: number }> {
-    const { page, pageSize, level, event, startDate, endDate, search } = params;
+    const { page, pageSize, level, event, userId, startDate, endDate, search } = params;
 
     const where: Record<string, unknown> = {};
 
@@ -14,6 +14,9 @@ export class AuditLogServiceImpl implements IAuditLogService {
     }
     if (event) {
       where.event = event;
+    }
+    if (userId) {
+      where.userId = userId;
     }
     if (startDate || endDate) {
       const createdAt: Record<string, Date> = {};
@@ -39,8 +42,21 @@ export class AuditLogServiceImpl implements IAuditLogService {
       getPrisma().auditLog.count({ where }),
     ]);
 
+    // 批量查用户名：收集 userId → 查 users → 映射名称
+    const userIds = [...new Set(rows.map((r) => r.userId).filter((id): id is number => id != null))];
+    const userMap = new Map<number, string>();
+    if (userIds.length > 0) {
+      const users = await getPrisma().user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, cnName: true },
+      });
+      for (const u of users) {
+        userMap.set(u.id, u.cnName);
+      }
+    }
+
     return {
-      list: rows.map(mapAuditLog),
+      list: rows.map((row) => mapAuditLog(row, userMap.get(row.userId ?? -1) ?? null)),
       total,
     };
   }

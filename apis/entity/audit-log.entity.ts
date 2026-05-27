@@ -3,6 +3,7 @@ export interface AuditLog {
   level: string;
   event: string;
   user_id: number | null;
+  user_name: string | null;
   ip: string | null;
   method: string | null;
   url: string | null;
@@ -17,6 +18,7 @@ export interface AuditLogListParams {
   pageSize: number;
   level?: string;
   event?: string;
+  userId?: number;
   startDate?: string;
   endDate?: string;
   search?: string;

@@ -331,12 +331,13 @@ export function mapPublishingScheduleItem(prismaItem: any): PublishingScheduleIt
 
 type PrismaAuditLog = Prisma.AuditLogGetPayload<{}>;
 
-export function mapAuditLog(row: PrismaAuditLog): AuditLog {
+export function mapAuditLog(row: PrismaAuditLog, userName: string | null = null): AuditLog {
   return {
     id: row.id,
     level: row.level,
     event: row.event,
     user_id: row.userId ?? null,
+    user_name: userName,
     ip: row.ip ?? null,
     method: row.method ?? null,
     url: row.url ?? null,

@@ -6,13 +6,14 @@ const auditLogService: IAuditLogService = createAuditLogService();
 
 export async function listAuditLogs(req: Request, res: Response): Promise<void> {
   try {
-    const { page, pageSize, level, event, startDate, endDate, search } = req.query as any;
+    const { page, pageSize, level, event, userId, startDate, endDate, search } = req.query as any;
 
     const { list, total } = await auditLogService.list({
       page: Number(page),
       pageSize: Number(pageSize),
       level: level as string | undefined,
       event: event as string | undefined,
+      userId: userId ? Number(userId) : undefined,
       startDate: startDate as string | undefined,
       endDate: endDate as string | undefined,
       search: search as string | undefined,

@@ -18,14 +18,16 @@ const AuditLogPage: React.FC = () => {
   const [pageSize, setPageSize] = useState(20);
   const [level, setLevel] = useState<string | undefined>(undefined);
   const [event, setEvent] = useState<string | undefined>(undefined);
+  const [userId, setUserId] = useState<number | undefined>(undefined);
   const [search, setSearch] = useState<string>('');
   const [dateRange, setDateRange] = useState<[string, string] | undefined>(undefined);
 
-  const { list, total, loading, events, refresh } = useAuditLogList({
+  const { list, total, loading, events, users, refresh } = useAuditLogList({
     page,
     pageSize,
     level,
     event,
+    userId,
     startDate: dateRange?.[0],
     endDate: dateRange?.[1],
     search: search || undefined,
@@ -43,6 +45,11 @@ const AuditLogPage: React.FC = () => {
 
   const handleEventChange = useCallback((value: string | undefined) => {
     setEvent(value);
+    setPage(1);
+  }, []);
+
+  const handleUserChange = useCallback((value: number | undefined) => {
+    setUserId(value);
     setPage(1);
   }, []);
 
@@ -85,11 +92,11 @@ const AuditLogPage: React.FC = () => {
       width: 200,
     },
     {
-      title: '用户ID',
-      dataIndex: 'user_id',
-      key: 'user_id',
-      width: 80,
-      render: (v: number | null) => v ?? '-',
+      title: '用户',
+      dataIndex: 'user_name',
+      key: 'user_name',
+      width: 100,
+      render: (v: string | null) => v ?? '-',
     },
     {
       title: 'IP',
@@ -127,7 +134,7 @@ const AuditLogPage: React.FC = () => {
     if (record.url) items.push({ label: 'URL', value: record.url });
     if (record.status) items.push({ label: '状态码', value: String(record.status) });
     if (record.duration != null) items.push({ label: '耗时', value: `${record.duration}ms` });
-    if (record.user_id) items.push({ label: '用户ID', value: String(record.user_id) });
+    if (record.user_name) items.push({ label: '用户', value: record.user_name });
     if (record.ip) items.push({ label: 'IP', value: record.ip });
     if (record.metadata && typeof record.metadata === 'object') {
       for (const [k, v] of Object.entries(record.metadata)) {
@@ -150,18 +157,22 @@ const AuditLogPage: React.FC = () => {
     events.map((e) => ({ value: e, label: e })),
   [events]);
 
+  const userOptions = useMemo(() =>
+    users.map((u) => ({ value: u.id, label: `${u.cn_name}(${u.username})` })),
+  [users]);
+
   return (
     <div className="page-container">
       <div className="page-breadcrumb"><Breadcrumb items={[{ title: '日志管理' }]} /></div>
       <Row gutter={[16, 12]} className="toolbar">
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={6}>
           <Input.Search
             placeholder="搜索事件/URL/IP..."
             allowClear
             onSearch={handleSearch}
           />
         </Col>
-        <Col xs={24} sm={4}>
+        <Col xs={24} sm={3}>
           <Select
             value={level}
             onChange={handleLevelChange}
@@ -176,7 +187,19 @@ const AuditLogPage: React.FC = () => {
             ]}
           />
         </Col>
-        <Col xs={24} sm={5}>
+        <Col xs={24} sm={4}>
+          <Select
+            value={userId}
+            onChange={handleUserChange}
+            allowClear
+            placeholder="全部用户"
+            style={{ width: '100%' }}
+            options={userOptions}
+            showSearch
+            optionFilterProp="label"
+          />
+        </Col>
+        <Col xs={24} sm={4}>
           <Select
             value={event}
             onChange={handleEventChange}
