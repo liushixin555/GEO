@@ -10,6 +10,9 @@ RUN sed -i 's|deb.debian.org|mirrors.tencent.com|g' /etc/apt/sources.list.d/debi
 
 # Copy production dependencies
 COPY package.json pnpm-lock.yaml ./
+
+ENV NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
+ENV PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma
 RUN corepack enable \
     && pnpm install --prod --frozen-lockfile --ignore-scripts \
     && npm install -g prisma@5.22.0
