@@ -463,6 +463,32 @@ model TodoLog {
   @@map("todo_logs")
 }
 
+enum AuditLogLevel {
+  debug
+  info
+  warn
+  error
+}
+
+model AuditLog {
+  id        Int           @id @default(autoincrement())
+  level     AuditLogLevel @default(info)
+  event     String        @db.VarChar(100)
+  userId    Int?          @map("user_id")
+  ip        String?       @db.VarChar(45)
+  method    String?       @db.VarChar(10)
+  url       String?       @db.VarChar(500)
+  status    Int?
+  duration  Int?
+  metadata  Json?
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([level])
+  @@index([event])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
 model PublishingSchedule {
   id                Int                    @id @default(autoincrement())
   articleId         Int                    @map("article_id")

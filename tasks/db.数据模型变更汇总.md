@@ -957,3 +957,67 @@ model User {
 - `apis/service/company.service.ts` — create/update 签名新增 userId 参数
 - `apis/service/impl/company.service.impl.ts` — create 注入 createdById，update 注入 updatedById
 - `apis/controller/company.controller.ts` — create/update 传递 req.user!.userId
+
+---
+
+## db021. AuditLog 模型 — 审计日志持久化
+
+### 变更原因
+系统需要将 auth 事件、API 4xx/5xx 访问日志持久化到数据库，支持 sysadmin 在管理页面查看和筛选日志。
+
+### Schema 变更
+```prisma
+enum AuditLogLevel {
+  debug
+  info
+  warn
+  error
+}
+
+model AuditLog {
+  id        Int           @id @default(autoincrement())
+  level     AuditLogLevel @default(info)
+  event     String        @db.VarChar(100)
+  userId    Int?          @map("user_id")
+  ip        String?       @db.VarChar(45)
+  method    String?       @db.VarChar(10)
+  url       String?       @db.VarChar(500)
+  status    Int?
+  duration  Int?
+  metadata  Json?
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([level])
+  @@index([event])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+```
+
+### 设计要点
+- 无 `updatedAt`/`deletedAt` — 审计日志不可变，只增不改不删
+- `metadata (Json)` 存放额外字段（username、error message 等）
+- 索引覆盖常用查询：level、event、createdAt
+
+### 新增文件
+- `apis/utils/audit-log-writer.util.ts` — writeAuditLog / writeApiAccessLog（即发即弃模式）
+- `apis/entity/audit-log.entity.ts` — AuditLog + AuditLogListParams 类型
+- `apis/service/audit-log.service.ts` — IAuditLogService 接口
+- `apis/service/impl/audit-log.service.impl.ts` — Prisma 实现（list + getEvents）
+- `apis/schema/audit-log.schema.ts` — Zod 查询参数验证
+- `apis/controller/audit-log.controller.ts` — listAuditLogs + getAuditLogEvents
+- `apis/routes/audit-log.routes.ts` — GET /api/v1/audit-logs + /events，仅 sysadmin
+- `pages/audit-log/index.tsx` — 日志管理页面（表格 + 筛选 + 分页）
+- `pages/audit-log/hooks/useAuditLogList.ts` — 数据获取 hook
+
+### 修改文件
+- `apis/utils/logger.util.ts` — 每个 log 方法追加 DB 写入
+- `apis/app.ts` — api_access 中间件追加 DB 写入 + 注册路由
+- `apis/map/index.ts` — 新增 mapAuditLog 映射函数
+- `apis/service/index.ts` — 注册 createAuditLogService 工厂
+- `apis/entity/index.ts` — 导出 AuditLog 类型
+- `pages/components/Sidebar.tsx` — 新增"日志管理"菜单项
+- `pages/router/routes.tsx` — 新增 /audit-log 路由
+
+### 迁移
+`prisma/migrations/20260527130000_add_audit_logs`

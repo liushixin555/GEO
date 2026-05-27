@@ -15,6 +15,7 @@ import {
   ThunderboltOutlined,
   CheckSquareOutlined,
   ApiOutlined,
+  FileSearchOutlined,
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
 import CompanyProjectSwitcher from './CompanyProjectSwitcher';
@@ -52,6 +53,7 @@ const menuItems: MenuItemDef[] = [
   { label: '公司管理', path: '/company', roles: [ROLES.SYSADMIN], icon: <HomeOutlined /> },
   { label: '系统管理', path: '/sysadmin', roles: [ROLES.SYSADMIN], icon: <SettingOutlined /> },
   { label: 'API 文档', path: '/swagger', roles: [ROLES.SYSADMIN], icon: <ApiOutlined /> },
+  { label: '日志管理', path: '/audit-log', roles: [ROLES.SYSADMIN], icon: <FileSearchOutlined /> },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -66,7 +68,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const cnName = user?.cn_name ?? '';
 
   const businessPaths = ['/todo', '/knowledge', '/article', '/publish', '/project', '/skills'];
-  const systemPaths = ['/users', '/company', '/sysadmin', '/swagger'];
+  const systemPaths = ['/users', '/company', '/sysadmin', '/swagger', '/audit-log'];
 
   const visibleMenuItems = menuItems.filter((item) => item.roles.includes(userRole as Role));
 

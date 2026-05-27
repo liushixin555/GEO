@@ -2,6 +2,7 @@ import { Company, CompanyListItem, User, Skills, SkillsDetail, LlmModel, SystemC
 import type { ArticleType, WriteMode, ArticleStatus } from '../entity';
 import { validateSkills, validateImages } from '../entity/article.entity';
 import type { PublishingSchedule, PublishingScheduleItem } from '../entity/publishing-schedule.entity';
+import type { AuditLog } from '../entity/audit-log.entity';
 import { Prisma, Company as PrismaCompany, User as PrismaUser } from '@prisma/client';
 import { isEncrypted } from '../utils/encryption.util';
 import { maskSensitiveValue } from '../constants/system-config';
@@ -325,5 +326,23 @@ export function mapPublishingScheduleItem(prismaItem: any): PublishingScheduleIt
     created_by_name: prismaItem.creator?.cnName || '',
     created_at: prismaItem.createdAt,
     updated_at: prismaItem.updatedAt,
+  };
+}
+
+type PrismaAuditLog = Prisma.AuditLogGetPayload<{}>;
+
+export function mapAuditLog(row: PrismaAuditLog): AuditLog {
+  return {
+    id: row.id,
+    level: row.level,
+    event: row.event,
+    user_id: row.userId ?? null,
+    ip: row.ip ?? null,
+    method: row.method ?? null,
+    url: row.url ?? null,
+    status: row.status ?? null,
+    duration: row.duration ?? null,
+    metadata: row.metadata as Record<string, unknown> | null,
+    created_at: row.createdAt.toISOString(),
   };
 }

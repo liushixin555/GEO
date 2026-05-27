@@ -79,6 +79,9 @@ import { LlmServiceImpl } from './impl/llm.service.impl';
 import { ISystemConfigService } from './system-config.service';
 import { SystemConfigServiceImpl } from './impl/system-config.service.impl';
 
+import { IAuditLogService } from './audit-log.service';
+import { AuditLogServiceImpl } from './impl/audit-log.service.impl';
+
 // ============================================================================
 // Section 2: Re-exports (interfaces & types only)
 // ============================================================================
@@ -106,6 +109,9 @@ export { ISkillsFileService, SkillZipResult };
 export { ILlmModelService };
 export { ILlmService, ArticleGenerationParams };
 export { ISystemConfigService };
+
+// 审计域
+export { IAuditLogService };
 
 // ============================================================================
 // Section 3: Factory Functions
@@ -189,4 +195,9 @@ export function createLlmService(): ILlmService {
 
 export function createSystemConfigService(): ISystemConfigService {
   return new SystemConfigServiceImpl();
+}
+
+// 审计域
+export function createAuditLogService(): IAuditLogService {
+  return new AuditLogServiceImpl();
 }

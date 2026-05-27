@@ -5,6 +5,7 @@ import config from './config';
 import { rateLimitMiddleware, antiCrawlMiddleware, swaggerAuthMiddleware } from './middleware';
 import { AppError } from './errors';
 import { getClientIp } from './utils/ip.util';
+import { writeApiAccessLog } from './utils/audit-log-writer.util';
 
 // Route modules
 import authRoutes from './routes/auth.routes';
@@ -21,6 +22,7 @@ import projectKnowledgeRoutes from './routes/project-knowledge.routes';
 import uploadRoutes from './routes/upload.routes';
 import publishingScheduleRoutes from './routes/publishing-schedule.routes';
 import todoRoutes from './routes/todo.routes';
+import auditLogRoutes from './routes/audit-log.routes';
 
 const app: Express = express();
 
@@ -102,6 +104,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
         userId: req.user?.userId || 'anonymous',
         ip: getClientIp(req),
       }));
+      writeApiAccessLog({
+        userId: req.user?.userId,
+        ip: getClientIp(req),
+        method: req.method,
+        url: req.originalUrl,
+        status: res.statusCode,
+        duration: Date.now() - start,
+      });
     }
   });
   next();
@@ -135,6 +145,7 @@ app.use('/api/v1/knowledge-bases', knowledgeRoutes);
 app.use('/api/v1/upload', uploadRoutes);
 app.use('/api/v1/publishing-schedule', publishingScheduleRoutes);
 app.use('/api/v1/todos', todoRoutes);
+app.use('/api/v1/audit-logs', auditLogRoutes);
 
 // 404 fallback — must be after all routes
 app.use((_req, res) => {

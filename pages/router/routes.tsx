@@ -22,6 +22,7 @@ const KeywordMine = lazy(() => import('../knowledge/KeywordMine'));
 const PublishingSchedulePage = lazy(() => import('../publish'));
 const TodoPage = lazy(() => import('../todo'));
 const ApiDocsPage = lazy(() => import('../swagger'));
+const AuditLogPage = lazy(() => import('../audit-log'));
 
 const VALID_ROLES = Object.values(ROLES) as string[];
 
@@ -51,6 +52,7 @@ const ROUTE_DEFS: RouteDef[] = [
   { path: '/company/edit/:id', roles: [ROLES.SYSADMIN], Component: CompanyForm },
   { path: '/sysadmin', roles: [ROLES.SYSADMIN], Component: SystemAdminPage },
   { path: '/swagger', roles: [ROLES.SYSADMIN], Component: ApiDocsPage },
+  { path: '/audit-log', roles: [ROLES.SYSADMIN], Component: AuditLogPage },
 ];
 
 interface ChunkErrorBoundaryState {

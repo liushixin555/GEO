@@ -11,3 +11,4 @@ export { KnowledgeKeyword, KnowledgeKeywordDetail, KeywordExpandedWord, Knowledg
 export { KnowledgeBase, KnowledgeBaseDetail, KnowledgeScope, CreateKnowledgeBaseRequest, UpdateKnowledgeBaseRequest } from './knowledge-base.entity';
 export { Todo, TodoLog, CreateTodoRequest, UpdateTodoRequest, TransferTodoRequest } from './todo.entity';
 export { PublishingSchedule, PublishingScheduleStatus, ScheduleType, CreatePublishingScheduleRequest, UpdatePublishingScheduleRequest, PublishingScheduleListParams, PublishingScheduleItem, PublishingScheduleUpdateResult } from './publishing-schedule.entity';
+export { AuditLog, AuditLogListParams } from './audit-log.entity';
