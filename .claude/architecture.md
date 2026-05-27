@@ -31,6 +31,7 @@ tests/apis/  + tests/pages/  测试文件
 - `apis/controller/upload.controller.ts` — 图片上传（multer，sysadmin + admin）
 - `apis/controller/knowledge.controller.ts` — 知识库 CRUD（关键词/画像/图片/文档，32个端点，`getServices()`延迟初始化+`handleControllerError`统一异常+`parseId`安全解析+`checkOwnership`所有权检查，架构评审7.9/10）
 - `apis/controller/llm-model.controller.ts` — LLM 模型 CRUD（仅 sysadmin），使用 `createLlmModelService()` 工厂模式 + `AppError` 统一异常处理 + SSRF 防护
+- `apis/controller/audit-log.controller.ts` — 审计日志查询（仅 sysadmin），listAuditLogs + getAuditLogEvents
 - `apis/service/impl/` — 业务实现（Prisma）
 - `apis/service/index.ts` — 服务工厂函数（createUserService 等），Controller 通过工厂获取服务实例
 - `apis/utils/ip.util.ts` — 真实客户端 IP 提取（`getClientIp`：X-Forwarded-For → X-Real-IP → req.ip → socket.remoteAddress）
@@ -79,6 +80,7 @@ tests/apis/  + tests/pages/  测试文件
 | `/skills` | 技能管理 | sysadmin, admin |
 | `/users` | 用户管理 | sysadmin, admin |
 | `/sysadmin` | 系统管理 | sysadmin |
+| `/audit-log` | 日志管理 | sysadmin |
 
 ## API 响应格式
 - 成功：`{ code: 0, message: "...", data: {...} }`
@@ -88,6 +90,7 @@ tests/apis/  + tests/pages/  测试文件
 - `companies`: id, short_name, full_name, address, contact_person, contact_phone
 - `users`: id, username, password_hash, cn_name, role, status(布尔), company_id(可选), selected_company_id(可选), selected_project_id(可选)
 - `skills`: id, name, category, description, status(布尔), company_id(可选), created_by(可选，追踪创建者)
+- `audit_logs`: id, level(枚举), event, user_id, ip, method, url, status, duration, metadata(Json), created_at（不可变，无 updatedAt/deletedAt）
 - 角色枚举: sysadmin / admin / view
 - 默认用户：sysadmin / sysadmin123（company_id=1）
 - 必须维护建表 SQL（`sql/create/`）和更新 SQL（`sql/updates/`）
@@ -159,6 +162,14 @@ tests/apis/  + tests/pages/  测试文件
   - 匹配逻辑：关键词→`keywords LIKE '%text%'`，画像→`portrait = content OR = title`，图片→`images::jsonb @> to_jsonb(url)`（raw SQL）
   - `list()`/`listByProject()` 填充 `article_count`，`delete()` 前 >0 抛 ConflictError(409)
   - 前端：表格+卡片显示"使用文章数"列，`article_count > 0` 时禁用删除按钮
+
+## 审计日志系统（2026-05-27）
+- **写入工具**: `apis/utils/audit-log-writer.util.ts` — writeAuditLog / writeApiAccessLog，即发即弃（fire-and-forget），.catch() 静默处理失败
+- **日志入口**: `apis/utils/logger.util.ts` 每个日志方法（info/warn/error/debug）追加 DB 写入；`apis/app.ts` api_access 中间件追加 DB 写入
+- **查询服务**: `apis/service/audit-log.service.ts`（IAuditLogService）+ `impl/audit-log.service.impl.ts`，支持 level/event/日期/搜索 筛选
+- **路由**: `GET /api/v1/audit-logs` + `GET /api/v1/audit-logs/events`，仅 sysadmin
+- **前端页面**: `pages/audit-log/` — 表格 + 筛选（级别/事件/日期范围/搜索）+ 分页 + 详情展开行
+- **设计原则**: 审计日志不可变（无 updatedAt/deletedAt），metadata(Json) 存放额外字段
 
 ## 配置架构（apis/config/index.ts）
 - **综合评级**: B+（架构评审 8.2/10）— 零业务耦合 + Fail-Fast 启动校验 + 双重不可变保护
