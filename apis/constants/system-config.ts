@@ -5,12 +5,15 @@
 export const ALLOWED_CONFIG_KEYS = [
   'yishangshu_username',
   'yishangshu_password',
+  'ruanmeng_username',
+  'ruanmeng_password',
 ] as const;
 
 export type AllowedConfigKey = (typeof ALLOWED_CONFIG_KEYS)[number];
 
 export const SENSITIVE_CONFIG_KEYS: Set<string> = new Set([
   'yishangshu_password',
+  'ruanmeng_password',
 ]);
 
 export function maskSensitiveValue(key: string, value: string): string {

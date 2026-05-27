@@ -63,3 +63,4 @@
 | fix060 | 知识库图片上传400错误——imageUrl校验不支持相对路径+知识清单/详情显示被文章使用次数 | `apis/schema/knowledge.schema.ts`, `apis/controller/knowledge.controller.ts`, `pages/knowledge/index.tsx`, `pages/knowledge/KnowledgeBaseDetail.tsx` |
 | fix061 | 文章设置表单关键词/画像/图片改为纯知识库选择+创建API 400修复+移除存草稿按钮 | `pages/article/components/ArticleSettingsForm.tsx`, `pages/article/components/ArticleImageManager.tsx`, `apis/schema/article.schema.ts`, `pages/article/types.ts`, `pages/article/hooks/useArticleDetail.ts`, `pages/article/ArticleDetail.tsx` |
 | fix062 | CORS跨域拒绝返回403+前端强制退出登录+antd Card bordered废弃警告+MaskReveal残留导出清理 | `apis/app.ts`, `pages/lib/apiClient.ts`, `.env`, `pages/login/index.tsx`, `pages/swagger/index.tsx`, `pages/components/index.ts` |
+| fix063 | 系统配置接口400——ruanmeng配置项未加入白名单 | `apis/constants/system-config.ts` |
