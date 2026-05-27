@@ -17,7 +17,7 @@ tests/apis/  + tests/pages/  测试文件
 ```
 
 ## 关键文件
-- `apis/app.ts` — Express 入口（helmet, cors, 限流, 反爬虫, swagger, 路由）
+- `apis/app.ts` — Express 入口（helmet, cors白名单拒绝返回403, 限流, 反爬虫, swagger, 路由）
 - `apis/scripts/generate-swagger.ts` — Swagger spec 生成脚本（swagger-autogen-ast + 后处理增强标签/安全/描述）
 - `apis/swagger-spec.json` — 自动生成的 OpenAPI 3.0 spec（66 路由，npm run swagger:gen 重新生成）
 - `apis/server.ts` — 启动 HTTP 服务器
@@ -190,7 +190,7 @@ tests/apis/  + tests/pages/  测试文件
 - **重构前**: 943 行 God Component，17 个 useState，11 处直接 axios 调用，6 个 useEffect
 - **重构后**: 主文件 ~180 行容器组件 + 5 个子组件 + 6 个自定义 hooks
 - **新增文件**:
-  - `pages/lib/apiClient.ts` — 统一 axios 实例（token 注入 + 401 拦截 + 错误转换）
+  - `pages/lib/apiClient.ts` — 统一 axios 实例（token 注入 + CORS 403/网络错误拦截→强制退出登录 + 401 拦截 + 错误转换）
   - `pages/article/types.ts` — 共享类型定义（ArticleData、Platform、ArticleFormValues 等）
   - `pages/article/hooks/useArticleDetail.ts` — 文章数据 CRUD + 自动保存（含竞态防护 savingRef）
   - `pages/article/hooks/useArticlePermissions.ts` — 权限计算（canEditSettings/Content/Review/Delete）
