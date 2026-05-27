@@ -42,14 +42,20 @@ app.use(helmet({
 }));
 
 // CORS — whitelist-based configuration
+// 不在白名单的 origin 直接拒绝请求，返回 403
 app.use(cors({
   origin: (origin, callback) => {
     const allowed = config.corsOrigins;
     if (!origin || allowed.includes(origin)) {
       callback(null, true);
     } else {
-      console.warn('[CORS] Rejected origin:', origin);
-      callback(null, false);
+      console.warn(JSON.stringify({
+        level: 'warn',
+        type: 'cors_rejected',
+        origin,
+        allowedOrigins: allowed,
+      }));
+      callback(new Error('CORS origin not allowed'));
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -137,6 +143,10 @@ app.use((_req, res) => {
 // Global error handler — Express identifies by 4-parameter signature
 // M-3: 区分业务错误(AppError)与系统错误
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+  if (err.message === 'CORS origin not allowed') {
+    res.status(403).json({ code: 403, message: '跨域请求被拒绝' });
+    return;
+  }
   if (err instanceof SyntaxError && 'status' in err && (err as any).status === 400) {
     res.status(400).json({ code: 400, message: '请求体 JSON 格式错误' });
     return;

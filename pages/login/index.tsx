@@ -53,7 +53,7 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className="login-page">
-      <Card className="login-card" bordered>
+      <Card className="login-card" variant="outlined">
         <Typography.Title level={3} style={{ fontWeight: 300, textAlign: 'center', marginBottom: 24 }}>
           薄云商机倍增服务
         </Typography.Title>

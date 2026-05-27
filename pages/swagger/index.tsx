@@ -40,7 +40,7 @@ const ApiDocsPage = memo(function ApiDocsPage() {
       <div className="page-breadcrumb">
         <Breadcrumb items={[{ title: 'API 文档' }]} />
       </div>
-      <Card bordered className="api-docs-card">
+      <Card variant="outlined" className="api-docs-card">
         <Space orientation="vertical" size="large" className="api-docs-content" aria-live="polite">
           <Space size={8} align="center">
             <ApiOutlined className="api-docs-title-icon" />
