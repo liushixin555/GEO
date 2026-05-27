@@ -3,6 +3,7 @@ import { createLlmModelService } from '../service';
 import { AppError } from '../errors';
 import { success, fail, created } from '../utils';
 import { logger } from '../utils/logger.util';
+import { getClientIp } from '../utils/ip.util';
 
 const llmModelService = createLlmModelService();
 
@@ -23,7 +24,7 @@ function auditLog(req: Request, action: string, details?: Record<string, unknown
     userId: (req as any).user?.userId ?? 0,
     username: (req as any).user?.username ?? 'unknown',
     resourceType: 'llm-model',
-    ip: req.ip ?? 'unknown',
+    ip: getClientIp(req) ?? 'unknown',
     ...details,
   });
 }

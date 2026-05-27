@@ -38,14 +38,17 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        xfwd: true,
       },
       '/uploads': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        xfwd: true,
       },
       '^/api-docs/': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        xfwd: true,
       },
     },
   },

@@ -33,6 +33,7 @@ tests/apis/  + tests/pages/  测试文件
 - `apis/controller/llm-model.controller.ts` — LLM 模型 CRUD（仅 sysadmin），使用 `createLlmModelService()` 工厂模式 + `AppError` 统一异常处理 + SSRF 防护
 - `apis/service/impl/` — 业务实现（Prisma）
 - `apis/service/index.ts` — 服务工厂函数（createUserService 等），Controller 通过工厂获取服务实例
+- `apis/utils/ip.util.ts` — 真实客户端 IP 提取（`getClientIp`：X-Forwarded-For → X-Real-IP → req.ip → socket.remoteAddress）
 - `apis/middleware/validate.ts` — Zod 参数验证中间件（支持 body/query/params 三种来源）
 - `apis/schema/auth.schema.ts` — 认证相关 Zod 验证 schema（loginSchema、saveSelectionSchema）
 - `apis/schema/knowledge.schema.ts` — 知识库相关 Zod 验证 schema（13个schema覆盖全部POST/PUT端点）

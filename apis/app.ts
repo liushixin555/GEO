@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import config from './config';
 import { rateLimitMiddleware, antiCrawlMiddleware, swaggerAuthMiddleware } from './middleware';
 import { AppError } from './errors';
+import { getClientIp } from './utils/ip.util';
 
 // Route modules
 import authRoutes from './routes/auth.routes';
@@ -99,7 +100,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
         status: res.statusCode,
         duration: Date.now() - start,
         userId: req.user?.userId || 'anonymous',
-        ip: req.ip,
+        ip: getClientIp(req),
       }));
     }
   });
@@ -160,7 +161,7 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
     type: 'unhandled_error',
     method: req.method,
     url: req.originalUrl,
-    ip: req.ip,
+    ip: getClientIp(req),
     userId: req.user?.userId,
     userRole: req.user?.role,
     timestamp: new Date().toISOString(),

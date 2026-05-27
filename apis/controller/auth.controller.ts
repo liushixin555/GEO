@@ -6,6 +6,7 @@ import { revokeToken, parseExpiryToMs } from '../utils/token-blacklist.util';
 import { isAccountLocked, recordLoginFailure, recordLoginSuccess } from '../utils/account-lockout.util';
 import config from '../config';
 import { logger } from '../utils/logger.util';
+import { getClientIp } from '../utils/ip.util';
 
 const authService: IAuthService = createAuthService();
 
@@ -17,7 +18,7 @@ export async function login(req: Request, res: Response): Promise<void> {
 
   // M-1: 按用户名的暴力破解防护
   if (isAccountLocked(username)) {
-    logger.warn('auth.login.locked', { username, ip: req.ip });
+    logger.warn('auth.login.locked', { username, ip: getClientIp(req) });
     fail(res, 429, '登录尝试次数过多，请稍后重试');
     return;
   }
@@ -25,17 +26,17 @@ export async function login(req: Request, res: Response): Promise<void> {
   try {
     const result = await authService.login({ username, password });
     recordLoginSuccess(username);
-    logger.info('auth.login.success', { userId: result.user.id, username, ip: req.ip });
+    logger.info('auth.login.success', { userId: result.user.id, username, ip: getClientIp(req) });
     success(res, result, '登录成功');
   } catch (err: unknown) {
     recordLoginFailure(username);
     // M-6: 统一返回 401 防止用户名枚举
     if (err instanceof LoginSelectionError) {
-      logger.warn('auth.login.no_access', { username, reason: err.message, ip: req.ip });
+      logger.warn('auth.login.no_access', { username, reason: err.message, ip: getClientIp(req) });
       fail(res, 401, '用户名或密码错误');
       return;
     }
-    logger.warn('auth.login.failed', { username, ip: req.ip });
+    logger.warn('auth.login.failed', { username, ip: getClientIp(req) });
     fail(res, 401, '用户名或密码错误');
   }
 }
@@ -47,7 +48,7 @@ export async function logout(req: Request, res: Response): Promise<void> {
     const expiryMs = parseExpiryToMs(config.jwt.expiresIn);
     revokeToken(token, expiryMs);
   }
-  logger.info('auth.logout', { userId: req.user?.userId, ip: req.ip });
+  logger.info('auth.logout', { userId: req.user?.userId, ip: getClientIp(req) });
   success(res, null, '登出成功');
 }
 
@@ -61,7 +62,7 @@ export async function verify(req: Request, res: Response): Promise<void> {
     const freshUser = await authService.getLatestUserState(user.userId);
     success(res, { valid: true, user: freshUser }, 'token有效');
   } catch (err: unknown) {
-    logger.warn('auth.verify.failed', { userId: req.user?.userId, ip: req.ip });
+    logger.warn('auth.verify.failed', { userId: req.user?.userId, ip: getClientIp(req) });
     fail(res, 401, '登录已过期');
   }
 }
@@ -79,11 +80,11 @@ export async function saveSelection(req: Request, res: Response): Promise<void> 
     const projectId: number | null = req.body.project_id ?? null;
 
     await authService.saveSelection(user.userId, user.role, user.companyId, { company_id: companyId, project_id: projectId });
-    logger.info('auth.selection.saved', { userId: user.userId, companyId, projectId, ip: req.ip });
+    logger.info('auth.selection.saved', { userId: user.userId, companyId, projectId, ip: getClientIp(req) });
     success(res, null, '保存成功');
   } catch (err: unknown) {
     if (err instanceof PermissionDeniedError) {
-      logger.warn('auth.selection.denied', { userId: user!.userId, ip: req.ip });
+      logger.warn('auth.selection.denied', { userId: user!.userId, ip: getClientIp(req) });
       fail(res, 403, err.message);
       return;
     }

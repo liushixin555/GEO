@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { getClientIp } from '../utils/ip.util';
 
 const requestCounts = new Map<string, { count: number; lastReset: number }>();
 const blockedIPs = new Map<string, number>();
@@ -25,7 +26,7 @@ function evictOldest(map: Map<string, unknown>): void {
 }
 
 export function antiCrawlMiddleware(req: Request, res: Response, next: NextFunction): void {
-  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const ip = getClientIp(req);
   const now = Date.now();
 
   // Check if IP is blocked

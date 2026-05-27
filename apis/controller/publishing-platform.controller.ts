@@ -4,6 +4,7 @@ import { BusinessError } from '../errors';
 import { success, fail, paginate } from '../utils';
 import { parsePagination } from '../utils/pagination.util';
 import { logger } from '../utils/logger.util';
+import { getClientIp } from '../utils/ip.util';
 
 const publishingPlatformService: IPublishingPlatformService = createPublishingPlatformService();
 
@@ -21,7 +22,7 @@ function qp(value: string | string[] | undefined): string | undefined {
 }
 
 export async function syncPublishingPlatforms(req: Request, res: Response): Promise<void> {
-  const operator = { userId: req.user?.userId, username: req.user?.username, role: req.user?.role, ip: req.ip };
+  const operator = { userId: req.user?.userId, username: req.user?.username, role: req.user?.role, ip: getClientIp(req) };
   logger.info('publishing-platform.sync.start', operator);
 
   if (syncLock) {
