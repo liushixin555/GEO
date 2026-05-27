@@ -4208,7 +4208,9 @@
                           "type": "string",
                           "enum": [
                             "yishangshu_username",
-                            "yishangshu_password"
+                            "yishangshu_password",
+                            "ruanmeng_username",
+                            "ruanmeng_password"
                           ]
                         },
                         "config_value": {
@@ -13368,6 +13370,55 @@
           "operator"
         ]
       },
+      "AuditLog": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "level": {
+            "$ref": "#/components/schemas/AuditLogLevel"
+          },
+          "event": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "duration": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "level",
+          "event",
+          "createdAt"
+        ]
+      },
       "PublishingSchedule": {
         "type": "object",
         "properties": {
@@ -13499,6 +13550,15 @@
           "reopen",
           "transfer",
           "reject"
+        ]
+      },
+      "AuditLogLevel": {
+        "type": "string",
+        "enum": [
+          "debug",
+          "info",
+          "warn",
+          "error"
         ]
       }
     }
