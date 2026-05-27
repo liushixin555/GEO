@@ -106,18 +106,10 @@ const CreatePublishSchedule: React.FC = () => {
     setPlatformPage(1);
   };
 
-  // 选中/取消选中时维护跨页缓存
-  const handleSelectionChange = (newKeys: React.Key[]) => {
-    // 把当前页数据写入缓存
-    platformList.forEach((p) => selectedMapRef.current.set(p.id, p));
-    // 计算差集：新增的 + 移除的
-    const prevKeys = new Set(selectedPlatformIds);
-    const newKeysSet = new Set(newKeys);
-    // 移除取消选中的
-    selectedPlatformIds.forEach((k) => {
-      if (!newKeysSet.has(k)) selectedMapRef.current.delete(k as number);
-    });
-    setSelectedPlatformIds(newKeys);
+  // 单选平台
+  const handleSelectPlatform = (record: PlatformItem) => {
+    selectedMapRef.current.set(record.id, record);
+    setSelectedPlatformIds([record.id]);
   };
 
   const handleSubmit = async () => {
@@ -163,6 +155,7 @@ const CreatePublishSchedule: React.FC = () => {
       dataIndex: 'rm_resource_id',
       key: 'rm_resource_id',
       width: 90,
+      responsive: ['xl'] as const,
     },
     {
       title: '平台名称',
@@ -175,6 +168,7 @@ const CreatePublishSchedule: React.FC = () => {
       dataIndex: 'taxonomy',
       key: 'taxonomy',
       width: 120,
+      responsive: ['md'] as const,
     },
     {
       title: '价格',
@@ -189,6 +183,7 @@ const CreatePublishSchedule: React.FC = () => {
       key: 'remark',
       width: 200,
       ellipsis: { showTitle: false } as const,
+      responsive: ['lg'] as const,
       render: (text: string | null) => (
         <Tooltip placement="topLeft" title={text}>
           {text || '-'}
@@ -200,6 +195,7 @@ const CreatePublishSchedule: React.FC = () => {
       dataIndex: 'include_rate',
       key: 'include_rate',
       width: 80,
+      responsive: ['lg'] as const,
       render: (v: number) => `${v}%`,
     },
     {
@@ -207,6 +203,7 @@ const CreatePublishSchedule: React.FC = () => {
       dataIndex: 'publish_rate',
       key: 'publish_rate',
       width: 80,
+      responsive: ['lg'] as const,
       render: (v: number) => `${v}%`,
     },
   ];
@@ -275,7 +272,7 @@ const CreatePublishSchedule: React.FC = () => {
               <span style={{ fontWeight: 500 }}>
                 选择发布平台 <span style={{ color: 'red' }}>*</span>
                 {selectedPlatformIds.length > 0 && (
-                  <Tag color="blue" style={{ marginLeft: 8 }}>已选 {selectedPlatformIds.length} 个</Tag>
+                  <Tag color="blue" style={{ marginLeft: 8 }}>已选：{selectedMapRef.current.get(selectedPlatformIds[0] as number)?.name}</Tag>
                 )}
               </span>
               <Input.Search
@@ -289,8 +286,12 @@ const CreatePublishSchedule: React.FC = () => {
             </div>
             <Table
               rowSelection={{
+                type: 'radio',
                 selectedRowKeys: selectedPlatformIds,
-                onChange: handleSelectionChange,
+                onChange: (_keys: React.Key[], rows: PlatformItem | PlatformItem[]) => {
+                  const row = Array.isArray(rows) ? rows[0] : rows;
+                  if (row) handleSelectPlatform(row);
+                },
               }}
               columns={platformColumns}
               dataSource={platformList}
