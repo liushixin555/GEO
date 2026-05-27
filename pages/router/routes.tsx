@@ -20,6 +20,7 @@ const ImageDetail = lazy(() => import('../knowledge/ImageDetail'));
 const DocumentDetail = lazy(() => import('../knowledge/DocumentDetail'));
 const KeywordMine = lazy(() => import('../knowledge/KeywordMine'));
 const PublishingSchedulePage = lazy(() => import('../publish'));
+const CreatePublishSchedule = lazy(() => import('../publish/CreatePublishSchedule'));
 const TodoPage = lazy(() => import('../todo'));
 const ApiDocsPage = lazy(() => import('../swagger'));
 const AuditLogPage = lazy(() => import('../audit-log'));
@@ -44,6 +45,7 @@ const ROUTE_DEFS: RouteDef[] = [
   { path: '/article', roles: [ROLES.SYSADMIN, ROLES.ADMIN], Component: ArticlePage },
   { path: '/article/:id', roles: [ROLES.SYSADMIN, ROLES.ADMIN], Component: ArticleDetail },
   { path: '/publish', roles: [ROLES.SYSADMIN, ROLES.ADMIN], Component: PublishingSchedulePage },
+  { path: '/publish/create', roles: [ROLES.SYSADMIN, ROLES.ADMIN], Component: CreatePublishSchedule },
   { path: '/project', roles: [ROLES.SYSADMIN, ROLES.ADMIN], Component: ProjectPage },
   { path: '/users', roles: [ROLES.SYSADMIN], Component: UserPage },
   { path: '/skills', roles: [ROLES.SYSADMIN, ROLES.ADMIN], Component: SkillPage },
