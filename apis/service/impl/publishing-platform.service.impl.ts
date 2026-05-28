@@ -4,22 +4,13 @@ import { PublishingPlatform } from '../../entity';
 import { mapPublishingPlatform } from '../../map';
 import { BusinessError } from '../../errors';
 import { IPublishingPlatformService } from '../publishing-platform.service';
-import type { ISystemConfigService } from '../system-config.service';
-import { SystemConfigServiceImpl } from './system-config.service.impl';
-import { AuthContext } from '../../types/auth';
-
-const SYSTEM_AUTH: AuthContext = { userId: 0, role: 'sysadmin' };
-
 export class PublishingPlatformServiceImpl implements IPublishingPlatformService {
-  private systemConfigService: ISystemConfigService;
-
-  constructor() {
-    this.systemConfigService = new SystemConfigServiceImpl();
-  }
-
   async syncFromSystemConfig(): Promise<number> {
-    const configs = await this.systemConfigService.getAll(SYSTEM_AUTH);
-    const configMap = new Map(configs.map((c) => [c.config_key, c.config_value]));
+    const prisma = getPrisma();
+    const configs = await prisma.systemConfig.findMany({
+      where: { configKey: { in: ['ruanmeng_username', 'ruanmeng_password'] } },
+    });
+    const configMap = new Map(configs.map((c) => [c.configKey, c.configValue]));
     const username = configMap.get('ruanmeng_username');
     const password = configMap.get('ruanmeng_password');
 

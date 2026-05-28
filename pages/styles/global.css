@@ -271,6 +271,7 @@ a:hover {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
   transition: width var(--transition-normal);
 }
 
@@ -307,6 +308,9 @@ a:hover {
 
 .sidebar-menu-area {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   border-right: 0;
   padding-top: var(--spacing-xs);
 }
@@ -635,6 +639,11 @@ a:hover {
   background-color: var(--color-canvas);
   border-right: 1px solid var(--color-hairline);
   overflow: hidden;
+}
+
+.app-sider .ant-layout-sider-children {
+  height: 100%;
+  min-height: 0;
 }
 
 .app-sider-mobile {

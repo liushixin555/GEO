@@ -40,6 +40,8 @@ import { PublishingPlatformServiceImpl } from './impl/publishing-platform.servic
 
 import { IPublishingScheduleService } from './publishing-schedule.service';
 import { PublishingScheduleServiceImpl } from './impl/publishing-schedule.service.impl';
+import { IPublishingExecutionService } from './publishing-execution.service';
+import { PublishingExecutionServiceImpl } from './impl/publishing-execution.service.impl';
 
 // --- 知识域 ---
 import { IKnowledgeBaseService } from './knowledge-base.service';
@@ -97,6 +99,7 @@ export { IProjectService };
 export { ITodoService };
 export { IPublishingPlatformService };
 export { IPublishingScheduleService };
+export { IPublishingExecutionService };
 
 // 知识域
 export { IKnowledgeBaseService };
@@ -145,6 +148,10 @@ export function createPublishingPlatformService(): IPublishingPlatformService {
 
 export function createPublishingScheduleService(): IPublishingScheduleService {
   return new PublishingScheduleServiceImpl();
+}
+
+export function createPublishingExecutionService(): IPublishingExecutionService {
+  return new PublishingExecutionServiceImpl();
 }
 
 // 知识域
