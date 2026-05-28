@@ -1,6 +1,5 @@
 import { ChatOpenAI } from '@langchain/openai';
-import { createDeepAgent } from 'deepagents';
-import { StructuredTool } from '@langchain/core/tools';
+import { createDeepAgent, StateBackend } from 'deepagents';
 import type { BaseMessage } from '@langchain/core/messages';
 
 // ─── 类型定义 ────────────────────────────────────────────
@@ -15,11 +14,9 @@ export interface AgentLoopOptions {
   modelName: string;
   /** 用户提示词 */
   prompt: string;
-  /** 自定义工具列表 */
-  tools?: StructuredTool[];
   /** 系统提示词 */
   systemPrompt?: string;
-  /** 技能路径列表 */
+  /** 技能源路径列表（POSIX 路径，如 ["/skills/"]） */
   skills?: string[];
   /** 生成温度（默认 0） */
   temperature?: number;
@@ -54,23 +51,21 @@ export interface AgentLoopResult {
  * 输入: baseUrl / apiKey / modelName / prompt
  * 输出: agent loop 执行的最终结果
  *
+ * 内置工具（由 deepagents 默认 middleware 提供）:
+ *  - ls / read_file / write_file / edit_file / glob / grep  (文件系统，StateBackend 内存存储)
+ *  - write_todos  (任务规划与进度跟踪)
+ *  - task  (子代理任务委派)
+ *  - 上下文自动摘要（长文本场景）
+ *
  * @example
  * ```ts
  * import { AgentLoopUtil } from '@/utils/llm.utils';
- * import { tool } from 'langchain';
- * import { z } from 'zod';
- *
- * const searchTool = tool(
- *   async ({ query }) => `搜索结果: ${query}`,
- *   { name: 'search', description: '搜索工具', schema: z.object({ query: z.string() }) },
- * );
  *
  * const result = await AgentLoopUtil.run({
  *   baseUrl: 'https://api.openai.com/v1',
  *   apiKey: 'sk-xxx',
  *   modelName: 'gpt-4o',
- *   prompt: '请搜索关于 AI Agent 的最新进展',
- *   tools: [searchTool],
+ *   prompt: '请分析以下文本的关键信息...',
  * });
  *
  * console.log(result.content);     // 最终回复
@@ -84,7 +79,7 @@ export class AgentLoopUtil {
    *
    * 流程:
    *  1. 根据 baseUrl/apiKey/modelName 创建 ChatOpenAI 模型
-   *  2. 使用 createDeepAgent 构建 Agent（支持自定义 tools + skills）
+   *  2. 使用 createDeepAgent 构建 Agent（内置全部默认工具）
    *  3. 调用 agent.invoke 执行 ReAct 循环
    *  4. 提取最终回复、迭代次数、工具调用记录
    */
@@ -94,7 +89,6 @@ export class AgentLoopUtil {
       apiKey,
       modelName,
       prompt,
-      tools,
       systemPrompt,
       skills,
       temperature = 0,
@@ -111,13 +105,16 @@ export class AgentLoopUtil {
     });
 
     // 2. 创建 DeepAgent
-    //    middleware 为空数组 → 禁用默认文件系统/子代理中间件，纯工具驱动
+    //    不传 middleware → 使用默认中间件栈:
+    //      filesystem (ls/read_file/write_file/edit_file/glob/grep)
+    //      todoList (write_todos)
+    //      summarization (上下文摘要)
+    //      subAgent (task 子代理)
+    //    不传 backend → 默认 StateBackend (内存存储，安全)
     const agent = createDeepAgent({
       model,
-      tools: tools ?? [],
       systemPrompt: systemPrompt ?? '你是一个有用的AI助手，善于利用工具来完成任务。请仔细思考并给出准确的回答。',
       skills,
-      middleware: [],
     });
 
     // 3. 执行 Agent Loop
