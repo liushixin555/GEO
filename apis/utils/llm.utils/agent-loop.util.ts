@@ -1,5 +1,6 @@
+import path from 'path';
 import { ChatOpenAI } from '@langchain/openai';
-import { createDeepAgent, StateBackend } from 'deepagents';
+import { createDeepAgent, FilesystemBackend } from 'deepagents';
 import type { BaseMessage } from '@langchain/core/messages';
 
 // ─── 类型定义 ────────────────────────────────────────────
@@ -16,8 +17,10 @@ export interface AgentLoopOptions {
   prompt: string;
   /** 系统提示词 */
   systemPrompt?: string;
-  /** 技能源路径列表（POSIX 路径，如 ["/skills/"]） */
+  /** 技能子目录名列表（如 ['ant-design', 'seo-writing']） */
   skills?: string[];
+  /** 技能文件根目录绝对路径（如 process.cwd() + '/skills'），配合 skills 使用 */
+  skillsBaseDir?: string;
   /** 生成温度（默认 0） */
   temperature?: number;
 }
@@ -91,6 +94,7 @@ export class AgentLoopUtil {
       prompt,
       systemPrompt,
       skills,
+      skillsBaseDir,
       temperature = 0,
     } = options;
 
@@ -110,11 +114,18 @@ export class AgentLoopUtil {
     //      todoList (write_todos)
     //      summarization (上下文摘要)
     //      subAgent (task 子代理)
-    //    不传 backend → 默认 StateBackend (内存存储，安全)
+    //    有 skills 时使用 FilesystemBackend 从磁盘加载 SKILL.md
+    const skillsSources = skills?.length
+      ? skills.map(s => `/${s}/`)
+      : undefined;
+
     const agent = createDeepAgent({
       model,
       systemPrompt: systemPrompt ?? '你是一个有用的AI助手，善于利用工具来完成任务。请仔细思考并给出准确的回答。',
-      skills,
+      skills: skillsSources,
+      backend: skillsBaseDir
+        ? new FilesystemBackend({ rootDir: skillsBaseDir })
+        : undefined,
     });
 
     // 3. 执行 Agent Loop

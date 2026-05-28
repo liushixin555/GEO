@@ -1,4 +1,5 @@
 import axios from 'axios';
+import path from 'path';
 import { getPrisma } from '../../utils';
 import { ILlmService, ArticleGenerationParams } from '../llm.service';
 import { decryptApiKey, isEncrypted } from '../../utils/encryption.util';
@@ -139,13 +140,26 @@ ${params.skills || '无特殊要求'}
 ${previousContentSection}
 请直接输出文章内容（Markdown格式），不需要额外说明。`;
 
+    // 查询技能目录路径
+    let skillDirs: string[] = [];
+    const skillNames = params.skills ? params.skills.split(',').map(s => s.trim()).filter(Boolean) : [];
+    if (skillNames.length > 0) {
+      const records = await prisma.skills.findMany({
+        where: { name: { in: skillNames }, deletedAt: null },
+        select: { skillDir: true },
+      });
+      skillDirs = records.map(r => r.skillDir).filter(Boolean);
+    }
+
     const result = await AgentLoopUtil.run({
       baseUrl: model.baseUrl.replace(/\/+$/, ''),
       apiKey: resolveApiKey(model.apiKey),
       modelName: model.modelName,
       prompt: userPrompt,
       systemPrompt,
-      temperature: 0.7,
+      skills: skillDirs.length > 0 ? skillDirs : undefined,
+      skillsBaseDir: skillDirs.length > 0 ? path.join(process.cwd(), 'skills') : undefined,
+      temperature: 0,
     });
 
     if (!result.content.trim()) {
