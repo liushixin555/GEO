@@ -1,4 +1,3 @@
-import axios from 'axios';
 import path from 'path';
 import { getPrisma } from '../../utils';
 import { ILlmService, ArticleGenerationParams } from '../llm.service';
@@ -9,11 +8,25 @@ function resolveApiKey(raw: string): string {
   return isEncrypted(raw) ? decryptApiKey(raw) : raw;
 }
 
+/** 获取当前活跃的 LLM 模型配置 */
+async function getActiveModel() {
+  const prisma = getPrisma();
+  const model = await prisma.llmModel.findFirst({ where: { status: true, deletedAt: null }, orderBy: { id: 'asc' } });
+  if (!model) throw new Error('没有可用的LLM模型，请先在系统管理中配置');
+  return model;
+}
+
+/** 解析 LLM 返回的关键词文本为数组 */
+function parseKeywords(content: string, minLen: number): string[] {
+  return content
+    .split('\n')
+    .map(line => line.replace(/^[\d]+[.、)\s]+/, '').trim())
+    .filter(line => line.length > minLen && line.length < 100);
+}
+
 export class LlmServiceImpl implements ILlmService {
   async expandKeywords(keyword: string): Promise<string[]> {
-    const prisma = getPrisma();
-    const model = await prisma.llmModel.findFirst({ where: { status: true, deletedAt: null }, orderBy: { id: 'asc' } });
-    if (!model) throw new Error('没有可用的LLM模型，请先在系统管理中配置');
+    const model = await getActiveModel();
 
     const prompt = `请根据给定的关键词，生成20个相关的长尾关键词扩展。要求：
 1. 每个关键词占一行
@@ -23,38 +36,19 @@ export class LlmServiceImpl implements ILlmService {
 
 原始关键词：${keyword}`;
 
-    const url = `${model.baseUrl.replace(/\/+$/, '')}/chat/completions`;
-    let response;
-    try {
-      response = await axios.post(url, {
-        model: model.modelName,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0,
-      }, {
-        headers: {
-          'Authorization': `Bearer ${resolveApiKey(model.apiKey)}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 300000,
-      });
-    } catch (err: any) {
-      const detail = err.response?.data?.error?.message || err.response?.data?.message || err.message;
-      throw new Error(`LLM调用失败(${err.response?.status || '未知'}): ${detail}`);
-    }
+    const result = await AgentLoopUtil.run({
+      baseUrl: model.baseUrl.replace(/\/+$/, ''),
+      apiKey: resolveApiKey(model.apiKey),
+      modelName: model.modelName,
+      prompt,
+      temperature: 0,
+    });
 
-    const content = response.data?.choices?.[0]?.message?.content || '';
-    const keywords = content
-      .split('\n')
-      .map((line: string) => line.replace(/^[\d]+[.、)\s]+/, '').trim())
-      .filter((line: string) => line.length > 0 && line.length < 100);
-
-    return keywords;
+    return parseKeywords(result.content, 0);
   }
 
   async mineKeywordsFromContent(content: string): Promise<string[]> {
-    const prisma = getPrisma();
-    const model = await prisma.llmModel.findFirst({ where: { status: true, deletedAt: null }, orderBy: { id: 'asc' } });
-    if (!model) throw new Error('没有可用的LLM模型，请先在系统管理中配置');
+    const model = await getActiveModel();
 
     const prompt = `请从以下内容中提取所有可以作为SEO关键词的词语和短语。要求：
 1. 每个关键词占一行
@@ -66,38 +60,20 @@ export class LlmServiceImpl implements ILlmService {
 内容：
 ${content}`;
 
-    const url = `${model.baseUrl.replace(/\/+$/, '')}/chat/completions`;
-    let response;
-    try {
-      response = await axios.post(url, {
-        model: model.modelName,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0,
-      }, {
-        headers: {
-          'Authorization': `Bearer ${resolveApiKey(model.apiKey)}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 300000,
-      });
-    } catch (err: any) {
-      const detail = err.response?.data?.error?.message || err.response?.data?.message || err.message;
-      throw new Error(`LLM调用失败(${err.response?.status || '未知'}): ${detail}`);
-    }
+    const result = await AgentLoopUtil.run({
+      baseUrl: model.baseUrl.replace(/\/+$/, ''),
+      apiKey: resolveApiKey(model.apiKey),
+      modelName: model.modelName,
+      prompt,
+      temperature: 0,
+    });
 
-    const result = response.data?.choices?.[0]?.message?.content || '';
-    const keywords = result
-      .split('\n')
-      .map((line: string) => line.replace(/^[\d]+[.、)\s]+/, '').trim())
-      .filter((line: string) => line.length > 1 && line.length < 100);
-
-    return keywords;
+    return parseKeywords(result.content, 1);
   }
 
   async generateArticle(params: ArticleGenerationParams): Promise<string> {
     const prisma = getPrisma();
-    const model = await prisma.llmModel.findFirst({ where: { status: true, deletedAt: null }, orderBy: { id: 'asc' } });
-    if (!model) throw new Error('没有可用的LLM模型，请先在系统管理中配置');
+    const model = await getActiveModel();
 
     const imageList = params.images.length > 0
       ? params.images.map((img, i) => `  ${i + 1}. "${img.title}" (${img.description || '无描述'}) URL: ${img.imageUrl}`).join('\n')
