@@ -60,6 +60,12 @@ typings/
 dist/
 .gstack/
 uploads/
+uploads /
+.local/
+dev-*.out.log
+dev-*.err.log
+postgresql-*-windows-*-binaries.zip
+ruanmeng-preview*.html
 .env
 
 # RM API 缓存文件（含 API 响应数据）

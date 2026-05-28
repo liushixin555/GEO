@@ -254,10 +254,6 @@ export class ArticleServiceImpl implements IArticleService {
 
       this.checkProjectOwnership(existing, projectId);
 
-      if (existing.createdBy === auth.userId) {
-        throw new ForbiddenError('不能审核自己创建的文章');
-      }
-
       if (existing.status !== 'pending_review') {
         throw new BusinessError('文章当前状态不支持审核操作');
       }

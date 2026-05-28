@@ -2,6 +2,7 @@ import app from './app';
 import config from './config';
 import { closePrisma } from './utils';
 import { startArticleGenerationCron, stopArticleGenerationCron } from './scheduler/article-generation.scheduler';
+import { startPublishingScheduleCron, stopPublishingScheduleCron } from './scheduler/publishing-schedule.scheduler';
 
 const PORT = config.server.port;
 
@@ -12,6 +13,7 @@ const server = app.listen(PORT, () => {
     console.log(`[薄云商机倍增服务] API docs: http://localhost:${PORT}/api-docs`);
   }
   startArticleGenerationCron();
+  startPublishingScheduleCron();
 });
 
 // SEC-APP-07: Request timeout — prevent Slowloris-style attacks
@@ -22,6 +24,7 @@ server.requestTimeout = 30_000;  // 30s total request timeout
 process.on('SIGINT', async () => {
   console.log('[薄云商机倍增服务] Shutting down...');
   stopArticleGenerationCron();
+  stopPublishingScheduleCron();
   await closePrisma();
   server.close(() => process.exit(0));
 });
@@ -29,6 +32,7 @@ process.on('SIGINT', async () => {
 process.on('SIGTERM', async () => {
   console.log('[薄云商机倍增服务] Shutting down...');
   stopArticleGenerationCron();
+  stopPublishingScheduleCron();
   await closePrisma();
   server.close(() => process.exit(0));
 });

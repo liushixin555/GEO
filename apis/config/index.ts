@@ -17,6 +17,7 @@ const DEFAULTS = {
   RATE_LIMIT_WINDOW_MS: 60000,
   RATE_LIMIT_MAX: 500,
   CRON_ARTICLE_INTERVAL: '*/5 * * * *',
+  CRON_PUBLISHING_INTERVAL: '*/1 * * * *',
   CORS_ORIGIN: 'http://localhost:5173',
   UPLOAD_IMAGE_MAX_SIZE: 10,
   UPLOAD_DOCUMENT_MAX_SIZE: 30,
@@ -45,6 +46,8 @@ export interface RateLimitConfig {
 export interface CronConfig {
   readonly articleGenerationInterval: string;
   readonly articleGenerationEnabled: boolean;
+  readonly publishingScheduleInterval: string;
+  readonly publishingScheduleEnabled: boolean;
 }
 
 export interface UploadConfig {
@@ -232,6 +235,8 @@ const config: Readonly<AppConfig> = deepFreeze({
   cron: {
     articleGenerationInterval: validateCronExpression(process.env.CRON_ARTICLE_INTERVAL || DEFAULTS.CRON_ARTICLE_INTERVAL, 'CRON_ARTICLE_INTERVAL'),
     articleGenerationEnabled: process.env.CRON_ARTICLE_ENABLED !== 'false',
+    publishingScheduleInterval: validateCronExpression(process.env.CRON_PUBLISHING_INTERVAL || DEFAULTS.CRON_PUBLISHING_INTERVAL, 'CRON_PUBLISHING_INTERVAL'),
+    publishingScheduleEnabled: process.env.CRON_PUBLISHING_ENABLED !== 'false',
   },
   corsOrigins: parseCorsOrigins(process.env.CORS_ORIGINS),
   uploadDir: resolveUploadDir(process.env.UPLOAD_DIR),
