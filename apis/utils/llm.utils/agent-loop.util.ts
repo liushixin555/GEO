@@ -108,20 +108,27 @@ export class AgentLoopUtil {
       },
     });
 
-    // 2. 创建 DeepAgent
+    // 2. 构建 systemPrompt（有 skills 时追加强制读取指令）
+    const skillsSources = skills?.length
+      ? skills.map(s => `${s}/`)
+      : undefined;
+
+    let finalSystemPrompt = systemPrompt ?? '你是一个有用的AI助手，善于利用工具来完成任务。请仔细思考并给出准确的回答。';
+    if (skillsSources?.length) {
+      const skillList = skills!.map(s => `${s}/SKILL.md`).join('、');
+      finalSystemPrompt += `\n\n【重要】你必须先使用 read_file 工具读取以下技能文件，理解其中的规则和要求，然后严格按照技能指导完成任务。禁止在读取技能文件之前直接给出回答。\n需要读取的技能文件：${skillList}`;
+    }
+
+    // 3. 创建 DeepAgent
     //    不传 middleware → 使用默认中间件栈:
     //      filesystem (ls/read_file/write_file/edit_file/glob/grep)
     //      todoList (write_todos)
     //      summarization (上下文摘要)
     //      subAgent (task 子代理)
     //    有 skills 时使用 FilesystemBackend 从磁盘加载 SKILL.md
-    const skillsSources = skills?.length
-      ? skills.map(s => `/${s}/`)
-      : undefined;
-
     const agent = createDeepAgent({
       model,
-      systemPrompt: systemPrompt ?? '你是一个有用的AI助手，善于利用工具来完成任务。请仔细思考并给出准确的回答。',
+      systemPrompt: finalSystemPrompt,
       skills: skillsSources,
       backend: skillsBaseDir
         ? new FilesystemBackend({ rootDir: skillsBaseDir })
