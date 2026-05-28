@@ -192,6 +192,20 @@ tests/apis/  + tests/pages/  测试文件
 - **模块**: `apis/scheduler/article-generation.scheduler.ts`
 - **依赖**: `node-cron`
 - **逻辑**: 每5分钟扫描 `status='generating'` 的最旧文章，调用 LLM 生成内容
+- **失败处理**: 状态改 `generate_failed`
+- **防重叠**: `isRunning` 守卫（LLM 调用可能超5分钟）
+- **集成**: `server.ts` 的 `app.listen` 回调中启动，`SIGINT`/`SIGTERM` 中停止
+- **LLM服务**: `ILlmService.generateArticle(params)` 现通过 AgentLoopUtil 调用 deepagents agent loop
+
+## Agent Loop 工具类（2026-05-28）
+- **模块**: `apis/utils/llm.utils/agent-loop.util.ts`
+- **用途**: ReAct 风格 Agent Loop，替代直接 axios 调用大模型
+- **依赖**: deepagents(^1.10.2) + @langchain/openai(^1.4.7) + langchain(^1.4.2) + @langchain/core(^1.1.48)
+- **API**: `AgentLoopUtil.run({ baseUrl, apiKey, modelName, prompt, systemPrompt?, skills?, skillsBaseDir?, temperature? })`
+- **返回**: `{ content, iterations, toolCalls }`
+- **内置工具**: deepagents 默认 middleware 提供（filesystem/todoList/summarization/subAgent）
+- **技能加载**: 有 skills 时自动创建 FilesystemBackend 从磁盘读取 SKILL.md
+- **集成**: `LlmServiceImpl.generateArticle()` 已改用此工具类
 - **流程**: 获取文章 → 查知识库图片 → 构造 prompt → LLM 生成 → 事务保存内容+版本+状态改 `pending_review`
 - **失败处理**: 状态改 `generate_failed`
 - **防重叠**: `isRunning` 守卫（LLM 调用可能超5分钟）

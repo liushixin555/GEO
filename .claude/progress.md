@@ -233,3 +233,4 @@
 | 2026-05-26 | progress_tasks/2026-05-26-knowledge-image-upload-and-usage-count.md | 知识库图片上传400修复（imageUrl校验支持相对路径）+知识清单/详情列表显示被文章使用次数（articleCount） |
 | 2026-05-26 | progress_tasks/2026-05-26-article-kb-only-select.md | 文章设置表单关键词/画像/图片改为纯知识库选择+创建API 400修复(title可选+status允许generating+portrait数组序列化)+移除存草稿按钮 |
 | 2026-05-27 | tasks/progress_tasks/2026-05-27-system-config-ruanmeng-whitelist.md | fix063: 系统配置白名单新增ruanmeng_username/ruanmeng_password，修复PUT 400参数验证失败 |
+| 2026-05-28 | tasks/dev025.AgentLoop工具类.md | Agent Loop 工具类（deepagents + langchain）+ generateArticle 重构 + 技能路径集成 |
