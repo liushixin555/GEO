@@ -111,14 +111,18 @@ export async function createSkills(req: Request, res: Response): Promise<void> {
     // Step 1: Parse zip metadata (name + description) without extracting files
     const { name, description } = skillsFileService.parseSkillZipMeta(req.file.path);
 
-    // Step 2: Check DB for soft-deleted skill with same name (to determine overwrite mode)
+    // Step 2: Check for active (non-deleted) skill with same name → reject early
+    const activeDuplicate = await skillsService.findActiveByName(name);
+    if (activeDuplicate) { fail(res, 409, `已存在同名技能「${name}」`); return; }
+
+    // Step 3: Check DB for soft-deleted skill with same name (to determine overwrite mode)
     const softDeleted = await skillsService.findSoftDeletedByName(name);
 
-    // Step 3: Extract zip files — allow overwrite if soft-deleted skill directory lingers
-    const { topDir, skillDir } = skillsFileService.extractSkillZip(req.file.path, !!softDeleted);
+    // Step 4: Extract zip files — always allow overwrite (active duplicate already checked above)
+    const { topDir, skillDir } = skillsFileService.extractSkillZip(req.file.path, true);
     extractedSkillDir = skillDir;
 
-    // Step 4: Create or reactivate DB record (service handles active-duplicate check internally)
+    // Step 5: Create or reactivate DB record
     const item = await skillsService.create({
       name,
       description,
