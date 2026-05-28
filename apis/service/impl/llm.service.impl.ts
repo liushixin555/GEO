@@ -2,6 +2,7 @@ import axios from 'axios';
 import { getPrisma } from '../../utils';
 import { ILlmService, ArticleGenerationParams } from '../llm.service';
 import { decryptApiKey, isEncrypted } from '../../utils/encryption.util';
+import { AgentLoopUtil } from '../../utils/llm.utils';
 
 function resolveApiKey(raw: string): string {
   return isEncrypted(raw) ? decryptApiKey(raw) : raw;
@@ -133,37 +134,23 @@ ${params.portrait}
 ## 可用图片资源
 ${imageList}
 
-## 写作技能方向
+## 写作技能
 ${params.skills || '无特殊要求'}
 ${previousContentSection}
 请直接输出文章内容（Markdown格式），不需要额外说明。`;
 
-    const url = `${model.baseUrl.replace(/\/+$/, '')}/chat/completions`;
-    let response;
-    try {
-      response = await axios.post(url, {
-        model: model.modelName,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.7,
-      }, {
-        headers: {
-          'Authorization': `Bearer ${resolveApiKey(model.apiKey)}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 300000,
-      });
-    } catch (err: any) {
-      const detail = err.response?.data?.error?.message || err.response?.data?.message || err.message;
-      throw new Error(`LLM调用失败(${err.response?.status || '未知'}): ${detail}`);
-    }
+    const result = await AgentLoopUtil.run({
+      baseUrl: model.baseUrl.replace(/\/+$/, ''),
+      apiKey: resolveApiKey(model.apiKey),
+      modelName: model.modelName,
+      prompt: userPrompt,
+      systemPrompt,
+      temperature: 0.7,
+    });
 
-    const content = response.data?.choices?.[0]?.message?.content || '';
-    if (!content.trim()) {
+    if (!result.content.trim()) {
       throw new Error('LLM返回内容为空');
     }
-    return content;
+    return result.content;
   }
 }
