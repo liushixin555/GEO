@@ -1,12 +1,16 @@
 import { Request, Response } from 'express';
-import { createPublishingScheduleService, createArticleService } from '../service';
+import { createPublishingScheduleService, createArticleService, createPublishingOrderSyncService } from '../service';
 import { success, fail, paginate, created } from '../utils';
+import { getPrisma } from '../utils';
 import { AppError } from '../errors';
 import { logger } from '../utils/logger.util';
 import { Role } from '../constants/roles';
+import { mapPublishingPlatformOrder } from '../map';
+import { Prisma } from '@prisma/client';
 
 const scheduleService = createPublishingScheduleService();
 const articleService = createArticleService();
+const orderSyncService = createPublishingOrderSyncService();
 
 export async function listPublishingSchedule(req: Request, res: Response): Promise<void> {
   try {
@@ -118,6 +122,53 @@ export async function deletePublishingSchedule(req: Request, res: Response): Pro
 }
 
 /** 获取可发布的文章列表（已审核通过的文章，供创建发布计划时选择） */
+export async function listPublishingScheduleOrders(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.user) { fail(res, 401, '未授权访问'); return; }
+    const id = parseInt(req.params.id as string, 10);
+    if (isNaN(id)) { fail(res, 400, '无效的ID'); return; }
+
+    const orders = await getPrisma().$queryRaw<any[]>(Prisma.sql`
+      SELECT
+        id,
+        schedule_id AS "scheduleId",
+        platform_id AS "platformId",
+        rm_order_id AS "rmOrderId",
+        rm_status AS "rmStatus",
+        rm_response_message AS "rmResponseMessage",
+        rm_resource_name AS "rmResourceName",
+        last_synced_at AS "lastSyncedAt",
+        created_at AS "createdAt",
+        updated_at AS "updatedAt"
+      FROM publishing_platform_orders
+      WHERE schedule_id = ${id}
+      ORDER BY id ASC
+    `);
+    success(res, orders.map(mapPublishingPlatformOrder), '获取订单状态成功');
+  } catch (err: unknown) {
+    logger.error('list_publishing_schedule_orders_failed', { error: err instanceof Error ? err.message : String(err) });
+    fail(res, 500, '获取订单状态失败');
+  }
+}
+
+export async function syncPublishingScheduleOrders(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.user) { fail(res, 401, '未授权访问'); return; }
+    const id = parseInt(req.params.id as string, 10);
+    if (isNaN(id)) { fail(res, 400, '无效的ID'); return; }
+
+    const result = await orderSyncService.syncOrderByScheduleId(id);
+    success(res, result, '同步订单状态完成');
+  } catch (err: unknown) {
+    if (err instanceof AppError) {
+      fail(res, err.statusCode, err.message);
+    } else {
+      logger.error('sync_publishing_schedule_orders_failed', { error: err instanceof Error ? err.message : String(err) });
+      fail(res, 500, '同步订单状态失败');
+    }
+  }
+}
+
 export async function listPublishableArticles(req: Request, res: Response): Promise<void> {
   try {
     if (!req.user) { fail(res, 401, '未授权访问'); return; }

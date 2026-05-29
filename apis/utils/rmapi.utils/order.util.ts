@@ -16,6 +16,40 @@ export interface RmOrderResponse {
   status: number;
 }
 
+export interface RmOrderQueryParams {
+  token: string;
+  page?: number;
+  order_id?: string;
+}
+
+export interface RmOrderItem {
+  id?: number;
+  user_id?: number;
+  resource_id?: number;
+  order_id: string;
+  scheduled_time?: number;
+  manuscript_id?: string;
+  title?: string;
+  status: number;
+  pay_time?: string | null;
+  response_message?: string | null;
+  price?: number;
+  resource_name?: string | null;
+}
+
+export interface RmOrderQueryResponse {
+  success: boolean;
+  message?: string;
+  pagination?: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+  };
+  data: RmOrderItem[];
+  status: number;
+}
+
 /**
  * 提交订单到 rmapi
  */
@@ -33,4 +67,23 @@ export async function submitRmOrder(
   );
 
   return res.data;
+}
+
+export async function getRmOrders(params: RmOrderQueryParams): Promise<RmOrderQueryResponse> {
+  const res = await axios.get<RmOrderQueryResponse>(`${RMAPI_BASE}/api/news_order`, {
+    params: {
+      page: params.page ?? 1,
+      ...(params.order_id ? { order_id: params.order_id } : {}),
+    },
+    headers: {
+      Authorization: `Bearer ${params.token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  return res.data;
+}
+
+export async function getRmOrderById(token: string, orderId: string): Promise<RmOrderQueryResponse> {
+  return getRmOrders({ token, order_id: orderId });
 }

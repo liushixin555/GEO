@@ -18,6 +18,7 @@ const DEFAULTS = {
   RATE_LIMIT_MAX: 500,
   CRON_ARTICLE_INTERVAL: '*/5 * * * *',
   CRON_PUBLISHING_INTERVAL: '*/1 * * * *',
+  CRON_PUBLISHING_ORDER_SYNC_INTERVAL: '*/5 * * * *',
   CORS_ORIGIN: 'http://localhost:5173',
   UPLOAD_IMAGE_MAX_SIZE: 10,
   UPLOAD_DOCUMENT_MAX_SIZE: 30,
@@ -48,6 +49,8 @@ export interface CronConfig {
   readonly articleGenerationEnabled: boolean;
   readonly publishingScheduleInterval: string;
   readonly publishingScheduleEnabled: boolean;
+  readonly publishingOrderSyncInterval: string;
+  readonly publishingOrderSyncEnabled: boolean;
 }
 
 export interface UploadConfig {
@@ -237,6 +240,8 @@ const config: Readonly<AppConfig> = deepFreeze({
     articleGenerationEnabled: process.env.CRON_ARTICLE_ENABLED !== 'false',
     publishingScheduleInterval: validateCronExpression(process.env.CRON_PUBLISHING_INTERVAL || DEFAULTS.CRON_PUBLISHING_INTERVAL, 'CRON_PUBLISHING_INTERVAL'),
     publishingScheduleEnabled: process.env.CRON_PUBLISHING_ENABLED !== 'false',
+    publishingOrderSyncInterval: validateCronExpression(process.env.CRON_PUBLISHING_ORDER_SYNC_INTERVAL || DEFAULTS.CRON_PUBLISHING_ORDER_SYNC_INTERVAL, 'CRON_PUBLISHING_ORDER_SYNC_INTERVAL'),
+    publishingOrderSyncEnabled: process.env.CRON_PUBLISHING_ORDER_SYNC_ENABLED !== 'false',
   },
   corsOrigins: parseCorsOrigins(process.env.CORS_ORIGINS),
   uploadDir: resolveUploadDir(process.env.UPLOAD_DIR),

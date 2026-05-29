@@ -147,6 +147,7 @@ model PublishingPlatform {
   publishRate  Float    @default(0) @map("publish_rate")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  orders       PublishingPlatformOrder[]
 
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([rmResourceId])
@@ -503,9 +504,30 @@ model PublishingSchedule {
 
   article           Article                @relation(fields: [articleId], references: [id], onDelete: Cascade)
   creator           User?                  @relation("ScheduleCreator", fields: [createdBy], references: [id])
+  platformOrders    PublishingPlatformOrder[]
 
   deletedAt         DateTime?              @map("deleted_at") @db.Timestamptz()
   @@index([articleId])
   @@index([status])
   @@map("publishing_schedules")
+}
+
+model PublishingPlatformOrder {
+  id                Int                 @id @default(autoincrement())
+  scheduleId        Int                 @map("schedule_id")
+  platformId        Int                 @map("platform_id")
+  rmOrderId         String              @unique @map("rm_order_id") @db.VarChar(100)
+  rmStatus          Int                 @default(0) @map("rm_status")
+  rmResponseMessage String?             @map("rm_response_message") @db.VarChar(1000)
+  rmResourceName    String?             @map("rm_resource_name") @db.VarChar(200)
+  lastSyncedAt      DateTime?           @map("last_synced_at") @db.Timestamptz()
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt         DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  schedule          PublishingSchedule  @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  platform          PublishingPlatform  @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleId])
+  @@index([platformId])
+  @@index([rmStatus])
+  @@map("publishing_platform_orders")
 }

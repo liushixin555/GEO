@@ -83,7 +83,47 @@ export class PublishingScheduleServiceImpl implements IPublishingScheduleService
       prisma.publishingSchedule.count({ where }),
     ]);
 
-    return { list: items.map(mapPublishingScheduleItem), total };
+    const ordersByScheduleId = await this.loadOrdersByScheduleId(items.map((item: any) => item.id));
+    return {
+      list: items.map((item: any) => mapPublishingScheduleItem({
+        ...item,
+        platformOrders: ordersByScheduleId.get(item.id) || [],
+      })),
+      total,
+    };
+  }
+
+  private async loadOrdersByScheduleId(scheduleIds: number[]): Promise<Map<number, any[]>> {
+    const result = new Map<number, any[]>();
+    if (scheduleIds.length === 0) return result;
+
+    try {
+      const rows = await getPrisma().$queryRaw<any[]>(Prisma.sql`
+        SELECT
+          id,
+          schedule_id AS "scheduleId",
+          platform_id AS "platformId",
+          rm_order_id AS "rmOrderId",
+          rm_status AS "rmStatus",
+          rm_response_message AS "rmResponseMessage",
+          rm_resource_name AS "rmResourceName",
+          last_synced_at AS "lastSyncedAt",
+          created_at AS "createdAt",
+          updated_at AS "updatedAt"
+        FROM publishing_platform_orders
+        WHERE schedule_id IN (${Prisma.join(scheduleIds)})
+        ORDER BY id ASC
+      `);
+      for (const row of rows) {
+        const list = result.get(row.scheduleId) || [];
+        list.push(row);
+        result.set(row.scheduleId, list);
+      }
+    } catch {
+      return result;
+    }
+
+    return result;
   }
 
   async create(request: CreatePublishingScheduleRequest, auth: AuthContext): Promise<PublishingSchedule> {

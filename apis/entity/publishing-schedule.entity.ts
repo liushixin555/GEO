@@ -60,6 +60,20 @@ export interface PublishingScheduleItem {
   created_by_name: string;
   created_at: Date;
   updated_at: Date;
+  orders?: PublishingPlatformOrder[];
+}
+
+export interface PublishingPlatformOrder {
+  id: number;
+  schedule_id: number;
+  platform_id: number;
+  rm_order_id: string;
+  rm_status: number;
+  rm_response_message: string | null;
+  rm_resource_name: string | null;
+  last_synced_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
 }
 
 /** 发布计划更新结果 */

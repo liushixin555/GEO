@@ -26,7 +26,7 @@ describe('PublishingExecutionServiceImpl', () => {
       platforms: ['软媒平台A'],
       article: {
         title: '审核通过的文章',
-        content: '正文内容',
+          content: '正文内容',
       },
     };
     const prisma = {
@@ -42,12 +42,13 @@ describe('PublishingExecutionServiceImpl', () => {
         update: jest.fn().mockResolvedValue({}),
       },
       publishingPlatform: {
-        findFirst: jest.fn().mockResolvedValue({ rmResourceId: 12345 }),
+        findFirst: jest.fn().mockResolvedValue({ id: 9, rmResourceId: 12345 }),
       },
+      $executeRaw: jest.fn().mockResolvedValue(1),
     };
     mockedGetPrisma.mockReturnValue(prisma);
     mockedGetRmToken.mockResolvedValue('rm-token');
-    mockedSubmitRmOrder.mockResolvedValue({ success: true, message: 'ok', data: {}, status: 200 });
+    mockedSubmitRmOrder.mockResolvedValue({ success: true, message: 'ok', data: { order_id: 'RM-1' }, status: 200 });
 
     const result = await new PublishingExecutionServiceImpl().processDueSchedules(new Date('2026-05-28T10:00:00Z'));
 
@@ -63,9 +64,10 @@ describe('PublishingExecutionServiceImpl', () => {
     expect(mockedSubmitRmOrder).toHaveBeenCalledWith({
       token: 'rm-token',
       title: '审核通过的文章',
-      content: '正文内容',
+      content: '<p style="color:#000;text-indent:2em;line-height:1.8;margin:0 0 12px;">正文内容</p>',
       resource_id: 12345,
     });
+    expect(prisma.$executeRaw).toHaveBeenCalled();
   });
 
   test('marks a schedule failed when Ruanmeng rejects the order', async () => {
@@ -90,8 +92,9 @@ describe('PublishingExecutionServiceImpl', () => {
         update: jest.fn().mockResolvedValue({}),
       },
       publishingPlatform: {
-        findFirst: jest.fn().mockResolvedValue({ rmResourceId: 67890 }),
+        findFirst: jest.fn().mockResolvedValue({ id: 10, rmResourceId: 67890 }),
       },
+      $executeRaw: jest.fn().mockResolvedValue(1),
     };
     mockedGetPrisma.mockReturnValue(prisma);
     mockedGetRmToken.mockResolvedValue('rm-token');
