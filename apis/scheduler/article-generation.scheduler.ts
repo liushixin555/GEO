@@ -76,6 +76,20 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
     imageUrl: img.imageUrl,
   }));
 
+  const project = await prisma.project.findFirst({
+    where: { id: article.projectId, deletedAt: null },
+    select: {
+      fullName: true,
+      shortName: true,
+      company: {
+        select: {
+          fullName: true,
+          shortName: true,
+        },
+      },
+    },
+  });
+
   const content = await llmService.generateArticle({
     title: article.title || '',
     keywords: article.keywords || '',
@@ -83,6 +97,10 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
     images: imageResources,
     skills: skillsName,
     previousContent: previousContent || undefined,
+    companyName: project?.company?.fullName,
+    companyShortName: project?.company?.shortName,
+    projectName: project?.fullName,
+    projectShortName: project?.shortName,
   });
 
   // Title: if article already has a title, keep it unchanged

@@ -5,6 +5,10 @@ export interface ArticleGenerationParams {
   images: { title: string; description: string; imageUrl: string }[];
   skills: string;
   previousContent?: string;
+  companyName?: string;
+  companyShortName?: string;
+  projectName?: string;
+  projectShortName?: string;
 }
 
 export interface ILlmService {
