@@ -28,6 +28,7 @@ tests/apis/  + tests/pages/  测试文件
 - `apis/controller/user.controller.ts` — 用户 CRUD（仅 sysadmin），使用 `createUserService()` 工厂模式 + Options 模式（UserListOptions）
 - `apis/controller/article.controller.ts` — 文章 CRUD + 审核 + 正文编辑 + 版本历史（sysadmin + admin）
 - `apis/controller/publishing-schedule.controller.ts` — 发布计划列表 + 更新计划 + 驳回发布（sysadmin + admin，通过 createArticleService() 调用）
+- `apis/controller/publishing-platform.controller.ts` — 发布平台列表（search=名称+备注，taxonomy=分类筛选，排序） + 分类去重列表（/taxonomies）
 - `apis/controller/upload.controller.ts` — 图片上传（multer，sysadmin + admin）
 - `apis/controller/knowledge.controller.ts` — 知识库 CRUD（关键词/画像/图片/文档，32个端点，`getServices()`延迟初始化+`handleControllerError`统一异常+`parseId`安全解析+`checkOwnership`所有权检查，架构评审7.9/10）
 - `apis/controller/llm-model.controller.ts` — LLM 模型 CRUD（仅 sysadmin），使用 `createLlmModelService()` 工厂模式 + `AppError` 统一异常处理 + SSRF 防护
