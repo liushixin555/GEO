@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Breadcrumb, Select, Radio, DatePicker, Button, Table, Input, Tooltip, App, Tag, Spin } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { SorterResult } from 'antd/es/table/interface';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../lib/apiClient';
@@ -47,6 +48,8 @@ const CreatePublishSchedule: React.FC = () => {
   const [platformLoading, setPlatformLoading] = useState(false);
   const [selectedPlatformIds, setSelectedPlatformIds] = useState<React.Key[]>([]);
   const [platformSearch, setPlatformSearch] = useState('');
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<string | null>(null);
   // 缓存所有已选平台的完整信息（跨页保留选中状态）
   const selectedMapRef = useRef<Map<number, PlatformItem>>(new Map());
 
@@ -79,11 +82,13 @@ const CreatePublishSchedule: React.FC = () => {
   }, [projectId]);
 
   // 加载平台列表 - 服务端分页
-  const fetchPlatforms = useCallback(async (page: number, search: string) => {
+  const fetchPlatforms = useCallback(async (page: number, search: string, sortField: string | null, sortDir: string | null) => {
     setPlatformLoading(true);
     try {
       const params: Record<string, unknown> = { page, pageSize: 10 };
       if (search.trim()) params.search = search.trim();
+      if (sortField) params.sortBy = sortField;
+      if (sortDir) params.sortOrder = sortDir;
       const res = await apiClient.get('/publishing-platforms', { params });
       const list = res.data.data.list || [];
       const total = res.data.data.total || 0;
@@ -98,8 +103,8 @@ const CreatePublishSchedule: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchPlatforms(platformPage, platformSearch);
-  }, [platformPage, platformSearch, fetchPlatforms]);
+    fetchPlatforms(platformPage, platformSearch, sortBy, sortOrder);
+  }, [platformPage, platformSearch, sortBy, sortOrder, fetchPlatforms]);
 
   // 搜索时重置到第1页
   const handlePlatformSearch = (value: string) => {
@@ -163,6 +168,7 @@ const CreatePublishSchedule: React.FC = () => {
       dataIndex: 'name',
       key: 'name',
       ellipsis: true,
+      sorter: true,
     },
     {
       title: '分类',
@@ -170,12 +176,14 @@ const CreatePublishSchedule: React.FC = () => {
       key: 'taxonomy',
       width: 120,
       responsive: ['md'],
+      sorter: true,
     },
     {
       title: '价格',
       dataIndex: 'price',
       key: 'price',
       width: 80,
+      sorter: true,
       render: (v: number) => `${v}`,
     },
     {
@@ -197,6 +205,7 @@ const CreatePublishSchedule: React.FC = () => {
       key: 'include_rate',
       width: 80,
       responsive: ['lg'],
+      sorter: true,
       render: (v: number) => `${v}%`,
     },
     {
@@ -205,6 +214,7 @@ const CreatePublishSchedule: React.FC = () => {
       key: 'publish_rate',
       width: 80,
       responsive: ['lg'],
+      sorter: true,
       render: (v: number) => `${v}%`,
     },
   ];
@@ -307,7 +317,21 @@ const CreatePublishSchedule: React.FC = () => {
                 onChange: (p) => setPlatformPage(p),
               }}
               locale={{ emptyText: '暂无平台数据' }}
-              scroll={{ y: 400 }}
+              onChange={(
+                _pagination: TablePaginationConfig,
+                _filters: Record<string, unknown>,
+                sorter: SorterResult<PlatformItem> | SorterResult<PlatformItem>[],
+              ) => {
+                const s = Array.isArray(sorter) ? sorter[0] : sorter;
+                if (s.field && s.order) {
+                  setSortBy(s.field as string);
+                  setSortOrder(s.order === 'ascend' ? 'asc' : 'desc');
+                } else {
+                  setSortBy(null);
+                  setSortOrder(null);
+                }
+                setPlatformPage(1);
+              }}
             />
           </div>
 
