@@ -93,7 +93,7 @@ export class PublishingPlatformServiceImpl implements IPublishingPlatformService
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
-        { taxonomy: { contains: search, mode: 'insensitive' } },
+        { remark: { contains: search, mode: 'insensitive' } },
       ];
     }
     if (taxonomy) {
@@ -123,5 +123,15 @@ export class PublishingPlatformServiceImpl implements IPublishingPlatformService
       prisma.publishingPlatform.count({ where }),
     ]);
     return { list: items.map(mapPublishingPlatform), total };
+  }
+
+  async listTaxonomies(): Promise<string[]> {
+    const prisma = getPrisma();
+    const results = await prisma.publishingPlatform.findMany({
+      select: { taxonomy: true },
+      distinct: ['taxonomy'],
+      orderBy: { taxonomy: 'asc' },
+    });
+    return results.map((r) => r.taxonomy);
   }
 }

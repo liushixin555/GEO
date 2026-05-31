@@ -8,6 +8,9 @@ const router: Router = Router();
 // sync 仅 sysadmin
 router.post('/sync', authMiddleware, roleMiddleware(ROLES.SYSADMIN), ctrl.syncPublishingPlatforms);
 
+// taxonomies 混合角色
+router.get('/taxonomies', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN), ctrl.listTaxonomies);
+
 // list 混合角色
 router.get('/', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN), ctrl.listPublishingPlatforms);
 

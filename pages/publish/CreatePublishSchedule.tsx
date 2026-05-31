@@ -48,6 +48,8 @@ const CreatePublishSchedule: React.FC = () => {
   const [platformLoading, setPlatformLoading] = useState(false);
   const [selectedPlatformIds, setSelectedPlatformIds] = useState<React.Key[]>([]);
   const [platformSearch, setPlatformSearch] = useState('');
+  const [selectedTaxonomy, setSelectedTaxonomy] = useState<string | undefined>(undefined);
+  const [taxonomyOptions, setTaxonomyOptions] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<string | null>(null);
   // 缓存所有已选平台的完整信息（跨页保留选中状态）
@@ -81,12 +83,26 @@ const CreatePublishSchedule: React.FC = () => {
     fetchArticles();
   }, [projectId]);
 
+  // 加载分类选项
+  useEffect(() => {
+    const fetchTaxonomies = async () => {
+      try {
+        const res = await apiClient.get('/publishing-platforms/taxonomies');
+        setTaxonomyOptions(res.data.data || []);
+      } catch {
+        setTaxonomyOptions([]);
+      }
+    };
+    fetchTaxonomies();
+  }, []);
+
   // 加载平台列表 - 服务端分页
-  const fetchPlatforms = useCallback(async (page: number, search: string, sortField: string | null, sortDir: string | null) => {
+  const fetchPlatforms = useCallback(async (page: number, search: string, taxonomy: string | undefined, sortField: string | null, sortDir: string | null) => {
     setPlatformLoading(true);
     try {
       const params: Record<string, unknown> = { page, pageSize: 10 };
       if (search.trim()) params.search = search.trim();
+      if (taxonomy) params.taxonomy = taxonomy;
       if (sortField) params.sortBy = sortField;
       if (sortDir) params.sortOrder = sortDir;
       const res = await apiClient.get('/publishing-platforms', { params });
@@ -103,8 +119,8 @@ const CreatePublishSchedule: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchPlatforms(platformPage, platformSearch, sortBy, sortOrder);
-  }, [platformPage, platformSearch, sortBy, sortOrder, fetchPlatforms]);
+    fetchPlatforms(platformPage, platformSearch, selectedTaxonomy, sortBy, sortOrder);
+  }, [platformPage, platformSearch, selectedTaxonomy, sortBy, sortOrder, fetchPlatforms]);
 
   // 搜索时重置到第1页
   const handlePlatformSearch = (value: string) => {
@@ -286,14 +302,28 @@ const CreatePublishSchedule: React.FC = () => {
                   <Tag color="blue" style={{ marginLeft: 8 }}>已选：{selectedMapRef.current.get(selectedPlatformIds[0] as number)?.name}</Tag>
                 )}
               </span>
-              <Input.Search
-                placeholder="搜索平台名称或分类..."
-                value={platformSearch}
-                onChange={(e) => handlePlatformSearch(e.target.value)}
-                onSearch={(val) => handlePlatformSearch(val)}
-                allowClear
-                style={{ width: 260 }}
-              />
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <Select
+                  showSearch
+                  allowClear
+                  placeholder="选择分类"
+                  value={selectedTaxonomy}
+                  onChange={(val: string | undefined) => {
+                    setSelectedTaxonomy(val);
+                    setPlatformPage(1);
+                  }}
+                  options={taxonomyOptions.map((t) => ({ value: t, label: t }))}
+                  style={{ width: 160 }}
+                />
+                <Input.Search
+                  placeholder="搜索平台名称或备注..."
+                  value={platformSearch}
+                  onChange={(e) => handlePlatformSearch(e.target.value)}
+                  onSearch={(val) => handlePlatformSearch(val)}
+                  allowClear
+                  style={{ width: 260 }}
+                />
+              </div>
             </div>
             <Table
               rowSelection={{

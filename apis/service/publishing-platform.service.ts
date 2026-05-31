@@ -9,4 +9,6 @@ export interface IPublishingPlatformService {
   listAll(): Promise<PublishingPlatform[]>;
   /** 分页查询发布平台 */
   list(page: number, pageSize: number, search?: string, taxonomy?: string, sortBy?: string, sortOrder?: string): Promise<{ list: PublishingPlatform[]; total: number }>;
+  /** 获取所有不重复的分类 */
+  listTaxonomies(): Promise<string[]>;
 }

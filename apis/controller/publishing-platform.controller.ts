@@ -92,3 +92,13 @@ export async function listPublishingPlatforms(req: Request, res: Response): Prom
     fail(res, 500, '获取发布平台失败');
   }
 }
+
+export async function listTaxonomies(req: Request, res: Response): Promise<void> {
+  try {
+    const taxonomies = await publishingPlatformService.listTaxonomies();
+    success(res, taxonomies);
+  } catch (err: unknown) {
+    logger.error('publishing-platform.taxonomies.failed', { err: err instanceof Error ? err.message : String(err) });
+    fail(res, 500, '获取分类列表失败');
+  }
+}
