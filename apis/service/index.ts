@@ -42,6 +42,8 @@ import { IPublishingScheduleService } from './publishing-schedule.service';
 import { PublishingScheduleServiceImpl } from './impl/publishing-schedule.service.impl';
 import { IPublishingExecutionService } from './publishing-execution.service';
 import { PublishingExecutionServiceImpl } from './impl/publishing-execution.service.impl';
+import { IPublishingOrderSyncService, PublishingOrderSyncResult } from './publishing-order-sync.service';
+import { PublishingOrderSyncServiceImpl } from './impl/publishing-order-sync.service.impl';
 
 // --- 知识域 ---
 import { IKnowledgeBaseService } from './knowledge-base.service';
@@ -100,6 +102,7 @@ export { ITodoService };
 export { IPublishingPlatformService };
 export { IPublishingScheduleService };
 export { IPublishingExecutionService };
+export { IPublishingOrderSyncService, PublishingOrderSyncResult };
 
 // 知识域
 export { IKnowledgeBaseService };
@@ -152,6 +155,10 @@ export function createPublishingScheduleService(): IPublishingScheduleService {
 
 export function createPublishingExecutionService(): IPublishingExecutionService {
   return new PublishingExecutionServiceImpl();
+}
+
+export function createPublishingOrderSyncService(): IPublishingOrderSyncService {
+  return new PublishingOrderSyncServiceImpl();
 }
 
 // 知识域

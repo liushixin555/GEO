@@ -1,7 +1,7 @@
 import { Company, CompanyListItem, User, Skills, SkillsDetail, LlmModel, SystemConfig, Project, Article, ArticleDetail, ArticleVersion, PublishingPlatform, KnowledgeKeyword, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, KnowledgeBase, MinedKeyword, Todo, TodoLog, UserListItem } from '../entity';
 import type { ArticleType, WriteMode, ArticleStatus } from '../entity';
 import { validateSkills, validateImages } from '../entity/article.entity';
-import type { PublishingSchedule, PublishingScheduleItem } from '../entity/publishing-schedule.entity';
+import type { PublishingSchedule, PublishingScheduleItem, PublishingPlatformOrder } from '../entity/publishing-schedule.entity';
 import type { AuditLog } from '../entity/audit-log.entity';
 import { Prisma, Company as PrismaCompany, User as PrismaUser } from '@prisma/client';
 import { isEncrypted } from '../utils/encryption.util';
@@ -326,6 +326,22 @@ export function mapPublishingScheduleItem(prismaItem: any): PublishingScheduleIt
     created_by_name: prismaItem.creator?.cnName || '',
     created_at: prismaItem.createdAt,
     updated_at: prismaItem.updatedAt,
+    orders: Array.isArray(prismaItem.platformOrders) ? prismaItem.platformOrders.map(mapPublishingPlatformOrder) : undefined,
+  };
+}
+
+export function mapPublishingPlatformOrder(prismaOrder: any): PublishingPlatformOrder {
+  return {
+    id: prismaOrder.id,
+    schedule_id: prismaOrder.scheduleId,
+    platform_id: prismaOrder.platformId,
+    rm_order_id: prismaOrder.rmOrderId,
+    rm_status: prismaOrder.rmStatus,
+    rm_response_message: prismaOrder.rmResponseMessage ?? null,
+    rm_resource_name: prismaOrder.rmResourceName ?? null,
+    last_synced_at: prismaOrder.lastSyncedAt ?? null,
+    created_at: prismaOrder.createdAt,
+    updated_at: prismaOrder.updatedAt,
   };
 }
 

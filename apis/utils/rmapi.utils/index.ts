@@ -7,4 +7,13 @@ export {
   type RmResourceItem,
   type RmResourcePagination,
 } from './resource.util';
-export { submitRmOrder, type RmOrderParams, type RmOrderResponse } from './order.util';
+export {
+  submitRmOrder,
+  getRmOrders,
+  getRmOrderById,
+  type RmOrderParams,
+  type RmOrderResponse,
+  type RmOrderQueryParams,
+  type RmOrderQueryResponse,
+  type RmOrderItem,
+} from './order.util';

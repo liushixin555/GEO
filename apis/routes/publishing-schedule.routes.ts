@@ -14,6 +14,9 @@ router.get('/', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN, ROLE
 router.get('/articles', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN), validate(listPublishableArticlesSchema, 'query'), ctrl.listPublishableArticles);
 
 // 创建发布计划
+router.get('/:id/orders', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN, ROLES.VIEW), ctrl.listPublishingScheduleOrders);
+router.post('/:id/orders/sync', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN), ctrl.syncPublishingScheduleOrders);
+
 router.post('/', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN), validate(createPublishingScheduleSchema), ctrl.createPublishingSchedule);
 
 // 更新发布计划

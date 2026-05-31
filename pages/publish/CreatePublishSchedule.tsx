@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Breadcrumb, Select, Radio, DatePicker, Button, Table, Input, Tooltip, App, Tag, Spin } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../lib/apiClient';
@@ -149,13 +150,13 @@ const CreatePublishSchedule: React.FC = () => {
     }
   };
 
-  const platformColumns = [
+  const platformColumns: ColumnsType<PlatformItem> = [
     {
       title: '资源ID',
       dataIndex: 'rm_resource_id',
       key: 'rm_resource_id',
       width: 90,
-      responsive: ['xl'] as const,
+      responsive: ['xl'],
     },
     {
       title: '平台名称',
@@ -168,7 +169,7 @@ const CreatePublishSchedule: React.FC = () => {
       dataIndex: 'taxonomy',
       key: 'taxonomy',
       width: 120,
-      responsive: ['md'] as const,
+      responsive: ['md'],
     },
     {
       title: '价格',
@@ -183,7 +184,7 @@ const CreatePublishSchedule: React.FC = () => {
       key: 'remark',
       width: 200,
       ellipsis: { showTitle: false } as const,
-      responsive: ['lg'] as const,
+      responsive: ['lg'],
       render: (text: string | null) => (
         <Tooltip placement="topLeft" title={text}>
           {text || '-'}
@@ -195,7 +196,7 @@ const CreatePublishSchedule: React.FC = () => {
       dataIndex: 'include_rate',
       key: 'include_rate',
       width: 80,
-      responsive: ['lg'] as const,
+      responsive: ['lg'],
       render: (v: number) => `${v}%`,
     },
     {
@@ -203,7 +204,7 @@ const CreatePublishSchedule: React.FC = () => {
       dataIndex: 'publish_rate',
       key: 'publish_rate',
       width: 80,
-      responsive: ['lg'] as const,
+      responsive: ['lg'],
       render: (v: number) => `${v}%`,
     },
   ];

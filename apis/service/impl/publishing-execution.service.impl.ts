@@ -2,6 +2,7 @@ import { getPrisma } from '../../utils';
 import { getRmToken, submitRmOrder } from '../../utils/rmapi.utils';
 import { markdownToPublishHtml } from '../../utils/publish-content.util';
 import type { IPublishingExecutionService, PublishingExecutionResult } from '../publishing-execution.service';
+import { Prisma } from '@prisma/client';
 
 const RUANMENG_USERNAME_KEY = 'ruanmeng_username';
 const RUANMENG_PASSWORD_KEY = 'ruanmeng_password';
@@ -100,12 +101,12 @@ export class PublishingExecutionServiceImpl implements IPublishingExecutionServi
 
     let activeToken = token;
     for (const platformName of platformNames) {
-      const resourceId = await this.resolveResourceId(platformName);
+      const platform = await this.resolvePlatform(platformName);
       const response = await submitRmOrder({
         token: activeToken,
         title,
         content: publishContent,
-        resource_id: resourceId,
+        resource_id: platform.rmResourceId,
       });
 
       if (!response.success && response.status === 401) {
@@ -114,34 +115,66 @@ export class PublishingExecutionServiceImpl implements IPublishingExecutionServi
           token: activeToken,
           title,
           content: publishContent,
-          resource_id: resourceId,
+          resource_id: platform.rmResourceId,
         });
         if (!retryResponse.success) {
           throw new Error(retryResponse.message || `软盟下单失败，状态码 ${retryResponse.status}`);
         }
+        await this.recordPlatformOrder(schedule.id, platform.id, platformName, retryResponse);
         continue;
       }
 
       if (!response.success) {
         throw new Error(response.message || `软盟下单失败，状态码 ${response.status}`);
       }
+      await this.recordPlatformOrder(schedule.id, platform.id, platformName, response);
     }
 
     return activeToken;
   }
 
-  private async resolveResourceId(platformName: string): Promise<number> {
+  private async resolvePlatform(platformName: string): Promise<{ id: number; rmResourceId: number }> {
     const name = platformName.trim();
     if (!name) throw new Error('发布平台名称为空');
 
     const platform = await getPrisma().publishingPlatform.findFirst({
       where: { name },
-      select: { rmResourceId: true },
+      select: { id: true, rmResourceId: true },
     });
     if (!platform) {
       throw new Error(`未找到发布平台：${name}`);
     }
-    return platform.rmResourceId;
+    return platform;
+  }
+
+  private async recordPlatformOrder(scheduleId: number, platformId: number, platformName: string, response: any): Promise<void> {
+    const rmOrderId = this.extractRmOrderId(response);
+    if (!rmOrderId) return;
+
+    try {
+      await getPrisma().$executeRaw(Prisma.sql`
+        INSERT INTO publishing_platform_orders
+          (schedule_id, platform_id, rm_order_id, rm_status, rm_response_message, rm_resource_name, last_synced_at)
+        VALUES
+          (${scheduleId}, ${platformId}, ${rmOrderId}, 0, ${response.message ?? null}, ${platformName}, NOW())
+        ON CONFLICT (rm_order_id) DO UPDATE SET
+          schedule_id = EXCLUDED.schedule_id,
+          platform_id = EXCLUDED.platform_id,
+          rm_status = 0,
+          rm_response_message = EXCLUDED.rm_response_message,
+          rm_resource_name = EXCLUDED.rm_resource_name,
+          last_synced_at = NOW(),
+          updated_at = NOW()
+      `);
+    } catch (err) {
+      console.warn('[发布订单] 记录软盟订单失败', err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  private extractRmOrderId(response: any): string | null {
+    const data = response?.data;
+    const value = data?.order_id ?? data?.orderId ?? data?.id ?? data?.order?.order_id;
+    return value == null ? null : String(value);
   }
 
   private formatFailureReason(err: unknown): string {

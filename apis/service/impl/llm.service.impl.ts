@@ -24,6 +24,27 @@ function parseKeywords(content: string, minLen: number): string[] {
     .filter(line => line.length > minLen && line.length < 100);
 }
 
+function buildCompanyProjectContext(params: ArticleGenerationParams): string {
+  const lines = [
+    params.companyName ? `公司全称：${params.companyName}` : '',
+    params.companyShortName ? `公司简称：${params.companyShortName}` : '',
+    params.projectName ? `项目全称：${params.projectName}` : '',
+    params.projectShortName ? `项目简称：${params.projectShortName}` : '',
+  ].filter(Boolean);
+
+  if (lines.length === 0) return '';
+
+  return `
+## 公司与项目背景
+${lines.join('\n')}
+
+## 公司/项目融入要求
+文章内容应自然融入公司和项目背景。
+不要刻意堆砌公司或项目名称。
+可以在相关处从公司或项目视角阐述观点。
+`;
+}
+
 export class LlmServiceImpl implements ILlmService {
   async expandKeywords(keyword: string): Promise<string[]> {
     const model = await getActiveModel();
@@ -86,6 +107,7 @@ ${content}`;
     const previousContentSection = params.previousContent
       ? `\n## 参考内容（上一版正文）\n${params.previousContent}\n\n请基于参考内容进行优化改写，保留其核心观点和优质表达，同时改进不足之处。`
       : '';
+    const companyProjectContext = buildCompanyProjectContext(params);
 
     const systemPrompt = `你是一位资深的GEO（Generative Engine Optimization）内容专家，擅长创作既符合搜索引擎优化又具有深度价值的文章。
 
@@ -113,6 +135,7 @@ ${imageList}
 
 ## 写作技能
 ${params.skills || '无特殊要求'}
+${companyProjectContext}
 ${previousContentSection}
 请直接输出文章内容（Markdown格式），不需要额外说明。`;
 

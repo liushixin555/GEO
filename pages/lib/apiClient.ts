@@ -42,3 +42,11 @@ apiClient.interceptors.response.use(
 );
 
 export default apiClient;
+
+export function getPublishingScheduleOrders(scheduleId: number) {
+  return apiClient.get(`/publishing-schedule/${scheduleId}/orders`);
+}
+
+export function syncPublishingScheduleOrders(scheduleId: number) {
+  return apiClient.post(`/publishing-schedule/${scheduleId}/orders/sync`);
+}

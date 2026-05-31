@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Row, Col, Input, Select, Tag, Typography, Spin, Pagination, Button, Modal, DatePicker, Breadcrumb, App, Card, Descriptions, Radio, Tooltip, Popconfirm, Table } from 'antd';
-import { PlusOutlined, EditOutlined, RollbackOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, RollbackOutlined, DeleteOutlined, ReloadOutlined, LinkOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../lib/apiClient';
 import { formatDateTime } from '../utils/date';
@@ -13,6 +13,15 @@ const { Title } = Typography;
 
 type ScheduleType = 'asap' | 'scheduled' | 'after';
 type ScheduleStatus = 'pending' | 'publishing' | 'published' | 'publish_failed';
+
+interface PublishingPlatformOrder {
+  id: number;
+  rm_order_id: string;
+  rm_status: number;
+  rm_response_message: string | null;
+  rm_resource_name: string | null;
+  last_synced_at: string | null;
+}
 
 const SCHEDULE_TYPE_CONFIG: Record<string, string> = {
   asap: '尽快执行',
@@ -42,6 +51,7 @@ interface ScheduleItem {
   company_name: string;
   created_by: number | null;
   created_by_name: string;
+  orders?: PublishingPlatformOrder[];
 }
 
 function getScheduleLabel(item: ScheduleItem): string {
@@ -76,6 +86,7 @@ const PublishingSchedulePage: React.FC = () => {
   // Reject/delete loading state
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [syncingId, setSyncingId] = useState<number | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -160,6 +171,40 @@ const PublishingSchedulePage: React.FC = () => {
     }
   };
 
+  const handleSyncOrders = async (id: number) => {
+    setSyncingId(id);
+    try {
+      await apiClient.post(`/publishing-schedule/${id}/orders/sync`);
+      message.success('订单状态已刷新');
+      fetchData();
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '刷新订单状态失败'));
+    } finally {
+      setSyncingId(null);
+    }
+  };
+
+  const renderOrderStatus = (orders?: PublishingPlatformOrder[]) => {
+    if (!orders || orders.length === 0) return <Tag>等待同步</Tag>;
+    return (
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        {orders.map((order) => {
+          const color = order.rm_status === 1 ? 'green' : order.rm_status === 2 ? 'red' : 'processing';
+          const label = order.rm_status === 1 ? '发布成功' : order.rm_status === 2 ? '发布失败' : '处理中';
+          const tag = (
+            <Tag color={color} icon={order.rm_status === 1 ? <LinkOutlined /> : undefined}>
+              {order.rm_resource_name || order.rm_order_id}：{label}
+            </Tag>
+          );
+          if (order.rm_status === 1 && order.rm_response_message) {
+            return <a key={order.id} href={order.rm_response_message} target="_blank" rel="noreferrer">{tag}</a>;
+          }
+          return <Tooltip key={order.id} title={order.rm_response_message || order.rm_order_id}>{tag}</Tooltip>;
+        })}
+      </div>
+    );
+  };
+
   const canEditSchedule = (item: ScheduleItem) => {
     if (user.role === 'view') return false;
     return item.status === 'pending' && (user.role === 'sysadmin' || item.created_by === user.id);
@@ -215,11 +260,22 @@ const PublishingSchedulePage: React.FC = () => {
       },
     },
     {
+      title: '软盟订单',
+      key: 'orders',
+      width: 220,
+      render: (_: unknown, record: ScheduleItem) => renderOrderStatus(record.orders),
+    },
+    {
       title: '操作',
       key: 'action',
-      width: 120,
+      width: 160,
       render: (_: unknown, record: ScheduleItem) => (
         <div style={{ display: 'flex', gap: 4 }}>
+          {record.status === 'published' && (
+            <Tooltip title="刷新订单状态">
+              <Button type="link" size="small" loading={syncingId === record.id} icon={<ReloadOutlined />} onClick={() => handleSyncOrders(record.id)} />
+            </Tooltip>
+          )}
           {canEditSchedule(record) && (
             <Tooltip title="编辑计划">
               <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEditClick(record)} />
@@ -294,8 +350,14 @@ const PublishingSchedulePage: React.FC = () => {
                     <Descriptions.Item label="内容类型">{item.article_type || '-'}</Descriptions.Item>
                     <Descriptions.Item label="作者">{item.created_by_name || '-'}</Descriptions.Item>
                     <Descriptions.Item label="发布计划">{getScheduleLabel(item)}</Descriptions.Item>
+                    <Descriptions.Item label="软盟订单">{renderOrderStatus(item.orders)}</Descriptions.Item>
                   </Descriptions>
                   <div className="publishing-card-footer">
+                    {item.status === 'published' && (
+                      <Tooltip title="刷新订单状态">
+                        <Button size="small" loading={syncingId === item.id} icon={<ReloadOutlined />} onClick={() => handleSyncOrders(item.id)} />
+                      </Tooltip>
+                    )}
                     {canEditSchedule(item) && (
                       <Tooltip title="编辑计划">
                         <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEditClick(item)} />
