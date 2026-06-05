@@ -23,7 +23,7 @@ setup_database() {
       -e POSTGRES_PASSWORD=postgres \
       -e POSTGRES_DB=by \
       -v ~/docker_data/postgresql_by:/var/lib/postgresql/data \
-      docker.1ms.run/library/postgres:18.3-bookworm
+      postgres:18.3-bookworm
   fi
 
   echo "等待数据库就绪..."
