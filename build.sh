@@ -18,17 +18,17 @@ setup_database() {
     sudo docker start by-db
   else
     echo "正在创建 Docker 数据库容器..."
-    sudo docker run -d --name by-db -p 5432:5432 \
+    sudo docker run -d --name by-db --restart=always -p 5432:5432 \
       -e POSTGRES_USER=postgres \
       -e POSTGRES_PASSWORD=postgres \
-      -e POSTGRES_DB=by \
+      -e POSTGRES_DB=geo_ts \
       -v ~/docker_data/postgresql_by:/var/lib/postgresql/data \
       docker.1ms.run/library/postgres:18.3-bookworm
   fi
 
   echo "等待数据库就绪..."
   for i in $(seq 1 15); do
-    if sudo docker exec by-db pg_isready -U postgres -d by -q 2>/dev/null; then
+    if sudo docker exec by-db pg_isready -U postgres -d geo_ts -q 2>/dev/null; then
       echo "数据库已就绪"
       return 0
     fi
@@ -40,7 +40,7 @@ setup_database() {
 setup_database
 
 # 检查是否需要 seed
-SEED_COUNT=$(PGPASSWORD=postgres psql -h localhost -U postgres -d by -tAc 'SELECT COUNT(*) FROM "Enterprise";' 2>/dev/null)
+SEED_COUNT=$(PGPASSWORD=postgres psql -h localhost -U postgres -d geo_ts -tAc 'SELECT COUNT(*) FROM "Enterprise";' 2>/dev/null)
 
 if [ -z "$SEED_COUNT" ]; then
   echo "警告: 无法连接数据库检查 seed 状态，跳过 seed"
@@ -66,7 +66,7 @@ sed 's/=\s*"\(.*\)"\s*$/=\1/' "$SCRIPT_DIR/.env" > "$DOCKER_ENV"
 
 # 运行新的容器（通过 host.docker.internal 访问主机 PostgreSQL）
 echo "正在启动应用容器..."
-sudo docker run -d --name by -p 12380:80 \
+sudo docker run -d --name by --restart=always -p 12380:80 \
   --env-file "$DOCKER_ENV" \
   -v ~/docker_data/by/app/public:/app/public \
   -v ~/docker_data/by/app/skills:/app/skills \

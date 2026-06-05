@@ -2,9 +2,8 @@ FROM docker.1ms.run/library/node:24.15.0-slim
 
 WORKDIR /app
 
-# Use Tencent mirror and install nginx
-RUN sed -i 's|deb.debian.org|mirrors.tencent.com|g' /etc/apt/sources.list.d/debian.sources \
-    && apt-get update \
+# Install nginx
+RUN apt-get update \
     && apt-get install -y --no-install-recommends nginx \
     && rm -rf /var/lib/apt/lists/*
 
@@ -17,8 +16,9 @@ RUN corepack enable \
     && pnpm install --prod --frozen-lockfile --ignore-scripts \
     && npm install -g prisma@5.22.0
 
-# Copy schema and generate Prisma client only (skip openapi generator — dev dependency)
+# Copy schema and migrations, generate Prisma client
 COPY prisma/schema.prisma prisma/schema.prisma
+COPY prisma/migrations prisma/migrations
 RUN prisma generate --generator=client
 
 # Copy build output (tsconfig rootDir=. causes nested apis/ dir)
