@@ -27,7 +27,6 @@ const KeywordMine: React.FC = () => {
   const [mining, setMining] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sourceType, setSourceType] = useState<string>('all');
-  const [filterSource, setFilterSource] = useState<string>('all');
 
   useEffect(() => {
     const fetchBase = async () => {
@@ -51,10 +50,6 @@ const KeywordMine: React.FC = () => {
   }, [baseId]);
 
   useEffect(() => { fetchMinedKeywords(); }, [fetchMinedKeywords]);
-
-  const filteredKeywords = filterSource === 'all'
-    ? minedKeywords
-    : minedKeywords.filter(k => k.sourceType === filterSource);
 
   const handleMine = async () => {
     setMining(true);
@@ -167,7 +162,7 @@ const KeywordMine: React.FC = () => {
         <Col xs={24} sm={12}>
           <Space>
             <span style={{ color: 'var(--color-ink-subtle)', fontSize: 14 }}>挖掘来源：</span>
-            <Radio.Group value={filterSource} onChange={(e) => setFilterSource(e.target.value)} size="small">
+            <Radio.Group value={sourceType} onChange={(e) => setSourceType(e.target.value)} size="small">
               <Radio.Button value="all">全部</Radio.Button>
               <Radio.Button value="document">文档</Radio.Button>
               <Radio.Button value="portrait">画像</Radio.Button>
@@ -189,7 +184,7 @@ const KeywordMine: React.FC = () => {
       {minedKeywords.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <Space size={16}>
-            <Tag color="blue">已挖掘 {filteredKeywords.length} 个关键词</Tag>
+            <Tag color="blue">已挖掘 {minedKeywords.length} 个关键词</Tag>
             <Tag color="green">已选中 {selectedRowKeys.length} 个</Tag>
           </Space>
         </div>
@@ -197,14 +192,14 @@ const KeywordMine: React.FC = () => {
 
       {/* 关键词列表 */}
       <Spin spinning={loading || mining}>
-        {filteredKeywords.length === 0 && !loading && !mining ? (
+        {minedKeywords.length === 0 && !loading && !mining ? (
           <Card>
             <Empty description='暂无挖掘关键词，点击"开始挖掘"从文档/画像/图片中提取关键词' />
           </Card>
         ) : (
           <Table
             columns={columns}
-            dataSource={filteredKeywords}
+            dataSource={minedKeywords}
             rowKey="id"
             size="middle"
             rowSelection={{
