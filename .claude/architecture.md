@@ -163,6 +163,13 @@ tests/apis/  + tests/pages/  测试文件
   - 匹配逻辑：关键词→`keywords LIKE '%text%'`，画像→`portrait = content OR = title`，图片→`images::jsonb @> to_jsonb(url)`（raw SQL）
   - `list()`/`listByProject()` 填充 `article_count`，`delete()` 前 >0 抛 ConflictError(409)
   - 前端：表格+卡片显示"使用文章数"列，`article_count > 0` 时禁用删除按钮
+- **知识库资源硬删除（2026-06-13）**：文档/画像/图片/关键词删除从软删除改为硬删除
+  - `prisma.update({ data: { deletedAt } })` → `prisma.delete()`，数据库直接删除记录
+  - 文档删除不存在时静默处理（`.catch(() => {})`），不报 404
+- **MinedKeyword 新增 source_type 字段（2026-06-13）**：关键词挖掘记录来源类型
+  - 字段：`sourceType String @default("all") @map("source_type") @db.VarChar(20)`
+  - 取值：`all`/`document`/`portrait`/`image`
+  - 前端挖掘来源 Radio.Group 仅作为挖掘参数，不筛选列表
 
 ## 审计日志系统（2026-05-27）
 - **写入工具**: `apis/utils/audit-log-writer.util.ts` — writeAuditLog / writeApiAccessLog，即发即弃（fire-and-forget），.catch() 静默处理失败
