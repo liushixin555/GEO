@@ -66,3 +66,4 @@
 | fix063 | 系统配置接口400——ruanmeng配置项未加入白名单 | `apis/constants/system-config.ts` |
 | fix064 | 日志IP显示::1而非真实客户端IP——getClientIp工具+Vite xfwd转发 | `apis/utils/ip.util.ts`, `apis/app.ts`, `apis/controller/auth.controller.ts`, `apis/middleware/anti-crawl.middleware.ts`, `apis/controller/publishing-platform.controller.ts`, `apis/controller/llm-model.controller.ts`, `vite.config.ts` |
 | fix065 | 技能上传已删除同名技能报400——检查顺序调整（先查活跃重复再解压） | `apis/service/skills.service.ts`, `apis/service/impl/skills.service.impl.ts`, `apis/controller/skills.controller.ts` |
+| fix066 | 文档上传file_url验证400+挖掘来源筛选无效+知识库资源硬删除+文档删除静默+Dockerfile加速 | `apis/schema/knowledge.schema.ts`, `apis/service/impl/knowledge.service.impl.ts`, `apis/controller/knowledge.controller.ts`, `pages/knowledge/KeywordMine.tsx`, `Dockerfile` |

@@ -1021,3 +1021,44 @@ model AuditLog {
 
 ### 迁移
 `prisma/migrations/20260527130000_add_audit_logs`
+
+---
+
+## db022. MinedKeyword 新增 source_type 字段
+
+### 变更原因
+关键词挖掘需要记录每个挖掘关键词的来源类型（全部/文档/画像/图片），用于挖掘来源参数追踪。
+
+### Schema 变更
+```prisma
+// Before
+model MinedKeyword {
+  id        Int      @id @default(autoincrement())
+  baseId    Int      @map("base_id")
+  keyword   String   @db.VarChar(200)
+  selected  Boolean  @default(false)
+  createdBy Int?     @map("created_by")
+  ...
+}
+
+// After
+model MinedKeyword {
+  id         Int      @id @default(autoincrement())
+  baseId     Int      @map("base_id")
+  keyword    String   @db.VarChar(200)
+  sourceType String   @default("all") @map("source_type") @db.VarChar(20)
+  selected   Boolean  @default(false)
+  createdBy  Int?     @map("created_by")
+  ...
+}
+```
+
+### 影响文件
+- `prisma/schema.prisma` — MinedKeyword 新增 sourceType 字段
+- `prisma/migrations/20260613000000_add_source_type_to_mined_keywords/migration.sql`
+- `apis/service/knowledge.service.ts` — addMinedKeywords 签名新增 sourceType
+- `apis/service/impl/knowledge.service.impl.ts` — createMany 写入 sourceType
+- `apis/controller/knowledge.controller.ts` — mineKeywords 传入 sourceType
+
+### 迁移
+`prisma/migrations/20260613000000_add_source_type_to_mined_keywords`
