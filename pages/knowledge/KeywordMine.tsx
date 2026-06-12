@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Typography, Spin, Popconfirm, App, Breadcrumb, Button, Table, Radio, Tag, Space, Empty } from 'antd';
+import { Row, Col, Card, Typography, Spin, Popconfirm, App, Breadcrumb, Button, Table, Tag, Space, Empty } from 'antd';
 import { ArrowLeftOutlined, SearchOutlined, DeleteOutlined, SwapOutlined, CheckSquareOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import apiClient from '../lib/apiClient';
@@ -26,7 +26,6 @@ const KeywordMine: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [mining, setMining] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [sourceType, setSourceType] = useState<string>('all');
 
   useEffect(() => {
     const fetchBase = async () => {
@@ -55,7 +54,7 @@ const KeywordMine: React.FC = () => {
     setMining(true);
     try {
       const res = await apiClient.post(`/knowledge-bases/${baseId}/keywords/mine`,
-        { source_type: sourceType },
+        { source_type: 'all' },
       );
       const data = res.data.data;
       message.success(`新挖掘出 ${data.mined} 个关键词${data.duplicates > 0 ? `，${data.duplicates} 个已存在` : ''}`);
@@ -158,25 +157,16 @@ const KeywordMine: React.FC = () => {
       </div>
 
       {/* 控制栏 */}
-      <Row gutter={[16, 12]} className="toolbar" style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12}>
+      <Row gutter={[16, 12]} className="toolbar" style={{ marginBottom: 16, justifyContent: 'flex-end' }}>
+        <Col>
           <Space>
-            <span style={{ color: 'var(--color-ink-subtle)', fontSize: 14 }}>挖掘来源：</span>
-            <Radio.Group value={sourceType} onChange={(e) => setSourceType(e.target.value)} size="small">
-              <Radio.Button value="all">全部</Radio.Button>
-              <Radio.Button value="document">文档</Radio.Button>
-              <Radio.Button value="portrait">画像</Radio.Button>
-              <Radio.Button value="image">图片</Radio.Button>
-            </Radio.Group>
+            <Button type="primary" icon={<SearchOutlined />} loading={mining} onClick={handleMine}>
+              开始挖掘
+            </Button>
+            <Popconfirm title="确定清空所有候选关键词？" onConfirm={handleClear} okText="清空" cancelText="取消">
+              <Button icon={<DeleteOutlined />}>清空候选</Button>
+            </Popconfirm>
           </Space>
-        </Col>
-        <Col xs={24} sm={12} style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <Button type="primary" icon={<SearchOutlined />} loading={mining} onClick={handleMine}>
-            开始挖掘
-          </Button>
-          <Popconfirm title="确定清空所有候选关键词？" onConfirm={handleClear} okText="清空" cancelText="取消">
-            <Button icon={<DeleteOutlined />}>清空候选</Button>
-          </Popconfirm>
         </Col>
       </Row>
 
