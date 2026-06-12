@@ -12468,6 +12468,12 @@
             "type": "string",
             "format": "date-time"
           },
+          "orders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublishingPlatformOrder"
+            }
+          },
           "deletedAt": {
             "type": "string",
             "format": "date-time"
@@ -12482,7 +12488,8 @@
           "includeRate",
           "publishRate",
           "createdAt",
-          "updatedAt"
+          "updatedAt",
+          "orders"
         ]
       },
       "SystemConfig": {
@@ -13026,6 +13033,9 @@
           "keyword": {
             "type": "string"
           },
+          "sourceType": {
+            "type": "string"
+          },
           "selected": {
             "type": "boolean"
           },
@@ -13049,6 +13059,7 @@
           "id",
           "baseId",
           "keyword",
+          "sourceType",
           "selected",
           "createdAt",
           "base"
@@ -13464,6 +13475,12 @@
           "creator": {
             "$ref": "#/components/schemas/User"
           },
+          "platformOrders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublishingPlatformOrder"
+            }
+          },
           "deletedAt": {
             "type": "string",
             "format": "date-time"
@@ -13475,7 +13492,67 @@
           "status",
           "createdAt",
           "updatedAt",
-          "article"
+          "article",
+          "platformOrders"
+        ]
+      },
+      "PublishingPlatformOrder": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "scheduleId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "platformId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rmOrderId": {
+            "type": "string"
+          },
+          "rmStatus": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rmResponseMessage": {
+            "type": "string"
+          },
+          "rmResourceName": {
+            "type": "string"
+          },
+          "lastSyncedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/PublishingSchedule"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/PublishingPlatform"
+          }
+        },
+        "required": [
+          "id",
+          "scheduleId",
+          "platformId",
+          "rmOrderId",
+          "rmStatus",
+          "createdAt",
+          "updatedAt",
+          "schedule",
+          "platform"
         ]
       },
       "Role": {

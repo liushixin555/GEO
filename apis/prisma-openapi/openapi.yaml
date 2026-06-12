@@ -720,6 +720,8 @@ components:
           format: int32
         keyword:
           type: string
+        sourceType:
+          type: string
         selected:
           type: boolean
         createdBy:
@@ -737,6 +739,7 @@ components:
         - id
         - baseId
         - keyword
+        - sourceType
         - selected
         - createdAt
         - base
