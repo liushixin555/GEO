@@ -2,6 +2,10 @@ FROM docker.1ms.run/library/node:24.15.0-slim
 
 WORKDIR /app
 
+# Use Tsinghua mirror for faster apt
+RUN sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+    sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list 2>/dev/null || true
+
 # Install nginx
 RUN apt-get update \
     && apt-get install -y --no-install-recommends nginx \
@@ -14,7 +18,7 @@ ENV NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
 ENV PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma
 RUN corepack enable \
     && pnpm install --prod --frozen-lockfile --ignore-scripts \
-    && npm install -g prisma@5.22.0
+    && npm install -g prisma@5.22.0 --registry=https://registry.npmmirror.com
 
 # Copy schema and migrations, generate Prisma client
 COPY prisma/schema.prisma prisma/schema.prisma

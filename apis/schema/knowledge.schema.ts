@@ -28,7 +28,7 @@ const description = z.string()
 const fileUrl = z.string({ error: '文档地址不能为空' })
   .min(1, '文档地址不能为空')
   .max(2000, '文档地址不能超过2000个字符')
-  .refine(val => /^https?:\/\/.+/.test(val), { message: '文档地址必须是有效的HTTP/HTTPS URL' });
+  .refine(val => /^(https?:\/\/|\/)[^\s]+/.test(val), { message: '文档地址必须是有效的URL' });
 
 const fileName = z.string({ error: '文件名不能为空' })
   .min(1, '文件名不能为空')

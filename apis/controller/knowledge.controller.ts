@@ -902,7 +902,7 @@ export async function mineKeywords(req: Request, res: Response): Promise<void> {
     if (content.length === 0) { fail(res, 400, '知识库中暂无内容可供挖掘'); return; }
 
     const keywords = await llmService.mineKeywordsFromContent(content);
-    const result = await minedKeywordService.addMinedKeywords(baseId, keywords, userId);
+    const result = await minedKeywordService.addMinedKeywords(baseId, keywords, userId, sourceType);
     const allMined = await minedKeywordService.listByBase(baseId);
 
     success(res, { mined: result.added, duplicates: result.duplicates, total: allMined.length, list: allMined });

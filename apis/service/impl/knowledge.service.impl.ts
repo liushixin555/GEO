@@ -172,7 +172,7 @@ export class KeywordServiceImpl implements IKeywordService {
     if (!existing) throw new NotFoundError('关键词');
     const usage = await countKeywordUsage(existing.keyword);
     if (usage > 0) throw new ConflictError(`该关键词正在被 ${usage} 篇文章使用，无法删除`);
-    await prisma.knowledgeKeyword.update({ where: { id }, data: { deletedAt: new Date() } });
+    await prisma.knowledgeKeyword.delete({ where: { id } });
   }
 
   async listExpandedWords(keywordId: number): Promise<KeywordExpandedWord[]> {
@@ -261,7 +261,7 @@ export class PortraitServiceImpl implements IPortraitService {
     if (!existing) throw new NotFoundError('画像');
     const usage = await countPortraitUsage(existing.content, existing.title);
     if (usage > 0) throw new ConflictError(`该画像正在被 ${usage} 篇文章使用，无法删除`);
-    await prisma.knowledgePortrait.update({ where: { id }, data: { deletedAt: new Date() } });
+    await prisma.knowledgePortrait.delete({ where: { id } });
   }
 }
 
@@ -335,7 +335,7 @@ export class ImageServiceImpl implements IImageService {
     if (!existing) throw new NotFoundError('图片');
     const usage = await countImageUsage(existing.imageUrl);
     if (usage > 0) throw new ConflictError(`该图片正在被 ${usage} 篇文章使用，无法删除`);
-    await prisma.knowledgeImage.update({ where: { id }, data: { deletedAt: new Date() } });
+    await prisma.knowledgeImage.delete({ where: { id } });
   }
 
   async checkDuplicate(baseId: number, title: string, imageUrl: string): Promise<void> {
@@ -430,7 +430,7 @@ export class DocumentServiceImpl implements IDocumentService {
     const prisma = getPrisma();
     const existing = await prisma.knowledgeDocument.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new NotFoundError('文档');
-    await prisma.knowledgeDocument.update({ where: { id }, data: { deletedAt: new Date() } });
+    await prisma.knowledgeDocument.delete({ where: { id } });
   }
 
   async checkDuplicate(baseId: number, title: string, fileUrl: string): Promise<void> {
@@ -458,7 +458,7 @@ export class MinedKeywordServiceImpl implements IMinedKeywordService {
     return items.map(mapMinedKeyword);
   }
 
-  async addMinedKeywords(baseId: number, keywords: string[], userId: number): Promise<{ added: number; duplicates: number }> {
+  async addMinedKeywords(baseId: number, keywords: string[], userId: number, sourceType: string): Promise<{ added: number; duplicates: number }> {
     const prisma = getPrisma();
     const existing = await prisma.minedKeyword.findMany({
       where: { baseId, keyword: { in: keywords }, deletedAt: null },
@@ -469,7 +469,7 @@ export class MinedKeywordServiceImpl implements IMinedKeywordService {
 
     if (newKeywords.length > 0) {
       await prisma.minedKeyword.createMany({
-        data: newKeywords.map(keyword => ({ baseId, keyword, createdBy: userId })),
+        data: newKeywords.map(keyword => ({ baseId, keyword, sourceType, createdBy: userId })),
         skipDuplicates: true,
       });
     }

@@ -45,7 +45,7 @@ export interface IDocumentService {
 
 export interface IMinedKeywordService {
   listByBase(baseId: number): Promise<MinedKeyword[]>;
-  addMinedKeywords(baseId: number, keywords: string[], userId: number): Promise<{ added: number; duplicates: number }>;
+  addMinedKeywords(baseId: number, keywords: string[], userId: number, sourceType: string): Promise<{ added: number; duplicates: number }>;
   toggleSelectBatch(baseId: number, ids: number[], selected: boolean): Promise<void>;
   deleteByIds(baseId: number, ids: number[]): Promise<void>;
   clearAll(baseId: number): Promise<void>;

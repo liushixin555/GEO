@@ -318,11 +318,12 @@ model KeywordExpandedWord {
 }
 
 model MinedKeyword {
-  id        Int      @id @default(autoincrement())
-  baseId    Int      @map("base_id")
-  keyword   String   @db.VarChar(200)
-  selected  Boolean  @default(false)
-  createdBy Int?     @map("created_by")
+  id         Int      @id @default(autoincrement())
+  baseId     Int      @map("base_id")
+  keyword    String   @db.VarChar(200)
+  sourceType String   @default("all") @map("source_type") @db.VarChar(20)
+  selected   Boolean  @default(false)
+  createdBy  Int?     @map("created_by")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
   base      KnowledgeBase @relation(fields: [baseId], references: [id], onDelete: Cascade)
 
