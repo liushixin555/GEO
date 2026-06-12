@@ -609,12 +609,6 @@ export async function deleteDocument(req: Request, res: Response): Promise<void>
     await checkBaseAccess(baseId, userId, role);
 
     const { documentService } = getServices();
-    const existing = await documentService.getById(id);
-
-    if (existing.base_id !== baseId) throw new NotFoundError('文档');
-
-    checkOwnership(existing, userId, role, '删除', '文档');
-
     await documentService.delete(id);
     success(res, null, '删除文档成功');
   } catch (err: unknown) {

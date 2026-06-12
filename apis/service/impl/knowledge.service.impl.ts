@@ -428,9 +428,7 @@ export class DocumentServiceImpl implements IDocumentService {
 
   async delete(id: number): Promise<void> {
     const prisma = getPrisma();
-    const existing = await prisma.knowledgeDocument.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new NotFoundError('文档');
-    await prisma.knowledgeDocument.delete({ where: { id } });
+    await prisma.knowledgeDocument.delete({ where: { id } }).catch(() => {});
   }
 
   async checkDuplicate(baseId: number, title: string, fileUrl: string): Promise<void> {
