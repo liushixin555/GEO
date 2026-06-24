@@ -1,5 +1,5 @@
 import { getPrisma } from '../../utils';
-import type { PublishingSchedule, PublishingScheduleItem, PublishingScheduleUpdateResult, CreatePublishingScheduleRequest, UpdatePublishingScheduleRequest, ScheduleType, PublishingScheduleListParams } from '../../entity/publishing-schedule.entity';
+import type { PublishingSchedule, PublishingScheduleItem, PublishingScheduleUpdateResult, CreatePublishingScheduleRequest, UpdatePublishingScheduleRequest, ScheduleType, PublishingScheduleListParams, AutoCreatePublishingScheduleRequest, AutoCreatePublishingScheduleResult } from '../../entity/publishing-schedule.entity';
 import { mapPublishingSchedule, mapPublishingScheduleItem } from '../../map';
 import { IPublishingScheduleService } from '../publishing-schedule.service';
 import type { AuthContext } from '../article.service';
@@ -155,6 +155,99 @@ export class PublishingScheduleServiceImpl implements IPublishingScheduleService
     });
 
     return mapPublishingSchedule(item);
+  }
+
+  async autoCreate(request: AutoCreatePublishingScheduleRequest, auth: AuthContext): Promise<AutoCreatePublishingScheduleResult> {
+    const prisma = getPrisma();
+    const articleIds = Array.from(new Set(request.article_ids));
+    if (request.schedule_type === 'asap') {
+      throw new BusinessError('自动发布第一版不支持尽快执行，请选择指定时间执行或指定时间之后执行');
+    }
+
+    const platforms = await prisma.publishingPlatform.findMany({
+      where: { isFavorite: true },
+      orderBy: [{ taxonomy: 'asc' }, { name: 'asc' }],
+    });
+    if (platforms.length === 0) {
+      throw new BusinessError('请先收藏至少一个发布平台');
+    }
+
+    const articles = await prisma.article.findMany({
+      where: { id: { in: articleIds }, deletedAt: null },
+      include: {
+        project: {
+          include: {
+            operators: true,
+            company: { select: { status: true } },
+          },
+        },
+      },
+    });
+    if (articles.length !== articleIds.length) {
+      throw new NotFoundError('文章');
+    }
+
+    const invalidArticle = articles.find((article) => article.status !== 'approved');
+    if (invalidArticle) {
+      throw new BusinessError('只能为已审核通过的文章创建发布计划');
+    }
+
+    if (auth.role !== 'sysadmin') {
+      const noAccess = articles.find((article) => {
+        const hasProjectAccess = article.project?.operators?.some((op) => op.userId === auth.userId);
+        return !hasProjectAccess || article.project?.status !== true || article.project?.company?.status !== true;
+      });
+      if (noAccess) {
+        throw new ForbiddenError('无权为所选文章创建发布计划');
+      }
+    }
+
+    const existingSchedules = await prisma.publishingSchedule.findMany({
+      where: {
+        articleId: { in: articleIds },
+        deletedAt: null,
+        status: { in: ['pending', 'publishing', 'published'] },
+      },
+      select: { articleId: true },
+    });
+    if (existingSchedules.length > 0) {
+      throw new BusinessError('所选文章中存在已排期或已发布的文章，请取消选择后重试');
+    }
+
+    const assignments = articleIds.map((articleId, index) => ({
+      articleId,
+      platform: request.strategy === 'random'
+        ? platforms[Math.floor(Math.random() * platforms.length)]
+        : platforms[index % platforms.length],
+    }));
+
+    const createdSchedules = await prisma.$transaction(
+      assignments.map(({ articleId, platform }) =>
+        prisma.publishingSchedule.create({
+          data: {
+            articleId,
+            platforms: [platform.name],
+            scheduleType: request.schedule_type,
+            scheduledPublishAt: request.scheduled_publish_at ? new Date(request.scheduled_publish_at) : null,
+            status: 'pending',
+            createdBy: auth.userId,
+          },
+        }),
+      ),
+    );
+
+    return {
+      created: createdSchedules.length,
+      items: createdSchedules.map((schedule, index) => {
+        const platform = assignments[index].platform;
+        return {
+          article_id: schedule.articleId,
+          schedule_id: schedule.id,
+          platform_id: platform.id,
+          platform_name: platform.name,
+        };
+      }),
+    };
   }
 
   async update(id: number, request: UpdatePublishingScheduleRequest, auth: AuthContext): Promise<PublishingScheduleUpdateResult> {

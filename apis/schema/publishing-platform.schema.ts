@@ -8,3 +8,7 @@ export const listPublishingPlatformsSchema = z.object({
   sortBy: z.enum(['name', 'taxonomy', 'price', 'include_rate', 'publish_rate']).optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
 });
+
+export const updatePublishingPlatformFavoriteSchema = z.object({
+  is_favorite: z.boolean(),
+}).strict();

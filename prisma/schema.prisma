@@ -145,6 +145,7 @@ model PublishingPlatform {
   remark       String?  @db.VarChar(500)
   includeRate  Float    @default(0) @map("include_rate")
   publishRate  Float    @default(0) @map("publish_rate")
+  isFavorite   Boolean  @default(false) @map("is_favorite")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
   orders       PublishingPlatformOrder[]
@@ -531,4 +532,78 @@ model PublishingPlatformOrder {
   @@index([platformId])
   @@index([rmStatus])
   @@map("publishing_platform_orders")
+}
+
+model PublishedArticleLink {
+  id            Int      @id @default(autoincrement())
+  articleId     Int      @map("article_id")
+  scheduleId    Int?     @map("schedule_id")
+  platformName  String?  @map("platform_name") @db.VarChar(200)
+  url           String   @db.VarChar(1000)
+  normalizedUrl String   @map("normalized_url") @db.VarChar(1000)
+  domain        String?  @db.VarChar(200)
+  createdBy     Int?     @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz()
+
+  @@index([articleId])
+  @@index([scheduleId])
+  @@index([normalizedUrl])
+  @@map("published_article_links")
+}
+
+model AiCitationDetectionRun {
+  id          Int      @id @default(autoincrement())
+  projectId   Int?     @map("project_id")
+  modelName   String   @map("model_name") @db.VarChar(100)
+  prompt      String?  @db.Text
+  answer      String?  @db.Text
+  status      String   @default("completed") @db.VarChar(30)
+  createdBy   Int?     @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  completedAt DateTime? @map("completed_at") @db.Timestamptz()
+  records     AiCitationRecord[]
+
+  @@index([projectId])
+  @@index([modelName])
+  @@index([createdAt])
+  @@map("ai_citation_detection_runs")
+}
+
+model AiCitationRecord {
+  id                  Int      @id @default(autoincrement())
+  runId               Int      @map("run_id")
+  modelName           String   @map("model_name") @db.VarChar(100)
+  sourceUrl           String   @map("source_url") @db.VarChar(1000)
+  normalizedSourceUrl String   @map("normalized_source_url") @db.VarChar(1000)
+  sourceTitle         String?  @map("source_title") @db.VarChar(500)
+  domain              String?  @db.VarChar(200)
+  matched             Boolean  @default(false)
+  articleId           Int?     @map("article_id")
+  articleLinkId       Int?     @map("article_link_id")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  run                 AiCitationDetectionRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@index([articleId])
+  @@index([articleLinkId])
+  @@index([normalizedSourceUrl])
+  @@map("ai_citation_records")
+}
+
+model ArticleModelCitationMark {
+  id             Int      @id @default(autoincrement())
+  articleId      Int      @map("article_id")
+  modelName      String   @map("model_name") @db.VarChar(100)
+  firstMatchedAt DateTime @map("first_matched_at") @db.Timestamptz()
+  lastMatchedAt  DateTime @map("last_matched_at") @db.Timestamptz()
+  matchCount     Int      @default(1) @map("match_count")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@unique([articleId, modelName])
+  @@index([articleId])
+  @@index([modelName])
+  @@map("article_model_citation_marks")
 }

@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Row, Col, Card, Input, Select, Tag, Typography, Spin, Pagination, Empty, Popconfirm, App, Breadcrumb, Button, Table, Flex } from 'antd';
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { DeleteOutlined, PlusOutlined, SendOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import apiClient from '../lib/apiClient';
 import { getSafeUser } from '../utils/auth';
 import { useAppContext } from '../context/AppContext';
 import { formatDate } from '../utils/date';
 import { getApiErrorMessage } from '../utils/error';
+import ArticleBatchGenerateModal from './components/ArticleBatchGenerateModal';
+import AutoPublishModal from './components/AutoPublishModal';
 
 interface ArticleItem {
   id: number;
@@ -49,6 +51,9 @@ const ArticlePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [batchModalOpen, setBatchModalOpen] = useState(false);
+  const [autoPublishOpen, setAutoPublishOpen] = useState(false);
+  const [selectedArticleIds, setSelectedArticleIds] = useState<React.Key[]>([]);
 
   const fetchData = useCallback(async () => {
     if (!projectId) return;
@@ -86,6 +91,8 @@ const ArticlePage: React.FC = () => {
     if (item.status === 'approved') return false;
     return user.role === 'sysadmin' || item.created_by === user.id;
   };
+
+  const canAutoPublish = (item: ArticleItem) => item.status === 'approved' && (item.schedule_count ?? 0) === 0;
 
   const tableColumns: ColumnsType<ArticleItem> = [
     {
@@ -187,7 +194,15 @@ const ArticlePage: React.FC = () => {
             options={Object.entries(STATUS_CONFIG).map(([value, { label }]) => ({ value, label }))}
           />
         </Col>
-        <Col xs={24} sm={6} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <Col xs={24} sm={6} style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <Button
+            icon={<SendOutlined />}
+            disabled={selectedArticleIds.length === 0}
+            onClick={() => setAutoPublishOpen(true)}
+          >
+            一键自动发布
+          </Button>
+          <Button onClick={() => setBatchModalOpen(true)}>批量生文</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/article/new')}>添加文章</Button>
         </Col>
       </Row>
@@ -241,6 +256,13 @@ const ArticlePage: React.FC = () => {
         {/* 表格视图：>=1280px */}
         <div className="article-table-wrapper">
           <Table
+            rowSelection={{
+              selectedRowKeys: selectedArticleIds,
+              onChange: (keys) => setSelectedArticleIds(keys),
+              getCheckboxProps: (record) => ({
+                disabled: !canAutoPublish(record),
+              }),
+            }}
             columns={tableColumns}
             dataSource={data}
             rowKey="id"
@@ -262,6 +284,21 @@ const ArticlePage: React.FC = () => {
           />
         </div>
       )}
+      <ArticleBatchGenerateModal
+        open={batchModalOpen}
+        projectId={projectId}
+        onClose={() => setBatchModalOpen(false)}
+        onSubmitted={fetchData}
+      />
+      <AutoPublishModal
+        open={autoPublishOpen}
+        articleIds={selectedArticleIds.map(Number)}
+        onClose={() => setAutoPublishOpen(false)}
+        onSubmitted={() => {
+          setSelectedArticleIds([]);
+          fetchData();
+        }}
+      />
     </div>
   );
 };

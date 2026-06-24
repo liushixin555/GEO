@@ -18,6 +18,24 @@ export const createPublishingScheduleSchema = z.object({
   { message: '指定时间执行和延时执行必须选择时间', path: ['scheduled_publish_at'] },
 );
 
+export const autoCreatePublishingScheduleSchema = z.object({
+  article_ids: z.array(z.number().int().positive()).min(1, '至少选择一篇文章').max(100, '一次最多选择100篇文章'),
+  strategy: z.enum(['round_robin', 'random']).default('round_robin'),
+  schedule_type: z.enum(['scheduled', 'after'], { message: '自动发布第一版仅支持 scheduled/after，避免立即触发真实发布' }),
+  scheduled_publish_at: z.string({ message: 'scheduled_publish_at参数无效' })
+    .refine((v) => !isNaN(Date.parse(v)), { message: 'scheduled_publish_at日期格式无效' })
+    .nullable()
+    .optional(),
+}).strict().refine(
+  (data) => {
+    if ((data.schedule_type === 'scheduled' || data.schedule_type === 'after') && !data.scheduled_publish_at) {
+      return false;
+    }
+    return true;
+  },
+  { message: '指定时间执行和延时执行必须选择时间', path: ['scheduled_publish_at'] },
+);
+
 export const updatePublishingScheduleSchema = z.object({
   schedule_type: z.enum(['asap', 'scheduled', 'after'], { message: '排期类型必须是 asap/scheduled/after' }).nullable().optional(),
   scheduled_publish_at: z.string({ message: 'scheduled_publish_at参数无效' }).refine(

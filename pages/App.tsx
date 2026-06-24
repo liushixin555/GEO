@@ -13,6 +13,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/knowledge': '知识库',
   '/article': '文章管理',
   '/publish': '发布管理',
+  '/citation-diagnosis': '检测管理',
   '/project': '项目',
   '/users': '用户管理',
   '/skills': '技能管理',

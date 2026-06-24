@@ -57,6 +57,24 @@ export async function createPublishingSchedule(req: Request, res: Response): Pro
   }
 }
 
+export async function autoCreatePublishingSchedule(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.user) { fail(res, 401, '未授权访问'); return; }
+    const { userId, role } = req.user;
+
+    const result = await scheduleService.autoCreate(req.body, { userId, role: role as Role });
+    logger.info('publishing_schedule_auto_created', { created: result.created, operatorId: userId, role });
+    created(res, result, `已创建 ${result.created} 个发布计划`);
+  } catch (err: unknown) {
+    if (err instanceof AppError) {
+      fail(res, err.statusCode, err.message);
+    } else {
+      logger.error('auto_create_publishing_schedule_failed', { error: err instanceof Error ? err.message : String(err) });
+      fail(res, 500, '自动创建发布计划失败');
+    }
+  }
+}
+
 export async function updatePublishingSchedule(req: Request, res: Response): Promise<void> {
   try {
     if (!req.user) { fail(res, 401, '未授权访问'); return; }

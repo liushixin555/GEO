@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Breadcrumb, Select, Radio, DatePicker, Button, Table, Input, Tooltip, App, Tag, Spin } from 'antd';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import type { SorterResult } from 'antd/es/table/interface';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../lib/apiClient';
 import { getApiErrorMessage } from '../utils/error';
@@ -27,6 +27,7 @@ interface PlatformItem {
   remark: string | null;
   include_rate: number;
   publish_rate: number;
+  is_favorite: boolean;
 }
 
 const CreatePublishSchedule: React.FC = () => {
@@ -134,6 +135,22 @@ const CreatePublishSchedule: React.FC = () => {
     setSelectedPlatformIds([record.id]);
   };
 
+  const handleToggleFavorite = async (record: PlatformItem) => {
+    try {
+      const nextFavorite = !record.is_favorite;
+      await apiClient.post(`/publishing-platforms/${record.id}/favorite`, { is_favorite: nextFavorite });
+      setPlatformList((list) => list.map((item) => (
+        item.id === record.id ? { ...item, is_favorite: nextFavorite } : item
+      )));
+      if (selectedMapRef.current.has(record.id)) {
+        selectedMapRef.current.set(record.id, { ...record, is_favorite: nextFavorite });
+      }
+      message.success(nextFavorite ? '已收藏发布平台' : '已取消收藏发布平台');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '更新收藏失败'));
+    }
+  };
+
   const handleSubmit = async () => {
     if (saving) return;
     if (!selectedArticleId) {
@@ -172,6 +189,23 @@ const CreatePublishSchedule: React.FC = () => {
   };
 
   const platformColumns: ColumnsType<PlatformItem> = [
+    {
+      title: '收藏',
+      key: 'favorite',
+      width: 70,
+      render: (_: unknown, record: PlatformItem) => (
+        <Tooltip title={record.is_favorite ? '取消收藏' : '收藏为自动发布渠道'}>
+          <Button
+            type="text"
+            icon={record.is_favorite ? <StarFilled /> : <StarOutlined />}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleToggleFavorite(record);
+            }}
+          />
+        </Tooltip>
+      ),
+    },
     {
       title: '资源ID',
       dataIndex: 'rm_resource_id',

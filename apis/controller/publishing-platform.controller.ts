@@ -102,3 +102,22 @@ export async function listTaxonomies(req: Request, res: Response): Promise<void>
     fail(res, 500, '获取分类列表失败');
   }
 }
+export async function updatePublishingPlatformFavorite(req: Request, res: Response): Promise<void> {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      fail(res, 400, '无效的平台ID');
+      return;
+    }
+
+    const item = await publishingPlatformService.setFavorite(id, Boolean(req.body.is_favorite));
+    success(res, item, item.is_favorite ? '已收藏发布平台' : '已取消收藏发布平台');
+  } catch (err: unknown) {
+    if (err instanceof BusinessError) {
+      fail(res, err.statusCode, err.message);
+    } else {
+      logger.error('publishing-platform.favorite.failed', { err: err instanceof Error ? err.message : String(err) });
+      fail(res, 500, '更新发布平台收藏状态失败');
+    }
+  }
+}

@@ -33,6 +33,25 @@ function normalizeArticleSkillIds(raw: unknown): number[] {
   return Array.from(ids);
 }
 
+function normalizeArticleImageUrls(raw: unknown): string[] {
+  const urls = new Set<string>();
+
+  const collect = (value: unknown) => {
+    if (value == null) return;
+    if (Array.isArray(value)) {
+      value.forEach(collect);
+      return;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed) urls.add(trimmed);
+    }
+  };
+
+  collect(raw);
+  return Array.from(urls);
+}
+
 export function startArticleGenerationCron(): void {
   if (!config.cron.articleGenerationEnabled) {
     console.log('[文章生成] 定时任务已禁用');
@@ -78,9 +97,15 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
     select: { id: true },
   });
   const baseIds = knowledgeBases.map((kb: any) => kb.id);
-  const images = await prisma.knowledgeImage.findMany({
-    where: { baseId: { in: baseIds } },
-  });
+  const selectedImageUrls = normalizeArticleImageUrls(article.images);
+  const images = selectedImageUrls.length > 0
+    ? await prisma.knowledgeImage.findMany({
+      where: {
+        baseId: { in: baseIds },
+        imageUrl: { in: selectedImageUrls },
+      },
+    })
+    : [];
 
   const skillIds = normalizeArticleSkillIds(article.skills);
   const skillRecords = skillIds.length > 0

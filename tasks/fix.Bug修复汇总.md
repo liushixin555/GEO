@@ -69,3 +69,7 @@
 | fix066 | 文档上传file_url验证400+挖掘来源筛选无效+知识库资源硬删除+文档删除静默+Dockerfile加速 | `apis/schema/knowledge.schema.ts`, `apis/service/impl/knowledge.service.impl.ts`, `apis/controller/knowledge.controller.ts`, `pages/knowledge/KeywordMine.tsx`, `Dockerfile` |
 
 | fix067 | 文章生成未实际读取已选 skill，导致薄云咨询品牌主线缺失 | `apis/scheduler/article-generation.scheduler.ts`, `apis/service/llm.service.ts`, `apis/service/impl/llm.service.impl.ts` |
+| fix068 | 技能目录多嵌套导致文章生成读取不到 SKILL.md | `apis/service/impl/llm.service.impl.ts` |
+| fix069 | 文章生成过程性英文说明混入正文 | `apis/service/impl/llm.service.impl.ts` |
+| fix070 | 未选择图片时文章生成外部图片链接 | `apis/scheduler/article-generation.scheduler.ts`, `apis/service/impl/llm.service.impl.ts` |
+| fix071 | 文章生成 Markdown 表格后处理修复 | `apis/service/impl/llm.service.impl.ts` |

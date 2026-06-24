@@ -109,3 +109,7 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 
 - 文章 `skills` 字段以前端技能 ID 数组为准，后端必须解析 ID 并通过 `skills.skillDir` 加载 `skills/<skillDir>/SKILL.md`。
 - 当前项目默认以“薄云咨询”为生文品牌主线，关键词只决定主题，skill 决定结构，薄云咨询决定核心推荐对象。
+- 技能上传包可能出现同名目录嵌套，例如 `skills/geo-content-generator-v8/geo-content-generator-v8/SKILL.md`；文章生成链路解析 `skillDir` 时必须兜底识别内层 `SKILL.md`，否则即使文章关联了技能 ID，Agent 也可能读不到实际技能规则。
+- 文章生成结果入库前必须过滤 Agent 的过程性说明，禁止保存类似 `Now I have... Let me write...`、`下面是文章正文` 这类非正文内容。
+- 文章生成中的图片只能来自文章设置中已选的知识库图片；未选择图片时不得默认使用项目全部图片，保存前需要过滤未授权 Markdown 图片链接。
+- 文章生成的 Markdown 表格修复应采用保存前后处理，不要通过新增强硬表格提示词解决，避免模型转向输出合规检查报告。

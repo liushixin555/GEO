@@ -1062,3 +1062,33 @@ model MinedKeyword {
 
 ### 迁移
 `prisma/migrations/20260613000000_add_source_type_to_mined_keywords`
+
+---
+
+## db023. AI 引用诊断数据模型
+
+### 变更原因
+
+检测已发布文章是否出现在 AI 联网搜索回答的引用来源中，并按“某模型曾引用过一次即永久保留标签”的规则记录累计命中状态。
+
+### Schema 变更
+
+新增模型：
+
+- `PublishedArticleLink`：保存我方已发布文章链接和规范化 URL。
+- `AiCitationDetectionRun`：保存一次 AI 引用检测批次。
+- `AiCitationRecord`：保存每次检测抓取到的引用来源。
+- `ArticleModelCitationMark`：保存文章被某模型引用过的永久标签。
+
+### 影响文件
+
+- `prisma/schema.prisma`
+- `prisma/migrations/20260624000001_add_ai_citation_diagnosis/migration.sql`
+- `apis/service/impl/citation-diagnosis.service.impl.ts`
+- `apis/controller/citation-diagnosis.controller.ts`
+- `apis/routes/citation-diagnosis.routes.ts`
+- `pages/citation-diagnosis/index.tsx`
+
+### 迁移
+
+`prisma/migrations/20260624000001_add_ai_citation_diagnosis`
