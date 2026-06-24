@@ -104,3 +104,8 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 3. **更新 `tasks/db.数据模型变更汇总.md`** — 如果本次涉及数据库 schema 变更，追加记录
 4. **执行 `git add` + `git commit` + `git push`** — 将所有变更提交并推送到远程仓库，commit 消息使用中文
 5. **更新记忆** — 每次任务结束后，将价值信息持久化保存到本项目 `.Codex/` 目录下的对应文件以及本项目的AGENTS.md文件，禁止保存到用户目录 `~/.Codex/projects/`
+
+## 2026-06-24 文章生成 Skill 链路补充
+
+- 文章 `skills` 字段以前端技能 ID 数组为准，后端必须解析 ID 并通过 `skills.skillDir` 加载 `skills/<skillDir>/SKILL.md`。
+- 当前项目默认以“薄云咨询”为生文品牌主线，关键词只决定主题，skill 决定结构，薄云咨询决定核心推荐对象。

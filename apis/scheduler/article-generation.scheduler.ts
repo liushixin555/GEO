@@ -9,6 +9,30 @@ const llmService = createLlmService();
 let task: ScheduledTask | null = null;
 let isRunning = false;
 
+function normalizeArticleSkillIds(raw: unknown): number[] {
+  const ids = new Set<number>();
+
+  const collect = (value: unknown) => {
+    if (value == null) return;
+    if (Array.isArray(value)) {
+      value.forEach(collect);
+      return;
+    }
+    if (typeof value === 'object') {
+      const maybeId = (value as { id?: unknown }).id;
+      if (maybeId !== undefined) collect(maybeId);
+      return;
+    }
+    const numeric = Number(value);
+    if (Number.isInteger(numeric) && numeric > 0) {
+      ids.add(numeric);
+    }
+  };
+
+  collect(raw);
+  return Array.from(ids);
+}
+
 export function startArticleGenerationCron(): void {
   if (!config.cron.articleGenerationEnabled) {
     console.log('[文章生成] 定时任务已禁用');
@@ -39,7 +63,6 @@ export function stopArticleGenerationCron(): void {
 async function processSingleArticle(prisma: any, article: any): Promise<void> {
   console.log(`[文章生成] 开始处理文章 #${article.id}: ${article.title}`);
 
-  // Get latest version content for reference
   let previousContent = '';
   const latestVersion = await prisma.articleVersion.findFirst({
     where: { articleId: article.id },
@@ -50,7 +73,6 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
     previousContent = latestVersion.content;
   }
 
-  // Get project knowledge images via knowledge bases
   const knowledgeBases = await prisma.knowledgeBase.findMany({
     where: { projectId: article.projectId, status: true },
     select: { id: true },
@@ -60,14 +82,17 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
     where: { baseId: { in: baseIds } },
   });
 
-  // Get skills name if skills field is set
-  let skillsName = '';
-  if (article.skills) {
-    const skillsId = typeof article.skills === 'object' ? (article.skills as any).id : article.skills;
-    if (skillsId) {
-      const skillsRecord = await prisma.skills.findFirst({ where: { id: Number(skillsId) } });
-      if (skillsRecord) skillsName = skillsRecord.name;
-    }
+  const skillIds = normalizeArticleSkillIds(article.skills);
+  const skillRecords = skillIds.length > 0
+    ? await prisma.skills.findMany({
+      where: { id: { in: skillIds }, deletedAt: null },
+      select: { skillDir: true },
+    })
+    : [];
+  const skillDirs = skillRecords.map((item: any) => item.skillDir).filter(Boolean);
+
+  if (skillIds.length > 0 && skillDirs.length === 0) {
+    console.warn(`[文章生成] 文章 #${article.id} 已选择技能 ${skillIds.join(',')}，但未找到可用技能目录`);
   }
 
   const imageResources = images.map((img: any) => ({
@@ -95,7 +120,7 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
     keywords: article.keywords || '',
     portrait: article.portrait || '通用读者',
     images: imageResources,
-    skills: skillsName,
+    skills: skillDirs,
     previousContent: previousContent || undefined,
     companyName: project?.company?.fullName,
     companyShortName: project?.company?.shortName,
@@ -103,14 +128,12 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
     projectShortName: project?.shortName,
   });
 
-  // Title: if article already has a title, keep it unchanged
   let title = article.title;
   if (!title) {
     const firstLine = content.split('\n').map((l: string) => l.replace(/^#+\s*/, '').trim()).find((l: string) => l.length > 0);
     if (firstLine) title = firstLine;
   }
 
-  // Save generated content and update status
   const newVersion = Math.floor(article.version) + 1.0;
 
   await prisma.$transaction([
