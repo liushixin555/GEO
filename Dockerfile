@@ -1,4 +1,4 @@
-FROM docker.1ms.run/library/node:24.15.0-slim
+FROM node:24-slim
 
 WORKDIR /app
 
