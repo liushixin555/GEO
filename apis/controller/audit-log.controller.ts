@@ -21,7 +21,7 @@ export async function listAuditLogs(req: Request, res: Response): Promise<void> 
 
     paginate(res, list, total, Number(page), Number(pageSize));
   } catch (err: unknown) {
-    handleControllerError(res, err, '获取审计日志列表失败');
+    handleControllerError(res, err, '获取诊断日志列表失败');
   }
 }
 
@@ -30,6 +30,6 @@ export async function getAuditLogEvents(req: Request, res: Response): Promise<vo
     const events = await auditLogService.getEvents();
     res.json({ code: 0, data: events });
   } catch (err: unknown) {
-    handleControllerError(res, err, '获取审计事件列表失败');
+    handleControllerError(res, err, '获取诊断事件列表失败');
   }
 }

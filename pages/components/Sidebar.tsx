@@ -16,6 +16,7 @@ import {
   CheckSquareOutlined,
   ApiOutlined,
   FileSearchOutlined,
+  AuditOutlined,
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
 import CompanyProjectSwitcher from './CompanyProjectSwitcher';
@@ -47,6 +48,8 @@ const menuItems: MenuItemDef[] = [
   { label: 'AI知识库', path: '/knowledge', roles: [ROLES.SYSADMIN, ROLES.ADMIN], icon: <BookOutlined /> },
   { label: '文章管理', path: '/article', roles: [ROLES.SYSADMIN, ROLES.ADMIN], icon: <FileTextOutlined /> },
   { label: '发布管理', path: '/publish', roles: [ROLES.SYSADMIN, ROLES.ADMIN], icon: <TrophyOutlined /> },
+  { label: '检测管理', path: '/citation-diagnosis', roles: [ROLES.SYSADMIN, ROLES.ADMIN], icon: <FileSearchOutlined /> },
+  { label: '诊断管理', path: '/audit', roles: [ROLES.SYSADMIN, ROLES.ADMIN], icon: <AuditOutlined /> },
   { label: '项目管理', path: '/project', roles: [ROLES.SYSADMIN, ROLES.ADMIN], icon: <ProjectOutlined /> },
   { label: '技能管理', path: '/skills', roles: [ROLES.SYSADMIN, ROLES.ADMIN], icon: <ThunderboltOutlined /> },
   { label: '用户管理', path: '/users', roles: [ROLES.SYSADMIN], icon: <UserOutlined /> },
@@ -69,7 +72,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const hiddenAdminClickCountRef = useRef(0);
   const hiddenAdminClickTimerRef = useRef<number | null>(null);
 
-  const businessPaths = ['/todo', '/knowledge', '/article', '/publish', '/project', '/skills'];
+  const businessPaths = ['/todo', '/knowledge', '/article', '/publish', '/citation-diagnosis', '/audit', '/project', '/skills'];
   const systemPaths = ['/users', '/company', '/sysadmin', '/swagger', '/audit-log'];
 
   const visibleMenuItems = menuItems.filter((item) => item.roles.includes(userRole as Role));

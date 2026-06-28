@@ -24,6 +24,7 @@ import publishingScheduleRoutes from './routes/publishing-schedule.routes';
 import todoRoutes from './routes/todo.routes';
 import auditLogRoutes from './routes/audit-log.routes';
 import citationDiagnosisRoutes from './routes/citation-diagnosis.routes';
+import auditRoutes from './audit/routes/audit.routes';
 
 const app: Express = express();
 
@@ -148,6 +149,7 @@ app.use('/api/v1/publishing-schedule', publishingScheduleRoutes);
 app.use('/api/v1/todos', todoRoutes);
 app.use('/api/v1/audit-logs', auditLogRoutes);
 app.use('/api/v1/citation-diagnosis', citationDiagnosisRoutes);
+app.use('/api/v1/audit', auditRoutes);
 
 // 404 fallback — must be after all routes
 app.use((_req, res) => {

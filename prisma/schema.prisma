@@ -69,6 +69,7 @@ model User {
   assignedTodos        Todo[]                @relation("TodoAssignee")
   createdTodos         Todo[]                @relation("TodoCreator")
   todoLogOperations    TodoLog[]             @relation("TodoLogOperator")
+  audits               Audit[]               @relation("AuditCreator")
 
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([username])
@@ -632,4 +633,84 @@ model ArticleModelCitationMark {
   @@index([articleId])
   @@index([modelName])
   @@map("article_model_citation_marks")
+}
+
+/// 诊断管理 — 一次"AI 可见度诊断"任务（替代 geo-audit Redis KV）
+model Audit {
+  id          Int      @id @default(autoincrement())
+  jobId       String   @unique @map("job_id") @db.VarChar(40)
+  userId      Int      @map("user_id")
+  companyId   Int?     @map("company_id")
+  brand       String   @db.VarChar(200)
+  website     String?  @db.VarChar(500)
+  industry    String?  @db.VarChar(200)
+  description String?  @db.Text
+  competitors Json?
+  keywords    Json?
+  features    Json?
+  tier        String   @default("pro") @db.VarChar(20)
+  /// processing / complete / failed
+  status      String   @default("processing") @db.VarChar(20)
+  score       Int?
+  grade       String?  @db.VarChar(2)
+  /// 完整结果快照（AuditResult JSON）
+  result      Json?
+  aioResult        Json? @map("aio_result")
+  technicalResult  Json? @map("technical_result")
+  seoScoreResult   Json? @map("seo_score_result")
+  contentOptimizerResult Json? @map("content_optimizer_result")
+  engineCount Int @default(0) @map("engine_count")
+  promptTotal Int @default(0) @map("prompt_total")
+  promptDone  Int @default(0) @map("prompt_done")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz()
+
+  prompts     AuditPrompt[]
+  user        User      @relation("AuditCreator", fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([companyId])
+  @@index([status])
+  @@map("audits")
+}
+
+/// 诊断 prompt — 每个引擎 × 每个 prompt 的执行单元
+model AuditPrompt {
+  id          Int      @id @default(autoincrement())
+  auditId     Int      @map("audit_id")
+  promptIndex Int      @map("prompt_index")
+  /// brand/category/competitor/buying_intent/conversational/discovery
+  category    String   @db.VarChar(40)
+  /// provider 名称（来自 LlmModel.provider）
+  engine      String   @db.VarChar(40)
+  llmModelId  Int?     @map("llm_model_id")
+  prompt      String   @db.Text
+  result      AuditPromptResult?
+
+  audit       Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  @@unique([auditId, promptIndex, engine])
+  @@index([auditId])
+  @@map("audit_prompts")
+}
+
+/// 诊断 prompt 结果 — 单次引擎调用的响应分析
+model AuditPromptResult {
+  id            Int      @id @default(autoincrement())
+  auditPromptId Int      @unique @map("audit_prompt_id")
+  mentioned     Boolean  @default(false)
+  snippet       String?  @db.Text
+  fullResponse  String?  @map("full_response") @db.Text
+  /// positive/neutral/negative
+  sentiment     String?  @db.VarChar(20)
+  sourceType    String?  @map("source_type") @db.VarChar(40)
+  blindSpot     Boolean  @default(false) @map("blind_spot")
+  latencyMs     Int?     @map("latency_ms")
+  error         String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  auditPrompt   AuditPrompt @relation(fields: [auditPromptId], references: [id], onDelete: Cascade)
+
+  @@map("audit_prompt_results")
 }
