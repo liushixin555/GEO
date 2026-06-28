@@ -8,7 +8,7 @@ export interface IPublishingPlatformService {
   /** 获取所有发布平台 */
   listAll(): Promise<PublishingPlatform[]>;
   /** 分页查询发布平台 */
-  list(page: number, pageSize: number, search?: string, taxonomy?: string, sortBy?: string, sortOrder?: string): Promise<{ list: PublishingPlatform[]; total: number }>;
+  list(page: number, pageSize: number, search?: string, taxonomy?: string, sortBy?: string, sortOrder?: string, isFavorite?: boolean): Promise<{ list: PublishingPlatform[]; total: number }>;
   /** 获取所有不重复的分类 */
   listTaxonomies(): Promise<string[]>;
   setFavorite(id: number, isFavorite: boolean): Promise<PublishingPlatform>;

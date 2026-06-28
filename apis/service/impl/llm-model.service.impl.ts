@@ -5,6 +5,8 @@ import { ILlmModelService } from '../llm-model.service';
 import { NotFoundError, ConflictError } from '../../errors';
 import { encryptApiKey } from '../../utils/encryption.util';
 
+const MASKED_API_KEY = '****';
+
 export class LlmModelServiceImpl implements ILlmModelService {
   async list(): Promise<LlmModel[]> {
     const prisma = getPrisma();
@@ -50,7 +52,9 @@ export class LlmModelServiceImpl implements ILlmModelService {
     const data: any = {};
     if (request.provider !== undefined) data.provider = request.provider;
     if (request.base_url !== undefined) data.baseUrl = request.base_url;
-    if (request.api_key !== undefined) data.apiKey = encryptApiKey(request.api_key);
+    if (request.api_key !== undefined && request.api_key !== MASKED_API_KEY) {
+      data.apiKey = encryptApiKey(request.api_key);
+    }
     if (request.model_name !== undefined) data.modelName = request.model_name;
     if (request.status !== undefined) data.status = request.status;
 

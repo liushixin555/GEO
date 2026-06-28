@@ -130,11 +130,15 @@ const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
         </Form.Item>
         <Form.Item name="keywords" label="关键词" rules={[{ required: true, message: '关键词不能为空' }]}>
           <Select
+            mode="multiple"
+            allowClear
             showSearch
             placeholder="请选择关键词"
             options={kb.keywords}
             disabled={!editable}
             loading={kb.loading}
+            optionFilterProp="label"
+            maxTagCount="responsive"
             notFoundContent={kb.loading ? '加载中...' : '暂无关键词'}
           />
         </Form.Item>

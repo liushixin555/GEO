@@ -53,9 +53,10 @@ export async function listPublishingPlatforms(req: Request, res: Response): Prom
   try {
     const search = qp(req.query.search as string | string[] | undefined)?.trim() || undefined;
     const taxonomy = qp(req.query.taxonomy as string | string[] | undefined);
+    const isFavorite = req.query.is_favorite === undefined ? undefined : req.query.is_favorite === 'true';
 
     /** @deprecated 全量返回接口，前端应迁移到分页查询。预计移除时间: v2.0 */
-    if (!req.query.page && !req.query.pageSize && !search && !taxonomy) {
+    if (!req.query.page && !req.query.pageSize && !search && !taxonomy && isFavorite === undefined) {
       const items = await publishingPlatformService.listAll();
       success(res, items);
       return;
@@ -85,7 +86,7 @@ export async function listPublishingPlatforms(req: Request, res: Response): Prom
       return;
     }
 
-    const { list, total } = await publishingPlatformService.list(page, pageSize, search, taxonomy, sortBy, sortOrder);
+    const { list, total } = await publishingPlatformService.list(page, pageSize, search, taxonomy, sortBy, sortOrder, isFavorite);
     paginate(res, list, total, page, pageSize);
   } catch (err: unknown) {
     logger.error('publishing-platform.list.failed', { err: err instanceof Error ? err.message : String(err) });

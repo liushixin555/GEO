@@ -18,6 +18,15 @@ export interface CitationDetectionRunInput {
   sources: CitationDetectionSourceInput[];
 }
 
+export interface CitationAutoRunInput {
+  project_id?: number | null;
+  article_ids?: number[];
+  limit?: number;
+  question_count?: number;
+  platforms?: string[];
+  force?: boolean;
+}
+
 export interface CitationDiagnosisAuth {
   userId?: number;
   role: string;
@@ -28,12 +37,15 @@ export interface CitationDiagnosisListParams {
   pageSize: number;
   projectId?: number;
   search?: string;
+  status?: string;
 }
 
 export interface ICitationDiagnosisService {
   createPublishedLink(input: PublishedArticleLinkInput, auth: CitationDiagnosisAuth): Promise<any>;
   listPublishedLinks(params: CitationDiagnosisListParams, auth: CitationDiagnosisAuth): Promise<{ list: any[]; total: number }>;
   createDetectionRun(input: CitationDetectionRunInput, auth: CitationDiagnosisAuth): Promise<any>;
+  runAutomaticDetection(input: CitationAutoRunInput, auth: CitationDiagnosisAuth): Promise<any>;
+  listLedger(params: CitationDiagnosisListParams, auth: CitationDiagnosisAuth): Promise<{ list: any[]; total: number }>;
   listDetectionRuns(params: CitationDiagnosisListParams, auth: CitationDiagnosisAuth): Promise<{ list: any[]; total: number }>;
   listMarks(params: CitationDiagnosisListParams, auth: CitationDiagnosisAuth): Promise<{ list: any[]; total: number }>;
 }

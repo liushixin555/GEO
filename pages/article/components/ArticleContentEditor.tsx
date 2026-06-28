@@ -27,6 +27,10 @@ const ArticleContentEditor: React.FC<ArticleContentEditorProps> = ({
   const screens = Grid.useBreakpoint();
   const editorHeight = screens.md ? 600 : 320;
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const canReviseDraft = article?.status === 'draft'
+    && article.write_mode === 'ai'
+    && content.trim().length > 0
+    && isContentEditable;
 
   useEffect(() => {
     if (contentSaving) {
@@ -63,6 +67,11 @@ const ArticleContentEditor: React.FC<ArticleContentEditorProps> = ({
           {article.status === 'manual_writing' && (
             <Popconfirm title="确认提交审核？" description="提交后将进入审核流程" onConfirm={onSubmitForReview} okText="确认" cancelText="取消">
               <Button size="small" type="primary">提交审核</Button>
+            </Popconfirm>
+          )}
+          {canReviseDraft && (
+            <Popconfirm title="确认基于当前正文重新生成？" description="AI 将参考现有正文继续修改，不会从空白内容开始。" onConfirm={onRegenerate} okText="确认" cancelText="取消">
+              <Button size="small" type="primary" icon={<ReloadOutlined />}>基于当前正文重新生成</Button>
             </Popconfirm>
           )}
           {['generate_failed'].includes(article.status) && isContentEditable && (

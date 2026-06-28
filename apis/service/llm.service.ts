@@ -4,6 +4,7 @@ export interface ArticleGenerationParams {
   portrait: string;
   images: { title: string; description: string; imageUrl: string }[];
   skills: string | Array<string | number>;
+  revisionInstruction?: string;
   previousContent?: string;
   companyName?: string;
   companyShortName?: string;
@@ -11,8 +12,30 @@ export interface ArticleGenerationParams {
   projectShortName?: string;
 }
 
+export interface ArticleGenerationDebugInfo {
+  modelName: string;
+  skillDirs: string[];
+  requiredReferenceFiles: string[];
+  systemPrompt: string;
+  userPrompt: string;
+  toolCalls: Array<{
+    toolName: string;
+    input: Record<string, unknown>;
+    output: string;
+  }>;
+  rawLlmOutput: string;
+  cleanedOutput: string;
+  warnings: string[];
+}
+
+export interface ArticleGenerationResult {
+  content: string;
+  qualityPassed: boolean;
+  debug: ArticleGenerationDebugInfo;
+}
+
 export interface ILlmService {
   expandKeywords(keyword: string): Promise<string[]>;
   mineKeywordsFromContent(content: string): Promise<string[]>;
-  generateArticle(params: ArticleGenerationParams): Promise<string>;
+  generateArticle(params: ArticleGenerationParams): Promise<ArticleGenerationResult>;
 }

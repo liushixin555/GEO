@@ -20,6 +20,7 @@ interface LlmModelFormProps {
 const LlmModelForm: React.FC<LlmModelFormProps> = ({ item, onClose, onSaved }) => {
   const isEdit = !!item;
   const isDisabled = isEdit && !item!.status;
+  const maskedApiKey = '****';
   const [form] = Form.useForm();
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -29,7 +30,7 @@ const LlmModelForm: React.FC<LlmModelFormProps> = ({ item, onClose, onSaved }) =
       form.setFieldsValue({
         provider: item.provider,
         base_url: item.base_url,
-        api_key: item.api_key,
+        api_key: '',
         model_name: item.model_name,
       });
     }
@@ -39,12 +40,15 @@ const LlmModelForm: React.FC<LlmModelFormProps> = ({ item, onClose, onSaved }) =
     setSaving(true);
     setError('');
     try {
-      const payload = {
+      const apiKey = values.api_key?.trim();
+      const payload: Record<string, unknown> = {
         provider: values.provider?.trim(),
         base_url: values.base_url?.trim(),
-        api_key: values.api_key?.trim(),
         model_name: values.model_name?.trim(),
       };
+      if (!isEdit || (apiKey && apiKey !== maskedApiKey)) {
+        payload.api_key = apiKey;
+      }
 
       if (isEdit) {
         await apiClient.put(`/llm-models/${item!.id}`, payload);
@@ -77,8 +81,8 @@ const LlmModelForm: React.FC<LlmModelFormProps> = ({ item, onClose, onSaved }) =
         <Form.Item name="base_url" label="Base URL" rules={[{ required: true, message: 'Base URL不能为空' }]}>
           <Input placeholder="https://api.openai.com/v1" disabled={isDisabled} />
         </Form.Item>
-        <Form.Item name="api_key" label="API Key" rules={[{ required: true, message: 'API Key不能为空' }]}>
-          <Input.Password placeholder="请输入API Key" disabled={isDisabled} />
+        <Form.Item name="api_key" label="API Key" rules={[{ required: !isEdit, message: 'API Key不能为空' }]}>
+          <Input.Password placeholder={isEdit ? '留空则不修改API Key' : '请输入API Key'} disabled={isDisabled} />
         </Form.Item>
         <Form.Item name="model_name" label="模型名称" rules={[{ required: true, message: '模型名称不能为空' }]}>
           <Input placeholder="如 gpt-4o、claude-3-sonnet" disabled={isDisabled} />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Breadcrumb, Select, Radio, DatePicker, Button, Table, Input, Tooltip, App, Tag, Spin } from 'antd';
+import { Breadcrumb, Select, Radio, DatePicker, Button, Table, Input, Tooltip, App, Tag, Spin, Segmented } from 'antd';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import type { SorterResult } from 'antd/es/table/interface';
 import { ArrowLeftOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
@@ -50,11 +50,13 @@ const CreatePublishSchedule: React.FC = () => {
   const [selectedPlatformIds, setSelectedPlatformIds] = useState<React.Key[]>([]);
   const [platformSearch, setPlatformSearch] = useState('');
   const [selectedTaxonomy, setSelectedTaxonomy] = useState<string | undefined>(undefined);
+  const [favoriteFilter, setFavoriteFilter] = useState<'all' | 'favorite'>('all');
   const [taxonomyOptions, setTaxonomyOptions] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<string | null>(null);
   // 缓存所有已选平台的完整信息（跨页保留选中状态）
   const selectedMapRef = useRef<Map<number, PlatformItem>>(new Map());
+  const platformRequestSeqRef = useRef(0);
 
   // 发布策略
   const [scheduleType, setScheduleType] = useState<ScheduleType>('asap');
@@ -98,30 +100,43 @@ const CreatePublishSchedule: React.FC = () => {
   }, []);
 
   // 加载平台列表 - 服务端分页
-  const fetchPlatforms = useCallback(async (page: number, search: string, taxonomy: string | undefined, sortField: string | null, sortDir: string | null) => {
+  const fetchPlatforms = useCallback(async (page: number, search: string, taxonomy: string | undefined, sortField: string | null, sortDir: string | null, favoriteMode: 'all' | 'favorite') => {
+    const requestSeq = platformRequestSeqRef.current + 1;
+    platformRequestSeqRef.current = requestSeq;
     setPlatformLoading(true);
     try {
       const params: Record<string, unknown> = { page, pageSize: 10 };
       if (search.trim()) params.search = search.trim();
       if (taxonomy) params.taxonomy = taxonomy;
+      if (favoriteMode === 'favorite') params.is_favorite = true;
       if (sortField) params.sortBy = sortField;
       if (sortDir) params.sortOrder = sortDir;
       const res = await apiClient.get('/publishing-platforms', { params });
-      const list = res.data.data.list || [];
-      const total = res.data.data.total || 0;
+      if (requestSeq !== platformRequestSeqRef.current) return;
+      const rawList: PlatformItem[] = res.data.data.list || [];
+      const list = favoriteMode === 'favorite'
+        ? rawList.filter((item) => item.is_favorite)
+        : rawList;
+      const rawTotal = res.data.data.total || 0;
+      const total = favoriteMode === 'favorite' && list.length !== rawList.length
+        ? list.length
+        : rawTotal;
       setPlatformList(list);
       setPlatformTotal(total);
     } catch {
+      if (requestSeq !== platformRequestSeqRef.current) return;
       setPlatformList([]);
       setPlatformTotal(0);
     } finally {
-      setPlatformLoading(false);
+      if (requestSeq === platformRequestSeqRef.current) {
+        setPlatformLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    fetchPlatforms(platformPage, platformSearch, selectedTaxonomy, sortBy, sortOrder);
-  }, [platformPage, platformSearch, selectedTaxonomy, sortBy, sortOrder, fetchPlatforms]);
+    fetchPlatforms(platformPage, platformSearch, selectedTaxonomy, sortBy, sortOrder, favoriteFilter);
+  }, [platformPage, platformSearch, selectedTaxonomy, sortBy, sortOrder, favoriteFilter, fetchPlatforms]);
 
   // 搜索时重置到第1页
   const handlePlatformSearch = (value: string) => {
@@ -141,7 +156,7 @@ const CreatePublishSchedule: React.FC = () => {
       await apiClient.post(`/publishing-platforms/${record.id}/favorite`, { is_favorite: nextFavorite });
       setPlatformList((list) => list.map((item) => (
         item.id === record.id ? { ...item, is_favorite: nextFavorite } : item
-      )));
+      )).filter((item) => favoriteFilter !== 'favorite' || item.is_favorite));
       if (selectedMapRef.current.has(record.id)) {
         selectedMapRef.current.set(record.id, { ...record, is_favorite: nextFavorite });
       }
@@ -337,6 +352,17 @@ const CreatePublishSchedule: React.FC = () => {
                 )}
               </span>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <Segmented
+                  value={favoriteFilter}
+                  onChange={(value) => {
+                    setFavoriteFilter(value as 'all' | 'favorite');
+                    setPlatformPage(1);
+                  }}
+                  options={[
+                    { label: '全部平台', value: 'all' },
+                    { label: '仅看收藏', value: 'favorite' },
+                  ]}
+                />
                 <Select
                   showSearch
                   allowClear
@@ -378,14 +404,18 @@ const CreatePublishSchedule: React.FC = () => {
                 total: platformTotal,
                 showSizeChanger: false,
                 showTotal: (total) => `共 ${total} 个平台`,
-                onChange: (p) => setPlatformPage(p),
               }}
               locale={{ emptyText: '暂无平台数据' }}
               onChange={(
-                _pagination: TablePaginationConfig,
+                pagination: TablePaginationConfig,
                 _filters: Record<string, unknown>,
                 sorter: SorterResult<PlatformItem> | SorterResult<PlatformItem>[],
+                extra,
               ) => {
+                if (extra.action === 'paginate') {
+                  setPlatformPage(pagination.current || 1);
+                  return;
+                }
                 const s = Array.isArray(sorter) ? sorter[0] : sorter;
                 if (s.field && s.order) {
                   setSortBy(s.field as string);

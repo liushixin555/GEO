@@ -560,6 +560,8 @@ components:
           format: int32
         content:
           type: string
+        revisionInstruction:
+          type: string
         version:
           type: number
           format: double
@@ -588,6 +590,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PublishingSchedule"
+        generationDebugs:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArticleGenerationDebug"
         deletedAt:
           type: string
           format: date-time
@@ -602,6 +608,7 @@ components:
         - project
         - versions
         - schedules
+        - generationDebugs
     ArticleVersion:
       type: object
       properties:
@@ -626,6 +633,10 @@ components:
           $ref: "#/components/schemas/Article"
         creator:
           $ref: "#/components/schemas/User"
+        generationDebugs:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArticleGenerationDebug"
         deletedAt:
           type: string
           format: date-time
@@ -634,6 +645,51 @@ components:
         - articleId
         - version
         - content
+        - createdAt
+        - article
+        - generationDebugs
+    ArticleGenerationDebug:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        articleId:
+          type: integer
+          format: int32
+        articleVersionId:
+          type: integer
+          format: int32
+        modelName:
+          type: string
+        skillDirs:
+          type: object
+        requiredReferenceFiles:
+          type: object
+        systemPrompt:
+          type: string
+        userPrompt:
+          type: string
+        toolCalls:
+          type: object
+        rawLlmOutput:
+          type: string
+        cleanedOutput:
+          type: string
+        warnings:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+        article:
+          $ref: "#/components/schemas/Article"
+        articleVersion:
+          $ref: "#/components/schemas/ArticleVersion"
+      required:
+        - id
+        - articleId
+        - systemPrompt
+        - userPrompt
         - createdAt
         - article
     KnowledgeKeyword:

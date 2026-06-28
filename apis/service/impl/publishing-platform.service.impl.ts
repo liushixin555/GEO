@@ -87,7 +87,7 @@ export class PublishingPlatformServiceImpl implements IPublishingPlatformService
     return items.map(mapPublishingPlatform);
   }
 
-  async list(page: number, pageSize: number, search?: string, taxonomy?: string, sortBy?: string, sortOrder?: string): Promise<{ list: PublishingPlatform[]; total: number }> {
+  async list(page: number, pageSize: number, search?: string, taxonomy?: string, sortBy?: string, sortOrder?: string, isFavorite?: boolean): Promise<{ list: PublishingPlatform[]; total: number }> {
     const prisma = getPrisma();
     const where: any = {};
     if (search) {
@@ -98,6 +98,9 @@ export class PublishingPlatformServiceImpl implements IPublishingPlatformService
     }
     if (taxonomy) {
       where.taxonomy = taxonomy;
+    }
+    if (isFavorite !== undefined) {
+      where.isFavorite = isFavorite;
     }
 
     // Map frontend field names to Prisma field names

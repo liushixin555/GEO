@@ -6,6 +6,22 @@ import type { ArticleData, ArticleFormValues, WriteMode } from '../types';
 
 type FormInstance = ReturnType<typeof Form.useForm<ArticleFormValues>>[0];
 
+function parseKeywords(value: string | null | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(/[、,，]/)
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function normalizeKeywords(value: string | string[] | undefined): string | undefined {
+  const items = Array.isArray(value)
+    ? value
+    : value?.split(/[、,，]/) ?? [];
+  const normalized = items.map(item => item.trim()).filter(Boolean);
+  return normalized.length > 0 ? normalized.join('、') : undefined;
+}
+
 export function useArticleDetail(
   id: string | undefined,
   projectId: number | undefined,
@@ -44,7 +60,7 @@ export function useArticleDetail(
         title: data.title || '',
         article_type: data.article_type || undefined,
         write_mode: data.write_mode || undefined,
-        keywords: data.keywords || '',
+        keywords: parseKeywords(data.keywords),
         portrait: data.portrait ? JSON.parse(data.portrait) : undefined,
         skills: data.skills ?? undefined,
         llm_model_id: data.llm_model_id ?? undefined,
@@ -76,7 +92,7 @@ export function useArticleDetail(
         title: values.title?.trim() || undefined,
         article_type: values.article_type || undefined,
         write_mode: values.write_mode || undefined,
-        keywords: values.keywords?.trim() ? values.keywords.trim() : undefined,
+        keywords: normalizeKeywords(values.keywords),
         portrait: Array.isArray(values.portrait) && values.portrait.length > 0
           ? JSON.stringify(values.portrait)
           : undefined,
@@ -133,11 +149,12 @@ export function useArticleDetail(
     try {
       if (isNew) {
         const formValues = form.getFieldsValue();
-        if (!formValues.keywords || !formValues.llm_model_id) return;
+        const keywords = normalizeKeywords(formValues.keywords);
+        if (!keywords || !formValues.llm_model_id) return;
         const payload: Partial<ArticleData> & { content: string } = {
           article_type: formValues.article_type || undefined,
           write_mode: formValues.write_mode || undefined,
-          keywords: formValues.keywords,
+          keywords,
           portrait: Array.isArray(formValues.portrait) && formValues.portrait.length > 0
             ? JSON.stringify(formValues.portrait)
             : undefined,

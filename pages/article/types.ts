@@ -42,7 +42,7 @@ export interface ArticleFormValues {
   title?: string;
   article_type?: ArticleType;
   write_mode?: WriteMode;
-  keywords?: string;
+  keywords?: string | string[];
   portrait?: string[];
   skills?: number[];
   llm_model_id?: number;

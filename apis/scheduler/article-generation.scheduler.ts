@@ -52,6 +52,22 @@ function normalizeArticleImageUrls(raw: unknown): string[] {
   return Array.from(urls);
 }
 
+async function getDefaultArticleSkill(prisma: any): Promise<{ id: number; skillDir: string } | null> {
+  const record = await prisma.skills.findFirst({
+    where: {
+      deletedAt: null,
+      OR: [
+        { name: 'geo-content-generator' },
+        { skillDir: { contains: 'geo-content-generator-v8' } },
+      ],
+    },
+    select: { id: true, skillDir: true },
+    orderBy: { id: 'asc' },
+  });
+
+  return record?.skillDir ? record : null;
+}
+
 export function startArticleGenerationCron(): void {
   if (!config.cron.articleGenerationEnabled) {
     console.log('[文章生成] 定时任务已禁用');
@@ -107,7 +123,21 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
     })
     : [];
 
-  const skillIds = normalizeArticleSkillIds(article.skills);
+  let skillIds = normalizeArticleSkillIds(article.skills);
+  if (skillIds.length === 0) {
+    const defaultSkill = await getDefaultArticleSkill(prisma);
+    if (defaultSkill) {
+      skillIds = [defaultSkill.id];
+      await prisma.article.update({
+        where: { id: article.id },
+        data: { skills: skillIds },
+      });
+      console.warn(`[文章生成] 文章 #${article.id} 未选择技能，已自动使用默认技能 ${defaultSkill.skillDir}`);
+    } else {
+      console.warn(`[文章生成] 文章 #${article.id} 未选择技能，且未找到默认 geo-content-generator 技能`);
+    }
+  }
+
   const skillRecords = skillIds.length > 0
     ? await prisma.skills.findMany({
       where: { id: { in: skillIds }, deletedAt: null },
@@ -140,18 +170,20 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
     },
   });
 
-  const content = await llmService.generateArticle({
+  const generation = await llmService.generateArticle({
     title: article.title || '',
     keywords: article.keywords || '',
     portrait: article.portrait || '通用读者',
     images: imageResources,
     skills: skillDirs,
+    revisionInstruction: article.revisionInstruction || undefined,
     previousContent: previousContent || undefined,
     companyName: project?.company?.fullName,
     companyShortName: project?.company?.shortName,
     projectName: project?.fullName,
     projectShortName: project?.shortName,
   });
+  const content = generation.content;
 
   let title = article.title;
   if (!title) {
@@ -159,27 +191,75 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
     if (firstLine) title = firstLine;
   }
 
+  if (!generation.qualityPassed) {
+    await prisma.$transaction(async (tx: any) => {
+      await tx.articleGenerationDebug.create({
+        data: {
+          articleId: article.id,
+          articleVersionId: null,
+          modelName: generation.debug.modelName,
+          skillDirs: generation.debug.skillDirs,
+          requiredReferenceFiles: generation.debug.requiredReferenceFiles,
+          systemPrompt: generation.debug.systemPrompt,
+          userPrompt: generation.debug.userPrompt,
+          toolCalls: generation.debug.toolCalls,
+          rawLlmOutput: generation.debug.rawLlmOutput,
+          cleanedOutput: generation.debug.cleanedOutput,
+          warnings: generation.debug.warnings,
+        },
+      });
+
+      await tx.article.update({
+        where: { id: article.id },
+        data: {
+          status: 'generate_failed',
+        },
+      });
+    });
+
+    console.warn(`[文章生成] 文章 #${article.id} 未通过质量校验，已标记为 generate_failed`);
+    return;
+  }
+
   const newVersion = Math.floor(article.version) + 1.0;
 
-  await prisma.$transaction([
-    prisma.articleVersion.create({
+  await prisma.$transaction(async (tx: any) => {
+    const versionRecord = await tx.articleVersion.create({
       data: {
         articleId: article.id,
         version: newVersion,
         content,
         createdBy: null,
       },
-    }),
-    prisma.article.update({
+    });
+
+    await tx.articleGenerationDebug.create({
+      data: {
+        articleId: article.id,
+        articleVersionId: versionRecord.id,
+        modelName: generation.debug.modelName,
+        skillDirs: generation.debug.skillDirs,
+        requiredReferenceFiles: generation.debug.requiredReferenceFiles,
+        systemPrompt: generation.debug.systemPrompt,
+        userPrompt: generation.debug.userPrompt,
+        toolCalls: generation.debug.toolCalls,
+        rawLlmOutput: generation.debug.rawLlmOutput,
+        cleanedOutput: generation.debug.cleanedOutput,
+        warnings: generation.debug.warnings,
+      },
+    });
+
+    await tx.article.update({
       where: { id: article.id },
       data: {
         title,
         content,
+        revisionInstruction: null,
         version: newVersion,
         status: 'pending_review',
       },
-    }),
-  ]);
+    });
+  });
 
   console.log(`[文章生成] 文章 #${article.id} 生成完成，状态已更新为 pending_review`);
 }

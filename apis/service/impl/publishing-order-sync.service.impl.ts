@@ -2,6 +2,7 @@ import { getPrisma } from '../../utils';
 import { getRmOrderById, getRmToken, type RmOrderItem, type RmOrderQueryResponse } from '../../utils/rmapi.utils';
 import type { IPublishingOrderSyncService, PublishingOrderSyncResult } from '../publishing-order-sync.service';
 import { Prisma } from '@prisma/client';
+import { normalizeCitationUrl } from '../../utils/citation-url.util';
 
 const RUANMENG_USERNAME_KEY = 'ruanmeng_username';
 const RUANMENG_PASSWORD_KEY = 'ruanmeng_password';
@@ -9,31 +10,52 @@ const DEFAULT_BATCH_SIZE = 50;
 
 export class PublishingOrderSyncServiceImpl implements IPublishingOrderSyncService {
   async syncAllPendingOrders(): Promise<PublishingOrderSyncResult> {
-    const orders = await getPrisma().$queryRaw<Array<{ id: number; rmOrderId: string }>>(Prisma.sql`
-      SELECT id, rm_order_id AS "rmOrderId"
-      FROM publishing_platform_orders
-      WHERE rm_status = 0
-      ORDER BY updated_at ASC
+    const orders = await getPrisma().$queryRaw<Array<LocalOrder>>(Prisma.sql`
+      SELECT
+        ppo.id,
+        ppo.rm_order_id AS "rmOrderId",
+        ppo.schedule_id AS "scheduleId",
+        ps.article_id AS "articleId",
+        pp.name AS "platformName"
+      FROM publishing_platform_orders ppo
+      JOIN publishing_schedules ps ON ps.id = ppo.schedule_id
+      LEFT JOIN publishing_platforms pp ON pp.id = ppo.platform_id
+      WHERE ppo.rm_status = 0
+      ORDER BY ppo.updated_at ASC
       LIMIT ${DEFAULT_BATCH_SIZE}
     `);
     return this.syncLocalOrders(orders);
   }
 
   async syncOrderByScheduleId(scheduleId: number): Promise<PublishingOrderSyncResult> {
-    const orders = await getPrisma().$queryRaw<Array<{ id: number; rmOrderId: string }>>(Prisma.sql`
-      SELECT id, rm_order_id AS "rmOrderId"
-      FROM publishing_platform_orders
-      WHERE schedule_id = ${scheduleId}
-      ORDER BY id ASC
+    const orders = await getPrisma().$queryRaw<Array<LocalOrder>>(Prisma.sql`
+      SELECT
+        ppo.id,
+        ppo.rm_order_id AS "rmOrderId",
+        ppo.schedule_id AS "scheduleId",
+        ps.article_id AS "articleId",
+        pp.name AS "platformName"
+      FROM publishing_platform_orders ppo
+      JOIN publishing_schedules ps ON ps.id = ppo.schedule_id
+      LEFT JOIN publishing_platforms pp ON pp.id = ppo.platform_id
+      WHERE ppo.schedule_id = ${scheduleId}
+      ORDER BY ppo.id ASC
     `);
     return this.syncLocalOrders(orders);
   }
 
   async syncOrderByRmOrderId(rmOrderId: string): Promise<PublishingOrderSyncResult> {
-    const rows = await getPrisma().$queryRaw<Array<{ id: number; rmOrderId: string }>>(Prisma.sql`
-      SELECT id, rm_order_id AS "rmOrderId"
-      FROM publishing_platform_orders
-      WHERE rm_order_id = ${rmOrderId}
+    const rows = await getPrisma().$queryRaw<Array<LocalOrder>>(Prisma.sql`
+      SELECT
+        ppo.id,
+        ppo.rm_order_id AS "rmOrderId",
+        ppo.schedule_id AS "scheduleId",
+        ps.article_id AS "articleId",
+        pp.name AS "platformName"
+      FROM publishing_platform_orders ppo
+      JOIN publishing_schedules ps ON ps.id = ppo.schedule_id
+      LEFT JOIN publishing_platforms pp ON pp.id = ppo.platform_id
+      WHERE ppo.rm_order_id = ${rmOrderId}
       LIMIT 1
     `);
     const order = rows[0];
@@ -41,7 +63,7 @@ export class PublishingOrderSyncServiceImpl implements IPublishingOrderSyncServi
     return this.syncLocalOrders([order]);
   }
 
-  private async syncLocalOrders(localOrders: Array<{ id: number; rmOrderId: string }>): Promise<PublishingOrderSyncResult> {
+  private async syncLocalOrders(localOrders: LocalOrder[]): Promise<PublishingOrderSyncResult> {
     const result: PublishingOrderSyncResult = { scanned: localOrders.length, synced: 0, failed: 0 };
     if (localOrders.length === 0) return result;
 
@@ -57,6 +79,7 @@ export class PublishingOrderSyncServiceImpl implements IPublishingOrderSyncServi
         }
         const remoteOrder = this.extractOrder(response, localOrder.rmOrderId);
         await this.updateLocalOrder(localOrder.id, remoteOrder);
+        await this.upsertPublishedLink(localOrder, remoteOrder);
         result.synced++;
       } catch {
         result.failed++;
@@ -99,4 +122,56 @@ export class PublishingOrderSyncServiceImpl implements IPublishingOrderSyncServi
       WHERE id = ${id}
     `);
   }
+
+  private extractPublishedUrl(order: RmOrderItem): string | null {
+    const candidates = [
+      order.url,
+      order.link,
+      order.publish_url,
+      order.article_url,
+      order.source_url,
+      order.response_message,
+    ];
+    const jsonText = JSON.stringify(order);
+    candidates.push(jsonText);
+    for (const candidate of candidates) {
+      if (!candidate) continue;
+      const match = String(candidate).match(/https?:\/\/[^\s"'<>，。；；、)）\]}]+/i);
+      if (match?.[0]) return match[0].replace(/[.,，。;；]+$/u, '');
+    }
+    return null;
+  }
+
+  private async upsertPublishedLink(localOrder: LocalOrder, remoteOrder: RmOrderItem): Promise<void> {
+    const url = this.extractPublishedUrl(remoteOrder);
+    if (!url) return;
+
+    const { normalizedUrl, domain } = normalizeCitationUrl(url);
+    if (!normalizedUrl) return;
+
+    const existing = await getPrisma().$queryRaw<Array<{ id: number }>>(Prisma.sql`
+      SELECT id
+      FROM published_article_links
+      WHERE deleted_at IS NULL
+        AND article_id = ${localOrder.articleId}
+        AND normalized_url = ${normalizedUrl}
+      LIMIT 1
+    `);
+    if (existing.length > 0) return;
+
+    await getPrisma().$executeRaw(Prisma.sql`
+      INSERT INTO published_article_links
+        (article_id, schedule_id, platform_name, url, normalized_url, domain, created_by)
+      VALUES
+        (${localOrder.articleId}, ${localOrder.scheduleId}, ${localOrder.platformName ?? remoteOrder.resource_name ?? null}, ${url}, ${normalizedUrl}, ${domain}, null)
+    `);
+  }
+}
+
+interface LocalOrder {
+  id: number;
+  rmOrderId: string;
+  scheduleId: number;
+  articleId: number;
+  platformName: string | null;
 }

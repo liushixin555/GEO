@@ -16,7 +16,7 @@ export function useArticleActions(
     if (!article || !projectId || !id) return;
     try {
       await apiClient.put(`/projects/${projectId}/articles/${id}/review`, { approved });
-      message.success(approved ? '审核通过，自动发布中' : '审核不通过，已退回草稿');
+      message.success(approved ? '审核通过，自动发布中' : '审核不通过，已退回修改，可基于当前正文重新生成');
       refetch();
     } catch (err: unknown) {
       message.error(getApiErrorMessage(err, '审核操作失败'));

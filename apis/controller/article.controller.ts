@@ -2,12 +2,13 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { createArticleService, createProjectService, IArticleService, IProjectService } from '../service';
 import type { AuthContext } from '../service';
-import { success, fail, paginate, created } from '../utils';
+import { getPrisma, success, fail, paginate, created } from '../utils';
 import { AppError, ForbiddenError } from '../errors';
 import { logger } from '../utils/logger.util';
 import { ROLES, Role } from '../constants/roles';
 import {
   createArticleSchema,
+  batchCreateArticlesSchema,
   updateArticleSchema,
   reviewArticleSchema,
   updateContentSchema,
@@ -111,6 +112,12 @@ export const createArticle = withArticleAuth(async (req, res, ctx) => {
   created(res, item, '创建文章成功');
 }, { errorContext: '创建文章失败' });
 
+export const batchCreateArticles = withArticleAuth(async (req, res, ctx) => {
+  const { articles } = req.body as z.infer<typeof batchCreateArticlesSchema>;
+  const items = await articleService.batchCreate(ctx.projectId, articles as CreateArticleRequest[], ctx);
+  created(res, { list: items, total: items.length }, '批量提交AI生成成功');
+}, { errorContext: '批量创建文章失败' });
+
 export const updateArticle = withArticleAuth(async (req, res, ctx) => {
   const body = req.body as UpdateArticleRequest;
   const item = await articleService.update(ctx.projectId, ctx.articleId!, body, ctx);
@@ -137,9 +144,14 @@ export const reviewArticle = withArticleAuth(async (req, res, ctx) => {
 }, { requireId: true, errorContext: '审核操作失败' });
 
 export const regenerateArticle = withArticleAuth(async (req, res, ctx) => {
-  const item = await articleService.regenerate(ctx.projectId, ctx.articleId!, ctx);
+  const item = await articleService.regenerate(ctx.projectId, ctx.articleId!, ctx, req.body?.revision_instruction);
   success(res, item, '已重新提交AI生成');
 }, { requireId: true, errorContext: '重新生成操作失败' });
+
+export const batchRegenerateArticles = withArticleAuth(async (req, res, ctx) => {
+  const result = await articleService.batchRegenerate(ctx.projectId, req.body.article_ids, ctx, req.body.revision_instruction);
+  success(res, result, `已提交 ${result.success_count} 篇文章重新生成`);
+}, { errorContext: '批量重新生成操作失败' });
 
 export const submitForReview = withArticleAuth(async (req, res, ctx) => {
   const item = await articleService.submitForReview(ctx.projectId, ctx.articleId!, ctx);
@@ -150,3 +162,13 @@ export const listArticleVersions = withArticleAuth(async (req, res, ctx) => {
   const versions = await articleService.listVersions(ctx.projectId, ctx.articleId!);
   success(res, versions);
 }, { requireId: true, errorContext: '获取版本历史失败' });
+
+export const getArticleGenerationDebug = withArticleAuth(async (req, res, ctx) => {
+  await articleService.getById(ctx.projectId, ctx.articleId!);
+  const prisma = getPrisma();
+  const item = await prisma.articleGenerationDebug.findFirst({
+    where: { articleId: ctx.articleId! },
+    orderBy: { createdAt: 'desc' },
+  });
+  success(res, item);
+}, { requireId: true, errorContext: '获取文章生成依据失败' });
