@@ -301,6 +301,8 @@ components:
         publishRate:
           type: number
           format: double
+        isFavorite:
+          type: boolean
         createdAt:
           type: string
           format: date-time
@@ -322,6 +324,7 @@ components:
         - price
         - includeRate
         - publishRate
+        - isFavorite
         - createdAt
         - updatedAt
         - orders
@@ -1104,6 +1107,157 @@ components:
         - updatedAt
         - schedule
         - platform
+    PublishedArticleLink:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        articleId:
+          type: integer
+          format: int32
+        scheduleId:
+          type: integer
+          format: int32
+        platformName:
+          type: string
+        url:
+          type: string
+        normalizedUrl:
+          type: string
+        domain:
+          type: string
+        createdBy:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - articleId
+        - url
+        - normalizedUrl
+        - createdAt
+        - updatedAt
+    AiCitationDetectionRun:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        projectId:
+          type: integer
+          format: int32
+        modelName:
+          type: string
+        prompt:
+          type: string
+        answer:
+          type: string
+        status:
+          type: string
+        createdBy:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        records:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiCitationRecord"
+      required:
+        - id
+        - modelName
+        - status
+        - createdAt
+        - records
+    AiCitationRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        runId:
+          type: integer
+          format: int32
+        modelName:
+          type: string
+        sourceUrl:
+          type: string
+        normalizedSourceUrl:
+          type: string
+        sourceTitle:
+          type: string
+        domain:
+          type: string
+        matched:
+          type: boolean
+        articleId:
+          type: integer
+          format: int32
+        articleLinkId:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        run:
+          $ref: "#/components/schemas/AiCitationDetectionRun"
+      required:
+        - id
+        - runId
+        - modelName
+        - sourceUrl
+        - normalizedSourceUrl
+        - matched
+        - createdAt
+        - run
+    ArticleModelCitationMark:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        articleId:
+          type: integer
+          format: int32
+        modelName:
+          type: string
+        firstMatchedAt:
+          type: string
+          format: date-time
+        lastMatchedAt:
+          type: string
+          format: date-time
+        matchCount:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - articleId
+        - modelName
+        - firstMatchedAt
+        - lastMatchedAt
+        - matchCount
+        - createdAt
+        - updatedAt
     Role:
       type: string
       enum:

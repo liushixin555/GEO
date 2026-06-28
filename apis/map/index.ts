@@ -180,6 +180,7 @@ export function mapPublishingPlatform(prismaPlatform: any): PublishingPlatform {
     remark: prismaPlatform.remark,
     include_rate: prismaPlatform.includeRate,
     publish_rate: prismaPlatform.publishRate,
+    is_favorite: prismaPlatform.isFavorite ?? false,
     created_at: prismaPlatform.createdAt,
     updated_at: prismaPlatform.updatedAt,
   };

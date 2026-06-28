@@ -44,6 +44,8 @@ import { IPublishingExecutionService } from './publishing-execution.service';
 import { PublishingExecutionServiceImpl } from './impl/publishing-execution.service.impl';
 import { IPublishingOrderSyncService, PublishingOrderSyncResult } from './publishing-order-sync.service';
 import { PublishingOrderSyncServiceImpl } from './impl/publishing-order-sync.service.impl';
+import { ICitationDiagnosisService } from './citation-diagnosis.service';
+import { CitationDiagnosisServiceImpl } from './impl/citation-diagnosis.service.impl';
 
 // --- 知识域 ---
 import { IKnowledgeBaseService } from './knowledge-base.service';
@@ -103,6 +105,7 @@ export { IPublishingPlatformService };
 export { IPublishingScheduleService };
 export { IPublishingExecutionService };
 export { IPublishingOrderSyncService, PublishingOrderSyncResult };
+export { ICitationDiagnosisService };
 
 // 知识域
 export { IKnowledgeBaseService };
@@ -159,6 +162,10 @@ export function createPublishingExecutionService(): IPublishingExecutionService 
 
 export function createPublishingOrderSyncService(): IPublishingOrderSyncService {
   return new PublishingOrderSyncServiceImpl();
+}
+
+export function createCitationDiagnosisService(): ICitationDiagnosisService {
+  return new CitationDiagnosisServiceImpl();
 }
 
 // 知识域

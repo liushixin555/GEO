@@ -24,6 +24,7 @@ const CreatePublishSchedule = lazy(() => import('../publish/CreatePublishSchedul
 const TodoPage = lazy(() => import('../todo'));
 const ApiDocsPage = lazy(() => import('../swagger'));
 const AuditLogPage = lazy(() => import('../audit-log'));
+const CitationDiagnosisPage = lazy(() => import('../citation-diagnosis'));
 
 const VALID_ROLES = Object.values(ROLES) as string[];
 
@@ -46,6 +47,7 @@ const ROUTE_DEFS: RouteDef[] = [
   { path: '/article/:id', roles: [ROLES.SYSADMIN, ROLES.ADMIN], Component: ArticleDetail },
   { path: '/publish', roles: [ROLES.SYSADMIN, ROLES.ADMIN], Component: PublishingSchedulePage },
   { path: '/publish/create', roles: [ROLES.SYSADMIN, ROLES.ADMIN], Component: CreatePublishSchedule },
+  { path: '/citation-diagnosis', roles: [ROLES.SYSADMIN, ROLES.ADMIN], Component: CitationDiagnosisPage },
   { path: '/project', roles: [ROLES.SYSADMIN, ROLES.ADMIN], Component: ProjectPage },
   { path: '/users', roles: [ROLES.SYSADMIN], Component: UserPage },
   { path: '/skills', roles: [ROLES.SYSADMIN, ROLES.ADMIN], Component: SkillPage },

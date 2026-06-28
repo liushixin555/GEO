@@ -26,6 +26,25 @@ export interface CreatePublishingScheduleRequest {
   scheduled_publish_at?: string | null;
 }
 
+export type AutoPublishStrategy = 'round_robin' | 'random';
+
+export interface AutoCreatePublishingScheduleRequest {
+  article_ids: number[];
+  strategy: AutoPublishStrategy;
+  schedule_type: ScheduleType;
+  scheduled_publish_at?: string | null;
+}
+
+export interface AutoCreatePublishingScheduleResult {
+  created: number;
+  items: Array<{
+    article_id: number;
+    schedule_id: number;
+    platform_id: number;
+    platform_name: string;
+  }>;
+}
+
 /** 更新发布计划请求 */
 export interface UpdatePublishingScheduleRequest {
   schedule_type?: ScheduleType | null;

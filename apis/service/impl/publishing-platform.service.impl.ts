@@ -134,4 +134,18 @@ export class PublishingPlatformServiceImpl implements IPublishingPlatformService
     });
     return results.map((r) => r.taxonomy);
   }
+
+  async setFavorite(id: number, isFavorite: boolean): Promise<PublishingPlatform> {
+    const prisma = getPrisma();
+    const existing = await prisma.publishingPlatform.findUnique({ where: { id } });
+    if (!existing) {
+      throw new BusinessError('发布平台不存在');
+    }
+
+    const updated = await prisma.publishingPlatform.update({
+      where: { id },
+      data: { isFavorite },
+    });
+    return mapPublishingPlatform(updated);
+  }
 }

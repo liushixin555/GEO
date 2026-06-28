@@ -3,7 +3,7 @@ export interface ArticleGenerationParams {
   keywords: string;
   portrait: string;
   images: { title: string; description: string; imageUrl: string }[];
-  skills: string;
+  skills: string | Array<string | number>;
   previousContent?: string;
   companyName?: string;
   companyShortName?: string;
