@@ -237,3 +237,4 @@
 | 2026-05-28 | tasks/dev025.AgentLoop工具类.md | Agent Loop 工具类（deepagents + langchain）+ generateArticle 重构 + 技能路径集成 |
 | 2026-06-28 | tasks/dev026.诊断管理.md | 诊断管理（AI 可见度诊断）模块——替代 geo-audit Redis KV，3 张新表（audits/audit_prompts/audit_prompt_results）+ 多引擎批量执行 + 评分聚合 + Skill ZIP 下载，命名铁律：代码 audit / 中文「诊断」 |
 | 2026-06-28 | tasks/dev026.诊断管理.md | 诊断管理增强——新增 POST /audit/:jobId/rerun（基于原配置重新诊断）+ 修复 engine-client 读取 LlmModel.apiKey 未解密 AES-256-GCM 加密密钥的 Bug |
+| 2026-06-28 | tasks/dev026.诊断管理.md | fix：runAuditJob 聚合前过滤 `p.result.error` 导致引擎报错的 prompt 被丢弃，盲点统计归零；改为只过滤 `p.result` 为空，带 error 的结果交由 aggregator 处理（空 text → genuine=false → 正确归入盲点） |

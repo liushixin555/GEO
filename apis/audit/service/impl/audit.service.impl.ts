@@ -473,8 +473,11 @@ export class AuditServiceImpl implements IAuditService {
       },
     });
 
+    // 注意：不要过滤掉 error 的结果！
+    // error 的 prompt（如引擎 401）必须参与聚合 —— aggregator 会对空 text 返回 genuine=false，
+    // 从而正确归入盲点。否则会出现"提示词分析里满是盲点、但盲点页签显示 0 个"的严重错误。
     const promptResults: PromptResult[] = prompts
-      .filter((p) => p.result && !p.result.error)
+      .filter((p) => p.result)
       .map((p) => ({
         prompt: p.prompt,
         category: p.category as PromptResult['category'],
