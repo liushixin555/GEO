@@ -236,3 +236,4 @@
 | 2026-05-27 | tasks/progress_tasks/2026-05-27-system-config-ruanmeng-whitelist.md | fix063: 系统配置白名单新增ruanmeng_username/ruanmeng_password，修复PUT 400参数验证失败 |
 | 2026-05-28 | tasks/dev025.AgentLoop工具类.md | Agent Loop 工具类（deepagents + langchain）+ generateArticle 重构 + 技能路径集成 |
 | 2026-06-28 | tasks/dev026.诊断管理.md | 诊断管理（AI 可见度诊断）模块——替代 geo-audit Redis KV，3 张新表（audits/audit_prompts/audit_prompt_results）+ 多引擎批量执行 + 评分聚合 + Skill ZIP 下载，命名铁律：代码 audit / 中文「诊断」 |
+| 2026-06-28 | tasks/dev026.诊断管理.md | 诊断管理增强——新增 POST /audit/:jobId/rerun（基于原配置重新诊断）+ 修复 engine-client 读取 LlmModel.apiKey 未解密 AES-256-GCM 加密密钥的 Bug |

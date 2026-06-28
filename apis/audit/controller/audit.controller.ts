@@ -107,6 +107,26 @@ export async function executeAudit(req: Request, res: Response): Promise<void> {
   }
 }
 
+/** POST /api/v1/audit/:jobId/rerun — 基于已有诊断配置重新诊断 */
+export async function rerunAudit(req: Request, res: Response): Promise<void> {
+  try {
+    const jobId = String(req.params.jobId);
+    const userId = req.user?.userId ?? 0;
+    const role = req.user?.role ?? 'view';
+    const companyId = req.user?.companyId ?? null;
+
+    if (role === 'view') {
+      res.status(403).json({ code: 403, message: '无权操作' });
+      return;
+    }
+
+    const data = await auditService.rerun(jobId, userId, role, companyId);
+    success(res, data, `已基于原配置创建新诊断任务，共 ${data.total} 条提示词 × 引擎组合`);
+  } catch (err: unknown) {
+    handleControllerError(res, err, '重新诊断失败');
+  }
+}
+
 /** GET /api/v1/audit/:jobId/status — 轮询执行状态 */
 export async function getAuditStatus(req: Request, res: Response): Promise<void> {
   try {

@@ -27,7 +27,7 @@ const AuditPage: React.FC = () => {
   }
 
   if (view.kind === 'detail') {
-    return <AuditDetailPage jobId={view.jobId} onBack={goOverview} />;
+    return <AuditDetailPage jobId={view.jobId} onBack={goOverview} onView={goDetail} />;
   }
 
   return <AuditOverview onNew={goNew} onView={goDetail} />;

@@ -29,6 +29,7 @@ import {
   CloseCircleOutlined,
   BulbOutlined,
   DownloadOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import apiClient from '../../lib/apiClient';
 import { formatDateTime } from '../../utils/date';
@@ -50,12 +51,40 @@ import {
 interface AuditDetailProps {
   jobId: string;
   onBack: () => void;
+  /** 重新诊断成功后跳转到新诊断详情 */
+  onView: (jobId: string) => void;
 }
 
-const AuditDetailPage: React.FC<AuditDetailProps> = ({ jobId, onBack }) => {
+const AuditDetailPage: React.FC<AuditDetailProps> = ({ jobId, onBack, onView }) => {
   const { detail, loading, refresh } = useAuditDetail(jobId);
   const [downloading, setDownloading] = React.useState(false);
-  const { message } = App.useApp();
+  const [rerunning, setRerunning] = React.useState(false);
+  const { message, modal } = App.useApp();
+
+  const handleRerun = () => {
+    if (!detail) return;
+    modal.confirm({
+      title: '重新诊断',
+      icon: <ReloadOutlined />,
+      content: `将基于当前诊断配置（${detail.brand}）创建一份新的诊断任务并立即执行，原报告保留不变。是否继续？`,
+      okText: '开始重新诊断',
+      cancelText: '取消',
+      okButtonProps: { loading: rerunning },
+      onOk: async () => {
+        try {
+          setRerunning(true);
+          const res = await apiClient.post(`/audit/${jobId}/rerun`);
+          const { jobId: newJobId } = res.data.data;
+          message.success('已创建新的诊断任务，正在执行中');
+          onView(newJobId);
+        } catch (err: any) {
+          message.error(err?.response?.data?.message || '重新诊断失败');
+        } finally {
+          setRerunning(false);
+        }
+      },
+    });
+  };
 
   const handleDownload = async () => {
     try {
@@ -145,6 +174,15 @@ const AuditDetailPage: React.FC<AuditDetailProps> = ({ jobId, onBack }) => {
               loading={downloading}
             >
               下载报告
+            </Button>
+          )}
+          {(detail.status === 'complete' || detail.status === 'failed') && (
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={handleRerun}
+              loading={rerunning}
+            >
+              重新诊断
             </Button>
           )}
         </Space>

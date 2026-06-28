@@ -26,6 +26,7 @@ router.post('/', validate(createAuditSchema), ctrl.createAudit);
 // 单任务操作（:jobId 必须置于固定路径之后）
 router.get('/:jobId/status', ctrl.getAuditStatus);
 router.post('/:jobId/execute', ctrl.executeAudit);
+router.post('/:jobId/rerun', ctrl.rerunAudit);
 router.get('/:jobId/skill', ctrl.downloadAuditSkill);
 router.get('/:jobId', ctrl.getAudit);
 router.delete('/:jobId', ctrl.deleteAudit);

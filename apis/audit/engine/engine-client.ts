@@ -9,6 +9,7 @@
  */
 
 import { getPrisma } from '../../utils/db.util';
+import { decryptApiKey, isEncrypted } from '../../utils/encryption.util';
 
 export interface EngineModelConfig {
   /** LlmModel 主键 */
@@ -46,11 +47,14 @@ export async function loadEnabledEngines(): Promise<Map<number, EngineModelConfi
 
   const map = new Map<number, EngineModelConfig>();
   for (const row of rows) {
+    // LlmModel 表中 apiKey 为 AES-256-GCM 加密存储（见 llm-model.service.impl.ts），
+    // 调用 LLM 前必须解密；同时兼容历史明文数据。
+    const apiKey = isEncrypted(row.apiKey) ? decryptApiKey(row.apiKey) : row.apiKey;
     map.set(row.id, {
       id: row.id,
       provider: row.provider,
       baseUrl: row.baseUrl,
-      apiKey: row.apiKey,
+      apiKey,
       modelName: row.modelName,
     });
   }
