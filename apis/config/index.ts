@@ -1,8 +1,16 @@
 import dotenv from 'dotenv';
 import crypto from 'crypto';
+import fs from 'fs';
 import path from 'path';
 
-dotenv.config();
+const envFiles = ['.env', '.env.local', '.env.development.local'];
+
+envFiles.forEach((file, index) => {
+  const envPath = path.resolve(process.cwd(), file);
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath, override: index > 0 });
+  }
+});
 
 const DEFAULTS = {
   PORT: 8080,
@@ -19,6 +27,7 @@ const DEFAULTS = {
   CRON_ARTICLE_INTERVAL: '*/5 * * * *',
   CRON_PUBLISHING_INTERVAL: '*/1 * * * *',
   CRON_PUBLISHING_ORDER_SYNC_INTERVAL: '*/5 * * * *',
+  CRON_CITATION_DIAGNOSIS_INTERVAL: '0 */6 * * *',
   CORS_ORIGIN: 'http://localhost:5173',
   UPLOAD_IMAGE_MAX_SIZE: 10,
   UPLOAD_DOCUMENT_MAX_SIZE: 30,
@@ -51,6 +60,8 @@ export interface CronConfig {
   readonly publishingScheduleEnabled: boolean;
   readonly publishingOrderSyncInterval: string;
   readonly publishingOrderSyncEnabled: boolean;
+  readonly citationDiagnosisInterval: string;
+  readonly citationDiagnosisEnabled: boolean;
 }
 
 export interface UploadConfig {
@@ -242,6 +253,8 @@ const config: Readonly<AppConfig> = deepFreeze({
     publishingScheduleEnabled: process.env.CRON_PUBLISHING_ENABLED !== 'false',
     publishingOrderSyncInterval: validateCronExpression(process.env.CRON_PUBLISHING_ORDER_SYNC_INTERVAL || DEFAULTS.CRON_PUBLISHING_ORDER_SYNC_INTERVAL, 'CRON_PUBLISHING_ORDER_SYNC_INTERVAL'),
     publishingOrderSyncEnabled: process.env.CRON_PUBLISHING_ORDER_SYNC_ENABLED !== 'false',
+    citationDiagnosisInterval: validateCronExpression(process.env.CRON_CITATION_DIAGNOSIS_INTERVAL || DEFAULTS.CRON_CITATION_DIAGNOSIS_INTERVAL, 'CRON_CITATION_DIAGNOSIS_INTERVAL'),
+    citationDiagnosisEnabled: process.env.CRON_CITATION_DIAGNOSIS_ENABLED !== 'false',
   },
   corsOrigins: parseCorsOrigins(process.env.CORS_ORIGINS),
   uploadDir: resolveUploadDir(process.env.UPLOAD_DIR),

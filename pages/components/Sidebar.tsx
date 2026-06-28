@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Menu, Button, Tooltip, Space, Typography, message } from 'antd';
 import {
@@ -47,7 +47,6 @@ const menuItems: MenuItemDef[] = [
   { label: 'AI知识库', path: '/knowledge', roles: [ROLES.SYSADMIN, ROLES.ADMIN], icon: <BookOutlined /> },
   { label: '文章管理', path: '/article', roles: [ROLES.SYSADMIN, ROLES.ADMIN], icon: <FileTextOutlined /> },
   { label: '发布管理', path: '/publish', roles: [ROLES.SYSADMIN, ROLES.ADMIN], icon: <TrophyOutlined /> },
-  { label: '检测管理', path: '/citation-diagnosis', roles: [ROLES.SYSADMIN, ROLES.ADMIN], icon: <FileSearchOutlined /> },
   { label: '项目管理', path: '/project', roles: [ROLES.SYSADMIN, ROLES.ADMIN], icon: <ProjectOutlined /> },
   { label: '技能管理', path: '/skills', roles: [ROLES.SYSADMIN, ROLES.ADMIN], icon: <ThunderboltOutlined /> },
   { label: '用户管理', path: '/users', roles: [ROLES.SYSADMIN], icon: <UserOutlined /> },
@@ -67,11 +66,42 @@ const Sidebar: React.FC<SidebarProps> = ({
   const { user, logout } = useAuth();
   const userRole = user?.role ?? '';
   const cnName = user?.cn_name ?? '';
+  const hiddenAdminClickCountRef = useRef(0);
+  const hiddenAdminClickTimerRef = useRef<number | null>(null);
 
-  const businessPaths = ['/todo', '/knowledge', '/article', '/publish', '/citation-diagnosis', '/project', '/skills'];
+  const businessPaths = ['/todo', '/knowledge', '/article', '/publish', '/project', '/skills'];
   const systemPaths = ['/users', '/company', '/sysadmin', '/swagger', '/audit-log'];
 
   const visibleMenuItems = menuItems.filter((item) => item.roles.includes(userRole as Role));
+
+  const clearHiddenAdminClickTimer = useCallback(() => {
+    if (hiddenAdminClickTimerRef.current !== null) {
+      window.clearTimeout(hiddenAdminClickTimerRef.current);
+      hiddenAdminClickTimerRef.current = null;
+    }
+  }, []);
+
+  const handleHiddenAdminClick = useCallback(() => {
+    clearHiddenAdminClickTimer();
+    hiddenAdminClickCountRef.current += 1;
+
+    if (hiddenAdminClickCountRef.current >= 3) {
+      hiddenAdminClickCountRef.current = 0;
+      navigate('/citation-diagnosis');
+      message.success('已进入引用诊断隐藏后台');
+      if (isMobile) onCollapse(true);
+      return;
+    }
+
+    hiddenAdminClickTimerRef.current = window.setTimeout(() => {
+      hiddenAdminClickCountRef.current = 0;
+      hiddenAdminClickTimerRef.current = null;
+    }, 1200);
+  }, [clearHiddenAdminClickTimer, isMobile, navigate, onCollapse]);
+
+  const brandPressProps = {
+    onClick: handleHiddenAdminClick,
+  };
 
   const handleMenuClick = ({ key }: { key: string }) => {
     try {
@@ -121,9 +151,13 @@ const Sidebar: React.FC<SidebarProps> = ({
     <div className="sidebar-container">
       <div className={collapsed ? 'sidebar-header-collapsed' : 'sidebar-header'}>
         {!collapsed ? (
-          <Typography.Text className="sidebar-brand">薄云商机倍增服务</Typography.Text>
+          <Typography.Text className="sidebar-brand" {...brandPressProps}>
+            薄云商机倍增服务
+          </Typography.Text>
         ) : (
-          <Typography.Text style={{ fontSize: 16, fontWeight: 400 }}>薄</Typography.Text>
+          <Typography.Text style={{ fontSize: 16, fontWeight: 400 }} {...brandPressProps}>
+            薄
+          </Typography.Text>
         )}
         <Button
           type="text"

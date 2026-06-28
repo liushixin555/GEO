@@ -21,6 +21,7 @@ function queryParams(req: Request) {
     pageSize: Number(query.pageSize),
     projectId: query.projectId ? Number(query.projectId) : undefined,
     search: query.search as string | undefined,
+    status: query.status as string | undefined,
   };
 }
 
@@ -49,6 +50,25 @@ export async function createDetectionRun(req: Request, res: Response): Promise<v
     created(res, item, '已保存检测引用记录');
   } catch (err: unknown) {
     handleError(res, err, '保存检测引用记录失败');
+  }
+}
+
+export async function runAutomaticDetection(req: Request, res: Response): Promise<void> {
+  try {
+    const item = await citationDiagnosisService.runAutomaticDetection(req.body, auth(req));
+    success(res, item, '引用诊断复检已完成');
+  } catch (err: unknown) {
+    handleError(res, err, '执行引用诊断复检失败');
+  }
+}
+
+export async function listLedger(req: Request, res: Response): Promise<void> {
+  try {
+    const params = queryParams(req);
+    const { list, total } = await citationDiagnosisService.listLedger(params, auth(req));
+    paginate(res, list, total, params.page, params.pageSize);
+  } catch (err: unknown) {
+    handleError(res, err, '获取引用诊断台账失败');
   }
 }
 

@@ -5,17 +5,25 @@ export { AuthContext } from '../types/auth';
 // Import AuthContext locally for interface usage
 import type { AuthContext } from '../types/auth';
 
+export interface BatchRegenerateArticleResult {
+  success_count: number;
+  failed_count: number;
+  failed: Array<{ article_id: number; reason: string }>;
+}
+
 export interface IArticleService {
   // H-2 fix: auth made required, moved before optional params
   list(projectId: number, page: number, pageSize: number, auth: AuthContext, search?: string, status?: string): Promise<{ list: Article[]; total: number }>;
   // C-1 fix: getById now requires projectId
   getById(projectId: number, id: number): Promise<Article>;
   create(projectId: number, request: CreateArticleRequest, auth: AuthContext): Promise<Article>;
+  batchCreate(projectId: number, requests: CreateArticleRequest[], auth: AuthContext): Promise<Article[]>;
   update(projectId: number, id: number, request: UpdateArticleRequest, auth: AuthContext): Promise<Article>;
   updateContent(projectId: number, id: number, content: string, auth: AuthContext): Promise<Article>;
   delete(projectId: number, id: number, auth: AuthContext): Promise<void>;
   review(projectId: number, id: number, approved: boolean, auth: AuthContext): Promise<Article>;
-  regenerate(projectId: number, id: number, auth: AuthContext): Promise<Article>;
+  regenerate(projectId: number, id: number, auth: AuthContext, revisionInstruction?: string): Promise<Article>;
+  batchRegenerate(projectId: number, articleIds: number[], auth: AuthContext, revisionInstruction?: string): Promise<BatchRegenerateArticleResult>;
   submitForReview(projectId: number, id: number, auth: AuthContext): Promise<Article>;
   // C-1 fix: listVersions now requires projectId
   listVersions(projectId: number, articleId: number): Promise<ArticleVersion[]>;

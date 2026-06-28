@@ -51,6 +51,19 @@ export class ArticleServiceImpl implements IArticleService {
     }
   }
 
+  private async assertCanRegenerate(existing: any, tx: Prisma.TransactionClient): Promise<void> {
+    const canReviseDraft = existing.status === 'draft'
+      && existing.writeMode === 'ai'
+      && (
+        Boolean(existing.content?.trim())
+        || await tx.articleVersion.count({ where: { articleId: existing.id, deletedAt: null } }) > 0
+      );
+    const allowedRegenerateStatuses = ['generate_failed', 'pending_review'];
+    if (!allowedRegenerateStatuses.includes(existing.status) && !canReviseDraft) {
+      throw new BusinessError('文章当前状态不支持重新生成');
+    }
+  }
+
   async list(projectId: number, page: number, pageSize: number, auth: AuthContext, search?: string, status?: string): Promise<{ list: Article[]; total: number }> {
     const prisma = getPrisma();
 
@@ -126,6 +139,14 @@ export class ArticleServiceImpl implements IArticleService {
     }
 
     return mapArticle(item);
+  }
+
+  async batchCreate(projectId: number, requests: CreateArticleRequest[], auth: AuthContext): Promise<Article[]> {
+    const items: Article[] = [];
+    for (const request of requests) {
+      items.push(await this.create(projectId, request, auth));
+    }
+    return items;
   }
 
   async update(projectId: number, id: number, request: UpdateArticleRequest, auth: AuthContext): Promise<Article> {
@@ -268,25 +289,64 @@ export class ArticleServiceImpl implements IArticleService {
     });
   }
 
-  async regenerate(projectId: number, id: number, auth: AuthContext): Promise<Article> {
+  async regenerate(projectId: number, id: number, auth: AuthContext, revisionInstruction?: string): Promise<Article> {
     return await getPrisma().$transaction(async (tx: Prisma.TransactionClient) => {
       const existing = await this.findArticleOrThrow(id, tx);
 
       this.checkProjectOwnership(existing, projectId);
       this.checkCreatorOrAdmin(existing, auth, '只能重新生成自己创建的文章');
 
+      const canReviseDraft = existing.status === 'draft'
+        && existing.writeMode === 'ai'
+        && (
+          Boolean(existing.content?.trim())
+          || await tx.articleVersion.count({ where: { articleId: id, deletedAt: null } }) > 0
+        );
       const allowedRegenerateStatuses = ['generate_failed', 'pending_review'];
-      if (!allowedRegenerateStatuses.includes(existing.status)) {
+      if (!allowedRegenerateStatuses.includes(existing.status) && !canReviseDraft) {
         throw new BusinessError('文章当前状态不支持重新生成');
       }
 
       const updated = await tx.article.update({
         where: { id },
-        data: { status: 'generating' },
+        data: { status: 'generating', revisionInstruction: revisionInstruction?.trim() || null } as any,
         include: { _count: { select: { schedules: { where: { deletedAt: null } } } } },
       });
       return mapArticle(updated);
     });
+  }
+
+  async batchRegenerate(projectId: number, articleIds: number[], auth: AuthContext, revisionInstruction?: string) {
+    const uniqueIds = Array.from(new Set(articleIds));
+    const failed: Array<{ article_id: number; reason: string }> = [];
+    let successCount = 0;
+
+    for (const id of uniqueIds) {
+      try {
+        await getPrisma().$transaction(async (tx: Prisma.TransactionClient) => {
+          const existing = await this.findArticleOrThrow(id, tx);
+          this.checkProjectOwnership(existing, projectId);
+          this.checkCreatorOrAdmin(existing, auth, '只能重新生成自己创建的文章');
+          await this.assertCanRegenerate(existing, tx);
+          await tx.article.update({
+            where: { id },
+            data: { status: 'generating', revisionInstruction: revisionInstruction?.trim() || null } as any,
+          });
+        });
+        successCount += 1;
+      } catch (err: unknown) {
+        failed.push({
+          article_id: id,
+          reason: err instanceof Error ? err.message : '重新生成失败',
+        });
+      }
+    }
+
+    return {
+      success_count: successCount,
+      failed_count: failed.length,
+      failed,
+    };
   }
 
   async submitForReview(projectId: number, id: number, auth: AuthContext): Promise<Article> {

@@ -253,6 +253,7 @@ model Article {
   skills      Json?
   llmModelId  Int?          @map("llm_model_id")
   content     String?
+  revisionInstruction String? @map("revision_instruction")
   version     Float         @default(1.0)
   status              ArticleStatus @default(draft)
   createdBy           Int?          @map("created_by")
@@ -263,6 +264,7 @@ model Article {
   llmModel    LlmModel?     @relation(fields: [llmModelId], references: [id], onDelete: SetNull)
   versions    ArticleVersion[]
   schedules   PublishingSchedule[]
+  generationDebugs ArticleGenerationDebug[]
 
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([projectId])
@@ -280,10 +282,34 @@ model ArticleVersion {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
   article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
   creator   User?    @relation("ArticleVersionCreator", fields: [createdBy], references: [id])
+  generationDebugs ArticleGenerationDebug[]
 
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([articleId])
   @@map("article_versions")
+}
+
+model ArticleGenerationDebug {
+  id                     Int      @id @default(autoincrement())
+  articleId              Int      @map("article_id")
+  articleVersionId       Int?     @map("article_version_id")
+  modelName              String?  @map("model_name") @db.VarChar(200)
+  skillDirs              Json?    @map("skill_dirs")
+  requiredReferenceFiles Json?    @map("required_reference_files")
+  systemPrompt           String   @map("system_prompt")
+  userPrompt             String   @map("user_prompt")
+  toolCalls              Json?    @map("tool_calls")
+  rawLlmOutput           String?  @map("raw_llm_output")
+  cleanedOutput          String?  @map("cleaned_output")
+  warnings               Json?
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  article        Article         @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  articleVersion ArticleVersion? @relation(fields: [articleVersionId], references: [id], onDelete: SetNull)
+
+  @@index([articleId])
+  @@index([articleVersionId])
+  @@map("article_generation_debugs")
 }
 
 model KnowledgeKeyword {

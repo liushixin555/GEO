@@ -6,6 +6,7 @@ import {
   createCitationDetectionRunSchema,
   createPublishedArticleLinkSchema,
   listCitationDiagnosisSchema,
+  runAutomaticCitationDetectionSchema,
 } from '../schema/citation-diagnosis.schema';
 import * as ctrl from '../controller/citation-diagnosis.controller';
 
@@ -13,6 +14,8 @@ const router: Router = Router();
 
 router.get('/links', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN), validate(listCitationDiagnosisSchema, 'query'), ctrl.listPublishedLinks);
 router.post('/links', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN), validate(createPublishedArticleLinkSchema), ctrl.createPublishedLink);
+router.get('/ledger', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN), validate(listCitationDiagnosisSchema, 'query'), ctrl.listLedger);
+router.post('/run-auto', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN), validate(runAutomaticCitationDetectionSchema), ctrl.runAutomaticDetection);
 router.get('/runs', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN), validate(listCitationDiagnosisSchema, 'query'), ctrl.listDetectionRuns);
 router.post('/runs', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN), validate(createCitationDetectionRunSchema), ctrl.createDetectionRun);
 router.get('/marks', authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN), validate(listCitationDiagnosisSchema, 'query'), ctrl.listMarks);

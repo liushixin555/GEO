@@ -114,6 +114,7 @@ type ArticlePrismaInput = {
   skills: Prisma.JsonValue | null;
   llmModelId: number | null;
   content: string | null;
+  revisionInstruction?: string | null;
   version: number;
   status: string;
   createdBy: number | null;

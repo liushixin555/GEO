@@ -28,12 +28,14 @@ export const articleTypeSchema = z.enum([
 /** 写作模式枚举，与 Entity WriteMode 一致 */
 export const writeModeSchema = z.enum(['manual', 'ai']);
 
+const ARTICLE_PROMPT_CONTEXT_MAX_LENGTH = 500_000;
+
 export const createArticleSchema = z.object({
   title: z.string().max(500).optional(),
   article_type: articleTypeSchema.optional(),
   write_mode: writeModeSchema.optional(),
   keywords: z.string().max(500).optional(),
-  portrait: z.string().max(2000).optional(),
+  portrait: z.string().max(ARTICLE_PROMPT_CONTEXT_MAX_LENGTH, '画像内容不能超过500000个字符').optional(),
   images: z.array(z.string().max(2000)).max(20).nullable().optional(),
   skills: z.array(z.number().int().nonnegative()).max(50).nullable().optional(),
   llm_model_id: z.number().int().nonnegative().nullable().optional(),
@@ -41,12 +43,16 @@ export const createArticleSchema = z.object({
   status: z.enum(['draft', 'manual_writing', 'generating']).optional(),
 }).strict();
 
+export const batchCreateArticlesSchema = z.object({
+  articles: z.array(createArticleSchema).min(1).max(20),
+}).strict();
+
 export const updateArticleSchema = z.object({
   title: z.string().max(500).optional(),
   article_type: articleTypeSchema.optional(),
   write_mode: writeModeSchema.optional(),
   keywords: z.string().max(500).optional(),
-  portrait: z.string().max(2000).optional(),
+  portrait: z.string().max(ARTICLE_PROMPT_CONTEXT_MAX_LENGTH, '画像内容不能超过500000个字符').optional(),
   images: z.array(z.string().max(2000)).max(20).nullable().optional(),
   skills: z.array(z.number().int().nonnegative()).max(50).nullable().optional(),
   llm_model_id: z.number().int().nonnegative().nullable().optional(),
@@ -58,6 +64,15 @@ export const reviewArticleSchema = z.object({
   approved: z.boolean(),
   comment: z.string().max(2000).optional(),
   reject_reason: z.enum(['quality', 'compliance', 'accuracy', 'other']).optional(),
+}).strict();
+
+export const regenerateArticleSchema = z.object({
+  revision_instruction: z.string().trim().max(5000).optional(),
+}).strict();
+
+export const batchRegenerateArticlesSchema = z.object({
+  article_ids: z.array(z.number().int().positive()).min(1).max(50),
+  revision_instruction: z.string().trim().max(5000).optional(),
 }).strict();
 
 export const updateContentSchema = z.object({

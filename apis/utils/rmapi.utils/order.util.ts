@@ -35,6 +35,12 @@ export interface RmOrderItem {
   response_message?: string | null;
   price?: number;
   resource_name?: string | null;
+  url?: string | null;
+  link?: string | null;
+  publish_url?: string | null;
+  article_url?: string | null;
+  source_url?: string | null;
+  [key: string]: any;
 }
 
 export interface RmOrderQueryResponse {

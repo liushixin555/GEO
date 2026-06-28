@@ -113,3 +113,11 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 - 文章生成结果入库前必须过滤 Agent 的过程性说明，禁止保存类似 `Now I have... Let me write...`、`下面是文章正文` 这类非正文内容。
 - 文章生成中的图片只能来自文章设置中已选的知识库图片；未选择图片时不得默认使用项目全部图片，保存前需要过滤未授权 Markdown 图片链接。
 - 文章生成的 Markdown 表格修复应采用保存前后处理，不要通过新增强硬表格提示词解决，避免模型转向输出合规检查报告。
+
+## 2026-06-25 AI 引用诊断隐藏后台补充
+
+- `/citation-diagnosis` 是隐藏后台路由，不放入侧边栏；入口为长按侧边栏品牌名“薄云商机倍增服务”5 秒。
+- 引用诊断第一版复用 `geo-monitorv12` 的题库和多平台采集配置。题库优先读取 `geo-monitorv12/GEO/题库/供应商题库A.md`、`供应商题库B.md`。
+- 多平台检测 API Key 优先使用系统 LLM 配置；缺失时允许运行时读取 `geo-monitorv12/GEO/geo_monitor_v8_package 2/config.py` 作为本机兜底，但禁止写入 Git、返回前端或打印完整 Key。
+- 引用命中沿用 `article_model_citation_marks` 永久标签规则：某文章被某模型引用过一次后保留该模型标签，后续检测未命中不能删除。
+- 软盟订单同步提取到最终发布 URL 时写入 `published_article_links`；软盟未返回 URL 时不阻断同步，隐藏后台展示“待补发布链接”。

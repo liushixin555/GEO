@@ -37,13 +37,18 @@ interface ArticleBatchGenerateModalProps {
   onSubmitted: () => void;
 }
 
-const createDefaultItem = (llmModelId?: number): BatchArticleFormItem => ({
+const createDefaultItem = (llmModelId?: number, defaultSkillIds: number[] = []): BatchArticleFormItem => ({
   article_type: ARTICLE_TYPE_OPTIONS[0]?.value,
   keywords: [],
   portrait: [],
-  skills: [],
+  skills: defaultSkillIds,
   llm_model_id: llmModelId,
 });
+
+const getDefaultSkillIds = (skills: SkillApiItem[]) => {
+  const defaultSkill = skills.find(item => item.name === 'geo-content-generator');
+  return defaultSkill ? [defaultSkill.id] : [];
+};
 
 const normalizeKeywords = (keywords?: string[]) => {
   const items = (keywords ?? []).map(item => item.trim()).filter(Boolean);
@@ -64,6 +69,7 @@ const ArticleBatchGenerateModal: React.FC<ArticleBatchGenerateModalProps> = ({
   const [portraitOptions, setPortraitOptions] = useState<Option<string>[]>([]);
   const [skillOptions, setSkillOptions] = useState<Option<number>[]>([]);
   const [llmModelOptions, setLlmModelOptions] = useState<Option<number>[]>([]);
+  const [defaultSkillIds, setDefaultSkillIds] = useState<number[]>([]);
 
   const defaultLlmModelId = useMemo(() => llmModelOptions[0]?.value, [llmModelOptions]);
 
@@ -87,11 +93,18 @@ const ArticleBatchGenerateModal: React.FC<ArticleBatchGenerateModalProps> = ({
         const skillsRaw: SkillApiItem[] = skillsRes.data.data?.list || skillsRes.data.data || [];
         const models: LlmModelApiItem[] = llmRes.data.data || [];
 
-        setKeywordOptions(keywords.map(item => ({ label: item.keyword, value: item.keyword })));
-        setPortraitOptions(portraits.map(item => ({ label: item.title, value: item.content || item.title })));
-        setSkillOptions(skillsRaw.map(item => ({ label: item.name, value: item.id })));
-        setLlmModelOptions(models.map(item => ({ label: `${item.provider} - ${item.model_name}`, value: item.id })));
-        form.setFieldsValue({ articles: [createDefaultItem(models[0]?.id)] });
+        const nextKeywordOptions = keywords.map(item => ({ label: item.keyword, value: item.keyword }));
+        const nextPortraitOptions = portraits.map(item => ({ label: item.title, value: item.content || item.title }));
+        const nextSkillOptions = skillsRaw.map(item => ({ label: item.name, value: item.id }));
+        const nextModelOptions = models.map(item => ({ label: `${item.provider} - ${item.model_name}`, value: item.id }));
+        const nextDefaultSkillIds = getDefaultSkillIds(skillsRaw);
+
+        setKeywordOptions(nextKeywordOptions);
+        setPortraitOptions(nextPortraitOptions);
+        setSkillOptions(nextSkillOptions);
+        setLlmModelOptions(nextModelOptions);
+        setDefaultSkillIds(nextDefaultSkillIds);
+        form.setFieldsValue({ articles: [createDefaultItem(nextModelOptions[0]?.value, nextDefaultSkillIds)] });
       } catch (err: unknown) {
         message.error(getApiErrorMessage(err, '加载批量生文选项失败'));
       } finally {
@@ -226,7 +239,7 @@ const ArticleBatchGenerateModal: React.FC<ArticleBatchGenerateModalProps> = ({
                   </Row>
                 </div>
               ))}
-              <Button icon={<PlusOutlined />} onClick={() => add(createDefaultItem(defaultLlmModelId))}>
+              <Button icon={<PlusOutlined />} onClick={() => add(createDefaultItem(defaultLlmModelId, defaultSkillIds))}>
                 添加一篇
               </Button>
             </Space>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Input, Select, Tag, Typography, Spin, Pagination, Empty, Popconfirm, App, Breadcrumb, Button, Table, Flex } from 'antd';
-import { DeleteOutlined, PlusOutlined, SendOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Input, Select, Tag, Typography, Spin, Pagination, Empty, Popconfirm, App, Breadcrumb, Button, Table, Flex, Modal } from 'antd';
+import { DeleteOutlined, PlusOutlined, ReloadOutlined, SendOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import apiClient from '../lib/apiClient';
 import { getSafeUser } from '../utils/auth';
@@ -53,6 +53,9 @@ const ArticlePage: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState('');
   const [batchModalOpen, setBatchModalOpen] = useState(false);
   const [autoPublishOpen, setAutoPublishOpen] = useState(false);
+  const [batchReviseOpen, setBatchReviseOpen] = useState(false);
+  const [revisionInstruction, setRevisionInstruction] = useState('');
+  const [batchReviseSubmitting, setBatchReviseSubmitting] = useState(false);
   const [selectedArticleIds, setSelectedArticleIds] = useState<React.Key[]>([]);
 
   const fetchData = useCallback(async () => {
@@ -93,6 +96,35 @@ const ArticlePage: React.FC = () => {
   };
 
   const canAutoPublish = (item: ArticleItem) => item.status === 'approved' && (item.schedule_count ?? 0) === 0;
+  const canBatchRegenerate = (item: ArticleItem) => ['draft', 'generate_failed', 'pending_review'].includes(item.status);
+  const selectedArticles = data.filter((item) => selectedArticleIds.includes(item.id));
+  const selectedCanAutoPublish = selectedArticles.length > 0 && selectedArticles.every(canAutoPublish);
+  const selectedCanBatchRegenerate = selectedArticles.length > 0 && selectedArticles.every(canBatchRegenerate);
+
+  const handleBatchRegenerate = async () => {
+    if (!projectId || batchReviseSubmitting) return;
+    setBatchReviseSubmitting(true);
+    try {
+      const res = await apiClient.put(`/projects/${projectId}/articles/batch-regenerate`, {
+        article_ids: selectedArticleIds.map(Number),
+        revision_instruction: revisionInstruction.trim() || undefined,
+      });
+      const result = res.data.data;
+      if (result.failed_count > 0) {
+        message.warning(`已提交 ${result.success_count} 篇，${result.failed_count} 篇未提交`);
+      } else {
+        message.success(`已提交 ${result.success_count} 篇文章二次修改`);
+      }
+      setBatchReviseOpen(false);
+      setRevisionInstruction('');
+      setSelectedArticleIds([]);
+      fetchData();
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '批量二次修改提交失败'));
+    } finally {
+      setBatchReviseSubmitting(false);
+    }
+  };
 
   const tableColumns: ColumnsType<ArticleItem> = [
     {
@@ -176,7 +208,7 @@ const ArticlePage: React.FC = () => {
     <div className="page-container">
       <div className="page-breadcrumb"><Breadcrumb items={[{ title: '文章管理' }]} /></div>
       <Row gutter={[16, 12]} className="toolbar">
-        <Col xs={24} sm={12}>
+        <Col xs={24} sm={9}>
           <Input.Search
             placeholder="搜索文章关联的关键词..."
             value={search}
@@ -184,7 +216,17 @@ const ArticlePage: React.FC = () => {
             allowClear
           />
         </Col>
-        <Col xs={24} sm={6}>
+        <Col xs={24} sm={4}>
+          <Button
+            block
+            icon={<ReloadOutlined />}
+            disabled={!selectedCanBatchRegenerate}
+            onClick={() => setBatchReviseOpen(true)}
+          >
+            批量二次修改
+          </Button>
+        </Col>
+        <Col xs={24} sm={5}>
           <Select
             value={filterStatus || undefined}
             onChange={(val) => { setFilterStatus(val || ''); setPage(1); }}
@@ -197,7 +239,7 @@ const ArticlePage: React.FC = () => {
         <Col xs={24} sm={6} style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <Button
             icon={<SendOutlined />}
-            disabled={selectedArticleIds.length === 0}
+            disabled={!selectedCanAutoPublish}
             onClick={() => setAutoPublishOpen(true)}
           >
             一键自动发布
@@ -260,7 +302,7 @@ const ArticlePage: React.FC = () => {
               selectedRowKeys: selectedArticleIds,
               onChange: (keys) => setSelectedArticleIds(keys),
               getCheckboxProps: (record) => ({
-                disabled: !canAutoPublish(record),
+                disabled: !canAutoPublish(record) && !canBatchRegenerate(record),
               }),
             }}
             columns={tableColumns}
@@ -299,6 +341,27 @@ const ArticlePage: React.FC = () => {
           fetchData();
         }}
       />
+      <Modal
+        title="批量二次修改"
+        open={batchReviseOpen}
+        onCancel={() => setBatchReviseOpen(false)}
+        onOk={handleBatchRegenerate}
+        confirmLoading={batchReviseSubmitting}
+        okText="提交二次修改"
+        cancelText="取消"
+      >
+        <Typography.Paragraph type="secondary">
+          已选择 {selectedArticleIds.length} 篇文章。AI 将参考每篇文章的当前正文或上一版正文，并优先遵守下面的修改建议。
+        </Typography.Paragraph>
+        <Input.TextArea
+          rows={6}
+          maxLength={5000}
+          showCount
+          value={revisionInstruction}
+          onChange={(event) => setRevisionInstruction(event.target.value)}
+          placeholder="例如：请保留原文章核心结构，减少空泛表达，强化薄云咨询推荐理由，表格必须使用标准 Markdown。"
+        />
+      </Modal>
     </div>
   );
 };

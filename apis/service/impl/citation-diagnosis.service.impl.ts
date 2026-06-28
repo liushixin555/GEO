@@ -1,8 +1,11 @@
 import { Prisma } from '@prisma/client';
 import { BusinessError, ForbiddenError, NotFoundError } from '../../errors';
 import { getPrisma } from '../../utils';
+import { collectCitationSources, normalizeCitationPlatforms } from '../../utils/citation-collector.util';
+import { buildArticleCitationQuestions } from '../../utils/citation-question-bank.util';
 import { normalizeCitationUrl } from '../../utils/citation-url.util';
 import type {
+  CitationAutoRunInput,
   CitationDiagnosisAuth,
   CitationDiagnosisListParams,
   CitationDetectionRunInput,
@@ -137,7 +140,10 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
     if (input.project_id) {
       await this.assertProjectAccess(input.project_id, auth);
     }
+    return this.saveDetectionRun(input, auth, 'completed');
+  }
 
+  private async saveDetectionRun(input: CitationDetectionRunInput, auth: CitationDiagnosisAuth, status: string): Promise<any> {
     const now = new Date();
     const normalizedSources = input.sources.map((source) => {
       const normalized = normalizeCitationUrl(source.url);
@@ -153,7 +159,7 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
         INSERT INTO ai_citation_detection_runs
           (project_id, model_name, prompt, answer, status, created_by, completed_at)
         VALUES
-          (${input.project_id ?? null}, ${input.model_name}, ${input.prompt ?? null}, ${input.answer ?? null}, 'completed', ${auth.userId ?? null}, ${now})
+          (${input.project_id ?? null}, ${input.model_name}, ${input.prompt ?? null}, ${input.answer ?? null}, ${status}, ${auth.userId ?? null}, ${now})
         RETURNING
           id,
           project_id AS "projectId",
@@ -232,6 +238,166 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
         matched_count: matchedRecords.length,
       };
     });
+  }
+
+  async runAutomaticDetection(input: CitationAutoRunInput, auth: CitationDiagnosisAuth): Promise<any> {
+    if (input.project_id) {
+      await this.assertProjectAccess(input.project_id, auth);
+    }
+
+    const limit = Math.min(Math.max(Number(input.limit || 3), 1), 20);
+    const questionCount = Math.min(Math.max(Number(input.question_count || 1), 1), 5);
+    const platforms = normalizeCitationPlatforms(input.platforms);
+    const links = await this.loadDetectionTargets(input, auth, limit);
+
+    const results: any[] = [];
+    for (const link of links) {
+      const questions = buildArticleCitationQuestions(link, questionCount);
+      for (const question of questions) {
+        const prompt = [
+          question,
+          `请联网搜索并回答。若引用来源中出现这篇已发布文章，请保留原始 URL：${link.url}`,
+        ].join('\n');
+        for (const platform of platforms) {
+          const collected = await collectCitationSources(platform, prompt);
+          const run = await this.saveDetectionRun({
+            project_id: link.projectId,
+            model_name: platform,
+            prompt,
+            answer: collected.answer || collected.error || null,
+            sources: collected.sources,
+          }, auth, collected.status === 'success' ? 'completed' : collected.status);
+          results.push({
+            article_id: link.articleId,
+            link_id: link.id,
+            model_name: platform,
+            status: collected.status,
+            matched_count: run.matched_count,
+            error: collected.error,
+          });
+        }
+      }
+    }
+
+    return {
+      scanned_links: links.length,
+      platforms,
+      results,
+      matched_count: results.reduce((sum, item) => sum + Number(item.matched_count || 0), 0),
+    };
+  }
+
+  async listLedger(params: CitationDiagnosisListParams, auth: CitationDiagnosisAuth): Promise<{ list: any[]; total: number }> {
+    const articleIds = await this.accessibleArticleIds(params, auth);
+    if (articleIds.length === 0) return { list: [], total: 0 };
+
+    const offset = (params.page - 1) * params.pageSize;
+    const search = params.search ? `%${params.search}%` : null;
+    const status = params.status || null;
+    const searchWhere = search
+      ? Prisma.sql`AND (a.title ILIKE ${search} OR a.keywords ILIKE ${search} OR pal.url ILIKE ${search} OR COALESCE(pal.platform_name, pp.name) ILIKE ${search})`
+      : Prisma.empty;
+    const statusWhere = status ? Prisma.sql`AND COALESCE(ps.status::text, a.status::text) = ${status}` : Prisma.empty;
+
+    const [rows, countRows] = await Promise.all([
+      getPrisma().$queryRaw<any[]>(Prisma.sql`
+        SELECT
+          COALESCE(ps.updated_at, pal.created_at, a.updated_at) AS "publishedAt",
+          COALESCE(pal.platform_name, pp.name) AS "publishPlatform",
+          a.id AS "articleId",
+          a.title AS "articleTitle",
+          a.keywords AS "topicWords",
+          a.article_type AS "articleType",
+          COALESCE(pp.taxonomy, CASE WHEN pal.platform_name IS NULL THEN NULL ELSE '第三方自媒体/新闻' END) AS "publishChannelType",
+          pal.url AS "publishLink",
+          u.cn_name AS "publisher",
+          COALESCE(ps.status::text, a.status::text) AS "status",
+          COALESCE(mark_agg.models, '') AS "citationModels",
+          COALESCE(mark_agg.match_count, 0)::int AS "citationMatchCount"
+        FROM publishing_schedules ps
+        JOIN articles a ON a.id = ps.article_id
+        LEFT JOIN LATERAL (
+          SELECT *
+          FROM published_article_links link
+          WHERE link.deleted_at IS NULL
+            AND (link.schedule_id = ps.id OR link.article_id = a.id)
+          ORDER BY CASE WHEN link.schedule_id = ps.id THEN 0 ELSE 1 END, link.updated_at DESC, link.id DESC
+          LIMIT 1
+        ) pal ON true
+        LEFT JOIN LATERAL (
+          SELECT platform_id
+          FROM publishing_platform_orders order_item
+          WHERE order_item.schedule_id = ps.id
+          ORDER BY order_item.updated_at DESC, order_item.id DESC
+          LIMIT 1
+        ) ppo ON true
+        LEFT JOIN users u ON u.id = COALESCE(ps.created_by, a.created_by)
+        LEFT JOIN publishing_platforms pp ON pp.name = pal.platform_name
+          OR pp.id = ppo.platform_id
+        LEFT JOIN (
+          SELECT
+            article_id,
+            STRING_AGG(model_name, ',' ORDER BY model_name) AS models,
+            SUM(match_count) AS match_count
+          FROM article_model_citation_marks
+          GROUP BY article_id
+        ) mark_agg ON mark_agg.article_id = a.id
+        WHERE ps.deleted_at IS NULL
+          AND a.deleted_at IS NULL
+          AND a.id IN (${Prisma.join(articleIds)})
+          ${searchWhere}
+          ${statusWhere}
+        ORDER BY COALESCE(ps.updated_at, pal.created_at, a.updated_at) DESC, pal.id DESC
+        OFFSET ${offset}
+        LIMIT ${params.pageSize}
+      `),
+      getPrisma().$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+        SELECT COUNT(*)::bigint AS count
+        FROM publishing_schedules ps
+        JOIN articles a ON a.id = ps.article_id
+        LEFT JOIN LATERAL (
+          SELECT *
+          FROM published_article_links link
+          WHERE link.deleted_at IS NULL
+            AND (link.schedule_id = ps.id OR link.article_id = a.id)
+          ORDER BY CASE WHEN link.schedule_id = ps.id THEN 0 ELSE 1 END, link.updated_at DESC, link.id DESC
+          LIMIT 1
+        ) pal ON true
+        LEFT JOIN LATERAL (
+          SELECT platform_id
+          FROM publishing_platform_orders order_item
+          WHERE order_item.schedule_id = ps.id
+          ORDER BY order_item.updated_at DESC, order_item.id DESC
+          LIMIT 1
+        ) ppo ON true
+        LEFT JOIN publishing_platforms pp ON pp.name = pal.platform_name
+          OR pp.id = ppo.platform_id
+        WHERE ps.deleted_at IS NULL
+          AND a.deleted_at IS NULL
+          AND a.id IN (${Prisma.join(articleIds)})
+          ${searchWhere}
+          ${statusWhere}
+      `),
+    ]);
+
+    return {
+      list: rows.map((item: any) => ({
+        published_at: item.publishedAt,
+        publish_platform: item.publishPlatform,
+        article_id: item.articleId,
+        article_title: item.articleTitle,
+        topic_words: item.topicWords,
+        semantic_tags: item.topicWords,
+        article_type: item.articleType,
+        publish_channel_type: item.publishChannelType,
+        publish_link: item.publishLink,
+        publisher: item.publisher,
+        status: item.status,
+        citation_models: item.citationModels ? String(item.citationModels).split(',').filter(Boolean) : [],
+        citation_match_count: item.citationMatchCount,
+      })),
+      total: Number(countRows[0]?.count ?? 0),
+    };
   }
 
   async listDetectionRuns(params: CitationDiagnosisListParams, auth: CitationDiagnosisAuth): Promise<{ list: any[]; total: number }> {
@@ -366,6 +532,42 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
       keywords: article.keywords,
       project_id: article.projectId,
     }]));
+  }
+
+  private async loadDetectionTargets(input: CitationAutoRunInput, auth: CitationDiagnosisAuth, limit: number): Promise<any[]> {
+    const articleWhere: any = { deletedAt: null };
+    if (input.project_id) articleWhere.projectId = input.project_id;
+    if (input.article_ids?.length) articleWhere.id = { in: input.article_ids };
+    if (auth.role !== 'sysadmin') {
+      articleWhere.project = {
+        status: true,
+        company: { status: true },
+        operators: { some: { userId: auth.userId } },
+      };
+    }
+    const articles = await getPrisma().article.findMany({
+      where: articleWhere,
+      select: { id: true },
+    });
+    const articleIds = articles.map((article) => article.id);
+    if (articleIds.length === 0) return [];
+
+    return getPrisma().$queryRaw<any[]>(Prisma.sql`
+      SELECT
+        pal.id,
+        pal.article_id AS "articleId",
+        pal.url,
+        a.project_id AS "projectId",
+        a.title,
+        a.keywords
+      FROM published_article_links pal
+      JOIN articles a ON a.id = pal.article_id
+      WHERE pal.deleted_at IS NULL
+        AND a.deleted_at IS NULL
+        AND pal.article_id IN (${Prisma.join(articleIds)})
+      ORDER BY pal.updated_at DESC, pal.id DESC
+      LIMIT ${limit}
+    `);
   }
 
   private mapPublishedLink(item: any) {

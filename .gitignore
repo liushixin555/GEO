@@ -60,7 +60,14 @@ typings/
 dist/
 .gstack/
 uploads/
-uploads /
+.env.local
+.env.development.local
+*.tmp
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
 .local/
 dev-*.out.log
 dev-*.err.log
@@ -72,3 +79,9 @@ ruanmeng-preview*.html
 data/rmdata/
 .env
 skills/
+
+.git_commit_msg.txt
+.git_liu_merge_msg.txt  
+
+.git_liu_merge_msg.txt
+.git_commit_msg.txt

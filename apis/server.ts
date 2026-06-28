@@ -4,6 +4,7 @@ import { closePrisma } from './utils';
 import { startArticleGenerationCron, stopArticleGenerationCron } from './scheduler/article-generation.scheduler';
 import { startPublishingScheduleCron, stopPublishingScheduleCron } from './scheduler/publishing-schedule.scheduler';
 import { startPublishingOrderSync, stopPublishingOrderSync } from './scheduler/publishing-order-sync.scheduler';
+import { startCitationDiagnosisCron, stopCitationDiagnosisCron } from './scheduler/citation-diagnosis.scheduler';
 
 const PORT = config.server.port;
 
@@ -16,6 +17,7 @@ const server = app.listen(PORT, () => {
   startArticleGenerationCron();
   startPublishingScheduleCron();
   startPublishingOrderSync();
+  startCitationDiagnosisCron();
 });
 
 // SEC-APP-07: Request timeout — prevent Slowloris-style attacks
@@ -28,6 +30,7 @@ process.on('SIGINT', async () => {
   stopArticleGenerationCron();
   stopPublishingScheduleCron();
   stopPublishingOrderSync();
+  stopCitationDiagnosisCron();
   await closePrisma();
   server.close(() => process.exit(0));
 });
@@ -37,6 +40,7 @@ process.on('SIGTERM', async () => {
   stopArticleGenerationCron();
   stopPublishingScheduleCron();
   stopPublishingOrderSync();
+  stopCitationDiagnosisCron();
   await closePrisma();
   server.close(() => process.exit(0));
 });
