@@ -17,7 +17,7 @@ function handleError(res: Response, err: unknown, defaultMsg: string, context?: 
   }
 }
 
-// === 审计日志 ===
+// === 诊断日志 ===
 
 function auditLog(req: Request, action: string, details?: Record<string, unknown>): void {
   logger.info(`[AUDIT] ${action}`, {

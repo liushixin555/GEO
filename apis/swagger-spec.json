@@ -12299,6 +12299,12 @@
               "$ref": "#/components/schemas/TodoLog"
             }
           },
+          "audits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Audit"
+            }
+          },
           "deletedAt": {
             "type": "string",
             "format": "date-time"
@@ -12328,7 +12334,8 @@
           "updatedCompanies",
           "assignedTodos",
           "createdTodos",
-          "todoLogOperations"
+          "todoLogOperations",
+          "audits"
         ]
       },
       "Skills": {
@@ -12460,6 +12467,9 @@
             "type": "number",
             "format": "double"
           },
+          "isFavorite": {
+            "type": "boolean"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -12487,6 +12497,7 @@
           "price",
           "includeRate",
           "publishRate",
+          "isFavorite",
           "createdAt",
           "updatedAt",
           "orders"
@@ -13553,6 +13564,434 @@
           "updatedAt",
           "schedule",
           "platform"
+        ]
+      },
+      "PublishedArticleLink": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "articleId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "scheduleId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "platformName": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "normalizedUrl": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "articleId",
+          "url",
+          "normalizedUrl",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "AiCitationDetectionRun": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "projectId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "modelName": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiCitationRecord"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "modelName",
+          "status",
+          "createdAt",
+          "records"
+        ]
+      },
+      "AiCitationRecord": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "runId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "modelName": {
+            "type": "string"
+          },
+          "sourceUrl": {
+            "type": "string"
+          },
+          "normalizedSourceUrl": {
+            "type": "string"
+          },
+          "sourceTitle": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "matched": {
+            "type": "boolean"
+          },
+          "articleId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "articleLinkId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "run": {
+            "$ref": "#/components/schemas/AiCitationDetectionRun"
+          }
+        },
+        "required": [
+          "id",
+          "runId",
+          "modelName",
+          "sourceUrl",
+          "normalizedSourceUrl",
+          "matched",
+          "createdAt",
+          "run"
+        ]
+      },
+      "ArticleModelCitationMark": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "articleId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "modelName": {
+            "type": "string"
+          },
+          "firstMatchedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastMatchedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "matchCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "articleId",
+          "modelName",
+          "firstMatchedAt",
+          "lastMatchedAt",
+          "matchCount",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "Audit": {
+        "type": "object",
+        "description": "诊断管理 — 一次\"AI 可见度诊断\"任务（替代 geo-audit Redis KV）",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "jobId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "companyId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "website": {
+            "type": "string"
+          },
+          "industry": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "competitors": {
+            "type": "object"
+          },
+          "keywords": {
+            "type": "object"
+          },
+          "features": {
+            "type": "object"
+          },
+          "tier": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "processing / complete / failed"
+          },
+          "score": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "grade": {
+            "type": "string"
+          },
+          "result": {
+            "type": "object",
+            "description": "完整结果快照（AuditResult JSON）"
+          },
+          "aioResult": {
+            "type": "object"
+          },
+          "technicalResult": {
+            "type": "object"
+          },
+          "seoScoreResult": {
+            "type": "object"
+          },
+          "contentOptimizerResult": {
+            "type": "object"
+          },
+          "engineCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "promptTotal": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "promptDone": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "prompts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditPrompt"
+            }
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        },
+        "required": [
+          "id",
+          "jobId",
+          "userId",
+          "brand",
+          "tier",
+          "status",
+          "engineCount",
+          "promptTotal",
+          "promptDone",
+          "createdAt",
+          "updatedAt",
+          "prompts",
+          "user"
+        ]
+      },
+      "AuditPrompt": {
+        "type": "object",
+        "description": "诊断 prompt — 每个引擎 × 每个 prompt 的执行单元",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "auditId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "promptIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "category": {
+            "type": "string",
+            "description": "brand/category/competitor/buying_intent/conversational/discovery"
+          },
+          "engine": {
+            "type": "string",
+            "description": "provider 名称（来自 LlmModel.provider）"
+          },
+          "llmModelId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/AuditPromptResult"
+          },
+          "audit": {
+            "$ref": "#/components/schemas/Audit"
+          }
+        },
+        "required": [
+          "id",
+          "auditId",
+          "promptIndex",
+          "category",
+          "engine",
+          "prompt",
+          "audit"
+        ]
+      },
+      "AuditPromptResult": {
+        "type": "object",
+        "description": "诊断 prompt 结果 — 单次引擎调用的响应分析",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "auditPromptId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "mentioned": {
+            "type": "boolean"
+          },
+          "snippet": {
+            "type": "string"
+          },
+          "fullResponse": {
+            "type": "string"
+          },
+          "sentiment": {
+            "type": "string",
+            "description": "positive/neutral/negative"
+          },
+          "sourceType": {
+            "type": "string"
+          },
+          "blindSpot": {
+            "type": "boolean"
+          },
+          "latencyMs": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "error": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "auditPrompt": {
+            "$ref": "#/components/schemas/AuditPrompt"
+          }
+        },
+        "required": [
+          "id",
+          "auditPromptId",
+          "mentioned",
+          "blindSpot",
+          "createdAt",
+          "auditPrompt"
         ]
       },
       "Role": {

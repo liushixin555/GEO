@@ -1092,3 +1092,36 @@ model MinedKeyword {
 ### 迁移
 
 `prisma/migrations/20260624000001_add_ai_citation_diagnosis`
+
+---
+
+## db024. 诊断管理（AI 可见度诊断）
+
+### 变更原因
+
+替代原 `geo-audit` Redis KV 持久化方案，将对目标品牌在多个 AI 引擎中的可见度诊断任务、提示词计划、单引擎回复分析落库为关系数据，支持列表查询 / 详情报告 / 进度追踪 / Skill ZIP 下载。
+
+### Schema 变更
+
+新增模型：
+
+- `Audit` — 一次诊断任务（jobId / brand / status / score / grade / result 快照 / 4 个子检查 JSON / 引擎数 / 提示词进度计数）
+- `AuditPrompt` — 每条提示词 × 引擎的执行单元（`[auditId, promptIndex, engine]` 唯一）
+- `AuditPromptResult` — 单次引擎调用的回复分析（mentioned / snippet / sentiment / sourceType / blindSpot / latencyMs / error）
+
+修改模型：
+
+- `User` — 新增 `audits Audit[] @relation("AuditCreator")` 反向关系
+
+### 影响文件
+
+- `prisma/schema.prisma`
+- `prisma/migrations/20260628000000_add_audit/migration.sql`
+- `apis/audit/**`（routes / controller / service / schema / entity / engine / skill）
+- `apis/app.ts`（挂载 `/api/v1/audit` 路由）
+- `pages/audit/**`（index / types / 3 组件 / 2 hooks）
+- `pages/components/Sidebar.tsx`、`pages/router/routes.tsx`
+
+### 迁移
+
+`prisma/migrations/20260628000000_add_audit`

@@ -19,6 +19,7 @@
 | LLM 模型 | ✅ | CRUD（仅 sysadmin） |
 | 系统配置 | ✅ | 配置管理（仅 sysadmin） |
 | 文件上传 | ✅ | multer 图片上传 |
+| 诊断管理 | ✅ | AI 可见度诊断（多引擎批量打分 + 技能 ZIP 下载） |
 | 每日检测 | 🚧 | 待开发（view 角色唯一功能） |
 
 ## 当前阶段
@@ -234,3 +235,4 @@
 | 2026-05-26 | progress_tasks/2026-05-26-article-kb-only-select.md | 文章设置表单关键词/画像/图片改为纯知识库选择+创建API 400修复(title可选+status允许generating+portrait数组序列化)+移除存草稿按钮 |
 | 2026-05-27 | tasks/progress_tasks/2026-05-27-system-config-ruanmeng-whitelist.md | fix063: 系统配置白名单新增ruanmeng_username/ruanmeng_password，修复PUT 400参数验证失败 |
 | 2026-05-28 | tasks/dev025.AgentLoop工具类.md | Agent Loop 工具类（deepagents + langchain）+ generateArticle 重构 + 技能路径集成 |
+| 2026-06-28 | tasks/dev026.诊断管理.md | 诊断管理（AI 可见度诊断）模块——替代 geo-audit Redis KV，3 张新表（audits/audit_prompts/audit_prompt_results）+ 多引擎批量执行 + 评分聚合 + Skill ZIP 下载，命名铁律：代码 audit / 中文「诊断」 |
