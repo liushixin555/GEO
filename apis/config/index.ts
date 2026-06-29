@@ -209,8 +209,16 @@ function resolveUploadDir(raw: string | undefined): string {
     }
     return path.resolve(raw);
   }
-  // Default: resolve from project root via __dirname
-  // Compiled: dist/apis/config/index.js → project root is ../../..
+  // Walk up from __dirname to find project root (look for package.json)
+  // This handles both ts-node (source) and dist/ compiled runtime paths
+  let dir = __dirname;
+  while (dir !== path.dirname(dir)) {
+    if (fs.existsSync(path.join(dir, 'package.json'))) {
+      return path.join(dir, 'uploads');
+    }
+    dir = path.dirname(dir);
+  }
+  // Fallback: compiled from dist/apis/config -> project root is ../../..
   return path.resolve(__dirname, '..', '..', '..', 'uploads');
 }
 
