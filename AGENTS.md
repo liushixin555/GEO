@@ -121,3 +121,7 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 - 多平台检测 API Key 优先使用系统 LLM 配置；缺失时允许运行时读取 `geo-monitorv12/GEO/geo_monitor_v8_package 2/config.py` 作为本机兜底，但禁止写入 Git、返回前端或打印完整 Key。
 - 引用命中沿用 `article_model_citation_marks` 永久标签规则：某文章被某模型引用过一次后保留该模型标签，后续检测未命中不能删除。
 - 软盟订单同步提取到最终发布 URL 时写入 `published_article_links`；软盟未返回 URL 时不阻断同步，隐藏后台展示“待补发布链接”。
+
+## 2026-06-29 知识库画像内容校验补充
+
+- 知识库画像 `content` 后端参数校验上限为 300000 个字符；更新 schema 时必须同步边界测试，禁止回退到 10000 字符旧限制。

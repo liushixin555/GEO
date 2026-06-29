@@ -12,7 +12,7 @@ const title = z.string({ error: '标题不能为空' })
 
 const content = z.string({ error: '内容不能为空' })
   .min(1, '内容不能为空')
-  .max(10000, '内容不能超过10000个字符');
+  .max(300000, '内容不能超过300000个字符');
 
 const imageUrl = z.string({ error: '图片地址不能为空' })
   .min(1, '图片地址不能为空')

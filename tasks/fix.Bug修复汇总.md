@@ -74,3 +74,4 @@
 | fix070 | 未选择图片时文章生成外部图片链接 | `apis/scheduler/article-generation.scheduler.ts`, `apis/service/impl/llm.service.impl.ts` |
 | fix071 | 文章生成 Markdown 表格后处理修复 | `apis/service/impl/llm.service.impl.ts` |
  | fix072 | 知识库文档下载404 - uploadDir路径解析错误 | `apis/config/index.ts`, `dist/apis/config/index.js` |
+| fix073 | 知识库画像内容参数校验上限过小 | `apis/schema/knowledge.schema.ts`, `tests/apis/knowledge.schema.test.ts` |
