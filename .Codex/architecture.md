@@ -34,3 +34,21 @@
 - `ArticleEvidenceCard.evidenceSnapshot` 保存生成当次注入的 compact snapshot；文章详情优先展示 snapshot，用于追溯“当时注入的是哪一版证据”。
 - `ArticleGenerationDebug.evidencePromptPreview` 保存当次 Evidence Prompt 区块，`evidenceStats` 保存 retrievedCount、injectedCount、evidencePromptLength、evidenceWarnings。
 - EvidenceCard 注入统计不落主表字段，列表/详情通过 `ArticleEvidenceCard.groupBy` 聚合 injectedCount 和 lastInjectedAt。
+
+## 2026-06-30 EvidenceCard V1.1 抽取预览
+
+- V1.1 规划统一通过 `POST /api/v1/evidence-cards/extract` 做候选抽取，避免为 manual-text、portrait、image 分散设计多个入口。
+- `save=false` 是纯预览路径，不写库；`save=true` 是保存路径，但只能落 `draft` EvidenceCard。
+- 抽取链路与正式文章生成链路解耦：抽取候选不写 ArticleEvidenceCard，不修改 ArticleGenerationDebug，也不代表证据已可进入 prompt。
+- source priority 固定为 manual-text 最高，portrait/image 次之；后续文档解析、联网搜索和 external evidence 另起版本。
+- 正式 retrieval 继续沿用 V1.0.5 规则，只默认检索 `verified` EvidenceCard。
+- 第一批验收要闭环到文章生成质量：30 条原始材料形成 20 条 verified 后，重生成 3-5 篇文章并检查 evidenceSnapshot 与 debug。
+
+## 2026-06-30 EvidenceCard V1.1 抽取候选
+
+- `apis/utils/evidence-extraction.util.ts` 提供 EvidenceCard 自动抽取候选工具，导出 `buildEvidenceExtractionPrompt()`、`parseEvidenceExtractionOutput()`、`extractEvidenceCandidates()`。
+- V1.1 抽取只输出 candidate，不直接写入 EvidenceCard 数据库；后续接口层需要显式审核/保存。
+- 抽取函数复用当前启用的 LLM 模型配置，prompt 强制模型只输出 `{ "cards": [...] }` JSON，最多 8 条；解析层仍按不可信输出处理。
+- 候选默认并强制为 `status = draft`，即使模型返回 `verified` 也会降为 draft 并记录 warning。
+- 解析层支持 ```json 代码块剥离，非 JSON、顶层结构非法、字段缺失或枚举非法时返回 warnings 并丢弃对应候选。
+- 过滤层会丢弃空标题/空正文、过短且无具体事实、重复 title/content、明显空泛营销表达的候选。

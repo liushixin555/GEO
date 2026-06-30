@@ -60,3 +60,20 @@
 - `ArticleEvidenceCard.evidenceSnapshot` 必须保存生成当次注入 prompt 的 compact snapshot，不能依赖后续被编辑过的 EvidenceCard 当前值来还原历史。
 - `injectedCount` / `lastInjectedAt` 不反写主表，统一通过 `ArticleEvidenceCard` 查询时聚合。
 - `ArticleGenerationDebug.evidencePromptPreview` 和 `evidenceStats` 用于 Prompt Inspection，只做可观察，不代表模型实际 used 判断。
+
+## 2026-06-30 EvidenceCard V1.1 抽取预览规则
+
+- V1.1 统一抽取接口为 `POST /api/v1/evidence-cards/extract`。
+- `save=false` 只返回候选预览，不写入 EvidenceCard，也不影响正式文章生成 retrieval。
+- `save=true` 只能把候选保存为 `draft`，抽取结果不得直接成为 `verified`。
+- `manual-text` 是最高优先级来源；portrait/image 只能作为次优先候选来源。
+- 抽取候选必须避免空泛营销表达，缺少具体事实支撑的口号不应成为 EvidenceCard。
+- 未授权客户名、未证实数据、资质、荣誉、排名或案例不得被抽取为证据。
+- 文档正文解析、联网搜索、external evidence 自动采集、ContentMission、EntityGraph 后置，不进入 V1.1。
+- 第一批验收按 30 条原始材料 -> 20 条 `verified` EvidenceCard -> 3-5 篇文章重生成执行。
+
+## 2026-06-30 EvidenceCard V1.1 抽取规则
+
+- EvidenceCard 自动抽取的 LLM 输出永远不可信，必须先经过 JSON fence 剥离、JSON.parse 防御、字段枚举校验、数组规范化、分数钳制和候选过滤。
+- 抽取候选不得直接入库，不得把模型生成的 `verified` 当作有效审核状态；所有自动抽取结果必须强制为 `draft`。
+- 自动抽取不得保留空泛营销表达，例如“专业可靠、经验丰富、助力企业发展、提升竞争力、行业领先、优质服务”等；候选必须能支撑具体事实、方法、流程、场景、案例、数据、客户问题或服务能力。

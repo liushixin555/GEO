@@ -167,3 +167,29 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 - ArticleEvidenceCard 必须保存 `evidenceSnapshot`，用于追溯文章生成时实际注入 prompt 的 compact snapshot；不要只依赖后续可能被编辑的 EvidenceCard 当前值。
 - ArticleGenerationDebug 必须保存 `evidencePromptPreview` 和 `evidenceStats`，用于 Prompt Inspection；V1.0.5 仍不判断模型实际 used 哪条证据。
 - injectedCount / lastInjectedAt 不反写 EvidenceCard 主表，必须通过 ArticleEvidenceCard 查询时聚合。
+
+## 2026-06-30 EvidenceCard V1.1 manual-text 抽取预览前端补充
+
+- EvidenceCard 新增页 `/knowledge/evidence-cards/new` 可提供“从文本抽取”Tab；编辑已有证据卡片时不展示抽取入口。
+- manual-text 抽取前端只调用 `POST /api/v1/evidence-cards/extract`；`save=false` 仅做候选预览，严禁入库。
+- 候选保存为草稿时必须强制 `sourceType=manual`、`status=draft`；候选不能直接变成 `verified`。
+- 保存草稿优先走 extract `save=true` 并携带人工编辑后的 candidates；若后端未支持，可逐条调用 EvidenceCard create 接口创建 draft。
+- V1.1 前端不做后端 service，不做画像/图片详情抽取按钮，不做文档正文解析、联网搜索、ContentMission 或 EntityGraph。
+
+## 2026-06-30 EvidenceCard V1.1 抽取预览补充
+
+- V1.1 目标是抽取候选、人工预览、保存 draft、审核 verified，并通过 3-5 篇文章重生成验证文章生成改善。
+- 统一接口为 `POST /api/v1/evidence-cards/extract`；`save=false` 只预览候选，不写库；`save=true` 只能保存为 `draft`。
+- `manual-text` 优先级最高；portrait/image 次优先；文档解析、联网搜索和 external evidence 自动采集后置。
+- 抽取结果不能直接 `verified`，必须经人工审核后才能进入正式文章生成 retrieval。
+- 不抽取空泛营销表达；不得抽取未授权客户名、未证实数据、资质、荣誉、排名或案例。
+- V1.1 不做 ContentMission、EntityGraph、向量库、Reviewer used 判断。
+- 第一批人工验收按 30 条原始材料 -> 20 条 `verified` EvidenceCard -> 3-5 篇文章重生成执行。
+
+## 2026-06-30 EvidenceCard V1.1 抽取候选补充
+
+- EvidenceCard 自动抽取候选由 `apis/utils/evidence-extraction.util.ts` 提供，暴露 `extractEvidenceCandidates(input)`；该函数只输出 candidate，不直接入库。
+- 抽取 prompt 必须要求模型只输出 `{ "cards": [...] }` JSON，最多 8 条，材料不足返回空数组，不得编造客户、数字、资质、荣誉、案例、合作结果或承诺。
+- LLM 输出必须按不可信处理：支持 ```json 包裹剥离，非 JSON 返回 warning，字段缺失或非法候选直接丢弃，`keywords` / `articleTypes` 规范为 `string[]`，分数限制在 0-1。
+- 自动抽取不得允许模型生成 `verified`；候选状态必须强制为 `draft`，审核入库由后续人工或接口流程处理。
+- 候选过滤必须丢弃空标题/空正文、过短且无具体事实、重复 title/content、明显空泛营销表达；禁止抽取“专业可靠、经验丰富、助力企业发展、提升竞争力、行业领先、优质服务”等空话。
