@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Tabs, Row, Col, Card, Input, Typography, Spin, Pagination, Popconfirm, App, Breadcrumb, Image, Tag, Alert, Button, Table, Modal, Form } from 'antd';
-import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ArrowLeftOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FilePptOutlined, FileMarkdownOutlined, FileTextOutlined, FileOutlined, DownloadOutlined, SearchOutlined, ThunderboltOutlined, FormOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ArrowLeftOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FilePptOutlined, FileMarkdownOutlined, FileTextOutlined, FileOutlined, DownloadOutlined, SearchOutlined, ThunderboltOutlined, FormOutlined, AuditOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import apiClient from '../lib/apiClient';
 import { getSafeUser } from '../utils/auth';
@@ -736,6 +736,7 @@ const KnowledgeBaseDetail: React.FC = () => {
         <ArrowLeftOutlined onClick={() => navigate('/knowledge')} style={{ cursor: 'pointer', fontSize: 16 }} />
         <Typography.Title level={4} style={{ margin: 0 }}>{baseName}</Typography.Title>
         {baseScope && <Tag color={scopeLabels[baseScope]?.color}>{scopeLabels[baseScope]?.text}</Tag>}
+        <Button icon={<AuditOutlined />} onClick={() => navigate('/knowledge/evidence-cards')} style={{ marginLeft: 'auto' }}>证据卡片</Button>
       </div>
       <Tabs activeKey={activeTab} onChange={handleTabChange} items={tabItems} />
       <Modal

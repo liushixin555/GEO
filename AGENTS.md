@@ -142,3 +142,10 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 - EvidenceCard.keywords 必须在 service 层规范为 `string[]`：只保留字符串、trim、过滤空字符串、去重后再入库。
 - 前端“预计注入证据”只作为预览，不作为最终生成依据；最终结果以后端文章生成时实时检索和实际注入记录为准。
 - 文档正文抽取、联网搜索、ContentMission、EntityGraph 后置，不进入 EvidenceCard V1 验收范围。
+
+## 2026-06-30 EvidenceCard 前端最小页补充
+
+- EvidenceCard 前端管理入口为 `/knowledge/evidence-cards`，详情/新增/编辑入口为 `/knowledge/evidence-cards/:id`，路由顺序必须早于 `/knowledge/:baseId`。
+- 文章设置页的“预计注入证据”只能作为 EvidenceCard 列表轻量预览，不得作为最终文章生成依据。
+- 文章详情页展示实际注入证据时，需要后端提供 `GET /api/v1/projects/:projectId/articles/:articleId/evidence-cards` 或在文章详情响应中返回 `evidenceCards`。
+- EvidenceCard V1 前端不做 Evidence Graph，不做文档抽取按钮，不接入文章生成后端业务逻辑。

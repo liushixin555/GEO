@@ -36,6 +36,7 @@ export interface ArticleData {
   creator_name?: string | null;
   schedule_count?: number;
   deleted_at?: string | null;
+  evidenceCards?: ArticleEvidenceCard[];
 }
 
 export interface ArticleFormValues {
@@ -121,3 +122,70 @@ export interface KbImageApiItem {
   title: string;
   image_url: string;
 }
+
+export type EvidenceCardType =
+  | 'fact'
+  | 'case'
+  | 'method'
+  | 'capability'
+  | 'faq'
+  | 'statistic'
+  | 'quote'
+  | 'image_description'
+  | 'external';
+
+export type EvidenceCardSourceType =
+  | 'portrait'
+  | 'document'
+  | 'image'
+  | 'manual'
+  | 'external';
+
+export type ArticleEvidenceUsageType = 'retrieved' | 'injected' | 'rejected';
+
+export interface EvidenceCard {
+  id: number;
+  companyId: number | null;
+  projectId: number | null;
+  title: string;
+  content: string;
+  evidenceType: EvidenceCardType;
+  sourceType: EvidenceCardSourceType;
+  sourceId: number | null;
+  sourceUrl: string | null;
+  keywords: string[];
+  confidenceScore: number | null;
+  freshnessScore: number | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null;
+}
+
+export interface ArticleEvidenceCard {
+  id?: number;
+  articleId?: number;
+  evidenceCardId?: number;
+  usageType?: ArticleEvidenceUsageType;
+  createdAt?: string;
+  evidenceCard?: EvidenceCard;
+}
+
+export const EVIDENCE_TYPE_OPTIONS: { label: string; value: EvidenceCardType }[] = [
+  { label: '事实', value: 'fact' },
+  { label: '案例', value: 'case' },
+  { label: '方法论', value: 'method' },
+  { label: '能力', value: 'capability' },
+  { label: '问答', value: 'faq' },
+  { label: '数据', value: 'statistic' },
+  { label: '引用', value: 'quote' },
+  { label: '图片描述', value: 'image_description' },
+  { label: '外部材料', value: 'external' },
+];
+
+export const SOURCE_TYPE_OPTIONS: { label: string; value: EvidenceCardSourceType }[] = [
+  { label: '画像', value: 'portrait' },
+  { label: '文档', value: 'document' },
+  { label: '图片', value: 'image' },
+  { label: '手工录入', value: 'manual' },
+  { label: '外部来源', value: 'external' },
+];

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Row, Col, Card, Input, Select, Tag, Spin, Pagination, App, Breadcrumb, Button, Descriptions, Table, Statistic, Typography, Space } from 'antd';
-import { EditOutlined, PlusOutlined, TagsOutlined, SolutionOutlined, PictureOutlined, FileTextOutlined, AppstoreOutlined } from '@ant-design/icons';
+import { EditOutlined, PlusOutlined, TagsOutlined, SolutionOutlined, PictureOutlined, FileTextOutlined, AppstoreOutlined, AuditOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import apiClient from '../lib/apiClient';
 import KnowledgeBaseForm from './KnowledgeBaseForm';
@@ -279,7 +279,10 @@ const KnowledgePage: React.FC = () => {
       <div className="page-breadcrumb"><Breadcrumb items={[{ title: 'AI知识库' }]} /></div>
 
       {/* ==================== 知识库板块 ==================== */}
-      <Typography.Title level={4} style={{ marginBottom: 16, fontWeight: 400 }}>知识库</Typography.Title>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+        <Typography.Title level={4} style={{ margin: 0, fontWeight: 400 }}>知识库</Typography.Title>
+        <Button icon={<AuditOutlined />} onClick={() => navigate('/knowledge/evidence-cards')}>证据卡片</Button>
+      </div>
       <Row gutter={[16, 12]} className="toolbar">
         <Col xs={24} sm={8}>
           <Input.Search

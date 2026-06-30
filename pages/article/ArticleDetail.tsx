@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Form, Button, Typography, Spin, Tag, Popconfirm, Collapse, App } from 'antd';
+import { Form, Button, Typography, Spin, Tag, Popconfirm, Collapse, App, Alert, List } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useAppContext } from '../context/AppContext';
+import apiClient from '../lib/apiClient';
 import { useArticleDetail } from './hooks/useArticleDetail';
 import { useArticlePermissions } from './hooks/useArticlePermissions';
 import { useKnowledgeBase } from './hooks/useKnowledgeBase';
 import { useArticleActions } from './hooks/useArticleActions';
 import { useDocumentImport } from './hooks/useDocumentImport';
-import { STATUS_CONFIG, type WriteMode, type ArticleFormValues } from './types';
+import { EVIDENCE_TYPE_OPTIONS, SOURCE_TYPE_OPTIONS, STATUS_CONFIG, type ArticleEvidenceCard, type WriteMode, type ArticleFormValues } from './types';
 import ArticleSettingsForm from './components/ArticleSettingsForm';
 import ArticleContentEditor from './components/ArticleContentEditor';
 import ArticleReviewActions from './components/ArticleReviewActions';
@@ -25,6 +26,9 @@ const ArticleDetail: React.FC = () => {
   const writeMode = (Form.useWatch('write_mode', form) ?? 'ai') as WriteMode;
   const [imageList, setImageList] = useState<string[]>([]);
   const [contentMode, setContentMode] = useState<'preview' | 'edit'>(isNew ? 'edit' : 'preview');
+  const [actualEvidence, setActualEvidence] = useState<ArticleEvidenceCard[]>([]);
+  const [evidenceLoading, setEvidenceLoading] = useState(false);
+  const [evidenceSupportNeeded, setEvidenceSupportNeeded] = useState(false);
 
   const detail = useArticleDetail(id, projectId, isNew, form);
   const permissions = useArticlePermissions(detail.article);
@@ -36,6 +40,8 @@ const ArticleDetail: React.FC = () => {
   const isContentEditable = isNew || permissions.canEditContent;
   const statusCfg = detail.article ? (STATUS_CONFIG[detail.article.status] || { label: detail.article.status, color: 'default' }) : null;
   const originalContentRef = useRef('');
+  const evidenceTypeLabel = Object.fromEntries(EVIDENCE_TYPE_OPTIONS.map(item => [item.value, item.label]));
+  const sourceTypeLabel = Object.fromEntries(SOURCE_TYPE_OPTIONS.map(item => [item.value, item.label]));
 
   useEffect(() => {
     if (!detail.article) return;
@@ -71,6 +77,28 @@ const ArticleDetail: React.FC = () => {
   useEffect(() => {
     if (!isNew && !location.state?.openContentEdit) setContentMode('preview');
   }, [isNew, location.state]);
+
+  useEffect(() => {
+    if (isNew || !id || !projectId || !detail.article) return;
+    if (detail.article.evidenceCards?.length) {
+      setActualEvidence(detail.article.evidenceCards);
+      setEvidenceSupportNeeded(false);
+      return;
+    }
+    setEvidenceLoading(true);
+    setEvidenceSupportNeeded(false);
+    apiClient.get(`/projects/${projectId}/articles/${id}/evidence-cards`)
+      .then((res) => {
+        const payload = res.data?.data;
+        const list = Array.isArray(payload?.list) ? payload.list : Array.isArray(payload) ? payload : [];
+        setActualEvidence(list);
+      })
+      .catch(() => {
+        setActualEvidence([]);
+        setEvidenceSupportNeeded(true);
+      })
+      .finally(() => setEvidenceLoading(false));
+  }, [detail.article, id, isNew, projectId]);
 
   useEffect(() => {
     if (location.state?.openContentEdit && !isNew) {
@@ -189,9 +217,50 @@ const ArticleDetail: React.FC = () => {
     </>
   );
 
+  const evidenceTab = (
+    <>
+      <Alert
+        type={evidenceSupportNeeded ? 'warning' : 'info'}
+        showIcon
+        style={{ marginBottom: 12 }}
+        message={evidenceSupportNeeded
+          ? '当前后端暂未提供文章证据查询接口，前端已预留展示区。建议补充 GET /api/v1/projects/:projectId/articles/:articleId/evidence-cards。'
+          : '这里展示文章生成时实际写入 ArticleEvidenceCard 且 usageType 为 injected 的证据。'}
+      />
+      <Spin spinning={evidenceLoading}>
+        <List
+          size="small"
+          dataSource={actualEvidence}
+          locale={{ emptyText: evidenceSupportNeeded ? '等待后端接口支持' : '暂无实际注入证据' }}
+          renderItem={(item) => {
+            const card = item.evidenceCard;
+            return (
+              <List.Item>
+                <List.Item.Meta
+                  title={card?.title || `证据卡片 #${item.evidenceCardId ?? '-'}`}
+                  description={(
+                    <>
+                      {item.usageType && <Tag color={item.usageType === 'injected' ? 'green' : 'default'}>{item.usageType}</Tag>}
+                      {card?.evidenceType && <Tag color="blue">{evidenceTypeLabel[card.evidenceType] ?? card.evidenceType}</Tag>}
+                      {card?.sourceType && <Tag>{sourceTypeLabel[card.sourceType] ?? card.sourceType}</Tag>}
+                      <Typography.Text type="secondary">{card?.content || '需要后端返回 evidenceCard 快照或关联详情'}</Typography.Text>
+                    </>
+                  )}
+                />
+              </List.Item>
+            );
+          }}
+        />
+      </Spin>
+    </>
+  );
+
   const collapseItems = [{ key: 'settings', label: '文章设置', children: settingsTab }];
   if ((isNew && writeMode === 'manual') || (!isNew && detail.article)) {
     collapseItems.push({ key: 'content', label: '文章正文', children: contentTab });
+  }
+  if (!isNew && detail.article) {
+    collapseItems.push({ key: 'evidence', label: '实际注入证据', children: evidenceTab });
   }
 
   return (

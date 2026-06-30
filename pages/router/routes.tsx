@@ -14,6 +14,8 @@ const ArticlePage = lazy(() => import('../article'));
 const ArticleDetail = lazy(() => import('../article/ArticleDetail'));
 const KnowledgePage = lazy(() => import('../knowledge'));
 const KnowledgeBaseDetail = lazy(() => import('../knowledge/KnowledgeBaseDetail'));
+const EvidenceCardList = lazy(() => import('../knowledge/EvidenceCardList'));
+const EvidenceCardDetail = lazy(() => import('../knowledge/EvidenceCardDetail'));
 const KeywordDetail = lazy(() => import('../knowledge/KeywordDetail'));
 const PortraitDetail = lazy(() => import('../knowledge/PortraitDetail'));
 const ImageDetail = lazy(() => import('../knowledge/ImageDetail'));
@@ -38,6 +40,8 @@ interface RouteDef {
 const ROUTE_DEFS: RouteDef[] = [
   { path: '/todo', roles: [ROLES.SYSADMIN, ROLES.ADMIN], Component: TodoPage },
   { path: '/knowledge', roles: [ROLES.SYSADMIN, ROLES.ADMIN], Component: KnowledgePage },
+  { path: '/knowledge/evidence-cards', roles: [ROLES.SYSADMIN, ROLES.ADMIN], Component: EvidenceCardList },
+  { path: '/knowledge/evidence-cards/:id', roles: [ROLES.SYSADMIN, ROLES.ADMIN], Component: EvidenceCardDetail },
   { path: '/knowledge/:baseId', roles: [ROLES.SYSADMIN, ROLES.ADMIN], Component: KnowledgeBaseDetail },
   { path: '/knowledge/:baseId/keyword-mine', roles: [ROLES.SYSADMIN, ROLES.ADMIN], Component: KeywordMine },
   { path: '/knowledge/:baseId/keyword/:id', roles: [ROLES.SYSADMIN, ROLES.ADMIN], Component: KeywordDetail },

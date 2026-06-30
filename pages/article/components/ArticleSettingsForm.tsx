@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Form, Input, Select, Button, Alert, Segmented, Upload, App,
+  Form, Input, Select, Button, Alert, Segmented, Upload, App, Card, List, Tag, Typography,
 } from 'antd';
 import { ImportOutlined } from '@ant-design/icons';
-import type { ArticleFormValues, WriteMode, KbKeyword, KbPortrait, KbImage, SkillOption, LlmModelOption } from '../types';
-import { ARTICLE_TYPE_OPTIONS } from '../types';
+import { useAppContext } from '../../context/AppContext';
+import type { ArticleFormValues, WriteMode, KbKeyword, KbPortrait, KbImage, SkillOption, LlmModelOption, EvidenceCard } from '../types';
+import { ARTICLE_TYPE_OPTIONS, EVIDENCE_TYPE_OPTIONS, SOURCE_TYPE_OPTIONS } from '../types';
+import { splitKeywords, useEvidenceCards } from '../../knowledge/hooks/useEvidenceCards';
 import ArticleImageManager from './ArticleImageManager';
 
 type FormInstance = ReturnType<typeof Form.useForm<ArticleFormValues>>[0];
@@ -46,6 +48,8 @@ interface ArticleSettingsFormProps {
 
 const ALLOWED_EXTENSIONS = /\.(md|doc|docx)$/i;
 const MAX_IMPORT_SIZE = 10 * 1024 * 1024;
+const evidenceTypeLabel = Object.fromEntries(EVIDENCE_TYPE_OPTIONS.map(item => [item.value, item.label]));
+const sourceTypeLabel = Object.fromEntries(SOURCE_TYPE_OPTIONS.map(item => [item.value, item.label]));
 
 const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
   form, config, kb, images, callbacks, error,
@@ -53,7 +57,40 @@ const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
   const { isNew, editable, saving } = config;
   const { onSave, onImportDocument, onErrorClear } = callbacks;
   const { message } = App.useApp();
+  const { companyId, projectId } = useAppContext();
+  const { listEvidenceCards } = useEvidenceCards();
+  const [previewEvidence, setPreviewEvidence] = useState<EvidenceCard[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const writeMode = (Form.useWatch('write_mode', form) ?? 'ai') as WriteMode;
+  const title = Form.useWatch('title', form);
+  const keywords = Form.useWatch('keywords', form);
+  const keywordList = useMemo(() => splitKeywords(keywords), [keywords]);
+
+  useEffect(() => {
+    if (writeMode !== 'ai') {
+      setPreviewEvidence([]);
+      return;
+    }
+    const searchText = [title, ...keywordList].filter(Boolean).join(' ');
+    if (!searchText.trim()) {
+      setPreviewEvidence([]);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setPreviewLoading(true);
+      listEvidenceCards({
+        page: 1,
+        pageSize: 5,
+        search: searchText,
+        companyId: companyId ?? undefined,
+        projectId: projectId ?? undefined,
+      })
+        .then(result => setPreviewEvidence(result.list))
+        .catch(() => setPreviewEvidence([]))
+        .finally(() => setPreviewLoading(false));
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [companyId, keywordList, listEvidenceCards, projectId, title, writeMode]);
 
   const handleFinish = (values: ArticleFormValues) => {
     if (saving || !editable) return;
@@ -128,9 +165,9 @@ const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
         <Form.Item name="article_type" label="文章类型" rules={[{ required: true, message: '请选择文章类型' }]}>
           <Select placeholder="请选择文章类型" disabled={!editable} options={ARTICLE_TYPE_OPTIONS} />
         </Form.Item>
-        <Form.Item name="keywords" label="关键词" rules={[{ required: true, message: '关键词不能为空' }]}>
-          <Select
-            mode="multiple"
+          <Form.Item name="keywords" label="关键词" rules={[{ required: true, message: '关键词不能为空' }]}>
+            <Select
+              mode="multiple"
             allowClear
             showSearch
             placeholder="请选择关键词"
@@ -139,9 +176,45 @@ const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
             loading={kb.loading}
             optionFilterProp="label"
             maxTagCount="responsive"
-            notFoundContent={kb.loading ? '加载中...' : '暂无关键词'}
-          />
-        </Form.Item>
+              notFoundContent={kb.loading ? '加载中...' : '暂无关键词'}
+            />
+          </Form.Item>
+          {writeMode === 'ai' && (
+            <Card
+              size="small"
+              title="预计注入证据"
+              loading={previewLoading}
+              style={{ marginBottom: 16 }}
+            >
+              <Alert
+                type="info"
+                showIcon
+                style={{ marginBottom: 12 }}
+                message="此处仅为基于标题和关键词的轻量预览，最终以后端生成时实时检索和注入结果为准。"
+              />
+              <List
+                size="small"
+                dataSource={previewEvidence}
+                locale={{ emptyText: '暂无匹配证据' }}
+                renderItem={(item) => (
+                  <List.Item>
+                    <List.Item.Meta
+                      title={(
+                        <Typography.Text ellipsis>{item.title}</Typography.Text>
+                      )}
+                      description={(
+                        <>
+                          <Tag color="blue">{evidenceTypeLabel[item.evidenceType] ?? item.evidenceType}</Tag>
+                          <Tag>{sourceTypeLabel[item.sourceType] ?? item.sourceType}</Tag>
+                          <Typography.Text type="secondary">{item.keywords?.slice(0, 3).join('、') || '未标注关键词'}</Typography.Text>
+                        </>
+                      )}
+                    />
+                  </List.Item>
+                )}
+              />
+            </Card>
+          )}
         {writeMode === 'ai' && (<>
           <Form.Item name="portrait" label="画像">
             <Select
