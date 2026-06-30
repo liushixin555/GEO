@@ -1125,3 +1125,49 @@ model MinedKeyword {
 ### 迁移
 
 `prisma/migrations/20260628000000_add_audit`
+
+---
+
+## db025. EvidenceCard V1 证据卡片数据模型
+
+### 变更原因
+
+EvidenceCard V1 是知识库证据化第一版，用于把知识库材料结构化为可检索、可注入、可追踪的证据卡片，并在文章生成链路中记录实际注入结果。
+
+### Schema 变更
+
+- 新增枚举：`EvidenceType`、`EvidenceSourceType`、`ArticleEvidenceUsageType`
+- 新增模型：`EvidenceCard`，用于保存可检索、可注入文章生成 prompt 的证据卡片，包含 companyId、projectId、title、content、evidenceType、sourceType、sourceId、sourceUrl、keywords、confidenceScore、freshnessScore、createdAt、updatedAt、deletedAt。
+- 新增模型：`ArticleEvidenceCard`，用于记录文章生成时实际关联的证据卡片，唯一约束为 `[articleId, evidenceCardId]`。
+- 扩展 `ArticleGenerationDebug`：新增 `retrievedEvidenceCards`、`evidenceRetrievalQuery`、`evidenceWarnings`，用于追踪证据检索条件、实际注入快照和告警。
+
+### 约束与规则
+
+- `ArticleEvidenceCard` 必须设置 `[articleId, evidenceCardId]` 唯一约束，且不要把 `usageType` 放进唯一键。
+- V1 第一阶段 `ArticleEvidenceCard.usageType` 只写入 `injected`。
+- EvidenceCard.keywords 可用 Json 存储，但 service 层必须规范为 `string[]` 后入库。
+- 前端预览不作为最终生成依据，最终记录以后端生成时实际检索结果为准。
+- 文档正文抽取、联网搜索、ContentMission、EntityGraph 不进入 V1 数据模型验收范围。
+
+### 迁移
+
+`prisma/migrations/20260630000000_add_evidence_cards`
+
+---
+
+## db026. EvidenceCard V1 后端 CRUD 最小模型补齐
+
+### 变更原因
+
+本地 schema 已存在 EvidenceCard 相关枚举以及 Company / Project / Article 的反向关系，但缺少 `EvidenceCard` 与 `ArticleEvidenceCard` 模型本体，导致 `pnpm build:api` 的 Prisma generate 阶段无法通过。为支持 EvidenceCard 后端 CRUD 编译与运行，本次补齐最小模型。
+
+### Schema 变更
+
+- 新增 `EvidenceCard` 模型：包含 companyId、projectId、title、content、evidenceType、sourceType、sourceId、sourceUrl、keywords、confidenceScore、freshnessScore、createdAt、updatedAt、deletedAt。
+- 新增 `ArticleEvidenceCard` 模型：包含 articleId、evidenceCardId、usageType、createdAt。
+- `ArticleEvidenceCard` 使用 `[articleId, evidenceCardId]` 唯一约束。
+- EvidenceCard 删除继续使用 `deletedAt` 软删除。
+
+### 说明
+
+本次仅为后端 CRUD 和 service 层 keywords 规范化服务；未接入文章生成检索、prompt 注入、debug 写入或前端页面。

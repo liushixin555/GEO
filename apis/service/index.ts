@@ -51,6 +51,9 @@ import { CitationDiagnosisServiceImpl } from './impl/citation-diagnosis.service.
 import { IKnowledgeBaseService } from './knowledge-base.service';
 import { KnowledgeBaseServiceImpl } from './impl/knowledge-base.service.impl';
 
+import { IEvidenceCardService } from './evidence-card.service';
+import { EvidenceCardServiceImpl } from './impl/evidence-card.service.impl';
+
 import {
   IKeywordService,
   IPortraitService,
@@ -109,6 +112,7 @@ export { ICitationDiagnosisService };
 
 // 知识域
 export { IKnowledgeBaseService };
+export { IEvidenceCardService };
 export { IKeywordService, IPortraitService, IImageService, IDocumentService, IMinedKeywordService };
 
 // 系统域
@@ -171,6 +175,10 @@ export function createCitationDiagnosisService(): ICitationDiagnosisService {
 // 知识域
 export function createKnowledgeBaseService(): IKnowledgeBaseService {
   return new KnowledgeBaseServiceImpl();
+}
+
+export function createEvidenceCardService(): IEvidenceCardService {
+  return new EvidenceCardServiceImpl();
 }
 
 export function createKeywordService(): IKeywordService {

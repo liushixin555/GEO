@@ -56,6 +56,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Todo"
+        evidenceCards:
+          type: array
+          items:
+            $ref: "#/components/schemas/EvidenceCard"
         createdBy:
           $ref: "#/components/schemas/User"
         updatedBy:
@@ -77,6 +81,7 @@ components:
         - knowledgeBases
         - selectedByUsers
         - todos
+        - evidenceCards
     User:
       type: object
       properties:
@@ -407,6 +412,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Todo"
+        evidenceCards:
+          type: array
+          items:
+            $ref: "#/components/schemas/EvidenceCard"
         deletedAt:
           type: string
           format: date-time
@@ -425,6 +434,7 @@ components:
         - selectedByUsers
         - knowledgeBases
         - todos
+        - evidenceCards
     ProjectOperator:
       type: object
       properties:
@@ -599,6 +609,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ArticleGenerationDebug"
+        evidenceCards:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArticleEvidenceCard"
         deletedAt:
           type: string
           format: date-time
@@ -614,6 +628,7 @@ components:
         - versions
         - schedules
         - generationDebugs
+        - evidenceCards
     ArticleVersion:
       type: object
       properties:
@@ -683,6 +698,12 @@ components:
           type: string
         warnings:
           type: object
+        retrievedEvidenceCards:
+          type: object
+        evidenceRetrievalQuery:
+          type: object
+        evidenceWarnings:
+          type: object
         createdAt:
           type: string
           format: date-time
@@ -697,6 +718,96 @@ components:
         - userPrompt
         - createdAt
         - article
+    EvidenceCard:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        companyId:
+          type: integer
+          format: int32
+        projectId:
+          type: integer
+          format: int32
+        title:
+          type: string
+        content:
+          type: string
+        evidenceType:
+          $ref: "#/components/schemas/EvidenceType"
+        sourceType:
+          $ref: "#/components/schemas/EvidenceSourceType"
+        sourceId:
+          type: integer
+          format: int32
+        sourceUrl:
+          type: string
+        keywords:
+          type: object
+        confidenceScore:
+          type: number
+          format: double
+        freshnessScore:
+          type: number
+          format: double
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+        company:
+          $ref: "#/components/schemas/Company"
+        project:
+          $ref: "#/components/schemas/Project"
+        articleLinks:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArticleEvidenceCard"
+      required:
+        - id
+        - title
+        - content
+        - evidenceType
+        - sourceType
+        - confidenceScore
+        - freshnessScore
+        - createdAt
+        - updatedAt
+        - articleLinks
+    ArticleEvidenceCard:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        articleId:
+          type: integer
+          format: int32
+        evidenceCardId:
+          type: integer
+          format: int32
+        usageType:
+          $ref: "#/components/schemas/ArticleEvidenceUsageType"
+        createdAt:
+          type: string
+          format: date-time
+        article:
+          $ref: "#/components/schemas/Article"
+        evidenceCard:
+          $ref: "#/components/schemas/EvidenceCard"
+      required:
+        - id
+        - articleId
+        - evidenceCardId
+        - usageType
+        - createdAt
+        - article
+        - evidenceCard
     KnowledgeKeyword:
       type: object
       properties:
@@ -1511,6 +1622,32 @@ components:
         - platform
         - company
         - project
+    EvidenceType:
+      type: string
+      enum:
+        - fact
+        - case
+        - method
+        - capability
+        - faq
+        - statistic
+        - quote
+        - image_description
+        - external
+    EvidenceSourceType:
+      type: string
+      enum:
+        - portrait
+        - document
+        - image
+        - manual
+        - external
+    ArticleEvidenceUsageType:
+      type: string
+      enum:
+        - retrieved
+        - injected
+        - rejected
     TodoSource:
       type: string
       enum:

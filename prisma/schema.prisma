@@ -31,6 +31,7 @@ model Company {
   knowledgeBases KnowledgeBase[]
   selectedByUsers User[] @relation("UserSelectedCompany")
   todos           Todo[]
+  evidenceCards   EvidenceCard[]
   createdBy       User?  @relation("CompanyCreator", fields: [createdById], references: [id])
   updatedBy       User?  @relation("CompanyUpdater", fields: [updatedById], references: [id])
 
@@ -104,6 +105,32 @@ enum KnowledgeScope {
   platform
   company
   project
+}
+
+enum EvidenceType {
+  fact
+  case
+  method
+  capability
+  faq
+  statistic
+  quote
+  image_description
+  external
+}
+
+enum EvidenceSourceType {
+  portrait
+  document
+  image
+  manual
+  external
+}
+
+enum ArticleEvidenceUsageType {
+  retrieved
+  injected
+  rejected
 }
 
 model Skills {
@@ -184,6 +211,7 @@ model Project {
   selectedByUsers User[] @relation("UserSelectedProject")
   knowledgeBases KnowledgeBase[]
   todos          Todo[]
+  evidenceCards  EvidenceCard[]
 
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([companyId])
@@ -266,6 +294,7 @@ model Article {
   versions    ArticleVersion[]
   schedules   PublishingSchedule[]
   generationDebugs ArticleGenerationDebug[]
+  evidenceCards ArticleEvidenceCard[]
 
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([projectId])
@@ -303,6 +332,9 @@ model ArticleGenerationDebug {
   rawLlmOutput           String?  @map("raw_llm_output")
   cleanedOutput          String?  @map("cleaned_output")
   warnings               Json?
+  retrievedEvidenceCards Json?    @map("retrieved_evidence_cards")
+  evidenceRetrievalQuery Json?    @map("evidence_retrieval_query")
+  evidenceWarnings       Json?    @map("evidence_warnings")
   createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz()
 
   article        Article         @relation(fields: [articleId], references: [id], onDelete: Cascade)
@@ -311,6 +343,51 @@ model ArticleGenerationDebug {
   @@index([articleId])
   @@index([articleVersionId])
   @@map("article_generation_debugs")
+}
+
+model EvidenceCard {
+  id              Int                @id @default(autoincrement())
+  companyId       Int?               @map("company_id")
+  projectId       Int?               @map("project_id")
+  title           String             @db.VarChar(500)
+  content         String             @db.Text
+  evidenceType    EvidenceType       @map("evidence_type")
+  sourceType      EvidenceSourceType @map("source_type")
+  sourceId        Int?               @map("source_id")
+  sourceUrl       String?            @map("source_url") @db.VarChar(1000)
+  keywords        Json?
+  confidenceScore Float              @default(0.7) @map("confidence_score")
+  freshnessScore  Float              @default(0.7) @map("freshness_score")
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt       DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt       DateTime?          @map("deleted_at") @db.Timestamptz()
+
+  company         Company?           @relation(fields: [companyId], references: [id])
+  project         Project?           @relation(fields: [projectId], references: [id])
+  articleLinks    ArticleEvidenceCard[]
+
+  @@index([companyId])
+  @@index([projectId])
+  @@index([evidenceType])
+  @@index([sourceType])
+  @@index([sourceId])
+  @@map("evidence_cards")
+}
+
+model ArticleEvidenceCard {
+  id             Int                      @id @default(autoincrement())
+  articleId      Int                      @map("article_id")
+  evidenceCardId Int                      @map("evidence_card_id")
+  usageType      ArticleEvidenceUsageType @default(injected) @map("usage_type")
+  createdAt      DateTime                 @default(now()) @map("created_at") @db.Timestamptz()
+
+  article        Article                  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  evidenceCard   EvidenceCard             @relation(fields: [evidenceCardId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, evidenceCardId])
+  @@index([articleId])
+  @@index([evidenceCardId])
+  @@map("article_evidence_cards")
 }
 
 model KnowledgeKeyword {

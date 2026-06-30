@@ -125,3 +125,20 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 ## 2026-06-29 知识库画像内容校验补充
 
 - 知识库画像 `content` 后端参数校验上限为 300000 个字符；更新 schema 时必须同步边界测试，禁止回退到 10000 字符旧限制。
+
+## 2026-06-30 EvidenceCard 后端 CRUD 补充
+
+- `/api/v1/evidence-cards` 只负责 EvidenceCard 手动管理，第一阶段不代表文章生成接入或前端页面已完成。
+- EvidenceCard 路由必须使用 `authMiddleware` + `roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN)`，`view` 无权限。
+- EvidenceCard 删除必须使用 `deletedAt` 软删除。
+- EvidenceCard.keywords 入库前必须在 service 层规范为 `string[]`：只保留 string、trim、过滤空字符串、去重；禁止对象、纯字符串或混合类型原样进入数据库。
+- 如果 Prisma schema 已出现 EvidenceCard 反向关系，必须同时存在 `EvidenceCard` / `ArticleEvidenceCard` 模型，否则 `pnpm build:api` 会在 Prisma generate 阶段失败。
+
+## 2026-06-30 EvidenceCard V1 知识库证据化补充
+
+- EvidenceCard V1 是知识库证据化第一版，目标是让知识库材料进入文章生成链路，形成可检索、可注入、可追踪的证据闭环。
+- ArticleEvidenceCard V1 第一阶段只写 `usageType = injected`；`retrieved` / `rejected` 仅保留为后续扩展，不在 V1 实际写入。
+- ArticleEvidenceCard 必须使用 `[articleId, evidenceCardId]` 唯一约束，禁止同一文章重复记录同一证据卡片。
+- EvidenceCard.keywords 必须在 service 层规范为 `string[]`：只保留字符串、trim、过滤空字符串、去重后再入库。
+- 前端“预计注入证据”只作为预览，不作为最终生成依据；最终结果以后端文章生成时实时检索和实际注入记录为准。
+- 文档正文抽取、联网搜索、ContentMission、EntityGraph 后置，不进入 EvidenceCard V1 验收范围。

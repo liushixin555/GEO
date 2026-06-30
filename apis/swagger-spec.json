@@ -4473,6 +4473,14 @@
             }
           },
           {
+            "name": "is_favorite",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "sortBy",
             "in": "query",
             "required": false,
@@ -5246,7 +5254,7 @@
                   },
                   "portrait": {
                     "type": "string",
-                    "maxLength": 2000
+                    "maxLength": 500000
                   },
                   "images": {
                     "nullable": true,
@@ -5542,7 +5550,7 @@
                   },
                   "portrait": {
                     "type": "string",
-                    "maxLength": 2000
+                    "maxLength": 500000
                   },
                   "images": {
                     "nullable": true,
@@ -12125,6 +12133,12 @@
               "$ref": "#/components/schemas/Todo"
             }
           },
+          "evidenceCards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvidenceCard"
+            }
+          },
           "createdBy": {
             "$ref": "#/components/schemas/User"
           },
@@ -12149,7 +12163,8 @@
           "projects",
           "knowledgeBases",
           "selectedByUsers",
-          "todos"
+          "todos",
+          "evidenceCards"
         ]
       },
       "User": {
@@ -12607,6 +12622,12 @@
               "$ref": "#/components/schemas/Todo"
             }
           },
+          "evidenceCards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvidenceCard"
+            }
+          },
           "deletedAt": {
             "type": "string",
             "format": "date-time"
@@ -12626,7 +12647,8 @@
           "articles",
           "selectedByUsers",
           "knowledgeBases",
-          "todos"
+          "todos",
+          "evidenceCards"
         ]
       },
       "ProjectOperator": {
@@ -12823,6 +12845,9 @@
           "content": {
             "type": "string"
           },
+          "revisionInstruction": {
+            "type": "string"
+          },
           "version": {
             "type": "number",
             "format": "double"
@@ -12863,6 +12888,18 @@
               "$ref": "#/components/schemas/PublishingSchedule"
             }
           },
+          "generationDebugs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArticleGenerationDebug"
+            }
+          },
+          "evidenceCards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArticleEvidenceCard"
+            }
+          },
           "deletedAt": {
             "type": "string",
             "format": "date-time"
@@ -12878,7 +12915,9 @@
           "updatedAt",
           "project",
           "versions",
-          "schedules"
+          "schedules",
+          "generationDebugs",
+          "evidenceCards"
         ]
       },
       "ArticleVersion": {
@@ -12913,6 +12952,12 @@
           "creator": {
             "$ref": "#/components/schemas/User"
           },
+          "generationDebugs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArticleGenerationDebug"
+            }
+          },
           "deletedAt": {
             "type": "string",
             "format": "date-time"
@@ -12924,7 +12969,201 @@
           "version",
           "content",
           "createdAt",
+          "article",
+          "generationDebugs"
+        ]
+      },
+      "ArticleGenerationDebug": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "articleId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "articleVersionId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "modelName": {
+            "type": "string"
+          },
+          "skillDirs": {
+            "type": "object"
+          },
+          "requiredReferenceFiles": {
+            "type": "object"
+          },
+          "systemPrompt": {
+            "type": "string"
+          },
+          "userPrompt": {
+            "type": "string"
+          },
+          "toolCalls": {
+            "type": "object"
+          },
+          "rawLlmOutput": {
+            "type": "string"
+          },
+          "cleanedOutput": {
+            "type": "string"
+          },
+          "warnings": {
+            "type": "object"
+          },
+          "retrievedEvidenceCards": {
+            "type": "object"
+          },
+          "evidenceRetrievalQuery": {
+            "type": "object"
+          },
+          "evidenceWarnings": {
+            "type": "object"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "article": {
+            "$ref": "#/components/schemas/Article"
+          },
+          "articleVersion": {
+            "$ref": "#/components/schemas/ArticleVersion"
+          }
+        },
+        "required": [
+          "id",
+          "articleId",
+          "systemPrompt",
+          "userPrompt",
+          "createdAt",
           "article"
+        ]
+      },
+      "EvidenceCard": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "companyId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "projectId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "evidenceType": {
+            "$ref": "#/components/schemas/EvidenceType"
+          },
+          "sourceType": {
+            "$ref": "#/components/schemas/EvidenceSourceType"
+          },
+          "sourceId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "sourceUrl": {
+            "type": "string"
+          },
+          "keywords": {
+            "type": "object"
+          },
+          "confidenceScore": {
+            "type": "number",
+            "format": "double"
+          },
+          "freshnessScore": {
+            "type": "number",
+            "format": "double"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "company": {
+            "$ref": "#/components/schemas/Company"
+          },
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "articleLinks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArticleEvidenceCard"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "content",
+          "evidenceType",
+          "sourceType",
+          "confidenceScore",
+          "freshnessScore",
+          "createdAt",
+          "updatedAt",
+          "articleLinks"
+        ]
+      },
+      "ArticleEvidenceCard": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "articleId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "evidenceCardId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "usageType": {
+            "$ref": "#/components/schemas/ArticleEvidenceUsageType"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "article": {
+            "$ref": "#/components/schemas/Article"
+          },
+          "evidenceCard": {
+            "$ref": "#/components/schemas/EvidenceCard"
+          }
+        },
+        "required": [
+          "id",
+          "articleId",
+          "evidenceCardId",
+          "usageType",
+          "createdAt",
+          "article",
+          "evidenceCard"
         ]
       },
       "KnowledgeKeyword": {
@@ -14028,6 +14267,38 @@
           "platform",
           "company",
           "project"
+        ]
+      },
+      "EvidenceType": {
+        "type": "string",
+        "enum": [
+          "fact",
+          "case",
+          "method",
+          "capability",
+          "faq",
+          "statistic",
+          "quote",
+          "image_description",
+          "external"
+        ]
+      },
+      "EvidenceSourceType": {
+        "type": "string",
+        "enum": [
+          "portrait",
+          "document",
+          "image",
+          "manual",
+          "external"
+        ]
+      },
+      "ArticleEvidenceUsageType": {
+        "type": "string",
+        "enum": [
+          "retrieved",
+          "injected",
+          "rejected"
         ]
       },
       "TodoSource": {
