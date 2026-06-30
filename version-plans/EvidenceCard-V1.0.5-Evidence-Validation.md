@@ -1,5 +1,37 @@
 # EvidenceCard V1.0.5 Evidence Validation 方案
 
+---
+
+## 2026-06-30 实施记录
+
+状态：已完成第一轮实现，待最终联调和人工页面验收。
+
+已完成：
+
+- Prisma 增加 EvidenceCard status/sourceQuality/articleTypes/verifiedAt/verifiedBy。
+- Prisma 增加 ArticleEvidenceCard.evidenceSnapshot。
+- Prisma 增加 ArticleGenerationDebug.evidencePromptPreview/evidenceStats。
+- EvidenceCard CRUD 支持治理字段，articleTypes 入库规范为 string[]。
+- EvidenceCard 列表/详情查询时聚合 injectedCount 和 lastInjectedAt，不反写主表。
+- Retrieval 默认只检索 verified EvidenceCard，并加入 sourceQuality/articleTypes 加权。
+- 文章生成 debug 保存 Evidence Prompt Preview 和 evidenceStats。
+- 生成成功写 ArticleEvidenceCard injected 关系时保存 evidenceSnapshot。
+- EvidenceCard 前端列表/详情支持状态、来源质量、适用文章类型和注入统计展示。
+- 文章详情展示实际注入证据 snapshot、debug 统计和 Evidence Prompt Preview。
+
+验证：
+
+- `npx.cmd prisma validate`：通过。
+- `pnpm build:api`：通过。
+- `pnpm build:page`：通过。
+- `pnpm build`：通过。
+- `pnpm lint`：通过。
+
+未包含：
+
+- 不推送远端。
+- 不做 Reviewer used 判断。
+- 不做联网搜索、向量库、ContentMission、EntityGraph。
 > 状态：规划中
 > 日期：2026-06-30
 > 目标：在扩大 EvidenceCard 数量之前，先让证据资产具备可审核、可观察、可统计、可筛选和可解释能力。

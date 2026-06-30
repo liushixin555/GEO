@@ -175,6 +175,7 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
   const generation = await llmService.generateArticle({
     title: article.title || '',
     keywords: article.keywords || '',
+    articleType: article.articleType ?? null,
     portrait: article.portrait || '通用读者',
     images: imageResources,
     skills: skillDirs,
@@ -223,6 +224,8 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
           retrievedEvidenceCards: generation.debug.retrievedEvidenceCards,
           evidenceRetrievalQuery: generation.debug.evidenceRetrievalQuery,
           evidenceWarnings: generation.debug.evidenceWarnings,
+          evidencePromptPreview: generation.debug.evidencePromptPreview,
+          evidenceStats: generation.debug.evidenceStats,
         },
       });
 
@@ -266,12 +269,18 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
         retrievedEvidenceCards: generation.debug.retrievedEvidenceCards,
         evidenceRetrievalQuery: generation.debug.evidenceRetrievalQuery,
         evidenceWarnings: generation.debug.evidenceWarnings,
+        evidencePromptPreview: generation.debug.evidencePromptPreview,
+        evidenceStats: generation.debug.evidenceStats,
       },
     });
 
     for (const evidenceCard of generation.debug.retrievedEvidenceCards) {
       const evidenceCardId = Number((evidenceCard as { id?: unknown }).id);
       if (!Number.isInteger(evidenceCardId) || evidenceCardId <= 0) continue;
+      const evidenceSnapshot = {
+        ...(evidenceCard as Record<string, unknown>),
+        capturedAt: (evidenceCard as { capturedAt?: unknown }).capturedAt ?? new Date().toISOString(),
+      };
       await tx.articleEvidenceCard.upsert({
         where: {
           articleId_evidenceCardId: {
@@ -281,11 +290,13 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
         },
         update: {
           usageType: 'injected',
+          evidenceSnapshot,
         },
         create: {
           articleId: article.id,
           evidenceCardId,
           usageType: 'injected',
+          evidenceSnapshot,
         },
       });
     }

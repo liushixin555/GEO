@@ -51,3 +51,12 @@
 - EvidenceCard V1 只落数据模型与迁移时，不新增业务接口和前端；`EvidenceCard.keywords` 使用 `Json?`，后续 service 层需规范为字符串数组。
 - `ArticleEvidenceCard` 唯一约束必须保持为 `[articleId, evidenceCardId]`，不要把 `usageType` 放进唯一键；V1 实际只写 `injected`，但枚举保留 `retrieved` / `injected` / `rejected`。
 - `ArticleGenerationDebug` 用 `retrievedEvidenceCards`、`evidenceRetrievalQuery`、`evidenceWarnings` 记录证据检索快照、检索条件和告警。
+
+## 2026-06-30 EvidenceCard V1.0.5 证据验证规则
+
+- EvidenceCard status 默认 `draft`；正式文章生成 retrieval 默认只检索 `verified`，不要让未审核证据进入正式 prompt。
+- `verifiedAt` / `verifiedBy` 只在 status 从非 `verified` 改为 `verified` 时写入；从 verified 改为 draft/deprecated 时保留历史审核痕迹。
+- `articleTypes` 必须像 `keywords` 一样在 service 层规范为字符串数组；为空时默认 `["general"]`。
+- `ArticleEvidenceCard.evidenceSnapshot` 必须保存生成当次注入 prompt 的 compact snapshot，不能依赖后续被编辑过的 EvidenceCard 当前值来还原历史。
+- `injectedCount` / `lastInjectedAt` 不反写主表，统一通过 `ArticleEvidenceCard` 查询时聚合。
+- `ArticleGenerationDebug.evidencePromptPreview` 和 `evidenceStats` 用于 Prompt Inspection，只做可观察，不代表模型实际 used 判断。

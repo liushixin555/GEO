@@ -25,3 +25,12 @@
 - EvidenceCard.keywords 入库前必须在 service 层规范为 `string[]`，禁止字符串、对象或混合数组直接入库。
 - ArticleGenerationDebug 需要记录检索条件、实际注入证据快照和证据不足等 warning，方便排查生成链路。
 - 文档正文抽取、联网搜索、ContentMission、EntityGraph 均后置，不混入 V1 架构闭环。
+
+## 2026-06-30 EvidenceCard V1.0.5
+
+- EvidenceCard V1.0.5 在 V1 与 V1.1 自动抽取之间补齐证据治理层：`status`、`sourceQuality`、`articleTypes`、`verifiedAt`、`verifiedBy`。
+- 文章生成 retrieval 默认只查 `verified` EvidenceCard；`includeDraft` 仅作为后台预览扩展参数，正式生成不启用。
+- `retrieveEvidenceForArticle()` 的 compact snapshot 增加 `status`、`sourceQuality`、`articleTypes`、`capturedAt`，并在 scoring 中加入 sourceQuality 与 articleTypes 权重。
+- `ArticleEvidenceCard.evidenceSnapshot` 保存生成当次注入的 compact snapshot；文章详情优先展示 snapshot，用于追溯“当时注入的是哪一版证据”。
+- `ArticleGenerationDebug.evidencePromptPreview` 保存当次 Evidence Prompt 区块，`evidenceStats` 保存 retrievedCount、injectedCount、evidencePromptLength、evidenceWarnings。
+- EvidenceCard 注入统计不落主表字段，列表/详情通过 `ArticleEvidenceCard.groupBy` 聚合 injectedCount 和 lastInjectedAt。

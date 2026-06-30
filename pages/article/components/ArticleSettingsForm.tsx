@@ -84,6 +84,7 @@ const ArticleSettingsForm: React.FC<ArticleSettingsFormProps> = ({
         search: searchText,
         companyId: companyId ?? undefined,
         projectId: projectId ?? undefined,
+        status: 'verified',
       })
         .then(result => setPreviewEvidence(result.list))
         .catch(() => setPreviewEvidence([]))

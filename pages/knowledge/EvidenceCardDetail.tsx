@@ -19,7 +19,10 @@ import {
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useAppContext } from '../context/AppContext';
 import {
+  EVIDENCE_ARTICLE_TYPE_OPTIONS,
+  EVIDENCE_STATUS_OPTIONS,
   EVIDENCE_TYPE_OPTIONS,
+  SOURCE_QUALITY_OPTIONS,
   SOURCE_TYPE_OPTIONS,
   type EvidenceCard,
 } from '../article/types';
@@ -32,6 +35,9 @@ type EvidenceCardFormValues = Omit<EvidenceCardPayload, 'keywords'> & {
 
 const evidenceTypeLabel = Object.fromEntries(EVIDENCE_TYPE_OPTIONS.map(item => [item.value, item.label]));
 const sourceTypeLabel = Object.fromEntries(SOURCE_TYPE_OPTIONS.map(item => [item.value, item.label]));
+const statusLabel = Object.fromEntries(EVIDENCE_STATUS_OPTIONS.map(item => [item.value, item.label]));
+const sourceQualityLabel = Object.fromEntries(SOURCE_QUALITY_OPTIONS.map(item => [item.value, item.label]));
+const articleTypeLabel = Object.fromEntries(EVIDENCE_ARTICLE_TYPE_OPTIONS.map(item => [item.value, item.label]));
 
 const EvidenceCardDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -60,6 +66,9 @@ const EvidenceCardDetail: React.FC = () => {
           sourceType: data.sourceType,
           sourceUrl: data.sourceUrl ?? undefined,
           keywords: data.keywords?.join('、'),
+          status: data.status,
+          sourceQuality: data.sourceQuality,
+          articleTypes: data.articleTypes,
           confidenceScore: data.confidenceScore,
           freshnessScore: data.freshnessScore,
         });
@@ -79,6 +88,9 @@ const EvidenceCardDetail: React.FC = () => {
       sourceType: values.sourceType,
       sourceUrl: values.sourceUrl?.trim() || null,
       keywords: splitKeywords(values.keywords),
+      status: values.status,
+      sourceQuality: values.sourceQuality,
+      articleTypes: values.articleTypes ?? ['general'],
       confidenceScore: values.confidenceScore ?? null,
       freshnessScore: values.freshnessScore ?? null,
     };
@@ -133,7 +145,7 @@ const EvidenceCardDetail: React.FC = () => {
             form={form}
             layout="vertical"
             requiredMark
-            initialValues={{ evidenceType: 'fact', sourceType: 'manual' }}
+            initialValues={{ evidenceType: 'fact', sourceType: 'manual', status: 'draft', sourceQuality: 'manual', articleTypes: ['general'] }}
             onFinish={handleFinish}
           >
             <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }]}>
@@ -147,6 +159,15 @@ const EvidenceCardDetail: React.FC = () => {
             </Form.Item>
             <Form.Item name="sourceType" label="来源类型" rules={[{ required: true, message: '请选择来源类型' }]}>
               <Select options={SOURCE_TYPE_OPTIONS} />
+            </Form.Item>
+            <Form.Item name="status" label="状态" rules={[{ required: true, message: '请选择状态' }]}>
+              <Select options={EVIDENCE_STATUS_OPTIONS} />
+            </Form.Item>
+            <Form.Item name="sourceQuality" label="来源质量" rules={[{ required: true, message: '请选择来源质量' }]}>
+              <Select options={SOURCE_QUALITY_OPTIONS} />
+            </Form.Item>
+            <Form.Item name="articleTypes" label="适用文章类型">
+              <Select mode="multiple" options={EVIDENCE_ARTICLE_TYPE_OPTIONS} />
             </Form.Item>
             <Form.Item name="keywords" label="关键词">
               <Input placeholder="多个关键词用顿号、逗号或换行分隔" />
@@ -172,10 +193,19 @@ const EvidenceCardDetail: React.FC = () => {
         >
           <Descriptions column={2} bordered size="small">
             <Descriptions.Item label="标题" span={2}>{item?.title}</Descriptions.Item>
+            <Descriptions.Item label="状态"><Tag color={item?.status === 'verified' ? 'green' : item?.status === 'deprecated' ? 'red' : 'default'}>{item ? statusLabel[item.status] : '-'}</Tag></Descriptions.Item>
+            <Descriptions.Item label="来源质量"><Tag color="cyan">{item ? sourceQualityLabel[item.sourceQuality] : '-'}</Tag></Descriptions.Item>
             <Descriptions.Item label="证据类型"><Tag color="blue">{item ? evidenceTypeLabel[item.evidenceType] : '-'}</Tag></Descriptions.Item>
             <Descriptions.Item label="来源类型"><Tag>{item ? sourceTypeLabel[item.sourceType] : '-'}</Tag></Descriptions.Item>
             <Descriptions.Item label="可信度">{item?.confidenceScore ?? '-'}</Descriptions.Item>
             <Descriptions.Item label="新鲜度">{item?.freshnessScore ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="注入次数">{item?.injectedCount ?? 0}</Descriptions.Item>
+            <Descriptions.Item label="最近注入">{item?.lastInjectedAt ? formatDateTime(item.lastInjectedAt) : '-'}</Descriptions.Item>
+            <Descriptions.Item label="审核时间">{item?.verifiedAt ? formatDateTime(item.verifiedAt) : '-'}</Descriptions.Item>
+            <Descriptions.Item label="审核人">{item?.verifiedBy ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="适用文章类型" span={2}>
+              <Space size={4} wrap>{item?.articleTypes?.map(type => <Tag key={type}>{articleTypeLabel[type] ?? type}</Tag>)}</Space>
+            </Descriptions.Item>
             <Descriptions.Item label="来源 URL" span={2}>{item?.sourceUrl || '-'}</Descriptions.Item>
             <Descriptions.Item label="关键词" span={2}>
               <Space size={4} wrap>{item?.keywords?.map(keyword => <Tag key={keyword}>{keyword}</Tag>)}</Space>

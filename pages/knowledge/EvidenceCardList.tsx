@@ -22,17 +22,25 @@ import {
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import {
+  EVIDENCE_ARTICLE_TYPE_OPTIONS,
+  EVIDENCE_STATUS_OPTIONS,
   EVIDENCE_TYPE_OPTIONS,
+  SOURCE_QUALITY_OPTIONS,
   SOURCE_TYPE_OPTIONS,
   type EvidenceCard,
+  type EvidenceArticleType,
   type EvidenceCardSourceType,
+  type EvidenceCardStatus,
   type EvidenceCardType,
+  type EvidenceSourceQuality,
 } from '../article/types';
 import { formatDateTime } from '../utils/date';
 import { useEvidenceCards } from './hooks/useEvidenceCards';
 
 const evidenceTypeLabel = Object.fromEntries(EVIDENCE_TYPE_OPTIONS.map(item => [item.value, item.label]));
 const sourceTypeLabel = Object.fromEntries(SOURCE_TYPE_OPTIONS.map(item => [item.value, item.label]));
+const statusLabel = Object.fromEntries(EVIDENCE_STATUS_OPTIONS.map(item => [item.value, item.label]));
+const sourceQualityLabel = Object.fromEntries(SOURCE_QUALITY_OPTIONS.map(item => [item.value, item.label]));
 
 const EvidenceCardList: React.FC = () => {
   const navigate = useNavigate();
@@ -44,6 +52,9 @@ const EvidenceCardList: React.FC = () => {
   const [search, setSearch] = useState('');
   const [evidenceType, setEvidenceType] = useState<EvidenceCardType | undefined>();
   const [sourceType, setSourceType] = useState<EvidenceCardSourceType | undefined>();
+  const [status, setStatus] = useState<EvidenceCardStatus | undefined>();
+  const [sourceQuality, setSourceQuality] = useState<EvidenceSourceQuality | undefined>();
+  const [articleType, setArticleType] = useState<EvidenceArticleType | undefined>();
   const pageSize = 10;
 
   const fetchData = useCallback(async () => {
@@ -53,10 +64,13 @@ const EvidenceCardList: React.FC = () => {
       search,
       evidenceType,
       sourceType,
+      status,
+      sourceQuality,
+      articleType,
     });
     setData(result.list);
     setTotal(result.total);
-  }, [evidenceType, listEvidenceCards, page, search, sourceType]);
+  }, [articleType, evidenceType, listEvidenceCards, page, search, sourceQuality, sourceType, status]);
 
   useEffect(() => {
     fetchData().catch(() => message.error('加载证据卡片失败'));
@@ -85,6 +99,17 @@ const EvidenceCardList: React.FC = () => {
       ),
     },
     {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 90,
+      render: (value: EvidenceCardStatus) => (
+        <Tag color={value === 'verified' ? 'green' : value === 'deprecated' ? 'red' : 'default'}>
+          {statusLabel[value] ?? value}
+        </Tag>
+      ),
+    },
+    {
       title: '证据类型',
       dataIndex: 'evidenceType',
       key: 'evidenceType',
@@ -97,6 +122,13 @@ const EvidenceCardList: React.FC = () => {
       key: 'sourceType',
       width: 110,
       render: (value: EvidenceCardSourceType) => <Tag>{sourceTypeLabel[value] ?? value}</Tag>,
+    },
+    {
+      title: '来源质量',
+      dataIndex: 'sourceQuality',
+      key: 'sourceQuality',
+      width: 110,
+      render: (value: EvidenceSourceQuality) => <Tag color="cyan">{sourceQualityLabel[value] ?? value}</Tag>,
     },
     {
       title: '关键词',
@@ -118,6 +150,20 @@ const EvidenceCardList: React.FC = () => {
       key: 'freshnessScore',
       width: 90,
       render: (value: number | null) => value ?? '-',
+    },
+    {
+      title: '注入次数',
+      dataIndex: 'injectedCount',
+      key: 'injectedCount',
+      width: 90,
+      render: (value: number | undefined) => value ?? 0,
+    },
+    {
+      title: '最近注入',
+      dataIndex: 'lastInjectedAt',
+      key: 'lastInjectedAt',
+      width: 160,
+      render: (value: string | null | undefined) => value ? formatDateTime(value) : '-',
     },
     {
       title: '更新时间',
@@ -184,6 +230,33 @@ const EvidenceCardList: React.FC = () => {
             allowClear
           />
         </Col>
+        <Col xs={24} md={6}>
+          <Select
+            value={status}
+            onChange={(value) => { setStatus(value); setPage(1); }}
+            options={EVIDENCE_STATUS_OPTIONS}
+            placeholder="全部状态"
+            allowClear
+          />
+        </Col>
+        <Col xs={24} md={6}>
+          <Select
+            value={sourceQuality}
+            onChange={(value) => { setSourceQuality(value); setPage(1); }}
+            options={SOURCE_QUALITY_OPTIONS}
+            placeholder="全部来源质量"
+            allowClear
+          />
+        </Col>
+        <Col xs={24} md={6}>
+          <Select
+            value={articleType}
+            onChange={(value) => { setArticleType(value); setPage(1); }}
+            options={EVIDENCE_ARTICLE_TYPE_OPTIONS}
+            placeholder="全部适用文章"
+            allowClear
+          />
+        </Col>
       </Row>
 
       <Spin spinning={loading}>
@@ -201,7 +274,11 @@ const EvidenceCardList: React.FC = () => {
               onClick={() => navigate(`/knowledge/evidence-cards/${item.id}`)}
             >
               <Descriptions column={2} size="small" colon={false}>
+                <Descriptions.Item label="状态">{statusLabel[item.status] ?? item.status}</Descriptions.Item>
                 <Descriptions.Item label="来源">{sourceTypeLabel[item.sourceType] ?? item.sourceType}</Descriptions.Item>
+                <Descriptions.Item label="来源质量">{sourceQualityLabel[item.sourceQuality] ?? item.sourceQuality}</Descriptions.Item>
+                <Descriptions.Item label="注入次数">{item.injectedCount ?? 0}</Descriptions.Item>
+                <Descriptions.Item label="最近注入">{item.lastInjectedAt ? formatDateTime(item.lastInjectedAt) : '-'}</Descriptions.Item>
                 <Descriptions.Item label="更新时间">{formatDateTime(item.updatedAt)}</Descriptions.Item>
                 <Descriptions.Item label="可信度">{item.confidenceScore ?? '-'}</Descriptions.Item>
                 <Descriptions.Item label="新鲜度">{item.freshnessScore ?? '-'}</Descriptions.Item>

@@ -1171,3 +1171,37 @@ EvidenceCard V1 是知识库证据化第一版，用于把知识库材料结构�
 ### 说明
 
 本次仅为后端 CRUD 和 service 层 keywords 规范化服务；未接入文章生成检索、prompt 注入、debug 写入或前端页面。
+
+---
+
+## db027. EvidenceCard V1.0.5 证据验证与治理字段
+
+### 变更原因
+
+V1 已完成 EvidenceCard 到文章生成的最小闭环，但缺少证据审核、来源质量、适用文章类型、生成时证据快照和 prompt 可观察字段。V1.0.5 用最小迁移补齐证据治理基础，避免后续自动抽取扩大低质量证据噪音。
+
+### Schema 变更
+
+- 新增枚举：`EvidenceCardStatus`，取值 `draft` / `verified` / `deprecated`。
+- 新增枚举：`EvidenceSourceQuality`，取值 `official` / `customer` / `research` / `third_party` / `manual` / `portrait` / `image` / `unknown`。
+- 扩展 `EvidenceCard`：
+  - `status EvidenceCardStatus @default(draft)`
+  - `sourceQuality EvidenceSourceQuality @default(unknown)`
+  - `articleTypes Json?`
+  - `verifiedAt DateTime?`
+  - `verifiedBy Int?`
+- 扩展 `User`：新增 `verifiedEvidenceCards` 反向关系。
+- 扩展 `ArticleEvidenceCard`：新增 `evidenceSnapshot Json?`，保存文章生成时注入 prompt 的 compact snapshot。
+- 扩展 `ArticleGenerationDebug`：新增 `evidencePromptPreview String?`、`evidenceStats Json?`。
+
+### 约束与规则
+
+- Retrieval 默认只检索 `status = verified` 的 EvidenceCard。
+- `articleTypes` 与 `keywords` 一样必须在 service 层规范为字符串数组；为空时默认 `["general"]`。
+- `verifiedAt` / `verifiedBy` 仅在 status 从非 `verified` 改为 `verified` 时写入。
+- `injectedCount` / `lastInjectedAt` 不新增物理字段，查询时从 `ArticleEvidenceCard` 聚合。
+- `ArticleEvidenceCard` 唯一约束继续保持 `[articleId, evidenceCardId]`，不把 `usageType` 放入唯一键。
+
+### 迁移
+
+`prisma/migrations/20260630001000_add_evidence_validation_fields`

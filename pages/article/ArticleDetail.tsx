@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Form, Button, Typography, Spin, Tag, Popconfirm, Collapse, App, Alert, List } from 'antd';
+import { Form, Button, Typography, Spin, Tag, Popconfirm, Collapse, App, Alert, List, Space } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useAppContext } from '../context/AppContext';
 import apiClient from '../lib/apiClient';
@@ -29,6 +29,7 @@ const ArticleDetail: React.FC = () => {
   const [actualEvidence, setActualEvidence] = useState<ArticleEvidenceCard[]>([]);
   const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [evidenceSupportNeeded, setEvidenceSupportNeeded] = useState(false);
+  const [generationDebug, setGenerationDebug] = useState<any | null>(null);
 
   const detail = useArticleDetail(id, projectId, isNew, form);
   const permissions = useArticlePermissions(detail.article);
@@ -98,6 +99,13 @@ const ArticleDetail: React.FC = () => {
         setEvidenceSupportNeeded(true);
       })
       .finally(() => setEvidenceLoading(false));
+  }, [detail.article, id, isNew, projectId]);
+
+  useEffect(() => {
+    if (isNew || !id || !projectId || !detail.article) return;
+    apiClient.get(`/projects/${projectId}/articles/${id}/generation-debug`)
+      .then((res) => setGenerationDebug(res.data?.data ?? null))
+      .catch(() => setGenerationDebug(null));
   }, [detail.article, id, isNew, projectId]);
 
   useEffect(() => {
@@ -227,6 +235,34 @@ const ArticleDetail: React.FC = () => {
           ? '当前后端暂未提供文章证据查询接口，前端已预留展示区。建议补充 GET /api/v1/projects/:projectId/articles/:articleId/evidence-cards。'
           : '这里展示文章生成时实际写入 ArticleEvidenceCard 且 usageType 为 injected 的证据。'}
       />
+      {generationDebug?.evidenceStats && (
+        <Space size={8} wrap style={{ marginBottom: 12 }}>
+          <Tag>retrievedCount: {generationDebug.evidenceStats.retrievedCount ?? 0}</Tag>
+          <Tag color="green">injectedCount: {generationDebug.evidenceStats.injectedCount ?? 0}</Tag>
+          <Tag color="blue">promptLength: {generationDebug.evidenceStats.evidencePromptLength ?? 0}</Tag>
+          {Array.isArray(generationDebug.evidenceWarnings) && generationDebug.evidenceWarnings.map((warning: string) => (
+            <Tag color="orange" key={warning}>{warning}</Tag>
+          ))}
+        </Space>
+      )}
+      {generationDebug?.evidencePromptPreview && (
+        <Collapse
+          size="small"
+          style={{ marginBottom: 12 }}
+          items={[{
+            key: 'evidencePromptPreview',
+            label: 'Evidence Prompt Preview',
+            children: (
+              <Typography.Paragraph
+                ellipsis={{ rows: 12, expandable: true, symbol: '展开' }}
+                style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}
+              >
+                {generationDebug.evidencePromptPreview}
+              </Typography.Paragraph>
+            ),
+          }]}
+        />
+      )}
       <Spin spinning={evidenceLoading}>
         <List
           size="small"
@@ -234,16 +270,20 @@ const ArticleDetail: React.FC = () => {
           locale={{ emptyText: evidenceSupportNeeded ? '等待后端接口支持' : '暂无实际注入证据' }}
           renderItem={(item) => {
             const card = item.evidenceCard;
+            const snapshot = item.evidenceSnapshot;
+            const title = snapshot?.title || card?.title || `证据卡片 #${item.evidenceCardId ?? '-'}`;
+            const content = snapshot?.content || card?.content || '需要后端返回 evidenceSnapshot 或关联详情';
             return (
               <List.Item>
                 <List.Item.Meta
-                  title={card?.title || `证据卡片 #${item.evidenceCardId ?? '-'}`}
+                  title={title}
                   description={(
                     <>
                       {item.usageType && <Tag color={item.usageType === 'injected' ? 'green' : 'default'}>{item.usageType}</Tag>}
-                      {card?.evidenceType && <Tag color="blue">{evidenceTypeLabel[card.evidenceType] ?? card.evidenceType}</Tag>}
-                      {card?.sourceType && <Tag>{sourceTypeLabel[card.sourceType] ?? card.sourceType}</Tag>}
-                      <Typography.Text type="secondary">{card?.content || '需要后端返回 evidenceCard 快照或关联详情'}</Typography.Text>
+                      {(snapshot?.evidenceType || card?.evidenceType) && <Tag color="blue">{evidenceTypeLabel[(snapshot?.evidenceType || card?.evidenceType) as keyof typeof evidenceTypeLabel] ?? snapshot?.evidenceType ?? card?.evidenceType}</Tag>}
+                      {(snapshot?.sourceType || card?.sourceType) && <Tag>{sourceTypeLabel[(snapshot?.sourceType || card?.sourceType) as keyof typeof sourceTypeLabel] ?? snapshot?.sourceType ?? card?.sourceType}</Tag>}
+                      {snapshot?.sourceQuality && <Tag color="cyan">{snapshot.sourceQuality}</Tag>}
+                      <Typography.Text type="secondary">{content}</Typography.Text>
                     </>
                   )}
                 />

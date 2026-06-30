@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { EVIDENCE_CARD_SOURCE_TYPES, EVIDENCE_CARD_TYPES } from '../entity/evidence-card.entity';
+import {
+  EVIDENCE_ARTICLE_TYPES,
+  EVIDENCE_CARD_SOURCE_TYPES,
+  EVIDENCE_CARD_STATUSES,
+  EVIDENCE_CARD_TYPES,
+  EVIDENCE_SOURCE_QUALITIES,
+} from '../entity/evidence-card.entity';
 
 const title = z.string({ error: 'title is required' })
   .trim()
@@ -39,6 +45,14 @@ const keywords = z.array(
   .nullable()
   .optional();
 
+const articleTypes = z.array(
+  z.enum(EVIDENCE_ARTICLE_TYPES, { error: 'invalid articleTypes item' }),
+  { error: 'articleTypes must be an array' },
+)
+  .max(20, 'articleTypes must not exceed 20 items')
+  .nullable()
+  .optional();
+
 export const createEvidenceCardSchema = z.object({
   companyId: nullableId,
   projectId: nullableId,
@@ -49,6 +63,9 @@ export const createEvidenceCardSchema = z.object({
   sourceId: nullableId,
   sourceUrl,
   keywords,
+  status: z.enum(EVIDENCE_CARD_STATUSES, { error: 'invalid status' }).optional(),
+  sourceQuality: z.enum(EVIDENCE_SOURCE_QUALITIES, { error: 'invalid sourceQuality' }).optional(),
+  articleTypes,
   confidenceScore: score,
   freshnessScore: score,
 }).strict();
@@ -63,6 +80,9 @@ export const updateEvidenceCardSchema = z.object({
   sourceId: nullableId,
   sourceUrl,
   keywords,
+  status: z.enum(EVIDENCE_CARD_STATUSES, { error: 'invalid status' }).optional(),
+  sourceQuality: z.enum(EVIDENCE_SOURCE_QUALITIES, { error: 'invalid sourceQuality' }).optional(),
+  articleTypes,
   confidenceScore: score,
   freshnessScore: score,
 }).strict();
@@ -75,6 +95,9 @@ export const listEvidenceCardSchema = z.object({
   projectId: z.coerce.number().int().positive().optional(),
   evidenceType: z.enum(EVIDENCE_CARD_TYPES, { error: 'invalid evidenceType' }).optional(),
   sourceType: z.enum(EVIDENCE_CARD_SOURCE_TYPES, { error: 'invalid sourceType' }).optional(),
+  status: z.enum(EVIDENCE_CARD_STATUSES, { error: 'invalid status' }).optional(),
+  sourceQuality: z.enum(EVIDENCE_SOURCE_QUALITIES, { error: 'invalid sourceQuality' }).optional(),
+  articleType: z.enum(EVIDENCE_ARTICLE_TYPES, { error: 'invalid articleType' }).optional(),
 }).strict();
 
 export const deleteEvidenceCardsSchema = z.object({

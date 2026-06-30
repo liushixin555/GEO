@@ -12320,6 +12320,12 @@
               "$ref": "#/components/schemas/Audit"
             }
           },
+          "verifiedEvidenceCards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvidenceCard"
+            }
+          },
           "deletedAt": {
             "type": "string",
             "format": "date-time"
@@ -12350,7 +12356,8 @@
           "assignedTodos",
           "createdTodos",
           "todoLogOperations",
-          "audits"
+          "audits",
+          "verifiedEvidenceCards"
         ]
       },
       "Skills": {
@@ -13024,6 +13031,12 @@
           "evidenceWarnings": {
             "type": "object"
           },
+          "evidencePromptPreview": {
+            "type": "string"
+          },
+          "evidenceStats": {
+            "type": "object"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -13081,6 +13094,15 @@
           "keywords": {
             "type": "object"
           },
+          "status": {
+            "$ref": "#/components/schemas/EvidenceCardStatus"
+          },
+          "sourceQuality": {
+            "$ref": "#/components/schemas/EvidenceSourceQuality"
+          },
+          "articleTypes": {
+            "type": "object"
+          },
           "confidenceScore": {
             "type": "number",
             "format": "double"
@@ -13088,6 +13110,14 @@
           "freshnessScore": {
             "type": "number",
             "format": "double"
+          },
+          "verifiedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "verifiedBy": {
+            "type": "integer",
+            "format": "int32"
           },
           "createdAt": {
             "type": "string",
@@ -13107,6 +13137,9 @@
           "project": {
             "$ref": "#/components/schemas/Project"
           },
+          "verifier": {
+            "$ref": "#/components/schemas/User"
+          },
           "articleLinks": {
             "type": "array",
             "items": {
@@ -13120,6 +13153,8 @@
           "content",
           "evidenceType",
           "sourceType",
+          "status",
+          "sourceQuality",
           "confidenceScore",
           "freshnessScore",
           "createdAt",
@@ -13144,6 +13179,9 @@
           },
           "usageType": {
             "$ref": "#/components/schemas/ArticleEvidenceUsageType"
+          },
+          "evidenceSnapshot": {
+            "type": "object"
           },
           "createdAt": {
             "type": "string",
@@ -14299,6 +14337,27 @@
           "retrieved",
           "injected",
           "rejected"
+        ]
+      },
+      "EvidenceCardStatus": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "verified",
+          "deprecated"
+        ]
+      },
+      "EvidenceSourceQuality": {
+        "type": "string",
+        "enum": [
+          "official",
+          "customer",
+          "research",
+          "third_party",
+          "manual",
+          "portrait",
+          "image",
+          "unknown"
         ]
       },
       "TodoSource": {

@@ -71,6 +71,7 @@ model User {
   createdTodos         Todo[]                @relation("TodoCreator")
   todoLogOperations    TodoLog[]             @relation("TodoLogOperator")
   audits               Audit[]               @relation("AuditCreator")
+  verifiedEvidenceCards EvidenceCard[]        @relation("EvidenceCardVerifier")
 
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
   @@index([username])
@@ -131,6 +132,23 @@ enum ArticleEvidenceUsageType {
   retrieved
   injected
   rejected
+}
+
+enum EvidenceCardStatus {
+  draft
+  verified
+  deprecated
+}
+
+enum EvidenceSourceQuality {
+  official
+  customer
+  research
+  third_party
+  manual
+  portrait
+  image
+  unknown
 }
 
 model Skills {
@@ -335,6 +353,8 @@ model ArticleGenerationDebug {
   retrievedEvidenceCards Json?    @map("retrieved_evidence_cards")
   evidenceRetrievalQuery Json?    @map("evidence_retrieval_query")
   evidenceWarnings       Json?    @map("evidence_warnings")
+  evidencePromptPreview  String?  @map("evidence_prompt_preview") @db.Text
+  evidenceStats          Json?    @map("evidence_stats")
   createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz()
 
   article        Article         @relation(fields: [articleId], references: [id], onDelete: Cascade)
@@ -356,14 +376,20 @@ model EvidenceCard {
   sourceId        Int?               @map("source_id")
   sourceUrl       String?            @map("source_url") @db.VarChar(1000)
   keywords        Json?
+  status          EvidenceCardStatus @default(draft)
+  sourceQuality   EvidenceSourceQuality @default(unknown) @map("source_quality")
+  articleTypes    Json?              @map("article_types")
   confidenceScore Float              @default(0.7) @map("confidence_score")
   freshnessScore  Float              @default(0.7) @map("freshness_score")
+  verifiedAt      DateTime?          @map("verified_at") @db.Timestamptz()
+  verifiedBy      Int?               @map("verified_by")
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt       DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
   deletedAt       DateTime?          @map("deleted_at") @db.Timestamptz()
 
   company         Company?           @relation(fields: [companyId], references: [id])
   project         Project?           @relation(fields: [projectId], references: [id])
+  verifier        User?              @relation("EvidenceCardVerifier", fields: [verifiedBy], references: [id])
   articleLinks    ArticleEvidenceCard[]
 
   @@index([companyId])
@@ -371,6 +397,9 @@ model EvidenceCard {
   @@index([evidenceType])
   @@index([sourceType])
   @@index([sourceId])
+  @@index([status])
+  @@index([sourceQuality])
+  @@index([verifiedBy])
   @@map("evidence_cards")
 }
 
@@ -379,6 +408,7 @@ model ArticleEvidenceCard {
   articleId      Int                      @map("article_id")
   evidenceCardId Int                      @map("evidence_card_id")
   usageType      ArticleEvidenceUsageType @default(injected) @map("usage_type")
+  evidenceSnapshot Json?                   @map("evidence_snapshot")
   createdAt      DateTime                 @default(now()) @map("created_at") @db.Timestamptz()
 
   article        Article                  @relation(fields: [articleId], references: [id], onDelete: Cascade)

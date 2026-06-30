@@ -2,8 +2,11 @@ import { useCallback, useState } from 'react';
 import apiClient from '../../lib/apiClient';
 import type {
   EvidenceCard,
+  EvidenceArticleType,
   EvidenceCardSourceType,
+  EvidenceCardStatus,
   EvidenceCardType,
+  EvidenceSourceQuality,
 } from '../../article/types';
 
 export interface EvidenceCardListParams {
@@ -14,6 +17,9 @@ export interface EvidenceCardListParams {
   projectId?: number;
   evidenceType?: EvidenceCardType;
   sourceType?: EvidenceCardSourceType;
+  status?: EvidenceCardStatus;
+  sourceQuality?: EvidenceSourceQuality;
+  articleType?: EvidenceArticleType;
 }
 
 export interface EvidenceCardPayload {
@@ -25,6 +31,9 @@ export interface EvidenceCardPayload {
   sourceType: EvidenceCardSourceType;
   sourceUrl?: string | null;
   keywords?: string[] | null;
+  status?: EvidenceCardStatus;
+  sourceQuality?: EvidenceSourceQuality;
+  articleTypes?: EvidenceArticleType[] | null;
   confidenceScore?: number | null;
   freshnessScore?: number | null;
 }
@@ -66,6 +75,9 @@ export function useEvidenceCards() {
           projectId: params.projectId,
           evidenceType: params.evidenceType,
           sourceType: params.sourceType,
+          status: params.status,
+          sourceQuality: params.sourceQuality,
+          articleType: params.articleType,
         },
       });
       return normalizeListResponse(res.data);

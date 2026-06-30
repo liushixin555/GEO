@@ -18,8 +18,40 @@ export const EVIDENCE_CARD_SOURCE_TYPES = [
   'external',
 ] as const;
 
+export const EVIDENCE_CARD_STATUSES = [
+  'draft',
+  'verified',
+  'deprecated',
+] as const;
+
+export const EVIDENCE_SOURCE_QUALITIES = [
+  'official',
+  'customer',
+  'research',
+  'third_party',
+  'manual',
+  'portrait',
+  'image',
+  'unknown',
+] as const;
+
+export const EVIDENCE_ARTICLE_TYPES = [
+  'ranking',
+  'comparison',
+  'guide',
+  'faq',
+  'case',
+  'methodology',
+  'brand',
+  'news',
+  'general',
+] as const;
+
 export type EvidenceCardType = typeof EVIDENCE_CARD_TYPES[number];
 export type EvidenceCardSourceType = typeof EVIDENCE_CARD_SOURCE_TYPES[number];
+export type EvidenceCardStatus = typeof EVIDENCE_CARD_STATUSES[number];
+export type EvidenceSourceQuality = typeof EVIDENCE_SOURCE_QUALITIES[number];
+export type EvidenceArticleType = typeof EVIDENCE_ARTICLE_TYPES[number];
 
 export interface EvidenceCard {
   id: number;
@@ -32,8 +64,15 @@ export interface EvidenceCard {
   sourceId: number | null;
   sourceUrl: string | null;
   keywords: string[];
+  status: EvidenceCardStatus;
+  sourceQuality: EvidenceSourceQuality;
+  articleTypes: string[];
   confidenceScore: number | null;
   freshnessScore: number | null;
+  verifiedAt: Date | null;
+  verifiedBy: number | null;
+  injectedCount?: number;
+  lastInjectedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -47,6 +86,9 @@ export interface EvidenceCardListParams {
   projectId?: number;
   evidenceType?: EvidenceCardType;
   sourceType?: EvidenceCardSourceType;
+  status?: EvidenceCardStatus;
+  sourceQuality?: EvidenceSourceQuality;
+  articleType?: EvidenceArticleType;
 }
 
 export interface CreateEvidenceCardRequest {
@@ -59,6 +101,9 @@ export interface CreateEvidenceCardRequest {
   sourceId?: number | null;
   sourceUrl?: string | null;
   keywords?: string[] | null;
+  status?: EvidenceCardStatus;
+  sourceQuality?: EvidenceSourceQuality;
+  articleTypes?: string[] | null;
   confidenceScore?: number | null;
   freshnessScore?: number | null;
 }
@@ -73,6 +118,9 @@ export interface UpdateEvidenceCardRequest {
   sourceId?: number | null;
   sourceUrl?: string | null;
   keywords?: string[] | null;
+  status?: EvidenceCardStatus;
+  sourceQuality?: EvidenceSourceQuality;
+  articleTypes?: string[] | null;
   confidenceScore?: number | null;
   freshnessScore?: number | null;
 }

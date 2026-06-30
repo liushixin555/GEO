@@ -143,6 +143,29 @@ export type EvidenceCardSourceType =
 
 export type ArticleEvidenceUsageType = 'retrieved' | 'injected' | 'rejected';
 
+export type EvidenceCardStatus = 'draft' | 'verified' | 'deprecated';
+
+export type EvidenceSourceQuality =
+  | 'official'
+  | 'customer'
+  | 'research'
+  | 'third_party'
+  | 'manual'
+  | 'portrait'
+  | 'image'
+  | 'unknown';
+
+export type EvidenceArticleType =
+  | 'ranking'
+  | 'comparison'
+  | 'guide'
+  | 'faq'
+  | 'case'
+  | 'methodology'
+  | 'brand'
+  | 'news'
+  | 'general';
+
 export interface EvidenceCard {
   id: number;
   companyId: number | null;
@@ -154,8 +177,15 @@ export interface EvidenceCard {
   sourceId: number | null;
   sourceUrl: string | null;
   keywords: string[];
+  status: EvidenceCardStatus;
+  sourceQuality: EvidenceSourceQuality;
+  articleTypes: EvidenceArticleType[];
   confidenceScore: number | null;
   freshnessScore: number | null;
+  verifiedAt?: string | null;
+  verifiedBy?: number | null;
+  injectedCount?: number;
+  lastInjectedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt?: string | null;
@@ -166,6 +196,7 @@ export interface ArticleEvidenceCard {
   articleId?: number;
   evidenceCardId?: number;
   usageType?: ArticleEvidenceUsageType;
+  evidenceSnapshot?: Partial<EvidenceCard> | null;
   createdAt?: string;
   evidenceCard?: EvidenceCard;
 }
@@ -180,6 +211,35 @@ export const EVIDENCE_TYPE_OPTIONS: { label: string; value: EvidenceCardType }[]
   { label: '引用', value: 'quote' },
   { label: '图片描述', value: 'image_description' },
   { label: '外部材料', value: 'external' },
+];
+
+export const EVIDENCE_STATUS_OPTIONS: { label: string; value: EvidenceCardStatus }[] = [
+  { label: '草稿', value: 'draft' },
+  { label: '已验证', value: 'verified' },
+  { label: '已废弃', value: 'deprecated' },
+];
+
+export const SOURCE_QUALITY_OPTIONS: { label: string; value: EvidenceSourceQuality }[] = [
+  { label: '官方材料', value: 'official' },
+  { label: '客户材料', value: 'customer' },
+  { label: '研究材料', value: 'research' },
+  { label: '第三方材料', value: 'third_party' },
+  { label: '手工录入', value: 'manual' },
+  { label: '画像材料', value: 'portrait' },
+  { label: '图片材料', value: 'image' },
+  { label: '未知', value: 'unknown' },
+];
+
+export const EVIDENCE_ARTICLE_TYPE_OPTIONS: { label: string; value: EvidenceArticleType }[] = [
+  { label: '排名', value: 'ranking' },
+  { label: '对比', value: 'comparison' },
+  { label: '指南', value: 'guide' },
+  { label: '问答', value: 'faq' },
+  { label: '案例', value: 'case' },
+  { label: '方法论', value: 'methodology' },
+  { label: '品牌', value: 'brand' },
+  { label: '资讯', value: 'news' },
+  { label: '通用', value: 'general' },
 ];
 
 export const SOURCE_TYPE_OPTIONS: { label: string; value: EvidenceCardSourceType }[] = [

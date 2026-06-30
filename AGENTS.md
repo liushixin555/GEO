@@ -156,3 +156,14 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 - 文章设置页的“预计注入证据”只能作为 EvidenceCard 列表轻量预览，不得作为最终文章生成依据。
 - 文章详情页展示实际注入证据时，需要后端提供 `GET /api/v1/projects/:projectId/articles/:articleId/evidence-cards` 或在文章详情响应中返回 `evidenceCards`。
 - EvidenceCard V1 前端不做 Evidence Graph，不做文档抽取按钮，不接入文章生成后端业务逻辑。
+
+## 2026-06-30 EvidenceCard V1.0.5 证据验证补充
+
+- EvidenceCard V1.0.5 是 V1 基线收口与 V1.1 自动抽取之间的证据治理小版本，目标是先让证据可审核、可观察、可统计、可筛选、可追溯。
+- EvidenceCard.status 默认 `draft`；正式文章生成 retrieval 默认只检索 `verified`，自动抽取出的证据必须先审核后才能进入正式 prompt。
+- EvidenceCard.sourceQuality 用于检索加权，official/customer/research/manual 等高质量来源优先；third_party/external 只能作为行业背景或第三方语境，不能覆盖薄云相关内部事实。
+- EvidenceCard.articleTypes 必须在 service 层规范为 `string[]`，为空时默认 `["general"]`；ranking/comparison/guide/faq/case/methodology/brand/news/general 为第一批约定值。
+- status 从非 `verified` 改为 `verified` 时记录 `verifiedAt` / `verifiedBy`；从 verified 改为 draft/deprecated 时保留历史审核痕迹。
+- ArticleEvidenceCard 必须保存 `evidenceSnapshot`，用于追溯文章生成时实际注入 prompt 的 compact snapshot；不要只依赖后续可能被编辑的 EvidenceCard 当前值。
+- ArticleGenerationDebug 必须保存 `evidencePromptPreview` 和 `evidenceStats`，用于 Prompt Inspection；V1.0.5 仍不判断模型实际 used 哪条证据。
+- injectedCount / lastInjectedAt 不反写 EvidenceCard 主表，必须通过 ArticleEvidenceCard 查询时聚合。

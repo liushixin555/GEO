@@ -58,9 +58,9 @@ export async function getEvidenceCard(req: Request, res: Response): Promise<void
 
 export async function createEvidenceCard(req: Request, res: Response): Promise<void> {
   try {
-    getUser(req);
+    const user = getUser(req);
     const evidenceCardService = createEvidenceCardService();
-    const item = await evidenceCardService.create(req.body);
+    const item = await evidenceCardService.create(req.body, user.userId);
     created(res, item, 'EvidenceCard created');
   } catch (err: unknown) {
     handleControllerError(err, res, 'Failed to create EvidenceCard');
@@ -73,8 +73,9 @@ export async function updateEvidenceCard(req: Request, res: Response): Promise<v
     const id = parseId(req.params.id);
     if (id === null) { fail(res, 400, 'Invalid EvidenceCard id'); return; }
 
+    const user = getUser(req);
     const evidenceCardService = createEvidenceCardService();
-    const item = await evidenceCardService.update(id, req.body);
+    const item = await evidenceCardService.update(id, req.body, user.userId);
     success(res, item, 'EvidenceCard updated');
   } catch (err: unknown) {
     handleControllerError(err, res, 'Failed to update EvidenceCard');

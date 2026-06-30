@@ -772,9 +772,16 @@ ${content}`;
       companyId: params.companyId,
       title: normalizedTitle || params.title || '',
       keywords: params.keywords || '',
+      articleType: params.articleType ?? null,
       limit: 8,
     });
     const evidencePromptSection = buildEvidencePromptSection(evidenceRetrieval.cards);
+    const evidenceStats = {
+      retrievedCount: evidenceRetrieval.cards.length,
+      injectedCount: evidenceRetrieval.cards.length,
+      evidencePromptLength: evidencePromptSection.length,
+      evidenceWarnings: evidenceRetrieval.warnings,
+    };
 
     const previousContentSection = params.previousContent
       ? `\n## 参考内容（上一版正文）\n${params.previousContent}\n\n请基于参考内容进行优化改写，保留其核心观点和优质表达，同时改进不足之处。`
@@ -960,6 +967,8 @@ ${previousContentSection}
       retrievedEvidenceCards: evidenceRetrieval.cards,
       evidenceRetrievalQuery: evidenceRetrieval.query as unknown as Record<string, unknown>,
       evidenceWarnings: evidenceRetrieval.warnings,
+      evidencePromptPreview: evidencePromptSection,
+      evidenceStats,
     };
 
     lastAttempt = {

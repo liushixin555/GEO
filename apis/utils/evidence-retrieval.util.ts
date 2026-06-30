@@ -5,7 +5,9 @@ export interface EvidenceRetrievalInput {
   companyId?: number;
   title: string;
   keywords: string;
+  articleType?: string | null;
   limit?: number;
+  includeDraft?: boolean;
 }
 
 export interface RetrievedEvidenceCardSnapshot {
@@ -16,11 +18,15 @@ export interface RetrievedEvidenceCardSnapshot {
   content: string;
   evidenceType: string;
   sourceType: string;
+  status: string;
+  sourceQuality: string;
+  articleTypes: string[];
   sourceId: number | null;
   sourceUrl: string | null;
   keywords: string[];
   confidenceScore: number;
   freshnessScore: number;
+  capturedAt: string;
   score: number;
   matchedReasons: string[];
 }
@@ -30,6 +36,8 @@ export interface EvidenceRetrievalQuerySnapshot {
   companyId?: number;
   title: string;
   keywords: string[];
+  articleType?: string | null;
+  status: string[];
   limit: number;
 }
 
@@ -81,6 +89,11 @@ function normalizeCardKeywords(value: unknown): string[] {
   return unique(value.filter((item): item is string => typeof item === 'string'));
 }
 
+function normalizeCardArticleTypes(value: unknown): string[] {
+  const normalized = normalizeCardKeywords(value);
+  return normalized.length > 0 ? normalized : ['general'];
+}
+
 function includesToken(text: string, token: string): boolean {
   return text.toLowerCase().includes(token.toLowerCase());
 }
@@ -111,14 +124,56 @@ function buildCandidateWhere(input: EvidenceRetrievalInput, tokens: string[], ke
 
   return {
     deletedAt: null,
+    status: input.includeDraft ? { in: ['verified', 'draft'] } : 'verified',
     OR: [...scopeConditions, ...textConditions],
   };
+}
+
+function scoreSourceQuality(sourceQuality: string): number {
+  switch (sourceQuality) {
+    case 'official': return 12;
+    case 'customer': return 10;
+    case 'research': return 8;
+    case 'manual': return 5;
+    case 'portrait': return 3;
+    case 'image': return 2;
+    case 'third_party': return 1;
+    default: return 0;
+  }
+}
+
+function scoreArticleType(cardArticleTypes: string[], articleType?: string | null): { score: number; reason?: string } {
+  if (!articleType) return cardArticleTypes.includes('general')
+    ? { score: 1, reason: 'article_type_general:+1' }
+    : { score: 0 };
+
+  if (cardArticleTypes.includes(articleType)) {
+    return { score: 12, reason: `article_type:${articleType}:+12` };
+  }
+  if (articleType === 'ranking' && cardArticleTypes.includes('comparison')) {
+    return { score: 6, reason: 'article_type:ranking_comparison:+6' };
+  }
+  if (articleType === 'comparison' && cardArticleTypes.includes('ranking')) {
+    return { score: 6, reason: 'article_type:comparison_ranking:+6' };
+  }
+  if (articleType === 'methodology' && cardArticleTypes.includes('guide')) {
+    return { score: 5, reason: 'article_type:methodology_guide:+5' };
+  }
+  if (articleType === 'faq' && cardArticleTypes.includes('guide')) {
+    return { score: 4, reason: 'article_type:faq_guide:+4' };
+  }
+  if (cardArticleTypes.includes('general')) {
+    return { score: 1, reason: 'article_type_general:+1' };
+  }
+  return { score: 0 };
 }
 
 function scoreCard(card: any, input: EvidenceRetrievalInput, titleTokens: string[], keywords: string[]): RetrievedEvidenceCardSnapshot {
   const cardTitle = String(card.title || '');
   const cardContent = String(card.content || '');
   const cardKeywords = normalizeCardKeywords(card.keywords);
+  const cardArticleTypes = normalizeCardArticleTypes(card.articleTypes);
+  const sourceQuality = String(card.sourceQuality || 'unknown');
   const cardKeywordText = cardKeywords.join('\n');
   const matchedReasons: string[] = [];
   let score = 0;
@@ -165,6 +220,18 @@ function scoreCard(card: any, input: EvidenceRetrievalInput, titleTokens: string
   matchedReasons.push(`confidence:${confidenceScore}:+${Number((confidenceScore * 10).toFixed(2))}`);
   matchedReasons.push(`freshness:${freshnessScore}:+${Number((freshnessScore * 8).toFixed(2))}`);
 
+  const sourceQualityScore = scoreSourceQuality(sourceQuality);
+  if (sourceQualityScore > 0) {
+    score += sourceQualityScore;
+    matchedReasons.push(`source_quality:${sourceQuality}:+${sourceQualityScore}`);
+  }
+
+  const articleTypeScore = scoreArticleType(cardArticleTypes, input.articleType);
+  if (articleTypeScore.score > 0) {
+    score += articleTypeScore.score;
+    if (articleTypeScore.reason) matchedReasons.push(articleTypeScore.reason);
+  }
+
   return {
     id: card.id,
     companyId: card.companyId ?? null,
@@ -173,11 +240,15 @@ function scoreCard(card: any, input: EvidenceRetrievalInput, titleTokens: string
     content: compactContent(cardContent),
     evidenceType: String(card.evidenceType || ''),
     sourceType: String(card.sourceType || ''),
+    status: String(card.status || 'draft'),
+    sourceQuality,
+    articleTypes: cardArticleTypes,
     sourceId: card.sourceId ?? null,
     sourceUrl: card.sourceUrl ?? null,
     keywords: cardKeywords,
     confidenceScore,
     freshnessScore,
+    capturedAt: new Date().toISOString(),
     score: Number(score.toFixed(2)),
     matchedReasons: matchedReasons.slice(0, 20),
   };
@@ -192,6 +263,8 @@ export async function retrieveEvidenceForArticle(input: EvidenceRetrievalInput):
     companyId: input.companyId,
     title: input.title,
     keywords,
+    articleType: input.articleType ?? null,
+    status: input.includeDraft ? ['verified', 'draft'] : ['verified'],
     limit,
   };
   const warnings: string[] = [];

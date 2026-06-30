@@ -9,7 +9,22 @@ export { Project, CreateProjectRequest, UpdateProjectRequest } from './project.e
 export { Article, ArticleDetail, ArticleStatus, ARTICLE_STATUSES, ArticleType, WriteMode, ContentArticleStatus, ArticleVersion, CreateArticleRequest, UpdateArticleRequest, ReviewArticleRequest, RejectReason, validateSkills, validateImages } from './article.entity';
 export { KnowledgeKeyword, KnowledgeKeywordDetail, KeywordExpandedWord, KnowledgePortrait, KnowledgeImage, KnowledgeDocument, CreateKeywordRequest, UpdateKeywordRequest, CreatePortraitRequest, UpdatePortraitRequest, CreateImageRequest, UpdateImageRequest, CreateDocumentRequest, UpdateDocumentRequest, MinedKeyword } from './knowledge.entity';
 export { KnowledgeBase, KnowledgeBaseDetail, KnowledgeScope, CreateKnowledgeBaseRequest, UpdateKnowledgeBaseRequest } from './knowledge-base.entity';
-export { EvidenceCard, EvidenceCardType, EvidenceCardSourceType, EVIDENCE_CARD_TYPES, EVIDENCE_CARD_SOURCE_TYPES, EvidenceCardListParams, CreateEvidenceCardRequest, UpdateEvidenceCardRequest } from './evidence-card.entity';
+export {
+  EvidenceCard,
+  EvidenceCardType,
+  EvidenceCardSourceType,
+  EvidenceCardStatus,
+  EvidenceSourceQuality,
+  EvidenceArticleType,
+  EVIDENCE_CARD_TYPES,
+  EVIDENCE_CARD_SOURCE_TYPES,
+  EVIDENCE_CARD_STATUSES,
+  EVIDENCE_SOURCE_QUALITIES,
+  EVIDENCE_ARTICLE_TYPES,
+  EvidenceCardListParams,
+  CreateEvidenceCardRequest,
+  UpdateEvidenceCardRequest,
+} from './evidence-card.entity';
 export { Todo, TodoLog, CreateTodoRequest, UpdateTodoRequest, TransferTodoRequest } from './todo.entity';
 export { PublishingSchedule, PublishingScheduleStatus, ScheduleType, CreatePublishingScheduleRequest, UpdatePublishingScheduleRequest, PublishingScheduleListParams, PublishingScheduleItem, PublishingScheduleUpdateResult } from './publishing-schedule.entity';
 export { AuditLog, AuditLogListParams } from './audit-log.entity';

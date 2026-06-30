@@ -182,6 +182,11 @@ function normalizeEvidenceKeywords(value: unknown): string[] {
   ));
 }
 
+function normalizeEvidenceArticleTypes(value: unknown): string[] {
+  const list = normalizeEvidenceKeywords(value);
+  return list.length > 0 ? list : ['general'];
+}
+
 function mapArticleEvidenceCard(item: any): any {
   const card = item.evidenceCard;
   return {
@@ -189,6 +194,7 @@ function mapArticleEvidenceCard(item: any): any {
     articleId: item.articleId,
     evidenceCardId: item.evidenceCardId,
     usageType: item.usageType,
+    evidenceSnapshot: item.evidenceSnapshot ?? null,
     createdAt: item.createdAt,
     evidenceCard: card ? {
       id: card.id,
@@ -201,8 +207,13 @@ function mapArticleEvidenceCard(item: any): any {
       sourceId: card.sourceId ?? null,
       sourceUrl: card.sourceUrl ?? null,
       keywords: normalizeEvidenceKeywords(card.keywords),
+      status: card.status ?? 'draft',
+      sourceQuality: card.sourceQuality ?? 'unknown',
+      articleTypes: normalizeEvidenceArticleTypes(card.articleTypes),
       confidenceScore: card.confidenceScore ?? null,
       freshnessScore: card.freshnessScore ?? null,
+      verifiedAt: card.verifiedAt ?? null,
+      verifiedBy: card.verifiedBy ?? null,
       createdAt: card.createdAt,
       updatedAt: card.updatedAt,
       deletedAt: card.deletedAt ?? null,

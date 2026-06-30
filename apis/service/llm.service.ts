@@ -1,6 +1,7 @@
 export interface ArticleGenerationParams {
   title: string;
   keywords: string;
+  articleType?: string | null;
   portrait: string;
   images: { title: string; description: string; imageUrl: string }[];
   skills: string | Array<string | number>;
@@ -31,6 +32,8 @@ export interface ArticleGenerationDebugInfo {
   retrievedEvidenceCards: unknown[];
   evidenceRetrievalQuery: Record<string, unknown>;
   evidenceWarnings: string[];
+  evidencePromptPreview?: string;
+  evidenceStats?: Record<string, unknown>;
 }
 
 export interface ArticleGenerationResult {
