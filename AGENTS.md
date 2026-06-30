@@ -126,6 +126,13 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 
 - 知识库画像 `content` 后端参数校验上限为 300000 个字符；更新 schema 时必须同步边界测试，禁止回退到 10000 字符旧限制。
 
+## 2026-06-30 EvidenceCard 文章生成接入补充
+
+- 文章生成时必须由后端实时检索 EvidenceCard，并以实际检索结果作为 prompt 注入、ArticleGenerationDebug 和 ArticleEvidenceCard 写入依据；前端预览不作为最终依据。
+- EvidenceCard V1 不做联网搜索、不做向量库、不做 ContentMission，不判断模型实际用了哪条证据。
+- ArticleEvidenceCard V1 只写 `usageType = injected`；重复生成时用 `[articleId, evidenceCardId]` upsert，禁止重复插入同一文章与同一证据关系。
+- ArticleGenerationDebug 的 `retrievedEvidenceCards` 必须保存 compact snapshot，禁止保存超长全文；无证据或证据不足时写 `evidenceWarnings`，但不得阻塞文章生成。
+
 ## 2026-06-30 EvidenceCard 后端 CRUD 补充
 
 - `/api/v1/evidence-cards` 只负责 EvidenceCard 手动管理，第一阶段不代表文章生成接入或前端页面已完成。

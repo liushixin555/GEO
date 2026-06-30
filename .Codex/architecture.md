@@ -1,5 +1,13 @@
 # 架构记忆
 
+## 2026-06-30 EvidenceCard 文章生成接入
+
+- 文章生成后端链路已接入 EvidenceCard retrieval：`llm.service.impl.ts` 在构造 prompt 前调用 `retrieveEvidenceForArticle()`，不依赖前端预览结果。
+- `retrieveEvidenceForArticle()` 位于 `apis/utils/evidence-retrieval.util.ts`，输入 `projectId`、`companyId`、`title`、`keywords`、`limit`，输出 compact evidence card snapshot、query snapshot 和 warnings。
+- prompt 注入使用 userPrompt 的“可使用证据”区块；systemPrompt 约束不得编造证据中没有的薄云客户、数据、资质、荣誉或案例，正文不得暴露 EvidenceCard / 证据编号 / 系统检索等内部词。
+- `ArticleGenerationDebug` 持久化 `retrievedEvidenceCards`、`evidenceRetrievalQuery`、`evidenceWarnings`；debug 只保存 compact snapshot，不保存超长全文。
+- 生成成功后，`article-generation.scheduler.ts` 在成功事务中 upsert `ArticleEvidenceCard`，V1 仅写 `usageType = injected`，通过 `[articleId, evidenceCardId]` 唯一约束避免重复。
+
 ## 2026-06-30 EvidenceCard 后端 CRUD
 
 - `/api/v1/evidence-cards` 是 EvidenceCard V1 的手动管理接口，当前只覆盖后端 CRUD，不接入文章生成链路和前端页面。

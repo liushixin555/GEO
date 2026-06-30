@@ -24,5 +24,6 @@ router.put('/:projectId/articles/:id/content', validate(updateContentSchema), ct
 router.put('/:projectId/articles/:id/submit-review', ctrl.submitForReview);
 router.get('/:projectId/articles/:id/versions', ctrl.listArticleVersions);
 router.get('/:projectId/articles/:id/generation-debug', ctrl.getArticleGenerationDebug);
+router.get('/:projectId/articles/:id/evidence-cards', ctrl.listArticleEvidenceCards);
 
 export default router;

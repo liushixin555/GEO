@@ -349,7 +349,7 @@ model EvidenceCard {
   id              Int                @id @default(autoincrement())
   companyId       Int?               @map("company_id")
   projectId       Int?               @map("project_id")
-  title           String             @db.VarChar(500)
+  title           String             @db.VarChar(300)
   content         String             @db.Text
   evidenceType    EvidenceType       @map("evidence_type")
   sourceType      EvidenceSourceType @map("source_type")

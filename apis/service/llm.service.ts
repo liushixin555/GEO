@@ -4,6 +4,8 @@ export interface ArticleGenerationParams {
   portrait: string;
   images: { title: string; description: string; imageUrl: string }[];
   skills: string | Array<string | number>;
+  projectId?: number;
+  companyId?: number;
   revisionInstruction?: string;
   previousContent?: string;
   companyName?: string;
@@ -26,6 +28,9 @@ export interface ArticleGenerationDebugInfo {
   rawLlmOutput: string;
   cleanedOutput: string;
   warnings: string[];
+  retrievedEvidenceCards: unknown[];
+  evidenceRetrievalQuery: Record<string, unknown>;
+  evidenceWarnings: string[];
 }
 
 export interface ArticleGenerationResult {

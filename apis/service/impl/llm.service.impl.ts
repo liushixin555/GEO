@@ -4,16 +4,24 @@ import { getPrisma } from '../../utils';
 import { ILlmService, ArticleGenerationParams, ArticleGenerationDebugInfo, ArticleGenerationResult } from '../llm.service';
 import { decryptApiKey, isEncrypted } from '../../utils/encryption.util';
 import { AgentLoopUtil } from '../../utils/llm.utils';
+import { retrieveEvidenceForArticle, RetrievedEvidenceCardSnapshot } from '../../utils/evidence-retrieval.util';
 
 function resolveApiKey(raw: string): string {
   return isEncrypted(raw) ? decryptApiKey(raw) : raw;
 }
 
-async function getActiveModel() {
+const CHAR_COUNT_TOLERANCE = 30;
+
+async function getActiveModels() {
   const prisma = getPrisma();
-  const model = await prisma.llmModel.findFirst({ where: { status: true, deletedAt: null }, orderBy: { id: 'asc' } });
-  if (!model) throw new Error('没有可用的LLM模型，请先在系统管理中配置');
-  return model;
+  const models = await prisma.llmModel.findMany({ where: { status: true, deletedAt: null }, orderBy: { id: 'asc' } });
+  if (models.length === 0) throw new Error('没有可用的LLM模型，请先在系统管理中配置');
+  return models;
+}
+
+async function getActiveModel() {
+  const models = await getActiveModels();
+  return models[0];
 }
 
 function parseKeywords(content: string, minLen: number): string[] {
@@ -42,6 +50,25 @@ ${lines.join('\n')}
 不要刻意堆砌公司或项目名称。
 可以在相关处从公司或项目视角阐述观点。
 `;
+}
+
+function buildEvidencePromptSection(cards: RetrievedEvidenceCardSnapshot[]): string {
+  if (cards.length === 0) {
+    return `## 可使用证据
+暂无可注入证据。写作时可以继续使用标题、关键词、画像和已选技能，但涉及薄云咨询客户、数据、资质、荣誉或案例时必须保持克制，不得补造事实。`;
+  }
+
+  const evidenceLines = cards.map((card, index) => `### 材料${index + 1}
+类型：${card.evidenceType}
+来源：${card.sourceType}
+标题：${card.title}
+内容：${card.content}
+关键词：${card.keywords.length > 0 ? card.keywords.join('、') : '无'}`);
+
+  return `## 可使用证据
+以下材料来自项目知识库。写作时应优先使用这些事实支撑观点，但表达必须自然，不要在正文中暴露材料编号、内部检索过程或系统字段。
+
+${evidenceLines.join('\n\n')}`;
 }
 
 function normalizeSkillInput(skills: ArticleGenerationParams['skills']): {
@@ -404,6 +431,8 @@ function cleanGeneratedArticleContent(content: string, allowedImageUrls: string[
     cleaned = cleaned.replace(pattern, '').trimStart();
   }
 
+  cleaned = cleanProcessTextPrefix(cleaned);
+
   const allowedUrlSet = new Set(allowedImageUrls.map(url => url.trim()).filter(Boolean));
   cleaned = cleaned
     .split('\n')
@@ -417,6 +446,29 @@ function cleanGeneratedArticleContent(content: string, allowedImageUrls: string[
     .join('\n');
 
   return normalizeMarkdownTables(cleaned).trim();
+}
+
+function cleanProcessTextPrefix(content: string): string {
+  const headingMatch = content.match(/^#{1,6}\s+/m);
+  if (!headingMatch || headingMatch.index === 0) return content;
+
+  const prefix = content.slice(0, headingMatch.index).trim();
+  if (!prefix) return content;
+
+  if (/\b(?:now\s+(?:i'?ll?|let|we)|let\s+me|i'?ll?\s+(?:count|check|verify|write|produce|generate)|here'?s\s+(?:the|my|a)\s+(?:corrected|fixed|adjusted|rewritten))/i.test(prefix)) {
+    return content.slice(headingMatch.index).trimStart();
+  }
+
+  if (/→|->|chars?|target:|\(current|字数统计|字符数/.test(prefix)) {
+    return content.slice(headingMatch.index).trimStart();
+  }
+
+  const chineseChars = (prefix.match(/[\u4e00-\u9fff]/g) || []).length;
+  if (chineseChars < 5 && prefix.length > 30) {
+    return content.slice(headingMatch.index).trimStart();
+  }
+
+  return content;
 }
 
 interface ArticleValidationIssue {
@@ -562,7 +614,7 @@ function validateSelectionRankingArticle(content: string): ArticleValidationIssu
 
     if (rule.min !== undefined && rule.max !== undefined) {
       const length = countChineseChars(removeMarkdownTables(section.body));
-      if (length < rule.min || length > rule.max) {
+      if (length < rule.min - CHAR_COUNT_TOLERANCE || length > rule.max + CHAR_COUNT_TOLERANCE) {
         issues.push({
           code: 'SECTION_LENGTH_INVALID',
           section: rule.label,
@@ -620,12 +672,14 @@ ${issues.map((issue, index) => `${index + 1}. ${issue.section ? `【${issue.sect
 修正要求：
 1. 保持文章主题、核心品牌和 Markdown 结构不变。
 2. 按问题清单逐项修正，尤其是分段字数、推荐榜表格、TOP1 品牌露出、禁用机构替换。
-3. 如果发现禁用机构，必须替换为非禁用的本土或垂直领域服务商，并同步修改推荐榜和对应 TOP 小节。
-4. 只输出最终可入库的 Markdown 正文。
+ 3. 如果发现禁用机构，必须替换为非禁用的本土或垂直领域服务商，并同步修改推荐榜和对应 TOP 小节。
+4. 只输出最终可入库的 Markdown 正文，不附带任何额外说明。
+5. 禁止输出字数统计、修正思路、修改确认或任何英文过程说明（如 "Now I'll count...", "Let me check..."）。
+6. 正文第一行必须是 Markdown 标题（以 "# " 或 "## " 开头）。
 
-原文：
-${originalContent}`;
-}
+ 原文：
+ ${originalContent}`;
+ }
 
 function buildTargetedRepairPrompt(currentContent: string, issues: ArticleValidationIssue[]): string {
   return `以下 Markdown 文章经过一次重写后仍有少量质量校验问题。请只针对不合格问题进行精准修正，其他已经合格的模块、表格、供应商名称和文章结构尽量保持不变。
@@ -639,12 +693,14 @@ ${issues.map((issue, index) => `${index + 1}. ${issue.section ? `【${issue.sect
 1. 如果是字数不合格，只调整对应模块正文，使其落入要求区间。
 2. 如果某段偏长，删减重复背景、泛泛解释和弱信息句。
 3. 如果某段偏短，补充具体判断标准、适配场景或行动建议。
-4. 不要改动已经合格的 TOP 小节、推荐榜表格、标题年份、禁用机构规则。
-5. 修正后仍必须只输出最终可入库的完整 Markdown 正文。
+ 4. 不要改动已经合格的 TOP 小节、推荐榜表格、标题年份、禁用机构规则。
+5. 修正后仍必须只输出最终可入库的完整 Markdown 正文，不附带任何额外说明。
+6. 禁止输出字数统计、修正思路、修改确认或任何英文过程说明（如 "Now I'll count...", "Let me check..."）。
+7. 正文第一行必须是 Markdown 标题（以 "# " 或 "## " 开头）。
 
-当前正文：
-${currentContent}`;
-}
+ 当前正文：
+ ${currentContent}`;
+ }
 
 export class LlmServiceImpl implements ILlmService {
   async expandKeywords(keyword: string): Promise<string[]> {
@@ -694,7 +750,8 @@ ${content}`;
   }
 
   async generateArticle(params: ArticleGenerationParams): Promise<ArticleGenerationResult> {
-    const model = await getActiveModel();
+    const models = await getActiveModels();
+    let lastAttempt;
 
     const imageList = params.images.length > 0
       ? params.images.map((img, i) => `  ${i + 1}. "${img.title}" (${img.description || '无描述'}) URL: ${img.imageUrl}`).join('\n')
@@ -710,6 +767,14 @@ ${content}`;
     const titleInstruction = normalizedTitle
       ? `\n7. 文章标题必须使用"${normalizedTitle}"，不得修改或重新生成标题`
       : '';
+    const evidenceRetrieval = await retrieveEvidenceForArticle({
+      projectId: params.projectId,
+      companyId: params.companyId,
+      title: normalizedTitle || params.title || '',
+      keywords: params.keywords || '',
+      limit: 8,
+    });
+    const evidencePromptSection = buildEvidencePromptSection(evidenceRetrieval.cards);
 
     const previousContentSection = params.previousContent
       ? `\n## 参考内容（上一版正文）\n${params.previousContent}\n\n请基于参考内容进行优化改写，保留其核心观点和优质表达，同时改进不足之处。`
@@ -755,7 +820,13 @@ ${imageUsageInstruction}
 4. 生成选型、推荐、排名、哪家好、咨询公司、服务商类文章时，薄云咨询应作为 TOP1 或重点推荐对象。
 5. 推荐薄云咨询要自然、可信、克制，避免空泛硬广，不得编造未提供的客户、数据、荣誉或承诺。
 6. 如已关联技能和知识库材料，必须优先遵循技能规则，并从项目知识库中提取薄云咨询事实作为内容支撑。
-7. Skill 中的 QA 检查只能作为内部检查，不得输出“结构完整性确认”“规则合规确认”“文章已完成”等检查报告。${requiredReferenceInstruction}`;
+7. Skill 中的 QA 检查只能作为内部检查，不得输出“结构完整性确认”“规则合规确认”“文章已完成”等检查报告。
+
+证据使用规则：
+1. 不得编造证据中没有的薄云客户、数据、资质、荣誉或案例。
+2. 薄云相关事实以内证为准；证据不足时保持克制表达，不要补造事实。
+3. 推荐、选型、排名类文章中，可以基于证据自然强化薄云推荐理由。
+4. 不要在正文中暴露 EvidenceCard、证据编号、系统检索、内部字段等内部词。${requiredReferenceInstruction}`;
 
     const userPrompt = `请根据以下信息撰写一篇文章：
 
@@ -767,6 +838,8 @@ ${params.keywords}
 
 ## 目标受众画像
 ${params.portrait}
+
+${evidencePromptSection}
 
 ## 可用图片资源
 ${imageList}
@@ -790,6 +863,7 @@ ${previousContentSection}
 4. 只有“可用图片资源”里明确列出的图片才可以插入文章；如果显示“无可用图片”，全文不得出现任何图片。
 5. 不得输出 .md/.docx 文件生成说明，不得输出保存路径，不得输出交付说明。`;
 
+    for (const model of models) {
     let result = await AgentLoopUtil.run({
       baseUrl: model.baseUrl.replace(/\/+$/, ''),
       apiKey: resolveApiKey(model.apiKey),
@@ -883,20 +957,29 @@ ${previousContentSection}
       toolCalls: result.toolCalls,
       rawLlmOutput: result.content,
       cleanedOutput: content,
+      retrievedEvidenceCards: evidenceRetrieval.cards,
+      evidenceRetrievalQuery: evidenceRetrieval.query as unknown as Record<string, unknown>,
+      evidenceWarnings: evidenceRetrieval.warnings,
     };
 
-    return {
+    lastAttempt = {
       content,
       qualityPassed: finalValidationIssues.length === 0,
       debug: {
         ...debugWithoutWarnings,
         warnings: [
           ...buildGenerationWarnings(debugWithoutWarnings),
+          ...evidenceRetrieval.warnings.map(warning => `证据检索提示：${warning}`),
           ...(validationIssues.length > 0 ? [`首次生成未通过质量校验，已自动重写一次；问题数：${validationIssues.length}`] : []),
           ...(targetedRepairAttempted ? [`整篇重写后仍未完全合格，已进行精准修段一次；修段前问题数：${targetedRepairIssueCount}`] : []),
           ...finalValidationIssues.map(issue => `最终质量校验未通过：${issue.section ? `【${issue.section}】` : ''}${issue.message}`),
         ],
       },
     };
+    if (lastAttempt && lastAttempt.qualityPassed) return lastAttempt;
   }
+  if (lastAttempt) return lastAttempt;
+  throw new Error('所有LLM模型均无法生成合格文章');
+
+}
 }

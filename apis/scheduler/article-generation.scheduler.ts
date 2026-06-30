@@ -159,6 +159,8 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
   const project = await prisma.project.findFirst({
     where: { id: article.projectId, deletedAt: null },
     select: {
+      id: true,
+      companyId: true,
       fullName: true,
       shortName: true,
       company: {
@@ -176,6 +178,8 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
     portrait: article.portrait || '通用读者',
     images: imageResources,
     skills: skillDirs,
+    projectId: project?.id ?? article.projectId,
+    companyId: project?.companyId,
     revisionInstruction: article.revisionInstruction || undefined,
     previousContent: previousContent || undefined,
     companyName: project?.company?.fullName,
@@ -183,7 +187,17 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
     projectName: project?.fullName,
     projectShortName: project?.shortName,
   });
-  const content = generation.content;
+  let content = generation.content;
+  {
+    const headingMatch = content.match(/^#{1,6}\s+/m);
+    const headingIndex = headingMatch?.index;
+    if (typeof headingIndex === 'number' && headingIndex > 0) {
+      const prefix = content.slice(0, headingIndex).trim();
+      if (prefix && /(?:now|let\s+me|i'?ll?|here'?s)\s+(?:count|check|verify|write|produce|generate|correct|fix|adjust|trim|rewrite|revise)/i.test(prefix)) {
+        content = content.slice(headingIndex).trimStart();
+      }
+    }
+  }
 
   let title = article.title;
   if (!title) {
@@ -206,6 +220,9 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
           rawLlmOutput: generation.debug.rawLlmOutput,
           cleanedOutput: generation.debug.cleanedOutput,
           warnings: generation.debug.warnings,
+          retrievedEvidenceCards: generation.debug.retrievedEvidenceCards,
+          evidenceRetrievalQuery: generation.debug.evidenceRetrievalQuery,
+          evidenceWarnings: generation.debug.evidenceWarnings,
         },
       });
 
@@ -246,8 +263,32 @@ async function processSingleArticle(prisma: any, article: any): Promise<void> {
         rawLlmOutput: generation.debug.rawLlmOutput,
         cleanedOutput: generation.debug.cleanedOutput,
         warnings: generation.debug.warnings,
+        retrievedEvidenceCards: generation.debug.retrievedEvidenceCards,
+        evidenceRetrievalQuery: generation.debug.evidenceRetrievalQuery,
+        evidenceWarnings: generation.debug.evidenceWarnings,
       },
     });
+
+    for (const evidenceCard of generation.debug.retrievedEvidenceCards) {
+      const evidenceCardId = Number((evidenceCard as { id?: unknown }).id);
+      if (!Number.isInteger(evidenceCardId) || evidenceCardId <= 0) continue;
+      await tx.articleEvidenceCard.upsert({
+        where: {
+          articleId_evidenceCardId: {
+            articleId: article.id,
+            evidenceCardId,
+          },
+        },
+        update: {
+          usageType: 'injected',
+        },
+        create: {
+          articleId: article.id,
+          evidenceCardId,
+          usageType: 'injected',
+        },
+      });
+    }
 
     await tx.article.update({
       where: { id: article.id },

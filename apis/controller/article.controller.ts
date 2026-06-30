@@ -172,3 +172,56 @@ export const getArticleGenerationDebug = withArticleAuth(async (req, res, ctx) =
   });
   success(res, item);
 }, { requireId: true, errorContext: '获取文章生成依据失败' });
+function normalizeEvidenceKeywords(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return Array.from(new Set(
+    value
+      .filter((item): item is string => typeof item === 'string')
+      .map(item => item.trim())
+      .filter(Boolean),
+  ));
+}
+
+function mapArticleEvidenceCard(item: any): any {
+  const card = item.evidenceCard;
+  return {
+    id: item.id,
+    articleId: item.articleId,
+    evidenceCardId: item.evidenceCardId,
+    usageType: item.usageType,
+    createdAt: item.createdAt,
+    evidenceCard: card ? {
+      id: card.id,
+      companyId: card.companyId ?? null,
+      projectId: card.projectId ?? null,
+      title: card.title,
+      content: card.content,
+      evidenceType: card.evidenceType,
+      sourceType: card.sourceType,
+      sourceId: card.sourceId ?? null,
+      sourceUrl: card.sourceUrl ?? null,
+      keywords: normalizeEvidenceKeywords(card.keywords),
+      confidenceScore: card.confidenceScore ?? null,
+      freshnessScore: card.freshnessScore ?? null,
+      createdAt: card.createdAt,
+      updatedAt: card.updatedAt,
+      deletedAt: card.deletedAt ?? null,
+    } : undefined,
+  };
+}
+
+export const listArticleEvidenceCards = withArticleAuth(async (req, res, ctx) => {
+  await articleService.getById(ctx.projectId, ctx.articleId!);
+  const prisma = getPrisma() as any;
+  const items = await prisma.articleEvidenceCard.findMany({
+    where: {
+      articleId: ctx.articleId!,
+      usageType: 'injected',
+      evidenceCard: { deletedAt: null },
+    },
+    orderBy: { createdAt: 'asc' },
+    include: { evidenceCard: true },
+  });
+  const list = items.map(mapArticleEvidenceCard);
+  success(res, { list, total: list.length });
+}, { requireId: true, errorContext: '获取文章证据卡片失败' });

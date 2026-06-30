@@ -1,5 +1,12 @@
 # 项目规则与踩坑记录
 
+## 2026-06-30 EvidenceCard 文章生成规则
+
+- 文章生成时必须由后端实时检索 EvidenceCard，并以实际检索结果作为 prompt 注入和 debug / ArticleEvidenceCard 写入依据；前端预览只能作为预览，不能作为最终依据。
+- EvidenceCard V1 不做联网搜索、不做向量库、不做 ContentMission、不判断模型实际用了哪条证据。
+- ArticleEvidenceCard V1 只写 `usageType = injected`；重复生成时用 `[articleId, evidenceCardId]` upsert，禁止重复插入同一文章与同一证据关系。
+- ArticleGenerationDebug 的 `retrievedEvidenceCards` 必须是 compact snapshot，禁止保存超长全文；证据不足时写 `evidenceWarnings`，但不阻塞文章生成。
+
 ## 2026-06-24 上传前整理
 
 - `.env`、`.env.local`、`.env.development.local` 只能作为本地配置文件使用，必须由 `.gitignore` 忽略，不应继续提交到远程仓库。
@@ -25,3 +32,22 @@
 ## 2026-06-29 知识库画像内容校验
 
 - 知识库画像 `content` 后端参数校验上限为 300000 个字符；边界测试必须保持一致，避免长画像资料在保存时被 10000 字符旧限制拦截。
+
+## 2026-06-29 启动脚本
+
+- 桌面和项目根目录的 `启动项目.bat` 必须使用 `npm run dev:api` 启动后端源码，禁止再用 `node dist/apis/server.js` 作为日常开发入口，避免旧编译产物覆盖最新源码行为。
+
+## 2026-06-30 EvidenceCard V1 规则
+
+- EvidenceCard V1 是知识库证据化第一版，只要求完成证据卡片 CRUD、文章生成前检索、prompt 注入、debug 记录、ArticleEvidenceCard 注入关系和文章详情展示。
+- ArticleEvidenceCard V1 第一阶段只写 `usageType = injected`，暂不落库 `retrieved` / `rejected`。
+- ArticleEvidenceCard 必须使用 `[articleId, evidenceCardId]` 唯一约束，禁止同一文章重复关联同一证据卡片。
+- EvidenceCard.keywords 入库前必须规范为 `string[]`：只保留字符串、trim、过滤空字符串、去重。
+- 前端“预计注入证据”只作为预览，不作为最终文章生成依据；最终结果以后端生成时实时检索和实际注入记录为准。
+- 文档正文抽取、联网搜索、ContentMission、EntityGraph 后置，不进入 V1 验收范围。
+
+## 2026-06-30 EvidenceCard V1 数据模型
+
+- EvidenceCard V1 只落数据模型与迁移时，不新增业务接口和前端；`EvidenceCard.keywords` 使用 `Json?`，后续 service 层需规范为字符串数组。
+- `ArticleEvidenceCard` 唯一约束必须保持为 `[articleId, evidenceCardId]`，不要把 `usageType` 放进唯一键；V1 实际只写 `injected`，但枚举保留 `retrieved` / `injected` / `rejected`。
+- `ArticleGenerationDebug` 用 `retrievedEvidenceCards`、`evidenceRetrievalQuery`、`evidenceWarnings` 记录证据检索快照、检索条件和告警。
