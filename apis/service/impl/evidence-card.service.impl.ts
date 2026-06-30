@@ -3,9 +3,12 @@ import {
   EvidenceCard,
   EVIDENCE_ARTICLE_TYPES,
   EvidenceCardListParams,
+  ExtractedEvidenceCardCandidate,
+  ExtractEvidenceCardRequest,
+  ExtractEvidenceCardsResult,
   UpdateEvidenceCardRequest,
 } from '../../entity';
-import { NotFoundError } from '../../errors';
+import { BusinessError, ForbiddenError, NotFoundError } from '../../errors';
 import { getPrisma } from '../../utils';
 import { IEvidenceCardService } from '../evidence-card.service';
 
@@ -16,6 +19,15 @@ type EvidenceCardClient = {
   create(args: any): Promise<any>;
   update(args: any): Promise<any>;
   updateMany(args: any): Promise<{ count: number }>;
+};
+
+type ExtractionSource = {
+  text: string;
+  sourceId: number | null;
+  sourceUrl?: string | null;
+  warnings: string[];
+  companyId?: number | null;
+  projectId?: number | null;
 };
 
 type ArticleEvidenceCardClient = {
@@ -165,6 +177,90 @@ function toCreateData(request: CreateEvidenceCardRequest, actorUserId?: number):
   return data;
 }
 
+function truncateText(value: string, maxLength: number): string {
+  return value.length > maxLength ? value.slice(0, maxLength) : value;
+}
+
+function normalizeWhitespace(value: string): string {
+  return value.replace(/\r\n/g, '\n').replace(/[ \t]+/g, ' ').trim();
+}
+
+function splitEvidenceBlocks(text: string): string[] {
+  const normalized = normalizeWhitespace(text);
+  if (!normalized) return [];
+
+  const paragraphs = normalized
+    .split(/\n{2,}/)
+    .map(item => item.trim())
+    .filter(item => item.length >= 20);
+
+  if (paragraphs.length > 0) return paragraphs.slice(0, 10);
+
+  return normalized
+    .split(/(?<=[。！？.!?])\s*/)
+    .map(item => item.trim())
+    .filter(item => item.length >= 20)
+    .slice(0, 10);
+}
+
+function buildCandidateTitle(content: string, index: number): string {
+  const firstLine = content.split('\n').map(line => line.trim()).find(Boolean) || content;
+  const clean = firstLine.replace(/^#+\s*/, '').replace(/^[\d]+[.、\s]+/, '').trim();
+  return truncateText(clean || `EvidenceCard ${index + 1}`, 80);
+}
+
+function inferEvidenceType(content: string): ExtractedEvidenceCardCandidate['evidenceType'] {
+  if (/案例|客户|项目|交付|实践|case/i.test(content)) return 'case';
+  if (/方法|流程|步骤|框架|路径|method/i.test(content)) return 'method';
+  if (/能力|服务|支持|提供|capability/i.test(content)) return 'capability';
+  if (/问题|如何|为什么|faq|Q[:：]/i.test(content)) return 'faq';
+  if (/%|比例|增长|下降|统计|数据|stat/i.test(content)) return 'statistic';
+  if (/“|”|"|quote/i.test(content)) return 'quote';
+  return 'fact';
+}
+
+function inferKeywords(content: string, title: string): string[] {
+  const stopWords = new Set(['一个', '一种', '这个', '这些', '以及', '通过', '进行', '可以', '需要', '包括', '提供', '实现']);
+  const text = `${title} ${content}`;
+  const matches = text.match(/[A-Za-z0-9][A-Za-z0-9_-]{1,30}|[\u4e00-\u9fa5]{2,12}/g) || [];
+  const seen = new Set<string>();
+  const keywords: string[] = [];
+
+  for (const raw of matches) {
+    const item = raw.trim();
+    if (!item || stopWords.has(item) || seen.has(item)) continue;
+    seen.add(item);
+    keywords.push(item);
+    if (keywords.length >= 8) break;
+  }
+
+  return keywords;
+}
+
+function extractCandidatesFromText(request: ExtractEvidenceCardRequest, source: ExtractionSource): ExtractedEvidenceCardCandidate[] {
+  const blocks = splitEvidenceBlocks(source.text);
+  return blocks.map((block, index) => {
+    const content = truncateText(block, 5000);
+    const title = buildCandidateTitle(content, index);
+    return {
+      companyId: request.companyId ?? source.companyId ?? null,
+      projectId: request.projectId ?? source.projectId ?? null,
+      title,
+      content,
+      evidenceType: request.sourceType === 'image' ? 'image_description' : inferEvidenceType(content),
+      sourceType: request.sourceType,
+      sourceId: source.sourceId,
+      sourceUrl: source.sourceUrl ?? null,
+      keywords: inferKeywords(content, title),
+      status: 'draft',
+      sourceQuality: request.sourceType === 'manual' ? 'manual' : request.sourceType,
+      articleTypes: ['general'],
+      confidenceScore: 0.7,
+      freshnessScore: 0.7,
+    };
+  });
+}
+
 function toUpdateData(request: UpdateEvidenceCardRequest, existing: any, actorUserId?: number): any {
   const data: any = {};
   if (request.companyId !== undefined) data.companyId = request.companyId;
@@ -190,7 +286,89 @@ function toUpdateData(request: UpdateEvidenceCardRequest, existing: any, actorUs
   return data;
 }
 
+async function assertKnowledgeBaseAccess(
+  base: { scope: string; companyId?: number | null; projectId?: number | null } | null | undefined,
+  actorUserId: number,
+  actorRole: string,
+): Promise<void> {
+  if (!base) throw new NotFoundError('KnowledgeBase');
+  if (actorRole === 'sysadmin') return;
+  if (actorRole === 'view') throw new ForbiddenError('权限不足');
+
+  const prisma = getPrisma() as any;
+
+  if (base.scope === 'platform') return;
+
+  if (base.scope === 'company') {
+    const user = await prisma.user.findFirst({
+      where: { id: actorUserId, deletedAt: null },
+      select: { companyId: true },
+    });
+    if (!user || user.companyId !== base.companyId) throw new NotFoundError('KnowledgeBase');
+    return;
+  }
+
+  if (base.scope === 'project') {
+    if (!base.projectId) throw new NotFoundError('KnowledgeBase');
+    const operator = await prisma.projectOperator.findFirst({
+      where: { projectId: base.projectId, userId: actorUserId, deletedAt: null },
+      select: { userId: true },
+    });
+    if (!operator) throw new ForbiddenError('无权操作该项目');
+    return;
+  }
+
+  throw new ForbiddenError('权限不足');
+}
+
 export class EvidenceCardServiceImpl implements IEvidenceCardService {
+  private async loadExtractionSource(request: ExtractEvidenceCardRequest, actorUserId: number, actorRole: string): Promise<ExtractionSource> {
+    if (request.sourceType === 'manual') {
+      return {
+        text: request.text || '',
+        sourceId: null,
+        warnings: [],
+      };
+    }
+
+    const prisma = getPrisma() as any;
+
+    if (request.sourceType === 'portrait') {
+      const portrait = await prisma.knowledgePortrait.findFirst({
+        where: { id: request.sourceId, deletedAt: null },
+        include: { base: true },
+      });
+      if (!portrait) throw new NotFoundError('KnowledgePortrait');
+      await assertKnowledgeBaseAccess(portrait.base, actorUserId, actorRole);
+      return {
+        text: normalizeWhitespace(`${portrait.title}\n\n${portrait.content || ''}`),
+        sourceId: portrait.id,
+        companyId: portrait.base?.companyId ?? null,
+        projectId: portrait.base?.projectId ?? null,
+        warnings: portrait.content ? [] : ['portrait source has no content; only title was used'],
+      };
+    }
+
+    if (request.sourceType === 'image') {
+      const image = await prisma.knowledgeImage.findFirst({
+        where: { id: request.sourceId, deletedAt: null },
+        include: { base: true },
+      });
+      if (!image) throw new NotFoundError('KnowledgeImage');
+      await assertKnowledgeBaseAccess(image.base, actorUserId, actorRole);
+      return {
+        text: normalizeWhitespace(`${image.title}\n\n${image.description || ''}\n\n${image.imageUrl}`),
+        sourceId: image.id,
+        sourceUrl: image.imageUrl,
+        companyId: image.base?.companyId ?? null,
+        projectId: image.base?.projectId ?? null,
+        warnings: image.description ? [] : ['image source has no description; only title was used'],
+      };
+    }
+
+    throw new BusinessError('invalid sourceType');
+  }
+
   async list(params: EvidenceCardListParams): Promise<{ list: EvidenceCard[]; total: number }> {
     const client = getEvidenceCardClient();
     const where = buildWhere(params);
@@ -242,5 +420,30 @@ export class EvidenceCardServiceImpl implements IEvidenceCardService {
       data: { deletedAt: new Date() },
     });
     return result.count;
+  }
+
+  async extractEvidenceCards(request: ExtractEvidenceCardRequest, actorUserId: number, actorRole: string): Promise<ExtractEvidenceCardsResult> {
+    const source = await this.loadExtractionSource(request, actorUserId, actorRole);
+    const warnings = [...source.warnings];
+    const candidates = extractCandidatesFromText(request, source);
+
+    if (candidates.length === 0) {
+      warnings.push('no extractable evidence candidates found');
+    }
+
+    if (!request.save || candidates.length === 0) {
+      return { candidates, saved: [], warnings };
+    }
+
+    const client = getEvidenceCardClient();
+    const saved: EvidenceCard[] = [];
+    for (const candidate of candidates) {
+      const item = await client.create({
+        data: toCreateData({ ...candidate, status: 'draft' }, actorUserId),
+      });
+      saved.push(mapEvidenceCard(item));
+    }
+
+    return { candidates, saved, warnings };
   }
 }

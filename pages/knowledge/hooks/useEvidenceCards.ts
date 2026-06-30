@@ -38,6 +38,26 @@ export interface EvidenceCardPayload {
   freshnessScore?: number | null;
 }
 
+export interface EvidenceCardExtractCandidate extends EvidenceCardPayload {
+  id?: number | string;
+  confidenceScore?: number | null;
+  freshnessScore?: number | null;
+}
+
+export interface EvidenceCardExtractParams {
+  sourceType: 'manual' | 'portrait' | 'image';
+  text?: string;
+  sourceId?: number | null;
+  save: boolean;
+  candidates?: EvidenceCardExtractCandidate[];
+}
+
+export interface EvidenceCardExtractResult {
+  candidates: EvidenceCardExtractCandidate[];
+  saved: EvidenceCard[];
+  warnings: string[];
+}
+
 interface EvidenceCardListResult {
   list: EvidenceCard[];
   total: number;
@@ -53,6 +73,24 @@ function normalizeListResponse(data: any): EvidenceCardListResult {
 
 function normalizeItemResponse(data: any): EvidenceCard {
   return data?.data?.data ?? data?.data;
+}
+
+function normalizeExtractResponse(data: any): EvidenceCardExtractCandidate[] {
+  const payload = data?.data?.data ?? data?.data ?? data;
+  if (Array.isArray(payload?.candidates)) return payload.candidates;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.list)) return payload.list;
+  if (Array.isArray(payload)) return payload;
+  return [];
+}
+
+function normalizeExtractResultResponse(data: any): EvidenceCardExtractResult {
+  const payload = data?.data?.data ?? data?.data ?? data;
+  return {
+    candidates: Array.isArray(payload?.candidates) ? payload.candidates : [],
+    saved: Array.isArray(payload?.saved) ? payload.saved : [],
+    warnings: Array.isArray(payload?.warnings) ? payload.warnings : [],
+  };
 }
 
 export function splitKeywords(value: string | string[] | undefined | null): string[] {
@@ -109,6 +147,16 @@ export function useEvidenceCards() {
     }
   }, []);
 
+  const extractEvidenceCards = useCallback(async (payload: EvidenceCardExtractParams) => {
+    const res = await apiClient.post('/evidence-cards/extract', payload);
+    return normalizeExtractResponse(res.data);
+  }, []);
+
+  const extractEvidenceCardsResult = useCallback(async (payload: EvidenceCardExtractParams) => {
+    const res = await apiClient.post('/evidence-cards/extract', payload);
+    return normalizeExtractResultResponse(res.data);
+  }, []);
+
   return {
     loading,
     listEvidenceCards,
@@ -116,5 +164,7 @@ export function useEvidenceCards() {
     createEvidenceCard,
     updateEvidenceCard,
     deleteEvidenceCard,
+    extractEvidenceCards,
+    extractEvidenceCardsResult,
   };
 }

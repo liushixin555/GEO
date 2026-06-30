@@ -7,6 +7,7 @@ import apiClient from '../lib/apiClient';
 import { getSafeUser } from '../utils/auth';
 import { getApiErrorMessage } from '../utils/error';
 import { formatDate } from '../utils/date';
+import { useEvidenceCards } from './hooks/useEvidenceCards';
 
 const scopeLabels: Record<string, { text: string; color: string }> = {
   platform: { text: '平台公共', color: 'blue' },
@@ -86,9 +87,11 @@ const KnowledgeBaseDetail: React.FC = () => {
   const user = getSafeUser();
   const navigate = useNavigate();
   const { message } = App.useApp();
+  const { extractEvidenceCardsResult } = useEvidenceCards();
   const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('kb_active_tab') || 'documents');
   const [baseName, setBaseName] = useState('');
   const [baseScope, setBaseScope] = useState<string>('');
+  const [extractingEvidenceKey, setExtractingEvidenceKey] = useState<string | null>(null);
 
   // Invalid baseId guard
   if (!baseId || isNaN(baseId) || baseId <= 0) {
@@ -207,6 +210,7 @@ const KnowledgeBaseDetail: React.FC = () => {
   useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
 
   const canModify = (createdBy: number | null) => user.role === 'sysadmin' || createdBy === user.id;
+  const canExtractEvidence = user.role === 'sysadmin' || user.role === 'admin';
 
   const handleDeleteKeyword = async (item: KeywordItem) => {
     try {
@@ -251,6 +255,20 @@ const KnowledgeBaseDetail: React.FC = () => {
       message.success('删除成功');
       fetchImages();
     } catch (err: unknown) { message.error(getApiErrorMessage(err, '删除失败')); }
+  };
+
+  const handleExtractEvidence = async (sourceType: 'portrait' | 'image', sourceId: number) => {
+    const key = `${sourceType}-${sourceId}`;
+    setExtractingEvidenceKey(key);
+    try {
+      await extractEvidenceCardsResult({ sourceType, sourceId, save: true });
+      message.success('已生成 draft 证据，请审核后再用于文章生成');
+      navigate('/knowledge/evidence-cards?status=draft');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '抽取证据失败'));
+    } finally {
+      setExtractingEvidenceKey(null);
+    }
   };
 
   const handleDeleteDocument = async (item: DocumentItem) => {
@@ -361,6 +379,16 @@ const KnowledgeBaseDetail: React.FC = () => {
         return (
           <span>
             <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => navigate(`/knowledge/${baseId}/portrait/${record.id}`)} style={{ color: 'var(--color-primary, #0f62fe)' }} />
+            {canExtractEvidence && (
+              <Button
+                type="text"
+                size="small"
+                icon={<AuditOutlined />}
+                loading={extractingEvidenceKey === `portrait-${record.id}`}
+                onClick={() => handleExtractEvidence('portrait', record.id)}
+                style={{ color: 'var(--color-primary, #0f62fe)' }}
+              />
+            )}
             <Button type="text" size="small" icon={<EditOutlined />} disabled={!mod} onClick={() => navigate(`/knowledge/${baseId}/portrait/${record.id}?mode=edit`)} style={{ color: mod ? 'var(--color-primary, #0f62fe)' : undefined }} />
             <Popconfirm title={inUse ? `该画像正在被 ${record.article_count} 篇文章使用，无法删除` : '确定删除此画像？'} onConfirm={() => handleDeletePortrait(record)} okText="删除" cancelText="取消" disabled={!canDelete}>
               <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!canDelete} danger={canDelete} />
@@ -412,6 +440,16 @@ const KnowledgeBaseDetail: React.FC = () => {
         const canDelete = mod && !inUse;
         return (
           <span>
+            {canExtractEvidence && (
+              <Button
+                type="text"
+                size="small"
+                icon={<AuditOutlined />}
+                loading={extractingEvidenceKey === `image-${record.id}`}
+                onClick={() => handleExtractEvidence('image', record.id)}
+                style={{ color: 'var(--color-primary, #0f62fe)' }}
+              />
+            )}
             <Button type="text" size="small" icon={<EditOutlined />} disabled={!mod} onClick={() => navigate(`/knowledge/${baseId}/image/${record.id}?mode=edit`)} style={{ color: mod ? 'var(--color-primary, #0f62fe)' : undefined }} />
             <Popconfirm title={inUse ? `该图片正在被 ${record.article_count} 篇文章使用，无法删除` : '确定删除此图片？'} onConfirm={() => handleDeleteImage(record)} okText="删除" cancelText="取消" disabled={!canDelete}>
               <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!canDelete} danger={canDelete} />
@@ -559,6 +597,16 @@ const KnowledgeBaseDetail: React.FC = () => {
                     <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.title}>{item.title}</span>
                     <div className="item-card-actions">
                       <Button type="text" size="small" icon={<EyeOutlined />} onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/portrait/${item.id}`); }} style={{ color: 'var(--color-primary, #0f62fe)' }} />
+                      {canExtractEvidence && (
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<AuditOutlined />}
+                          loading={extractingEvidenceKey === `portrait-${item.id}`}
+                          onClick={(e) => { e.stopPropagation(); handleExtractEvidence('portrait', item.id); }}
+                          style={{ color: 'var(--color-primary, #0f62fe)' }}
+                        />
+                      )}
                       <Button type="text" size="small" icon={<EditOutlined />} disabled={!canModify(item.created_by)} onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/portrait/${item.id}?mode=edit`); }} style={{ color: canModify(item.created_by) ? 'var(--color-primary, #0f62fe)' : undefined }} />
                       <Popconfirm title={(item.article_count ?? 0) > 0 ? `该画像正在被 ${item.article_count} 篇文章使用，无法删除` : '确定删除此画像？'} onConfirm={(e) => { e?.stopPropagation(); handleDeletePortrait(item); }} okText="删除" cancelText="取消" disabled={!canModify(item.created_by) || (item.article_count ?? 0) > 0}>
                         <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!canModify(item.created_by) || (item.article_count ?? 0) > 0} danger={canModify(item.created_by) && (item.article_count ?? 0) === 0} />
@@ -628,6 +676,16 @@ const KnowledgeBaseDetail: React.FC = () => {
                     <div style={{ fontSize: 12, color: 'var(--text-secondary, #697077)', marginTop: 2 }}>{item.article_count ?? 0} 篇文章使用</div>
                   </div>
                   <div className="knowledge-image-actions">
+                    {canExtractEvidence && (
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<AuditOutlined />}
+                        loading={extractingEvidenceKey === `image-${item.id}`}
+                        onClick={(e) => { e.stopPropagation(); handleExtractEvidence('image', item.id); }}
+                        style={{ color: 'var(--color-primary, #0f62fe)' }}
+                      />
+                    )}
                     <Button type="text" size="small" icon={<EditOutlined />} disabled={!canModify(item.created_by)} onClick={(e) => { e.stopPropagation(); navigate(`/knowledge/${baseId}/image/${item.id}?mode=edit`); }} style={{ color: canModify(item.created_by) ? 'var(--color-primary, #0f62fe)' : undefined }} />
                     <Popconfirm title={(item.article_count ?? 0) > 0 ? `该图片正在被 ${item.article_count} 篇文章使用，无法删除` : '确定删除此图片？'} onConfirm={(e) => { e?.stopPropagation(); handleDeleteImage(item); }} okText="删除" cancelText="取消" disabled={!canModify(item.created_by) || (item.article_count ?? 0) > 0}>
                       <Button type="text" size="small" icon={<DeleteOutlined />} disabled={!canModify(item.created_by) || (item.article_count ?? 0) > 0} danger={canModify(item.created_by) && (item.article_count ?? 0) === 0} />

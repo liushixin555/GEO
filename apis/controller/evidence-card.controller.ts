@@ -67,6 +67,17 @@ export async function createEvidenceCard(req: Request, res: Response): Promise<v
   }
 }
 
+export async function extractEvidenceCards(req: Request, res: Response): Promise<void> {
+  try {
+    const user = getUser(req);
+    const evidenceCardService = createEvidenceCardService();
+    const result = await evidenceCardService.extractEvidenceCards(req.body, user.userId, user.role);
+    success(res, result, req.body.save ? 'EvidenceCards extracted and saved' : 'EvidenceCards extracted');
+  } catch (err: unknown) {
+    handleControllerError(err, res, 'Failed to extract EvidenceCards');
+  }
+}
+
 export async function updateEvidenceCard(req: Request, res: Response): Promise<void> {
   try {
     getUser(req);

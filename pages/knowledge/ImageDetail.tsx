@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Input, Button, Alert, Typography, Spin, Upload, Image, App, Breadcrumb } from 'antd';
-import { ArrowLeftOutlined, InboxOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, AuditOutlined, InboxOutlined } from '@ant-design/icons';
 import apiClient from '../lib/apiClient';
 import { getSafeUser } from '../utils/auth';
 import { getApiErrorMessage } from '../utils/error';
+import { useEvidenceCards } from './hooks/useEvidenceCards';
 
 const ImageDetail: React.FC = () => {
   const { baseId: baseIdStr, id } = useParams<{ baseId: string; id: string }>();
@@ -14,12 +15,14 @@ const ImageDetail: React.FC = () => {
   const [searchParams] = useSearchParams();
   const isEditMode = isNew || searchParams.get('mode') === 'edit';
   const { message } = App.useApp();
+  const { extractEvidenceCardsResult } = useEvidenceCards();
   const user = getSafeUser();
 
   const [data, setData] = useState<{ title: string; description: string | null; image_url: string; created_by: number | null } | null>(null);
   const [baseName, setBaseName] = useState('');
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -61,6 +64,7 @@ const ImageDetail: React.FC = () => {
   }
 
   const canEdit = isEditMode && (user.role === 'sysadmin' || isNew || data?.created_by === user.id);
+  const canExtractEvidence = !isNew && (user.role === 'sysadmin' || user.role === 'admin');
 
   const handleUpload = async (file: File) => {
     setUploading(true);
@@ -99,6 +103,21 @@ const ImageDetail: React.FC = () => {
     } finally { setSaving(false); }
   };
 
+  const handleExtractEvidence = async () => {
+    const sourceId = parseInt(id || '', 10);
+    if (!sourceId || Number.isNaN(sourceId)) return;
+    setExtracting(true);
+    try {
+      await extractEvidenceCardsResult({ sourceType: 'image', sourceId, save: true });
+      message.success('已生成 draft 证据，请审核后再用于文章生成');
+      navigate('/knowledge/evidence-cards?status=draft');
+    } catch (err: unknown) {
+      message.error(getApiErrorMessage(err, '抽取证据失败'));
+    } finally {
+      setExtracting(false);
+    }
+  };
+
   if (loading) return <div className="page-container"><Spin /></div>;
 
   return (
@@ -113,6 +132,16 @@ const ImageDetail: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(`/knowledge/${baseId}`)} />
         <Typography.Title level={2} style={{ margin: 0 }}>{isNew ? '添加图片' : '图片详情'}</Typography.Title>
+        {canExtractEvidence && (
+          <Button
+            icon={<AuditOutlined />}
+            loading={extracting}
+            onClick={handleExtractEvidence}
+            style={{ marginLeft: 'auto' }}
+          >
+            抽取证据
+          </Button>
+        )}
       </div>
       <Form form={form} onFinish={handleSave} layout="vertical" style={{ maxWidth: 600 }}>
         {error && <Alert type="error" title={error} className="form-alert" showIcon closable onClose={() => setError('')} />}

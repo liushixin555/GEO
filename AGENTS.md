@@ -1,3 +1,11 @@
+## 2026-06-30 EvidenceCard V1.1 portrait/image 抽取入口补充
+
+- portrait/image sourceId 抽取复用 `POST /api/v1/evidence-cards/extract`，第一版前端直接 `save=true` 保存 draft，禁止直接生成 verified。
+- portrait 抽取读取画像 `title/content`，保存 `sourceType=portrait`、`sourceId=画像ID`、`sourceQuality=portrait`。
+- image 抽取读取图片 `title/description/imageUrl`，保存 `sourceType=image`、`sourceId=图片ID`、`sourceUrl=imageUrl`、`sourceQuality=image`，候选 `evidenceType` 优先为 `image_description`。
+- 后端读取 portrait/image 源材料前必须按知识库 scope 校验当前用户权限；前端入口仅对 sysadmin/admin 展示。
+- 画像/图片详情页和知识库画像/图片列表均可提供“抽取证据”按钮；成功后跳转 `/knowledge/evidence-cards?status=draft` 供人工审核。
+
 # AGENTS.md
 
 This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
@@ -185,6 +193,8 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 - 不抽取空泛营销表达；不得抽取未授权客户名、未证实数据、资质、荣誉、排名或案例。
 - V1.1 不做 ContentMission、EntityGraph、向量库、Reviewer used 判断。
 - 第一批人工验收按 30 条原始材料 -> 20 条 `verified` EvidenceCard -> 3-5 篇文章重生成执行。
+- V1.1 交接方案以 `version-plans/V1.1-Evidence-Extraction-Preview.md` 为准，任务记录见 `tasks/progress_tasks/2026-06-30-evidence-extraction-v11.md`。
+- V1.1 交接方案以 `version-plans/V1.1-Evidence-Extraction-Preview.md` 为准，任务记录见 `tasks/progress_tasks/2026-06-30-evidence-extraction-v11.md`。
 
 ## 2026-06-30 EvidenceCard V1.1 抽取候选补充
 

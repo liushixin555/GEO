@@ -2,6 +2,8 @@ import {
   CreateEvidenceCardRequest,
   EvidenceCard,
   EvidenceCardListParams,
+  ExtractEvidenceCardRequest,
+  ExtractEvidenceCardsResult,
   UpdateEvidenceCardRequest,
 } from '../entity';
 
@@ -11,4 +13,5 @@ export interface IEvidenceCardService {
   create(request: CreateEvidenceCardRequest, actorUserId?: number): Promise<EvidenceCard>;
   update(id: number, request: UpdateEvidenceCardRequest, actorUserId?: number): Promise<EvidenceCard>;
   deleteMany(ids: number[]): Promise<number>;
+  extractEvidenceCards(request: ExtractEvidenceCardRequest, actorUserId: number, actorRole: string): Promise<ExtractEvidenceCardsResult>;
 }

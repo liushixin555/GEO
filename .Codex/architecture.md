@@ -43,6 +43,7 @@
 - source priority 固定为 manual-text 最高，portrait/image 次之；后续文档解析、联网搜索和 external evidence 另起版本。
 - 正式 retrieval 继续沿用 V1.0.5 规则，只默认检索 `verified` EvidenceCard。
 - 第一批验收要闭环到文章生成质量：30 条原始材料形成 20 条 verified 后，重生成 3-5 篇文章并检查 evidenceSnapshot 与 debug。
+- V1.1 交接方案以 `version-plans/V1.1-Evidence-Extraction-Preview.md` 为准，任务记录见 `tasks/progress_tasks/2026-06-30-evidence-extraction-v11.md`。
 
 ## 2026-06-30 EvidenceCard V1.1 抽取候选
 
@@ -52,3 +53,8 @@
 - 候选默认并强制为 `status = draft`，即使模型返回 `verified` 也会降为 draft 并记录 warning。
 - 解析层支持 ```json 代码块剥离，非 JSON、顶层结构非法、字段缺失或枚举非法时返回 warnings 并丢弃对应候选。
 - 过滤层会丢弃空标题/空正文、过短且无具体事实、重复 title/content、明显空泛营销表达的候选。
+## 2026-06-30 EvidenceCard portrait/image 抽取权限
+
+- EvidenceCard V1.1 portrait/image 抽取复用 `POST /api/v1/evidence-cards/extract`，controller 必须把当前 `userId/role` 传入 service。
+- portrait/image sourceId 读取源材料时，service 必须按 KnowledgeBase scope 校验访问权限：sysadmin 全量；company scope 需同公司；project scope 需项目 operator；view 不允许。
+- image 抽取必须把 `KnowledgeImage.imageUrl` 写入 EvidenceCard `sourceUrl`，避免后续证据审核丢失图片来源追溯。

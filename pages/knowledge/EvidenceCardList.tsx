@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   App,
   Breadcrumb,
@@ -41,9 +41,15 @@ const evidenceTypeLabel = Object.fromEntries(EVIDENCE_TYPE_OPTIONS.map(item => [
 const sourceTypeLabel = Object.fromEntries(SOURCE_TYPE_OPTIONS.map(item => [item.value, item.label]));
 const statusLabel = Object.fromEntries(EVIDENCE_STATUS_OPTIONS.map(item => [item.value, item.label]));
 const sourceQualityLabel = Object.fromEntries(SOURCE_QUALITY_OPTIONS.map(item => [item.value, item.label]));
+const evidenceCardStatuses = new Set(EVIDENCE_STATUS_OPTIONS.map(item => item.value));
+
+function getInitialStatus(value: string | null): EvidenceCardStatus | undefined {
+  return value && evidenceCardStatuses.has(value as EvidenceCardStatus) ? value as EvidenceCardStatus : undefined;
+}
 
 const EvidenceCardList: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { message } = App.useApp();
   const { loading, listEvidenceCards, deleteEvidenceCard } = useEvidenceCards();
   const [data, setData] = useState<EvidenceCard[]>([]);
@@ -52,10 +58,17 @@ const EvidenceCardList: React.FC = () => {
   const [search, setSearch] = useState('');
   const [evidenceType, setEvidenceType] = useState<EvidenceCardType | undefined>();
   const [sourceType, setSourceType] = useState<EvidenceCardSourceType | undefined>();
-  const [status, setStatus] = useState<EvidenceCardStatus | undefined>();
+  const [status, setStatus] = useState<EvidenceCardStatus | undefined>(() => getInitialStatus(searchParams.get('status')));
   const [sourceQuality, setSourceQuality] = useState<EvidenceSourceQuality | undefined>();
   const [articleType, setArticleType] = useState<EvidenceArticleType | undefined>();
   const pageSize = 10;
+  const visibleStats = useMemo(() => ({
+    total,
+    verified: data.filter(item => item.status === 'verified').length,
+    draft: data.filter(item => item.status === 'draft').length,
+    deprecated: data.filter(item => item.status === 'deprecated').length,
+    injected: data.reduce((sum, item) => sum + (item.injectedCount ?? 0), 0),
+  }), [data, total]);
 
   const fetchData = useCallback(async () => {
     const result = await listEvidenceCards({
@@ -122,6 +135,21 @@ const EvidenceCardList: React.FC = () => {
       key: 'sourceType',
       width: 110,
       render: (value: EvidenceCardSourceType) => <Tag>{sourceTypeLabel[value] ?? value}</Tag>,
+    },
+    {
+      title: 'sourceId',
+      dataIndex: 'sourceId',
+      key: 'sourceId',
+      width: 90,
+      render: (value: number | null) => value ?? '-',
+    },
+    {
+      title: 'sourceUrl',
+      dataIndex: 'sourceUrl',
+      key: 'sourceUrl',
+      width: 160,
+      ellipsis: { showTitle: true },
+      render: (value: string | null) => value || '-',
     },
     {
       title: '来源质量',
@@ -203,6 +231,33 @@ const EvidenceCardList: React.FC = () => {
         </Button>
       </Flex>
 
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Typography.Text type="secondary">证据总数</Typography.Text>
+            <Typography.Title level={4} style={{ margin: '4px 0 0' }}>{visibleStats.total}</Typography.Title>
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Typography.Text type="secondary">当前页已审核</Typography.Text>
+            <Typography.Title level={4} style={{ margin: '4px 0 0' }}>{visibleStats.verified}</Typography.Title>
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Typography.Text type="secondary">当前页草稿/废弃</Typography.Text>
+            <Typography.Title level={4} style={{ margin: '4px 0 0' }}>{visibleStats.draft}/{visibleStats.deprecated}</Typography.Title>
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Typography.Text type="secondary">当前页注入次数</Typography.Text>
+            <Typography.Title level={4} style={{ margin: '4px 0 0' }}>{visibleStats.injected}</Typography.Title>
+          </Card>
+        </Col>
+      </Row>
+
       <Row gutter={[16, 12]} className="toolbar">
         <Col xs={24} md={10}>
           <Input.Search
@@ -262,7 +317,14 @@ const EvidenceCardList: React.FC = () => {
       <Spin spinning={loading}>
         <div className="evidence-card-cards">
           {data.length === 0 && (
-            <Card><Typography.Text type="secondary">暂无证据卡片</Typography.Text></Card>
+            <Card>
+              <Space direction="vertical" size={8}>
+                <Typography.Text type="secondary">暂无证据卡片。V1.0.5 的检索默认只使用 verified 证据，建议先录入 3-8 条薄云咨询核心事实、方法、能力或案例。</Typography.Text>
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/knowledge/evidence-cards/new')}>
+                  新增第一条证据
+                </Button>
+              </Space>
+            </Card>
           )}
           {data.map(item => (
             <Card
@@ -276,6 +338,8 @@ const EvidenceCardList: React.FC = () => {
               <Descriptions column={2} size="small" colon={false}>
                 <Descriptions.Item label="状态">{statusLabel[item.status] ?? item.status}</Descriptions.Item>
                 <Descriptions.Item label="来源">{sourceTypeLabel[item.sourceType] ?? item.sourceType}</Descriptions.Item>
+                <Descriptions.Item label="sourceId">{item.sourceId ?? '-'}</Descriptions.Item>
+                <Descriptions.Item label="sourceUrl">{item.sourceUrl || '-'}</Descriptions.Item>
                 <Descriptions.Item label="来源质量">{sourceQualityLabel[item.sourceQuality] ?? item.sourceQuality}</Descriptions.Item>
                 <Descriptions.Item label="注入次数">{item.injectedCount ?? 0}</Descriptions.Item>
                 <Descriptions.Item label="最近注入">{item.lastInjectedAt ? formatDateTime(item.lastInjectedAt) : '-'}</Descriptions.Item>
