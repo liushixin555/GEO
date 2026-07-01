@@ -28,5 +28,7 @@
     "**/node_modules": true,
     "**/dist": true
   },
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.cwd": "${workspaceFolder}",
   "prisma.showPrismaDataPlatformNotification": false
 }

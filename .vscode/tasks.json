@@ -33,6 +33,34 @@
       "command": "npm run lint",
       "group": "test",
       "problemMatcher": "$eslint-stylish"
+    },
+    {
+      "label": "Codex: current project",
+      "type": "shell",
+      "command": "codex",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "panel": "new",
+        "focus": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Codex: current project in new terminal",
+      "type": "shell",
+      "command": "${workspaceFolder}\\scripts\\open-codex.cmd",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "panel": "shared",
+        "focus": false,
+        "reveal": "silent"
+      },
+      "problemMatcher": []
     }
   ]
 }
