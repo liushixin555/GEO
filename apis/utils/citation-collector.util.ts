@@ -31,7 +31,7 @@ const GEO_MONITOR_CONFIG = path.join('geo-monitorv12', 'GEO', 'geo_monitor_v8_pa
 
 const fallbackVarMap: Record<CitationPlatform, { key: string; url: string; model: string }> = {
   DeepSeek: { key: 'DEEPSEEK_API_KEY', url: 'DEEPSEEK_URL', model: 'DEEPSEEK_MODEL' },
-  豆包: { key: 'DOUBAN_API_KEY', url: 'DOUBAN_URL', model: 'DOUBAN_MODEL' },
+  豆包: { key: 'DOUBAO_API_KEY', url: 'DOUBAO_URL', model: 'DOUBAO_MODEL' },
   元宝: { key: 'YUANBAO_API_KEY', url: 'YUANBAO_URL', model: 'YUANBAO_MODEL' },
   千问: { key: 'QIANWEN_API_KEY', url: 'QIANWEN_URL', model: 'QIANWEN_MODEL' },
   Kimi: { key: 'MOONSHOT_API_KEY', url: 'MOONSHOT_URL', model: 'MOONSHOT_MODEL' },
@@ -126,7 +126,7 @@ function extractAnswer(responseData: any): string {
 
 function collectUrlsDeep(value: unknown, urls: Set<string>): void {
   if (typeof value === 'string') {
-    const matches = value.match(/https?:\/\/[^\s"'<>，。；；、)）\]}]+/gi) || [];
+    const matches = value.match(/https?:\/\/[^\s"'<>，。；、)）\]}]+/gi) || [];
     for (const match of matches) urls.add(match.replace(/[.,，。;；]+$/u, ''));
     return;
   }

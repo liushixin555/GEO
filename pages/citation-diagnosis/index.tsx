@@ -24,7 +24,7 @@ import {
 } from '@ant-design/icons';
 import apiClient from '../lib/apiClient';
 import { useAppContext } from '../context/AppContext';
-import { formatDateTime } from '../utils/date';
+import { formatDate, formatDateTime } from '../utils/date';
 import { getApiErrorMessage } from '../utils/error';
 
 interface LedgerRow {
@@ -229,7 +229,7 @@ const CitationDiagnosisPage: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `引用诊断台账-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.download = `引用诊断台账-${formatDate(new Date())}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
