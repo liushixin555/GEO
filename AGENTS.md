@@ -203,3 +203,9 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 - LLM 输出必须按不可信处理：支持 ```json 包裹剥离，非 JSON 返回 warning，字段缺失或非法候选直接丢弃，`keywords` / `articleTypes` 规范为 `string[]`，分数限制在 0-1。
 - 自动抽取不得允许模型生成 `verified`；候选状态必须强制为 `draft`，审核入库由后续人工或接口流程处理。
 - 候选过滤必须丢弃空标题/空正文、过短且无具体事实、重复 title/content、明显空泛营销表达；禁止抽取“专业可靠、经验丰富、助力企业发展、提升竞争力、行业领先、优质服务”等空话。
+
+## 2026-07-02 引用诊断固定检测问题补充
+
+- `/citation-diagnosis` 自动检测问题固定为 `apis/utils/citation-question-bank.util.ts` 内置的 30 条真实用户咨询题库，按 `question_count` 顺序截取；文章标题和关键词不得再生成动态问题抢占名额。
+- 固定题库不再读取 `geo-monitorv12/GEO/题库/供应商题库A.md` 或 `供应商题库B.md`，避免外部题库覆盖诊断管理指定问题。
+- 题库中的“GEO服务商推荐”是用户检索意图样本，按原文保留，仅用于引用诊断检测问题，不代表项目产品命名规则放宽。

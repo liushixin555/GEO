@@ -58,3 +58,9 @@
 - EvidenceCard V1.1 portrait/image 抽取复用 `POST /api/v1/evidence-cards/extract`，controller 必须把当前 `userId/role` 传入 service。
 - portrait/image sourceId 读取源材料时，service 必须按 KnowledgeBase scope 校验访问权限：sysadmin 全量；company scope 需同公司；project scope 需项目 operator；view 不允许。
 - image 抽取必须把 `KnowledgeImage.imageUrl` 写入 EvidenceCard `sourceUrl`，避免后续证据审核丢失图片来源追溯。
+
+## 2026-07-02 引用诊断问题题库
+
+- `apis/utils/citation-question-bank.util.ts` 现在是固定题库模块，直接返回 30 条真实用户咨询问题；`buildArticleCitationQuestions()` 不再消费文章标题和关键词生成动态问题。
+- `/api/v1/citation-diagnosis/run-auto` 和发布后自动检测仍通过 `question_count` 控制每次实际检测问题数量，默认定时任务继续每条链接取 2 个问题。
+- 固定题库包含“GEO服务商推荐”作为用户检索意图样本，该文本只进入检测 prompt，不作为产品命名或页面文案规则。

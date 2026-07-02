@@ -1,4 +1,6 @@
-const CITATION_QUESTION_BANK = [
+import { buildArticleCitationQuestions, loadCitationQuestionBank } from '../../apis/utils/citation-question-bank.util';
+
+const expectedQuestions = [
   '我们想做营销管理升级，帮我推荐几家管理咨询公司',
   'LTC营销变革管理咨询公司推荐',
   '我们公司是国企，想做管理升级，帮我找管理咨询公司',
@@ -31,13 +33,18 @@ const CITATION_QUESTION_BANK = [
   '总裁培训课推荐',
 ];
 
-export function loadCitationQuestionBank(): string[] {
-  return [...CITATION_QUESTION_BANK];
-}
+describe('citation question bank', () => {
+  it('uses the fixed question bank before article title or keywords', () => {
+    const questions = buildArticleCitationQuestions({ title: '文章标题', keywords: '关键词' }, 5);
 
-export function buildArticleCitationQuestions(
-  _article: { title?: string | null; keywords?: string | null },
-  count = 2
-): string[] {
-  return CITATION_QUESTION_BANK.slice(0, Math.max(1, count));
-}
+    expect(questions).toEqual(expectedQuestions.slice(0, 5));
+    expect(questions.join('\n')).not.toContain('文章标题');
+    expect(questions.join('\n')).not.toContain('关键词');
+  });
+
+  it('returns all fixed questions when requested', () => {
+    expect(buildArticleCitationQuestions({}, 30)).toEqual(expectedQuestions);
+    expect(loadCitationQuestionBank()).toEqual(expectedQuestions);
+    expect(loadCitationQuestionBank()).toContain('GEO服务商推荐');
+  });
+});
