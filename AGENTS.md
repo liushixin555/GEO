@@ -259,6 +259,8 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 - 软盟下单成功但未返回订单 ID 时不得将发布计划标为 `published`；手动改为 `published` 前必须已有软盟订单或发布链接。
 - 检测 run 必须写 `target_article_id` 和 `target_article_link_id`，台账详情和 24 小时防重复均依赖这两个字段。
 - 检测模型默认读取全部启用系统 LLM，入库模型名使用 `${provider}:${modelName}`；OpenAI 兼容 baseUrl 必须先规范为 `/chat/completions`，避免根地址 404。
+- `ruan.net` 及其子域名属于软盟后台/订单/稿件链接，不是最终公开发布链接；不得作为 active `published_article_links` 触发引用检测。
+- 自动引用检测只扫描真实公开发布链接，并要求链接写入或更新满 24 小时后再检测，避免平台尚未发布或 AI 检索尚未收录时提前打空。
 
 ## 2026-07-01 V1.2 引用检测台账与 Prompt Builder 补充
 
@@ -282,3 +284,7 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 - `/citation-diagnosis` 自动检测问题固定为 `apis/utils/citation-question-bank.util.ts` 内置的 30 条真实用户咨询题库，按 `question_count` 顺序截取；文章标题和关键词不得再生成动态问题抢占名额。
 - 固定题库不再读取 `geo-monitorv12/GEO/题库/供应商题库A.md` 或 `供应商题库B.md`，避免外部题库覆盖诊断管理指定问题。
 - 题库中的“GEO服务商推荐”是用户检索意图样本，按原文保留，仅用于引用诊断检测问题，不代表项目产品命名规则放宽。
+
+## 2026-07-03 Git 推送规则补充
+
+- 用户明确要求：以后项目中未明确要求推送时，任务结束只执行本地 commit，不执行 `git push`。

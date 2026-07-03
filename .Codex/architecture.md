@@ -117,6 +117,13 @@
 - `normalizeChatCompletionsUrl()` 负责把 OpenAI 兼容 baseUrl 规范为完整 `/chat/completions`，避免 DeepSeek 根地址或供应商 `/v1` 地址直接请求失败。
 - `citation-detection.scheduler.ts` 每条发布链接仍限制 2 个固定题库问题，但模型范围为全部启用模型；Kimi/Moonshot 只有系统模型配置补齐并启用后才会自动加入。
 
+## 2026-07-03 引用检测延迟调度
+
+- `apis/utils/citation-detection-schedule.util.ts` 提供发布链接检测资格判断，当前要求真实公开发布链接写入或更新满 24 小时后才允许自动检测。
+- `apis/utils/citation-url.util.ts` 提供 `isInternalPublishedLinkUrl()`，用于排除 `ruan.net` 及子域名这类软盟后台/稿件链接。
+- `citation-detection.scheduler.ts` 在 SQL 层过滤未满 24 小时的链接和软盟后台域名；24 小时防重复仍由 `ai_citation_detection_runs.target_article_link_id` 控制。
+- `prisma/migrations/20260703001000_cleanup_internal_published_links` 负责清理历史 active 后台链接，并规范历史 `normalized_url` 协议前缀。
+
 ## 2026-07-01 V1.2 引用检测与 Prompt Builder 架构
 
 - 引用检测 V1.2 的主闭环是 `published_article_links` -> `AiCitationDetectionRun` -> `AiCitationRecord` -> `ArticleModelCitationMark` -> `/citation-diagnosis` 台账展示。

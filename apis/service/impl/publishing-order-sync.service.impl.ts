@@ -2,7 +2,7 @@ import { getPrisma } from '../../utils';
 import { getRmOrderById, getRmToken, type RmOrderItem, type RmOrderQueryResponse } from '../../utils/rmapi.utils';
 import type { IPublishingOrderSyncService, PublishingOrderSyncResult } from '../publishing-order-sync.service';
 import { Prisma } from '@prisma/client';
-import { normalizeCitationUrl } from '../../utils/citation-url.util';
+import { isInternalPublishedLinkUrl, normalizeCitationUrl } from '../../utils/citation-url.util';
 
 const RUANMENG_USERNAME_KEY = 'ruanmeng_username';
 const RUANMENG_PASSWORD_KEY = 'ruanmeng_password';
@@ -124,6 +124,8 @@ export class PublishingOrderSyncServiceImpl implements IPublishingOrderSyncServi
   }
 
   private extractPublishedUrl(order: RmOrderItem): string | null {
+    if (order.status !== 1) return null;
+
     const candidates = [
       order.url,
       order.link,
@@ -148,22 +150,20 @@ export class PublishingOrderSyncServiceImpl implements IPublishingOrderSyncServi
 
     const { normalizedUrl, domain } = normalizeCitationUrl(url);
     if (!normalizedUrl) return;
-
-    const existing = await getPrisma().$queryRaw<Array<{ id: number }>>(Prisma.sql`
-      SELECT id
-      FROM published_article_links
-      WHERE deleted_at IS NULL
-        AND article_id = ${localOrder.articleId}
-        AND normalized_url = ${normalizedUrl}
-      LIMIT 1
-    `);
-    if (existing.length > 0) return;
+    if (isInternalPublishedLinkUrl(url)) return;
 
     await getPrisma().$executeRaw(Prisma.sql`
       INSERT INTO published_article_links
         (article_id, schedule_id, platform_name, url, normalized_url, domain, created_by)
       VALUES
         (${localOrder.articleId}, ${localOrder.scheduleId}, ${localOrder.platformName ?? remoteOrder.resource_name ?? null}, ${url}, ${normalizedUrl}, ${domain}, null)
+      ON CONFLICT (article_id, normalized_url) WHERE deleted_at IS NULL
+      DO UPDATE SET
+        schedule_id = COALESCE(EXCLUDED.schedule_id, published_article_links.schedule_id),
+        platform_name = COALESCE(EXCLUDED.platform_name, published_article_links.platform_name),
+        url = EXCLUDED.url,
+        domain = EXCLUDED.domain,
+        updated_at = NOW()
     `);
   }
 }

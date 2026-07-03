@@ -14,6 +14,17 @@ export interface NormalizedCitationUrl {
   domain: string | null;
 }
 
+export function stripUrlProtocol(input: string): string {
+  return input.trim().replace(/^https?:\/\//i, '');
+}
+
+export function isInternalPublishedLinkUrl(input: string | null | undefined): boolean {
+  if (!input) return false;
+  const normalized = normalizeCitationUrl(input);
+  const domain = normalized.domain || normalized.normalizedUrl.split('/')[0] || '';
+  return domain === 'ruan.net' || domain.endsWith('.ruan.net');
+}
+
 export function normalizeCitationUrl(input: string): NormalizedCitationUrl {
   const raw = input.trim();
   if (!raw) return { normalizedUrl: '', domain: null };
@@ -39,6 +50,6 @@ export function normalizeCitationUrl(input: string): NormalizedCitationUrl {
 
     return { normalizedUrl, domain: url.hostname };
   } catch {
-    return { normalizedUrl: raw.toLowerCase().replace(/^https?:\/\//, '').replace(/\/+$/, ''), domain: null };
+    return { normalizedUrl: stripUrlProtocol(raw.toLowerCase()).replace(/\/+$/, ''), domain: null };
   }
 }

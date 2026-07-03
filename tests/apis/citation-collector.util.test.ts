@@ -177,4 +177,67 @@ describe('citation collector model calls', () => {
       expect.objectContaining({ url: 'https://example.com/a' }),
     ]);
   });
+
+  it('uses a portable chat completions body for providers that reject non-standard search fields', async () => {
+    mockedAxios.post.mockResolvedValue({
+      data: {
+        choices: [{ message: { content: '参考来源：https://example.com/b' } }],
+      },
+    });
+
+    await collectCitationSourcesForModel(
+      {
+        id: 6,
+        provider: '元宝',
+        modelName: 'hunyuan-pro',
+        baseUrl: 'https://api.hunyuan.cloud.tencent.com/v1/chat/completions',
+        apiKey: 'hunyuan-key',
+        key: '元宝:hunyuan-pro',
+      },
+      '请回答',
+    );
+
+    const body = mockedAxios.post.mock.calls[0][1] as Record<string, unknown>;
+    expect(body).toMatchObject({
+      model: 'hunyuan-pro',
+      messages: expect.any(Array),
+      stream: false,
+    });
+    expect(body).not.toHaveProperty('enable_search');
+    expect(body).not.toHaveProperty('search_options');
+    expect(body).not.toHaveProperty('enable_enhancement');
+    expect(body).not.toHaveProperty('force_search_enhancement');
+    expect(body).not.toHaveProperty('search_info');
+    expect(body).not.toHaveProperty('tools');
+    expect(body).not.toHaveProperty('thinking');
+  });
+
+  it('keeps provider error response details for HTTP 400 diagnosis', async () => {
+    mockedAxios.post.mockRejectedValue({
+      response: {
+        status: 400,
+        data: {
+          error: {
+            message: 'unsupported field enable_search',
+          },
+        },
+      },
+    });
+
+    const result = await collectCitationSourcesForModel(
+      {
+        id: 4,
+        provider: '千问',
+        modelName: 'qwen3.5-plus',
+        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+        apiKey: 'qwen-key',
+        key: '千问:qwen3.5-plus',
+      },
+      '请回答',
+    );
+
+    expect(result.status).toBe('error');
+    expect(result.error).toContain('HTTP 400');
+    expect(result.error).toContain('unsupported field enable_search');
+  });
 });

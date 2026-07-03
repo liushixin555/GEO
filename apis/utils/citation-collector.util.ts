@@ -321,26 +321,23 @@ function buildRequest(config: CitationModelConfig, prompt: string) {
     stream: false,
   };
 
-  const haystack = `${config.provider} ${config.modelName} ${config.baseUrl}`.toLowerCase();
-  if (haystack.includes('dashscope') || haystack.includes('qwen') || haystack.includes('千问')) {
-    body.enable_search = true;
-    body.search_options = {
-      enable_source: true,
-      enable_citation: true,
-      citation_format: '[ref_<number>]',
-      forced_search: true,
-    };
-  }
-  if (haystack.includes('hunyuan') || haystack.includes('元宝') || haystack.includes('tencent')) {
-    body.enable_enhancement = true;
-    body.force_search_enhancement = true;
-    body.search_info = true;
-  }
-
   return {
     url: normalizeChatCompletionsUrl(config.baseUrl),
     body,
   };
+}
+
+function errorDetail(data: unknown): string {
+  if (!data) return '';
+  if (typeof data === 'string') return data.slice(0, 300);
+  const value = data as any;
+  const message = value?.error?.message || value?.message || value?.error_description;
+  if (typeof message === 'string' && message.trim()) return message.trim().slice(0, 300);
+  try {
+    return JSON.stringify(data).slice(0, 300);
+  } catch {
+    return '';
+  }
 }
 
 export function normalizeCitationPlatforms(platforms?: string[]): CitationPlatform[] {
@@ -383,7 +380,10 @@ export async function collectCitationSourcesForModel(
       status: 'success',
     };
   } catch (err: any) {
-    const status = err?.response?.status ? `HTTP ${err.response.status}` : err?.message || '调用失败';
+    const detail = errorDetail(err?.response?.data);
+    const status = err?.response?.status
+      ? `HTTP ${err.response.status}${detail ? `: ${detail}` : ''}`
+      : err?.message || '调用失败';
     return { platform: config.provider, model_name: config.key, prompt, answer: '', sources: [], status: 'error', error: status };
   }
 }

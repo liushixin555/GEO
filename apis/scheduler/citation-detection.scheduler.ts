@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import config from '../config';
 import { createCitationDiagnosisService } from '../service';
 import { getPrisma } from '../utils';
+import { CITATION_DETECTION_DELAY_HOURS } from '../utils/citation-detection-schedule.util';
 
 const citationDiagnosisService = createCitationDiagnosisService();
 
@@ -95,6 +96,14 @@ async function loadPendingPublishedLinks(): Promise<DetectionTargetLink[]> {
     WHERE pal.deleted_at IS NULL
       AND a.deleted_at IS NULL
       AND pal.normalized_url IS NOT NULL
+      AND pal.updated_at <= NOW() - (${CITATION_DETECTION_DELAY_HOURS} * INTERVAL '1 hour')
+      AND (
+        pal.domain IS NULL
+        OR (
+          pal.domain <> 'ruan.net'
+          AND pal.domain NOT LIKE '%.ruan.net'
+        )
+      )
       AND NOT EXISTS (
         SELECT 1
         FROM ai_citation_detection_runs run

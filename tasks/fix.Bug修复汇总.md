@@ -84,9 +84,24 @@
 | fix079 | 文章详情历史 plain-text portrait 导致加载失败 | `pages/article/hooks/useArticleDetail.ts`, `pages/citation-diagnosis/index.tsx` |
 | fix079 | 文章详情历史 plain-text portrait 导致加载失败 | `pages/article/hooks/useArticleDetail.ts`, `pages/citation-diagnosis/index.tsx` |
 | fix080 | VS Code dev 启动未等待数据库导致登录误报密码错误 | `scripts/wait-for-db.cjs`, `package.json`, `tests/scripts/wait-for-db.test.cjs` |
+| fix081 | 引用检测命中次数为0——软盟后台链接误入库、历史URL规范不一致、检测过早与模型HTTP 400 | `apis/utils/citation-url.util.ts`, `apis/utils/citation-detection-schedule.util.ts`, `apis/scheduler/citation-detection.scheduler.ts`, `apis/service/impl/citation-diagnosis.service.impl.ts`, `apis/utils/citation-collector.util.ts`, `prisma/migrations/20260703001000_cleanup_internal_published_links/` |
 ## 2026-07-03 发布后引用检测闭环未触发
 
 - 编号：fix-20260703-citation-closure
 - 标题：已发布文章缺少发布链接入库导致引用检测无法触发
 - 关联文件：`apis/service/impl/publishing-execution.service.impl.ts`、`apis/service/impl/publishing-order-sync.service.impl.ts`、`apis/service/impl/citation-diagnosis.service.impl.ts`、`apis/schema/citation-diagnosis.schema.ts`
 - 详情：`tasks/progress_tasks/2026-07-03-published-link-citation-closure.md`
+
+## 2026-07-03 引用检测命中为 0 与延迟检测
+
+- 编号：fix-20260703-citation-hit-delay
+- 标题：引用检测命中次数为 0，原因包括软盟后台链接误入库、历史 URL 规范不一致、检测过早与模型 HTTP 400
+- 关联文件：`apis/utils/citation-url.util.ts`、`apis/utils/citation-detection-schedule.util.ts`、`apis/scheduler/citation-detection.scheduler.ts`、`apis/service/impl/citation-diagnosis.service.impl.ts`、`apis/utils/citation-collector.util.ts`、`prisma/migrations/20260703001000_cleanup_internal_published_links/`
+- 详情：`tasks/progress_tasks/2026-07-03-citation-hit-delay-fix.md`
+
+## 2026-07-03 引用检测命中为 0 与延迟检测
+
+- 编号：fix-20260703-citation-hit-delay
+- 标题：引用检测命中次数为 0，原因包括软盟后台链接误入库、历史 URL 规范不一致、检测过早与模型 HTTP 400
+- 关联文件：`apis/utils/citation-url.util.ts`、`apis/utils/citation-detection-schedule.util.ts`、`apis/scheduler/citation-detection.scheduler.ts`、`apis/service/impl/citation-diagnosis.service.impl.ts`、`apis/utils/citation-collector.util.ts`、`prisma/migrations/20260703001000_cleanup_internal_published_links/`
+- 详情：`tasks/progress_tasks/2026-07-03-citation-hit-delay-fix.md`

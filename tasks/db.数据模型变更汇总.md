@@ -1205,3 +1205,135 @@ V1 已完成 EvidenceCard 到文章生成的最小闭环，但缺少证据审核
 ### 迁移
 
 `prisma/migrations/20260630001000_add_evidence_validation_fields`
+
+---
+
+## db028. 引用诊断台账详情追溯字段
+
+### 变更原因
+
+引用诊断台账需要按文章追溯发布链接、检测 run、AI 回答、引用来源、是否命中以及引用片段。原 `AiCitationRecord` 仅保存 URL、标题和命中关系，无法保留 source 级上下文。
+
+### Schema 变更
+
+扩展 `AiCitationDetectionRun`：
+
+```prisma
+model AiCitationDetectionRun {
+  targetArticleId Int? @map("target_article_id")
+
+  @@index([targetArticleId])
+}
+```
+
+扩展 `AiCitationRecord`：
+
+```prisma
+model AiCitationRecord {
+  answerSnippet   String? @map("answer_snippet") @db.Text
+  citationSnippet String? @map("citation_snippet") @db.Text
+  sourceIndex     Int?    @map("source_index")
+  rawSource       Json?   @map("raw_source")
+
+  @@index([runId, sourceIndex])
+}
+```
+
+### 影响范围
+
+- `prisma/schema.prisma`：新增 run 级 `targetArticleId`、record 级 nullable 追溯字段和 `(runId, sourceIndex)` 索引。
+- `prisma/migrations/20260701000000_extend_ai_citation_records/migration.sql`：新增字段迁移。
+- `apis/service/impl/citation-diagnosis.service.impl.ts`：`saveDetectionRun` 写入 source 级片段和原始来源；新增台账详情聚合查询。
+- `apis/service/citation-diagnosis.service.ts`：扩展检测 source 输入类型和详情方法接口。
+- `apis/schema/citation-diagnosis.schema.ts`：扩展 `sources[]` 校验，新增详情路由参数校验。
+- `apis/controller/citation-diagnosis.controller.ts`、`apis/routes/citation-diagnosis.routes.ts`：新增 `GET /api/v1/citation-diagnosis/ledger/:articleId/details`。
+
+### 迁移
+
+`prisma/migrations/20260701000000_extend_ai_citation_records`
+
+---
+
+## db029. AI 引用检测 run 增加发布链接级去重字段
+
+### 变更原因
+
+发布链接写入 `published_article_links` 后，自动检测调度器需要按具体 articleLink 做 24 小时防重复。仅按文章 ID 记录 run 会导致同一文章多条发布链接无法精确判断，且 skipped/error run 没有 citation record 时也无法通过记录表追踪。
+
+### Schema 变更
+
+```prisma
+model AiCitationDetectionRun {
+  targetArticleLinkId Int? @map("target_article_link_id")
+
+  @@index([targetArticleLinkId])
+}
+```
+
+### 影响范围
+
+- `prisma/schema.prisma`
+- `prisma/migrations/20260701001000_add_citation_run_article_link/migration.sql`
+- `apis/service/citation-diagnosis.service.ts`
+- `apis/service/impl/citation-diagnosis.service.impl.ts`
+- `apis/scheduler/citation-detection.scheduler.ts`
+
+### 迁移
+
+`prisma/migrations/20260701001000_add_citation_run_article_link`
+
+---
+
+## db030. published_article_links 活跃链接唯一约束
+
+### 变更原因
+
+发布链接可能来自软盟订单同步、后台人工补录或历史数据回填。为避免同一文章同一标准化 URL 重复进入自动检测，需要在数据库层保证活跃链接唯一。
+
+### Schema / SQL 变更
+
+```sql
+CREATE UNIQUE INDEX IF NOT EXISTS "published_article_links_article_id_normalized_url_active_key"
+  ON "published_article_links"("article_id", "normalized_url")
+  WHERE "deleted_at" IS NULL;
+```
+
+### 影响范围
+
+- `prisma/migrations/20260703000000_unique_published_article_links/migration.sql`
+- `apis/service/impl/citation-diagnosis.service.impl.ts`
+- `apis/service/impl/publishing-order-sync.service.impl.ts`
+
+### 规则
+
+- `deleted_at IS NULL` 的同一 `article_id + normalized_url` 只能保留一条。
+- 人工补录和软盟同步均使用 `ON CONFLICT ... DO UPDATE` 更新平台、URL、domain 和 `updated_at`。
+
+---
+
+## 2026-07-01 V1.2 文档收口确认（无新增 Schema）
+
+本次 V1.2 收口只补充引用检测台账、自动检测、prompt builder 和 EvidenceCard 稳定性的交接文档与长期规则，不新增 Prisma schema 字段。
+
+已纳入本阶段的数据库变更仍以 `db028` 和 `db029` 为准：
+
+- `db028. 引用诊断台账详情追溯字段`
+- `db029. AI 引用检测 run 增加发布链接级去重字段`
+
+---
+
+## db031. published_article_links 历史发布链接数据清理
+
+### 背景
+
+引用检测只应以最终公开文章 URL 为入口。历史数据中存在软盟后台稿件地址 `i.ruan.net/manuscripts` 被写入 `published_article_links`，同时个别历史 `normalized_url` 带 `http(s)://`，会导致 AI 来源 URL 标准化后无法匹配。
+
+### SQL 迁移
+
+- `prisma/migrations/20260703001000_cleanup_internal_published_links/migration.sql`
+- 规范 active `published_article_links.normalized_url`，移除历史协议前缀。
+- 对 active 的 `ruan.net` 及其子域后台链接执行软删除，避免进入发布后引用检测。
+
+### 关联规则
+
+- `2026-07-03 引用检测命中为 0 与延迟检测修复`

@@ -3,7 +3,7 @@ import { BusinessError, ForbiddenError, NotFoundError } from '../../errors';
 import { getPrisma } from '../../utils';
 import { collectCitationSourcesForModel, loadEnabledCitationModels } from '../../utils/citation-collector.util';
 import { buildArticleCitationQuestions } from '../../utils/citation-question-bank.util';
-import { normalizeCitationUrl } from '../../utils/citation-url.util';
+import { isInternalPublishedLinkUrl, normalizeCitationUrl } from '../../utils/citation-url.util';
 import type {
   CitationAutoRunInput,
   CitationDiagnosisAuth,
@@ -76,6 +76,9 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
 
     const { normalizedUrl, domain } = normalizeCitationUrl(input.url);
     if (!normalizedUrl) throw new BusinessError('发布链接不能为空');
+    if (isInternalPublishedLinkUrl(input.url)) {
+      throw new BusinessError('该链接不是最终公开发布链接，请等待平台发布后填写真实文章 URL');
+    }
 
     const rows = await getPrisma().$queryRaw<any[]>(Prisma.sql`
       INSERT INTO published_article_links
@@ -196,10 +199,18 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
               article_id AS "articleId",
               normalized_url AS "normalizedUrl"
             FROM published_article_links
-            WHERE deleted_at IS NULL AND normalized_url IN (${Prisma.join(sourceUrls)})
+            WHERE deleted_at IS NULL
+              AND (
+                normalized_url IN (${Prisma.join(sourceUrls)})
+                OR regexp_replace(normalized_url, '^https?://', '') IN (${Prisma.join(sourceUrls)})
+              )
           `)
         : [];
-      const linkByUrl = new Map<string, any>(linkRows.map((item: any) => [item.normalizedUrl, item]));
+      const linkByUrl = new Map<string, any>();
+      for (const item of linkRows) {
+        linkByUrl.set(item.normalizedUrl, item);
+        linkByUrl.set(String(item.normalizedUrl || '').replace(/^https?:\/\//i, ''), item);
+      }
 
       const records: any[] = [];
       for (const [index, { source, normalizedUrl, domain }] of normalizedSources.entries()) {

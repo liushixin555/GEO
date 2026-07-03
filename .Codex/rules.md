@@ -153,3 +153,14 @@
 - `published_article_links` 写入必须按 `article_id + normalized_url` upsert，避免同一文章同一链接重复检测。
 - 自动检测 run 必须写入 `target_article_id` 与 `target_article_link_id`；平台 `skipped` 不算系统失败。
 - 引用检测模型默认来自启用的系统 LLM 配置，入库标识使用 `${provider}:${modelName}`；OpenAI 兼容 baseUrl 必须规范到 `/chat/completions` 后再请求。
+
+## 2026-07-03 引用检测延迟与发布链接规则
+
+- `ruan.net` 及其子域名是软盟后台/订单/稿件系统链接，不是最终公开发布链接；不得写入 active `published_article_links`，也不得触发引用检测。
+- 自动引用检测只扫描真实公开发布链接，并要求链接写入或更新满 24 小时后再检测，避免平台尚未发布或 AI 检索尚未收录时提前打空。
+- `published_article_links.normalized_url` 必须与 `normalizeCitationUrl()` 保持一致，不带 `http(s)://` 协议前缀；历史数据需通过迁移或兼容匹配处理。
+- 模型 HTTP 400 需要记录 provider 返回的简短错误详情；默认请求体优先使用标准 OpenAI chat completions 字段，谨慎添加厂商扩展字段。
+
+## 2026-07-03 Git 推送规则
+
+- 用户明确要求：以后项目中未明确要求推送时，任务结束只执行本地 commit，不执行 `git push`。
