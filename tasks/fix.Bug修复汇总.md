@@ -105,3 +105,15 @@
 - 标题：引用检测命中次数为 0，原因包括软盟后台链接误入库、历史 URL 规范不一致、检测过早与模型 HTTP 400
 - 关联文件：`apis/utils/citation-url.util.ts`、`apis/utils/citation-detection-schedule.util.ts`、`apis/scheduler/citation-detection.scheduler.ts`、`apis/service/impl/citation-diagnosis.service.impl.ts`、`apis/utils/citation-collector.util.ts`、`prisma/migrations/20260703001000_cleanup_internal_published_links/`
 - 详情：`tasks/progress_tasks/2026-07-03-citation-hit-delay-fix.md`
+
+## 2026-07-03 软盟发布链接未及时入库
+- 编号：fix-20260703-publishing-link-late-url
+- 标题：软盟订单进入非 0 状态后不再轮询，导致已发布文章最终链接迟到时无法入库
+- 关联文件：`apis/service/impl/publishing-order-sync.service.impl.ts`、`tests/apis/publishing-order-sync.service.test.ts`
+- 详情：`tasks/progress_tasks/2026-07-03-publishing-link-sync-late-url.md`
+
+## 2026-07-03 软盟发布链接未及时入库
+- 编号：fix-20260703-publishing-link-late-url
+- 标题：软盟订单进入非 0 状态后不再轮询，导致已发布文章最终链接迟到时无法入库
+- 关联文件：`apis/service/impl/publishing-order-sync.service.impl.ts`、`tests/apis/publishing-order-sync.service.test.ts`
+- 详情：`tasks/progress_tasks/2026-07-03-publishing-link-sync-late-url.md`

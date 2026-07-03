@@ -1,12 +1,13 @@
+import { Prisma } from '@prisma/client';
 import { getPrisma } from '../../utils';
+import { isInternalPublishedLinkUrl, normalizeCitationUrl } from '../../utils/citation-url.util';
 import { getRmOrderById, getRmToken, type RmOrderItem, type RmOrderQueryResponse } from '../../utils/rmapi.utils';
 import type { IPublishingOrderSyncService, PublishingOrderSyncResult } from '../publishing-order-sync.service';
-import { Prisma } from '@prisma/client';
-import { isInternalPublishedLinkUrl, normalizeCitationUrl } from '../../utils/citation-url.util';
 
 const RUANMENG_USERNAME_KEY = 'ruanmeng_username';
 const RUANMENG_PASSWORD_KEY = 'ruanmeng_password';
 const DEFAULT_BATCH_SIZE = 50;
+const PUBLIC_LINK_POLL_DAYS = 7;
 
 export class PublishingOrderSyncServiceImpl implements IPublishingOrderSyncService {
   async syncAllPendingOrders(): Promise<PublishingOrderSyncResult> {
@@ -21,7 +22,26 @@ export class PublishingOrderSyncServiceImpl implements IPublishingOrderSyncServi
       JOIN publishing_schedules ps ON ps.id = ppo.schedule_id
       LEFT JOIN publishing_platforms pp ON pp.id = ppo.platform_id
       WHERE ppo.rm_status = 0
-      ORDER BY ppo.updated_at ASC
+        OR (
+          ppo.created_at >= NOW() - (${PUBLIC_LINK_POLL_DAYS} * INTERVAL '1 day')
+          AND NOT EXISTS (
+            SELECT 1
+            FROM published_article_links pal
+            WHERE pal.schedule_id = ppo.schedule_id
+              AND pal.deleted_at IS NULL
+              AND NOT (
+                LOWER(COALESCE(pal.domain, '')) = 'ruan.net'
+                OR LOWER(COALESCE(pal.domain, '')) LIKE '%.ruan.net'
+                OR LOWER(pal.normalized_url) = 'ruan.net'
+                OR LOWER(pal.normalized_url) LIKE 'ruan.net/%'
+                OR LOWER(pal.normalized_url) LIKE '%.ruan.net/%'
+              )
+          )
+        )
+      ORDER BY
+        CASE WHEN ppo.rm_status = 0 THEN 0 ELSE 1 END,
+        ppo.last_synced_at ASC NULLS FIRST,
+        ppo.updated_at ASC
       LIMIT ${DEFAULT_BATCH_SIZE}
     `);
     return this.syncLocalOrders(orders);
@@ -79,6 +99,7 @@ export class PublishingOrderSyncServiceImpl implements IPublishingOrderSyncServi
         }
         const remoteOrder = this.extractOrder(response, localOrder.rmOrderId);
         await this.updateLocalOrder(localOrder.id, remoteOrder);
+        await this.deactivateInternalPublishedLinks(localOrder);
         await this.upsertPublishedLink(localOrder, remoteOrder);
         result.synced++;
       } catch {
@@ -97,16 +118,16 @@ export class PublishingOrderSyncServiceImpl implements IPublishingOrderSyncServi
     const configMap = new Map(configs.map((item: any) => [item.configKey, item.configValue]));
     const username = configMap.get(RUANMENG_USERNAME_KEY);
     const password = configMap.get(RUANMENG_PASSWORD_KEY);
-    if (!username || !password) throw new Error('请先配置软盟账号和密码');
+    if (!username || !password) throw new Error('Ruanmeng credentials are not configured');
     return { username, password };
   }
 
   private extractOrder(response: RmOrderQueryResponse, rmOrderId: string): RmOrderItem {
     if (!response.success) {
-      throw new Error(response.message || `软盟订单查询失败，状态码 ${response.status}`);
+      throw new Error(response.message || `Ruanmeng order query failed, status ${response.status}`);
     }
     const order = response.data?.find(item => item.order_id === rmOrderId) || response.data?.[0];
-    if (!order) throw new Error(`未找到软盟订单：${rmOrderId}`);
+    if (!order) throw new Error(`Ruanmeng order not found: ${rmOrderId}`);
     return order;
   }
 
@@ -124,8 +145,6 @@ export class PublishingOrderSyncServiceImpl implements IPublishingOrderSyncServi
   }
 
   private extractPublishedUrl(order: RmOrderItem): string | null {
-    if (order.status !== 1) return null;
-
     const candidates = [
       order.url,
       order.link,
@@ -133,15 +152,44 @@ export class PublishingOrderSyncServiceImpl implements IPublishingOrderSyncServi
       order.article_url,
       order.source_url,
       order.response_message,
+      JSON.stringify(order),
     ];
-    const jsonText = JSON.stringify(order);
-    candidates.push(jsonText);
+
     for (const candidate of candidates) {
       if (!candidate) continue;
-      const match = String(candidate).match(/https?:\/\/[^\s"'<>，。；；、)）\]}]+/i);
-      if (match?.[0]) return match[0].replace(/[.,，。;；]+$/u, '');
+      const matches = String(candidate).match(/https?:\/\/[^\s"'<>;,)\]}\uFF0C\u3002\uFF1B]+/gi) || [];
+      for (const match of matches) {
+        const url = match.replace(/[.,;)\]}\uFF0C\u3002\uFF1B]+$/u, '');
+        if (url && !isInternalPublishedLinkUrl(url)) return url;
+      }
     }
+
     return null;
+  }
+
+  private async deactivateInternalPublishedLinks(localOrder: LocalOrder): Promise<void> {
+    await getPrisma().$executeRaw(Prisma.sql`
+      UPDATE published_article_links
+      SET deleted_at = COALESCE(deleted_at, NOW()),
+          updated_at = NOW()
+      WHERE deleted_at IS NULL
+        AND article_id = ${localOrder.articleId}
+        AND (
+          schedule_id = ${localOrder.scheduleId}
+          OR schedule_id IS NULL
+        )
+        AND (
+          LOWER(COALESCE(domain, '')) = 'ruan.net'
+          OR LOWER(COALESCE(domain, '')) LIKE '%.ruan.net'
+          OR LOWER(normalized_url) = 'ruan.net'
+          OR LOWER(normalized_url) LIKE 'ruan.net/%'
+          OR LOWER(normalized_url) LIKE '%.ruan.net/%'
+          OR LOWER(url) LIKE 'http://ruan.net/%'
+          OR LOWER(url) LIKE 'https://ruan.net/%'
+          OR LOWER(url) LIKE 'http://%.ruan.net/%'
+          OR LOWER(url) LIKE 'https://%.ruan.net/%'
+        )
+    `);
   }
 
   private async upsertPublishedLink(localOrder: LocalOrder, remoteOrder: RmOrderItem): Promise<void> {

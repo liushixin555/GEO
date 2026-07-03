@@ -164,3 +164,8 @@
 ## 2026-07-03 Git 推送规则
 
 - 用户明确要求：以后项目中未明确要求推送时，任务结束只执行本地 commit，不执行 `git push`。
+
+## 2026-07-03 软盟最终发布链接迟到规则
+- 软盟订单同步不能只扫描 `rm_status = 0`；近 7 天内尚无公开发布链接的订单必须继续轮询，避免订单状态先变化、最终 URL 后返回时漏入库。
+- `response_message`、`url`、`link`、`publish_url`、`article_url`、`source_url` 或完整响应体中只要出现非 `ruan.net` 公开 URL，就应规范化后 upsert 到 `published_article_links`。
+- 每次软盟订单同步都要清理同文章/同计划下的 `ruan.net` 内部稿件链接；这类链接只能显示为待补，不得触发引用检测。

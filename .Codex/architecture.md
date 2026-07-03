@@ -136,3 +136,8 @@
 - `apis/utils/citation-question-bank.util.ts` 现在是固定题库模块，直接返回 30 条真实用户咨询问题；`buildArticleCitationQuestions()` 不再消费文章标题和关键词生成动态问题。
 - `/api/v1/citation-diagnosis/run-auto` 和发布后自动检测仍通过 `question_count` 控制每次实际检测问题数量，默认定时任务继续每条链接取 2 个问题。
 - 固定题库包含“GEO服务商推荐”作为用户检索意图样本，该文本只进入检测 prompt，不作为产品命名或页面文案规则。
+
+## 2026-07-03 软盟订单链接同步
+- `PublishingOrderSyncServiceImpl.syncAllPendingOrders()` 现在扫描两类订单：`rm_status = 0` 的处理中订单，以及近 7 天内还没有公开发布链接的订单。
+- 订单同步负责清理 `ruan.net` 内部稿件链接，并从软盟响应的 URL 字段、`response_message` 或完整响应体中提取第一个非内部公开 URL 写入 `published_article_links`。
+- 软盟返回非 0 状态但没有公开 URL 时不视为系统失败；台账保持“待补发布链接”，后续定时任务继续轮询。
