@@ -1,6 +1,7 @@
 import axios from 'axios';
 import {
   collectCitationSourcesForModel,
+  extractCitationSourcesForTest,
   loadEnabledCitationModels,
   normalizeChatCompletionsUrl,
 } from '../../apis/utils/citation-collector.util';
@@ -239,5 +240,22 @@ describe('citation collector model calls', () => {
     expect(result.status).toBe('error');
     expect(result.error).toContain('HTTP 400');
     expect(result.error).toContain('unsupported field enable_search');
+  });
+});
+
+describe('citation collector source extraction', () => {
+  it('keeps public page sources and drops internal backend or image CDN URLs', () => {
+    const sources = extractCitationSourcesForTest(
+      {
+        citations: [
+          { url: 'https://www.example.com/articles/1', title: 'Public article' },
+          { url: 'https://i.ruan.net/manuscripts/', title: 'Internal backend' },
+          { url: 'https://p11-volcsearch-sign.byteimg.com/tos-cn-i-test/image.jpeg', title: 'Image asset' },
+        ],
+      },
+      'Answer references https://www.example.com/articles/1 and https://i.ruan.net/manuscripts/',
+    );
+
+    expect(sources.map((source) => source.url)).toEqual(['https://www.example.com/articles/1']);
   });
 });

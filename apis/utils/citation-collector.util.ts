@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { getPrisma } from './db.util';
 import { decryptApiKey, isEncrypted } from './encryption.util';
+import { isInternalPublishedLinkUrl } from './citation-url.util';
 
 export type CitationPlatform = string;
 
@@ -36,6 +37,8 @@ export interface CitationModelConfig {
 
 const DEFAULT_PLATFORMS: CitationPlatform[] = ['DeepSeek', '豆包', '元宝', '千问', 'Kimi'];
 const GEO_MONITOR_CONFIG = path.join('geo-monitorv12', 'GEO', 'geo_monitor_v8_package 2', 'config.py');
+const BLOCKED_SOURCE_DOMAINS = ['byteimg.com'];
+const STATIC_SOURCE_EXTENSIONS = /\.(?:avif|bmp|gif|ico|jpe?g|png|svg|webp|css|js|mjs|map|mp3|mp4|pdf|woff2?|ttf|eot)$/i;
 
 const fallbackVarMap: Record<CitationPlatform, { key: string; url: string; model: string }> = {
   DeepSeek: { key: 'DEEPSEEK_API_KEY', url: 'DEEPSEEK_URL', model: 'DEEPSEEK_MODEL' },
@@ -190,7 +193,18 @@ function cleanText(value: unknown, maxLength = 5000): string | null {
 function cleanUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const text = value.trim().replace(/[)\]}>"'，。；、]+$/u, '');
-  return /^https?:\/\//i.test(text) ? text : null;
+  if (!/^https?:\/\//i.test(text)) return null;
+
+  try {
+    const url = new URL(text);
+    const hostname = url.hostname.toLowerCase();
+    if (isInternalPublishedLinkUrl(text)) return null;
+    if (BLOCKED_SOURCE_DOMAINS.some((domain) => hostname === domain || hostname.endsWith(`.${domain}`))) return null;
+    if (STATIC_SOURCE_EXTENSIONS.test(url.pathname)) return null;
+    return text;
+  } catch {
+    return null;
+  }
 }
 
 function toSourceIndex(value: unknown): number | null {

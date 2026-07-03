@@ -294,3 +294,8 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 - 软盟订单同步不得只扫描 `rm_status = 0`；近 7 天内尚无公开发布链接的订单必须继续轮询，避免最终发布 URL 迟到返回后无法入库。
 - 同步时必须清理 `ruan.net` / `*.ruan.net` 内部稿件链接，这类链接不得作为 active `published_article_links` 展示或触发引用检测。
 - 软盟响应的 `response_message`、`url`、`link`、`publish_url`、`article_url`、`source_url` 或完整响应体中出现非 `ruan.net` 公开 URL 时，应规范化并 upsert 到 `published_article_links`。
+
+## 2026-07-03 引用检测来源过滤补充
+
+- 引用检测来源必须是可作为引用依据的公开网页 URL；软盟后台链接、图片 CDN 和静态资源 URL 不得作为 `ai_citation_records` 来源入库。
+- 命中仍只能按标准化 URL 匹配 `published_article_links`；模型回答只提到标题、品牌名、摘要或非 URL “参考”文本时不得计为命中。

@@ -201,6 +201,13 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
             FROM published_article_links
             WHERE deleted_at IS NULL
               AND (
+                domain IS NULL
+                OR (
+                  domain <> 'ruan.net'
+                  AND domain NOT LIKE '%.ruan.net'
+                )
+              )
+              AND (
                 normalized_url IN (${Prisma.join(sourceUrls)})
                 OR regexp_replace(normalized_url, '^https?://', '') IN (${Prisma.join(sourceUrls)})
               )
@@ -480,7 +487,15 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
         created_at AS "createdAt",
         updated_at AS "updatedAt"
       FROM published_article_links
-      WHERE deleted_at IS NULL AND article_id = ${articleId}
+      WHERE deleted_at IS NULL
+        AND article_id = ${articleId}
+        AND (
+          domain IS NULL
+          OR (
+            domain <> 'ruan.net'
+            AND domain NOT LIKE '%.ruan.net'
+          )
+        )
       ORDER BY updated_at DESC, id DESC
     `);
 
@@ -513,8 +528,22 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
         status,
         created_at AS "createdAt",
         completed_at AS "completedAt"
-      FROM ai_citation_detection_runs
-      WHERE target_article_id = ${articleId}
+      FROM ai_citation_detection_runs run
+      LEFT JOIN published_article_links target_link ON target_link.id = run.target_article_link_id
+      WHERE run.target_article_id = ${articleId}
+        AND (
+          run.target_article_link_id IS NULL
+          OR (
+            target_link.deleted_at IS NULL
+            AND (
+              target_link.domain IS NULL
+              OR (
+                target_link.domain <> 'ruan.net'
+                AND target_link.domain NOT LIKE '%.ruan.net'
+              )
+            )
+          )
+        )
     `);
     const linkedRunRows = await getPrisma().$queryRaw<any[]>(Prisma.sql`
       SELECT DISTINCT r.run_id AS "runId"
@@ -799,6 +828,13 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
       WHERE pal.deleted_at IS NULL
         AND a.deleted_at IS NULL
         AND pal.article_id IN (${Prisma.join(articleIds)})
+        AND (
+          pal.domain IS NULL
+          OR (
+            pal.domain <> 'ruan.net'
+            AND pal.domain NOT LIKE '%.ruan.net'
+          )
+        )
         ${input.article_link_ids?.length ? Prisma.sql`AND pal.id IN (${Prisma.join(input.article_link_ids)})` : Prisma.empty}
       ORDER BY pal.updated_at DESC, pal.id DESC
       LIMIT ${limit}

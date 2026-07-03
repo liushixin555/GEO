@@ -169,3 +169,7 @@
 - 软盟订单同步不能只扫描 `rm_status = 0`；近 7 天内尚无公开发布链接的订单必须继续轮询，避免订单状态先变化、最终 URL 后返回时漏入库。
 - `response_message`、`url`、`link`、`publish_url`、`article_url`、`source_url` 或完整响应体中只要出现非 `ruan.net` 公开 URL，就应规范化后 upsert 到 `published_article_links`。
 - 每次软盟订单同步都要清理同文章/同计划下的 `ruan.net` 内部稿件链接；这类链接只能显示为待补，不得触发引用检测。
+
+## 2026-07-03 引用检测来源过滤规则
+- 引用来源必须是可作为引用依据的公开网页 URL；`ruan.net` / `*.ruan.net`、图片 CDN、静态资源 URL 不得作为 citation source 入库，也不得参与命中。
+- 引用命中仍只按标准化 URL 匹配 `published_article_links`；模型回答中只提到标题、品牌名、摘要或非 URL “参考”文本时不得计为命中。
