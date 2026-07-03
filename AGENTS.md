@@ -204,6 +204,79 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 - 自动抽取不得允许模型生成 `verified`；候选状态必须强制为 `draft`，审核入库由后续人工或接口流程处理。
 - 候选过滤必须丢弃空标题/空正文、过短且无具体事实、重复 title/content、明显空泛营销表达；禁止抽取“专业可靠、经验丰富、助力企业发展、提升竞争力、行业领先、优质服务”等空话。
 
+## 2026-06-30 EvidenceCard V1.1.1 后端 LLM 抽取补充
+
+- `POST /api/v1/evidence-cards/extract` 自动抽取路径优先复用系统 LLM 配置调用 `extractEvidenceCandidates()`；LLM 未配置、调用失败、输出异常或无有效候选时回退 deterministic 抽取。
+- `save=false` 只返回候选和 warnings，不写库；`save=true` 保存前仍必须经过 service 层清洗、去重和 `status=draft` 强制覆盖。
+- 抽取候选应返回 `extractionReason` 和候选级 `warnings`，供前端人工审核时展示；这些字段不代表证据已 verified。
+## 2026-07-01 EvidenceCard V1.1 抽取正文长度补充
+
+- EvidenceCard 自动抽取的 `content` 默认应为 2-5 句话、约 80-250 个中文字符，用于保留事实、方法、流程、场景、能力或案例的必要上下文，避免把证据压缩成一句口号。
+- LLM 抽取和 deterministic fallback 都不得为了凑长度编造材料中没有的信息；短证据候选可以保留，但应提示人工复核后再审核为 `verified`。
+## 2026-07-01 EvidenceCard 自测闭环补充
+
+- EvidenceCard 文章生成验收必须同时检查 `evidencePromptPreview`、`evidenceStats`、ArticleEvidenceCard `evidenceSnapshot` 和正文实际质量，不能只看文章是否有正文。
+- Windows PowerShell 管道脚本中不要直接写中文标题、关键词或正则；应从 UTF-8 文件/数据库读取，或使用 Unicode escape，避免中文被转码成问号污染测试数据。
+- 观察到文章生成调度器存在待排查异常：个别文章已写入正文、debug、ArticleEvidenceCard 后仍被 `Connection error` 标成 `generate_failed`。后续修改 `article-generation.scheduler.ts` 或 LLM fallback 时必须覆盖该场景。
+## 2026-07-01 文章生成状态稳定性补充
+
+- 文章生成调度器捕获单篇异常后，写入 `generate_failed` 前必须回读文章当前状态、版本、最新 ArticleVersion 和带版本的 ArticleGenerationDebug；若生成结果已提交，不得覆盖为失败。
+- ArticleGenerationDebug.warnings 可记录基础风险词提示，当前包括 `唯一`、`保证`、`确保`、`承诺`、`绝对`、`最佳`、`第一`、`No.1`、`100%`/`百分之百`、`行业领先`；该 warning 只供人工审核，不阻塞生成。
+## 2026-07-01 引用诊断中文编码补充
+
+- 引用诊断模块的后端错误信息、定时任务日志、检测问题、prompt、平台名称、题库路径、前端页面文案和 CSV 导出字段必须保持 UTF-8 中文原文，禁止提交 `寮曠敤`、`璇婃柇`、`鏂囩珷`、`鍙戝竷`、`鎼滅储`、`澶辫触`、`锟`、`�` 等乱码片段。
+- 题库路径必须为 `geo-monitorv12/GEO/题库/供应商题库A.md`、`geo-monitorv12/GEO/题库/供应商题库B.md`；路径乱码会导致题库无法读取并退回默认问题。
+- 修改引用诊断相关中文文案后必须运行 `tests/apis/citation-diagnosis-encoding.test.js` 或等价扫描，确认关键源码不含常见 mojibake 片段。
+- Windows PowerShell 默认输出可能把正确 UTF-8 中文显示成乱码，排查源码编码时优先使用 `rg` 或显式 UTF-8 输出，不要仅凭终端显示判断源码已损坏。
+
+## 2026-07-01 检测台账前端可视化补充
+
+- `/citation-diagnosis` 台账页面向非技术人员时，列表必须直观展示发布链接、引用模型和命中次数；详情必须展示检测问题、AI 回答、引用来源和命中片段。
+- 详情抽屉调用 `GET /api/v1/citation-diagnosis/ledger/:articleId/details`；接口不可用或暂无数据时展示“暂无检测详情”，不得阻塞台账列表、搜索、导出和手动复检。
+- 台账页继续使用 Ant Design 组件和 `pages/utils/date.ts` 时间格式化；通过分页控制数据量，禁止使用页面级或 Table 纵向滚动条承载超长内容。
+
+## 2026-07-01 引用诊断来源解析补充
+
+- run-auto 检测问题必须模拟真实用户咨询，不得使用“是否被引用”这类检测口吻。
+- 自动检测 prompt 不得直接提供我方已发布 URL，不得强迫或诱导模型引用我方链接。
+- 引用命中只能按 URL 标准化匹配；没有 URL 的标题、来源名、摘要或模型口头提及不得算作命中。
+- 来源解析需兼容嵌套的 sources/citations/references/search_results/Responses annotations 等结构，并保留 raw/snippet/index 供存库追溯。
+- 缺少 API Key 或模型配置返回 `skipped`，单模型 API 报错返回 `error`，均不得中断同批次其他模型检测。
+
+## 2026-07-01 发布后自动检测闭环补充
+
+- 发布链接写入 `published_article_links` 后，由 `apis/scheduler/citation-detection.scheduler.ts` 异步扫描并自动检测，不得阻塞发布流程。
+- 自动检测默认每 30 分钟触发一次，每轮最多处理 5 条发布链接；每条最多 2 个问题，模型范围为系统 LLM 中全部启用、未删除且配置完整的模型。
+- `ai_citation_detection_runs.target_article_link_id` 用于 articleLink 级 24 小时防重复；不能只按 articleId 去重。
+- 单条发布链接检测失败不得影响其他链接；平台 `skipped` 表示缺模型配置或 API Key，不算系统失败。
+- 自动检测日志不得打印 API Key 或完整敏感配置。
+
+## 2026-07-03 发布后引用检测闭环补充
+
+- 后续所有已发布文章的引用检测入口必须是 `published_article_links`；没有发布链接不得触发检测，只能显示“待补发布链接”。
+- `published_article_links` 对活跃记录使用 `article_id + normalized_url` 去重；人工补录和软盟同步都必须 upsert，禁止重复插入同一文章同一链接。
+- 发布计划平台名必须能映射到 `publishing_platforms.name`，否则不得创建发布计划并进入后续下单流程。
+- 软盟下单成功但未返回订单 ID 时不得将发布计划标为 `published`；手动改为 `published` 前必须已有软盟订单或发布链接。
+- 检测 run 必须写 `target_article_id` 和 `target_article_link_id`，台账详情和 24 小时防重复均依赖这两个字段。
+- 检测模型默认读取全部启用系统 LLM，入库模型名使用 `${provider}:${modelName}`；OpenAI 兼容 baseUrl 必须先规范为 `/chat/completions`，避免根地址 404。
+
+## 2026-07-01 V1.2 引用检测台账与 Prompt Builder 补充
+
+- 引用检测 V1.2 台账以 `published_article_links`、`ai_citation_detection_runs`、`ai_citation_records`、`article_model_citation_marks` 为主闭环；台账详情必须使用后端保存的检测问题、AI 回答、source 快照、引用片段和命中片段，不得在前端重新推断命中。
+- `AiCitationDetectionRun.targetArticleId` 用于文章级详情聚合，`targetArticleLinkId` 用于发布链接级自动检测防重复；两个字段职责不同，后续修改时不能混用。
+- 文章生成 prompt 组装归口 `apis/utils/article-prompt-builder.util.ts`；`llm.service.impl.ts` 继续负责模型调用、EvidenceCard retrieval、debug 写入、重写和修复，禁止把 EvidenceCard 检索迁入 prompt builder。
+- Prompt builder 必须保留最终 `systemPrompt` / `userPrompt` / `requiredReferenceFiles` / `promptWarnings` / `evidencePromptSection` / `evidenceStats` 的可追溯输出；按 skill 拆分规则时先保持行为一致，再补齐 comparison/guide/faq/brand/case 等专属规则。
+
+## 2026-07-01 一键启动脚本数据库就绪补充
+
+- `启动项目.bat` 必须等待 PostgreSQL ready 后再启动后端源码 dev server，避免数据库启动/恢复中的异常被登录接口统一显示为“用户名或密码错误”。
+- 后端启动后应等待 `/api/health` 返回 200 再打开前端，减少用户过早登录导致的假性失败。
+- VS Code / package `dev:api` 启动路径也必须先执行数据库就绪检查；数据库不可达时应在后端启动前失败并提示 PostgreSQL 未就绪，不能让前端登录页继续误报账号密码错误。
+
+## 2026-07-01 文章详情历史数据兼容补充
+
+- 文章详情页读取 `Article.portrait` 时必须兼容 JSON 数组、JSON 字符串和普通字符串；历史生成文章可能保存 plain-text portrait，前端不得因 `JSON.parse` 失败导致整页“加载文章失败”。
+- 历史自测数据中的中文乱码或 `????` 应作为数据清洗问题单独处理，不能阻塞文章正文查看。
 ## 2026-07-02 引用诊断固定检测问题补充
 
 - `/citation-diagnosis` 自动检测问题固定为 `apis/utils/citation-question-bank.util.ts` 内置的 30 条真实用户咨询题库，按 `question_count` 顺序截取；文章标题和关键词不得再生成动态问题抢占名额。

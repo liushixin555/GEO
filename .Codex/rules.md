@@ -71,15 +71,85 @@
 - 未授权客户名、未证实数据、资质、荣誉、排名或案例不得被抽取为证据。
 - 文档正文解析、联网搜索、external evidence 自动采集、ContentMission、EntityGraph 后置，不进入 V1.1。
 - 第一批验收按 30 条原始材料 -> 20 条 `verified` EvidenceCard -> 3-5 篇文章重生成执行。
+- V1.1 交接方案以 `version-plans/V1.1-Evidence-Extraction-Preview.md` 为准，任务记录见 `tasks/progress_tasks/2026-06-30-evidence-extraction-v11.md`。
 
 ## 2026-06-30 EvidenceCard V1.1 抽取规则
 
 - EvidenceCard 自动抽取的 LLM 输出永远不可信，必须先经过 JSON fence 剥离、JSON.parse 防御、字段枚举校验、数组规范化、分数钳制和候选过滤。
 - 抽取候选不得直接入库，不得把模型生成的 `verified` 当作有效审核状态；所有自动抽取结果必须强制为 `draft`。
 - 自动抽取不得保留空泛营销表达，例如“专业可靠、经验丰富、助力企业发展、提升竞争力、行业领先、优质服务”等；候选必须能支撑具体事实、方法、流程、场景、案例、数据、客户问题或服务能力。
+- `save=true` 可以接收前端人工编辑后的 `candidates`，但后端仍必须二次清洗、去重并强制保存为 `draft`；前端预览结果不能绕过 service 层校验。
 
+## 2026-06-30 EvidenceCard V1.1.1 LLM 抽取规则
+
+- `POST /api/v1/evidence-cards/extract` 自动抽取路径优先调用 LLM 抽取；LLM 未配置、调用失败、输出不可解析或无有效候选时，必须回退 deterministic 抽取。
+- LLM prompt 必须要求只输出 `{ "cards": [...] }` JSON，最多 8 条；材料不足返回空数组；不得编造客户、数据、资质、荣誉、排名、案例、合作结果或承诺。
+- 每条候选应带 `extractionReason`，存在事实边界或授权风险时带 `warnings`，并随接口结果返回给前端预览。
+- parser 必须把 LLM 输出当作不可信输入处理：fence 剥离、JSON.parse 防御、非法枚举丢弃、数组规范化、分数钳制、`verified` 强制降为 `draft`。
+
+## 2026-06-30 EvidenceCard V1.1.1 抽取质量规则
+
+- LLM 抽取只是候选生成，不是事实确认；不得用模型输出替代人工审核，也不得允许模型直接生成 `verified`。
+- deterministic fallback 必须保留，LLM 配置缺失、调用失败、超时或输出不可解析时仍要有稳定兜底，并继续遵守候选过滤规则。
+- `save=false` 只做候选预览，绝不写入 EvidenceCard、ArticleEvidenceCard 或 ArticleGenerationDebug，也不影响正式文章生成 retrieval。
+- `save=true` 只能保存 `draft`；请求体或模型输出中的 `verified` 必须被忽略或降级。
+- portrait 抽取只读取画像 `title/content`；image 抽取只读取图片 `title/description/imageUrl`，不得从文本字段之外推导业务事实。
+- 真实材料验收仍按 30 条原始材料 -> 20 条 `verified` EvidenceCard -> 3-5 篇文章重生成执行，未跑完前不得宣称文章质量已改善。
+- V1.1.1 交接方案见 `version-plans/V1.1.1-Evidence-Extraction-Quality.md`，任务记录见 `tasks/progress_tasks/2026-06-30-evidence-extraction-v111.md`。
+## 2026-07-01 EvidenceCard V1.1 抽取正文长度规则
+
+- EvidenceCard 自动抽取的 `content` 默认应为 2-5 句话、约 80-250 个中文字符，用于保留事实、方法、流程、场景、能力或案例的必要上下文；不要把证据压缩成一句口号。
+- LLM 抽取和 deterministic fallback 都不得为了凑长度编造材料中没有的信息；短证据候选可以保留，但应提示人工复核后再审核为 `verified`。
+
+## 2026-07-01 文章生成状态与风险词规则
+
+- 文章生成调度器捕获单篇异常后，写入 `generate_failed` 前必须先回读确认是否已经存在已提交的生成结果；若文章状态已离开 `generating`，或版本/ArticleVersion/带版本 debug 显示生成成功，不得覆盖为失败。
+- 基础风险词 warning 只作为人工审核提示，不阻塞文章生成，不改变 EvidenceCard retrieval、ArticleEvidenceCard `injected` 写入或 `qualityPassed` 判定。
+- 当前基础风险词包括：`唯一`、`保证`、`确保`、`承诺`、`绝对`、`最佳`、`第一`、`No.1`、`100%`/`百分之百`、`行业领先`。
+## 2026-07-01 引用诊断编码规则
+
+- 引用诊断模块的后端错误信息、日志、检测问题、prompt、平台名称、题库路径和前端页面文案必须以 UTF-8 中文原文保存，禁止提交常见 mojibake 片段。
+- 引用诊断题库路径固定为 `geo-monitorv12/GEO/题库/供应商题库A.md` 和 `geo-monitorv12/GEO/题库/供应商题库B.md`；路径乱码会导致无法读取题库。
+- Windows PowerShell 默认输出可能把正确 UTF-8 中文显示为乱码，排查时优先用 `rg` 或显式 UTF-8 输出确认源码实际内容。
+- 修改引用诊断中文文案后必须运行 `tests/apis/citation-diagnosis-encoding.test.js` 对关键文件做乱码防回归扫描。
+
+## 2026-07-01 引用诊断来源解析规则
+
+- run-auto 的检测问题应模拟真实用户咨询，不要使用“是否被引用”这类检测口吻。
+- 自动检测 prompt 不得把我方已发布 URL 直接提供给模型，也不得强迫或诱导模型引用我方链接。
+- 引用命中只能基于 URL 标准化匹配；没有 URL 的标题、来源名、摘要或模型口头提及不能算作命中。
+- `extractSources` 应兼容嵌套的 sources/citations/references/search_results/Responses annotations 等结构，并保留 raw/snippet/index 供存库追溯。
+- 缺少 API Key 或模型配置应返回 `skipped`，单模型 API 报错应返回 `error`；二者都不能阻断同批次其他模型检测。
+
+## 2026-07-01 引用检测 V1.2 自动检测规则
+
+- 发布链接写入 `published_article_links` 后，引用检测必须异步执行，不得阻塞发布或订单同步流程。
+- 自动检测默认每 30 分钟扫描一次，每轮最多处理 5 条发布链接；每条最多 2 个问题，模型范围为系统 LLM 中全部启用、未删除且配置完整的模型。
+- `ai_citation_detection_runs.target_article_link_id` 是 articleLink 级 24 小时防重复依据，不能只按 articleId 去重。
+- 单条发布链接检测失败不得影响同批次其他链接；平台 `skipped` 代表缺模型配置或 API Key，不算系统失败。
+- 自动检测日志不得打印 API Key、完整请求配置或其他敏感信息。
+
+## 2026-07-01 文章生成 Prompt Builder 规则
+
+- 文章生成 prompt 组装归口到 `apis/utils/article-prompt-builder.util.ts`；`llm.service.impl.ts` 继续负责模型调用、EvidenceCard retrieval、debug 写入、重写和修复流程。
+- Prompt builder 只负责组装 prompt 和 skill 专属规则，不得把 EvidenceCard 检索逻辑迁入 builder。
+- Builder 必须返回最终 `systemPrompt` / `userPrompt` / `requiredReferenceFiles` / `promptWarnings`，并保留 `evidencePromptSection` 和 `evidenceStats` 供 debug 追溯。
+- 按 skill 拆分时先保持文章生成行为一致，再逐步补齐 ranking / comparison / guide / faq / brand / case 等专属规则，避免文章质量退化。
+
+## 2026-07-01 一键启动脚本规则
+
+- 桌面一键启动脚本必须先确认 PostgreSQL ready，再启动后端源码 dev server；否则登录接口可能因数据库启动/恢复中的异常被统一包装成“用户名或密码错误”。
+- 后端启动后应等待 `/api/health` 返回 200 再打开前端页面，避免用户过早登录触发假性失败。
+- VS Code / package `dev:api` 启动路径也必须先执行数据库就绪检查；数据库不可达时应在后端启动前失败并给出 PostgreSQL 未就绪提示，避免前端登录页误导用户排查账号密码。
 ## 2026-07-02 引用诊断固定检测问题规则
 
 - `/citation-diagnosis` 自动检测问题必须来自 `apis/utils/citation-question-bank.util.ts` 内置的 30 条固定题库，按 `question_count` 顺序截取；不得再由文章标题或关键词生成动态问题抢占名额。
 - 诊断固定题库不再读取 `geo-monitorv12/GEO/题库/供应商题库A.md` 或 `供应商题库B.md`，避免外部题库覆盖当前诊断管理指定问题。
 - “GEO服务商推荐”在该题库中是用户检索意图原文，仅用于检测问题样本，不代表项目产品命名规则放宽。
+## 2026-07-03 发布后检测闭环规则
+
+- 发布后引用检测只扫描 `published_article_links`；发布成功后必须有软盟订单或发布链接作为追踪锚点。
+- 手动把发布计划标记为 `published` 前必须已存在 `publishing_platform_orders` 或 `published_article_links`。
+- `published_article_links` 写入必须按 `article_id + normalized_url` upsert，避免同一文章同一链接重复检测。
+- 自动检测 run 必须写入 `target_article_id` 与 `target_article_link_id`；平台 `skipped` 不算系统失败。
+- 引用检测模型默认来自启用的系统 LLM 配置，入库标识使用 `${provider}:${modelName}`；OpenAI 兼容 baseUrl 必须规范到 `/chat/completions` 后再请求。

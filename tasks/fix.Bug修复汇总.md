@@ -75,3 +75,18 @@
 | fix071 | 文章生成 Markdown 表格后处理修复 | `apis/service/impl/llm.service.impl.ts` |
  | fix072 | 知识库文档下载404 - uploadDir路径解析错误 | `apis/config/index.ts`, `dist/apis/config/index.js` |
 | fix073 | 知识库画像内容参数校验上限过小 | `apis/schema/knowledge.schema.ts`, `tests/apis/knowledge.schema.test.ts` |
+| fix074 | 桌面启动脚本使用旧 dist 后端和旧项目快捷方式 | `启动项目.bat` |
+| fix075 | 引用诊断模块中文乱码修复 | `apis/controller/citation-diagnosis.controller.ts`, `apis/service/impl/citation-diagnosis.service.impl.ts`, `apis/scheduler/citation-diagnosis.scheduler.ts`, `apis/utils/citation-collector.util.ts`, `apis/utils/citation-question-bank.util.ts`, `pages/citation-diagnosis/index.tsx` |
+| fix076 | 文章已生成后仍被标记失败的状态覆盖修复 | `apis/scheduler/article-generation.scheduler.ts`, `apis/service/impl/llm.service.impl.ts` |
+| fix077 | 引用检测模型调用未覆盖全部启用模型且 DeepSeek 根地址 404 | `apis/utils/citation-collector.util.ts`, `apis/service/impl/citation-diagnosis.service.impl.ts`, `apis/scheduler/citation-detection.scheduler.ts`, `tests/apis/citation-collector.util.test.ts` |
+| fix077 | 引用诊断来源解析与真实咨询问题优化 | `apis/utils/citation-collector.util.ts`, `apis/service/impl/citation-diagnosis.service.impl.ts`, `apis/schema/citation-diagnosis.schema.ts`, `apis/controller/citation-diagnosis.controller.ts` |
+| fix078 | 文章生成 prompt 按 skill 拆分收口 | `apis/utils/article-prompt-builder.util.ts`, `apis/service/impl/llm.service.impl.ts` |
+| fix079 | 文章详情历史 plain-text portrait 导致加载失败 | `pages/article/hooks/useArticleDetail.ts`, `pages/citation-diagnosis/index.tsx` |
+| fix079 | 文章详情历史 plain-text portrait 导致加载失败 | `pages/article/hooks/useArticleDetail.ts`, `pages/citation-diagnosis/index.tsx` |
+| fix080 | VS Code dev 启动未等待数据库导致登录误报密码错误 | `scripts/wait-for-db.cjs`, `package.json`, `tests/scripts/wait-for-db.test.cjs` |
+## 2026-07-03 发布后引用检测闭环未触发
+
+- 编号：fix-20260703-citation-closure
+- 标题：已发布文章缺少发布链接入库导致引用检测无法触发
+- 关联文件：`apis/service/impl/publishing-execution.service.impl.ts`、`apis/service/impl/publishing-order-sync.service.impl.ts`、`apis/service/impl/citation-diagnosis.service.impl.ts`、`apis/schema/citation-diagnosis.schema.ts`
+- 详情：`tasks/progress_tasks/2026-07-03-published-link-citation-closure.md`

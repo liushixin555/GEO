@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { BusinessError, ForbiddenError, NotFoundError } from '../../errors';
 import { getPrisma } from '../../utils';
-import { collectCitationSources, normalizeCitationPlatforms } from '../../utils/citation-collector.util';
+import { collectCitationSourcesForModel, loadEnabledCitationModels } from '../../utils/citation-collector.util';
 import { buildArticleCitationQuestions } from '../../utils/citation-question-bank.util';
 import { normalizeCitationUrl } from '../../utils/citation-url.util';
 import type {
@@ -82,6 +82,14 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
         (article_id, schedule_id, platform_name, url, normalized_url, domain, created_by)
       VALUES
         (${input.article_id}, ${input.schedule_id ?? null}, ${input.platform_name ?? null}, ${input.url.trim()}, ${normalizedUrl}, ${domain}, ${auth.userId ?? null})
+      ON CONFLICT (article_id, normalized_url) WHERE deleted_at IS NULL
+      DO UPDATE SET
+        schedule_id = COALESCE(EXCLUDED.schedule_id, published_article_links.schedule_id),
+        platform_name = COALESCE(EXCLUDED.platform_name, published_article_links.platform_name),
+        url = EXCLUDED.url,
+        domain = EXCLUDED.domain,
+        created_by = COALESCE(EXCLUDED.created_by, published_article_links.created_by),
+        updated_at = NOW()
       RETURNING
         id,
         article_id AS "articleId",
@@ -137,6 +145,12 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
   }
 
   async createDetectionRun(input: CitationDetectionRunInput, auth: CitationDiagnosisAuth): Promise<any> {
+    if (input.article_id) {
+      const article = await this.assertArticleAccess(input.article_id, auth);
+      if (input.project_id && article.projectId !== input.project_id) {
+        throw new BusinessError('article_id does not belong to project_id');
+      }
+    }
     if (input.project_id) {
       await this.assertProjectAccess(input.project_id, auth);
     }
@@ -157,12 +171,14 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
     return getPrisma().$transaction(async (tx: any) => {
       const runRows = await tx.$queryRaw(Prisma.sql`
         INSERT INTO ai_citation_detection_runs
-          (project_id, model_name, prompt, answer, status, created_by, completed_at)
+          (project_id, target_article_id, target_article_link_id, model_name, prompt, answer, status, created_by, completed_at)
         VALUES
-          (${input.project_id ?? null}, ${input.model_name}, ${input.prompt ?? null}, ${input.answer ?? null}, ${status}, ${auth.userId ?? null}, ${now})
+          (${input.project_id ?? null}, ${input.article_id ?? null}, ${input.article_link_id ?? null}, ${input.model_name}, ${input.prompt ?? null}, ${input.answer ?? null}, ${status}, ${auth.userId ?? null}, ${now})
         RETURNING
           id,
           project_id AS "projectId",
+          target_article_id AS "targetArticleId",
+          target_article_link_id AS "targetArticleLinkId",
           model_name AS "modelName",
           prompt,
           answer,
@@ -186,13 +202,17 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
       const linkByUrl = new Map<string, any>(linkRows.map((item: any) => [item.normalizedUrl, item]));
 
       const records: any[] = [];
-      for (const { source, normalizedUrl, domain } of normalizedSources) {
+      for (const [index, { source, normalizedUrl, domain }] of normalizedSources.entries()) {
         const matchedLink = linkByUrl.get(normalizedUrl);
+        const answerSnippet = this.trimNullable(source.answer_snippet ?? input.answer ?? null, 5000);
+        const citationSnippet = this.trimNullable(source.citation_snippet ?? source.title ?? null, 5000);
+        const sourceIndex = source.source_index ?? index;
+        const rawSource = this.stringifyRawSource(source.raw_source ?? source);
         const recordRows = await tx.$queryRaw(Prisma.sql`
           INSERT INTO ai_citation_records
-            (run_id, model_name, source_url, normalized_source_url, source_title, domain, matched, article_id, article_link_id)
+            (run_id, model_name, source_url, normalized_source_url, source_title, answer_snippet, citation_snippet, source_index, raw_source, domain, matched, article_id, article_link_id)
           VALUES
-            (${run.id}, ${input.model_name}, ${source.url}, ${normalizedUrl}, ${source.title ?? null}, ${domain}, ${Boolean(matchedLink)}, ${matchedLink?.articleId ?? null}, ${matchedLink?.id ?? null})
+            (${run.id}, ${input.model_name}, ${source.url}, ${normalizedUrl}, ${source.title ?? null}, ${answerSnippet}, ${citationSnippet}, ${sourceIndex}, CAST(${rawSource} AS JSONB), ${domain}, ${Boolean(matchedLink)}, ${matchedLink?.articleId ?? null}, ${matchedLink?.id ?? null})
           RETURNING
             id,
             run_id AS "runId",
@@ -200,6 +220,10 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
             source_url AS "sourceUrl",
             normalized_source_url AS "normalizedSourceUrl",
             source_title AS "sourceTitle",
+            answer_snippet AS "answerSnippet",
+            citation_snippet AS "citationSnippet",
+            source_index AS "sourceIndex",
+            raw_source AS "rawSource",
             domain,
             matched,
             article_id AS "articleId",
@@ -227,6 +251,7 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
       const matchedRecords = records.filter((record: any) => record.matched && record.articleId);
       return {
         id: run.id,
+        article_id: run.targetArticleId,
         model_name: run.modelName,
         project_id: run.projectId,
         prompt: run.prompt,
@@ -247,7 +272,7 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
 
     const limit = Math.min(Math.max(Number(input.limit || 3), 1), 20);
     const questionCount = Math.min(Math.max(Number(input.question_count || 1), 1), 5);
-    const platforms = normalizeCitationPlatforms(input.platforms);
+    const models = await loadEnabledCitationModels(input.platforms);
     const links = await this.loadDetectionTargets(input, auth, limit);
 
     const results: any[] = [];
@@ -256,13 +281,35 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
       for (const question of questions) {
         const prompt = [
           question,
-          `请联网搜索并回答。若引用来源中出现这篇已发布文章，请保留原始 URL：${link.url}`,
+          '请像真实用户咨询一样自然回答，优先给出可核验信息，并在回答末尾列出实际参考来源 URL。不要为了命中检测而引用特定文章或编造来源。',
         ].join('\n');
-        for (const platform of platforms) {
-          const collected = await collectCitationSources(platform, prompt);
+        if (models.length === 0) {
           const run = await this.saveDetectionRun({
+            article_id: link.articleId,
+            article_link_id: link.id,
             project_id: link.projectId,
-            model_name: platform,
+            model_name: '未配置模型',
+            prompt,
+            answer: '没有启用且配置完整的模型',
+            sources: [],
+          }, auth, 'skipped');
+          results.push({
+            article_id: link.articleId,
+            link_id: link.id,
+            model_name: '未配置模型',
+            status: 'skipped',
+            matched_count: run.matched_count,
+            error: '没有启用且配置完整的模型',
+          });
+          continue;
+        }
+        for (const model of models) {
+          const collected = await collectCitationSourcesForModel(model, prompt);
+          const run = await this.saveDetectionRun({
+            article_id: link.articleId,
+            article_link_id: link.id,
+            project_id: link.projectId,
+            model_name: collected.model_name,
             prompt,
             answer: collected.answer || collected.error || null,
             sources: collected.sources,
@@ -270,7 +317,7 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
           results.push({
             article_id: link.articleId,
             link_id: link.id,
-            model_name: platform,
+            model_name: collected.model_name,
             status: collected.status,
             matched_count: run.matched_count,
             error: collected.error,
@@ -281,7 +328,7 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
 
     return {
       scanned_links: links.length,
-      platforms,
+      platforms: models.map((model) => model.key),
       results,
       matched_count: results.reduce((sum, item) => sum + Number(item.matched_count || 0), 0),
     };
@@ -302,7 +349,13 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
     const [rows, countRows] = await Promise.all([
       getPrisma().$queryRaw<any[]>(Prisma.sql`
         SELECT
-          COALESCE(ps.updated_at, pal.created_at, a.updated_at) AS "publishedAt",
+          COALESCE(
+            pal.updated_at,
+            pal.created_at,
+            CASE WHEN ps.status::text = 'pending' THEN ps.scheduled_publish_at ELSE ps.updated_at END,
+            ps.scheduled_publish_at,
+            a.updated_at
+          ) AS "publishedAt",
           COALESCE(pal.platform_name, pp.name) AS "publishPlatform",
           a.id AS "articleId",
           a.title AS "articleTitle",
@@ -347,7 +400,7 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
           AND a.id IN (${Prisma.join(articleIds)})
           ${searchWhere}
           ${statusWhere}
-        ORDER BY COALESCE(ps.updated_at, pal.created_at, a.updated_at) DESC, pal.id DESC
+        ORDER BY "publishedAt" DESC, pal.id DESC
         OFFSET ${offset}
         LIMIT ${params.pageSize}
       `),
@@ -400,6 +453,169 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
     };
   }
 
+  async getLedgerDetails(articleId: number, auth: CitationDiagnosisAuth): Promise<any> {
+    const article = await this.assertArticleAccess(articleId, auth);
+
+    const publishedLinks = await getPrisma().$queryRaw<any[]>(Prisma.sql`
+      SELECT
+        id,
+        article_id AS "articleId",
+        schedule_id AS "scheduleId",
+        platform_name AS "platformName",
+        url,
+        normalized_url AS "normalizedUrl",
+        domain,
+        created_by AS "createdBy",
+        created_at AS "createdAt",
+        updated_at AS "updatedAt"
+      FROM published_article_links
+      WHERE deleted_at IS NULL AND article_id = ${articleId}
+      ORDER BY updated_at DESC, id DESC
+    `);
+
+    const marks = await getPrisma().$queryRaw<any[]>(Prisma.sql`
+      SELECT
+        id,
+        article_id AS "articleId",
+        model_name AS "modelName",
+        first_matched_at AS "firstMatchedAt",
+        last_matched_at AS "lastMatchedAt",
+        match_count AS "matchCount"
+      FROM article_model_citation_marks
+      WHERE article_id = ${articleId}
+      ORDER BY last_matched_at DESC, id DESC
+    `);
+
+    const linkIds = publishedLinks.map((item: any) => item.id);
+    const recordWhere = linkIds.length > 0
+      ? Prisma.sql`(r.article_id = ${articleId} OR r.article_link_id IN (${Prisma.join(linkIds)}))`
+      : Prisma.sql`r.article_id = ${articleId}`;
+    const targetRuns = await getPrisma().$queryRaw<any[]>(Prisma.sql`
+      SELECT
+        id,
+        project_id AS "projectId",
+        target_article_id AS "targetArticleId",
+        target_article_link_id AS "targetArticleLinkId",
+        model_name AS "modelName",
+        prompt,
+        answer,
+        status,
+        created_at AS "createdAt",
+        completed_at AS "completedAt"
+      FROM ai_citation_detection_runs
+      WHERE target_article_id = ${articleId}
+    `);
+    const linkedRunRows = await getPrisma().$queryRaw<any[]>(Prisma.sql`
+      SELECT DISTINCT r.run_id AS "runId"
+      FROM ai_citation_records r
+      WHERE ${recordWhere}
+    `);
+    const runIds = Array.from(new Set([
+      ...targetRuns.map((item: any) => item.id),
+      ...linkedRunRows.map((item: any) => item.runId),
+    ]));
+    const linkIdSet = new Set<number>(linkIds);
+    const runs = runIds.length > 0
+      ? await getPrisma().$queryRaw<any[]>(Prisma.sql`
+          SELECT
+            id,
+            project_id AS "projectId",
+            target_article_id AS "targetArticleId",
+            target_article_link_id AS "targetArticleLinkId",
+            model_name AS "modelName",
+            prompt,
+            answer,
+            status,
+            created_at AS "createdAt",
+            completed_at AS "completedAt"
+          FROM ai_citation_detection_runs
+          WHERE id IN (${Prisma.join(runIds)})
+          ORDER BY created_at DESC, id DESC
+        `)
+      : [];
+    const records = runIds.length > 0
+      ? await getPrisma().$queryRaw<any[]>(Prisma.sql`
+          SELECT
+            r.id,
+            r.run_id AS "runId",
+            r.model_name AS "modelName",
+            r.source_url AS "sourceUrl",
+            r.normalized_source_url AS "normalizedSourceUrl",
+            r.source_title AS "sourceTitle",
+            r.answer_snippet AS "answerSnippet",
+            r.citation_snippet AS "citationSnippet",
+            r.source_index AS "sourceIndex",
+            r.raw_source AS "rawSource",
+            r.domain,
+            r.matched,
+            r.article_id AS "articleId",
+            r.article_link_id AS "articleLinkId",
+            r.created_at AS "createdAt"
+          FROM ai_citation_records r
+          WHERE r.run_id IN (${Prisma.join(runIds)})
+          ORDER BY r.run_id DESC, r.source_index ASC NULLS LAST, r.id ASC
+        `)
+      : [];
+
+    const runsById = new Map<number, any>();
+    for (const run of runs) {
+      runsById.set(run.id, {
+        id: run.id,
+        article_id: run.targetArticleId,
+        model_name: run.modelName,
+        project_id: run.projectId,
+        prompt: run.prompt,
+        answer: run.answer,
+        status: run.status,
+        created_at: run.createdAt,
+        completed_at: run.completedAt,
+        matched_count: 0,
+        records: [],
+      });
+    }
+    for (const record of records) {
+      const run = runsById.get(record.runId);
+      if (!run) continue;
+      if (this.isRecordMatchedForArticle(record, articleId, linkIdSet)) run.matched_count += 1;
+      run.records.push(this.mapRecord(record));
+    }
+
+    const mappedLinks = publishedLinks.map((item: any) => this.mapPublishedLink(item));
+    const mappedMarks = marks.map((item: any) => ({
+      id: item.id,
+      article_id: item.articleId,
+      model_name: item.modelName,
+      first_matched_at: item.firstMatchedAt,
+      last_matched_at: item.lastMatchedAt,
+      match_count: item.matchCount,
+    }));
+    const mappedRuns = Array.from(runsById.values());
+    const matchedCount = records.filter((record: any) => this.isRecordMatchedForArticle(record, articleId, linkIdSet)).length;
+
+    return {
+      article: {
+        id: article.id,
+        project_id: article.projectId,
+        title: article.title,
+        keywords: article.keywords,
+        article_type: article.articleType,
+        status: article.status,
+        created_at: article.createdAt,
+        updated_at: article.updatedAt,
+      },
+      published_links: mappedLinks,
+      citation_marks: mappedMarks,
+      detection_runs: mappedRuns,
+      summary: {
+        published_link_count: mappedLinks.length,
+        detection_run_count: mappedRuns.length,
+        record_count: records.length,
+        matched_count: matchedCount,
+        citation_models: mappedMarks.map((item: any) => item.model_name),
+      },
+    };
+  }
+
   async listDetectionRuns(params: CitationDiagnosisListParams, auth: CitationDiagnosisAuth): Promise<{ list: any[]; total: number }> {
     if (params.projectId) {
       await this.assertProjectAccess(params.projectId, auth);
@@ -412,11 +628,13 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
 
     const [runs, countRows] = await Promise.all([
       getPrisma().$queryRaw<any[]>(Prisma.sql`
-        SELECT
-          id,
-          project_id AS "projectId",
-          model_name AS "modelName",
-          prompt,
+          SELECT
+            id,
+            project_id AS "projectId",
+            target_article_id AS "targetArticleId",
+            target_article_link_id AS "targetArticleLinkId",
+            model_name AS "modelName",
+            prompt,
           status,
           created_at AS "createdAt",
           completed_at AS "completedAt"
@@ -442,6 +660,10 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
             source_url AS "sourceUrl",
             normalized_source_url AS "normalizedSourceUrl",
             source_title AS "sourceTitle",
+            answer_snippet AS "answerSnippet",
+            citation_snippet AS "citationSnippet",
+            source_index AS "sourceIndex",
+            raw_source AS "rawSource",
             domain,
             matched,
             article_id AS "articleId",
@@ -464,6 +686,7 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
         const runRecords = recordsByRun.get(item.id) || [];
         return {
           id: item.id,
+          article_id: item.targetArticleId,
           model_name: item.modelName,
           project_id: item.projectId,
           prompt: item.prompt,
@@ -565,6 +788,7 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
       WHERE pal.deleted_at IS NULL
         AND a.deleted_at IS NULL
         AND pal.article_id IN (${Prisma.join(articleIds)})
+        ${input.article_link_ids?.length ? Prisma.sql`AND pal.id IN (${Prisma.join(input.article_link_ids)})` : Prisma.empty}
       ORDER BY pal.updated_at DESC, pal.id DESC
       LIMIT ${limit}
     `);
@@ -593,11 +817,37 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
       source_url: item.sourceUrl,
       normalized_source_url: item.normalizedSourceUrl,
       source_title: item.sourceTitle,
+      answer_snippet: item.answerSnippet,
+      citation_snippet: item.citationSnippet,
+      source_index: item.sourceIndex,
+      raw_source: item.rawSource,
       domain: item.domain,
       matched: item.matched,
       article_id: item.articleId,
       article_link_id: item.articleLinkId,
       created_at: item.createdAt,
     };
+  }
+
+  private trimNullable(value: unknown, maxLength: number): string | null {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    return trimmed.length > maxLength ? trimmed.slice(0, maxLength) : trimmed;
+  }
+
+  private stringifyRawSource(value: unknown): string | null {
+    if (value === undefined || value === null) return null;
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return JSON.stringify({ unavailable: true });
+    }
+  }
+
+  private isRecordMatchedForArticle(record: any, articleId: number, linkIds: Set<number>): boolean {
+    if (!record?.matched) return false;
+    if (record.articleId === articleId) return true;
+    return typeof record.articleLinkId === 'number' && linkIds.has(record.articleLinkId);
   }
 }
