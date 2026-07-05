@@ -181,3 +181,6 @@
 - 检测执行状态来自 `ai_citation_detection_runs`，引用命中状态来自 `article_model_citation_marks`，两个指标不能混用。
 - 台账列表必须展示“检测情况”，即使当前命中次数为 0，也要让用户看到是否已检测、检测轮次、来源记录数和最近检测时间。
 - 检测轮次聚合如需 join `ai_citation_records`，必须用 `COUNT(DISTINCT run.id)` 统计 run 数。
+
+## 2026-07-05 引用来源 URL 清洗规则
+- `ai_citation_records.source_url` 入库前必须清理 markdown 列表尾巴、换行转义和智能引号，避免 `https://domain\n-`、`https://domain”` 这类脏 URL 污染台账。

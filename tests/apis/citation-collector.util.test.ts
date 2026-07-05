@@ -258,4 +258,20 @@ describe('citation collector source extraction', () => {
 
     expect(sources.map((source) => source.url)).toEqual(['https://www.example.com/articles/1']);
   });
+
+  it('trims markdown list suffixes and smart quotes from extracted source URLs', () => {
+    const sources = extractCitationSourcesForTest(
+      {
+        citations: [
+          { url: 'https://www.mckinsey.com\\n-', title: 'McKinsey' },
+          { url: 'https://www.hejun.com”', title: 'Hejun' },
+        ],
+      },
+    );
+
+    expect(sources.map((source) => source.url)).toEqual([
+      'https://www.mckinsey.com',
+      'https://www.hejun.com',
+    ]);
+  });
 });

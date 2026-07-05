@@ -309,3 +309,7 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 - 检测执行状态和引用命中状态必须分开展示：`ai_citation_detection_runs` 表示已检测，`article_model_citation_marks` 只表示已命中。
 - 台账列表必须展示“检测情况”，包括检测轮次、来源记录数和最近检测时间；命中次数为 0 不等于没有检测。
 - 聚合检测轮次时如果 join `ai_citation_records`，必须使用 `COUNT(DISTINCT run.id)`，避免来源记录数放大检测轮次。
+
+## 2026-07-05 引用来源 URL 清洗补充
+
+- `ai_citation_records.source_url` 入库前必须清理 markdown 列表尾巴、换行转义和智能引号，避免 `https://domain\n-`、`https://domain”` 这类脏 URL 污染台账。

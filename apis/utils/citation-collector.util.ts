@@ -192,7 +192,10 @@ function cleanText(value: unknown, maxLength = 5000): string | null {
 
 function cleanUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null;
-  const text = value.trim().replace(/[)\]}>"'，。；、]+$/u, '');
+  const text = value
+    .trim()
+    .replace(/(?:\\r|\\n|[\r\n]).*$/u, '')
+    .replace(/[)\]}>"'“”‘’，。；、.-]+$/u, '');
   if (!/^https?:\/\//i.test(text)) return null;
 
   try {

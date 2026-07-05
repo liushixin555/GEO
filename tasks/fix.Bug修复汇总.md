@@ -118,6 +118,12 @@
 - 关联文件：`apis/service/impl/citation-diagnosis.service.impl.ts`、`pages/citation-diagnosis/index.tsx`、`tests/apis/citation-diagnosis-ledger.service.test.ts`
 - 详情：`tasks/progress_tasks/2026-07-05-citation-ledger-detection-status.md`
 
+## 2026-07-05 引用检测来源 URL 清洗补强
+- 编号：fix-20260705-citation-source-url-cleanup
+- 标题：模型返回来源 URL 带 markdown 尾巴或智能引号，污染引用来源台账
+- 关联文件：`apis/utils/citation-collector.util.ts`、`tests/apis/citation-collector.util.test.ts`
+- 详情：`tasks/progress_tasks/2026-07-05-citation-source-url-cleanup.md`
+
 ## 2026-07-05 引用诊断台账详情 id 字段歧义
 - 编号：fix-20260705-citation-ledger-ambiguous-id
 - 标题：台账详情 JOIN 发布链接后未限定 `id` 字段来源，导致 PostgreSQL 42702
