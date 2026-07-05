@@ -112,6 +112,12 @@
 - 关联文件：`apis/service/impl/publishing-order-sync.service.impl.ts`、`tests/apis/publishing-order-sync.service.test.ts`
 - 详情：`tasks/progress_tasks/2026-07-03-publishing-link-sync-late-url.md`
 
+## 2026-07-05 检测台账列表缺少检测情况
+- 编号：fix-20260705-citation-ledger-detection-status
+- 标题：检测管理列表只展示命中标记，已检测但未命中的文章被误认为没有检测
+- 关联文件：`apis/service/impl/citation-diagnosis.service.impl.ts`、`pages/citation-diagnosis/index.tsx`、`tests/apis/citation-diagnosis-ledger.service.test.ts`
+- 详情：`tasks/progress_tasks/2026-07-05-citation-ledger-detection-status.md`
+
 ## 2026-07-05 引用诊断台账详情 id 字段歧义
 - 编号：fix-20260705-citation-ledger-ambiguous-id
 - 标题：台账详情 JOIN 发布链接后未限定 `id` 字段来源，导致 PostgreSQL 42702

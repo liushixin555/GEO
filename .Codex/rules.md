@@ -176,3 +176,8 @@
 
 ## 2026-07-05 Raw SQL JOIN 字段限定规则
 - Prisma `$queryRaw` 中只要使用 JOIN，SELECT / ORDER BY / WHERE 里的 `id`、`created_at`、`updated_at` 等常见重复字段必须加表别名，避免 PostgreSQL `42702` 字段歧义。
+
+## 2026-07-05 检测台账指标规则
+- 检测执行状态来自 `ai_citation_detection_runs`，引用命中状态来自 `article_model_citation_marks`，两个指标不能混用。
+- 台账列表必须展示“检测情况”，即使当前命中次数为 0，也要让用户看到是否已检测、检测轮次、来源记录数和最近检测时间。
+- 检测轮次聚合如需 join `ai_citation_records`，必须用 `COUNT(DISTINCT run.id)` 统计 run 数。

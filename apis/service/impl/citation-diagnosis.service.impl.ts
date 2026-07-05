@@ -384,7 +384,10 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
           u.cn_name AS "publisher",
           COALESCE(ps.status::text, a.status::text) AS "status",
           COALESCE(mark_agg.models, '') AS "citationModels",
-          COALESCE(mark_agg.match_count, 0)::int AS "citationMatchCount"
+          COALESCE(mark_agg.match_count, 0)::int AS "citationMatchCount",
+          COALESCE(run_agg.detection_run_count, 0)::int AS "detectionRunCount",
+          COALESCE(run_agg.record_count, 0)::int AS "citationRecordCount",
+          run_agg.last_detection_at AS "lastDetectionAt"
         FROM publishing_schedules ps
         JOIN articles a ON a.id = ps.article_id
         LEFT JOIN LATERAL (
@@ -413,6 +416,31 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
           FROM article_model_citation_marks
           GROUP BY article_id
         ) mark_agg ON mark_agg.article_id = a.id
+        LEFT JOIN (
+          SELECT
+            run.target_article_id AS article_id,
+            COUNT(DISTINCT run.id) AS detection_run_count,
+            COUNT(record.id) AS record_count,
+            MAX(run.created_at) AS last_detection_at
+          FROM ai_citation_detection_runs run
+          LEFT JOIN published_article_links target_link ON target_link.id = run.target_article_link_id
+          LEFT JOIN ai_citation_records record ON record.run_id = run.id
+          WHERE run.target_article_id IS NOT NULL
+            AND (
+              run.target_article_link_id IS NULL
+              OR (
+                target_link.deleted_at IS NULL
+                AND (
+                  target_link.domain IS NULL
+                  OR (
+                    target_link.domain <> 'ruan.net'
+                    AND target_link.domain NOT LIKE '%.ruan.net'
+                  )
+                )
+              )
+            )
+          GROUP BY run.target_article_id
+        ) run_agg ON run_agg.article_id = a.id
         WHERE ps.deleted_at IS NULL
           AND a.deleted_at IS NULL
           AND a.id IN (${Prisma.join(articleIds)})
@@ -466,6 +494,9 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
         status: item.status,
         citation_models: item.citationModels ? String(item.citationModels).split(',').filter(Boolean) : [],
         citation_match_count: item.citationMatchCount,
+        detection_run_count: item.detectionRunCount,
+        citation_record_count: item.citationRecordCount,
+        last_detection_at: item.lastDetectionAt,
       })),
       total: Number(countRows[0]?.count ?? 0),
     };
