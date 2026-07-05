@@ -173,3 +173,6 @@
 ## 2026-07-03 引用检测来源过滤规则
 - 引用来源必须是可作为引用依据的公开网页 URL；`ruan.net` / `*.ruan.net`、图片 CDN、静态资源 URL 不得作为 citation source 入库，也不得参与命中。
 - 引用命中仍只按标准化 URL 匹配 `published_article_links`；模型回答中只提到标题、品牌名、摘要或非 URL “参考”文本时不得计为命中。
+
+## 2026-07-05 Raw SQL JOIN 字段限定规则
+- Prisma `$queryRaw` 中只要使用 JOIN，SELECT / ORDER BY / WHERE 里的 `id`、`created_at`、`updated_at` 等常见重复字段必须加表别名，避免 PostgreSQL `42702` 字段歧义。

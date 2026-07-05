@@ -299,3 +299,7 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 
 - 引用检测来源必须是可作为引用依据的公开网页 URL；软盟后台链接、图片 CDN 和静态资源 URL 不得作为 `ai_citation_records` 来源入库。
 - 命中仍只能按标准化 URL 匹配 `published_article_links`；模型回答只提到标题、品牌名、摘要或非 URL “参考”文本时不得计为命中。
+
+## 2026-07-05 Raw SQL JOIN 字段限定补充
+
+- Prisma `$queryRaw` 中只要使用 JOIN，SELECT / ORDER BY / WHERE 的 `id`、`created_at`、`updated_at` 等常见重复字段必须显式加表别名，避免 PostgreSQL `42702` 字段歧义。

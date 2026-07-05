@@ -112,6 +112,12 @@
 - 关联文件：`apis/service/impl/publishing-order-sync.service.impl.ts`、`tests/apis/publishing-order-sync.service.test.ts`
 - 详情：`tasks/progress_tasks/2026-07-03-publishing-link-sync-late-url.md`
 
+## 2026-07-05 引用诊断台账详情 id 字段歧义
+- 编号：fix-20260705-citation-ledger-ambiguous-id
+- 标题：台账详情 JOIN 发布链接后未限定 `id` 字段来源，导致 PostgreSQL 42702
+- 关联文件：`apis/service/impl/citation-diagnosis.service.impl.ts`
+- 详情：`tasks/progress_tasks/2026-07-05-citation-ledger-ambiguous-id.md`
+
 ## 2026-07-03 引用检测来源过滤与命中加固
 - 编号：fix-20260703-citation-source-filtering
 - 标题：引用检测来源混入软盟后台链接和图片 CDN，导致台账来源与命中判断噪音过高

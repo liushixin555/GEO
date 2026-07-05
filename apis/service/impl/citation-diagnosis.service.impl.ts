@@ -518,16 +518,16 @@ export class CitationDiagnosisServiceImpl implements ICitationDiagnosisService {
       : Prisma.sql`r.article_id = ${articleId}`;
     const targetRuns = await getPrisma().$queryRaw<any[]>(Prisma.sql`
       SELECT
-        id,
-        project_id AS "projectId",
-        target_article_id AS "targetArticleId",
-        target_article_link_id AS "targetArticleLinkId",
-        model_name AS "modelName",
-        prompt,
-        answer,
-        status,
-        created_at AS "createdAt",
-        completed_at AS "completedAt"
+        run.id,
+        run.project_id AS "projectId",
+        run.target_article_id AS "targetArticleId",
+        run.target_article_link_id AS "targetArticleLinkId",
+        run.model_name AS "modelName",
+        run.prompt,
+        run.answer,
+        run.status,
+        run.created_at AS "createdAt",
+        run.completed_at AS "completedAt"
       FROM ai_citation_detection_runs run
       LEFT JOIN published_article_links target_link ON target_link.id = run.target_article_link_id
       WHERE run.target_article_id = ${articleId}
