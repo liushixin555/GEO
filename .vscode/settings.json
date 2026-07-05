@@ -7,6 +7,7 @@
   "files.encoding": "utf8",
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.preferences.importModuleSpecifier": "relative",
+  "npm.packageManager": "pnpm",
   "eslint.validate": [
     "javascript",
     "javascriptreact",
@@ -29,6 +30,9 @@
     "**/dist": true
   },
   "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.automationProfile.windows": {
+    "path": "C:\\Windows\\System32\\cmd.exe"
+  },
   "terminal.integrated.cwd": "${workspaceFolder}",
   "prisma.showPrismaDataPlatformNotification": false
 }

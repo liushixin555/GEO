@@ -9,7 +9,7 @@ import {
   UpdateEvidenceCardRequest,
 } from '../../entity';
 import { BusinessError, ForbiddenError, NotFoundError } from '../../errors';
-import { getPrisma } from '../../utils';
+import { extractEvidenceCandidates, getPrisma } from '../../utils';
 import { IEvidenceCardService } from '../evidence-card.service';
 
 type EvidenceCardClient = {
@@ -185,6 +185,45 @@ function normalizeWhitespace(value: string): string {
   return value.replace(/\r\n/g, '\n').replace(/[ \t]+/g, ' ').trim();
 }
 
+const MIN_EXTRACTED_CONTENT_LENGTH = 80;
+const TARGET_EXTRACTED_CONTENT_LENGTH = 250;
+
+function compactTextLength(value: string): number {
+  return value.replace(/\s+/g, '').length;
+}
+
+function mergeShortEvidenceBlocks(blocks: string[], maxBlocks = 10): string[] {
+  const merged: string[] = [];
+  let buffer = '';
+
+  for (const block of blocks) {
+    const candidate = buffer ? `${buffer}\n${block}` : block;
+    const candidateLength = compactTextLength(candidate);
+
+    if (!buffer || candidateLength <= TARGET_EXTRACTED_CONTENT_LENGTH) {
+      buffer = candidate;
+      if (candidateLength >= MIN_EXTRACTED_CONTENT_LENGTH) {
+        merged.push(buffer);
+        buffer = '';
+      }
+    } else {
+      merged.push(buffer);
+      buffer = block;
+    }
+
+    if (merged.length >= maxBlocks) break;
+  }
+
+  if (buffer && merged.length < maxBlocks) {
+    merged.push(buffer);
+  }
+
+  return merged
+    .map(item => item.trim())
+    .filter(Boolean)
+    .slice(0, maxBlocks);
+}
+
 function splitEvidenceBlocks(text: string): string[] {
   const normalized = normalizeWhitespace(text);
   if (!normalized) return [];
@@ -194,13 +233,97 @@ function splitEvidenceBlocks(text: string): string[] {
     .map(item => item.trim())
     .filter(item => item.length >= 20);
 
-  if (paragraphs.length > 0) return paragraphs.slice(0, 10);
+  if (paragraphs.length > 0) return mergeShortEvidenceBlocks(paragraphs);
 
-  return normalized
+  const sentences = normalized
     .split(/(?<=[。！？.!?])\s*/)
     .map(item => item.trim())
     .filter(item => item.length >= 20)
-    .slice(0, 10);
+    .slice(0, 30);
+
+  return mergeShortEvidenceBlocks(sentences);
+}
+
+const GENERIC_MARKETING_PATTERNS = [
+  /专业可靠/g,
+  /经验丰富/g,
+  /助力企业发展/g,
+  /提升竞争力/g,
+  /行业领先/g,
+  /优质服务/g,
+  /一站式解决方案/g,
+  /高效赋能/g,
+  /深受客户信赖/g,
+];
+
+const CONCRETE_EVIDENCE_PATTERNS = [
+  /方法|流程|步骤|框架|路径/,
+  /客户|案例|项目|场景|问题|痛点/,
+  /数据|比例|增长|下降|统计|检测|诊断/,
+  /服务|能力|交付|审核|发布|引用|知识库|证据/,
+  /适合|不适合|相比|区别|边界/,
+];
+
+function hasConcreteEvidence(value: string): boolean {
+  return CONCRETE_EVIDENCE_PATTERNS.some(pattern => pattern.test(value));
+}
+
+function isGenericMarketingOnly(value: string): boolean {
+  const compact = value.replace(/\s+/g, '');
+  const hasMarketing = GENERIC_MARKETING_PATTERNS.some(pattern => pattern.test(compact));
+  return hasMarketing && !hasConcreteEvidence(compact);
+}
+
+function normalizeCandidate(candidate: ExtractedEvidenceCardCandidate, request: ExtractEvidenceCardRequest, source: ExtractionSource): ExtractedEvidenceCardCandidate | null {
+  const title = truncateText(normalizeWhitespace(candidate.title || ''), 300);
+  const content = truncateText(normalizeWhitespace(candidate.content || ''), 5000);
+  if (!title || !content) return null;
+  if (content.length < 20 && !hasConcreteEvidence(`${title}\n${content}`)) return null;
+  if (isGenericMarketingOnly(`${title}\n${content}`)) return null;
+
+  return {
+    companyId: candidate.companyId ?? request.companyId ?? source.companyId ?? null,
+    projectId: candidate.projectId ?? request.projectId ?? source.projectId ?? null,
+    title,
+    content,
+    evidenceType: candidate.evidenceType || (request.sourceType === 'image' ? 'image_description' : inferEvidenceType(content)),
+    sourceType: candidate.sourceType || request.sourceType,
+    sourceId: candidate.sourceId ?? source.sourceId,
+    sourceUrl: candidate.sourceUrl ?? source.sourceUrl ?? null,
+    keywords: normalizeEvidenceCardKeywords(candidate.keywords).slice(0, 30),
+    status: 'draft',
+    sourceQuality: candidate.sourceQuality ?? (request.sourceType === 'manual' ? 'manual' : request.sourceType),
+    articleTypes: normalizeEvidenceCardArticleTypes(candidate.articleTypes),
+    confidenceScore: Math.min(1, Math.max(0, candidate.confidenceScore ?? 0.7)),
+    freshnessScore: Math.min(1, Math.max(0, candidate.freshnessScore ?? 0.7)),
+    extractionReason: candidate.extractionReason,
+    warnings: Array.isArray(candidate.warnings) ? candidate.warnings.filter(item => typeof item === 'string').slice(0, 20) : undefined,
+  };
+}
+
+function cleanCandidates(candidates: ExtractedEvidenceCardCandidate[], request: ExtractEvidenceCardRequest, source: ExtractionSource, warnings: string[]): ExtractedEvidenceCardCandidate[] {
+  const seen = new Set<string>();
+  const cleaned: ExtractedEvidenceCardCandidate[] = [];
+  let dropped = 0;
+
+  for (const candidate of candidates) {
+    const normalized = normalizeCandidate(candidate, request, source);
+    if (!normalized) {
+      dropped += 1;
+      continue;
+    }
+    const key = `${normalized.title}\n${normalized.content}`;
+    if (seen.has(key)) {
+      dropped += 1;
+      continue;
+    }
+    seen.add(key);
+    cleaned.push(normalized);
+    if (cleaned.length >= 8) break;
+  }
+
+  if (dropped > 0) warnings.push(`${dropped} low-value or duplicate evidence candidates were filtered`);
+  return cleaned;
 }
 
 function buildCandidateTitle(content: string, index: number): string {
@@ -257,8 +380,43 @@ function extractCandidatesFromText(request: ExtractEvidenceCardRequest, source: 
       articleTypes: ['general'],
       confidenceScore: 0.7,
       freshnessScore: 0.7,
+      extractionReason: '从原始文本中识别到可支撑文章写作的事实、方法、场景或服务能力。',
     };
   });
+}
+
+async function extractCandidatesWithLlmFallback(
+  request: ExtractEvidenceCardRequest,
+  source: ExtractionSource,
+  warnings: string[],
+): Promise<ExtractedEvidenceCardCandidate[]> {
+  const deterministicCandidates = (): ExtractedEvidenceCardCandidate[] => extractCandidatesFromText(request, source);
+
+  try {
+    const llmResult = await extractEvidenceCandidates({
+      sourceType: request.sourceType,
+      sourceText: source.text,
+      sourceId: source.sourceId,
+      sourceUrl: source.sourceUrl ?? null,
+      companyId: request.companyId ?? source.companyId ?? null,
+      projectId: request.projectId ?? source.projectId ?? null,
+    });
+
+    warnings.push(...llmResult.warnings.map(warning => `llm:${warning}`));
+
+    if (llmResult.candidates.length > 0) {
+      return llmResult.candidates.map(candidate => ({
+        ...candidate,
+        status: 'draft',
+      }));
+    }
+
+    warnings.push('llm returned no usable candidates; deterministic fallback used');
+    return deterministicCandidates();
+  } catch (error) {
+    warnings.push(`llm extraction crashed; deterministic fallback used: ${error instanceof Error ? error.message : 'unknown error'}`);
+    return deterministicCandidates();
+  }
 }
 
 function toUpdateData(request: UpdateEvidenceCardRequest, existing: any, actorUserId?: number): any {
@@ -425,7 +583,10 @@ export class EvidenceCardServiceImpl implements IEvidenceCardService {
   async extractEvidenceCards(request: ExtractEvidenceCardRequest, actorUserId: number, actorRole: string): Promise<ExtractEvidenceCardsResult> {
     const source = await this.loadExtractionSource(request, actorUserId, actorRole);
     const warnings = [...source.warnings];
-    const candidates = extractCandidatesFromText(request, source);
+    const rawCandidates = request.save && Array.isArray(request.candidates) && request.candidates.length > 0
+      ? request.candidates
+      : await extractCandidatesWithLlmFallback(request, source, warnings);
+    const candidates = cleanCandidates(rawCandidates, request, source, warnings);
 
     if (candidates.length === 0) {
       warnings.push('no extractable evidence candidates found');

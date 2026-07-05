@@ -1,4 +1,4 @@
-import { getPrisma } from '../../utils';
+﻿import { getPrisma } from '../../utils';
 import { getRmToken, submitRmOrder } from '../../utils/rmapi.utils';
 import { markdownToPublishHtml } from '../../utils/publish-content.util';
 import type { IPublishingExecutionService, PublishingExecutionResult } from '../publishing-execution.service';
@@ -77,7 +77,7 @@ export class PublishingExecutionServiceImpl implements IPublishingExecutionServi
     const password = configMap.get(RUANMENG_PASSWORD_KEY);
 
     if (!username || !password) {
-      throw new Error('请先配置软盟账号和密码');
+      throw new Error('Ruanmeng credentials are not configured');
     }
 
     return { username, password };
@@ -90,13 +90,13 @@ export class PublishingExecutionServiceImpl implements IPublishingExecutionServi
   ): Promise<string> {
     const title = schedule.article?.title?.trim();
     const content = schedule.article?.content?.trim();
-    if (!title) throw new Error('文章标题为空，无法发布');
-    if (!content) throw new Error('文章正文为空，无法发布');
+    if (!title) throw new Error('Article title is empty, cannot publish');
+    if (!content) throw new Error('Article content is empty, cannot publish');
     const publishContent = markdownToPublishHtml(content);
 
     const platformNames = Array.isArray(schedule.platforms) ? schedule.platforms : [];
     if (platformNames.length === 0) {
-      throw new Error('发布计划未选择发布平台');
+      throw new Error('鍙戝竷璁″垝鏈€夋嫨鍙戝竷骞冲彴');
     }
 
     let activeToken = token;
@@ -118,14 +118,14 @@ export class PublishingExecutionServiceImpl implements IPublishingExecutionServi
           resource_id: platform.rmResourceId,
         });
         if (!retryResponse.success) {
-          throw new Error(retryResponse.message || `软盟下单失败，状态码 ${retryResponse.status}`);
+          throw new Error(retryResponse.message || `杞洘涓嬪崟澶辫触锛岀姸鎬佺爜 ${retryResponse.status}`);
         }
         await this.recordPlatformOrder(schedule.id, platform.id, platformName, retryResponse);
         continue;
       }
 
       if (!response.success) {
-        throw new Error(response.message || `软盟下单失败，状态码 ${response.status}`);
+        throw new Error(response.message || `杞洘涓嬪崟澶辫触锛岀姸鎬佺爜 ${response.status}`);
       }
       await this.recordPlatformOrder(schedule.id, platform.id, platformName, response);
     }
@@ -135,21 +135,23 @@ export class PublishingExecutionServiceImpl implements IPublishingExecutionServi
 
   private async resolvePlatform(platformName: string): Promise<{ id: number; rmResourceId: number }> {
     const name = platformName.trim();
-    if (!name) throw new Error('发布平台名称为空');
+    if (!name) throw new Error('鍙戝竷骞冲彴鍚嶇О涓虹┖');
 
     const platform = await getPrisma().publishingPlatform.findFirst({
       where: { name },
       select: { id: true, rmResourceId: true },
     });
     if (!platform) {
-      throw new Error(`未找到发布平台：${name}`);
+      throw new Error(`鏈壘鍒板彂甯冨钩鍙帮細${name}`);
     }
     return platform;
   }
 
   private async recordPlatformOrder(scheduleId: number, platformId: number, platformName: string, response: any): Promise<void> {
     const rmOrderId = this.extractRmOrderId(response);
-    if (!rmOrderId) return;
+    if (!rmOrderId) {
+      throw new Error('Ruanmeng order succeeded without order id, cannot track published link');
+    }
 
     try {
       await getPrisma().$executeRaw(Prisma.sql`
@@ -167,7 +169,8 @@ export class PublishingExecutionServiceImpl implements IPublishingExecutionServi
           updated_at = NOW()
       `);
     } catch (err) {
-      console.warn('[发布订单] 记录软盟订单失败', err instanceof Error ? err.message : String(err));
+      console.warn('[鍙戝竷璁㈠崟] 璁板綍杞洘璁㈠崟澶辫触', err instanceof Error ? err.message : String(err));
+      throw err;
     }
   }
 

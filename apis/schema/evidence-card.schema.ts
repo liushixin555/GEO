@@ -5,6 +5,7 @@ import {
   EVIDENCE_CARD_STATUSES,
   EVIDENCE_CARD_TYPES,
   EVIDENCE_SOURCE_QUALITIES,
+  EXTRACT_EVIDENCE_CARD_SOURCE_TYPES,
 } from '../entity/evidence-card.entity';
 
 const title = z.string({ error: 'title is required' })
@@ -105,3 +106,51 @@ export const deleteEvidenceCardsSchema = z.object({
     .min(1, 'ids is required')
     .max(200, 'ids must not exceed 200 items'),
 }).strict();
+
+const extractedEvidenceCardCandidateSchema = z.object({
+  companyId: nullableId,
+  projectId: nullableId,
+  title,
+  content,
+  evidenceType: z.enum(EVIDENCE_CARD_TYPES, { error: 'invalid evidenceType' }),
+  sourceType: z.enum(['manual', 'portrait', 'image'], { error: 'invalid candidate sourceType' }),
+  sourceId: nullableId,
+  sourceUrl,
+  keywords,
+  status: z.literal('draft').optional(),
+  sourceQuality: z.enum(EVIDENCE_SOURCE_QUALITIES, { error: 'invalid sourceQuality' }).optional(),
+  articleTypes,
+  confidenceScore: score,
+  freshnessScore: score,
+  extractionReason: z.string().trim().max(1000).optional(),
+  warnings: z.array(z.string().trim().max(500)).max(20).optional(),
+}).strict();
+
+export const extractEvidenceCardSchema = z.object({
+  companyId: nullableId,
+  projectId: nullableId,
+  sourceType: z.enum(EXTRACT_EVIDENCE_CARD_SOURCE_TYPES, { error: 'invalid sourceType' }),
+  sourceId: nullableId,
+  text: z.string()
+    .trim()
+    .max(300000, 'text must not exceed 300000 characters')
+    .optional(),
+  save: z.boolean().default(false),
+  candidates: z.array(extractedEvidenceCardCandidateSchema).max(20).optional(),
+}).strict().superRefine((value, ctx) => {
+  if (value.sourceType === 'manual' && !value.text) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['text'],
+      message: 'text is required when sourceType is manual',
+    });
+  }
+
+  if ((value.sourceType === 'portrait' || value.sourceType === 'image') && !value.sourceId) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['sourceId'],
+      message: 'sourceId is required when sourceType is portrait or image',
+    });
+  }
+});

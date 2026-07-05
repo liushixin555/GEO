@@ -14,6 +14,31 @@ export class PublishingScheduleServiceImpl implements IPublishingScheduleService
     return item;
   }
 
+  private async assertPlatformsExist(platformNames: string[]): Promise<void> {
+    const names = Array.from(new Set(platformNames.map((name) => name.trim()).filter(Boolean)));
+    if (names.length === 0) throw new BusinessError('至少选择一个发布平台');
+
+    const platforms = await getPrisma().publishingPlatform.findMany({
+      where: { name: { in: names } },
+      select: { name: true },
+    });
+    const existingNames = new Set(platforms.map((platform) => platform.name));
+    const missing = names.filter((name) => !existingNames.has(name));
+    if (missing.length > 0) {
+      throw new BusinessError(`发布平台未同步或不存在：${missing.join('、')}`);
+    }
+  }
+
+  private async assertScheduleHasPublicationAnchor(scheduleId: number, articleId: number): Promise<void> {
+    const [orderCount, linkCount] = await Promise.all([
+      getPrisma().publishingPlatformOrder.count({ where: { scheduleId } }),
+      getPrisma().publishedArticleLink.count({ where: { articleId, scheduleId, deletedAt: null } }),
+    ]);
+    if (orderCount === 0 && linkCount === 0) {
+      throw new BusinessError('发布计划缺少软盟订单或发布链接，不能标记为已发布');
+    }
+  }
+
   async list(params: PublishingScheduleListParams, auth: AuthContext): Promise<{ list: PublishingScheduleItem[]; total: number }> {
     const prisma = getPrisma();
     const { page, pageSize, search, status, projectId } = params;
@@ -142,6 +167,8 @@ export class PublishingScheduleServiceImpl implements IPublishingScheduleService
     if (auth.role !== 'sysadmin' && article.createdBy !== auth.userId) {
       throw new ForbiddenError('只能为自己的文章创建发布计划');
     }
+
+    await this.assertPlatformsExist(request.platforms || []);
 
     const item = await prisma.publishingSchedule.create({
       data: {
@@ -276,7 +303,12 @@ export class PublishingScheduleServiceImpl implements IPublishingScheduleService
     if (request.scheduled_publish_at !== undefined) {
       data.scheduledPublishAt = request.scheduled_publish_at ? new Date(request.scheduled_publish_at) : null;
     }
-    if (request.status !== undefined) data.status = request.status;
+    if (request.status !== undefined) {
+      if (request.status === 'published') {
+        await this.assertScheduleHasPublicationAnchor(existing.id, existing.articleId);
+      }
+      data.status = request.status;
+    }
 
     const updated = await prisma.publishingSchedule.update({
       where: { id },

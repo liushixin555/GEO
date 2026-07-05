@@ -39,6 +39,8 @@ export interface EvidenceExtractionCandidate {
   confidenceScore: number;
   freshnessScore: number;
   score: number;
+  extractionReason?: string;
+  warnings?: string[];
 }
 
 export interface EvidenceExtractionResult {
@@ -82,6 +84,7 @@ const CONCRETE_FACT_PATTERNS = [
 
 const MAX_SOURCE_TEXT_LENGTH = 24000;
 const MAX_CARDS = 8;
+const MIN_RECOMMENDED_CONTENT_LENGTH = 80;
 
 function resolveApiKey(raw: string): string {
   return isEncrypted(raw) ? decryptApiKey(raw) : raw;
@@ -118,6 +121,12 @@ function normalizeArticleTypes(value: unknown): EvidenceArticleType[] {
   return articleTypes.length > 0 ? articleTypes : ['general'];
 }
 
+function normalizeCandidateWarnings(value: unknown): string[] | undefined {
+  const warnings = normalizeStringArray(value, 20)
+    .map(item => item.slice(0, 500));
+  return warnings.length > 0 ? warnings : undefined;
+}
+
 function normalizeScore(value: unknown, fallback: number): number {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return fallback;
@@ -145,6 +154,14 @@ function getTextLength(text: string): number {
 
 function getSourceType(value: string): EvidenceCardSourceType {
   return isAllowedValue(value, EVIDENCE_CARD_SOURCE_TYPES) ? value : 'document';
+}
+
+function getDefaultSourceQuality(sourceType: EvidenceCardSourceType): EvidenceSourceQuality {
+  if (sourceType === 'manual' || sourceType === 'portrait' || sourceType === 'image') {
+    return sourceType;
+  }
+  if (sourceType === 'external') return 'third_party';
+  return 'unknown';
 }
 
 function stripJsonFence(rawText: string): string {
@@ -197,13 +214,25 @@ function normalizeCandidate(
   }
 
   const sourceQualityValue = normalizeWhitespace(item.sourceQuality);
-  const sourceQuality = isAllowedValue(sourceQualityValue, EVIDENCE_SOURCE_QUALITIES)
-    ? sourceQualityValue
-    : 'unknown';
+  if (sourceQualityValue && !isAllowedValue(sourceQualityValue, EVIDENCE_SOURCE_QUALITIES)) {
+    warnings.push(`CARD_DROPPED_INVALID_SOURCE_QUALITY:${index}:${title}`);
+    return null;
+  }
+  const sourceQuality: EvidenceSourceQuality = sourceQualityValue
+    ? sourceQualityValue as EvidenceSourceQuality
+    : getDefaultSourceQuality(context.sourceType);
 
   const statusValue = normalizeWhitespace(item.status);
   if (statusValue && statusValue !== 'draft' && isAllowedValue(statusValue, EVIDENCE_CARD_STATUSES)) {
     warnings.push(`CARD_STATUS_FORCED_DRAFT:${index}:${title}`);
+  } else if (statusValue && statusValue !== 'draft') {
+    warnings.push(`CARD_STATUS_IGNORED_INVALID:${index}:${title}`);
+  }
+
+  const extractionReason = normalizeWhitespace(item.extractionReason);
+  const candidateWarnings = normalizeCandidateWarnings(item.warnings) ?? [];
+  if (getTextLength(content) < MIN_RECOMMENDED_CONTENT_LENGTH) {
+    candidateWarnings.push('CONTENT_SHORT_REVIEW_RECOMMENDED');
   }
 
   return {
@@ -222,6 +251,8 @@ function normalizeCandidate(
     confidenceScore: normalizeScore(item.confidenceScore, 0.7),
     freshnessScore: normalizeScore(item.freshnessScore, 0.7),
     score: normalizeScore(item.score, 0.7),
+    extractionReason: extractionReason ? extractionReason.slice(0, 1000) : undefined,
+    warnings: candidateWarnings.length > 0 ? candidateWarnings : undefined,
   };
 }
 
@@ -272,7 +303,7 @@ export function buildEvidenceExtractionPrompt(input: EvidenceExtractionInput): s
 3. cards 最多 8 条；材料不足时返回 { "cards": [] }。
 4. 每条候选字段为：
    - title: 简短标题，必须来自材料含义
-   - content: 可被文章引用的具体事实、方法、流程、场景、案例、数据、客户问题或服务能力
+   - content: 可被文章引用的具体事实、方法、流程、场景、案例、数据、客户问题或服务能力；默认写成 2-5 句话，长度约 80-250 个中文字符；需要保留必要上下文、适用场景和意义，不能压缩成一句口号
    - evidenceType: 只能是 fact/case/method/capability/faq/statistic/quote/image_description/external
    - sourceQuality: 只能是 official/customer/research/third_party/manual/portrait/image/unknown
    - articleTypes: string[]，只能使用 ranking/comparison/guide/faq/case/methodology/brand/news/general
@@ -281,10 +312,13 @@ export function buildEvidenceExtractionPrompt(input: EvidenceExtractionInput): s
    - freshnessScore: 0 到 1
    - score: 0 到 1，表示该候选作为证据的质量
    - status: 必须是 draft
+   - extractionReason: 说明为什么该条可作为证据候选
+   - warnings: string[]，如存在事实边界、公开性、数据来源或客户授权风险，请写入提示；没有风险可省略或为空数组
 5. 不得编造材料中没有的客户、数字、资质、荣誉、案例、合作结果或承诺。
 6. 不抽取空泛营销表达，例如“专业可靠、经验丰富、助力企业发展、提升竞争力、行业领先、优质服务、一站式服务、赋能企业、高质量发展、值得信赖、效果显著、深受客户好评”。
 7. 只抽取有事实、方法、流程、场景、案例、数据、客户问题或服务能力支撑的内容。
 8. 如果一句话只是形容词堆叠，或无法回答“它具体说明了什么”，不要抽取。
+9. 如果某个事实本身很短，应优先合并同一主题下的相邻上下文，形成一条更完整的证据；不要为了凑长度编造材料中没有的信息。
 
 来源信息：
 ${sourceMeta || 'sourceType: document'}

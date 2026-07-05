@@ -14,6 +14,30 @@ function parseKeywords(value: string | null | undefined): string[] {
     .filter(Boolean);
 }
 
+function parsePortrait(value: string | null | undefined): string[] | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      const items = parsed
+        .map(item => String(item ?? '').trim())
+        .filter(Boolean);
+      return items.length > 0 ? items : undefined;
+    }
+    if (typeof parsed === 'string') {
+      const item = parsed.trim();
+      return item ? [item] : undefined;
+    }
+  } catch {
+    // Historical generated articles may store portrait as plain text.
+  }
+
+  return [trimmed];
+}
+
 function normalizeKeywords(value: string | string[] | undefined): string | undefined {
   const items = Array.isArray(value)
     ? value
@@ -61,7 +85,7 @@ export function useArticleDetail(
         article_type: data.article_type || undefined,
         write_mode: data.write_mode || undefined,
         keywords: parseKeywords(data.keywords),
-        portrait: data.portrait ? JSON.parse(data.portrait) : undefined,
+        portrait: parsePortrait(data.portrait),
         skills: data.skills ?? undefined,
         llm_model_id: data.llm_model_id ?? undefined,
       });

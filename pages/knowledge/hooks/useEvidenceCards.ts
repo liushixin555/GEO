@@ -29,6 +29,7 @@ export interface EvidenceCardPayload {
   content: string;
   evidenceType: EvidenceCardType;
   sourceType: EvidenceCardSourceType;
+  sourceId?: number | null;
   sourceUrl?: string | null;
   keywords?: string[] | null;
   status?: EvidenceCardStatus;
@@ -42,6 +43,8 @@ export interface EvidenceCardExtractCandidate extends EvidenceCardPayload {
   id?: number | string;
   confidenceScore?: number | null;
   freshnessScore?: number | null;
+  extractionReason?: string;
+  warnings?: string[];
 }
 
 export interface EvidenceCardExtractParams {
@@ -87,9 +90,9 @@ function normalizeExtractResponse(data: any): EvidenceCardExtractCandidate[] {
 function normalizeExtractResultResponse(data: any): EvidenceCardExtractResult {
   const payload = data?.data?.data ?? data?.data ?? data;
   return {
-    candidates: Array.isArray(payload?.candidates) ? payload.candidates : [],
-    saved: Array.isArray(payload?.saved) ? payload.saved : [],
-    warnings: Array.isArray(payload?.warnings) ? payload.warnings : [],
+    candidates: Array.isArray(payload?.candidates) ? payload.candidates : normalizeExtractResponse(data),
+    saved: Array.isArray(payload?.saved) ? payload.saved : Array.isArray(payload?.data?.saved) ? payload.data.saved : [],
+    warnings: Array.isArray(payload?.warnings) ? payload.warnings : Array.isArray(payload?.data?.warnings) ? payload.data.warnings : [],
   };
 }
 

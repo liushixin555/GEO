@@ -68,6 +68,49 @@ async function getDefaultArticleSkill(prisma: any): Promise<{ id: number; skillD
   return record?.skillDir ? record : null;
 }
 
+async function hasCommittedGenerationResult(prisma: any, article: any): Promise<boolean> {
+  const [currentArticle, latestVersion, latestDebug] = await Promise.all([
+    prisma.article.findUnique({
+      where: { id: article.id },
+      select: {
+        status: true,
+        version: true,
+        content: true,
+      },
+    }),
+    prisma.articleVersion.findFirst({
+      where: { articleId: article.id },
+      orderBy: { version: 'desc' },
+      select: {
+        id: true,
+        version: true,
+        content: true,
+      },
+    }),
+    prisma.articleGenerationDebug.findFirst({
+      where: {
+        articleId: article.id,
+        articleVersionId: { not: null },
+      },
+      orderBy: { id: 'desc' },
+      select: { id: true },
+    }),
+  ]);
+
+  if (!currentArticle) return false;
+  if (currentArticle.status !== 'generating' && currentArticle.status !== 'generate_failed') return true;
+
+  const currentVersion = Number(currentArticle.version);
+  const originalVersion = Number(article.version);
+  const latestVersionNumber = Number(latestVersion?.version);
+  const articleAdvanced = Number.isFinite(currentVersion) && Number.isFinite(originalVersion) && currentVersion > originalVersion;
+  const versionAdvanced = Number.isFinite(latestVersionNumber) && Number.isFinite(originalVersion) && latestVersionNumber > originalVersion;
+  const hasContent = typeof currentArticle.content === 'string' && currentArticle.content.trim().length > 0;
+  const hasVersionContent = typeof latestVersion?.content === 'string' && latestVersion.content.trim().length > 0;
+
+  return Boolean((articleAdvanced || versionAdvanced || latestDebug) && (hasContent || hasVersionContent));
+}
+
 export function startArticleGenerationCron(): void {
   if (!config.cron.articleGenerationEnabled) {
     console.log('[文章生成] 定时任务已禁用');
@@ -345,6 +388,12 @@ export async function processNextGeneratingArticle(): Promise<void> {
       } catch (err: any) {
         console.error(`[文章生成] 文章 #${article.id} 处理失败: ${err.message}`);
         try {
+          if (await hasCommittedGenerationResult(prisma, article)) {
+            successCount++;
+            console.warn(`[article-generation] article #${article.id} already has committed generation output; skip generate_failed overwrite`);
+            continue;
+          }
+
           await prisma.article.update({
             where: { id: article.id },
             data: { status: 'generate_failed' },

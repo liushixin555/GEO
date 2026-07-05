@@ -21,8 +21,12 @@ export {
   EVIDENCE_CARD_STATUSES,
   EVIDENCE_SOURCE_QUALITIES,
   EVIDENCE_ARTICLE_TYPES,
+  EXTRACT_EVIDENCE_CARD_SOURCE_TYPES,
   EvidenceCardListParams,
   CreateEvidenceCardRequest,
+  ExtractedEvidenceCardCandidate,
+  ExtractEvidenceCardRequest,
+  ExtractEvidenceCardsResult,
   UpdateEvidenceCardRequest,
 } from './evidence-card.entity';
 export { Todo, TodoLog, CreateTodoRequest, UpdateTodoRequest, TransferTodoRequest } from './todo.entity';

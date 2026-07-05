@@ -72,6 +72,16 @@ export async function listLedger(req: Request, res: Response): Promise<void> {
   }
 }
 
+export async function getLedgerDetails(req: Request, res: Response): Promise<void> {
+  try {
+    const articleId = Number(req.params.articleId);
+    const item = await citationDiagnosisService.getLedgerDetails(articleId, auth(req));
+    success(res, item);
+  } catch (err: unknown) {
+    handleError(res, err, '获取引用诊断台账详情失败');
+  }
+}
+
 export async function listDetectionRuns(req: Request, res: Response): Promise<void> {
   try {
     const params = queryParams(req);

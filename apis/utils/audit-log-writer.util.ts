@@ -1,12 +1,12 @@
-/**
- * Audit Log Writer — 日志持久化写入工具
+﻿/**
+ * Audit Log Writer 鈥?鏃ュ織鎸佷箙鍖栧啓鍏ュ伐鍏?
  *
- * 提供 writeAuditLog / writeApiAccessLog 两个函数，
- * 被 logger.util.ts 和 app.ts 中间件调用，将日志写入 PostgreSQL audit_logs 表。
+ * 鎻愪緵 writeAuditLog / writeApiAccessLog 涓や釜鍑芥暟锛?
+ * 琚?logger.util.ts 鍜?app.ts 涓棿浠惰皟鐢紝灏嗘棩蹇楀啓鍏?PostgreSQL audit_logs 琛ㄣ€?
  *
- * 设计原则：
- * - 即发即弃（fire-and-forget），不阻塞请求处理
- * - .catch() 静默处理写入失败，仅 console.error 输出
+ * 璁捐鍘熷垯锛?
+ * - 鍗冲彂鍗冲純锛坒ire-and-forget锛夛紝涓嶉樆濉炶姹傚鐞?
+ * - .catch() 闈欓粯澶勭悊鍐欏叆澶辫触锛屼粎 console.error 杈撳嚭
  */
 
 import { getPrisma } from './db.util';
@@ -66,3 +66,5 @@ export function writeApiAccessLog(data: ApiAccessLogData): void {
     duration: data.duration,
   });
 }
+
+

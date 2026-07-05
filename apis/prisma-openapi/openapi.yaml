@@ -1354,6 +1354,12 @@ components:
         projectId:
           type: integer
           format: int32
+        targetArticleId:
+          type: integer
+          format: int32
+        targetArticleLinkId:
+          type: integer
+          format: int32
         modelName:
           type: string
         prompt:
@@ -1398,6 +1404,15 @@ components:
           type: string
         sourceTitle:
           type: string
+        answerSnippet:
+          type: string
+        citationSnippet:
+          type: string
+        sourceIndex:
+          type: integer
+          format: int32
+        rawSource:
+          type: object
         domain:
           type: string
         matched:

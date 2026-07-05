@@ -1,10 +1,19 @@
 {
   "recommendations": [
+    "EditorConfig.EditorConfig",
     "dbaeumer.vscode-eslint",
     "esbenp.prettier-vscode",
     "prisma.prisma",
     "bradlc.vscode-tailwindcss",
     "antfu.vite",
-    "ms-vscode.vscode-typescript-next"
+    "mikestead.dotenv",
+    "christian-kohler.path-intellisense",
+    "christian-kohler.npm-intellisense",
+    "eamodio.gitlens",
+    "usernamehw.errorlens",
+    "Gruntfuggly.todo-tree",
+    "humao.rest-client",
+    "ms-azuretools.vscode-docker",
+    "YoavBls.pretty-ts-errors"
   ]
 }

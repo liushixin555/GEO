@@ -28,6 +28,7 @@ const DEFAULTS = {
   CRON_PUBLISHING_INTERVAL: '*/1 * * * *',
   CRON_PUBLISHING_ORDER_SYNC_INTERVAL: '*/5 * * * *',
   CRON_CITATION_DIAGNOSIS_INTERVAL: '0 */6 * * *',
+  CRON_CITATION_DETECTION_INTERVAL: '*/30 * * * *',
   CORS_ORIGIN: 'http://localhost:5173',
   UPLOAD_IMAGE_MAX_SIZE: 10,
   UPLOAD_DOCUMENT_MAX_SIZE: 30,
@@ -62,6 +63,8 @@ export interface CronConfig {
   readonly publishingOrderSyncEnabled: boolean;
   readonly citationDiagnosisInterval: string;
   readonly citationDiagnosisEnabled: boolean;
+  readonly citationDetectionInterval: string;
+  readonly citationDetectionEnabled: boolean;
 }
 
 export interface UploadConfig {
@@ -263,6 +266,8 @@ const config: Readonly<AppConfig> = deepFreeze({
     publishingOrderSyncEnabled: process.env.CRON_PUBLISHING_ORDER_SYNC_ENABLED !== 'false',
     citationDiagnosisInterval: validateCronExpression(process.env.CRON_CITATION_DIAGNOSIS_INTERVAL || DEFAULTS.CRON_CITATION_DIAGNOSIS_INTERVAL, 'CRON_CITATION_DIAGNOSIS_INTERVAL'),
     citationDiagnosisEnabled: process.env.CRON_CITATION_DIAGNOSIS_ENABLED !== 'false',
+    citationDetectionInterval: validateCronExpression(process.env.CRON_CITATION_DETECTION_INTERVAL || DEFAULTS.CRON_CITATION_DETECTION_INTERVAL, 'CRON_CITATION_DETECTION_INTERVAL'),
+    citationDetectionEnabled: process.env.CRON_CITATION_DETECTION_ENABLED !== 'false',
   },
   corsOrigins: parseCorsOrigins(process.env.CORS_ORIGINS),
   uploadDir: resolveUploadDir(process.env.UPLOAD_DIR),

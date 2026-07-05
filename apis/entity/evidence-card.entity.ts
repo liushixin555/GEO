@@ -124,3 +124,33 @@ export interface UpdateEvidenceCardRequest {
   confidenceScore?: number | null;
   freshnessScore?: number | null;
 }
+
+export const EXTRACT_EVIDENCE_CARD_SOURCE_TYPES = [
+  'manual',
+  'portrait',
+  'image',
+] as const;
+
+export type ExtractEvidenceCardSourceType = typeof EXTRACT_EVIDENCE_CARD_SOURCE_TYPES[number];
+
+export interface ExtractEvidenceCardRequest {
+  companyId?: number | null;
+  projectId?: number | null;
+  sourceType: ExtractEvidenceCardSourceType;
+  sourceId?: number | null;
+  text?: string;
+  save: boolean;
+  candidates?: ExtractedEvidenceCardCandidate[];
+}
+
+export interface ExtractedEvidenceCardCandidate extends CreateEvidenceCardRequest {
+  status: 'draft';
+  extractionReason?: string;
+  warnings?: string[];
+}
+
+export interface ExtractEvidenceCardsResult {
+  candidates: ExtractedEvidenceCardCandidate[];
+  saved: EvidenceCard[];
+  warnings: string[];
+}

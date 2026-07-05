@@ -5,6 +5,7 @@ import { ROLES } from '../constants/roles';
 import {
   createEvidenceCardSchema,
   deleteEvidenceCardsSchema,
+  extractEvidenceCardSchema,
   updateEvidenceCardSchema,
 } from '../schema/evidence-card.schema';
 import * as evidenceCardController from '../controller/evidence-card.controller';
@@ -14,6 +15,7 @@ const router: Router = Router();
 router.use(authMiddleware, roleMiddleware(ROLES.SYSADMIN, ROLES.ADMIN));
 
 router.get('/', evidenceCardController.listEvidenceCards);
+router.post('/extract', validate(extractEvidenceCardSchema), evidenceCardController.extractEvidenceCards);
 router.get('/:id', evidenceCardController.getEvidenceCard);
 router.post('/', validate(createEvidenceCardSchema), evidenceCardController.createEvidenceCard);
 router.put('/:id', validate(updateEvidenceCardSchema), evidenceCardController.updateEvidenceCard);

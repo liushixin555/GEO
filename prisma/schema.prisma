@@ -690,6 +690,8 @@ model PublishedArticleLink {
 model AiCitationDetectionRun {
   id          Int      @id @default(autoincrement())
   projectId   Int?     @map("project_id")
+  targetArticleId Int?  @map("target_article_id")
+  targetArticleLinkId Int? @map("target_article_link_id")
   modelName   String   @map("model_name") @db.VarChar(100)
   prompt      String?  @db.Text
   answer      String?  @db.Text
@@ -700,6 +702,8 @@ model AiCitationDetectionRun {
   records     AiCitationRecord[]
 
   @@index([projectId])
+  @@index([targetArticleId])
+  @@index([targetArticleLinkId])
   @@index([modelName])
   @@index([createdAt])
   @@map("ai_citation_detection_runs")
@@ -712,6 +716,10 @@ model AiCitationRecord {
   sourceUrl           String   @map("source_url") @db.VarChar(1000)
   normalizedSourceUrl String   @map("normalized_source_url") @db.VarChar(1000)
   sourceTitle         String?  @map("source_title") @db.VarChar(500)
+  answerSnippet       String?  @map("answer_snippet") @db.Text
+  citationSnippet     String?  @map("citation_snippet") @db.Text
+  sourceIndex         Int?     @map("source_index")
+  rawSource           Json?    @map("raw_source")
   domain              String?  @db.VarChar(200)
   matched             Boolean  @default(false)
   articleId           Int?     @map("article_id")
@@ -723,6 +731,7 @@ model AiCitationRecord {
   @@index([articleId])
   @@index([articleLinkId])
   @@index([normalizedSourceUrl])
+  @@index([runId, sourceIndex])
   @@map("ai_citation_records")
 }
 

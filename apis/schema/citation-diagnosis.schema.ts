@@ -8,6 +8,10 @@ export const listCitationDiagnosisSchema = z.object({
   status: z.string().trim().max(50).optional(),
 });
 
+export const citationLedgerDetailsParamSchema = z.object({
+  articleId: z.coerce.number().int().positive(),
+});
+
 export const createPublishedArticleLinkSchema = z.object({
   article_id: z.number().int().positive(),
   schedule_id: z.number().int().positive().nullable().optional(),
@@ -16,6 +20,8 @@ export const createPublishedArticleLinkSchema = z.object({
 }).strict();
 
 export const createCitationDetectionRunSchema = z.object({
+  article_id: z.number().int().positive().nullable().optional(),
+  article_link_id: z.number().int().positive().nullable().optional(),
   project_id: z.number().int().positive().nullable().optional(),
   model_name: z.string().trim().min(1).max(100),
   prompt: z.string().trim().max(5000).nullable().optional(),
@@ -23,12 +29,17 @@ export const createCitationDetectionRunSchema = z.object({
   sources: z.array(z.object({
     url: z.string().trim().min(1).max(1000),
     title: z.string().trim().max(500).nullable().optional(),
+    answer_snippet: z.string().trim().max(5000).nullable().optional(),
+    citation_snippet: z.string().trim().max(5000).nullable().optional(),
+    source_index: z.number().int().min(0).nullable().optional(),
+    raw_source: z.unknown().optional(),
   }).strict()).min(1).max(100),
 }).strict();
 
 export const runAutomaticCitationDetectionSchema = z.object({
   project_id: z.number().int().positive().nullable().optional(),
   article_ids: z.array(z.number().int().positive()).max(50).optional(),
+  article_link_ids: z.array(z.number().int().positive()).max(50).optional(),
   limit: z.number().int().min(1).max(20).optional(),
   question_count: z.number().int().min(1).max(5).optional(),
   platforms: z.array(z.string().trim().min(1).max(50)).max(10).optional(),

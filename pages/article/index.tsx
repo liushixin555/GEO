@@ -31,6 +31,10 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   approved: { label: '已通过', color: 'success' },
 };
 
+const LIST_STATUS_OPTIONS = Object.entries(STATUS_CONFIG)
+  .filter(([value]) => value !== 'generate_failed')
+  .map(([value, { label }]) => ({ value, label }));
+
 function getScheduleStatus(item: ArticleItem): { label: string; color: string } | null {
   if (item.status !== 'approved') return null;
   const count = item.schedule_count ?? 0;
@@ -233,7 +237,7 @@ const ArticlePage: React.FC = () => {
             allowClear
             placeholder="全部状态"
             style={{ width: '100%' }}
-            options={Object.entries(STATUS_CONFIG).map(([value, { label }]) => ({ value, label }))}
+            options={LIST_STATUS_OPTIONS}
           />
         </Col>
         <Col xs={24} sm={6} style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>

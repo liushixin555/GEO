@@ -4,33 +4,58 @@
     {
       "label": "dev",
       "type": "shell",
-      "command": "npm run dev",
+      "command": "pnpm.cmd run dev",
+      "options": {
+        "env": {
+          "CI": "true"
+        }
+      },
       "group": "build",
       "problemMatcher": []
     },
     {
       "label": "dev:api",
       "type": "shell",
-      "command": "npm run dev:api",
+      "command": "pnpm.cmd run dev:api",
+      "options": {
+        "env": {
+          "CI": "true"
+        }
+      },
       "problemMatcher": []
     },
     {
       "label": "dev:page",
       "type": "shell",
-      "command": "npm run dev:page",
+      "command": "pnpm.cmd run dev:page",
+      "options": {
+        "env": {
+          "CI": "true"
+        }
+      },
       "problemMatcher": []
     },
     {
       "label": "build",
       "type": "shell",
-      "command": "npm run build",
+      "command": "pnpm.cmd run build",
+      "options": {
+        "env": {
+          "CI": "true"
+        }
+      },
       "group": "build",
       "problemMatcher": "$tsc"
     },
     {
       "label": "lint",
       "type": "shell",
-      "command": "npm run lint",
+      "command": "pnpm.cmd run lint",
+      "options": {
+        "env": {
+          "CI": "true"
+        }
+      },
       "group": "test",
       "problemMatcher": "$eslint-stylish"
     },

@@ -83,9 +83,17 @@ const PortraitDetail: React.FC = () => {
   const handleExtractEvidence = async () => {
     const sourceId = parseInt(id || '', 10);
     if (!sourceId || Number.isNaN(sourceId)) return;
+    if (!data?.content?.trim()) {
+      message.warning('当前画像/图片描述不足，无法抽取');
+      return;
+    }
     setExtracting(true);
     try {
-      await extractEvidenceCardsResult({ sourceType: 'portrait', sourceId, save: true });
+      const result = await extractEvidenceCardsResult({ sourceType: 'portrait', sourceId, save: true });
+      if (result.saved.length === 0) {
+        message.info('当前画像/图片描述不足，无法抽取');
+        return;
+      }
       message.success('已生成 draft 证据，请审核后再用于文章生成');
       navigate('/knowledge/evidence-cards?status=draft');
     } catch (err: unknown) {

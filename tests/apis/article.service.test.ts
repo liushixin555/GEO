@@ -37,6 +37,55 @@ describe('ArticleServiceImpl', () => {
     jest.clearAllMocks();
   });
 
+  test('excludes failed generation articles from list by default', async () => {
+    const prisma = {
+      article: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0),
+      },
+    };
+    mockedGetPrisma.mockReturnValue(prisma);
+
+    await new ArticleServiceImpl().list(10, 1, 12, {
+      userId: 7,
+      role: 'sysadmin',
+    });
+
+    expect(prisma.article.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        projectId: 10,
+        deletedAt: null,
+        status: { not: 'generate_failed' },
+      }),
+    }));
+    expect(prisma.article.count).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        status: { not: 'generate_failed' },
+      }),
+    });
+  });
+
+  test('does not list failed generation articles even when requested explicitly', async () => {
+    const prisma = {
+      article: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0),
+      },
+    };
+    mockedGetPrisma.mockReturnValue(prisma);
+
+    await new ArticleServiceImpl().list(10, 1, 12, {
+      userId: 7,
+      role: 'sysadmin',
+    }, undefined, 'generate_failed');
+
+    expect(prisma.article.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        status: { not: 'generate_failed' },
+      }),
+    }));
+  });
+
   test('allows an author to approve their own pending article', async () => {
     const existing = makeArticle();
     const updated = makeArticle({ status: 'approved' });

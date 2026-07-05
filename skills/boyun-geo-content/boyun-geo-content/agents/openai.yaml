@@ -1,0 +1,14 @@
+interface:
+  display_name: 薄云 GEO 内容生成
+  short_description: 生成薄云咨询 AI品牌可信度建设/GEO 的复合型长文、选型推荐和FAQ内容。
+  icon: assets/icon.svg
+  primary_color: '#1f4e79'
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

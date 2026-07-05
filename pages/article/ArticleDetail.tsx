@@ -28,7 +28,7 @@ const ArticleDetail: React.FC = () => {
   const [contentMode, setContentMode] = useState<'preview' | 'edit'>(isNew ? 'edit' : 'preview');
   const [actualEvidence, setActualEvidence] = useState<ArticleEvidenceCard[]>([]);
   const [evidenceLoading, setEvidenceLoading] = useState(false);
-  const [evidenceSupportNeeded, setEvidenceSupportNeeded] = useState(false);
+  const [evidenceError, setEvidenceError] = useState('');
   const [generationDebug, setGenerationDebug] = useState<any | null>(null);
 
   const detail = useArticleDetail(id, projectId, isNew, form);
@@ -83,20 +83,23 @@ const ArticleDetail: React.FC = () => {
     if (isNew || !id || !projectId || !detail.article) return;
     if (detail.article.evidenceCards?.length) {
       setActualEvidence(detail.article.evidenceCards);
-      setEvidenceSupportNeeded(false);
+      setEvidenceError('');
       return;
     }
     setEvidenceLoading(true);
-    setEvidenceSupportNeeded(false);
+    setEvidenceError('');
     apiClient.get(`/projects/${projectId}/articles/${id}/evidence-cards`)
       .then((res) => {
         const payload = res.data?.data;
         const list = Array.isArray(payload?.list) ? payload.list : Array.isArray(payload) ? payload : [];
         setActualEvidence(list);
       })
-      .catch(() => {
+      .catch((error) => {
         setActualEvidence([]);
-        setEvidenceSupportNeeded(true);
+        const status = error?.response?.status;
+        setEvidenceError(status === 404
+          ? '文章证据查询接口暂不可用，请重新构建并启动后端。'
+          : '文章证据读取失败，请确认登录状态、项目权限和后端服务状态。');
       })
       .finally(() => setEvidenceLoading(false));
   }, [detail.article, id, isNew, projectId]);
@@ -228,12 +231,12 @@ const ArticleDetail: React.FC = () => {
   const evidenceTab = (
     <>
       <Alert
-        type={evidenceSupportNeeded ? 'warning' : 'info'}
+        type={evidenceError ? 'warning' : actualEvidence.length > 0 ? 'success' : 'info'}
         showIcon
         style={{ marginBottom: 12 }}
-        message={evidenceSupportNeeded
-          ? '当前后端暂未提供文章证据查询接口，前端已预留展示区。建议补充 GET /api/v1/projects/:projectId/articles/:articleId/evidence-cards。'
-          : '这里展示文章生成时实际写入 ArticleEvidenceCard 且 usageType 为 injected 的证据。'}
+        message={evidenceError || (actualEvidence.length > 0
+          ? `本文生成时实际注入了 ${actualEvidence.length} 条证据，可用于回看当时进入 prompt 的证据快照。`
+          : '暂无实际注入证据。请先创建并审核 verified 证据卡片，再重新生成文章，后端会实时检索并写入 ArticleEvidenceCard。')}
       />
       {generationDebug?.evidenceStats && (
         <Space size={8} wrap style={{ marginBottom: 12 }}>
@@ -267,7 +270,7 @@ const ArticleDetail: React.FC = () => {
         <List
           size="small"
           dataSource={actualEvidence}
-          locale={{ emptyText: evidenceSupportNeeded ? '等待后端接口支持' : '暂无实际注入证据' }}
+          locale={{ emptyText: evidenceError ? '证据读取失败' : '暂无实际注入证据' }}
           renderItem={(item) => {
             const card = item.evidenceCard;
             const snapshot = item.evidenceSnapshot;

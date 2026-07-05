@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { App, Button, DatePicker, Modal, Radio, Space, Typography } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../../lib/apiClient';
@@ -6,6 +6,8 @@ import { getApiErrorMessage } from '../../utils/error';
 
 type ScheduleType = 'scheduled' | 'after';
 type AutoPublishStrategy = 'round_robin' | 'random';
+
+const defaultScheduleDate = () => dayjs().format('YYYY-MM-DD HH:mm');
 
 interface AutoPublishModalProps {
   open: boolean;
@@ -19,7 +21,13 @@ const AutoPublishModal: React.FC<AutoPublishModalProps> = ({ open, articleIds, o
   const [submitting, setSubmitting] = useState(false);
   const [strategy, setStrategy] = useState<AutoPublishStrategy>('round_robin');
   const [scheduleType, setScheduleType] = useState<ScheduleType>('after');
-  const [scheduleDate, setScheduleDate] = useState<string | null>(() => dayjs().add(1, 'day').format('YYYY-MM-DD HH:mm'));
+  const [scheduleDate, setScheduleDate] = useState<string | null>(() => defaultScheduleDate());
+
+  useEffect(() => {
+    if (open) {
+      setScheduleDate(defaultScheduleDate());
+    }
+  }, [open]);
 
   const handleSubmit = async () => {
     if (articleIds.length === 0) {

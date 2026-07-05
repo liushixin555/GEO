@@ -7,16 +7,23 @@ const files = [
   'apis/scheduler/citation-diagnosis.scheduler.ts',
   'apis/utils/citation-collector.util.ts',
   'apis/utils/citation-question-bank.util.ts',
+  'apis/service/impl/publishing-order-sync.service.impl.ts',
   'pages/citation-diagnosis/index.tsx',
 ];
 
 const mojibakePatterns = [
+  '寮曟敤',
   '寮曠敤',
   '璇婃柇',
   '鏂囩珷',
   '鍙戝竷',
   '鎼滅储',
   '澶辫触',
+  '鐠囧',
+  '閺傚',
+  '閸欐',
+  '閹兼',
+  '婢惰',
   '锟',
   '�',
 ];

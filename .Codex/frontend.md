@@ -37,3 +37,35 @@
 - 画像和图片材料可在 `KnowledgeBaseDetail` 列表/卡片操作区，以及 `PortraitDetail` / `ImageDetail` 标题区触发“抽取证据”。
 - 第一版前端直接调用 `POST /api/v1/evidence-cards/extract` 且 `save=true`，成功后提示“已生成 draft 证据，请审核后再用于文章生成”，并跳转 `/knowledge/evidence-cards?status=draft`。
 - `EvidenceCardList` 需要支持 URL 初始化 `status=draft`，并展示 `sourceType/sourceId/sourceUrl` 方便人工审核来源。
+
+## 2026-06-30 EvidenceCard V1.1.1 前端验收规则
+
+- 前端应把 LLM 抽取结果呈现为“候选”，不能在文案或交互上暗示候选已经审核通过。
+- 抽取预览调用 `save=false` 时必须保持无副作用；保存草稿调用 `save=true` 时也只能得到 `draft`，UI 不得提供直接变为 `verified` 的快捷路径。
+- 候选预览需展示 title、content、evidenceType、sourceType、sourceQuality、keywords、articleTypes、warnings、extractionReason，方便人工判断是否保留。
+- portrait/image 抽取入口只对 sysadmin/admin 展示；成功后跳转 `/knowledge/evidence-cards?status=draft` 进入人工审核。
+- portrait/image 前端入口只发送 sourceId 和来源类型，不应上传或拼接文本字段之外的推导事实。
+- 第一批真实材料验收时，前端目标是辅助人工从 30 条原始材料筛出 20 条 verified，并支持后续 3-5 篇文章重生成检查，不是扩大自动来源范围。
+## 2026-07-01 引用诊断前端编码
+
+- `/citation-diagnosis` 隐藏后台所有页面文案、状态标签、筛选占位、详情抽屉、CSV 表头和导出文件名必须保持正常 UTF-8 中文。
+- 前端导出文件名涉及日期时使用 `pages/utils/date.ts` 的 `formatDate` / `formatDateTime`，避免直接用本地时区日期方法。
+- 引用诊断页面继续使用 Ant Design 组件；乱码修复不应引入原生表单/表格替代 antd 组件。
+
+## 2026-07-01 检测台账可视化
+
+- `/citation-diagnosis` 面向非技术人员时，列表层必须直观显示发布链接、引用模型和命中次数，详情层展示检测问题、AI 回答、引用来源和命中片段。
+- 详情抽屉调用 `GET /api/v1/citation-diagnosis/ledger/:articleId/details`；接口失败或暂无数据时展示“暂无检测详情”，不能影响台账列表、搜索、导出和复检。
+- 页面级高度继续使用 flex 链和分页控制数据量，不使用 antd Table 的纵向滚动配置。
+
+## 2026-07-01 V1.2 引用检测台账交接
+
+- `/citation-diagnosis` 台账列表需要把发布链接、引用模型、命中次数作为第一眼信息；不要只展示技术字段或内部 run 统计。
+- 详情抽屉应优先展示后端返回的 source 快照，包括检测问题、AI 回答、引用来源、引用片段和命中片段；不要在前端重新推断命中。
+- 详情失败、暂无数据、skipped/error run 都应降级展示，不得影响列表、分页、搜索、导出和手动复检。
+- CSV 导出字段、文件名和页面文案必须保持 UTF-8 中文；日期继续使用 `pages/utils/date.ts` 格式化。
+
+## 2026-07-01 文章详情历史数据兼容
+
+- 文章详情页读取 `Article.portrait` 时必须兼容历史 plain-text 字符串、JSON 字符串和 JSON 字符串数组；不得因为 `portrait` 不是 JSON 数组导致整页加载失败。
+- 历史自测数据可能存在 `????` 这类中文转码污染，前端应保证可查看文章正文，数据清洗另行处理。

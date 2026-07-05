@@ -257,11 +257,19 @@ const KnowledgeBaseDetail: React.FC = () => {
     } catch (err: unknown) { message.error(getApiErrorMessage(err, '删除失败')); }
   };
 
-  const handleExtractEvidence = async (sourceType: 'portrait' | 'image', sourceId: number) => {
+  const handleExtractEvidence = async (sourceType: 'portrait' | 'image', sourceId: number, hasExtractableText: boolean) => {
+    if (!hasExtractableText) {
+      message.warning('当前画像/图片描述不足，无法抽取');
+      return;
+    }
     const key = `${sourceType}-${sourceId}`;
     setExtractingEvidenceKey(key);
     try {
-      await extractEvidenceCardsResult({ sourceType, sourceId, save: true });
+      const result = await extractEvidenceCardsResult({ sourceType, sourceId, save: true });
+      if (result.saved.length === 0) {
+        message.info('当前画像/图片描述不足，无法抽取');
+        return;
+      }
       message.success('已生成 draft 证据，请审核后再用于文章生成');
       navigate('/knowledge/evidence-cards?status=draft');
     } catch (err: unknown) {
@@ -385,7 +393,7 @@ const KnowledgeBaseDetail: React.FC = () => {
                 size="small"
                 icon={<AuditOutlined />}
                 loading={extractingEvidenceKey === `portrait-${record.id}`}
-                onClick={() => handleExtractEvidence('portrait', record.id)}
+                onClick={() => handleExtractEvidence('portrait', record.id, Boolean(record.content?.trim()))}
                 style={{ color: 'var(--color-primary, #0f62fe)' }}
               />
             )}
@@ -446,7 +454,7 @@ const KnowledgeBaseDetail: React.FC = () => {
                 size="small"
                 icon={<AuditOutlined />}
                 loading={extractingEvidenceKey === `image-${record.id}`}
-                onClick={() => handleExtractEvidence('image', record.id)}
+                onClick={() => handleExtractEvidence('image', record.id, Boolean(record.description?.trim()))}
                 style={{ color: 'var(--color-primary, #0f62fe)' }}
               />
             )}
@@ -603,7 +611,7 @@ const KnowledgeBaseDetail: React.FC = () => {
                           size="small"
                           icon={<AuditOutlined />}
                           loading={extractingEvidenceKey === `portrait-${item.id}`}
-                          onClick={(e) => { e.stopPropagation(); handleExtractEvidence('portrait', item.id); }}
+                          onClick={(e) => { e.stopPropagation(); handleExtractEvidence('portrait', item.id, Boolean(item.content?.trim())); }}
                           style={{ color: 'var(--color-primary, #0f62fe)' }}
                         />
                       )}
@@ -682,7 +690,7 @@ const KnowledgeBaseDetail: React.FC = () => {
                         size="small"
                         icon={<AuditOutlined />}
                         loading={extractingEvidenceKey === `image-${item.id}`}
-                        onClick={(e) => { e.stopPropagation(); handleExtractEvidence('image', item.id); }}
+                        onClick={(e) => { e.stopPropagation(); handleExtractEvidence('image', item.id, Boolean(item.description?.trim())); }}
                         style={{ color: 'var(--color-primary, #0f62fe)' }}
                       />
                     )}

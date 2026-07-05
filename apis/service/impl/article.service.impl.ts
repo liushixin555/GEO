@@ -71,8 +71,10 @@ export class ArticleServiceImpl implements IArticleService {
     if (search) {
       where.keywords = { contains: search, mode: 'insensitive' };
     }
-    if (status) {
+    if (status && status !== 'generate_failed') {
       where.status = status;
+    } else {
+      where.status = { not: 'generate_failed' };
     }
 
     if (auth.role === 'admin' && auth.userId) {

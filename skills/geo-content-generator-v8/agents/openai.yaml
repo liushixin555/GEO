@@ -1,0 +1,5 @@
+interface:
+  display_name: "GEO Content Generator"
+  short_description: "Generate Chinese GEO articles with five reusable article patterns."
+  icon: "✍️"
+  brand_color: "#1E3A8A"

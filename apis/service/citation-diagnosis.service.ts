@@ -8,9 +8,15 @@ export interface PublishedArticleLinkInput {
 export interface CitationDetectionSourceInput {
   url: string;
   title?: string | null;
+  answer_snippet?: string | null;
+  citation_snippet?: string | null;
+  source_index?: number | null;
+  raw_source?: unknown;
 }
 
 export interface CitationDetectionRunInput {
+  article_id?: number | null;
+  article_link_id?: number | null;
   project_id?: number | null;
   model_name: string;
   prompt?: string | null;
@@ -21,6 +27,7 @@ export interface CitationDetectionRunInput {
 export interface CitationAutoRunInput {
   project_id?: number | null;
   article_ids?: number[];
+  article_link_ids?: number[];
   limit?: number;
   question_count?: number;
   platforms?: string[];
@@ -46,6 +53,7 @@ export interface ICitationDiagnosisService {
   createDetectionRun(input: CitationDetectionRunInput, auth: CitationDiagnosisAuth): Promise<any>;
   runAutomaticDetection(input: CitationAutoRunInput, auth: CitationDiagnosisAuth): Promise<any>;
   listLedger(params: CitationDiagnosisListParams, auth: CitationDiagnosisAuth): Promise<{ list: any[]; total: number }>;
+  getLedgerDetails(articleId: number, auth: CitationDiagnosisAuth): Promise<any>;
   listDetectionRuns(params: CitationDiagnosisListParams, auth: CitationDiagnosisAuth): Promise<{ list: any[]; total: number }>;
   listMarks(params: CitationDiagnosisListParams, auth: CitationDiagnosisAuth): Promise<{ list: any[]; total: number }>;
 }
