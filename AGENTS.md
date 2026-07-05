@@ -300,6 +300,12 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 - 引用检测来源必须是可作为引用依据的公开网页 URL；软盟后台链接、图片 CDN 和静态资源 URL 不得作为 `ai_citation_records` 来源入库。
 - 命中仍只能按标准化 URL 匹配 `published_article_links`；模型回答只提到标题、品牌名、摘要或非 URL “参考”文本时不得计为命中。
 
+## 2026-07-05 引用检测模型 temperature 兼容补充
+
+- 引用检测默认请求体保持标准 OpenAI chat completions 字段和 `temperature=0.2`。
+- 如果模型明确返回 `invalid temperature` 且只允许 `1`，采集器允许对同一次请求重试一次 `temperature=1`。
+- 该重试只解决模型调用兼容问题；引用命中仍必须按标准化 URL 匹配 `published_article_links.normalized_url`，不能把标题、品牌名或摘要提及算作命中。
+
 ## 2026-07-05 Raw SQL JOIN 字段限定补充
 
 - Prisma `$queryRaw` 中只要使用 JOIN，SELECT / ORDER BY / WHERE 的 `id`、`created_at`、`updated_at` 等常见重复字段必须显式加表别名，避免 PostgreSQL `42702` 字段歧义。

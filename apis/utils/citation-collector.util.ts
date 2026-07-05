@@ -39,6 +39,8 @@ const DEFAULT_PLATFORMS: CitationPlatform[] = ['DeepSeek', '豆包', '元宝', '
 const GEO_MONITOR_CONFIG = path.join('geo-monitorv12', 'GEO', 'geo_monitor_v8_package 2', 'config.py');
 const BLOCKED_SOURCE_DOMAINS = ['byteimg.com'];
 const STATIC_SOURCE_EXTENSIONS = /\.(?:avif|bmp|gif|ico|jpe?g|png|svg|webp|css|js|mjs|map|mp3|mp4|pdf|woff2?|ttf|eot)$/i;
+const DEFAULT_TEMPERATURE = 0.2;
+const STRICT_TEMPERATURE = 1;
 
 const fallbackVarMap: Record<CitationPlatform, { key: string; url: string; model: string }> = {
   DeepSeek: { key: 'DEEPSEEK_API_KEY', url: 'DEEPSEEK_URL', model: 'DEEPSEEK_MODEL' },
@@ -323,7 +325,7 @@ export function extractCitationSourcesForTest(responseData: any, answer = ''): C
   return extractSources(responseData, answer);
 }
 
-function buildRequest(config: CitationModelConfig, prompt: string) {
+function buildRequest(config: CitationModelConfig, prompt: string, temperature = DEFAULT_TEMPERATURE) {
   const body: Record<string, unknown> = {
     model: config.modelName,
     messages: [
@@ -334,7 +336,7 @@ function buildRequest(config: CitationModelConfig, prompt: string) {
       { role: 'user', content: prompt },
     ],
     max_tokens: 4096,
-    temperature: 0.2,
+    temperature,
     stream: false,
   };
 
@@ -355,6 +357,41 @@ function errorDetail(data: unknown): string {
   } catch {
     return '';
   }
+}
+
+function requiresStrictTemperature(err: any): boolean {
+  if (err?.response?.status !== 400) return false;
+  const detail = `${errorDetail(err?.response?.data)} ${err?.message || ''}`.toLowerCase();
+  return detail.includes('invalid temperature') && detail.includes('only 1');
+}
+
+async function postCitationRequest(
+  config: CitationModelConfig,
+  prompt: string,
+  temperature = DEFAULT_TEMPERATURE
+): Promise<CitationCollectResult> {
+  const request = buildRequest(config, prompt, temperature);
+  const response = await axios.post(request.url, request.body, {
+    headers: headers(config.apiKey),
+    timeout: 120000,
+  });
+  const answer = extractAnswer(response.data);
+  return {
+    platform: config.provider,
+    model_name: config.key,
+    prompt,
+    answer,
+    sources: extractSources(response.data, answer),
+    status: 'success',
+  };
+}
+
+function errorResult(config: CitationModelConfig, prompt: string, err: any): CitationCollectResult {
+  const detail = errorDetail(err?.response?.data);
+  const status = err?.response?.status
+    ? `HTTP ${err.response.status}${detail ? `: ${detail}` : ''}`
+    : err?.message || '调用失败';
+  return { platform: config.provider, model_name: config.key, prompt, answer: '', sources: [], status: 'error', error: status };
 }
 
 export function normalizeCitationPlatforms(platforms?: string[]): CitationPlatform[] {
@@ -381,26 +418,16 @@ export async function collectCitationSourcesForModel(
   config: CitationModelConfig,
   prompt: string
 ): Promise<CitationCollectResult> {
-  const request = buildRequest(config, prompt);
   try {
-    const response = await axios.post(request.url, request.body, {
-      headers: headers(config.apiKey),
-      timeout: 120000,
-    });
-    const answer = extractAnswer(response.data);
-    return {
-      platform: config.provider,
-      model_name: config.key,
-      prompt,
-      answer,
-      sources: extractSources(response.data, answer),
-      status: 'success',
-    };
+    return await postCitationRequest(config, prompt);
   } catch (err: any) {
-    const detail = errorDetail(err?.response?.data);
-    const status = err?.response?.status
-      ? `HTTP ${err.response.status}${detail ? `: ${detail}` : ''}`
-      : err?.message || '调用失败';
-    return { platform: config.provider, model_name: config.key, prompt, answer: '', sources: [], status: 'error', error: status };
+    if (requiresStrictTemperature(err)) {
+      try {
+        return await postCitationRequest(config, prompt, STRICT_TEMPERATURE);
+      } catch (retryErr: any) {
+        return errorResult(config, prompt, retryErr);
+      }
+    }
+    return errorResult(config, prompt, err);
   }
 }

@@ -241,6 +241,52 @@ describe('citation collector model calls', () => {
     expect(result.error).toContain('HTTP 400');
     expect(result.error).toContain('unsupported field enable_search');
   });
+
+  it('retries with temperature 1 when a provider rejects other temperature values', async () => {
+    mockedAxios.post
+      .mockRejectedValueOnce({
+        response: {
+          status: 400,
+          data: {
+            error: {
+              message: 'invalid temperature: only 1 is allowed for this model',
+            },
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          choices: [
+            {
+              message: {
+                content: '参考来源：https://example.com/kimi',
+              },
+            },
+          ],
+        },
+      });
+
+    const result = await collectCitationSourcesForModel(
+      {
+        id: 8,
+        provider: 'KiMi',
+        modelName: 'kimi-k2.5',
+        baseUrl: 'https://api.moonshot.cn/v1',
+        apiKey: 'kimi-key',
+        key: 'KiMi:kimi-k2.5',
+      },
+      '请回答',
+    );
+
+    expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+    expect((mockedAxios.post.mock.calls[0][1] as Record<string, unknown>).temperature).toBe(0.2);
+    expect((mockedAxios.post.mock.calls[1][1] as Record<string, unknown>).temperature).toBe(1);
+    expect(result).toMatchObject({
+      model_name: 'KiMi:kimi-k2.5',
+      status: 'success',
+      answer: '参考来源：https://example.com/kimi',
+    });
+  });
 });
 
 describe('citation collector source extraction', () => {

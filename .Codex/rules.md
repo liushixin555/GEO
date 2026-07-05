@@ -184,3 +184,8 @@
 
 ## 2026-07-05 引用来源 URL 清洗规则
 - `ai_citation_records.source_url` 入库前必须清理 markdown 列表尾巴、换行转义和智能引号，避免 `https://domain\n-`、`https://domain”` 这类脏 URL 污染台账。
+
+## 2026-07-05 引用检测模型 temperature 兼容规则
+- 引用检测默认请求体保持标准 OpenAI chat completions 字段和 `temperature=0.2`。
+- 若模型明确返回 `invalid temperature` 且只允许 `1`，采集器可以对同一次请求重试一次 `temperature=1`。
+- 该重试只解决模型参数兼容问题；命中仍必须按标准化 URL 匹配发布链接，不能把文本提及算作命中。

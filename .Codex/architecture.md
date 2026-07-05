@@ -141,3 +141,8 @@
 - `PublishingOrderSyncServiceImpl.syncAllPendingOrders()` 现在扫描两类订单：`rm_status = 0` 的处理中订单，以及近 7 天内还没有公开发布链接的订单。
 - 订单同步负责清理 `ruan.net` 内部稿件链接，并从软盟响应的 URL 字段、`response_message` 或完整响应体中提取第一个非内部公开 URL 写入 `published_article_links`。
 - 软盟返回非 0 状态但没有公开 URL 时不视为系统失败；台账保持“待补发布链接”，后续定时任务继续轮询。
+
+## 2026-07-05 引用检测模型参数兼容
+- `collectCitationSourcesForModel()` 默认以 `temperature=0.2` 请求 OpenAI 兼容 chat completions。
+- 当 provider 明确以 HTTP 400 返回 `invalid temperature` 且提示只允许 `1` 时，采集器只对该调用重试一次 `temperature=1`。
+- 模型调用失败只写入当前 run 的 `error` 状态，不中断同批次其他模型；命中统计仍由 `ai_citation_records.matched` 和 `article_model_citation_marks` 决定。

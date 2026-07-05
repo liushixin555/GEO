@@ -112,6 +112,12 @@
 - 关联文件：`apis/service/impl/publishing-order-sync.service.impl.ts`、`tests/apis/publishing-order-sync.service.test.ts`
 - 详情：`tasks/progress_tasks/2026-07-03-publishing-link-sync-late-url.md`
 
+## 2026-07-05 引用检测模型 temperature 兼容
+- 编号：fix-20260705-citation-temperature-retry
+- 标题：部分 OpenAI 兼容模型只允许 `temperature=1`，导致引用检测返回 HTTP 400
+- 关联文件：`apis/utils/citation-collector.util.ts`、`tests/apis/citation-collector.util.test.ts`
+- 详情：`tasks/progress_tasks/2026-07-05-citation-temperature-retry.md`
+
 ## 2026-07-05 检测台账列表缺少检测情况
 - 编号：fix-20260705-citation-ledger-detection-status
 - 标题：检测管理列表只展示命中标记，已检测但未命中的文章被误认为没有检测
