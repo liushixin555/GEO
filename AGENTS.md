@@ -319,3 +319,8 @@ Monorepo with two TypeScript projects sharing the root `package.json`:
 ## 2026-07-05 引用来源 URL 清洗补充
 
 - `ai_citation_records.source_url` 入库前必须清理 markdown 列表尾巴、换行转义和智能引号，避免 `https://domain\n-`、`https://domain”` 这类脏 URL 污染台账。
+## 2026-07-06 GitHub 交接上传补充
+
+- 用户明确要求上传到 `https://github.com/liushixin555/GEO` 时，可以推送到 `github` 远端；未明确要求推送时仍只做本地 commit。
+- 交接提交默认不纳入本地运行日志、上传缓存、生成稿、误生成空文件和 `.agents/` 未跟踪内容。
+- `.agents/` 目录继续作为只读参考资源，禁止修改、删除或测试。

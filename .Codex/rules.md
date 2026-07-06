@@ -189,3 +189,8 @@
 - 引用检测默认请求体保持标准 OpenAI chat completions 字段和 `temperature=0.2`。
 - 若模型明确返回 `invalid temperature` 且只允许 `1`，采集器可以对同一次请求重试一次 `temperature=1`。
 - 该重试只解决模型参数兼容问题；命中仍必须按标准化 URL 匹配发布链接，不能把文本提及算作命中。
+## 2026-07-06 GitHub 交接上传规则
+
+- 用户明确要求上传到 `https://github.com/liushixin555/GEO` 时，可以将当前交接分支推送到 `github` 远端。
+- 交接提交只纳入源码、配置和交接记录；`tmp/`、`skills/output/`、误生成文件和 `.agents/` 未跟踪内容不作为默认交接提交范围。
+- `.agents/` 仍按只读参考资源处理，禁止修改、删除或测试。
